@@ -11,13 +11,13 @@
   </p>
 
   <p>
-    <a href="https://github.com/codeineXO/NuvioDesktop/releases/latest">
-      <img src="https://img.shields.io/github/v/release/codeineXO/NuvioDesktop?style=for-the-badge&logo=github&color=blue" alt="Latest Release" />
+    <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
+      <img src="https://img.shields.io/github/v/release/codeineXO/NuvioCodeineXO?style=for-the-badge&logo=github&color=blue" alt="Latest Release" />
     </a>
-    <a href="https://github.com/codeineXO/NuvioDesktop/tree/NuvioCodeineXO">
+    <a href="https://github.com/codeineXO/NuvioCodeineXO/tree/NuvioCodeineXO">
       <img src="https://img.shields.io/badge/Branch-NuvioCodeineXO-green.svg?style=for-the-badge&logo=git" alt="Branch" />
     </a>
-    <a href="https://github.com/codeineXO/NuvioDesktop/blob/NuvioCodeineXO/LICENSE">
+    <a href="https://github.com/codeineXO/NuvioCodeineXO/blob/NuvioCodeineXO/LICENSE">
       <img src="https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=for-the-badge" alt="License" />
     </a>
   </p>
@@ -50,9 +50,9 @@
 
 No installation or runtime setup needed. Download the latest portable build:
 
-👉 **[Download Latest Release (.zip)](https://github.com/codeineXO/NuvioDesktop/releases/latest)**
+👉 **[Download Latest Release (.zip)](https://github.com/codeineXO/NuvioCodeineXO/releases/latest)**
 
-1. Download and extract the `.zip` archive from the [Latest Release](https://github.com/codeineXO/NuvioDesktop/releases/latest).
+1. Download and extract the `.zip` archive from the [Latest Release](https://github.com/codeineXO/NuvioCodeineXO/releases/latest).
 2. Open the `NuvioCodeineXO` folder and run `Nuvio.exe`.
 
 ---
@@ -65,8 +65,8 @@ No installation or runtime setup needed. Download the latest portable build:
 
 ```powershell
 # Clone the branch
-git clone -b NuvioCodeineXO https://github.com/codeineXO/NuvioDesktop.git
-cd NuvioDesktop
+git clone -b NuvioCodeineXO https://github.com/codeineXO/NuvioCodeineXO.git
+cd NuvioCodeineXO
 
 # Run the desktop app
 .\gradlew.bat :composeApp:run
