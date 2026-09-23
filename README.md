@@ -54,21 +54,6 @@ No installation or runtime setup needed. Download the latest portable build:
 
 1. Download and extract the `.zip` archive from the [Latest Release](https://github.com/codeineXO/NuvioCodeineXO/releases/latest).
 2. Open the `NuvioCodeineXO` folder and run `Nuvio.exe`.
-
----
-
-## 💻 Building from Source
-
-### Prerequisites
-- JDK 21 (Eclipse Temurin recommended)
-- Git
-
-```powershell
-# Clone the branch
-git clone -b NuvioCodeineXO https://github.com/codeineXO/NuvioCodeineXO.git
-cd NuvioCodeineXO
-
-# Run the desktop app
 .\gradlew.bat :composeApp:run
 
 # Package standalone distribution
