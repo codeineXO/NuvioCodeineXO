@@ -54,7 +54,3 @@ No installation or runtime setup needed. Download the latest portable build:
 
 1. Download and extract the `.zip` archive from the [Latest Release](https://github.com/codeineXO/NuvioCodeineXO/releases/latest).
 2. Open the `NuvioCodeineXO` folder and run `Nuvio.exe`.
-.\gradlew.bat :composeApp:run
-
-# Package standalone distribution
-.\gradlew.bat :composeApp:createDistributable
