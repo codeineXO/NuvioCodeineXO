@@ -4,135 +4,72 @@
   <br />
   <br />
 
-  [![Contributors][contributors-shield]][contributors-url]
-  [![Forks][forks-shield]][forks-url]
-  [![Stargazers][stars-shield]][stars-url]
-  [![Issues][issues-shield]][issues-url]
-  [![License][license-shield]][license-url]
+  <h1>Nuvio Desktop — CodeineXO Edition</h1>
 
   <p>
-    A desktop media app for Windows, macOS, and Linux.
-    <br />
-    Browse, organize, and play media from sources you add.
+    An enhanced branch of Nuvio Desktop featuring native P2P streaming, smoother seeking, deep subtitle styling, and isolated profile storage.
+  </p>
+
+  <p>
+    <a href="https://github.com/codeineXO/NuvioDesktop/releases/latest">
+      <img src="https://img.shields.io/github/v/release/codeineXO/NuvioDesktop?style=for-the-badge&logo=github&color=blue" alt="Latest Release" />
+    </a>
+    <a href="https://github.com/codeineXO/NuvioDesktop/tree/NuvioCodeineXO">
+      <img src="https://img.shields.io/badge/Branch-NuvioCodeineXO-green.svg?style=for-the-badge&logo=git" alt="Branch" />
+    </a>
+    <a href="https://github.com/codeineXO/NuvioDesktop/blob/NuvioCodeineXO/LICENSE">
+      <img src="https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=for-the-badge" alt="License" />
+    </a>
   </p>
 
 </div>
 
-## ⚠️ Alpha Software - Slow Development - Testers Only
+---
 
-Nuvio Desktop is currently in alpha and is intended only for testers. It is under development and is not suitable for daily use.
+## ⚡ Key Enhancements in this Branch
 
-Expect breaking changes with every update. Features, settings, stored data, and compatibility may change or stop working without notice. Do not rely on this build as your primary media app, and report any issues you encounter during testing.
+- **🎨 Deep Subtitle Customization:**
+  - **10 Universal Fonts:** Trebuchet MS, Segoe UI, Impact, Georgia, Arial, Consolas, and more with instant Skia typeface resolution.
+  - **Outline Styles:** Choose from *Classic Outline*, *Drop Shadow*, *Soft Glow* (true blur halo), *Outline + Shadow*, and *Background Box*.
+  - **Thickness Slider & Color Pickers:** Fine-tune borders (0–10 px) and pick custom colors for text, stroke, shadows, and boxes.
+  - **Java 21 FFM MPV Bridge:** Direct runtime communication with the internal `libmpv-2` core so all styling updates instantly in video playback.
 
-## About
+- **🚀 Better P2P Streaming:**
+  - Native NuvioEngine backend integrated alongside TorrServer for faster piece buffering, reduced connection overhead, and smoother torrent/debrid playback.
+  - Configurable streaming buffer presets for varying connection speeds.
 
-Nuvio Desktop is a media client for browsing metadata, managing collections and watch progress, downloading media, and playing streams from user-installed extensions or user-provided sources.
+- **⏩ Smoother Seeking & Playback:**
+  - Fine-seek optimizations eliminating frame replay stutter and unwanted keyframe snaps when jumping through video timelines.
 
-## Installation
+- **📁 Profile & Storage Isolation:**
+  - Runs out of a dedicated `NuvioCodeineXO` AppData profile so your settings, cache, and watch progress never interfere with upstream Nuvio installations.
 
-Download the latest desktop build from [GitHub Releases](https://github.com/NuvioMedia/NuvioDesktop/releases/latest).
+---
 
-Release packages are provided for supported desktop platforms:
+## 📦 Quick Start (Portable Windows Build)
 
-- Windows: MSI installer
-- macOS: DMG installer
-- Linux: DEB, RPM, FLATPAK and AppImage available.
+No installation or runtime setup needed. Download the latest portable build:
 
-## Development
+👉 **[Download Latest Release (.zip)](https://github.com/codeineXO/NuvioDesktop/releases/latest)**
 
-```bash
-git clone https://github.com/NuvioMedia/NuvioDesktop.git
-cd NuvioDesktop
-```
+1. Download and extract the `.zip` archive from the [Latest Release](https://github.com/codeineXO/NuvioDesktop/releases/latest).
+2. Open the `NuvioCodeineXO` folder and run `Nuvio.exe`.
 
-Run from source:
+---
 
-```bash
-./gradlew :composeApp:run
-```
+## 💻 Building from Source
 
-On Windows PowerShell:
+### Prerequisites
+- JDK 21 (Eclipse Temurin recommended)
+- Git
 
 ```powershell
+# Clone the branch
+git clone -b NuvioCodeineXO https://github.com/codeineXO/NuvioDesktop.git
+cd NuvioDesktop
+
+# Run the desktop app
 .\gradlew.bat :composeApp:run
-```
 
-Build a release package for the current host:
-
-```bash
-./gradlew :composeApp:packageReleaseDistributionForCurrentOS
-```
-
-Platform-specific packaging:
-
-```bash
-# Windows
-./gradlew :composeApp:packageReleaseMsi --rerun-tasks
-
-# macOS
-./scripts/build-macos-release-dmgs.sh --package-only
-
-# Linux
-./gradlew :composeApp:packageReleaseDeb
-```
-
-## Project Structure
-
-- `composeApp/` contains the app code.
-- `composeApp/src/commonMain/` contains shared UI, features, repositories, and platform-agnostic logic.
-- `composeApp/src/desktopMain/` contains desktop-specific integrations.
-- `composeApp/Configuration/DesktopVersion.properties` contains the desktop release version and build code.
-
-## Versioning
-
-Desktop versions are set in `composeApp/Configuration/DesktopVersion.properties`.
-
-```properties
-VERSION_NAME=0.1.1-alpha
-VERSION_CODE=1
-```
-
-Use the version helper when changing desktop release versions:
-
-```bash
-./scripts/set-version.sh --desktop 0.1.2-alpha --desktop-code 2
-./scripts/set-version.sh --show
-```
-
-## Legal & DMCA
-
-Nuvio functions solely as a client-side interface for browsing metadata and playing media provided by user-installed extensions and/or user-provided sources. It is intended for content the user owns or is otherwise authorized to access.
-
-Nuvio is not affiliated with any third-party extensions, catalogs, sources, or content providers. It does not host, store, or distribute any media content.
-
-For comprehensive legal information, including our full disclaimer, third-party extension policy, and DMCA/Copyright information, please visit our [Legal & Disclaimer Page](https://nuvioapp.space/legal).
-
-## Built With
-
-- Kotlin Multiplatform
-- Compose Multiplatform
-- Kotlin
-- Compose Desktop packaging
-- Native desktop player integrations
-
-## Star History
-
-<a href="https://www.star-history.com/#NuvioMedia/NuvioDesktop&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=NuvioMedia/NuvioDesktop&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=NuvioMedia/NuvioDesktop&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=NuvioMedia/NuvioDesktop&type=date&legend=top-left" />
- </picture>
-</a>
-
-<!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/NuvioMedia/NuvioDesktop.svg?style=for-the-badge
-[contributors-url]: https://github.com/NuvioMedia/NuvioDesktop/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/NuvioMedia/NuvioDesktop.svg?style=for-the-badge
-[forks-url]: https://github.com/NuvioMedia/NuvioDesktop/network/members
-[stars-shield]: https://img.shields.io/github/stars/NuvioMedia/NuvioDesktop.svg?style=for-the-badge
-[stars-url]: https://github.com/NuvioMedia/NuvioDesktop/stargazers
-[issues-shield]: https://img.shields.io/github/issues/NuvioMedia/NuvioDesktop.svg?style=for-the-badge
-[issues-url]: https://github.com/NuvioMedia/NuvioDesktop/issues
-[license-shield]: https://img.shields.io/github/license/NuvioMedia/NuvioDesktop.svg?style=for-the-badge
-[license-url]: https://github.com/NuvioMedia/NuvioDesktop/blob/main/LICENSE
+# Package standalone distribution
+.\gradlew.bat :composeApp:createDistributable
