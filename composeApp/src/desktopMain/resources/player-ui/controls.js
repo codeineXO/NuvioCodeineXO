@@ -137,6 +137,18 @@ const subtitleOutlineSatValue = document.getElementById("subtitleOutlineSatValue
 const subtitleOutlineBriSlider = document.getElementById("subtitleOutlineBriSlider");
 const subtitleOutlineBriValue = document.getElementById("subtitleOutlineBriValue");
 const subtitleOutlineHexInput = document.getElementById("subtitleOutlineHexInput");
+const fontLabel = document.getElementById("fontLabel");
+const fontMinus = document.getElementById("fontMinus");
+const fontValue = document.getElementById("fontValue");
+const fontPlus = document.getElementById("fontPlus");
+const outlineEffectLabel = document.getElementById("outlineEffectLabel");
+const outlineEffectMinus = document.getElementById("outlineEffectMinus");
+const outlineEffectValue = document.getElementById("outlineEffectValue");
+const outlineEffectPlus = document.getElementById("outlineEffectPlus");
+const outlineThicknessSection = document.getElementById("outlineThicknessSection");
+const outlineThicknessLabel = document.getElementById("outlineThicknessLabel");
+const outlineThicknessValue = document.getElementById("outlineThicknessValue");
+const outlineThicknessSlider = document.getElementById("subtitleOutlineThicknessSlider");
 const subtitleStyleReset = document.getElementById("subtitleStyleReset");
 const sourceModal = document.getElementById("sourceModal");
 const sourcePanelTitle = document.getElementById("sourcePanelTitle");
@@ -259,7 +271,10 @@ let state = {
   selectAddonSubtitleFirstLabel: "Select an addon subtitle first",
   loadingSubtitleLinesLabel: "Loading subtitle lines...",
   fontSizeLabel: "Font Size",
+  fontLabel: "Font",
+  outlineEffectLabel: "Outline Style",
   outlineLabel: "Outline",
+  outlineThicknessLabel: "Outline Thickness",
   boldLabel: "Bold",
   bottomOffsetLabel: "Bottom Offset",
   colorLabel: "Color",
@@ -361,6 +376,9 @@ let state = {
     bold: false,
     fontSizeSp: 18,
     bottomOffset: 20,
+    fontName: "Trebuchet MS",
+    outlineEffect: "outline",
+    outlineWidth: 2,
   },
   subtitleColorSwatches: [],
   subtitleOutlineColorSwatches: [],
@@ -369,6 +387,26 @@ let state = {
   notificationMessage: "",
   notificationToken: 0,
 };
+const SubtitleFontOptions = [
+  "Trebuchet MS",
+  "Segoe UI",
+  "Arial",
+  "Verdana",
+  "Tahoma",
+  "Calibri",
+  "Georgia",
+  "Impact",
+  "Comic Sans MS",
+  "Consolas"
+];
+const SubtitleOutlineEffects = [
+  { id: "outline", label: "Classic Outline" },
+  { id: "drop_shadow", label: "Drop Shadow" },
+  { id: "soft_glow", label: "Soft Glow" },
+  { id: "outline_shadow", label: "Outline + Shadow" },
+  { id: "background_box", label: "Background Box" },
+  { id: "none", label: "None" }
+];
 let isScrubbing = false;
 let scrubPositionMs = 0;
 let tapTimer = 0;
@@ -1466,9 +1504,30 @@ const renderSubtitleStylePanel = () => {
   customSubtitleStyleControls.setAttribute("aria-disabled", customStylingEnabled ? "false" : "true");
   fontSizeLabel.textContent = state.fontSizeLabel || "Font Size";
   fontSizeValue.textContent = `${Number(style.fontSizeSp) || 18}sp`;
+  if (fontLabel) fontLabel.textContent = state.fontLabel || "Font";
+  if (fontValue) {
+    const font = style.fontName || "Inter";
+    fontValue.textContent = font;
+    fontValue.style.fontFamily = `"${font}", sans-serif`;
+  }
   outlineLabel.textContent = state.outlineLabel || "Outline";
   outlineToggle.textContent = style.outlineEnabled ? (state.onLabel || "On") : (state.offLabel || "Off");
   outlineToggle.classList.toggle("primary", Boolean(style.outlineEnabled));
+  if (outlineEffectLabel) outlineEffectLabel.textContent = state.outlineEffectLabel || "Outline Style";
+  if (outlineEffectValue) {
+    const rawEffect = String(style.outlineEffect || "outline").toLowerCase();
+    const effect = SubtitleOutlineEffects.find(e => e.id === rawEffect || e.id === rawEffect.replace("_", "")) ||
+                   SubtitleOutlineEffects.find(e => e.id.toLowerCase() === rawEffect) ||
+                   SubtitleOutlineEffects[0];
+    outlineEffectValue.textContent = effect.label;
+  }
+  if (outlineThicknessLabel) outlineThicknessLabel.textContent = state.outlineThicknessLabel || "Outline Thickness";
+  if (outlineThicknessSection && outlineThicknessValue && outlineThicknessSlider) {
+    outlineThicknessSection.hidden = !style.outlineEnabled;
+    const thickness = Number(style.outlineWidth) || 2;
+    outlineThicknessValue.textContent = `${thickness} px`;
+    outlineThicknessSlider.value = String(thickness);
+  }
   boldLabel.textContent = state.boldLabel || "Bold";
   boldToggle.textContent = style.bold ? (state.onLabel || "On") : (state.offLabel || "Off");
   boldToggle.classList.toggle("primary", Boolean(style.bold));
@@ -2853,6 +2912,37 @@ outlineToggle.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleOutlineToggle", 0);
 });
+if (fontMinus) {
+  fontMinus.addEventListener("click", event => {
+    event.stopPropagation();
+    send("subtitleFontDelta", -1);
+  });
+}
+if (fontPlus) {
+  fontPlus.addEventListener("click", event => {
+    event.stopPropagation();
+    send("subtitleFontDelta", 1);
+  });
+}
+if (outlineEffectMinus) {
+  outlineEffectMinus.addEventListener("click", event => {
+    event.stopPropagation();
+    send("subtitleOutlineEffectDelta", -1);
+  });
+}
+if (outlineEffectPlus) {
+  outlineEffectPlus.addEventListener("click", event => {
+    event.stopPropagation();
+    send("subtitleOutlineEffectDelta", 1);
+  });
+}
+if (outlineThicknessSlider) {
+  outlineThicknessSlider.addEventListener("input", () => {
+    const val = Number(outlineThicknessSlider.value) || 2;
+    if (outlineThicknessValue) outlineThicknessValue.textContent = `${val} px`;
+    send("subtitleOutlineThickness", val);
+  });
+}
 boldToggle.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleBoldToggle", 0);

@@ -2333,6 +2333,14 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.stepper-value.wide {
+  min-width: 140px;
+}
+
+.stepper-value.extra-wide {
+  min-width: 160px;
+}
+
 .round-step {
   width: 40px;
   height: 40px;

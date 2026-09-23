@@ -21,6 +21,7 @@ import com.nuvio.app.features.player.SUBTITLE_DELAY_MAX_MS
 import com.nuvio.app.features.player.SUBTITLE_DELAY_MIN_MS
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
+import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.SubtitleTrack
 import com.nuvio.app.features.player.inferForcedSubtitleTrack
@@ -1077,17 +1078,43 @@ internal class NativePlayerController(
     }
 
     private fun applySubtitleStyle(handle: Long, style: SubtitleStyleState, useLibass: Boolean) {
+        val resolvedOutlineSize = when (style.outlineEffect) {
+            SubtitleOutlineEffect.NONE -> 0f
+            SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
+            SubtitleOutlineEffect.DROP_SHADOW -> 1f
+            SubtitleOutlineEffect.SOFT_GLOW -> (style.outlineWidth.toFloat() * 1.5f).coerceAtLeast(3f)
+            SubtitleOutlineEffect.OUTLINE,
+            SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f
+        }
+
+        val resolvedBackgroundColor = when (style.outlineEffect) {
+            SubtitleOutlineEffect.BACKGROUND_BOX -> {
+                if (style.backgroundColor.alpha == 0f) {
+                    androidx.compose.ui.graphics.Color(0, 0, 0, (0.65f * 255f).toInt()).toMpvColorString()
+                } else {
+                    style.backgroundColor.toMpvColorString()
+                }
+            }
+            else -> style.backgroundColor.toMpvColorString()
+        }
+
         NativePlayerBridge.applySubtitleStyle(
             handle = handle,
             textColor = style.textColor.toMpvColorString(),
-            backgroundColor = style.backgroundColor.toMpvColorString(),
+            backgroundColor = resolvedBackgroundColor,
             outlineColor = style.outlineColor.toMpvColorString(),
-            outlineSize = if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f,
+            outlineSize = resolvedOutlineSize,
             bold = style.bold,
             fontSize = style.toMpvSubtitleFontSize(),
             subPos = style.toMpvSubtitlePosition(),
             useLibass = useLibass,
             stripSdh = style.stripSdh,
+        )
+
+        WindowsMpvSubStyleHelper.applyExtendedSubtitleStyle(
+            bridgeHandle = handle,
+            style = style,
+            useLibass = useLibass,
         )
     }
 
@@ -1822,6 +1849,12 @@ private fun StringBuilder.appendSubtitleStyleJson(style: SubtitleStyleState) {
     appendJsonField("fontSizeSp", style.fontSizeSp)
     append(',')
     appendJsonField("bottomOffset", style.bottomOffset)
+    append(',')
+    appendJsonField("fontName", style.fontName)
+    append(',')
+    appendJsonField("outlineEffect", style.outlineEffect.id)
+    append(',')
+    appendJsonField("outlineWidth", style.outlineWidth)
     append('}')
 }
 

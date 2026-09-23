@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -55,6 +57,12 @@ import nuvio.composeapp.generated.resources.custom_theme_hue
 import nuvio.composeapp.generated.resources.custom_theme_saturation
 import org.jetbrains.compose.resources.stringResource
 
+enum class SubtitleColorEditTarget {
+    TEXT,
+    OUTLINE,
+    BACKGROUND,
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SubtitleCustomColorPicker(
@@ -64,6 +72,7 @@ fun SubtitleCustomColorPicker(
     swatches: List<Color> = SubtitleColorSwatches,
     showAlpha: Boolean = false,
     previewStyle: SubtitleStyleState? = null,
+    target: SubtitleColorEditTarget = SubtitleColorEditTarget.TEXT,
 ) {
     val tokens = MaterialTheme.nuvio
     val selectedRgb = remember(selectedColor) { selectedColor.toRgbInt() }
@@ -107,6 +116,7 @@ fun SubtitleCustomColorPicker(
         SubtitleLivePreviewCard(
             selectedColor = selectedColor,
             previewStyle = previewStyle,
+            target = target,
         )
 
         // Swatches Row
@@ -216,13 +226,45 @@ fun SubtitleCustomColorPicker(
 private fun SubtitleLivePreviewCard(
     selectedColor: Color,
     previewStyle: SubtitleStyleState?,
+    target: SubtitleColorEditTarget,
 ) {
     val style = previewStyle ?: SubtitleStyleState.DEFAULT
-    val textColor = selectedColor.takeIf { it != style.outlineColor && it != style.backgroundColor } ?: style.textColor
-    val outlineColor = style.outlineColor
-    val backgroundColor = style.backgroundColor
+    val textColor = when (target) {
+        SubtitleColorEditTarget.TEXT -> selectedColor
+        else -> style.textColor
+    }
+    val outlineColor = when (target) {
+        SubtitleColorEditTarget.OUTLINE -> selectedColor
+        else -> style.outlineColor
+    }
+    val bgColor = when (target) {
+        SubtitleColorEditTarget.BACKGROUND -> selectedColor
+        else -> style.backgroundColor
+    }
     val isBold = style.bold
-    val outlineEnabled = style.outlineEnabled
+    val outlineWidth = style.outlineWidth.coerceIn(1, 8)
+    val fontFamily = getSubtitleFontFamily(style.fontName)
+
+    val effectiveBgColor = when (style.outlineEffect) {
+        SubtitleOutlineEffect.BACKGROUND_BOX -> {
+            if (bgColor.alpha == 0f) Color.Black.copy(alpha = 0.70f) else bgColor
+        }
+        else -> bgColor
+    }
+
+    val showOutline = when (style.outlineEffect) {
+        SubtitleOutlineEffect.OUTLINE,
+        SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> style.outlineEnabled
+        else -> false
+    }
+
+    val showShadow = when (style.outlineEffect) {
+        SubtitleOutlineEffect.DROP_SHADOW,
+        SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> true
+        else -> false
+    }
+
+    val showGlow = style.outlineEffect == SubtitleOutlineEffect.SOFT_GLOW
 
     Box(
         modifier = Modifier
@@ -235,24 +277,58 @@ private fun SubtitleLivePreviewCard(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .background(backgroundColor)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
+                .background(effectiveBgColor)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (outlineEnabled) {
+            // Drop shadow layer
+            if (showShadow) {
+                val shadowOffset = (outlineWidth + 1).dp
                 Text(
                     text = "Sample Subtitle Text 123",
                     fontSize = 18.sp,
+                    fontFamily = fontFamily,
+                    fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
+                    color = outlineColor.copy(alpha = 0.85f),
+                    modifier = Modifier.offset(x = shadowOffset, y = shadowOffset),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            // Soft glow / blur layer
+            if (showGlow) {
+                val glowBlur = (outlineWidth * 1.5f).dp
+                val strokeWidth = (outlineWidth * 2.5f).coerceAtLeast(4f)
+                Box(modifier = Modifier.blur(radius = glowBlur)) {
+                    Text(
+                        text = "Sample Subtitle Text 123",
+                        fontSize = 18.sp,
+                        fontFamily = fontFamily,
+                        fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            drawStyle = Stroke(width = strokeWidth, join = StrokeJoin.Round),
+                            color = outlineColor.copy(alpha = 0.9f),
+                        ),
+                    )
+                }
+            }
+            // Classic outline stroke layer
+            if (showOutline) {
+                Text(
+                    text = "Sample Subtitle Text 123",
+                    fontSize = 18.sp,
+                    fontFamily = fontFamily,
                     fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        drawStyle = Stroke(width = 3f, join = StrokeJoin.Round),
+                        drawStyle = Stroke(width = outlineWidth.toFloat() * 1.5f, join = StrokeJoin.Round),
                         color = outlineColor,
                     ),
                 )
             }
+            // Foreground text layer
             Text(
                 text = "Sample Subtitle Text 123",
                 fontSize = 18.sp,
+                fontFamily = fontFamily,
                 fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
                 color = textColor,
                 style = MaterialTheme.typography.titleMedium,

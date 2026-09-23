@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.enabledAddons
@@ -71,11 +72,15 @@ import com.nuvio.app.features.player.IosTargetTransfer
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.STREAM_AUTO_PLAY_TIMEOUT_VALUES
 import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
+import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleCustomColorPicker
+import com.nuvio.app.features.player.SubtitleFontOptions
 import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
+import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SubtitleStyleState
+import com.nuvio.app.features.player.getSubtitleFontFamily
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.player.subtitleFontSizeRangeSp
@@ -310,6 +315,8 @@ private fun PlaybackSettingsSection(
     var showSubtitleTextColorDialog by remember { mutableStateOf(false) }
     var showSubtitleBackgroundColorDialog by remember { mutableStateOf(false) }
     var showSubtitleOutlineColorDialog by remember { mutableStateOf(false) }
+    var showSubtitleFontDialog by remember { mutableStateOf(false) }
+    var showSubtitleOutlineEffectDialog by remember { mutableStateOf(false) }
     var showExternalPlayerDialog by remember { mutableStateOf(false) }
     var showExternalPlayerAppDialog by remember { mutableStateOf(false) }
     var showReuseCacheDurationDialog by remember { mutableStateOf(false) }
@@ -634,6 +641,14 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
+                    title = "Subtitle Font",
+                    description = subtitleStyle.fontName,
+                    enabled = subtitleRenderingEnabled,
+                    isTablet = isTablet,
+                    onClick = { showSubtitleFontDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
                     title = stringResource(Res.string.settings_playback_subtitle_text_color),
                     description = subtitleColorLabel(subtitleStyle.textColor),
                     enabled = subtitleRenderingEnabled,
@@ -647,6 +662,14 @@ private fun PlaybackSettingsSection(
                     enabled = subtitleRenderingEnabled,
                     isTablet = isTablet,
                     onClick = { showSubtitleBackgroundColorDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = "Outline Style",
+                    description = subtitleStyle.outlineEffect.label,
+                    enabled = subtitleRenderingEnabled,
+                    isTablet = isTablet,
+                    onClick = { showSubtitleOutlineEffectDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
@@ -667,6 +690,19 @@ private fun PlaybackSettingsSection(
                         enabled = subtitleRenderingEnabled,
                         isTablet = isTablet,
                         onClick = { showSubtitleOutlineColorDialog = true },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = "Outline Thickness",
+                        value = subtitleStyle.outlineWidth,
+                        valueText = "${subtitleStyle.outlineWidth} px",
+                        valueRange = 1..8,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = subtitleRenderingEnabled,
+                        onValueChange = { value ->
+                            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = value))
+                        },
                     )
                 }
                 val showLibassSettings = !isIos && (isDesktop || androidPlaybackEngine != AndroidPlaybackEngine.Libmpv)
@@ -1494,6 +1530,7 @@ private fun PlaybackSettingsSection(
             colors = SubtitleColorSwatches,
             selectedColor = autoPlayPlayerSettings.subtitleStyle.textColor,
             previewStyle = autoPlayPlayerSettings.subtitleStyle,
+            target = SubtitleColorEditTarget.TEXT,
             onColorSelected = { color ->
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(textColor = color))
             },
@@ -1508,6 +1545,7 @@ private fun PlaybackSettingsSection(
             selectedColor = autoPlayPlayerSettings.subtitleStyle.backgroundColor,
             previewStyle = autoPlayPlayerSettings.subtitleStyle,
             showAlpha = true,
+            target = SubtitleColorEditTarget.BACKGROUND,
             onColorSelected = { color ->
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(backgroundColor = color))
             },
@@ -1521,10 +1559,47 @@ private fun PlaybackSettingsSection(
             colors = SubtitleOutlineColorSwatches,
             selectedColor = autoPlayPlayerSettings.subtitleStyle.outlineColor,
             previewStyle = autoPlayPlayerSettings.subtitleStyle,
+            target = SubtitleColorEditTarget.OUTLINE,
             onColorSelected = { color ->
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(outlineColor = color))
             },
             onDismiss = { showSubtitleOutlineColorDialog = false },
+        )
+    }
+
+    if (showSubtitleFontDialog) {
+        SubtitleFontDialog(
+            selectedFont = autoPlayPlayerSettings.subtitleStyle.fontName,
+            onFontSelected = { font ->
+                PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(fontName = font))
+                showSubtitleFontDialog = false
+            },
+            onDismiss = { showSubtitleFontDialog = false },
+        )
+    }
+
+    if (showSubtitleOutlineEffectDialog) {
+        SubtitleOutlineEffectDialog(
+            selectedEffect = autoPlayPlayerSettings.subtitleStyle.outlineEffect,
+            onEffectSelected = { effect ->
+                val updated = when (effect) {
+                    SubtitleOutlineEffect.NONE -> autoPlayPlayerSettings.subtitleStyle.copy(
+                        outlineEffect = effect,
+                        outlineEnabled = false,
+                    )
+                    SubtitleOutlineEffect.BACKGROUND_BOX -> autoPlayPlayerSettings.subtitleStyle.copy(
+                        outlineEffect = effect,
+                        outlineEnabled = false,
+                    )
+                    else -> autoPlayPlayerSettings.subtitleStyle.copy(
+                        outlineEffect = effect,
+                        outlineEnabled = true,
+                    )
+                }
+                PlayerSettingsRepository.setSubtitleStyle(updated)
+                showSubtitleOutlineEffectDialog = false
+            },
+            onDismiss = { showSubtitleOutlineEffectDialog = false },
         )
     }
 
@@ -2678,6 +2753,7 @@ private fun SubtitleColorDialog(
     onDismiss: () -> Unit,
     previewStyle: SubtitleStyleState? = null,
     showAlpha: Boolean = false,
+    target: SubtitleColorEditTarget = SubtitleColorEditTarget.TEXT,
 ) {
     var currentColor by remember(selectedColor) { mutableStateOf(selectedColor) }
 
@@ -2713,7 +2789,193 @@ private fun SubtitleColorDialog(
                     swatches = colors,
                     showAlpha = showAlpha,
                     previewStyle = previewStyle,
+                    target = target,
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(Res.string.action_done))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun SubtitleFontDialog(
+    selectedFont: String,
+    onFontSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 500.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Subtitle Font",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                SubtitleFontOptions.forEach { font ->
+                    val isSelected = font == selectedFont
+                    val fontFamily = getSubtitleFontFamily(font)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onFontSelected(font) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text = font,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                )
+                                Text(
+                                    text = "The quick brown fox jumps over the lazy dog",
+                                    fontFamily = fontFamily,
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(Res.string.action_done))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun SubtitleOutlineEffectDialog(
+    selectedEffect: SubtitleOutlineEffect,
+    onEffectSelected: (SubtitleOutlineEffect) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val effectDescriptions = mapOf(
+        SubtitleOutlineEffect.OUTLINE to "Clean sharp border with adjustable thickness",
+        SubtitleOutlineEffect.DROP_SHADOW to "Subtle directional 3D shadow behind words",
+        SubtitleOutlineEffect.SOFT_GLOW to "Gaussian blurred diffused halo around text",
+        SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Both border and offset shadow for maximum contrast",
+        SubtitleOutlineEffect.BACKGROUND_BOX to "Semi-transparent dark box behind subtitles",
+        SubtitleOutlineEffect.NONE to "Plain text without outline or shadow",
+    )
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 500.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Outline Style",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                SubtitleOutlineEffect.entries.forEach { effect ->
+                    val isSelected = effect == selectedEffect
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onEffectSelected(effect) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text = effect.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                )
+                                effectDescriptions[effect]?.let { desc ->
+                                    Text(
+                                        text = desc,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

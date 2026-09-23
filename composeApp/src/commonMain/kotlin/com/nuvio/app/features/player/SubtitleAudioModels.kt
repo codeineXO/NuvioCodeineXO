@@ -49,12 +49,41 @@ const val SUBTITLE_AUTO_SYNC_REACTION_COMPENSATION_MS = 300L
 internal val subtitleFontSizeRangeSp: IntRange
     get() = if (isDesktop || isIos) 6..40 else 12..40
 
+enum class SubtitleOutlineEffect(val id: String, val label: String) {
+    OUTLINE("outline", "Classic Outline"),
+    DROP_SHADOW("drop_shadow", "Drop Shadow"),
+    SOFT_GLOW("soft_glow", "Soft Glow"),
+    OUTLINE_AND_SHADOW("outline_shadow", "Outline + Shadow"),
+    BACKGROUND_BOX("background_box", "Background Box"),
+    NONE("none", "None");
+
+    companion object {
+        fun fromId(id: String?): SubtitleOutlineEffect =
+            entries.firstOrNull { it.id == id } ?: OUTLINE
+    }
+}
+
+val SubtitleFontOptions = listOf(
+    "Trebuchet MS",
+    "Segoe UI",
+    "Arial",
+    "Verdana",
+    "Tahoma",
+    "Calibri",
+    "Georgia",
+    "Impact",
+    "Comic Sans MS",
+    "Consolas",
+)
+
 data class SubtitleStyleState(
     val textColor: Color = Color.White,
     val backgroundColor: Color = Color.Transparent,
     val outlineColor: Color = Color.Black,
     val outlineEnabled: Boolean = true,
     val outlineWidth: Int = 2,
+    val outlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE,
+    val fontName: String = "Trebuchet MS",
     val bold: Boolean = false,
     val fontSizeSp: Int = 18,
     val bottomOffset: Int = 20,

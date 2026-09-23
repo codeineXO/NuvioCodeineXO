@@ -43,6 +43,8 @@ actual object PlayerSettingsStorage {
     private const val subtitleOutlineColorKey = "subtitle_outline_color"
     private const val subtitleOutlineEnabledKey = "subtitle_outline_enabled"
     private const val subtitleOutlineWidthKey = "subtitle_outline_width"
+    private const val subtitleOutlineEffectKey = "subtitle_outline_effect"
+    private const val subtitleFontKey = "subtitle_font"
     private const val subtitleBoldKey = "subtitle_bold"
     private const val subtitleFontSizeSpKey = "subtitle_font_size_sp"
     private const val subtitleBottomOffsetKey = "subtitle_bottom_offset"
@@ -518,6 +520,32 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putInt(ProfileScopedKey.of(subtitleOutlineWidthKey), width)
+            ?.apply()
+    }
+
+    actual fun loadSubtitleOutlineEffect(): String? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleOutlineEffectKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getString(key, null) else null
+        }
+
+    actual fun saveSubtitleOutlineEffect(effect: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(subtitleOutlineEffectKey), effect)
+            ?.apply()
+    }
+
+    actual fun loadSubtitleFont(): String? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleFontKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getString(key, null) else null
+        }
+
+    actual fun saveSubtitleFont(font: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(subtitleFontKey), font)
             ?.apply()
     }
 

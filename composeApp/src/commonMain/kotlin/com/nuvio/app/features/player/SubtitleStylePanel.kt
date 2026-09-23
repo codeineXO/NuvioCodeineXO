@@ -128,6 +128,23 @@ fun SubtitleStylePanel(
             )
         }
 
+        SubtitleStyleSection(title = "Font") {
+            val currentIndex = SubtitleFontOptions.indexOf(style.fontName).coerceAtLeast(0)
+            SubtitleStyleStepper(
+                value = style.fontName,
+                onDecrease = {
+                    val prevIndex = if (currentIndex > 0) currentIndex - 1 else SubtitleFontOptions.lastIndex
+                    onStyleChanged(style.copy(fontName = SubtitleFontOptions[prevIndex]))
+                },
+                onIncrease = {
+                    val nextIndex = if (currentIndex < SubtitleFontOptions.lastIndex) currentIndex + 1 else 0
+                    onStyleChanged(style.copy(fontName = SubtitleFontOptions[nextIndex]))
+                },
+                valueWidth = 140.dp,
+                fontFamily = getSubtitleFontFamily(style.fontName),
+            )
+        }
+
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bold)) {
             SubtitleToggleChip(
                 enabled = style.bold,
@@ -163,6 +180,7 @@ fun SubtitleStylePanel(
                     },
                     swatches = emptyList(),
                     previewStyle = style,
+                    target = SubtitleColorEditTarget.TEXT,
                 )
             }
         }
@@ -182,11 +200,50 @@ fun SubtitleStylePanel(
             )
         }
 
+        SubtitleStyleSection(title = "Outline Style") {
+            val effects = SubtitleOutlineEffect.entries
+            val currentEffectIndex = effects.indexOf(style.outlineEffect).coerceAtLeast(0)
+            SubtitleStyleStepper(
+                value = style.outlineEffect.label,
+                onDecrease = {
+                    val prevIndex = if (currentEffectIndex > 0) currentEffectIndex - 1 else effects.lastIndex
+                    onStyleChanged(style.copy(outlineEffect = effects[prevIndex]))
+                },
+                onIncrease = {
+                    val nextIndex = if (currentEffectIndex < effects.lastIndex) currentEffectIndex + 1 else 0
+                    onStyleChanged(style.copy(outlineEffect = effects[nextIndex]))
+                },
+                valueWidth = 160.dp,
+            )
+        }
+
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_outline)) {
             SubtitleToggleChip(
                 enabled = style.outlineEnabled,
                 onClick = { onStyleChanged(style.copy(outlineEnabled = !style.outlineEnabled)) },
             )
+            if (style.outlineEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Thickness",
+                        color = Color.White.copy(alpha = 0.72f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    SubtitleStyleStepper(
+                        value = "${style.outlineWidth} px",
+                        onDecrease = {
+                            onStyleChanged(style.copy(outlineWidth = (style.outlineWidth - 1).coerceAtLeast(1)))
+                        },
+                        onIncrease = {
+                            onStyleChanged(style.copy(outlineWidth = (style.outlineWidth + 1).coerceAtMost(8)))
+                        },
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -222,6 +279,7 @@ fun SubtitleStylePanel(
                         },
                         swatches = emptyList(),
                         previewStyle = style,
+                        target = SubtitleColorEditTarget.OUTLINE,
                     )
                 }
             }
@@ -278,6 +336,7 @@ private fun SubtitleStyleStepper(
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
     valueWidth: Dp = 84.dp,
+    fontFamily: androidx.compose.ui.text.font.FontFamily? = null,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -299,6 +358,7 @@ private fun SubtitleStyleStepper(
                 text = value,
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium,
+                fontFamily = fontFamily,
             )
         }
         SubtitleStepperButton(

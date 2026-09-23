@@ -1076,6 +1076,37 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = subtitleStyle.textColor.copy(alpha = alpha)))
         }
+        "subtitleFontDelta" -> {
+            val currentIndex = SubtitleFontOptions.indexOf(subtitleStyle.fontName).coerceAtLeast(0)
+            val delta = value.toInt()
+            val nextIndex = (currentIndex + delta).mod(SubtitleFontOptions.size)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = SubtitleFontOptions[nextIndex]))
+        }
+        "subtitleFontIndex" -> {
+            SubtitleFontOptions.getOrNull(value.toInt())?.let { font ->
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = font))
+            }
+        }
+        "subtitleOutlineEffectDelta" -> {
+            val effects = SubtitleOutlineEffect.entries
+            val currentIndex = effects.indexOf(subtitleStyle.outlineEffect).coerceAtLeast(0)
+            val delta = value.toInt()
+            val nextIndex = (currentIndex + delta).mod(effects.size)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineEffect = effects[nextIndex]))
+        }
+        "subtitleOutlineEffectIndex" -> {
+            SubtitleOutlineEffect.entries.getOrNull(value.toInt())?.let { effect ->
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineEffect = effect))
+            }
+        }
+        "subtitleOutlineThickness" -> {
+            val thickness = value.toInt().coerceIn(1, 8)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
+        }
+        "subtitleOutlineThicknessDelta" -> {
+            val thickness = (subtitleStyle.outlineWidth + value.toInt()).coerceIn(1, 8)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
+        }
         "subtitleStyleReset" -> PlayerSettingsRepository.setSubtitleStyle(SubtitleStyleState.DEFAULT)
         "parentalGuideComplete" -> {
             showParentalGuide = false

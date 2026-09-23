@@ -43,6 +43,8 @@ internal actual object PlayerSettingsStorage {
     private const val subtitleOutlineColorKey = "subtitle_outline_color"
     private const val subtitleOutlineEnabledKey = "subtitle_outline_enabled"
     private const val subtitleOutlineWidthKey = "subtitle_outline_width"
+    private const val subtitleOutlineEffectKey = "subtitle_outline_effect"
+    private const val subtitleFontKey = "subtitle_font"
     private const val subtitleBoldKey = "subtitle_bold"
     private const val subtitleFontSizeSpKey = "subtitle_font_size_sp"
     private const val subtitleBottomOffsetKey = "subtitle_bottom_offset"
@@ -227,6 +229,10 @@ internal actual object PlayerSettingsStorage {
     actual fun saveSubtitleOutlineEnabled(enabled: Boolean) = saveBoolean(subtitleOutlineEnabledKey, enabled)
     actual fun loadSubtitleOutlineWidth(): Int? = loadInt(subtitleOutlineWidthKey)
     actual fun saveSubtitleOutlineWidth(width: Int) = saveInt(subtitleOutlineWidthKey, width)
+    actual fun loadSubtitleOutlineEffect(): String? = loadString(subtitleOutlineEffectKey)
+    actual fun saveSubtitleOutlineEffect(effect: String) = saveString(subtitleOutlineEffectKey, effect)
+    actual fun loadSubtitleFont(): String? = loadString(subtitleFontKey)
+    actual fun saveSubtitleFont(font: String) = saveString(subtitleFontKey, font)
     actual fun loadSubtitleBold(): Boolean? = loadBoolean(subtitleBoldKey)
     actual fun saveSubtitleBold(enabled: Boolean) = saveBoolean(subtitleBoldKey, enabled)
     actual fun loadSubtitleFontSizeSp(): Int? = loadInt(subtitleFontSizeSpKey)
