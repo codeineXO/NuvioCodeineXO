@@ -112,13 +112,31 @@ const bottomOffsetMinus = document.getElementById("bottomOffsetMinus");
 const bottomOffsetValue = document.getElementById("bottomOffsetValue");
 const bottomOffsetPlus = document.getElementById("bottomOffsetPlus");
 const subtitleColorLabel = document.getElementById("subtitleColorLabel");
+const subtitleColorCustomToggle = document.getElementById("subtitleColorCustomToggle");
 const subtitleColorSwatches = document.getElementById("subtitleColorSwatches");
+const subtitleTextColorPicker = document.getElementById("subtitleTextColorPicker");
+const subtitleTextHueSlider = document.getElementById("subtitleTextHueSlider");
+const subtitleTextHueValue = document.getElementById("subtitleTextHueValue");
+const subtitleTextSatSlider = document.getElementById("subtitleTextSatSlider");
+const subtitleTextSatValue = document.getElementById("subtitleTextSatValue");
+const subtitleTextBriSlider = document.getElementById("subtitleTextBriSlider");
+const subtitleTextBriValue = document.getElementById("subtitleTextBriValue");
+const subtitleTextHexInput = document.getElementById("subtitleTextHexInput");
 const textOpacityLabel = document.getElementById("textOpacityLabel");
 const textOpacityMinus = document.getElementById("textOpacityMinus");
 const textOpacityValue = document.getElementById("textOpacityValue");
 const textOpacityPlus = document.getElementById("textOpacityPlus");
 const outlineColorLabel = document.getElementById("outlineColorLabel");
+const subtitleOutlineCustomToggle = document.getElementById("subtitleOutlineCustomToggle");
 const outlineColorSwatches = document.getElementById("outlineColorSwatches");
+const subtitleOutlineColorPicker = document.getElementById("subtitleOutlineColorPicker");
+const subtitleOutlineHueSlider = document.getElementById("subtitleOutlineHueSlider");
+const subtitleOutlineHueValue = document.getElementById("subtitleOutlineHueValue");
+const subtitleOutlineSatSlider = document.getElementById("subtitleOutlineSatSlider");
+const subtitleOutlineSatValue = document.getElementById("subtitleOutlineSatValue");
+const subtitleOutlineBriSlider = document.getElementById("subtitleOutlineBriSlider");
+const subtitleOutlineBriValue = document.getElementById("subtitleOutlineBriValue");
+const subtitleOutlineHexInput = document.getElementById("subtitleOutlineHexInput");
 const subtitleStyleReset = document.getElementById("subtitleStyleReset");
 const sourceModal = document.getElementById("sourceModal");
 const sourcePanelTitle = document.getElementById("sourcePanelTitle");
@@ -1295,6 +1313,80 @@ const sameRgb = (left, right) => {
   return a.red === b.red && a.green === b.green && a.blue === b.blue;
 };
 
+const rgbToHsv = (r, g, b) => {
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+  if (delta > 0) {
+    if (max === red) {
+      hue = ((green - blue) / delta) % 6;
+    } else if (max === green) {
+      hue = (blue - red) / delta + 2;
+    } else {
+      hue = (red - green) / delta + 4;
+    }
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  const saturation = max === 0 ? 0 : delta / max;
+  const brightness = max;
+  return { hue: Math.round(hue), saturation, brightness };
+};
+
+const hsvToRgb = (h, s, v) => {
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0, g = 0, b = 0;
+  if (h >= 0 && h < 60) {
+    r = c; g = x; b = 0;
+  } else if (h >= 60 && h < 120) {
+    r = x; g = c; b = 0;
+  } else if (h >= 120 && h < 180) {
+    r = 0; g = c; b = x;
+  } else if (h >= 180 && h < 240) {
+    r = 0; g = x; b = c;
+  } else if (h >= 240 && h < 300) {
+    r = x; g = 0; b = c;
+  } else {
+    r = c; g = 0; b = x;
+  }
+  const red = Math.round((r + m) * 255);
+  const green = Math.round((g + m) * 255);
+  const blue = Math.round((b + m) * 255);
+  return { red, green, blue, rgbInt: ((red & 0xFF) << 16) | ((green & 0xFF) << 8) | (blue & 0xFF) };
+};
+
+const toHex6 = (r, g, b) => "#" + [r, g, b].map(x => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+
+const syncColorPickerUi = (prefix, color) => {
+  const parsed = parseArgb(color);
+  const hsv = rgbToHsv(parsed.red, parsed.green, parsed.blue);
+  const hueSlider = document.getElementById(`${prefix}HueSlider`);
+  const hueValue = document.getElementById(`${prefix}HueValue`);
+  const satSlider = document.getElementById(`${prefix}SatSlider`);
+  const satValue = document.getElementById(`${prefix}SatValue`);
+  const briSlider = document.getElementById(`${prefix}BriSlider`);
+  const briValue = document.getElementById(`${prefix}BriValue`);
+  const hexInput = document.getElementById(`${prefix}HexInput`);
+  if (!hueSlider) return;
+  hueSlider.value = hsv.hue;
+  hueValue.textContent = `${hsv.hue}°`;
+  satSlider.value = Math.round(hsv.saturation * 100);
+  satValue.textContent = `${Math.round(hsv.saturation * 100)}%`;
+  satSlider.style.background = `linear-gradient(to right, #ffffff, hsl(${hsv.hue}, 100%, 50%))`;
+  briSlider.value = Math.round(hsv.brightness * 100);
+  briValue.textContent = `${Math.round(hsv.brightness * 100)}%`;
+  briSlider.style.background = `linear-gradient(to right, #000000, hsl(${hsv.hue}, ${Math.round(hsv.saturation * 100)}%, 50%))`;
+  if (hexInput && document.activeElement !== hexInput) {
+    hexInput.value = toHex6(parsed.red, parsed.green, parsed.blue);
+  }
+};
+
 const renderSwatches = (container, colors, selectedColor, eventType) => {
   container.textContent = "";
   const items = Array.isArray(colors) ? colors : [];
@@ -1390,6 +1482,8 @@ const renderSubtitleStylePanel = () => {
   subtitleStyleReset.textContent = state.resetDefaultsLabel || "Reset Defaults";
   renderSwatches(subtitleColorSwatches, state.subtitleColorSwatches, style.textColor, "subtitleTextColor");
   renderSwatches(outlineColorSwatches, state.subtitleOutlineColorSwatches, style.outlineColor, "subtitleOutlineColor");
+  syncColorPickerUi("subtitleText", style.textColor);
+  syncColorPickerUi("subtitleOutline", style.outlineColor);
   renderAutoSyncCues();
 };
 
@@ -2785,6 +2879,73 @@ subtitleStyleReset.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleStyleReset", 0);
 });
+
+if (subtitleColorCustomToggle) {
+  subtitleColorCustomToggle.addEventListener("click", event => {
+    event.stopPropagation();
+    subtitleTextColorPicker.hidden = !subtitleTextColorPicker.hidden;
+  });
+}
+if (subtitleOutlineCustomToggle) {
+  subtitleOutlineCustomToggle.addEventListener("click", event => {
+    event.stopPropagation();
+    subtitleOutlineColorPicker.hidden = !subtitleOutlineColorPicker.hidden;
+  });
+}
+
+const updateTextColorFromSliders = () => {
+  const h = Number(subtitleTextHueSlider.value);
+  const s = Number(subtitleTextSatSlider.value) / 100;
+  const v = Number(subtitleTextBriSlider.value) / 100;
+  subtitleTextHueValue.textContent = `${h}°`;
+  subtitleTextSatValue.textContent = `${Math.round(s * 100)}%`;
+  subtitleTextBriValue.textContent = `${Math.round(v * 100)}%`;
+  subtitleTextSatSlider.style.background = `linear-gradient(to right, #ffffff, hsl(${h}, 100%, 50%))`;
+  subtitleTextBriSlider.style.background = `linear-gradient(to right, #000000, hsl(${h}, ${Math.round(s * 100)}%, 50%))`;
+  const rgb = hsvToRgb(h, s, v);
+  subtitleTextHexInput.value = toHex6(rgb.red, rgb.green, rgb.blue);
+  send("subtitleTextColorRgb", rgb.rgbInt);
+};
+
+if (subtitleTextHueSlider) {
+  subtitleTextHueSlider.addEventListener("input", updateTextColorFromSliders);
+  subtitleTextSatSlider.addEventListener("input", updateTextColorFromSliders);
+  subtitleTextBriSlider.addEventListener("input", updateTextColorFromSliders);
+  subtitleTextHexInput.addEventListener("change", () => {
+    const hex = subtitleTextHexInput.value.trim().replace("#", "");
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      const rgbInt = parseInt(hex, 16);
+      send("subtitleTextColorRgb", rgbInt);
+    }
+  });
+}
+
+const updateOutlineColorFromSliders = () => {
+  const h = Number(subtitleOutlineHueSlider.value);
+  const s = Number(subtitleOutlineSatSlider.value) / 100;
+  const v = Number(subtitleOutlineBriSlider.value) / 100;
+  subtitleOutlineHueValue.textContent = `${h}°`;
+  subtitleOutlineSatValue.textContent = `${Math.round(s * 100)}%`;
+  subtitleOutlineBriValue.textContent = `${Math.round(v * 100)}%`;
+  subtitleOutlineSatSlider.style.background = `linear-gradient(to right, #ffffff, hsl(${h}, 100%, 50%))`;
+  subtitleOutlineBriSlider.style.background = `linear-gradient(to right, #000000, hsl(${h}, ${Math.round(s * 100)}%, 50%))`;
+  const rgb = hsvToRgb(h, s, v);
+  subtitleOutlineHexInput.value = toHex6(rgb.red, rgb.green, rgb.blue);
+  send("subtitleOutlineColorRgb", rgb.rgbInt);
+};
+
+if (subtitleOutlineHueSlider) {
+  subtitleOutlineHueSlider.addEventListener("input", updateOutlineColorFromSliders);
+  subtitleOutlineSatSlider.addEventListener("input", updateOutlineColorFromSliders);
+  subtitleOutlineBriSlider.addEventListener("input", updateOutlineColorFromSliders);
+  subtitleOutlineHexInput.addEventListener("change", () => {
+    const hex = subtitleOutlineHexInput.value.trim().replace("#", "");
+    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+      const rgbInt = parseInt(hex, 16);
+      send("subtitleOutlineColorRgb", rgbInt);
+    }
+  });
+}
 
 sourceReloadButton.addEventListener("click", event => {
   event.stopPropagation();

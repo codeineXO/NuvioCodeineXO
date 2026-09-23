@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +26,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -74,6 +81,8 @@ fun SubtitleStylePanel(
     onAutoSyncReload: () -> Unit,
 ) {
     val sectionGap = if (isCompact) 12.dp else 16.dp
+    var showCustomTextColorPicker by remember { mutableStateOf(false) }
+    var showCustomOutlineColorPicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -127,13 +136,35 @@ fun SubtitleStylePanel(
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_color)) {
-            SubtitleColorPicker(
-                colors = SubtitleColorSwatches,
-                selectedColor = style.textColor,
-                onColorSelected = { color ->
-                    onStyleChanged(style.copy(textColor = color.copy(alpha = style.textColor.alpha)))
-                },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SubtitleColorPicker(
+                    colors = SubtitleColorSwatches,
+                    selectedColor = style.textColor,
+                    onColorSelected = { color ->
+                        onStyleChanged(style.copy(textColor = color.copy(alpha = style.textColor.alpha)))
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                SubtitleToggleChip(
+                    enabled = showCustomTextColorPicker,
+                    label = "Custom",
+                    onClick = { showCustomTextColorPicker = !showCustomTextColorPicker },
+                )
+            }
+            AnimatedVisibility(visible = showCustomTextColorPicker) {
+                SubtitleCustomColorPicker(
+                    selectedColor = style.textColor,
+                    onColorChanged = { color ->
+                        onStyleChanged(style.copy(textColor = color.copy(alpha = style.textColor.alpha)))
+                    },
+                    swatches = emptyList(),
+                    previewStyle = style,
+                )
+            }
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_text_opacity)) {
@@ -156,11 +187,24 @@ fun SubtitleStylePanel(
                 enabled = style.outlineEnabled,
                 onClick = { onStyleChanged(style.copy(outlineEnabled = !style.outlineEnabled)) },
             )
-            Text(
-                text = stringResource(Res.string.compose_player_outline_color),
-                color = Color.White.copy(alpha = 0.72f),
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.compose_player_outline_color),
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (style.outlineEnabled) {
+                    SubtitleToggleChip(
+                        enabled = showCustomOutlineColorPicker,
+                        label = "Custom",
+                        onClick = { showCustomOutlineColorPicker = !showCustomOutlineColorPicker },
+                    )
+                }
+            }
             SubtitleColorPicker(
                 colors = SubtitleOutlineColorSwatches,
                 selectedColor = style.outlineColor,
@@ -169,6 +213,18 @@ fun SubtitleStylePanel(
                     onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
                 },
             )
+            if (style.outlineEnabled) {
+                AnimatedVisibility(visible = showCustomOutlineColorPicker) {
+                    SubtitleCustomColorPicker(
+                        selectedColor = style.outlineColor,
+                        onColorChanged = { color ->
+                            onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
+                        },
+                        swatches = emptyList(),
+                        previewStyle = style,
+                    )
+                }
+            }
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bottom_offset)) {
@@ -278,6 +334,7 @@ private fun SubtitleStepperButton(
 private fun SubtitleToggleChip(
     enabled: Boolean,
     onClick: () -> Unit,
+    label: String? = null,
 ) {
     val tokens = MaterialTheme.nuvio
 
@@ -289,7 +346,7 @@ private fun SubtitleToggleChip(
             .padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Text(
-            text = if (enabled) {
+            text = label ?: if (enabled) {
                 stringResource(Res.string.compose_action_on)
             } else {
                 stringResource(Res.string.compose_action_off)
@@ -305,11 +362,11 @@ private fun SubtitleColorPicker(
     colors: List<Color>,
     selectedColor: Color,
     onColorSelected: (Color) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .horizontalScroll(rememberScrollState())
             .alpha(if (enabled) 1f else 0.42f),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -482,10 +539,3 @@ private fun formatCueTimestamp(timeMs: Long): String {
     val seconds = totalSeconds % 60L
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
-
-internal val SubtitleOutlineColorSwatches = listOf(
-    Color.Black,
-    Color.White,
-    Color(0xFF00E5FF),
-    Color(0xFFFF5C5C),
-)

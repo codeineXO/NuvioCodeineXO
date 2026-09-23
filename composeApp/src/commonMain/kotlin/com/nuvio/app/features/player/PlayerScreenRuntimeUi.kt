@@ -1045,12 +1045,24 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
                 PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = color.copy(alpha = subtitleStyle.textColor.alpha)))
             }
         }
+        "subtitleTextColorRgb" -> {
+            val rgb = value.toLong().toInt() and 0xFFFFFF
+            val color = Color(0xFF000000.toInt() or rgb).copy(alpha = subtitleStyle.textColor.alpha)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = color))
+        }
         "subtitleOutlineColor" -> {
             SubtitleOutlineColorSwatches.getOrNull(value.toInt())?.let { color ->
                 PlayerSettingsRepository.setSubtitleStyle(
                     subtitleStyle.copy(outlineEnabled = true, outlineColor = color),
                 )
             }
+        }
+        "subtitleOutlineColorRgb" -> {
+            val rgb = value.toLong().toInt() and 0xFFFFFF
+            val color = Color(0xFF000000.toInt() or rgb)
+            PlayerSettingsRepository.setSubtitleStyle(
+                subtitleStyle.copy(outlineEnabled = true, outlineColor = color),
+            )
         }
         "subtitleTextOpacity" -> {
             val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)

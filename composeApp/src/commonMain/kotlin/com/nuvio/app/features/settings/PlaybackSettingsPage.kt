@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -69,11 +72,15 @@ import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.STREAM_AUTO_PLAY_TIMEOUT_VALUES
 import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
 import com.nuvio.app.features.player.SubtitleColorSwatches
+import com.nuvio.app.features.player.SubtitleCustomColorPicker
 import com.nuvio.app.features.player.SubtitleLanguageOption
+import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
+import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.formatPlaybackSpeedLabel
 import com.nuvio.app.features.player.languageLabelForCode
 import com.nuvio.app.features.player.subtitleFontSizeRangeSp
 import com.nuvio.app.features.player.toStorageHexString
+import nuvio.composeapp.generated.resources.action_done
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
 import com.nuvio.app.features.p2p.P2pCacheSize
@@ -1486,9 +1493,9 @@ private fun PlaybackSettingsSection(
             title = stringResource(Res.string.settings_playback_subtitle_text_color),
             colors = SubtitleColorSwatches,
             selectedColor = autoPlayPlayerSettings.subtitleStyle.textColor,
+            previewStyle = autoPlayPlayerSettings.subtitleStyle,
             onColorSelected = { color ->
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(textColor = color))
-                showSubtitleTextColorDialog = false
             },
             onDismiss = { showSubtitleTextColorDialog = false },
         )
@@ -1499,9 +1506,10 @@ private fun PlaybackSettingsSection(
             title = stringResource(Res.string.settings_playback_subtitle_background_color),
             colors = SubtitleBackgroundColorSwatches,
             selectedColor = autoPlayPlayerSettings.subtitleStyle.backgroundColor,
+            previewStyle = autoPlayPlayerSettings.subtitleStyle,
+            showAlpha = true,
             onColorSelected = { color ->
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(backgroundColor = color))
-                showSubtitleBackgroundColorDialog = false
             },
             onDismiss = { showSubtitleBackgroundColorDialog = false },
         )
@@ -1510,11 +1518,11 @@ private fun PlaybackSettingsSection(
     if (showSubtitleOutlineColorDialog) {
         SubtitleColorDialog(
             title = stringResource(Res.string.settings_playback_subtitle_outline_color),
-            colors = SubtitleColorSwatches,
+            colors = SubtitleOutlineColorSwatches,
             selectedColor = autoPlayPlayerSettings.subtitleStyle.outlineColor,
+            previewStyle = autoPlayPlayerSettings.subtitleStyle,
             onColorSelected = { color ->
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(outlineColor = color))
-                showSubtitleOutlineColorDialog = false
             },
             onDismiss = { showSubtitleOutlineColorDialog = false },
         )
@@ -2668,18 +2676,26 @@ private fun SubtitleColorDialog(
     selectedColor: Color,
     onColorSelected: (Color) -> Unit,
     onDismiss: () -> Unit,
+    previewStyle: SubtitleStyleState? = null,
+    showAlpha: Boolean = false,
 ) {
+    var currentColor by remember(selectedColor) { mutableStateOf(selectedColor) }
+
     BasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 520.dp),
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
                     text = title,
@@ -2688,73 +2704,25 @@ private fun SubtitleColorDialog(
                     fontWeight = FontWeight.SemiBold,
                 )
 
-                Column(
+                SubtitleCustomColorPicker(
+                    selectedColor = currentColor,
+                    onColorChanged = { color ->
+                        currentColor = color
+                        onColorSelected(color)
+                    },
+                    swatches = colors,
+                    showAlpha = showAlpha,
+                    previewStyle = previewStyle,
+                )
+
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.End,
                 ) {
-                    colors.forEach { color ->
-                        val isSelected = selectedColor.toStorageHexString() == color.toStorageHexString()
-                        val containerColor = if (isSelected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                        }
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onColorSelected(color) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = containerColor,
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Surface(
-                                    modifier = Modifier.size(28.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (color.alpha == 0f) {
-                                        MaterialTheme.colorScheme.surface
-                                    } else {
-                                        color
-                                    },
-                                    border = BorderStroke(
-                                        1.dp,
-                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                                    ),
-                                ) {}
-                                Spacer(modifier = Modifier.size(12.dp))
-                                Text(
-                                    text = subtitleColorLabel(color),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Box(
-                                    modifier = Modifier.size(24.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(Res.string.action_done))
                     }
                 }
-
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(Res.string.settings_playback_dialog_close),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

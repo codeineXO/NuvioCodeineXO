@@ -308,8 +308,38 @@
                       <button class="panel-button" id="boldToggle" type="button">Off</button>
                     </div>
                     <div class="style-section">
-                      <span class="style-label" id="subtitleColorLabel">Color</span>
+                      <div class="style-header-row">
+                        <span class="style-label" id="subtitleColorLabel">Color</span>
+                        <button class="panel-button small" id="subtitleColorCustomToggle" type="button">Custom</button>
+                      </div>
                       <div class="swatch-row" id="subtitleColorSwatches"></div>
+                      <div class="custom-color-picker" id="subtitleTextColorPicker" hidden>
+                        <div class="slider-row">
+                          <div class="slider-header">
+                            <span>Hue</span>
+                            <span id="subtitleTextHueValue">0°</span>
+                          </div>
+                          <input type="range" min="0" max="359" value="0" class="color-slider hue-slider" id="subtitleTextHueSlider" />
+                        </div>
+                        <div class="slider-row">
+                          <div class="slider-header">
+                            <span>Saturation</span>
+                            <span id="subtitleTextSatValue">100%</span>
+                          </div>
+                          <input type="range" min="0" max="100" value="100" class="color-slider sat-slider" id="subtitleTextSatSlider" />
+                        </div>
+                        <div class="slider-row">
+                          <div class="slider-header">
+                            <span>Brightness</span>
+                            <span id="subtitleTextBriValue">100%</span>
+                          </div>
+                          <input type="range" min="0" max="100" value="100" class="color-slider bri-slider" id="subtitleTextBriSlider" />
+                        </div>
+                        <div class="hex-row">
+                          <span>Hex</span>
+                          <input type="text" class="color-hex-input" id="subtitleTextHexInput" placeholder="#FFFFFF" maxlength="7" />
+                        </div>
+                      </div>
                     </div>
                     <div class="style-section">
                       <span class="style-label" id="textOpacityLabel">Text Opacity</span>
@@ -322,8 +352,38 @@
                     <div class="style-section">
                       <span class="style-label" id="outlineLabel">Outline</span>
                       <button class="panel-button" id="outlineToggle" type="button">On</button>
-                      <span class="style-label" id="outlineColorLabel">Outline Color</span>
+                      <div class="style-header-row">
+                        <span class="style-label" id="outlineColorLabel">Outline Color</span>
+                        <button class="panel-button small" id="subtitleOutlineCustomToggle" type="button">Custom</button>
+                      </div>
                       <div class="swatch-row" id="outlineColorSwatches"></div>
+                      <div class="custom-color-picker" id="subtitleOutlineColorPicker" hidden>
+                        <div class="slider-row">
+                          <div class="slider-header">
+                            <span>Hue</span>
+                            <span id="subtitleOutlineHueValue">0°</span>
+                          </div>
+                          <input type="range" min="0" max="359" value="0" class="color-slider hue-slider" id="subtitleOutlineHueSlider" />
+                        </div>
+                        <div class="slider-row">
+                          <div class="slider-header">
+                            <span>Saturation</span>
+                            <span id="subtitleOutlineSatValue">0%</span>
+                          </div>
+                          <input type="range" min="0" max="100" value="0" class="color-slider sat-slider" id="subtitleOutlineSatSlider" />
+                        </div>
+                        <div class="slider-row">
+                          <div class="slider-header">
+                            <span>Brightness</span>
+                            <span id="subtitleOutlineBriValue">0%</span>
+                          </div>
+                          <input type="range" min="0" max="100" value="0" class="color-slider bri-slider" id="subtitleOutlineBriSlider" />
+                        </div>
+                        <div class="hex-row">
+                          <span>Hex</span>
+                          <input type="text" class="color-hex-input" id="subtitleOutlineHexInput" placeholder="#000000" maxlength="7" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div class="style-section">

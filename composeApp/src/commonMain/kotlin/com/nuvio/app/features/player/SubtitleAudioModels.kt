@@ -102,6 +102,16 @@ val SubtitleBackgroundColorSwatches = listOf(
     Color(0xFF1E3A8A).copy(alpha = 0.68f),
 )
 
+val SubtitleOutlineColorSwatches = listOf(
+    Color.Black,
+    Color.White,
+    Color(0xFF00E5FF),
+    Color(0xFFFF5C5C),
+    Color(0xFFFFD700),
+    Color(0xFF00FF88),
+    Color(0xFF9B59B6),
+)
+
 fun Color.toStorageHexString(): String {
     fun component(value: Float): String =
         (value * 255f).roundToInt().coerceIn(0, 255).toString(16).padStart(2, '0').uppercase()
