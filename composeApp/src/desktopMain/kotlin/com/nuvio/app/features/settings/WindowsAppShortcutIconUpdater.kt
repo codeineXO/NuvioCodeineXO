@@ -22,7 +22,7 @@ internal object WindowsAppShortcutIconUpdater {
         runCatching {
             val resource = "icons/app-icon-${icon.key}-transparent.ico"
             val localAppData = knownFolder("LocalApplicationData") ?: return@runCatching
-            val iconDirectory = localAppData.resolve("Nuvio/icons")
+            val iconDirectory = localAppData.resolve("NuvioCodeineXO/icons")
             Files.createDirectories(iconDirectory)
             val iconFile = iconDirectory.resolve("app-icon-${icon.key}-transparent.ico")
             Thread.currentThread().contextClassLoader.getResourceAsStream(resource)?.use { input ->
