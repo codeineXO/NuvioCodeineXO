@@ -1564,6 +1564,8 @@ if (isWindowsHost) {
     }
     tasks.matching { it.name in listOf("packageMsi", "packageReleaseMsi") }.configureEach {
         dependsOn(prepareJPackageWrapper)
+        inputs.file(layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.cs"))
+        inputs.file(layout.projectDirectory.file("src/desktopMain/wix/main.wxs"))
         doFirst {
             val task = this as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
             task?.javaHome?.set(jpackageWrapperDir.absolutePath)

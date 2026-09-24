@@ -41,9 +41,7 @@ namespace Nuvio.Installer
                 string[] targetDirs = new string[]
                 {
                     !string.IsNullOrEmpty(localAppData) ? Path.Combine(localAppData, "NuvioCodeineXO") : null,
-                    !string.IsNullOrEmpty(roamingAppData) ? Path.Combine(roamingAppData, "NuvioCodeineXO") : null,
-                    !string.IsNullOrEmpty(localAppData) ? Path.Combine(localAppData, "Nuvio") : null,
-                    !string.IsNullOrEmpty(roamingAppData) ? Path.Combine(roamingAppData, "Nuvio") : null
+                    !string.IsNullOrEmpty(roamingAppData) ? Path.Combine(roamingAppData, "NuvioCodeineXO") : null
                 };
 
                 bool anyExists = false;
@@ -63,8 +61,8 @@ namespace Nuvio.Installer
                 }
 
                 string promptText = 
-                    "Do you want to delete your personal application data (settings, watch history, profiles, and cache) from LocalAppData and Roaming?\n\n" +
-                    "• Click 'Yes' to permanently delete all personal data and settings.\n" +
+                    "Do you want to delete your personal application data (settings, watch history, profiles, and cache) for NuvioCodeineXO from LocalAppData and Roaming?\n\n" +
+                    "• Click 'Yes' to permanently delete your NuvioCodeineXO personal data and settings.\n" +
                     "• Click 'No' to preserve your settings in case you reinstall later.";
 
                 string promptTitle = "Uninstall NuvioCodeineXO - Personal Data";

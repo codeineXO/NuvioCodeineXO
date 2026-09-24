@@ -61,15 +61,16 @@ class JPackageWrapper
             {
                 sb.Append(" --verbose");
             }
-            string tempDir = Path.Combine(repoDir, @"build\jpackage-temp");
-            if (Directory.Exists(tempDir))
+            string tempBase = Path.Combine(repoDir, @"build\jpackage-temp");
+            try
             {
-                try
+                if (Directory.Exists(tempBase))
                 {
-                    Directory.Delete(tempDir, true);
+                    Directory.Delete(tempBase, true);
                 }
-                catch { }
             }
+            catch { }
+            string tempDir = Path.Combine(tempBase, Guid.NewGuid().ToString("N"));
             sb.Append(" --temp \"").Append(tempDir).Append("\"");
 
             var psi = new ProcessStartInfo
