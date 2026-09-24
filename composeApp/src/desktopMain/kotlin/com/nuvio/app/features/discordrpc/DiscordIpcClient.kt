@@ -27,9 +27,10 @@ import java.util.UUID
 private const val OpcodeHandshake = 0
 private const val OpcodeFrame = 1
 
-private val discordIpcJson = Json {
+internal val discordIpcJson = Json {
     ignoreUnknownKeys = true
-    explicitNulls = true
+    explicitNulls = false
+    encodeDefaults = true
 }
 
 @Serializable

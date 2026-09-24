@@ -19,6 +19,7 @@ internal data class DiscordActivity(
     val timestamps: DiscordActivityTimestamps? = null,
     val assets: DiscordActivityAssets? = null,
     val buttons: List<DiscordActivityButton>? = null,
+    val instance: Boolean = false,
 )
 
 @Serializable

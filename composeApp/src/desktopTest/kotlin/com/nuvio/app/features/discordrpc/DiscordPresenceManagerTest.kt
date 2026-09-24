@@ -12,10 +12,7 @@ import kotlin.test.assertTrue
 
 class DiscordPresenceManagerTest {
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-        explicitNulls = true
-    }
+    private val json = discordIpcJson
 
     @Test
     fun idleActivity_hasNuvioCodeineXONameAndDownloadButton() {
@@ -125,6 +122,23 @@ class DiscordPresenceManagerTest {
         assertTrue(encoded.contains(""""small_image":"https://example.com/thumb.jpg""""))
         assertTrue(encoded.contains(""""label":"Download NuvioCodeineXO""""))
         assertTrue(encoded.contains(""""url":"https://github.com/codeineXO/NuvioCodeineXO""""))
+        assertTrue(encoded.contains("\"instance\":false"))
+    }
+
+    @Test
+    fun discordActivitySerialization_omitsNullFields_toPreventDiscordGatewaySchemaRejection() {
+        val encoded = json.encodeToString(IdleActivity)
+        assertTrue(encoded.contains("\"name\":\"NuvioCodeineXO\""))
+        assertTrue(encoded.contains("\"details\":\"Browsing NuvioCodeineXO\""))
+        assertTrue(encoded.contains("\"type\":3"))
+        assertTrue(encoded.contains("\"instance\":false"))
+        assertTrue(!encoded.contains("\"assets\":null"))
+        assertTrue(!encoded.contains("\"timestamps\":null"))
+        assertTrue(!encoded.contains("\"state\":null"))
+        assertTrue(!encoded.contains("\"status_display_type\":null"))
+        assertTrue(!encoded.contains("\"assets\""))
+        assertTrue(!encoded.contains("\"timestamps\""))
+        assertTrue(!encoded.contains("\"state\""))
     }
 
     @Test
