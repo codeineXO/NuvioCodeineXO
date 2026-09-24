@@ -7,7 +7,7 @@
   <h1>Nuvio Desktop — CodeineXO Edition</h1>
 
   <p>
-    An enhanced branch of Nuvio Desktop featuring native P2P streaming, smoother seeking, deep subtitle styling, and isolated profile storage.
+    An enhanced edition of Nuvio Desktop with smoother playback, native streaming, deep subtitle styling, and independent profile storage.
   </p>
 
   <p>
@@ -26,31 +26,35 @@
 
 ---
 
-## ⚡ Key Enhancements in this Branch
+## ✨ What's Changed From Dev
 
+### 🌟 New Features
 - **🎨 Deep Subtitle Customization:**
-  - **10 Universal Fonts:** Trebuchet MS, Segoe UI, Impact, Georgia, Arial, Consolas, and more with instant Skia typeface resolution.
-  - **Outline Styles:** Choose from *Classic Outline*, *Drop Shadow*, *Soft Glow* (true blur halo), *Outline + Shadow*, and *Background Box*.
-  - **Thickness Slider & Color Pickers:** Fine-tune borders (0–10 px) and pick custom colors for text, stroke, shadows, and boxes.
-  - **Java 21 FFM MPV Bridge:** Direct runtime communication with the internal `libmpv-2` core so all styling updates instantly in video playback.
+  - **Custom Color Picker:** Pick exact colors for text, border outlines, and background boxes using full color pickers.
+  - **10 Clean Fonts:** Switch between Arial, Segoe UI, Trebuchet MS, Impact, Georgia, and more.
+  - **Outline & Shadow Effects:** Choose between classic borders, drop shadows, soft glow halos, or background boxes with an adjustable thickness slider.
+  - **Live Preview:** Subtitle styling updates instantly while the video plays without needing a restart.
+- **🚀 Faster P2P Streaming Engine:** Built-in NuvioEngine backend integrated alongside TorrServer for direct peer-to-peer torrent and debrid streaming.
+- **🎮 Richer Discord RPC:** Shows what movie or show you're watching with poster and episode thumbnail directly on Discord, complete with browsing status (with customizable privacy modes).
 
-- **🚀 Better P2P Streaming:**
-  - Native NuvioEngine backend integrated alongside TorrServer for faster piece buffering, reduced connection overhead, and smoother torrent/debrid playback.
-  - Configurable streaming buffer presets for varying connection speeds.
+### ⚡ Improvements & Optimizations
+- **⚡ Faster Streaming by Default:** Initial setup defaults to the "Fast" streaming profile for faster buffering and less wait time.
+- **⏩ Smooth Timeline Seeking:** Fixed the timeline scrubbing glitch where jumping backward or forward caused video to stutter, snap to wrong frames, or replay moments you already watched.
+- **📁 Safe & Isolated Profile:** Runs out of its own dedicated `NuvioCodeineXO` data folder so your settings, cache, and watch progress never clash with the original Nuvio app.
 
-- **⏩ Smoother Seeking & Playback:**
-  - Fine-seek optimizations eliminating frame replay stutter and unwanted keyframe snaps when jumping through video timelines.
-
-- **📁 Profile & Storage Isolation:**
-  - Runs out of a dedicated `NuvioCodeineXO` AppData profile so your settings, cache, and watch progress never interfere with upstream Nuvio installations.
 
 ---
 
-## 📦 Quick Start (Portable Windows Build)
+## 📦 Download & Installation
 
-No installation or runtime setup needed. Download the latest portable build:
+Get the latest version from the **[Releases Page](https://github.com/codeineXO/NuvioCodeineXO/releases/latest)**:
 
-👉 **[Download Latest Release (.zip)](https://github.com/codeineXO/NuvioCodeineXO/releases/latest)**
+| Format | Description | Link |
+| :--- | :--- | :--- |
+| **Windows Installer (.msi)** | Recommended. Installs with shortcuts and easy upgrades. | **[Download](https://github.com/codeineXO/NuvioCodeineXO/releases/latest)** |
 
-1. Download and extract the `.zip` archive from the [Latest Release](https://github.com/codeineXO/NuvioCodeineXO/releases/latest).
-2. Open the `NuvioCodeineXO` folder and run `Nuvio.exe`.
+---
+
+## ⚖️ Disclaimer
+
+Nuvio is a client-side media browser and player for user-provided sources and extensions. It does not host, store, or distribute any media content.
