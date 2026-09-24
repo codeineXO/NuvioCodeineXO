@@ -62,6 +62,7 @@ private fun rememberOpenMeta(navController: NuvioNavigator): (MetaPreview) -> Un
                     type = preview.type,
                     id = resolvedId,
                     title = preview.name,
+                    posterUrl = preview.poster,
                 ),
             )
         }

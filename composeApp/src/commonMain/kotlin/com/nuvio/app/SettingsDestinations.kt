@@ -194,7 +194,14 @@ internal fun FolderDestination(
         onBack = onBack,
         onCatalogClick = onCatalogClick,
         onPosterClick = { meta: MetaPreview ->
-            navController.navigate(DetailRoute(type = meta.type, id = meta.id, title = meta.name))
+            navController.navigate(
+                DetailRoute(
+                    type = meta.type,
+                    id = meta.id,
+                    title = meta.name,
+                    posterUrl = meta.poster,
+                ),
+            )
         },
     )
 }

@@ -7,7 +7,7 @@ public data class NuvioEngineConfig(
     val cacheDirectory: File,
     val memoryCacheCapacityBytes: Long = 64L * 1024L * 1024L,
     val diskCacheCapacityBytes: Long = 2L * 1024L * 1024L * 1024L,
-    val torrentProfile: NuvioTorrentProfile = NuvioTorrentProfile.Balanced,
+    val torrentProfile: NuvioTorrentProfile = NuvioTorrentProfile.Fast,
     val listenPort: Int = 0,
     val uploadMode: NuvioUploadMode = NuvioUploadMode.Unlimited,
     val uploadLimitBytesPerSecond: Long = 0L,

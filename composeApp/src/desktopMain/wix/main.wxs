@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <?ifdef JpIsSystemWide ?>
+    <?define JpInstallScope="perMachine"?>
+  <?else?>
+    <?define JpInstallScope="perUser"?>
+  <?endif?>
+
+  <?define JpProductLanguage=1033 ?>
+  <?define JpInstallerVersion=200 ?>
+  <?define JpCompressedMsi=yes ?>
+
+  <?include $(var.JpConfigDir)/overrides.wxi?>
+
+  <?ifdef JpAllowUpgrades ?>
+    <?define JpUpgradeVersionOnlyDetectUpgrade="no"?>
+  <?else?>
+    <?define JpUpgradeVersionOnlyDetectUpgrade="yes"?>
+  <?endif?>
+  <?ifdef JpAllowDowngrades ?>
+    <?define JpUpgradeVersionOnlyDetectDowngrade="no"?>
+  <?else?>
+    <?define JpUpgradeVersionOnlyDetectDowngrade="yes"?>
+  <?endif?>
+
+  <Product
+    Id="$(var.JpProductCode)"
+    Name="$(var.JpAppName)"
+    Language="$(var.JpProductLanguage)"
+    Version="$(var.JpAppVersion)"
+    Manufacturer="$(var.JpAppVendor)"
+    UpgradeCode="$(var.JpProductUpgradeCode)">
+
+    <Package
+      Description="$(var.JpAppDescription)"
+      Manufacturer="$(var.JpAppVendor)"
+      InstallerVersion="$(var.JpInstallerVersion)"
+      Compressed="$(var.JpCompressedMsi)"
+      InstallScope="$(var.JpInstallScope)" Platform="x64"
+    />
+
+    <Media Id="1" Cabinet="Data.cab" EmbedCab="yes" />
+
+    <Upgrade Id="$(var.JpProductUpgradeCode)">
+      <UpgradeVersion
+        OnlyDetect="$(var.JpUpgradeVersionOnlyDetectUpgrade)"
+        Property="JP_UPGRADABLE_FOUND"
+        Maximum="$(var.JpAppVersion)"
+        MigrateFeatures="yes"
+        IncludeMaximum="$(var.JpUpgradeVersionOnlyDetectUpgrade)" />
+      <UpgradeVersion
+        OnlyDetect="$(var.JpUpgradeVersionOnlyDetectDowngrade)"
+        Property="JP_DOWNGRADABLE_FOUND"
+        Minimum="$(var.JpAppVersion)"
+        MigrateFeatures="yes"
+        IncludeMinimum="$(var.JpUpgradeVersionOnlyDetectDowngrade)" />
+    </Upgrade>
+
+    <!-- Registry Searches for Existing Installation Directory -->
+    <Property Id="PREVIOUSINSTALLDIR_CUSTOM">
+      <RegistrySearch Id="SearchPrevNuvioCodeineXO" Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO" Name="InstallDir" Type="raw" Win64="yes" />
+    </Property>
+    <Property Id="PREVIOUSINSTALLDIR_LEGACY">
+      <RegistrySearch Id="SearchPrevNuvio" Root="HKLM" Key="Software\Nuvio Media\Nuvio" Name="InstallDir" Type="raw" Win64="yes" />
+    </Property>
+
+    <!-- Public property for uninstall data deletion (0 = keep data, 1 = delete data) -->
+    <Property Id="DELETE_APP_DATA" Value="0" Secure="yes" />
+
+    <!-- Align INSTALLDIR to previous installation folder if detected -->
+    <CustomAction Id="SetINSTALLDIRFromPrev" Property="INSTALLDIR" Value="[PREVIOUSINSTALLDIR_CUSTOM]" />
+    <CustomAction Id="SetINSTALLDIRFromPrevLegacy" Property="INSTALLDIR" Value="[PREVIOUSINSTALLDIR_LEGACY]" />
+
+    <!-- Graceful shutdown of running processes before upgrade/uninstall -->
+    <util:CloseApplication Id="CloseNuvioApp" Target="NuvioCodeineXO.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseNuvioLegacy" Target="Nuvio.exe" CloseMessage="yes" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseTorrServer" Target="TorrServer.exe" CloseMessage="yes" RebootPrompt="no" />
+
+    <!-- Clean old application files before copying new files on upgrade -->
+    <CustomAction Id="SetCleanOldFilesCmd" Property="CleanOldFilesAction"
+                  Value="&quot;[SystemFolder]cmd.exe&quot; /c if exist &quot;[INSTALLDIR]app&quot; (del /f /q /s &quot;[INSTALLDIR]app\*.*&quot; &gt;nul 2&gt;&amp;1)" />
+    <CustomAction Id="CleanOldFilesAction" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="ignore" Impersonate="no" />
+
+    <!-- Delete user application data on uninstall if requested -->
+    <CustomAction Id="SetDeleteAppDataCmd" Property="DeleteAppDataAction"
+                  Value="&quot;[SystemFolder]cmd.exe&quot; /c if exist &quot;%LOCALAPPDATA%\NuvioCodeineXO&quot; rd /s /q &quot;%LOCALAPPDATA%\NuvioCodeineXO&quot; &amp; if exist &quot;%APPDATA%\NuvioCodeineXO&quot; rd /s /q &quot;%APPDATA%\NuvioCodeineXO&quot; &amp; if exist &quot;%LOCALAPPDATA%\Nuvio&quot; rd /s /q &quot;%LOCALAPPDATA%\Nuvio&quot; &amp; if exist &quot;%APPDATA%\Nuvio&quot; rd /s /q &quot;%APPDATA%\Nuvio&quot;" />
+    <CustomAction Id="DeleteAppDataAction" BinaryKey="WixCA" DllEntry="WixQuietExec" Execute="deferred" Return="ignore" Impersonate="yes" />
+
+    <?ifndef JpAllowUpgrades ?>
+    <CustomAction Id="JpDisallowUpgrade" Error="!(loc.DisallowUpgradeErrorMessage)" />
+    <?endif?>
+    <?ifndef JpAllowDowngrades ?>
+    <CustomAction Id="JpDisallowDowngrade" Error="!(loc.DowngradeErrorMessage)" />
+    <?endif?>
+
+    <Binary Id="JpCaDll" SourceFile="wixhelper.dll"/>
+    <CustomAction Id="JpFindRelatedProducts" BinaryKey="JpCaDll" DllEntry="FindRelatedProductsEx" />
+
+    <!-- Standard required root -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Component Id="C_RegInstallLocation" Guid="{5A3E9281-229D-424B-B368-6F3F4D201A4E}" Win64="yes">
+        <RegistryKey Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO">
+          <RegistryValue Type="string" Name="InstallDir" Value="[INSTALLDIR]" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+    </Directory>
+
+    <Feature Id="DefaultFeature" Title="!(loc.MainFeatureTitle)" Level="1">
+      <ComponentRef Id="C_RegInstallLocation"/>
+      <ComponentGroupRef Id="Shortcuts"/>
+      <ComponentGroupRef Id="Files"/>
+      <ComponentGroupRef Id="FileAssociations"/>
+    </Feature>
+
+    <CustomAction Id="JpSetARPINSTALLLOCATION" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
+    <CustomAction Id="JpSetARPCOMMENTS" Property="ARPCOMMENTS" Value="$(var.JpAppDescription)" />
+    <CustomAction Id="JpSetARPCONTACT" Property="ARPCONTACT" Value="$(var.JpAppVendor)" />
+    <CustomAction Id="JpSetARPSIZE" Property="ARPSIZE" Value="$(var.JpAppSizeKb)" />
+
+    <?ifdef JpHelpURL ?>
+      <CustomAction Id="JpSetARPHELPLINK" Property="ARPHELPLINK" Value="$(var.JpHelpURL)" />
+    <?endif?>
+
+    <?ifdef JpAboutURL ?>
+      <CustomAction Id="JpSetARPURLINFOABOUT" Property="ARPURLINFOABOUT" Value="$(var.JpAboutURL)" />
+    <?endif?>
+
+    <?ifdef JpUpdateURL ?>
+      <CustomAction Id="JpSetARPURLUPDATEINFO" Property="ARPURLUPDATEINFO" Value="$(var.JpUpdateURL)" />
+    <?endif?>
+
+    <?ifdef JpIcon ?>
+    <Property Id="ARPPRODUCTICON" Value="JpARPPRODUCTICON"/>
+    <Icon Id="JpARPPRODUCTICON" SourceFile="$(var.JpIcon)"/>
+    <?endif?>
+
+    <UI>
+      <!-- Route MaintenanceTypeDlg Remove to our UninstallConfirmDlg with AppData checkbox -->
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="UninstallConfirmDlg">1</Publish>
+
+      <Dialog Id="UninstallConfirmDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="15" Width="300" Height="15" Transparent="yes" NoPrefix="yes"
+                 Text="{\WixUI_Font_Title}Remove [ProductName]" />
+        <Control Id="Description" Type="Text" X="25" Y="27" Width="300" Height="15" Transparent="yes" NoPrefix="yes"
+                 Text="The setup wizard is ready to remove [ProductName]." />
+
+        <Control Id="Text" Type="Text" X="25" Y="70" Width="320" Height="40"
+                 Text="Click Remove to uninstall [ProductName] from your computer. If you plan to reinstall later, leave the checkbox below unchecked to preserve your settings and history." />
+
+        <Control Id="DeleteAppDataCheckbox" Type="CheckBox" X="25" Y="120" Width="320" Height="25"
+                 Property="DELETE_APP_DATA" CheckBoxValue="1"
+                 Text="Delete personal application data (settings, cache, and profiles in AppData)" />
+
+        <Control Id="Remove" Type="PushButton" X="222" Y="243" Width="56" Height="17" Default="yes" Text="Remove">
+          <Publish Event="Remove" Value="All">1</Publish>
+          <Publish Event="EndDialog" Value="Return">OutOfDiskSpace = 1</Publish>
+          <Publish Event="SpawnDialog" Value="OutOfDiskDlg">OutOfDiskSpace = 1</Publish>
+        </Control>
+        <Control Id="Back" Type="PushButton" X="160" Y="243" Width="56" Height="17" Text="Back">
+          <Publish Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+      </Dialog>
+    </UI>
+
+    <UIRef Id="JpUI"/>
+
+    <InstallExecuteSequence>
+      <Custom Action="SetINSTALLDIRFromPrev" After="AppSearch">PREVIOUSINSTALLDIR_CUSTOM</Custom>
+      <Custom Action="SetINSTALLDIRFromPrevLegacy" After="SetINSTALLDIRFromPrev">PREVIOUSINSTALLDIR_LEGACY AND NOT PREVIOUSINSTALLDIR_CUSTOM</Custom>
+      <Custom Action="JpSetARPINSTALLLOCATION" After="CostFinalize">Not Installed</Custom>
+      <Custom Action="JpSetARPCOMMENTS" After="CostFinalize">Not Installed</Custom>
+      <Custom Action="JpSetARPCONTACT" After="CostFinalize">Not Installed</Custom>
+      <Custom Action="JpSetARPSIZE" After="CostFinalize">Not Installed</Custom>
+      <?ifdef JpHelpURL ?>
+        <Custom Action="JpSetARPHELPLINK" After="CostFinalize">Not Installed</Custom>
+      <?endif?>
+      <?ifdef JpAboutURL ?>
+        <Custom Action="JpSetARPURLINFOABOUT" After="CostFinalize">Not Installed</Custom>
+      <?endif?>
+      <?ifdef JpUpdateURL ?>
+        <Custom Action="JpSetARPURLUPDATEINFO" After="CostFinalize">Not Installed</Custom>
+      <?endif?>
+
+      <?ifndef JpAllowUpgrades ?>
+      <Custom Action="JpDisallowUpgrade" After="JpFindRelatedProducts">JP_UPGRADABLE_FOUND</Custom>
+      <?endif?>
+      <?ifndef JpAllowDowngrades ?>
+      <Custom Action="JpDisallowDowngrade" After="JpFindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
+      <?endif?>
+      <RemoveExistingProducts Before="CostInitialize"/>
+      <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
+
+      <!-- Clean old files on upgrade before copying new files -->
+      <Custom Action="SetCleanOldFilesCmd" Before="CleanOldFilesAction">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
+      <Custom Action="CleanOldFilesAction" Before="InstallFiles">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
+
+      <!-- AppData removal during uninstall if requested -->
+      <Custom Action="SetDeleteAppDataCmd" Before="DeleteAppDataAction">REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND DELETE_APP_DATA="1"</Custom>
+      <Custom Action="DeleteAppDataAction" After="RemoveFiles">REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE AND DELETE_APP_DATA="1"</Custom>
+    </InstallExecuteSequence>
+
+    <InstallUISequence>
+      <Custom Action="SetINSTALLDIRFromPrev" After="AppSearch">PREVIOUSINSTALLDIR_CUSTOM</Custom>
+      <Custom Action="SetINSTALLDIRFromPrevLegacy" After="SetINSTALLDIRFromPrev">PREVIOUSINSTALLDIR_LEGACY AND NOT PREVIOUSINSTALLDIR_CUSTOM</Custom>
+      <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
+    </InstallUISequence>
+
+  </Product>
+</Wix>

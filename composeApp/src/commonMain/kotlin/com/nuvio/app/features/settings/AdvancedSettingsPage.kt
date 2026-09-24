@@ -1,5 +1,6 @@
 package com.nuvio.app.features.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -23,10 +25,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
+import com.nuvio.app.core.ui.NuvioBottomSheetDivider
+import com.nuvio.app.core.ui.NuvioModalBottomSheet
 import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.dismissNuvioBottomSheet
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentCache
@@ -37,6 +49,13 @@ import nuvio.composeapp.generated.resources.action_cancel
 import nuvio.composeapp.generated.resources.settings_advanced_clear_cw_cache
 import nuvio.composeapp.generated.resources.settings_advanced_clear_cw_cache_done
 import nuvio.composeapp.generated.resources.settings_advanced_clear_cw_cache_subtitle
+import nuvio.composeapp.generated.resources.cd_selected
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_all
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_all_desc
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching_desc
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_sheet_title
 import nuvio.composeapp.generated.resources.settings_advanced_discord_rich_presence
 import nuvio.composeapp.generated.resources.settings_advanced_discord_rich_presence_description
 import nuvio.composeapp.generated.resources.settings_advanced_opengl_renderer
@@ -172,6 +191,11 @@ internal fun LazyListScope.advancedSettingsContent(
                 DiscordRichPresenceRepository.enabled
             }
             val discordEnabled by discordEnabledFlow.collectAsStateWithLifecycle()
+            val activityModeFlow = remember {
+                DiscordRichPresenceRepository.activityMode
+            }
+            val activityMode by activityModeFlow.collectAsStateWithLifecycle()
+            var showActivityModeSheet by rememberSaveable { mutableStateOf(false) }
 
             SettingsSection(
                 title = stringResource(Res.string.settings_advanced_section_discord),
@@ -185,7 +209,33 @@ internal fun LazyListScope.advancedSettingsContent(
                         isTablet = isTablet,
                         onCheckedChange = DiscordRichPresenceRepository::setEnabled,
                     )
+                    if (discordEnabled) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.settings_advanced_discord_activity_mode),
+                            description = stringResource(
+                                if (activityMode == DiscordActivityMode.ONLY_WATCHING) {
+                                    Res.string.settings_advanced_discord_activity_mode_only_watching
+                                } else {
+                                    Res.string.settings_advanced_discord_activity_mode_all
+                                }
+                            ),
+                            isTablet = isTablet,
+                            onClick = { showActivityModeSheet = true },
+                        )
+                    }
                 }
+            }
+
+            if (showActivityModeSheet) {
+                DiscordActivityModeBottomSheet(
+                    selectedMode = activityMode,
+                    onModeSelected = { mode ->
+                        DiscordRichPresenceRepository.setActivityMode(mode)
+                        showActivityModeSheet = false
+                    },
+                    onDismiss = { showActivityModeSheet = false },
+                )
             }
         }
     }
@@ -365,5 +415,95 @@ private fun SentryInfoSection(
             style = MaterialTheme.typography.bodyMedium,
             color = tokens.colors.textMuted,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DiscordActivityModeBottomSheet(
+    selectedMode: DiscordActivityMode,
+    onModeSelected: (DiscordActivityMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
+    val modes = listOf(
+        DiscordActivityMode.ALL to (
+            Res.string.settings_advanced_discord_activity_mode_all to
+                Res.string.settings_advanced_discord_activity_mode_all_desc
+        ),
+        DiscordActivityMode.ONLY_WATCHING to (
+            Res.string.settings_advanced_discord_activity_mode_only_watching to
+                Res.string.settings_advanced_discord_activity_mode_only_watching_desc
+        ),
+    )
+
+    NuvioModalBottomSheet(
+        onDismissRequest = {
+            coroutineScope.launch {
+                dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+            }
+        },
+        sheetState = sheetState,
+    ) {
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+        ) {
+            item {
+                Text(
+                    text = stringResource(Res.string.settings_advanced_discord_activity_mode_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                )
+            }
+
+            itemsIndexed(modes) { index, (mode, stringRes) ->
+                if (index > 0) {
+                    NuvioBottomSheetDivider()
+                }
+                val (titleRes, descRes) = stringRes
+                val tokens = MaterialTheme.nuvio
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onModeSelected(mode)
+                            coroutineScope.launch {
+                                dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                            }
+                        }
+                        .padding(horizontal = tokens.spacing.screenHorizontal, vertical = tokens.spacing.screenHorizontal),
+                    horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s14),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = stringResource(titleRes),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = tokens.colors.textPrimary,
+                        )
+                        Text(
+                            text = stringResource(descRes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.colors.textMuted,
+                        )
+                    }
+                    if (mode == selectedMode) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(Res.string.cd_selected),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
     }
 }

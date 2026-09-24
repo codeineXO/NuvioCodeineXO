@@ -1314,12 +1314,6 @@ private fun TabletSettingsScreen(
                     )
                 }
             }
-            if (page == SettingsPage.Root) {
-                SettingsAttribution(
-                    isTablet = true,
-                    modifier = Modifier.padding(bottom = 40.dp + LocalNuvioBottomNavigationOverlayPadding.current),
-                )
-            }
         }
     }
 }

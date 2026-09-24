@@ -83,6 +83,8 @@ import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
+import com.nuvio.app.core.ui.AppPresenceState
+import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
@@ -201,6 +203,19 @@ fun MetaDetailsScreen(
     val uiState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
     val displayedMeta = uiState.meta?.takeIf { it.type == type && it.id == id }
         ?: MetaDetailsRepository.peek(type, id)
+
+    LaunchedEffect(displayedMeta?.name, displayedMeta?.poster) {
+        val metaName = displayedMeta?.name
+        val metaPoster = displayedMeta?.poster
+        if (!metaName.isNullOrBlank()) {
+            AppPresenceState.publish(
+                PresenceSnapshot.Details(
+                    title = metaName,
+                    posterUrl = metaPoster,
+                ),
+            )
+        }
+    }
     val metaScreenSettingsUiState by remember {
         MetaScreenSettingsRepository.ensureLoaded()
         MetaScreenSettingsRepository.uiState

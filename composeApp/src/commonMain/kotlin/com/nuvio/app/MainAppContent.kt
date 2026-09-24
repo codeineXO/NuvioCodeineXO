@@ -481,14 +481,35 @@ internal fun MainAppContent(
     LaunchedEffect(selectedTab, navBackStack.lastOrNull()) {
         val topRoute = navBackStack.lastOrNull()
         if (topRoute is PlayerRoute) return@LaunchedEffect
-        val detailTitle = (topRoute as? DetailRoute)?.title
-        AppPresenceState.publish(
-            if (!detailTitle.isNullOrBlank()) {
-                PresenceSnapshot.Details(detailTitle)
-            } else {
-                PresenceSnapshot.Tab(selectedTab)
-            },
-        )
+        when (topRoute) {
+            is DetailRoute -> {
+                val detailTitle = topRoute.title
+                if (!detailTitle.isNullOrBlank()) {
+                    AppPresenceState.publish(PresenceSnapshot.Details(detailTitle, topRoute.posterUrl))
+                } else {
+                    AppPresenceState.publish(PresenceSnapshot.Tab(selectedTab))
+                }
+            }
+            is StreamRoute -> {
+                val launch = StreamLaunchStore.get(topRoute.launchId)
+                val title = launch?.title?.ifBlank { topRoute.title } ?: topRoute.title.ifBlank { "Selecting stream" }
+                val poster = launch?.poster
+                val episodeLabel = if (launch?.seasonNumber != null && launch.episodeNumber != null) {
+                    val epTitle = launch.episodeTitle?.takeIf { it.isNotBlank() }
+                    "S${launch.seasonNumber}E${launch.episodeNumber}${epTitle?.let { " - $it" }.orEmpty()}"
+                } else null
+                AppPresenceState.publish(
+                    PresenceSnapshot.StreamSelection(
+                        title = title,
+                        posterUrl = poster,
+                        episodeLabel = episodeLabel,
+                    ),
+                )
+            }
+            else -> {
+                AppPresenceState.publish(PresenceSnapshot.Tab(selectedTab))
+            }
+        }
     }
 
     var profileSwitchLoading by remember { mutableStateOf(false) }
@@ -729,15 +750,17 @@ internal fun MainAppContent(
                 when (deepLink) {
                     is AppDeepLink.Meta -> {
                         activateTab(AppScreenTab.Home)
-                        val routeTitle = runCatching {
-                            MetaDetailsRepository.fetch(deepLink.type, deepLink.id)?.name
-                        }.getOrNull().orEmpty().ifBlank { detailsFallbackTitle }
+                        val meta = runCatching {
+                            MetaDetailsRepository.fetch(deepLink.type, deepLink.id)
+                        }.getOrNull()
+                        val routeTitle = meta?.name.orEmpty().ifBlank { detailsFallbackTitle }
                         navController.navigate(
                             DetailRoute(
                                 type = deepLink.type,
                                 id = deepLink.id,
                                 title = routeTitle,
-                            )
+                                posterUrl = meta?.poster,
+                            ),
                         ) {
                             launchSingleTop = true
                         }
@@ -1328,7 +1351,12 @@ internal fun MainAppContent(
                                 onCatalogClick = onCatalogClick,
                                 onPosterClick = { meta ->
                                     navController.navigate(
-                                        DetailRoute(type = meta.type, id = meta.id, title = meta.name),
+                                        DetailRoute(
+                                            type = meta.type,
+                                            id = meta.id,
+                                            title = meta.name,
+                                            posterUrl = meta.poster,
+                                        ),
                                     )
                                 },
                                 onPosterLongClick = { meta ->
@@ -1336,7 +1364,12 @@ internal fun MainAppContent(
                                 },
                                 onLibraryPosterClick = { item ->
                                     navController.navigate(
-                                        DetailRoute(type = item.type, id = item.id, title = item.name),
+                                        DetailRoute(
+                                            type = item.type,
+                                            id = item.id,
+                                            title = item.name,
+                                            posterUrl = item.poster,
+                                        ),
                                     )
                                 },
                                 onLibraryPosterLongClick = { item, section ->
@@ -1882,6 +1915,7 @@ internal fun MainAppContent(
                                                         type = item.parentMetaType,
                                                         id = item.parentMetaId,
                                                         title = item.title,
+                                                        posterUrl = item.poster,
                                                     ),
                                                 )
                                             },
@@ -1938,6 +1972,7 @@ internal fun MainAppContent(
                                 type = item.parentMetaType,
                                 id = item.parentMetaId,
                                 title = item.title,
+                                posterUrl = item.poster,
                             ),
                         )
                     }

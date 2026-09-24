@@ -574,6 +574,13 @@
     <string name="settings_advanced_sentry_reports_subtitle_desktop">Send crash reports with safe diagnostic context. On by default.</string>
     <string name="settings_advanced_discord_rich_presence">Discord Rich Presence</string>
     <string name="settings_advanced_discord_rich_presence_description">Show what you're browsing or watching on your Discord profile. Off by default.</string>
+    <string name="settings_advanced_discord_activity_mode">Discord Activity</string>
+    <string name="settings_advanced_discord_activity_mode_description">Choose whether to show all app activity or only what you are watching.</string>
+    <string name="settings_advanced_discord_activity_mode_all">All activity</string>
+    <string name="settings_advanced_discord_activity_mode_all_desc">Show browsing, details, stream selection, and playback</string>
+    <string name="settings_advanced_discord_activity_mode_only_watching">Only watching</string>
+    <string name="settings_advanced_discord_activity_mode_only_watching_desc">Only show activity when playing a movie or series</string>
+    <string name="settings_advanced_discord_activity_mode_sheet_title">Discord Activity Display</string>
     <string name="sentry_enable_dialog_title">Turn on crash reports?</string>
     <string name="sentry_enable_dialog_subtitle">Crash reports help identify device-specific failures without asking you to reproduce the issue with ADB logs.</string>
     <string name="sentry_enable_dialog_subtitle_desktop">Crash reports help identify Windows and macOS failures without asking you to collect logs manually.</string>

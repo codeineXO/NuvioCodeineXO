@@ -12,6 +12,11 @@ class P2pTelemetryTest {
     }
 
     @Test
+    fun defaultTorrentProfileIsFast() {
+        assertEquals(P2pTorrentProfile.FAST, P2pSettingsUiState().torrentProfile)
+    }
+
+    @Test
     fun connectingStateCarriesStartupTelemetry() {
         val state = P2pStreamingState.Connecting(
             phase = "add_magnet",

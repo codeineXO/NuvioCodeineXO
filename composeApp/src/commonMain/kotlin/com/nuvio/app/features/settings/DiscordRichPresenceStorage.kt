@@ -7,4 +7,6 @@ internal expect object DiscordRichPresencePlatform {
 internal expect object DiscordRichPresenceStorage {
     fun loadEnabled(): Boolean?
     fun saveEnabled(enabled: Boolean)
+    fun loadActivityMode(): DiscordActivityMode?
+    fun saveActivityMode(mode: DiscordActivityMode)
 }

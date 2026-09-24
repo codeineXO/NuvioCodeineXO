@@ -39,10 +39,11 @@ internal actual object AppIconPlatform {
             runCatching {
                 Thread.sleep(900)
                 val appHome = System.getProperty("compose.application.home")?.let { Paths.get(it) }
-                val installedLauncher = appHome?.parent?.resolve("Nuvio.exe")
+                val installedLauncher = appHome?.parent?.resolve("NuvioCodeineXO.exe")
+                val legacyLauncher = appHome?.parent?.resolve("Nuvio.exe")
                 val parentLauncher = ProcessHandle.current().parent().orElse(null)?.info()?.command()?.orElse(null)?.let { Paths.get(it) }
                 val currentLauncher = ProcessHandle.current().info().command().orElse(null)?.let { Paths.get(it) }
-                val launcher = sequenceOf(installedLauncher, parentLauncher, currentLauncher).filterNotNull().firstOrNull(Files::isRegularFile)
+                val launcher = sequenceOf(installedLauncher, legacyLauncher, parentLauncher, currentLauncher).filterNotNull().firstOrNull(Files::isRegularFile)
                     ?: return@runCatching
                 ProcessBuilder(launcher.toString()).start()
                 exitProcess(0)

@@ -53,11 +53,11 @@ actual object AppUpdaterPlatform {
         get() = currentOs != DesktopUpdaterOs.UNKNOWN && linuxInstallMethod != LinuxInstallMethod.FLATPAK
 
     actual val releaseSource: AppUpdateReleaseSource = AppUpdateReleaseSource(
-        owner = "NuvioMedia",
-        repo = "NuvioDesktop",
+        owner = "codeineXO",
+        repo = "NuvioCodeineXO",
         channelBranch = null,
         includePrereleases = true,
-        userAgent = "NuvioDesktop",
+        userAgent = "NuvioCodeineXO",
     )
 
     actual val assetSelector: AppUpdateAssetSelector
@@ -195,7 +195,7 @@ private enum class DesktopUpdaterOs {
         return when (this) {
             WINDOWS -> AppUpdateAssetSelector(
                 fileExtensions = listOf(".msi", ".exe"),
-                preferredNameFragments = archFragments + listOf("windows", "win"),
+                preferredNameFragments = listOf("nuviocodeinexo") + archFragments + listOf("windows", "win"),
                 fallbackNameFragments = listOf("universal", "all"),
             )
             MACOS -> AppUpdateAssetSelector(

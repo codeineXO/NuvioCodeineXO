@@ -442,7 +442,7 @@ fun newestDirectory(root: File): File? =
         ?.maxByOrNull { semanticVersionSortKey(it.name) }
 
 fun jpackageCompatibleVersion(version: String): String {
-    val versionCore = version.substringBefore('-').substringBefore('+').trim()
+    val versionCore = version.trim().removePrefix("v").removePrefix("V").substringBefore('-').substringBefore('+').trim()
     val parts = versionCore.split('.').filter { it.isNotBlank() }
     require(parts.isNotEmpty() && parts.size <= 3) {
         "Desktop package version must use one to three numeric components: $version"
@@ -1336,11 +1336,13 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
-            packageName = "Nuvio"
+            packageName = "NuvioCodeineXO"
             packageVersion = desktopReleasePackageVersion
             vendor = "Nuvio Media"
             if (isMacHost) {
                 appResourcesRootDir.set(macosPlayerAppResourcesRoot)
+            } else if (isWindowsHost) {
+                appResourcesRootDir.set(layout.projectDirectory.dir("src/desktopMain/wix"))
             }
             modules(
                 "java.instrument",
@@ -1391,7 +1393,7 @@ compose.desktop {
                 upgradeUuid = windowsMsiUpgradeUuid
                 shortcut = true
                 menu = true
-                menuGroup = "Nuvio"
+                menuGroup = "NuvioCodeineXO"
             }
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.png"))
@@ -1450,9 +1452,13 @@ fun publishWindowsMsiOutput(release: Boolean) {
 
     val distributionName = if (release) "main-release" else "main"
     val outputDir = layout.buildDirectory.dir("compose/binaries/$distributionName/msi").get().asFile
-    val finalMsi = outputDir.resolve("Nuvio-Windows-$windowsPlayerBridgeArch-$desktopReleaseVersionName.msi")
-    val defaultMsi = outputDir.resolve("Nuvio-$desktopReleasePackageVersion.msi")
+    val finalMsi = outputDir.resolve("NuvioCodeineXO-$desktopReleaseVersionName.msi")
+    val defaultMsi = outputDir.resolve("NuvioCodeineXO-$desktopReleasePackageVersion.msi")
+    val legacyDefaultMsi = outputDir.resolve("Nuvio-$desktopReleasePackageVersion.msi")
+    val legacyNamedMsi = outputDir.resolve("Nuvio-Windows-$windowsPlayerBridgeArch-$desktopReleaseVersionName.msi")
     val sourceMsi = defaultMsi.takeIf { it.exists() }
+        ?: legacyDefaultMsi.takeIf { it.exists() }
+        ?: legacyNamedMsi.takeIf { it.exists() }
         ?: finalMsi.takeIf { it.exists() }
         ?: error("Expected Windows MSI output in ${outputDir.absolutePath}")
 
@@ -1518,6 +1524,42 @@ tasks.matching { it.name == "notarizeReleaseDmg" }.configureEach {
     notCompatibleWithConfigurationCache("Compose Desktop notarization settings are not configuration-cache safe.")
     doLast {
         renameMacosDmgOutput(release = true)
+    }
+}
+
+if (isWindowsHost) {
+    val jpackageWrapperDir = rootProject.layout.projectDirectory.dir("build/jpackage-wrapper").asFile
+    val prepareJPackageWrapper = tasks.register("prepareJPackageWrapper") {
+        val sourceFile = layout.projectDirectory.file("src/desktopMain/wix/JPackageWrapper.cs").asFile
+        val outputExe = jpackageWrapperDir.resolve("bin/jpackage.exe")
+        inputs.file(sourceFile)
+        outputs.file(outputExe)
+        doLast {
+            outputExe.parentFile.mkdirs()
+            val cscCandidates = listOf(
+                File("C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe"),
+                File("C:/Windows/Microsoft.NET/Framework/v4.0.30319/csc.exe")
+            )
+            val csc = cscCandidates.firstOrNull(File::exists)
+                ?: error("Cannot find csc.exe to compile jpackage wrapper.")
+            val proc = ProcessBuilder(csc.absolutePath, "/nologo", "/out:${outputExe.absolutePath}", sourceFile.absolutePath)
+                .inheritIO()
+                .start()
+            val exitCode = proc.waitFor()
+            check(exitCode == 0) { "csc compilation failed with exit code $exitCode" }
+        }
+    }
+    gradle.taskGraph.whenReady {
+        allTasks.filter { it.name in listOf("packageMsi", "packageReleaseMsi") }.forEach { task ->
+            (task as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask)?.javaHome?.set(jpackageWrapperDir.absolutePath)
+        }
+    }
+    tasks.matching { it.name in listOf("packageMsi", "packageReleaseMsi") }.configureEach {
+        dependsOn(prepareJPackageWrapper)
+        doFirst {
+            val task = this as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
+            task?.javaHome?.set(jpackageWrapperDir.absolutePath)
+        }
     }
 }
 

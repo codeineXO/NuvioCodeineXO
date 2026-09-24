@@ -17,12 +17,22 @@ internal object AppPresenceState {
 internal sealed interface PresenceSnapshot {
     data class Tab(val tab: AppScreenTab) : PresenceSnapshot
 
-    data class Details(val title: String) : PresenceSnapshot
+    data class Details(
+        val title: String,
+        val posterUrl: String? = null,
+    ) : PresenceSnapshot
+
+    data class StreamSelection(
+        val title: String,
+        val posterUrl: String? = null,
+        val episodeLabel: String? = null,
+    ) : PresenceSnapshot
 
     data class Player(
         val title: String,
         val episodeLabel: String?,
         val posterUrl: String?,
+        val episodeThumbnailUrl: String? = null,
         val isPlaying: Boolean,
         val positionMs: Long,
         val durationMs: Long,

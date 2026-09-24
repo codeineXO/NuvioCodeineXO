@@ -79,7 +79,7 @@ internal fun LazyListScope.settingsRootContent(
     showAboutSection: Boolean = true,
     showAdvancedSection: Boolean = true,
     showSupportersContributorsPage: Boolean = true,
-    showAttribution: Boolean = true,
+    showAttribution: Boolean = false,
 ) {
     if (showAccountSection) {
         item {
@@ -254,11 +254,6 @@ internal fun LazyListScope.settingsRootContent(
                     )
                 }
             }
-        }
-    }
-    if (showAttribution) {
-        item(key = "settings-attribution") {
-            SettingsAttribution(isTablet = isTablet)
         }
     }
 }
