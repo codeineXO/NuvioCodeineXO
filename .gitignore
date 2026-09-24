@@ -41,3 +41,35 @@ iosApp/Configuration/DeviceSigning.local.json
 
 # Compiled native WiX helpers
 composeApp/src/desktopMain/wix/UninstallPrompt.exe
+
+# Package & Installer Artifacts
+*.msi
+*.wixobj
+*.wixpdb
+*.cab
+/*.wxs
+
+# JVM Crash & Diagnostic Dumps
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+
+# Editor & IDE Settings
+.vscode/
+*.code-workspace
+.vs/
+*.suo
+*.user
+
+# Windows OS Metadata
+[Tt]humbs.db
+[Tt]humbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Python Cache (Scripts)
+__pycache__/
+*.py[cod]
+*$py.class
