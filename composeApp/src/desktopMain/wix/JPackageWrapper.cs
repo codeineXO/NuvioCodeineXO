@@ -24,6 +24,12 @@ class JPackageWrapper
                     string dest = Path.Combine(resourcesDir, Path.GetFileName(file));
                     File.Copy(file, dest, true);
                 }
+
+                string promptExe = Path.Combine(wixSrc, "UninstallPrompt.exe");
+                string overridesPath = Path.Combine(resourcesDir, "overrides.wxi");
+                string overridesContent = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<Include>\r\n  <?define UninstallPromptSource=\"" + promptExe + "\" ?>\r\n</Include>\r\n";
+                File.WriteAllText(overridesPath, overridesContent);
+
                 Console.WriteLine("[JPackageWrapper] Successfully staged custom WiX templates to " + resourcesDir);
             }
 
@@ -56,7 +62,14 @@ class JPackageWrapper
                 sb.Append(" --verbose");
             }
             string tempDir = Path.Combine(repoDir, @"build\jpackage-temp");
-            Directory.CreateDirectory(tempDir);
+            if (Directory.Exists(tempDir))
+            {
+                try
+                {
+                    Directory.Delete(tempDir, true);
+                }
+                catch { }
+            }
             sb.Append(" --temp \"").Append(tempDir).Append("\"");
 
             var psi = new ProcessStartInfo

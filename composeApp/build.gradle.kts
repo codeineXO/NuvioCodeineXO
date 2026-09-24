@@ -1532,8 +1532,10 @@ if (isWindowsHost) {
     val prepareJPackageWrapper = tasks.register("prepareJPackageWrapper") {
         val sourceFile = layout.projectDirectory.file("src/desktopMain/wix/JPackageWrapper.cs").asFile
         val outputExe = jpackageWrapperDir.resolve("bin/jpackage.exe")
-        inputs.file(sourceFile)
-        outputs.file(outputExe)
+        val promptSourceFile = layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.cs").asFile
+        val promptOutputExe = layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.exe").asFile
+        inputs.files(sourceFile, promptSourceFile)
+        outputs.files(outputExe, promptOutputExe)
         doLast {
             outputExe.parentFile.mkdirs()
             val cscCandidates = listOf(
@@ -1541,12 +1543,18 @@ if (isWindowsHost) {
                 File("C:/Windows/Microsoft.NET/Framework/v4.0.30319/csc.exe")
             )
             val csc = cscCandidates.firstOrNull(File::exists)
-                ?: error("Cannot find csc.exe to compile jpackage wrapper.")
-            val proc = ProcessBuilder(csc.absolutePath, "/nologo", "/out:${outputExe.absolutePath}", sourceFile.absolutePath)
+                ?: error("Cannot find csc.exe to compile jpackage wrapper and WiX helpers.")
+            val procWrapper = ProcessBuilder(csc.absolutePath, "/nologo", "/out:${outputExe.absolutePath}", sourceFile.absolutePath)
                 .inheritIO()
                 .start()
-            val exitCode = proc.waitFor()
-            check(exitCode == 0) { "csc compilation failed with exit code $exitCode" }
+            val exitCodeWrapper = procWrapper.waitFor()
+            check(exitCodeWrapper == 0) { "csc compilation of jpackage wrapper failed with exit code $exitCodeWrapper" }
+
+            val procPrompt = ProcessBuilder(csc.absolutePath, "/nologo", "/target:winexe", "/out:${promptOutputExe.absolutePath}", promptSourceFile.absolutePath)
+                .inheritIO()
+                .start()
+            val exitCodePrompt = procPrompt.waitFor()
+            check(exitCodePrompt == 0) { "csc compilation of UninstallPrompt failed with exit code $exitCodePrompt" }
         }
     }
     gradle.taskGraph.whenReady {
