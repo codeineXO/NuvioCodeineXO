@@ -87,7 +87,9 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
             name = "nuvio-engine-shutdown"
         })
         scope.launch(Dispatchers.IO) {
-            measureDiskCache()
+            P2pSettingsRepository.uiState.collect {
+                measureDiskCache()
+            }
         }
     }
 
@@ -106,8 +108,9 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
             try {
                 val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
                 val cacheDirectory = File(root, "payload")
+                val stateDirectory = File(root, "state")
                 val diskBefore = if (cacheDirectory.exists()) {
-                    cacheDirectory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+                    measureAllocatedDiskBytes(cacheDirectory)
                 } else 0L
 
                 val activeEngine = engine
@@ -116,12 +119,24 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
                     delay(300L)
                 }
 
+                val allKnown = synchronized(lifecycleLock) {
+                    val list = knownTorrentIds.toList()
+                    knownTorrentIds.clear()
+                    list
+                }
+                allKnown.forEach { torrentId ->
+                    if (activeEngine != null) {
+                        runCatching { activeEngine.removeTorrent(torrentId) }
+                    }
+                    runCatching {
+                        File(stateDirectory, "nuvio-engine-state/resume/$torrentId.resume").delete()
+                    }
+                }
+
                 var reclaimedFilesBytes = 0L
                 if (cacheDirectory.exists()) {
                     cacheDirectory.listFiles()?.forEach { file ->
-                        val len = if (file.isDirectory) {
-                            file.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-                        } else file.length()
+                        val len = measureAllocatedDiskBytes(file)
                         if (file.deleteRecursively()) {
                             reclaimedFilesBytes += len
                         }
@@ -129,12 +144,11 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
                 }
 
                 val diskAfter = if (cacheDirectory.exists()) {
-                    cacheDirectory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+                    measureAllocatedDiskBytes(cacheDirectory)
                 } else 0L
 
-                val activeUsed = activeEngine?.stats?.value?.diskCacheUsedBytes ?: 0L
                 val activeProtected = activeEngine?.stats?.value?.diskCacheProtectedBytes ?: 0L
-                val finalRemaining = maxOf(diskAfter, activeUsed)
+                val finalRemaining = diskAfter
                 updateCacheState(finalRemaining, activeProtected)
 
                 val reclaimed = maxOf(diskBefore - diskAfter, reclaimedFilesBytes)
@@ -149,15 +163,81 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         }
     }
 
-    private fun measureDiskCache() {
+    private suspend fun measureDiskCache() {
+        P2pSettingsRepository.ensureLoaded()
+        val settings = P2pSettingsRepository.uiState.value
+        val capacityBytes = settings.cacheSize.bytes
+        if (settings.cacheSize == P2pCacheSize.NONE) {
+            enforceDiskCacheBudget(
+                activeEngine = engine,
+                capacityBytes = 0L,
+                activeTorrentId = currentTorrentId
+            )
+        }
+        val activeProtected = engine?.stats?.value?.diskCacheProtectedBytes ?: 0L
         val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
         val cacheDirectory = File(root, "payload")
         val diskUsed = if (cacheDirectory.exists()) {
-            cacheDirectory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+            measureAllocatedDiskBytes(cacheDirectory)
         } else 0L
-        val activeUsed = engine?.stats?.value?.diskCacheUsedBytes ?: 0L
-        val activeProtected = engine?.stats?.value?.diskCacheProtectedBytes ?: 0L
-        updateCacheState(maxOf(diskUsed, activeUsed), activeProtected)
+        updateCacheState(diskUsed, activeProtected)
+    }
+
+    private suspend fun enforceDiskCacheBudget(
+        activeEngine: NuvioEngine?,
+        capacityBytes: Long,
+        activeTorrentId: String? = null
+    ) {
+        val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
+        val cacheDirectory = File(root, "payload")
+        val stateDirectory = File(root, "state")
+        val resumeDirectory = File(stateDirectory, "nuvio-engine-state/resume")
+        if (!cacheDirectory.exists()) return
+
+        if (activeEngine != null) {
+            runCatching { activeEngine.reclaimDiskCache(capacityBytes) }
+        }
+
+        var totalDiskBytes = measureAllocatedDiskBytes(cacheDirectory)
+        if (capacityBytes > 0L && totalDiskBytes <= capacityBytes) {
+            return
+        }
+
+        val entries = scanTorrentCacheEntries(cacheDirectory, resumeDirectory)
+        val activeCanonical = activeTorrentId?.let { canonicalP2pInfoHash(it) }
+        val toPrune = selectTorrentsToPrune(
+            entries = entries,
+            currentTotalBytes = totalDiskBytes,
+            capacityBytes = capacityBytes,
+            activeTorrentId = activeCanonical
+        )
+
+        for (entry in toPrune) {
+            if (activeEngine != null) {
+                runCatching { activeEngine.removeTorrent(entry.torrentId) }
+            }
+            synchronized(lifecycleLock) {
+                knownTorrentIds.remove(entry.torrentId)
+            }
+            runCatching {
+                File(resumeDirectory, "${entry.torrentId}.resume").delete()
+            }
+            val freed = entry.sizeBytes
+            if (entry.directory.deleteRecursively()) {
+                totalDiskBytes -= freed
+                log.i {
+                    "Pruned inactive torrent cache: ${diagnosticId(entry.torrentId)} freed=${freed / 1024 / 1024}MB remaining=${totalDiskBytes / 1024 / 1024}MB target=${capacityBytes / 1024 / 1024}MB"
+                }
+            } else {
+                log.w { "Failed to delete inactive torrent cache directory: ${entry.directory.path}" }
+            }
+        }
+
+        if (capacityBytes == 0L) {
+            cacheDirectory.listFiles()?.forEach { file ->
+                file.deleteRecursively()
+            }
+        }
     }
 
     private suspend fun startStreamLocked(request: P2pStreamRequest): String {
@@ -350,7 +430,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
     private fun detachActiveStream(): DetachedStream {
         val (detached, job) = synchronized(lifecycleLock) {
             streamGeneration++
-            val value = DetachedStream(engine, currentStreamId)
+            val value = DetachedStream(engine, currentStreamId, currentTorrentId)
             val job = statsJob
             currentTorrentId = null
             currentStreamId = null
@@ -368,7 +448,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
                 null
             } else {
                 streamGeneration++
-                val value = DetachedStream(engine, currentStreamId)
+                val value = DetachedStream(engine, currentStreamId, currentTorrentId)
                 val job = statsJob
                 currentTorrentId = null
                 currentStreamId = null
@@ -387,9 +467,36 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         detached.streamId?.let { streamId ->
             stopPreparedStream(detached.engine, streamId)
         }
+        P2pSettingsRepository.ensureLoaded()
+        val settings = P2pSettingsRepository.uiState.value
+        val capacityBytes = settings.cacheSize.bytes
+
+        if (settings.cacheSize == P2pCacheSize.NONE) {
+            detached.torrentId?.let { torrentId ->
+                detached.engine?.let { eng ->
+                    runCatching { eng.removeTorrent(torrentId) }
+                }
+                synchronized(lifecycleLock) {
+                    knownTorrentIds.remove(torrentId)
+                }
+            }
+            enforceDiskCacheBudget(
+                activeEngine = detached.engine,
+                capacityBytes = 0L,
+                activeTorrentId = null
+            )
+        } else {
+            enforceDiskCacheBudget(
+                activeEngine = detached.engine,
+                capacityBytes = capacityBytes,
+                activeTorrentId = detached.torrentId
+            )
+        }
+
         if (shutdownEngine) {
             closeEngine(detached.engine)
         }
+        measureDiskCache()
     }
 
     private suspend fun cleanupFailedStart(
@@ -409,6 +516,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
                 stopPreparedStream(activeEngine, preparedStream.id)
             }
             detachGenerationIfCurrent(generation, terminalState)
+            measureDiskCache()
         }
     }
 
@@ -568,6 +676,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         statsJob?.cancel()
         statsJob = scope.launch {
             var nextSampleAtMs = 0L
+            var nextCacheEnforceAtMs = 0L
             var loggedFirstTransfer = false
 
             while (isActive) {
@@ -585,8 +694,25 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
                     }
 
                     val aggregate = activeEngine.stats.value
-                    updateCacheState(aggregate.diskCacheUsedBytes, aggregate.diskCacheProtectedBytes)
                     val downloaded = (aggregate.totalPayloadDownloadBytes - payloadDownloadBaseline).coerceAtLeast(0L)
+
+                    val nowMs = elapsedMillis(startedAt)
+                    if (nowMs >= nextCacheEnforceAtMs) {
+                        nextCacheEnforceAtMs = nowMs + 4000L
+                        val capacity = engineConfigurationKey?.diskCacheCapacityBytes
+                            ?: P2pSettingsRepository.uiState.value.cacheSize.bytes
+                        val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
+                        val cacheDirectory = File(root, "payload")
+                        val currentUsed = if (cacheDirectory.exists()) measureAllocatedDiskBytes(cacheDirectory) else 0L
+                        updateCacheState(currentUsed, aggregate.diskCacheProtectedBytes)
+                        if (capacity > 0L && currentUsed > capacity) {
+                            enforceDiskCacheBudget(
+                                activeEngine = activeEngine,
+                                capacityBytes = capacity,
+                                activeTorrentId = stream.torrentId
+                            )
+                        }
+                    }
 
                     if (!loggedFirstTransfer && downloaded > 0L) {
                         loggedFirstTransfer = true
@@ -595,7 +721,6 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
                         }
                     }
 
-                    val nowMs = elapsedMillis(startedAt)
                     if (nowMs >= nextSampleAtMs) {
                         nextSampleAtMs = nowMs + 5000L
                         log.d {
@@ -782,7 +907,8 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
 
     private data class DetachedStream(
         val engine: NuvioEngine?,
-        val streamId: String?
+        val streamId: String?,
+        val torrentId: String? = null
     )
 
     private data class MetadataGiveUp(

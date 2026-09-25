@@ -73,7 +73,6 @@
     <!-- Graceful shutdown of running processes before upgrade/uninstall -->
     <util:CloseApplication Id="CloseNuvioApp" Target="NuvioCodeineXO.exe" CloseMessage="yes" RebootPrompt="no" />
     <util:CloseApplication Id="CloseNuvioLegacy" Target="Nuvio.exe" CloseMessage="yes" RebootPrompt="no" />
-    <util:CloseApplication Id="CloseTorrServer" Target="TorrServer.exe" CloseMessage="yes" RebootPrompt="no" />
 
     <!-- Clean old application files before copying new files on upgrade -->
     <CustomAction Id="SetCleanOldFilesCmd" Property="CleanOldFilesAction"

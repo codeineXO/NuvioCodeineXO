@@ -47,7 +47,7 @@
   - **Live Preview:** Subtitle styling updates instantly while the video plays without needing a restart.
 
 - **🚀 Faster P2P Streaming Engine:**
-  - Built-in NuvioEngine backend integrated alongside TorrServer for direct peer-to-peer torrent and debrid streaming.
+  - Built-in NuvioEngine backend for high-performance direct peer-to-peer torrent and debrid streaming.
 
 - **🎮 Richer Discord RPC & Active Now Card:**
   - Displays movie or show posters and episode thumbnails directly on Discord, complete with live browsing status ("Choosing Stream") and customizable privacy modes.

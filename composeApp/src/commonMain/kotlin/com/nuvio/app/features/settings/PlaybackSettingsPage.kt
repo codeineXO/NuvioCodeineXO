@@ -91,7 +91,6 @@ import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
 import com.nuvio.app.features.p2p.P2pCacheSize
 import com.nuvio.app.features.p2p.P2pSettingsRepository
-import com.nuvio.app.features.p2p.P2pEngineBackend
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.P2pTorrentProfile
@@ -338,7 +337,6 @@ private fun PlaybackSettingsSection(
     var showAutoPlayRegexDialog by remember { mutableStateOf(false) }
     var showAutoSkipSegmentDialog by remember { mutableStateOf(false) }
     var showP2pConsentDialog by remember { mutableStateOf(false) }
-    var showP2pBackendDialog by remember { mutableStateOf(false) }
     var showP2pProfileDialog by remember { mutableStateOf(false) }
     var showP2pCacheSizeDialog by remember { mutableStateOf(false) }
     var p2pCacheClearResult by remember { mutableStateOf<P2pCacheClearResult?>(null) }
@@ -766,18 +764,14 @@ private fun PlaybackSettingsSection(
                         isTablet = isTablet,
                         onCheckedChange = P2pSettingsRepository::setHideTorrentStats,
                     )
-                    if (isDesktop) {
-                        SettingsGroupDivider(isTablet = isTablet)
-                        SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_p2p_backend_title),
-                            description = when (p2pSettings.engineBackend) {
-                                P2pEngineBackend.NUVIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_nuvio)
-                                P2pEngineBackend.TORRSERVER -> stringResource(Res.string.settings_p2p_backend_torrserver)
-                            },
-                            isTablet = isTablet,
-                            onClick = { showP2pBackendDialog = true },
-                        )
-                    }
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_p2p_show_stats_title),
+                        description = stringResource(Res.string.settings_p2p_show_stats_subtitle),
+                        checked = p2pSettings.showTorrentStatsOverlay,
+                        isTablet = isTablet,
+                        onCheckedChange = P2pSettingsRepository::setShowTorrentStatsOverlay,
+                    )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_p2p_profile_title),
@@ -1410,31 +1404,6 @@ private fun PlaybackSettingsSection(
                 showPreferredAudioDialog = false
             },
             onDismiss = { showPreferredAudioDialog = false },
-        )
-    }
-
-    if (showP2pBackendDialog && isDesktop) {
-        IosEnumSelectionDialog(
-            title = stringResource(Res.string.settings_p2p_backend_title),
-            options = P2pEngineBackend.entries,
-            selected = p2pSettings.engineBackend,
-            label = { backend ->
-                when (backend) {
-                    P2pEngineBackend.NUVIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_nuvio)
-                    P2pEngineBackend.TORRSERVER -> stringResource(Res.string.settings_p2p_backend_torrserver)
-                }
-            },
-            description = { backend ->
-                when (backend) {
-                    P2pEngineBackend.NUVIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_nuvio_description)
-                    P2pEngineBackend.TORRSERVER -> stringResource(Res.string.settings_p2p_backend_torrserver_description)
-                }
-            },
-            onSelect = { backend ->
-                P2pSettingsRepository.setEngineBackend(backend)
-                showP2pBackendDialog = false
-            },
-            onDismiss = { showP2pBackendDialog = false },
         )
     }
 

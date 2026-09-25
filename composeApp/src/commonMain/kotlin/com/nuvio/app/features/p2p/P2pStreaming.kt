@@ -9,6 +9,7 @@ data class P2pSettingsUiState(
     val p2pEnabled: Boolean = false,
     val enableUpload: Boolean = true,
     val hideTorrentStats: Boolean = false,
+    val showTorrentStatsOverlay: Boolean = false,
     val torrentProfile: P2pTorrentProfile = P2pTorrentProfile.FAST,
     val cacheSize: P2pCacheSize = P2pCacheSize.GB_2,
     val engineBackend: P2pEngineBackend = P2pEngineBackend.NUVIO_ENGINE,
@@ -16,7 +17,6 @@ data class P2pSettingsUiState(
 
 enum class P2pEngineBackend {
     NUVIO_ENGINE,
-    TORRSERVER,
 }
 
 enum class P2pTorrentProfile {
@@ -58,6 +58,7 @@ object P2pSettingsRepository {
     private var p2pEnabled = false
     private var enableUpload = true
     private var hideTorrentStats = false
+    private var showTorrentStatsOverlay = false
     private var torrentProfile = P2pTorrentProfile.FAST
     private var cacheSize = P2pCacheSize.GB_2
     private var engineBackend = P2pEngineBackend.NUVIO_ENGINE
@@ -76,6 +77,7 @@ object P2pSettingsRepository {
         p2pEnabled = false
         enableUpload = true
         hideTorrentStats = false
+        showTorrentStatsOverlay = false
         torrentProfile = P2pTorrentProfile.FAST
         cacheSize = P2pCacheSize.GB_2
         engineBackend = P2pEngineBackend.NUVIO_ENGINE
@@ -103,6 +105,14 @@ object P2pSettingsRepository {
         if (hideTorrentStats == enabled) return
         hideTorrentStats = enabled
         P2pSettingsStorage.saveHideTorrentStats(enabled)
+        publish()
+    }
+
+    fun setShowTorrentStatsOverlay(enabled: Boolean) {
+        ensureLoaded()
+        if (showTorrentStatsOverlay == enabled) return
+        showTorrentStatsOverlay = enabled
+        P2pSettingsStorage.saveShowTorrentStatsOverlay(enabled)
         publish()
     }
 
@@ -135,6 +145,7 @@ object P2pSettingsRepository {
         p2pEnabled = P2pSettingsStorage.loadP2pEnabled() ?: false
         enableUpload = P2pSettingsStorage.loadEnableUpload() ?: true
         hideTorrentStats = P2pSettingsStorage.loadHideTorrentStats() ?: false
+        showTorrentStatsOverlay = P2pSettingsStorage.loadShowTorrentStatsOverlay() ?: false
         torrentProfile = P2pSettingsStorage.loadTorrentProfile()
             ?.let { stored -> P2pTorrentProfile.entries.firstOrNull { it.name == stored } }
             ?: P2pTorrentProfile.FAST
@@ -152,6 +163,7 @@ object P2pSettingsRepository {
             p2pEnabled = p2pEnabled,
             enableUpload = enableUpload,
             hideTorrentStats = hideTorrentStats,
+            showTorrentStatsOverlay = showTorrentStatsOverlay,
             torrentProfile = torrentProfile,
             cacheSize = cacheSize,
             engineBackend = engineBackend,
@@ -166,6 +178,8 @@ internal expect object P2pSettingsStorage {
     fun saveEnableUpload(enabled: Boolean)
     fun loadHideTorrentStats(): Boolean?
     fun saveHideTorrentStats(enabled: Boolean)
+    fun loadShowTorrentStatsOverlay(): Boolean?
+    fun saveShowTorrentStatsOverlay(enabled: Boolean)
     fun loadTorrentProfile(): String?
     fun saveTorrentProfile(profile: String)
     fun loadCacheSize(): String?

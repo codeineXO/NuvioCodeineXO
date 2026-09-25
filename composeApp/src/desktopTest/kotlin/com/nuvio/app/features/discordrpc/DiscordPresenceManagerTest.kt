@@ -18,7 +18,7 @@ class DiscordPresenceManagerTest {
     fun idleActivity_hasNuvioCodeineXONameAndDownloadButton() {
         assertEquals("NuvioCodeineXO", IdleActivity.name)
         assertEquals(0, IdleActivity.type)
-        assertEquals("Browsing NuvioCodeineXO", IdleActivity.details)
+        assertEquals("Exploring NuvioCodeineXO", IdleActivity.details)
         assertEquals("In Menus", IdleActivity.state)
         assertNotNull(IdleActivity.assets)
         assertNotNull(IdleActivity.timestamps)
@@ -31,11 +31,16 @@ class DiscordPresenceManagerTest {
     fun tabSnapshot_hasNuvioCodeineXONameAndDownloadButton() {
         val activity = PresenceSnapshot.Tab(AppScreenTab.Home).toDiscordActivity()
         assertEquals("NuvioCodeineXO", activity.name)
-        assertEquals("Browsing Home", activity.details)
+        assertEquals("Exploring NuvioCodeineXO", activity.details)
         assertEquals("Exploring Content", activity.state)
         assertNotNull(activity.assets)
         assertNotNull(activity.timestamps)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
+
+        val settingsActivity = PresenceSnapshot.Tab(AppScreenTab.Settings).toDiscordActivity()
+        assertEquals("NuvioCodeineXO", settingsActivity.name)
+        assertEquals("Tweaking NuvioCodeineXO", settingsActivity.details)
+        assertEquals("In Settings", settingsActivity.state)
     }
 
     @Test
@@ -135,7 +140,7 @@ class DiscordPresenceManagerTest {
     fun discordActivitySerialization_omitsNullFields_toPreventDiscordGatewaySchemaRejection() {
         val idleEncoded = json.encodeToString(IdleActivity)
         assertTrue(idleEncoded.contains("\"name\":\"NuvioCodeineXO\""))
-        assertTrue(idleEncoded.contains("\"details\":\"Browsing NuvioCodeineXO\""))
+        assertTrue(idleEncoded.contains("\"details\":\"Exploring NuvioCodeineXO\""))
         assertTrue(idleEncoded.contains("\"state\":\"In Menus\""))
         assertTrue(idleEncoded.contains("\"type\":0"))
         assertTrue(idleEncoded.contains("\"instance\":false"))
@@ -169,7 +174,8 @@ class DiscordPresenceManagerTest {
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
-        assertEquals("Viewing Dune: Part Two", activity.details)
+        assertEquals("Dune: Part Two", activity.details)
+        assertEquals("Overview", activity.state)
         assertEquals(2, activity.statusDisplayType)
         assertNotNull(activity.assets)
         assertEquals("https://example.com/dune_poster.jpg", activity.assets?.largeImage)
@@ -189,8 +195,8 @@ class DiscordPresenceManagerTest {
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
-        assertEquals("Choosing Stream", activity.details)
-        assertEquals("Fallout (S01, E01: The End)", activity.state)
+        assertEquals("Fallout", activity.details)
+        assertEquals("S01, E01: The End", activity.state)
         assertEquals(2, activity.statusDisplayType)
         assertNotNull(activity.assets)
         assertEquals("https://example.com/fallout_poster.jpg", activity.assets?.largeImage)

@@ -107,7 +107,7 @@ private val DownloadButton = DiscordActivityButton(
 internal val IdleActivity = DiscordActivity(
     type = ActivityTypeGame,
     name = AppActivityName,
-    details = "Browsing NuvioCodeineXO",
+    details = "Exploring NuvioCodeineXO",
     state = "In Menus",
     statusDisplayType = StatusDisplayTypeDetails,
     timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
@@ -144,39 +144,47 @@ internal fun String.toDiscordEpisodeLabel(): String {
 }
 
 internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this) {
-    is PresenceSnapshot.Tab -> DiscordActivity(
-        type = ActivityTypeGame,
-        name = AppActivityName,
-        details = "Browsing ${tab.name}",
-        state = "Exploring Content",
-        statusDisplayType = StatusDisplayTypeDetails,
-        timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
-        assets = DiscordActivityAssets(
-            largeImage = DefaultAppIconUrl,
-            largeText = AppActivityName,
-        ),
-        buttons = listOf(DownloadButton),
-    )
-    is PresenceSnapshot.Details -> DiscordActivity(
-        type = ActivityTypeGame,
-        name = AppActivityName,
-        details = "Viewing $title",
-        state = "Overview",
-        statusDisplayType = StatusDisplayTypeDetails,
-        timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
-        assets = DiscordActivityAssets(
-            largeImage = posterUrl?.takeIf { it.isNotBlank() } ?: DefaultAppIconUrl,
-            largeText = title,
-        ),
-        buttons = listOf(DownloadButton),
-    )
+    is PresenceSnapshot.Tab -> {
+        val (tabDetails, tabState) = when (tab) {
+            com.nuvio.app.AppScreenTab.Settings -> "Tweaking NuvioCodeineXO" to "In Settings"
+            else -> "Exploring NuvioCodeineXO" to "Exploring Content"
+        }
+        DiscordActivity(
+            type = ActivityTypeGame,
+            name = AppActivityName,
+            details = tabDetails,
+            state = tabState,
+            statusDisplayType = StatusDisplayTypeDetails,
+            timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+            assets = DiscordActivityAssets(
+                largeImage = DefaultAppIconUrl,
+                largeText = AppActivityName,
+            ),
+            buttons = listOf(DownloadButton),
+        )
+    }
+    is PresenceSnapshot.Details -> {
+        DiscordActivity(
+            type = ActivityTypeGame,
+            name = AppActivityName,
+            details = title,
+            state = "Overview",
+            statusDisplayType = StatusDisplayTypeDetails,
+            timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+            assets = DiscordActivityAssets(
+                largeImage = posterUrl?.takeIf { it.isNotBlank() } ?: DefaultAppIconUrl,
+                largeText = title,
+            ),
+            buttons = listOf(DownloadButton),
+        )
+    }
     is PresenceSnapshot.StreamSelection -> {
         val episode = episodeLabel?.toDiscordEpisodeLabel()
         DiscordActivity(
             type = ActivityTypeGame,
             name = AppActivityName,
-            details = "Choosing Stream",
-            state = if (!episode.isNullOrBlank()) "$title ($episode)" else title,
+            details = title,
+            state = if (!episode.isNullOrBlank()) episode else "Selecting Stream",
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
             assets = DiscordActivityAssets(

@@ -2361,6 +2361,8 @@
     <string name="settings_p2p_subtitle">Allow peer-to-peer (torrent) streams</string>
     <string name="settings_p2p_hide_stats_title">Hide torrent stats</string>
     <string name="settings_p2p_hide_stats_subtitle">Hide buffer, seeds, peers and download speed during loading and playback</string>
+    <string name="settings_p2p_show_stats_title">Show torrent stats in player</string>
+    <string name="settings_p2p_show_stats_subtitle">Display real-time download speed, seeders, and peer counts in the top right corner during playback</string>
     <string name="settings_p2p_profile_title">Torrent profile</string>
     <string name="settings_p2p_profile_soft">Soft</string>
     <string name="settings_p2p_profile_balanced">Balanced</string>
@@ -2377,9 +2379,7 @@
     <string name="settings_p2p_cache_50_gb">50 GB</string>
     <string name="settings_p2p_backend_title">Torrent engine</string>
     <string name="settings_p2p_backend_nuvio">Nuvio Engine (Native)</string>
-    <string name="settings_p2p_backend_torrserver">TorrServer</string>
     <string name="settings_p2p_backend_nuvio_description">Built-in high-performance native libtorrent engine</string>
-    <string name="settings_p2p_backend_torrserver_description">External TorrServer daemon fallback</string>
     <string name="settings_p2p_clear_cache_title">Clear torrent cache</string>
     <string name="settings_p2p_clear_cache_usage">%1$s currently used</string>
     <string name="settings_p2p_clear_cache_usage_pending">Usage is measured after P2P starts; tap to clear cached torrent data</string>

@@ -9,6 +9,7 @@ class P2pTelemetryTest {
     @Test
     fun torrentStatsAreVisibleByDefault() {
         assertFalse(P2pSettingsUiState().hideTorrentStats)
+        assertFalse(P2pSettingsUiState().showTorrentStatsOverlay)
     }
 
     @Test

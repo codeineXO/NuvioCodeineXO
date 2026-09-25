@@ -109,7 +109,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         )
     }
     val p2pDownloadSpeed = p2pStats?.let { formatP2pSpeed(it.downloadSpeed) }
-    val p2pLoadingBytes = p2pStats?.let { maxOf(it.downloadedBytes, it.deliveredBytes) } ?: 0L
+    val p2pLoadingBytes = p2pStats?.let { maxOf(it.verifiedBytes, it.downloadedBytes, it.deliveredBytes) } ?: 0L
     val connectingPeerInfo = p2pConnecting?.let { state ->
         org.jetbrains.compose.resources.stringResource(
             nuvio.composeapp.generated.resources.Res.string.player_torrent_peer_info,
@@ -153,7 +153,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         !isP2pPlaybackActive || initialLoadCompleted || p2pStats == null -> null
         else -> p2pInitialLoadingProgress(
             bufferedAheadMs = bufferedAheadMs,
-            downloadedBytes = p2pStats.downloadedBytes,
+            downloadedBytes = maxOf(p2pStats.verifiedBytes, p2pStats.downloadedBytes),
             deliveredBytes = p2pStats.deliveredBytes,
         )
     }
@@ -259,9 +259,23 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         else -> ""
     }
+    val torrentStatsOverlayText = when {
+        !isP2pPlaybackActive || p2pStats == null -> ""
+        else -> {
+            val speed = p2pDownloadSpeed.orEmpty()
+            val peers = p2pPeerInfo.orEmpty()
+            if (speed.isNotBlank() && peers.isNotBlank()) {
+                "⬇ $speed · $peers"
+            } else {
+                speed.ifBlank { peers }
+            }
+        }
+    }
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
+        showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay && isP2pPlaybackActive,
+        torrentStatsText = torrentStatsOverlayText,
         episodeText = episodeText,
         streamTitle = activeStreamTitle,
         providerName = activeProviderName,
@@ -656,8 +670,8 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             },
             onBack = { requestBack() },
             onTogglePlayback = { togglePlayback() },
-            onSeekBack = { seekBy(-10_000L) },
-            onSeekForward = { seekBy(10_000L) },
+            onSeekBack = { seekBy(-5_000L) },
+            onSeekForward = { seekBy(5_000L) },
             onResizeModeClick = { cycleResizeMode() },
             onSpeedClick = { cyclePlaybackSpeed() },
             onSubtitleClick = {
@@ -816,19 +830,19 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
             return false
         }
         PlayerControlsAction.SeekBack -> {
-            prepareSeekByForNativeFallback(-10_000L)
+            prepareSeekByForNativeFallback(-5_000L)
             return false
         }
         PlayerControlsAction.KeyboardSeekBack -> {
-            prepareSeekByForNativeFallback(-10_000L, revealControls = false)
+            prepareSeekByForNativeFallback(-5_000L, revealControls = false)
             return false
         }
         PlayerControlsAction.SeekForward -> {
-            prepareSeekByForNativeFallback(10_000L)
+            prepareSeekByForNativeFallback(5_000L)
             return false
         }
         PlayerControlsAction.KeyboardSeekForward -> {
-            prepareSeekByForNativeFallback(10_000L, revealControls = false)
+            prepareSeekByForNativeFallback(5_000L, revealControls = false)
             return false
         }
         PlayerControlsAction.KeyboardFineSeekBack -> {

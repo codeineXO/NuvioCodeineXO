@@ -220,9 +220,13 @@ const playerToast = document.getElementById("playerToast");
 const playerToastIcon = document.getElementById("playerToastIcon");
 const playerToastIconUse = document.getElementById("playerToastIconUse");
 const playerToastText = document.getElementById("playerToastText");
+const torrentStatsOverlay = document.getElementById("torrentStatsOverlay");
+const torrentStatsText = document.getElementById("torrentStatsText");
 
 let state = {
   playerUiMode: "codeine_xo",
+  showTorrentStatsOverlay: false,
+  torrentStatsText: "",
   bufferedPositionMs: 0,
   title: "",
   episodeText: "",
@@ -670,8 +674,8 @@ const syncVolumeControl = () => {
 };
 
 const seekToastLabel = command => {
-  if (command === "seekBack" || command === "keyboardSeekBack") return "-10s";
-  if (command === "seekForward" || command === "keyboardSeekForward") return "+10s";
+  if (command === "seekBack" || command === "keyboardSeekBack") return "-5s";
+  if (command === "seekForward" || command === "keyboardSeekForward") return "+5s";
   if (command === "pictureInPicture" || command === "pip") return state.pipLabel || "";
   return "";
 };
@@ -824,6 +828,15 @@ const syncParentalGuide = showOpening => {
   parentalGuideStartedKey = key;
   parentalGuideRunId += 1;
   runParentalGuideAnimation(warnings, key, parentalGuideRunId);
+};
+
+const syncTorrentStatsOverlay = suppressed => {
+  if (!torrentStatsOverlay) return;
+  const showStats = Boolean(state.showTorrentStatsOverlay && state.torrentStatsText && !suppressed);
+  torrentStatsOverlay.hidden = !showStats;
+  if (showStats && torrentStatsText) {
+    torrentStatsText.textContent = state.torrentStatsText;
+  }
 };
 
 const cssColorOrFallback = (value, fallback) => {
@@ -2465,6 +2478,7 @@ const renderChrome = () => {
   const showOpening = renderOpeningOverlay(showError);
   if (state.pauseOverlayEnabled || showError) renderPauseMetadataOverlay(showOpening || showError);
   syncParentalGuide(showOpening || showError);
+  syncTorrentStatsOverlay(showOpening || showError);
 
   title.textContent = state.title || "";
   setText(episode, state.episodeText);
