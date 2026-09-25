@@ -1753,8 +1753,11 @@ JNIEXPORT void JNICALL NP(setPaused)(JNIEnv *, jobject, jlong handle, jboolean p
 JNIEXPORT void JNICALL NP(seekTo)(JNIEnv *, jobject, jlong handle, jlong positionMs) {
     Player *p = asPlayer(handle);
     if (!p) return;
+    long long currentPosMs = (long long)std::llround(mpvGetDouble(p->mpv, "time-pos", 0.0) * 1000.0);
+    long long deltaMs = std::abs(positionMs - currentPosMs);
+    const char *mode = (deltaMs <= 3000) ? "absolute+exact" : "absolute+keyframes";
     std::string target = std::to_string(positionMs / 1000.0);
-    const char *cmd[] = {"seek", target.c_str(), "absolute+exact", nullptr};
+    const char *cmd[] = {"seek", target.c_str(), mode, nullptr};
     mpv_command(p->mpv, cmd);
     p->ended.store(false);
 }

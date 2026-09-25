@@ -53,6 +53,8 @@ internal class NativePlayerController(
     private val nativeCreate: NativePlayerCreate = NativePlayerBridge::create,
     private val nativeDispose: (Long) -> Unit = NativePlayerBridge::dispose,
     private val nativeSeekTo: (Long, Long) -> Unit = NativePlayerBridge::seekTo,
+    private val nativeSeekBy: (Long, Long) -> Unit = NativePlayerBridge::seekBy,
+    private val nativePositionMs: (Long) -> Long = NativePlayerBridge::positionMs,
     private val isHostDisplayable: () -> Boolean = { host.isDisplayable },
     private val resolveHostView: () -> Long = { AwtNativeViewResolver.resolveNativeViewPointer(host) },
     private val createWaitTimeoutMs: Long = 5_000L,
@@ -638,7 +640,7 @@ internal class NativePlayerController(
     private fun fallbackSeekBy(offsetMs: Long) {
         val current = handle
         if (current != 0L) {
-            NativePlayerBridge.seekBy(current, offsetMs)
+            nativeSeekBy(current, offsetMs)
         }
     }
 
@@ -915,19 +917,36 @@ internal class NativePlayerController(
 
     override fun seekTo(positionMs: Long) {
         log.d { "seekTo positionMs=$positionMs handle=$handle" }
-        handle.takeIf { it != 0L }?.let { nativeSeekTo(it, positionMs) }
+        handle.takeIf { it != 0L }?.let { performSeekTo(it, positionMs) }
     }
 
     override fun trySeekTo(positionMs: Long): Boolean {
         val current = handle.takeIf { it != 0L } ?: return false
         log.d { "trySeekTo positionMs=$positionMs handle=$current" }
-        nativeSeekTo(current, positionMs)
+        performSeekTo(current, positionMs)
         return true
     }
 
     override fun seekBy(offsetMs: Long) {
         log.d { "seekBy offsetMs=$offsetMs handle=$handle" }
-        handle.takeIf { it != 0L }?.let { NativePlayerBridge.seekBy(it, offsetMs) }
+        handle.takeIf { it != 0L }?.let { nativeSeekBy(it, offsetMs) }
+    }
+
+    private fun performSeekTo(current: Long, positionMs: Long) {
+        val targetPosition = positionMs.coerceAtLeast(0L)
+        if (targetPosition == 0L) {
+            nativeSeekTo(current, 0L)
+            return
+        }
+        val currentPos = nativePositionMs(current).takeIf { it > 0L }
+            ?: controlsState.positionMs.takeIf { it > 0L }
+            ?: 0L
+        val offsetMs = targetPosition - currentPos
+        if (kotlin.math.abs(offsetMs) > 3_000L) {
+            nativeSeekBy(current, offsetMs)
+        } else {
+            nativeSeekTo(current, targetPosition)
+        }
     }
 
     override fun retry() {

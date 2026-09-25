@@ -1032,8 +1032,11 @@ public:
     void seekToMilliseconds(long long positionMs) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
+        long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
+        long long deltaMs = std::abs(positionMs - currentPosMs);
+        const char *mode = (deltaMs <= 3000) ? "absolute+exact" : "absolute+keyframes";
         std::string seconds = std::to_string((double)positionMs / 1000.0);
-        const char *command[] = {"seek", seconds.c_str(), "absolute+exact", nullptr};
+        const char *command[] = {"seek", seconds.c_str(), mode, nullptr};
         mpvApi().command(mpv, command);
     }
 
