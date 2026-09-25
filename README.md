@@ -10,17 +10,12 @@
     An enhanced edition of Nuvio Desktop with a custom player UI, smoother playback, native streaming, deep subtitle styling, and independent profile storage.
   </p>
 
-  <p>
-    <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
-      <img src="https://img.shields.io/github/v/release/codeineXO/NuvioCodeineXO?style=for-the-badge&logo=github&color=blue" alt="Latest Release" />
-    </a>
-    <a href="https://github.com/codeineXO/NuvioCodeineXO/tree/NuvioCodeineXO">
-      <img src="https://img.shields.io/badge/Branch-NuvioCodeineXO-green.svg?style=for-the-badge&logo=git" alt="Branch" />
-    </a>
-    <a href="https://github.com/codeineXO/NuvioCodeineXO/blob/NuvioCodeineXO/LICENSE">
-      <img src="https://img.shields.io/badge/License-GPL--3.0-orange.svg?style=for-the-badge" alt="License" />
-    </a>
-  </p>
+  <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
+    <img src="https://img.shields.io/badge/⬇%20Download%20for%20Windows-.msi%20Installer-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" />
+  </a>
+
+  <p><sub>Click the button above → find the <b>.msi</b> file under <b>Assets</b> and download it.</sub></p>
+
 
 </div>
 
@@ -28,49 +23,38 @@
 
 ## ✨ What's Changed From Dev
 
-### 🌟 New Features
-
-- **🎬 CodeineXO Player UI:**
-  - **Dedicated UI Layout:** Brand-new default player layout designed for clean, unobstructed viewing, with the original **Official UI** kept 100% intact and selectable anytime in **Settings > Playback > Player UI**.
-  - **Clean & Centered Top Bar:** Centered media title and episode name; removed top-right fullscreen and PiP clutter.
-  - **Streamlined Left Controls:** Play/Pause, Next Episode, and Volume slider grouped together without redundant seek buttons.
-  - **Logical Control Order:** Right-side controls grouped logically: `Episode` → `Source` → `Subtitles` → `Audio` → `Speed` → `PiP` → `Fit` → `Fullscreen`.
-  - **Buffer Progress Bar:** Faint white fill on the seekbar track displays buffered stream progress in real time.
-  - **Flanked Timestamps:** Current playback position on the left and total duration on the right directly beside the seekbar.
-  - **Dynamic Theme Accent:** Active seekbar progress fill automatically matches your selected app theme color.
-  - **Lowered Spacing:** Positioned lower with an 8px bottom clearance to prevent video and subtitle obstruction.
+### 🌟 Features
 
 - **🎨 Deep Subtitle Customization:**
-  - **Custom Color Picker:** Pick exact colors for text, border outlines, and background boxes using full color pickers.
-  - **10 Clean Fonts:** Switch between Arial, Segoe UI, Trebuchet MS, Impact, Georgia, and more.
-  - **Outline & Shadow Effects:** Choose between classic borders, drop shadows, soft glow halos, or background boxes with an adjustable thickness slider.
-  - **Live Preview:** Subtitle styling updates instantly while the video plays without needing a restart.
+  - Custom color picker for text, outlines, and background boxes for granular control.
+  - 10 clean fonts to choose from.
+  - Outline, Soft Blur Glow and Shadow effects with adjustable thickness.
+  - Subtitle styling updates instantly while the video plays without needing a restart.
 
-- **🚀 Faster P2P Streaming Engine:**
-  - Built-in NuvioEngine backend for high-performance direct peer-to-peer torrent and debrid streaming.
+- **🚀 P2P Streaming:**
+  - NuvioEngine is now the only streaming engine — faster, cleaner, and no longer depends on the painfully slow TorrServer.
+  - Customizable torrent cache sizes. 
 
-- **🎮 Richer Discord RPC & Active Now Card:**
-  - Displays movie or show posters and episode thumbnails directly on Discord, complete with live browsing status ("Choosing Stream") and customizable privacy modes.
-  - Full support for Discord's "Active Now" game card sub-panel with elapsed session timers and high-res artwork.
+- **🎮 Richer Discord RPC:**
+  - Choose to show all your activities inside the app or just watching movie/show activity on Discord.
+  - Shows movie/series/anime posters with episode thumbnails on Discord.
+  - Shows detailed activity in drop down card on your friend's active now panel.
+ 
+- **🎬 CodeineXO Player UI:**
+  - Brand-new default player layout designed for clean, unobstructed viewing. The original **Official UI** is still available anytime in **Settings > Playback > Player UI**.
+  - Natural text shadows on all elements for a smooth look.
+  - Buffer progress shown as a faint fill on the seekbar. Current time on the left, total duration on the right.
+  - P2P Stream Stats overlay on Player UI.
 
+### ⚡ Improvements
 
-### ⚡ Improvements & Optimizations
-
-- **⚡ Faster Streaming by Default:** Initial setup defaults to the "Fast" streaming profile for faster buffering and less wait time.
-- **⏩ Stutter-Free Seeking & Skip Intro:** Fixed timeline scrubbing glitches and routed large seeks (>3s) plus intro/outro skips through keyframe seeking to eliminate buffering stalls, audio desyncs, and frame snaps.
-- **📁 Safe & Isolated Profile:** Runs out of its own dedicated `NuvioCodeineXO` data folder so your settings, cache, and watch progress never clash with the original Nuvio app.
-- **🧹 Clean Windows Uninstaller:** Interactive uninstaller prompt allows you to choose whether to delete or preserve personal app data, settings, and cache upon removal.
-- **🔄 Dedicated In-App Updater:** Built-in updater configured directly for `codeineXO/NuvioCodeineXO` repository releases for seamless desktop updates.
-
----
-
-## 📦 Download & Installation
-
-Get the latest version from the **[Releases Page](https://github.com/codeineXO/NuvioCodeineXO/releases/latest)**:
-
-| Format | Description | Link |
-| :--- | :--- | :--- |
-| **Windows Installer (.msi)** | Recommended. Standalone installer with bundled runtime, shortcuts, and easy upgrades. | **[Download](https://github.com/codeineXO/NuvioCodeineXO/releases/latest)** |
+- **Faster streaming by default** — starts on the Fast profile.
+- **Default seek time changed to 5 seconds** — official default was 10 seconds.
+- **Shift + Right/Left Arrow Key for seeking precisely** — seeks video by 1 second increment.
+- **Stutter-free seeking & skip intro** — no buffering stalls or audio desyncs on scrubbing or skipping.
+- **Isolated profile** — runs from its own `NuvioCodeineXO` folder, fully separate from the original Nuvio app.
+- **Clean uninstaller** — asks whether to keep or delete your data when uninstalling.
+- **Built-in updater** — checks for new releases directly from this repository.
 
 ---
 
