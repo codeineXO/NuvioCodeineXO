@@ -1208,6 +1208,11 @@
     <string name="settings_playback_libmpv_yuv420p_description">Force YUV420P output for devices with renderer or color issues.</string>
     <string name="settings_playback_section_next_episode">NEXT EPISODE</string>
     <string name="settings_playback_section_player">PLAYER</string>
+    <string name="settings_playback_player_ui">Player UI</string>
+    <string name="settings_playback_player_ui_official">Official UI</string>
+    <string name="settings_playback_player_ui_official_description">Original player interface.</string>
+    <string name="settings_playback_player_ui_codeinexo">CodeineXO UI</string>
+    <string name="settings_playback_player_ui_codeinexo_description">Sleek player interface with bottom seekbar and quick controls.</string>
     <string name="settings_playback_section_skip_segments">SKIP SEGMENTS</string>
     <string name="settings_playback_section_stream_auto_play">STREAM AUTO-PLAY</string>
     <string name="settings_playback_section_stream_selection">STREAM SELECTION</string>

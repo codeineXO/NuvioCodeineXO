@@ -22,6 +22,7 @@ actual object PlayerSettingsStorage {
     private const val pendingExternalPlaybackKey = "pending_external_playback"
     private const val playbackBrightnessKey = "playback_brightness"
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
+    private const val playerUiModeKey = "player_ui_mode"
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val showPlayerLoadingStatusKey = "show_player_loading_status"
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
@@ -256,6 +257,23 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(useLegacyPlayerLayoutKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadPlayerUiMode(): String? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(playerUiModeKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getString(key, null)
+            } else {
+                null
+            }
+        }
+
+    actual fun savePlayerUiMode(mode: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(playerUiModeKey), mode)
             ?.apply()
     }
 

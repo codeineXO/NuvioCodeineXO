@@ -70,6 +70,7 @@ import com.nuvio.app.features.player.localizedLabel
 import com.nuvio.app.features.player.IosTargetPrimaries
 import com.nuvio.app.features.player.IosTargetTransfer
 import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.player.PlayerUiMode
 import com.nuvio.app.features.player.STREAM_AUTO_PLAY_TIMEOUT_VALUES
 import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
 import com.nuvio.app.features.player.SubtitleColorEditTarget
@@ -317,6 +318,7 @@ private fun PlaybackSettingsSection(
     var showSubtitleOutlineColorDialog by remember { mutableStateOf(false) }
     var showSubtitleFontDialog by remember { mutableStateOf(false) }
     var showSubtitleOutlineEffectDialog by remember { mutableStateOf(false) }
+    var showPlayerUiDialog by remember { mutableStateOf(false) }
     var showExternalPlayerDialog by remember { mutableStateOf(false) }
     var showExternalPlayerAppDialog by remember { mutableStateOf(false) }
     var showReuseCacheDurationDialog by remember { mutableStateOf(false) }
@@ -377,6 +379,13 @@ private fun PlaybackSettingsSection(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_player_ui),
+                    description = stringResource(autoPlayPlayerSettings.playerUiMode.labelRes),
+                    isTablet = isTablet,
+                    onClick = { showPlayerUiDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 if (!isDesktop) {
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_playback_legacy_layout),
@@ -1611,6 +1620,21 @@ private fun PlaybackSettingsSection(
                 showReuseCacheDurationDialog = false
             },
             onDismiss = { showReuseCacheDurationDialog = false },
+        )
+    }
+
+    if (showPlayerUiDialog) {
+        IosEnumSelectionDialog(
+            title = stringResource(Res.string.settings_playback_player_ui),
+            options = PlayerUiMode.entries,
+            selected = autoPlayPlayerSettings.playerUiMode,
+            label = { stringResource(it.labelRes) },
+            description = { stringResource(it.descriptionRes) },
+            onSelect = { mode ->
+                PlayerSettingsRepository.setPlayerUiMode(mode)
+                showPlayerUiDialog = false
+            },
+            onDismiss = { showPlayerUiDialog = false },
         )
     }
 

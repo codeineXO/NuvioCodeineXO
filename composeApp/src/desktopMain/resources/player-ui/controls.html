@@ -22,6 +22,12 @@
       <path d="M12 5V2l4.5 4.5L12 11V8c-3.31 0-6 2.69-6 6 0 1.45.52 2.78 1.38 3.82l-1.42 1.42A7.95 7.95 0 0 1 4 14c0-4.42 3.58-9 8-9Z"/>
       <path d="M8.7 17.8H7.55v-4.35l-1.25.38v-.95l2.25-.72h.15v5.64ZM15.25 16.47c0 .88-.63 1.42-1.62 1.42h-1.2c-.99 0-1.62-.54-1.62-1.42v-2.85c0-.88.63-1.42 1.62-1.42h1.2c.99 0 1.62.54 1.62 1.42v2.85Zm-1.13-2.64c0-.36-.2-.55-.58-.55h-1.02c-.38 0-.58.19-.58.55v2.43c0 .36.2.55.58.55h1.02c.38 0 .58-.19.58-.55v-2.43Z"/>
     </symbol>
+    <symbol id="icon-arrow-back" viewBox="0 0 24 24">
+      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24">
+      <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+    </symbol>
     <symbol id="icon-skip-next" viewBox="0 0 24 24">
       <path d="M5 4.9c0-.78.86-1.26 1.53-.84L15 9.36V5a1 1 0 1 1 2 0v14a1 1 0 1 1-2 0v-4.36l-8.47 5.3A1 1 0 0 1 5 19.1V4.9Z"/>
     </symbol>
@@ -134,6 +140,15 @@
     </section>
     <div class="content">
       <header class="header">
+        <div class="header-left">
+          <button class="header-button codeine-back-button" id="codeineBackButton" data-command="back" aria-label="Close player">
+            <svg><use href="#icon-arrow-back"></use></svg>
+          </button>
+        </div>
+        <div class="header-center">
+          <div class="codeine-title" id="codeineTitle"></div>
+          <div class="codeine-episode" id="codeineEpisode" hidden></div>
+        </div>
         <nav class="header-actions" aria-label="Player actions">
           <button class="header-button" id="submitIntroButton" data-command="submitIntro" aria-label="Submit intro"><svg><use href="#icon-flag"></use></svg></button>
           <button class="header-button" id="videoSettingsButton" data-command="videoSettings" aria-label="Video settings"><svg><use href="#icon-build"></use></svg></button>
@@ -208,12 +223,16 @@
             <span class="provider" id="providerName"></span>
           </div>
         </section>
-        <input id="seek" class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
+        <div class="codeine-seek-row">
+          <span class="codeine-time-pill codeine-time-current" id="codeinePosition">00:00</span>
+          <input id="seek" class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
+          <span class="codeine-time-pill codeine-time-duration" id="codeineDuration">00:00</span>
+        </div>
         <div class="time-row">
           <span class="time-pill" id="position">00:00</span>
           <span class="time-pill" id="duration">00:00</span>
         </div>
-        <div class="action-row">
+        <div class="action-row official-action-row">
           <div class="action-pill">
             <button class="action playback-action" id="toggle" data-command="toggle" aria-label="Play">
               <svg><use id="toggleIcon" href="#icon-play"></use></svg><span id="toggleLabel">Play</span>
@@ -236,6 +255,51 @@
               <input id="volumeSlider" class="volume-slider" type="range" min="0" max="200" value="100" aria-label="Volume">
             </div>
             <div class="time-label" id="timeLabel">00:00 / 00:00</div>
+          </div>
+        </div>
+
+        <div class="codeine-action-row" aria-label="Playback controls">
+          <div class="codeine-controls-left">
+            <button class="codeine-control-btn codeine-play-btn" id="codeineToggle" data-command="toggle" aria-label="Play">
+              <svg><use id="codeineToggleIcon" href="#icon-play"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineNextEpisodeButton" data-command="playNextEpisode" aria-label="Next episode" hidden>
+              <svg><use href="#icon-skip-next"></use></svg>
+            </button>
+            <div class="volume-control codeine-volume-control" id="codeineVolumeControl" aria-label="Volume">
+              <button class="volume-button codeine-volume-btn" id="codeineVolumeButton" aria-label="Mute" type="button">
+                <svg><use id="codeineVolumeIcon" href="#icon-volume"></use></svg>
+              </button>
+              <input id="codeineVolumeSlider" class="volume-slider codeine-volume-slider" type="range" min="0" max="200" value="100" aria-label="Volume">
+            </div>
+            <div class="codeine-time-label" id="codeineTimeLabel">0:00 / 0:00</div>
+          </div>
+          <div class="codeine-controls-right">
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineEpisodesButton" data-command="episodes" aria-label="Episodes">
+              <svg><use href="#icon-episodes"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineSourcesButton" data-command="sources" aria-label="Sources">
+              <svg><use href="#icon-source"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn" id="codeineSubtitlesButton" data-command="subtitles" aria-label="Subtitles">
+              <svg><use href="#icon-subs"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn" id="codeineAudioButton" data-command="audio" aria-label="Audio">
+              <svg><use href="#icon-audio"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn codeine-speed-btn" id="codeineSpeedButton" data-command="speed" aria-label="Playback speed">
+              <svg><use href="#icon-speed"></use></svg>
+              <span class="codeine-speed-text" id="codeineSpeedText">1x</span>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn" id="codeinePipButton" data-command="pictureInPicture" aria-label="Picture in Picture">
+              <svg><use href="#icon-pip"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn" id="codeineResizeButton" data-command="resize" aria-label="Aspect ratio">
+              <svg><use href="#icon-aspect"></use></svg>
+            </button>
+            <button class="codeine-control-btn codeine-action-btn" id="codeineFullscreenButton" data-command="toggleFullscreen" aria-label="Toggle fullscreen">
+              <svg><use id="codeineFullscreenIcon" href="#icon-fullscreen"></use></svg>
+            </button>
           </div>
         </div>
       </section>

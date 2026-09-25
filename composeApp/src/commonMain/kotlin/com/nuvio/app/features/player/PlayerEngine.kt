@@ -77,6 +77,7 @@ enum class PlayerControlsAction {
 
 data class PlayerControlsState(
     val title: String = "",
+    val playerUiMode: String = "codeine_xo",
     val episodeText: String = "",
     val streamTitle: String = "",
     val providerName: String = "",
@@ -217,6 +218,7 @@ data class PlayerControlsState(
     val showExternalPlayer: Boolean = false,
     val durationMs: Long = 0L,
     val positionMs: Long = 0L,
+    val bufferedPositionMs: Long = 0L,
     val sourceIsLoading: Boolean = false,
     val sourceFilters: List<PlayerControlFilterItem> = emptyList(),
     val sourceItems: List<PlayerControlSourceItem> = emptyList(),

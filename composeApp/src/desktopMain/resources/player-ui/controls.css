@@ -166,6 +166,8 @@ button:disabled {
 .skip-prompt,
 .next-episode-card,
 .header-actions,
+.header-left,
+.header-center,
 .center-controls,
 .progress {
   transition: opacity 160ms ease;
@@ -178,6 +180,8 @@ button:disabled {
 .player.native-resizing .skip-prompt,
 .player.native-resizing .next-episode-card,
 .player.native-resizing .header-actions,
+.player.native-resizing .header-left,
+.player.native-resizing .header-center,
 .player.native-resizing .center-controls,
 .player.native-resizing .progress,
 .player.native-resizing .modal-layer,
@@ -189,6 +193,8 @@ button:disabled {
 .player.chrome-hidden .bottom-gradient,
 .player.chrome-hidden .metadata,
 .player.chrome-hidden .header-actions,
+.player.chrome-hidden .header-left,
+.player.chrome-hidden .header-center,
 .player.chrome-hidden .center-controls,
 .player.chrome-hidden .progress {
   opacity: 0;
@@ -216,6 +222,8 @@ button:disabled {
 .player.error-active .skip-prompt,
 .player.error-active .next-episode-card,
 .player.error-active .header-actions,
+.player.error-active .header-left,
+.player.error-active .header-center,
 .player.error-active .center-controls,
 .player.error-active .progress,
 .player.error-active .modal-layer {
@@ -3527,3 +3535,408 @@ svg {
   stroke: none;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   Player UI Modes: Official vs CodeineXO
+   ========================================================================== */
+
+/* Official UI mode (default): hide CodeineXO elements completely */
+.player:not(.ui-codeinexo) .header-left,
+.player:not(.ui-codeinexo) .header-center,
+.player:not(.ui-codeinexo) .codeine-action-row,
+.player:not(.ui-codeinexo) .codeine-time-pill,
+.player.ui-official .header-left,
+.player.ui-official .header-center,
+.player.ui-official .codeine-action-row,
+.player.ui-official .codeine-time-pill {
+  display: none !important;
+}
+
+.player:not(.ui-codeinexo) .codeine-seek-row,
+.player.ui-official .codeine-seek-row {
+  display: contents;
+}
+
+/* CodeineXO UI mode */
+.player.ui-codeinexo .progress .metadata,
+.player.ui-codeinexo .official-action-row,
+.player.ui-codeinexo .header-actions #backButton,
+.player.ui-codeinexo .header-actions #fullscreenButton,
+.player.ui-codeinexo .header-actions #pipButton {
+  display: none !important;
+}
+
+.player.ui-codeinexo {
+  --overlay-bottom: 76px;
+}
+
+.player.ui-codeinexo .progress {
+  bottom: 8px;
+  left: 20px;
+  right: 20px;
+}
+
+.player.ui-codeinexo .bottom-gradient {
+  height: 140px;
+}
+
+.player.ui-codeinexo .header {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.player.ui-codeinexo .header-left {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .codeine-back-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--theme-control-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-standard) ease,
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.player.ui-codeinexo .codeine-back-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.05);
+}
+
+.player.ui-codeinexo .codeine-back-button:active {
+  transform: scale(0.94);
+}
+
+.player.ui-codeinexo .codeine-back-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.player.ui-codeinexo .header-center {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+  pointer-events: none;
+  padding: 0 16px;
+}
+
+.player.ui-codeinexo .codeine-title {
+  font-size: var(--title);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(720px, 100%);
+}
+
+.player.ui-codeinexo .codeine-episode {
+  font-size: var(--episode);
+  font-weight: 500;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.75);
+  margin-top: 3px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(720px, 100%);
+}
+
+/* CodeineXO Seekbar Row: flanking time & buffer fill */
+.player.ui-codeinexo .codeine-seek-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.player.ui-codeinexo .codeine-seek-row .scrub,
+.player.ui-codeinexo .scrub {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 14px;
+  display: block;
+  cursor: pointer;
+}
+
+.player.ui-codeinexo .codeine-time-pill {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  min-width: 42px;
+}
+
+.player.ui-codeinexo .codeine-time-current {
+  text-align: right;
+}
+
+.player.ui-codeinexo .codeine-time-duration {
+  text-align: left;
+}
+
+.player.ui-codeinexo .scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    var(--theme-accent-gradient, linear-gradient(var(--theme-accent, #2f6fed), var(--theme-accent, #2f6fed)))
+      left center / var(--progress, 0%) 100% no-repeat,
+    linear-gradient(to right, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.35))
+      left center / var(--buffered, 0%) 100% no-repeat,
+    rgba(255, 255, 255, 0.20);
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .scrub:hover::-webkit-slider-runnable-track {
+  height: 6px;
+}
+
+.player.ui-codeinexo .scrub::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--theme-accent);
+  box-shadow: 0 0 10px var(--theme-selected-ring, rgba(255, 255, 255, 0.5));
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.player.ui-codeinexo .scrub:hover::-webkit-slider-thumb,
+.player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+.player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* CodeineXO Controls Row */
+.player.ui-codeinexo .codeine-action-row {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.player.ui-codeinexo .codeine-controls-left,
+.player.ui-codeinexo .codeine-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .codeine-controls-left {
+  gap: 14px;
+}
+
+.player.ui-codeinexo .codeine-control-btn {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--theme-control-foreground);
+  background: transparent;
+  cursor: pointer;
+  transform: translateZ(0);
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    background-color var(--motion-standard) ease,
+    color var(--motion-standard) ease;
+}
+
+.player.ui-codeinexo .codeine-control-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateZ(0) scale(1.06);
+}
+
+.player.ui-codeinexo .codeine-control-btn:active,
+.player.ui-codeinexo .codeine-control-btn.is-pressed {
+  transform: scale(0.93);
+}
+
+.player.ui-codeinexo .codeine-control-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.player.ui-codeinexo .codeine-play-btn {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+}
+
+.player.ui-codeinexo .codeine-play-btn svg {
+  width: 26px;
+  height: 26px;
+}
+
+.player.ui-codeinexo .codeine-speed-btn {
+  width: auto;
+  min-width: 44px;
+  height: 42px;
+  padding: 0 10px;
+  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player.ui-codeinexo .codeine-speed-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.player.ui-codeinexo .codeine-speed-text {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: inherit;
+}
+
+.player.ui-codeinexo .codeine-volume-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--theme-control-foreground);
+}
+
+.player.ui-codeinexo .codeine-volume-btn {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  margin: 0;
+  padding: 0;
+}
+
+.player.ui-codeinexo .codeine-volume-btn svg {
+  width: 22px;
+  height: 22px;
+  filter: none;
+}
+
+.player.ui-codeinexo .codeine-volume-slider {
+  width: 96px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.player.ui-codeinexo .codeine-volume-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    var(--theme-accent-gradient, linear-gradient(var(--theme-accent), var(--theme-accent)))
+      left center / var(--volume-position, 50%) 100% no-repeat,
+    rgba(255, 255, 255, 0.24);
+}
+
+.player.ui-codeinexo .codeine-volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.player.ui-codeinexo .codeine-time-label {
+  display: none !important;
+}
+
+/* PiP adjustments for CodeineXO */
+.player.ui-codeinexo.pip-mode .codeine-seek-row {
+  gap: 8px;
+}
+.player.ui-codeinexo.pip-mode .codeine-time-pill {
+  font-size: 11px;
+  min-width: 32px;
+}
+.player.ui-codeinexo.pip-mode .codeine-controls-left {
+  gap: 8px;
+}
+.player.ui-codeinexo.pip-mode #codeineNextEpisodeButton,
+.player.ui-codeinexo.pip-mode #codeineTimeLabel,
+.player.ui-codeinexo.pip-mode #codeineFullscreenButton,
+.player.ui-codeinexo.pip-mode #codeineResizeButton,
+.player.ui-codeinexo.pip-mode #codeineSpeedButton,
+.player.ui-codeinexo.pip-mode #codeineSourcesButton,
+.player.ui-codeinexo.pip-mode #codeineEpisodesButton,
+.player.ui-codeinexo.pip-mode .header-center,
+.player.ui-codeinexo.pip-mode .header-left {
+  display: none !important;
+}
+.player.ui-codeinexo.pip-mode .codeine-volume-slider {
+  width: 68px;
+}
+
+@media (max-width: 1024px) {
+  .player.ui-codeinexo .codeine-seek-row {
+    gap: 8px;
+  }
+  .player.ui-codeinexo .codeine-time-pill {
+    font-size: 12px;
+    min-width: 36px;
+  }
+  .player.ui-codeinexo .codeine-action-row {
+    gap: 10px;
+  }
+  .player.ui-codeinexo .codeine-controls-left,
+  .player.ui-codeinexo .codeine-controls-right {
+    gap: 6px;
+  }
+  .player.ui-codeinexo .codeine-control-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+  .player.ui-codeinexo .codeine-control-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+  .player.ui-codeinexo .codeine-play-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+  .player.ui-codeinexo .codeine-play-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+  .player.ui-codeinexo .codeine-volume-slider {
+    width: 72px;
+  }
+  .player.ui-codeinexo .codeine-time-label {
+    font-size: 12px;
+  }
+}
+

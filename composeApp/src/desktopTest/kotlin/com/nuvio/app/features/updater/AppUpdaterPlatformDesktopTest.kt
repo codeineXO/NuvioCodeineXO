@@ -21,28 +21,28 @@ class AppUpdaterPlatformDesktopTest {
     }
 
     @Test
-    fun currentVersionIsV201() {
-        assertEquals("v2.0.1", AppUpdaterPlatform.currentVersionName)
+    fun currentVersionIsV300() {
+        assertEquals("v3.0.0", AppUpdaterPlatform.currentVersionName)
     }
 
     @Test
     fun versionComparisonRecognizesNewerRemoteVersion() {
         val currentVersion = AppUpdaterPlatform.currentVersionName
-        assertTrue(VersionUtils.isRemoteNewer("v2.0.2", currentVersion))
-        assertTrue(VersionUtils.isRemoteNewer("2.0.2", currentVersion))
+        assertTrue(VersionUtils.isRemoteNewer("v3.0.1", currentVersion))
+        assertTrue(VersionUtils.isRemoteNewer("3.0.1", currentVersion))
+        assertFalse(VersionUtils.isRemoteNewer("v3.0.0", currentVersion))
+        assertFalse(VersionUtils.isRemoteNewer("3.0.0", currentVersion))
         assertFalse(VersionUtils.isRemoteNewer("v2.0.1", currentVersion))
-        assertFalse(VersionUtils.isRemoteNewer("2.0.1", currentVersion))
-        assertFalse(VersionUtils.isRemoteNewer("v2.0.0", currentVersion))
         assertFalse(VersionUtils.isRemoteNewer("v1.9.9", currentVersion))
     }
 
     @Test
     fun legacyVersionComparisonWorksForDesktopAllReleases() {
         val currentVersion = AppUpdaterPlatform.currentVersionName
-        assertTrue(VersionUtils.isRemoteNewerLegacy("v2.0.2", currentVersion))
-        assertTrue(VersionUtils.isRemoteNewerLegacy("2.0.2", currentVersion))
+        assertTrue(VersionUtils.isRemoteNewerLegacy("v3.0.1", currentVersion))
+        assertTrue(VersionUtils.isRemoteNewerLegacy("3.0.1", currentVersion))
+        assertFalse(VersionUtils.isRemoteNewerLegacy("v3.0.0", currentVersion))
+        assertFalse(VersionUtils.isRemoteNewerLegacy("3.0.0", currentVersion))
         assertFalse(VersionUtils.isRemoteNewerLegacy("v2.0.1", currentVersion))
-        assertFalse(VersionUtils.isRemoteNewerLegacy("2.0.1", currentVersion))
-        assertFalse(VersionUtils.isRemoteNewerLegacy("v2.0.0", currentVersion))
     }
 }

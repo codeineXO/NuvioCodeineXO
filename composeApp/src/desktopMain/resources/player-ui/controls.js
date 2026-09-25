@@ -42,6 +42,29 @@ const episodesLabel = document.getElementById("episodesLabel");
 const submitIntroButton = document.getElementById("submitIntroButton");
 const videoSettingsButton = document.getElementById("videoSettingsButton");
 const backButton = document.getElementById("backButton");
+const codeineBackButton = document.getElementById("codeineBackButton");
+const codeineTitle = document.getElementById("codeineTitle");
+const codeineEpisode = document.getElementById("codeineEpisode");
+const codeineToggle = document.getElementById("codeineToggle");
+const codeineToggleIcon = document.getElementById("codeineToggleIcon");
+const codeineVolumeControl = document.getElementById("codeineVolumeControl");
+const codeineVolumeButton = document.getElementById("codeineVolumeButton");
+const codeineVolumeIcon = document.getElementById("codeineVolumeIcon");
+const codeineVolumeSlider = document.getElementById("codeineVolumeSlider");
+const codeineTimeLabel = document.getElementById("codeineTimeLabel");
+const codeinePosition = document.getElementById("codeinePosition");
+const codeineDuration = document.getElementById("codeineDuration");
+const codeineNextEpisodeButton = document.getElementById("codeineNextEpisodeButton");
+const codeineEpisodesButton = document.getElementById("codeineEpisodesButton");
+const codeinePipButton = document.getElementById("codeinePipButton");
+const codeineSourcesButton = document.getElementById("codeineSourcesButton");
+const codeineSubtitlesButton = document.getElementById("codeineSubtitlesButton");
+const codeineAudioButton = document.getElementById("codeineAudioButton");
+const codeineSpeedButton = document.getElementById("codeineSpeedButton");
+const codeineSpeedText = document.getElementById("codeineSpeedText");
+const codeineResizeButton = document.getElementById("codeineResizeButton");
+const codeineFullscreenButton = document.getElementById("codeineFullscreenButton");
+const codeineFullscreenIcon = document.getElementById("codeineFullscreenIcon");
 const openingOverlay = document.getElementById("openingOverlay");
 const openingArtwork = document.getElementById("openingArtwork");
 const openingBackButton = document.getElementById("openingBackButton");
@@ -199,6 +222,8 @@ const playerToastIconUse = document.getElementById("playerToastIconUse");
 const playerToastText = document.getElementById("playerToastText");
 
 let state = {
+  playerUiMode: "codeine_xo",
+  bufferedPositionMs: 0,
   title: "",
   episodeText: "",
   streamTitle: "",
@@ -540,8 +565,10 @@ const syncFullscreenButtons = () => {
   const label = isFullscreen ? "Exit fullscreen" : "Enter fullscreen";
   if (fullscreenIcon) fullscreenIcon.setAttribute("href", icon);
   if (openingFullscreenIcon) openingFullscreenIcon.setAttribute("href", icon);
+  if (codeineFullscreenIcon) codeineFullscreenIcon.setAttribute("href", icon);
   if (fullscreenButton) fullscreenButton.setAttribute("aria-label", label);
   if (openingFullscreenButton) openingFullscreenButton.setAttribute("aria-label", label);
+  if (codeineFullscreenButton) codeineFullscreenButton.setAttribute("aria-label", label);
 };
 
 const togglePlayerFullscreen = () => {
@@ -604,7 +631,6 @@ const volumeToastLabel = (fallbackDelta = 0) => {
 };
 
 const syncVolumeControl = () => {
-  if (!volumeControl || !volumeSlider || !volumeIcon) return;
   const volumeLevel = state.volumeLevel;
   const hasLevel = typeof volumeLevel === "number" && Number.isFinite(volumeLevel);
   const clampedLevel = hasLevel ? clampVolumeLevel(volumeLevel) : 1;
@@ -613,16 +639,33 @@ const syncVolumeControl = () => {
   const mutedStr = state.mutedLabel || "";
   const volumeFormat = state.volumeLevelLabelFormat || "";
   const label = percent === 0 ? mutedStr : volumeFormat.replace("%s", `${percent}%`).replace("%1$s", `${percent}%`);
-  volumeControl.style.setProperty("--volume-position", `${sliderPosition}%`);
-  volumeSlider.value = String(percent);
-  volumeSlider.setAttribute("aria-label", label);
-  volumeSlider.setAttribute("aria-valuetext", percent > 100 ? `${percent}%, boosted` : `${percent}%`);
-  volumeSlider.setAttribute("title", label);
-  volumeIcon.setAttribute("href", percent === 0 ? "#icon-volume-muted" : "#icon-volume");
-  if (volumeButton) {
-    const btnLabel = percent === 0 ? "Unmute" : "Mute";
-    volumeButton.setAttribute("aria-label", btnLabel);
-    volumeButton.setAttribute("title", btnLabel);
+  const iconHref = percent === 0 ? "#icon-volume-muted" : "#icon-volume";
+  const btnLabel = percent === 0 ? "Unmute" : "Mute";
+
+  if (volumeControl && volumeSlider && volumeIcon) {
+    volumeControl.style.setProperty("--volume-position", `${sliderPosition}%`);
+    volumeSlider.value = String(percent);
+    volumeSlider.setAttribute("aria-label", label);
+    volumeSlider.setAttribute("aria-valuetext", percent > 100 ? `${percent}%, boosted` : `${percent}%`);
+    volumeSlider.setAttribute("title", label);
+    volumeIcon.setAttribute("href", iconHref);
+    if (volumeButton) {
+      volumeButton.setAttribute("aria-label", btnLabel);
+      volumeButton.setAttribute("title", btnLabel);
+    }
+  }
+
+  if (codeineVolumeControl && codeineVolumeSlider && codeineVolumeIcon) {
+    codeineVolumeControl.style.setProperty("--volume-position", `${sliderPosition}%`);
+    codeineVolumeSlider.value = String(percent);
+    codeineVolumeSlider.setAttribute("aria-label", label);
+    codeineVolumeSlider.setAttribute("aria-valuetext", percent > 100 ? `${percent}%, boosted` : `${percent}%`);
+    codeineVolumeSlider.setAttribute("title", label);
+    codeineVolumeIcon.setAttribute("href", iconHref);
+    if (codeineVolumeButton) {
+      codeineVolumeButton.setAttribute("aria-label", btnLabel);
+      codeineVolumeButton.setAttribute("title", btnLabel);
+    }
   }
 };
 
@@ -839,10 +882,22 @@ const setProgress = (positionMs, durationMs) => {
   const percent = durationMs > 0 ? Math.max(0, Math.min(100, positionMs / durationMs * 100)) : 0;
   seek.value = Math.round(percent * 10);
   seek.style.setProperty("--progress", `${percent}%`);
+  const bufferedMs = Math.max(positionMs, Number(state.bufferedPositionMs) || 0);
+  const bufferedPercent = durationMs > 0 ? Math.max(0, Math.min(100, (bufferedMs / durationMs) * 100)) : 0;
+  seek.style.setProperty("--buffered", `${bufferedPercent}%`);
   positionLabel.textContent = formatTime(positionMs);
   durationLabel.textContent = formatTime(durationMs);
   if (timeLabel) {
     timeLabel.textContent = `${formatTime(positionMs)} / ${formatTime(durationMs)}`;
+  }
+  if (codeineTimeLabel) {
+    codeineTimeLabel.textContent = `${formatTime(positionMs)} / ${formatTime(durationMs)}`;
+  }
+  if (codeinePosition) {
+    codeinePosition.textContent = formatTime(positionMs);
+  }
+  if (codeineDuration) {
+    codeineDuration.textContent = formatTime(durationMs);
   }
   syncVolumeControl();
 };
@@ -853,7 +908,7 @@ const setText = (element, text) => {
 };
 
 const setVisible = (element, visible) => {
-  element.hidden = !visible;
+  if (element) element.hidden = !visible;
 };
 
 const setActionButtonLabel = (command, label) => {
@@ -2397,6 +2452,10 @@ const renderChrome = () => {
   const positionMs = isScrubbing ? scrubPositionMs : Math.max(0, Number(state.positionMs) || 0);
   const isPlaying = Boolean(state.isPlaying);
   const showError = renderPlaybackError();
+  const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
+  root.classList.toggle("ui-codeinexo", isCodeineXo);
+  root.classList.toggle("ui-official", !isCodeineXo);
+  root.dataset.playerUi = isCodeineXo ? "codeinexo" : "official";
   root.classList.toggle("pip-mode", Boolean(state.isInPip));
   if (!state.isInPip && isPipLocked) setPipLocked(false);
   root.classList.toggle("chrome-hidden", Boolean(showError || !state.controlsVisible));
@@ -2456,6 +2515,44 @@ const renderChrome = () => {
     nextEpisodeButton.setAttribute("title", nextLabel);
     if (nextEpisodeButtonLabel) nextEpisodeButtonLabel.textContent = nextLabel;
   }
+
+  if (isCodeineXo) {
+    if (codeineTitle) codeineTitle.textContent = state.title || "";
+    if (codeineEpisode) setText(codeineEpisode, state.episodeText);
+    if (codeineToggle) {
+      codeineToggle.setAttribute("aria-label", playPauseLabel || (isPlaying ? "Pause" : "Play"));
+    }
+    if (codeineToggleIcon) {
+      codeineToggleIcon.setAttribute("href", isPlaying ? "#icon-pause" : "#icon-play");
+    }
+    if (codeineSpeedText) {
+      codeineSpeedText.textContent = state.playbackSpeedLabel || "1x";
+    }
+    if (codeineNextEpisodeButton) {
+      codeineNextEpisodeButton.hidden = !state.nextEpisodePlayable;
+      const nextLabel = state.nextEpisodeHeaderLabel || "Next episode";
+      codeineNextEpisodeButton.setAttribute("aria-label", nextLabel);
+      codeineNextEpisodeButton.setAttribute("title", nextLabel);
+    }
+    if (codeinePipButton) {
+      const pipLabel = String(state.pipLabel || "").trim();
+      codeinePipButton.setAttribute("aria-label", pipLabel);
+      codeinePipButton.setAttribute("title", pipLabel);
+      codeinePipButton.hidden = !pipLabel;
+    }
+    if (codeineBackButton) {
+      codeineBackButton.setAttribute("aria-label", state.closeLabel || "Close player");
+    }
+    setVisible(codeineSourcesButton, Boolean(state.showSources));
+    setVisible(codeineEpisodesButton, Boolean(state.showEpisodes));
+    if (codeineResizeButton) codeineResizeButton.setAttribute("title", state.resizeModeLabel || "Fit");
+    if (codeineSpeedButton) codeineSpeedButton.setAttribute("title", state.playbackSpeedLabel || "1x");
+    if (codeineSubtitlesButton) codeineSubtitlesButton.setAttribute("title", state.subtitlesLabel || "Subs");
+    if (codeineAudioButton) codeineAudioButton.setAttribute("title", state.audioLabel || "Audio");
+    if (codeineSourcesButton) codeineSourcesButton.setAttribute("title", state.sourcesLabel || "Sources");
+    if (codeineEpisodesButton) codeineEpisodesButton.setAttribute("title", state.episodesLabel || "Episodes");
+  }
+
   syncFullscreenButtons();
   backButton.setAttribute("aria-label", state.closeLabel || "Close player");
   submitIntroButton.setAttribute("aria-label", state.submitIntroLabel || "Submit Intro");
@@ -2849,6 +2946,14 @@ toggle.addEventListener("pointerdown", event => {
   requestPlaybackState("setPlaybackState", true);
 });
 
+if (codeineToggle) {
+  codeineToggle.addEventListener("pointerdown", event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    suppressNextPointerToggleClick = true;
+    requestPlaybackState("setPlaybackState", true);
+  });
+}
+
 openingOverlay.addEventListener("click", event => {
   event.stopPropagation();
   if (!event.target.closest("button,input")) {
@@ -3225,6 +3330,36 @@ volumeButton.addEventListener("click", () => {
   send("volumeChangeTemporary", state.volumeLevel);
 });
 
+if (codeineVolumeSlider) {
+  codeineVolumeSlider.addEventListener("input", event => {
+    if (event && !event.isTrusted) return;
+    noteChromeActivity();
+    const percent = Math.max(0, Math.min(maxVolumeLevel * 100, Number(codeineVolumeSlider.value) || 0));
+    const nextLevel = percent / 100;
+    state.volumeLevel = nextLevel;
+    if (nextLevel > 0) {
+      preMuteVolumeLevel = nextLevel;
+    }
+    syncVolumeControl();
+    showPlayerToast(volumeToastLabel());
+    send("volumeChange", nextLevel);
+  });
+}
+
+if (codeineVolumeButton) {
+  codeineVolumeButton.addEventListener("click", () => {
+    noteChromeActivity();
+    if (state.volumeLevel > 0) {
+      preMuteVolumeLevel = state.volumeLevel;
+      state.volumeLevel = 0;
+    } else {
+      state.volumeLevel = preMuteVolumeLevel > 0 ? preMuteVolumeLevel : 1.0;
+    }
+    syncVolumeControl();
+    send("volumeChangeTemporary", state.volumeLevel);
+  });
+}
+
 window.playerUpdate = update => {
   const durationMs = Math.round((Number(update.duration) || 0) * 1000);
   const positionMs = Math.round((Number(update.position) || 0) * 1000);
@@ -3232,6 +3367,10 @@ window.playerUpdate = update => {
   const volumeLevel = Number.isFinite(reportedVolumeLevel)
     ? clampVolumeLevel(reportedVolumeLevel)
     : state.volumeLevel;
+  const reportedBufferedMs = Number(update.bufferedMs);
+  const bufferedPositionMs = Number.isFinite(reportedBufferedMs)
+    ? Math.round(reportedBufferedMs)
+    : state.bufferedPositionMs;
   const audioTracks = normalizeTracks(update.audioTracks);
   const subtitleTracks = normalizeTracks(update.subtitleTracks);
   const audioTracksChanged = trackListSignature(audioTracks) !== trackListSignature(state.audioTracks);
@@ -3247,6 +3386,7 @@ window.playerUpdate = update => {
     ...state,
     durationMs,
     positionMs: fineSeekBasePosMs !== null ? state.positionMs : positionMs,
+    bufferedPositionMs,
     isPlaying: pendingIsPlaying === null ? nativeIsPlaying : pendingIsPlaying,
     isLoading: Boolean(update.loading || update.isLoading),
     volumeLevel,

@@ -1276,6 +1276,8 @@ private data class NativeControlsStructureKey(
 private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
     buildString {
         append('{')
+        appendJsonField("playerUiMode", playerUiMode)
+        append(',')
         appendJsonField("title", title)
         append(',')
         appendJsonField("episodeText", episodeText)
@@ -1559,6 +1561,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         append(',')
         appendJsonField("positionMs", positionMs)
         append(',')
+        appendJsonField("bufferedPositionMs", bufferedPositionMs)
+        append(',')
         appendJsonField("sourceIsLoading", sourceIsLoading)
         append(',')
         appendJsonArrayField("sourceFilters", sourceFilters) { appendFilterItemJson(it) }
@@ -1649,6 +1653,7 @@ private fun PlayerControlsState.nativeControlsStructureKey(): PlayerControlsStat
         isLoading = false,
         durationMs = 0L,
         positionMs = 0L,
+        bufferedPositionMs = (bufferedPositionMs / 1000L) * 1000L,
     )
 
 private fun StringBuilder.appendJsonField(name: String, value: String) {
