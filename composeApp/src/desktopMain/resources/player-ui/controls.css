@@ -3567,7 +3567,7 @@ svg {
 }
 
 .player.ui-codeinexo {
-  --overlay-bottom: 76px;
+  --overlay-bottom: 84px;
 }
 
 .player.ui-codeinexo .progress {
@@ -3576,8 +3576,13 @@ svg {
   right: 20px;
 }
 
+.player.ui-codeinexo .top-gradient,
 .player.ui-codeinexo .bottom-gradient {
-  height: 140px;
+  height: 80px;
+}
+
+.player.ui-codeinexo .skip-prompt {
+  bottom: calc(var(--overlay-bottom) + env(safe-area-inset-bottom));
 }
 
 .player.ui-codeinexo .header {
