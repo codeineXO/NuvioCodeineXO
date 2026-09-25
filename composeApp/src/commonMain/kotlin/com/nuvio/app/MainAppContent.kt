@@ -492,7 +492,7 @@ internal fun MainAppContent(
             }
             is StreamRoute -> {
                 val launch = StreamLaunchStore.get(topRoute.launchId)
-                val title = launch?.title?.ifBlank { topRoute.title } ?: topRoute.title.ifBlank { "Selecting stream" }
+                val title = launch?.title?.ifBlank { topRoute.title } ?: topRoute.title.ifBlank { "Choosing Stream" }
                 val poster = launch?.poster
                 val episodeLabel = if (launch?.seasonNumber != null && launch.episodeNumber != null) {
                     val epTitle = launch.episodeTitle?.takeIf { it.isNotBlank() }

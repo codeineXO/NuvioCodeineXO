@@ -17,8 +17,11 @@ class DiscordPresenceManagerTest {
     @Test
     fun idleActivity_hasNuvioCodeineXONameAndDownloadButton() {
         assertEquals("NuvioCodeineXO", IdleActivity.name)
-        assertEquals(3, IdleActivity.type)
+        assertEquals(0, IdleActivity.type)
         assertEquals("Browsing NuvioCodeineXO", IdleActivity.details)
+        assertEquals("In Menus", IdleActivity.state)
+        assertNotNull(IdleActivity.assets)
+        assertNotNull(IdleActivity.timestamps)
         assertEquals(1, IdleActivity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", IdleActivity.buttons?.first()?.label)
         assertEquals("https://github.com/codeineXO/NuvioCodeineXO", IdleActivity.buttons?.first()?.url)
@@ -29,6 +32,9 @@ class DiscordPresenceManagerTest {
         val activity = PresenceSnapshot.Tab(AppScreenTab.Home).toDiscordActivity()
         assertEquals("NuvioCodeineXO", activity.name)
         assertEquals("Browsing Home", activity.details)
+        assertEquals("Exploring Content", activity.state)
+        assertNotNull(activity.assets)
+        assertNotNull(activity.timestamps)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
     }
 
@@ -78,7 +84,7 @@ class DiscordPresenceManagerTest {
 
         assertEquals("NuvioCodeineXO", activity.name)
         assertEquals("Inception", activity.details)
-        assertNull(activity.state)
+        assertEquals("Watching", activity.state)
         assertEquals(2, activity.statusDisplayType)
 
         assertNotNull(activity.assets)
@@ -127,18 +133,30 @@ class DiscordPresenceManagerTest {
 
     @Test
     fun discordActivitySerialization_omitsNullFields_toPreventDiscordGatewaySchemaRejection() {
-        val encoded = json.encodeToString(IdleActivity)
-        assertTrue(encoded.contains("\"name\":\"NuvioCodeineXO\""))
-        assertTrue(encoded.contains("\"details\":\"Browsing NuvioCodeineXO\""))
-        assertTrue(encoded.contains("\"type\":3"))
-        assertTrue(encoded.contains("\"instance\":false"))
-        assertTrue(!encoded.contains("\"assets\":null"))
-        assertTrue(!encoded.contains("\"timestamps\":null"))
-        assertTrue(!encoded.contains("\"state\":null"))
-        assertTrue(!encoded.contains("\"status_display_type\":null"))
-        assertTrue(!encoded.contains("\"assets\""))
-        assertTrue(!encoded.contains("\"timestamps\""))
-        assertTrue(!encoded.contains("\"state\""))
+        val idleEncoded = json.encodeToString(IdleActivity)
+        assertTrue(idleEncoded.contains("\"name\":\"NuvioCodeineXO\""))
+        assertTrue(idleEncoded.contains("\"details\":\"Browsing NuvioCodeineXO\""))
+        assertTrue(idleEncoded.contains("\"state\":\"In Menus\""))
+        assertTrue(idleEncoded.contains("\"type\":0"))
+        assertTrue(idleEncoded.contains("\"instance\":false"))
+        assertTrue(idleEncoded.contains("\"assets\""))
+        assertTrue(idleEncoded.contains("\"timestamps\""))
+        assertTrue(!idleEncoded.contains("\"assets\":null"))
+        assertTrue(!idleEncoded.contains("\"timestamps\":null"))
+        assertTrue(!idleEncoded.contains("\"state\":null"))
+
+        val partial = DiscordActivity(
+            type = 3,
+            name = "NuvioCodeineXO",
+            details = "Minimal",
+        )
+        val partialEncoded = json.encodeToString(partial)
+        assertTrue(partialEncoded.contains("\"name\":\"NuvioCodeineXO\""))
+        assertTrue(partialEncoded.contains("\"details\":\"Minimal\""))
+        assertTrue(!partialEncoded.contains("\"assets\""))
+        assertTrue(!partialEncoded.contains("\"timestamps\""))
+        assertTrue(!partialEncoded.contains("\"state\""))
+        assertTrue(!partialEncoded.contains("\"buttons\""))
     }
 
     @Test
@@ -161,7 +179,7 @@ class DiscordPresenceManagerTest {
     }
 
     @Test
-    fun streamSelectionSnapshot_rendersSelectingStreamAndPoster() {
+    fun streamSelectionSnapshot_rendersChoosingStreamAndPoster() {
         val snapshot = PresenceSnapshot.StreamSelection(
             title = "Fallout",
             posterUrl = "https://example.com/fallout_poster.jpg",
@@ -171,7 +189,7 @@ class DiscordPresenceManagerTest {
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
-        assertEquals("Selecting stream", activity.details)
+        assertEquals("Choosing Stream", activity.details)
         assertEquals("Fallout (S01, E01: The End)", activity.state)
         assertEquals(2, activity.statusDisplayType)
         assertNotNull(activity.assets)

@@ -22,9 +22,11 @@ private class DiscordDisconnected : Exception()
 private const val ReconnectDelayMs = 15_000L
 
 // Discord activity type: 0 = Playing, 2 = Listening, 3 = Watching, 5 = Competing.
-// Nuvio is a media app, so every presence it publishes is a Watching one -- including the menus,
-// where Discord renders "Watching Nuvio" instead of the default "Playing Nuvio" (a game).
-private const val WatchingActivityType = 3
+// Using 0 (Playing/Game) enables Discord to render the full rich presence game card
+// (square art, title, state, and elapsed timer) in Discord's "Active Now" panel.
+// Activity type 3 (Watching) collapses the Active Now presence into a single stream line
+// with a play icon and suppresses the expanded sub-card.
+private const val ActivityTypeGame = 0
 
 internal object DiscordPresenceManager {
     private val log = Logger.withTag("DiscordPresenceManager")
@@ -91,17 +93,28 @@ internal object DiscordPresenceManager {
 private const val AppActivityName = "NuvioCodeineXO"
 private const val StatusDisplayTypeDetails = 2
 private const val ForkDownloadUrl = "https://github.com/codeineXO/NuvioCodeineXO"
+private const val DefaultAppIconUrl =
+    "https://raw.githubusercontent.com/codeineXO/NuvioCodeineXO/NuvioCodeineXO/composeApp/src/commonMain/composeResources/drawable/app_icon_original_transparent.png"
+
+internal val sessionStartSecs = System.currentTimeMillis() / 1_000L
 
 private val DownloadButton = DiscordActivityButton(
     label = "Download NuvioCodeineXO",
     url = ForkDownloadUrl,
 )
 
-// Shown when nothing has been published yet, so the profile reads "Watching NuvioCodeineXO".
+// Shown when nothing has been published yet, so the profile reads "Playing NuvioCodeineXO".
 internal val IdleActivity = DiscordActivity(
-    type = WatchingActivityType,
+    type = ActivityTypeGame,
     name = AppActivityName,
     details = "Browsing NuvioCodeineXO",
+    state = "In Menus",
+    statusDisplayType = StatusDisplayTypeDetails,
+    timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+    assets = DiscordActivityAssets(
+        largeImage = DefaultAppIconUrl,
+        largeText = AppActivityName,
+    ),
     buttons = listOf(DownloadButton),
 )
 
@@ -132,38 +145,44 @@ internal fun String.toDiscordEpisodeLabel(): String {
 
 internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this) {
     is PresenceSnapshot.Tab -> DiscordActivity(
-        type = WatchingActivityType,
+        type = ActivityTypeGame,
         name = AppActivityName,
         details = "Browsing ${tab.name}",
+        state = "Exploring Content",
+        statusDisplayType = StatusDisplayTypeDetails,
+        timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+        assets = DiscordActivityAssets(
+            largeImage = DefaultAppIconUrl,
+            largeText = AppActivityName,
+        ),
         buttons = listOf(DownloadButton),
     )
     is PresenceSnapshot.Details -> DiscordActivity(
-        type = WatchingActivityType,
+        type = ActivityTypeGame,
         name = AppActivityName,
         details = "Viewing $title",
+        state = "Overview",
         statusDisplayType = StatusDisplayTypeDetails,
-        assets = posterUrl?.takeIf { it.isNotBlank() }?.let {
-            DiscordActivityAssets(
-                largeImage = it,
-                largeText = title,
-            )
-        },
+        timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+        assets = DiscordActivityAssets(
+            largeImage = posterUrl?.takeIf { it.isNotBlank() } ?: DefaultAppIconUrl,
+            largeText = title,
+        ),
         buttons = listOf(DownloadButton),
     )
     is PresenceSnapshot.StreamSelection -> {
         val episode = episodeLabel?.toDiscordEpisodeLabel()
         DiscordActivity(
-            type = WatchingActivityType,
+            type = ActivityTypeGame,
             name = AppActivityName,
-            details = "Selecting stream",
+            details = "Choosing Stream",
             state = if (!episode.isNullOrBlank()) "$title ($episode)" else title,
             statusDisplayType = StatusDisplayTypeDetails,
-            assets = posterUrl?.takeIf { it.isNotBlank() }?.let {
-                DiscordActivityAssets(
-                    largeImage = it,
-                    largeText = title,
-                )
-            },
+            timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+            assets = DiscordActivityAssets(
+                largeImage = posterUrl?.takeIf { it.isNotBlank() } ?: DefaultAppIconUrl,
+                largeText = title,
+            ),
             buttons = listOf(DownloadButton),
         )
     }
@@ -173,10 +192,10 @@ internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this)
         val startSecs = (System.currentTimeMillis() - positionMs) / 1_000L
         val episodeThumb = episodeThumbnailUrl?.takeIf { it.isNotBlank() }
         DiscordActivity(
-            type = WatchingActivityType,
+            type = ActivityTypeGame,
             name = AppActivityName,
             details = title,
-            state = if (isPlaying) episode else episode?.let { "$it • Paused" } ?: "Paused",
+            state = if (isPlaying) episode ?: "Watching" else episode?.let { "$it • Paused" } ?: "Paused",
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = if (isPlaying) {
                 // start + end -> Discord renders a live progress bar with time remaining.
@@ -196,7 +215,10 @@ internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this)
                     smallText = if (hasSmallImage) (episode ?: title) else null,
                 )
             } else {
-                null
+                DiscordActivityAssets(
+                    largeImage = DefaultAppIconUrl,
+                    largeText = title,
+                )
             },
             buttons = listOf(DownloadButton),
         )
