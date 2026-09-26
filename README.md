@@ -41,10 +41,10 @@
   - Shows detailed activity in drop down card on your friend's active now panel.
  
 - **🎬 CodeineXO Player UI:**
-  - Brand-new default player layout designed for clean, unobstructed viewing. The original **Official UI** is still available anytime in **Settings > Playback > Player UI**.
+  - Brand-new default player layout designed for clean, unobstructed viewing. **Official UI** is still available in Settings.
   - Natural text shadows on all elements for a smooth look.
   - Buffer progress shown as a faint fill on the seekbar. Current time on the left, total duration on the right.
-  - P2P Stream Stats overlay on Player UI.
+  - P2P and HTTP Stream Stats (download speed, seeders, peer) overlay on Player UI.
 
 ### ⚡ Improvements
 
