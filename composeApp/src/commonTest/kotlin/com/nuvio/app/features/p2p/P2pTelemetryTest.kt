@@ -4,12 +4,13 @@ import com.nuvio.app.features.player.p2pInitialLoadingProgress
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class P2pTelemetryTest {
     @Test
     fun torrentStatsAreVisibleByDefault() {
         assertFalse(P2pSettingsUiState().hideTorrentStats)
-        assertFalse(P2pSettingsUiState().showTorrentStatsOverlay)
+        assertTrue(P2pSettingsUiState().showTorrentStatsOverlay)
     }
 
     @Test

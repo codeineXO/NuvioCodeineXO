@@ -228,7 +228,7 @@ const torrentStatsText = document.getElementById("torrentStatsText");
 
 let state = {
   playerUiMode: "codeine_xo",
-  showTorrentStatsOverlay: false,
+  showTorrentStatsOverlay: true,
   torrentStatsText: "",
   bufferedPositionMs: 0,
   title: "",
