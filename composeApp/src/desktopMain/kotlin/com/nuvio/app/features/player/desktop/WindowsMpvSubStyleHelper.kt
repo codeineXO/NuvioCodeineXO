@@ -18,7 +18,10 @@ import kotlin.math.roundToInt
 internal object WindowsMpvSubStyleHelper {
     private var initialized = false
     private var setPropertyStringHandle: MethodHandle? = null
+    private var getPropertyHandle: MethodHandle? = null
     private var clientNameHandle: MethodHandle? = null
+    private var lastSpeed = 0L
+    private var lastSpeedTimestamp = 0L
 
     @Synchronized
     private fun ensureInitialized(): Boolean {
@@ -60,6 +63,7 @@ internal object WindowsMpvSubStyleHelper {
 
             val setPropSym = lookup.find("mpv_set_property_string").orElse(null) ?: return false
             val cNameSym = lookup.find("mpv_client_name").orElse(null) ?: return false
+            val getPropSym = lookup.find("mpv_get_property").orElse(null)
 
             setPropertyStringHandle = linker.downcallHandle(
                 setPropSym,
@@ -75,8 +79,52 @@ internal object WindowsMpvSubStyleHelper {
                 cNameSym,
                 FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             )
+
+            if (getPropSym != null) {
+                getPropertyHandle = linker.downcallHandle(
+                    getPropSym,
+                    FunctionDescriptor.of(
+                        ValueLayout.JAVA_INT,
+                        ValueLayout.ADDRESS,
+                        ValueLayout.ADDRESS,
+                        ValueLayout.JAVA_INT,
+                        ValueLayout.ADDRESS,
+                    ),
+                )
+            }
             true
         }.getOrDefault(false)
+    }
+
+    fun getCacheSpeed(bridgeHandle: Long): Long {
+        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return 0L
+        if (!ensureInitialized()) return 0L
+        val getProp = getPropertyHandle ?: return 0L
+        val mpvCtx = resolveMpvHandle(bridgeHandle) ?: return 0L
+
+        val speed = runCatching {
+            Arena.ofConfined().use { arena ->
+                val pName = arena.allocateUtf8String("cache-speed")
+                val pOut = arena.allocate(ValueLayout.JAVA_LONG)
+                val res = getProp.invoke(mpvCtx, pName, 4 /* MPV_FORMAT_INT64 */, pOut) as Int
+                if (res >= 0) {
+                    pOut.get(ValueLayout.JAVA_LONG, 0L).coerceAtLeast(0L)
+                } else {
+                    0L
+                }
+            }
+        }.getOrDefault(0L)
+
+        val now = System.currentTimeMillis()
+        if (speed > 0L) {
+            lastSpeed = speed
+            lastSpeedTimestamp = now
+            return speed
+        }
+        if (now - lastSpeedTimestamp < 2000L && lastSpeed > 0L) {
+            return lastSpeed
+        }
+        return 0L
     }
 
     private fun resolveMpvHandle(bridgeHandle: Long): MemorySegment? {

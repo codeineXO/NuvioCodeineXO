@@ -659,6 +659,7 @@ internal class NativePlayerController(
         return runCatching {
             val isLoading = NativePlayerBridge.isLoading(current)
             val isEnded = NativePlayerBridge.isEnded(current)
+            val cacheSpeed = WindowsMpvSubStyleHelper.getCacheSpeed(current)
             PlayerPlaybackSnapshot(
                 isLoading = isLoading,
                 isPlaying = !NativePlayerBridge.isPaused(current) && !isLoading && !isEnded,
@@ -667,6 +668,7 @@ internal class NativePlayerController(
                 positionMs = NativePlayerBridge.positionMs(current),
                 bufferedPositionMs = NativePlayerBridge.bufferedPositionMs(current),
                 playbackSpeed = NativePlayerBridge.speed(current),
+                downloadSpeedBytes = cacheSpeed,
             )
         }.getOrDefault(PlayerPlaybackSnapshot(isLoading = true))
     }

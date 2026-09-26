@@ -260,16 +260,35 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         else -> ""
     }
     val torrentStatsOverlayText = when {
-        !isP2pPlaybackActive || p2pStats == null -> ""
+        isP2pPlaybackActive -> {
+            if (p2pStats == null) ""
+            else {
+                val speed = p2pDownloadSpeed.orEmpty()
+                val peers = p2pPeerInfo.orEmpty()
+                if (speed.isNotBlank() && peers.isNotBlank()) {
+                    "⬇ $speed · $peers"
+                } else {
+                    speed.ifBlank { peers }
+                }
+            }
+        }
         else -> {
-            val speed = p2pDownloadSpeed.orEmpty()
-            if (speed.isNotBlank()) "⬇ $speed" else ""
+            if (activeSourceUrl == null || playbackSnapshot.isEnded) {
+                ""
+            } else {
+                val speedBytes = playbackSnapshot.downloadSpeedBytes
+                if (speedBytes > 0L) {
+                    "⬇ ${formatP2pSpeed(speedBytes)}"
+                } else {
+                    "⬇ 0 B/s"
+                }
+            }
         }
     }
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
-        showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay && isP2pPlaybackActive,
+        showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay && (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)),
         torrentStatsText = torrentStatsOverlayText,
         episodeText = episodeText,
         streamTitle = activeStreamTitle,
