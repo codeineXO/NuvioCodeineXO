@@ -313,7 +313,6 @@ private fun PlaybackSettingsSection(
     var showPreferredSubtitleDialog by remember { mutableStateOf(false) }
     var showSecondarySubtitleDialog by remember { mutableStateOf(false) }
     var showSubtitleTextColorDialog by remember { mutableStateOf(false) }
-    var showSubtitleBackgroundColorDialog by remember { mutableStateOf(false) }
     var showSubtitleOutlineColorDialog by remember { mutableStateOf(false) }
     var showSubtitleFontDialog by remember { mutableStateOf(false) }
     var showSubtitleOutlineEffectDialog by remember { mutableStateOf(false) }
@@ -661,14 +660,6 @@ private fun PlaybackSettingsSection(
                     enabled = subtitleRenderingEnabled,
                     isTablet = isTablet,
                     onClick = { showSubtitleTextColorDialog = true },
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_playback_subtitle_background_color),
-                    description = subtitleColorLabel(subtitleStyle.backgroundColor),
-                    enabled = subtitleRenderingEnabled,
-                    isTablet = isTablet,
-                    onClick = { showSubtitleBackgroundColorDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
@@ -1513,21 +1504,6 @@ private fun PlaybackSettingsSection(
                 PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(textColor = color))
             },
             onDismiss = { showSubtitleTextColorDialog = false },
-        )
-    }
-
-    if (showSubtitleBackgroundColorDialog) {
-        SubtitleColorDialog(
-            title = stringResource(Res.string.settings_playback_subtitle_background_color),
-            colors = SubtitleBackgroundColorSwatches,
-            selectedColor = autoPlayPlayerSettings.subtitleStyle.backgroundColor,
-            previewStyle = autoPlayPlayerSettings.subtitleStyle,
-            showAlpha = true,
-            target = SubtitleColorEditTarget.BACKGROUND,
-            onColorSelected = { color ->
-                PlayerSettingsRepository.setSubtitleStyle(autoPlayPlayerSettings.subtitleStyle.copy(backgroundColor = color))
-            },
-            onDismiss = { showSubtitleBackgroundColorDialog = false },
         )
     }
 
@@ -2895,8 +2871,8 @@ private fun SubtitleOutlineEffectDialog(
 ) {
     val effectDescriptions = mapOf(
         SubtitleOutlineEffect.OUTLINE to "Clean sharp border with adjustable thickness",
-        SubtitleOutlineEffect.SOFT_GLOW to "Gaussian blurred diffused halo around text",
-        SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Both border and offset shadow for maximum contrast",
+        SubtitleOutlineEffect.SOFT_GLOW to "Soft blurred glow around text edges",
+        SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Outline with feathered shadow — natural Netflix-style",
         SubtitleOutlineEffect.BACKGROUND_BOX to "Semi-transparent dark box behind subtitles",
         SubtitleOutlineEffect.NONE to "Plain text without outline or shadow",
     )

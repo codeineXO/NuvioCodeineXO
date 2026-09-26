@@ -263,12 +263,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         !isP2pPlaybackActive || p2pStats == null -> ""
         else -> {
             val speed = p2pDownloadSpeed.orEmpty()
-            val peers = p2pPeerInfo.orEmpty()
-            if (speed.isNotBlank() && peers.isNotBlank()) {
-                "⬇ $speed · $peers"
-            } else {
-                speed.ifBlank { peers }
-            }
+            if (speed.isNotBlank()) "⬇ $speed" else ""
         }
     }
     val playerControlsState = PlayerControlsState(
@@ -1107,6 +1102,10 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         "subtitleTextOpacity" -> {
             val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = subtitleStyle.textColor.copy(alpha = alpha)))
+        }
+        "subtitleBackgroundOpacity" -> {
+            val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)))
         }
         "subtitleFontDelta" -> {
             val currentIndex = SubtitleFontOptions.indexOf(subtitleStyle.fontName).coerceAtLeast(0)

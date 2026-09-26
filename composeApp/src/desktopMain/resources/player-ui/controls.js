@@ -171,6 +171,10 @@ const outlineThicknessLabel = document.getElementById("outlineThicknessLabel");
 const outlineThicknessValue = document.getElementById("outlineThicknessValue");
 const outlineThicknessMinus = document.getElementById("outlineThicknessMinus");
 const outlineThicknessPlus = document.getElementById("outlineThicknessPlus");
+const bgOpacitySection = document.getElementById("bgOpacitySection");
+const bgOpacityMinus = document.getElementById("bgOpacityMinus");
+const bgOpacityPlus = document.getElementById("bgOpacityPlus");
+const bgOpacityValue = document.getElementById("bgOpacityValue");
 const subtitleStyleReset = document.getElementById("subtitleStyleReset");
 const sourceModal = document.getElementById("sourceModal");
 const sourcePanelTitle = document.getElementById("sourcePanelTitle");
@@ -429,9 +433,8 @@ const SubtitleFontOptions = [
 ];
 const SubtitleOutlineEffects = [
   { id: "outline", label: "Classic Outline" },
-  { id: "drop_shadow", label: "Drop Shadow" },
-  { id: "soft_glow", label: "Soft Glow" },
-  { id: "outline_shadow", label: "Outline + Shadow" },
+  { id: "soft_glow", label: "Glow" },
+  { id: "outline_shadow", label: "Halo" },
   { id: "background_box", label: "Background Box" },
   { id: "none", label: "None" }
 ];
@@ -1579,20 +1582,28 @@ const renderSubtitleStylePanel = () => {
   }
   if (outlineEffectLabel) outlineEffectLabel.textContent = state.outlineEffectLabel || "Outline Style";
   if (outlineEffectValue) {
-    const rawEffect = String(style.outlineEffect || "outline").toLowerCase();
+    const rawEffect = String(style.outlineEffect || "outline_shadow").toLowerCase();
     const effect = SubtitleOutlineEffects.find(e => e.id === rawEffect || e.id === rawEffect.replace("_", "")) ||
                    SubtitleOutlineEffects.find(e => e.id.toLowerCase() === rawEffect) ||
                    SubtitleOutlineEffects[0];
     outlineEffectValue.textContent = effect.label;
-    // Hide thickness for modes that have no thickness concept
-    if (outlineThicknessSection) {
-      outlineThicknessSection.hidden = effect.id === "none" || effect.id === "background_box";
-    }
+    const isBackgroundBox = effect.id === "background_box";
+    const isNone = effect.id === "none";
+    // Thickness section: hidden only for background_box; shown for none but buttons disabled
+    if (outlineThicknessSection) outlineThicknessSection.hidden = isBackgroundBox;
+    if (outlineThicknessMinus)   outlineThicknessMinus.disabled = isNone;
+    if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = isNone;
+    // Box opacity section: only shown for background_box
+    if (bgOpacitySection) bgOpacitySection.hidden = !isBackgroundBox;
   }
   if (outlineThicknessLabel) outlineThicknessLabel.textContent = state.outlineThicknessLabel || "Outline Thickness";
   if (outlineThicknessValue) {
     const thickness = Number(style.outlineWidth) || 2;
     outlineThicknessValue.textContent = String(thickness);
+  }
+  if (bgOpacityValue) {
+    const bgAlpha = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
+    bgOpacityValue.textContent = `${bgAlpha}%`;
   }
   boldLabel.textContent = state.boldLabel || "Bold";
   boldToggle.textContent = style.bold ? (state.onLabel || "On") : (state.offLabel || "Off");
@@ -3060,6 +3071,22 @@ if (outlineThicknessPlus) {
   outlineThicknessPlus.addEventListener("click", event => {
     event.stopPropagation();
     send("subtitleOutlineThicknessDelta", 1);
+  });
+}
+if (bgOpacityMinus) {
+  bgOpacityMinus.addEventListener("click", event => {
+    event.stopPropagation();
+    const style = state.subtitleStyle || {};
+    const current = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
+    send("subtitleBackgroundOpacity", Math.max(0, current - 10));
+  });
+}
+if (bgOpacityPlus) {
+  bgOpacityPlus.addEventListener("click", event => {
+    event.stopPropagation();
+    const style = state.subtitleStyle || {};
+    const current = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
+    send("subtitleBackgroundOpacity", Math.min(100, current + 10));
   });
 }
 boldToggle.addEventListener("click", event => {

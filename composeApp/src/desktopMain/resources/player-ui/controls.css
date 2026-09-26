@@ -2173,6 +2173,12 @@ button:disabled {
   transform: scale(.96);
 }
 
+.round-step:disabled {
+  opacity: 0.30;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .panel-button.primary,
 .segment-button.selected {
   background: var(--theme-accent);

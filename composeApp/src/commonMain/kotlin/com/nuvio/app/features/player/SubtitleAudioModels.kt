@@ -51,14 +51,14 @@ internal val subtitleFontSizeRangeSp: IntRange
 
 enum class SubtitleOutlineEffect(val id: String, val label: String) {
     OUTLINE("outline", "Classic Outline"),
-    SOFT_GLOW("soft_glow", "Soft Glow"),
-    OUTLINE_AND_SHADOW("outline_shadow", "Outline + Shadow"),
+    SOFT_GLOW("soft_glow", "Glow"),
+    OUTLINE_AND_SHADOW("outline_shadow", "Halo"),
     BACKGROUND_BOX("background_box", "Background Box"),
     NONE("none", "None");
 
     companion object {
         fun fromId(id: String?): SubtitleOutlineEffect =
-            entries.firstOrNull { it.id == id } ?: OUTLINE
+            entries.firstOrNull { it.id == id } ?: OUTLINE_AND_SHADOW
     }
 }
 
@@ -81,11 +81,11 @@ data class SubtitleStyleState(
     val outlineColor: Color = Color.Black,
     val outlineEnabled: Boolean = true,
     val outlineWidth: Int = 2,
-    val outlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE,
-    val fontName: String = "Trebuchet MS",
-    val bold: Boolean = false,
-    val fontSizeSp: Int = 18,
-    val bottomOffset: Int = 20,
+    val outlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE_AND_SHADOW,
+    val fontName: String = "Segoe UI",
+    val bold: Boolean = true,
+    val fontSizeSp: Int = 12,
+    val bottomOffset: Int = 10,
     val stripSdh: Boolean = false,
     val useForcedSubtitles: Boolean = false,
     val showOnlyPreferredLanguages: Boolean = false,
