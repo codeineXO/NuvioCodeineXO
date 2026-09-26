@@ -16,7 +16,11 @@ import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalUriHandler
+import com.nuvio.app.core.build.AppVersionPolicy
+import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_page_account
 import nuvio.composeapp.generated.resources.compose_settings_page_advanced
@@ -216,11 +220,19 @@ internal fun LazyListScope.settingsRootContent(
                         SettingsGroupDivider(isTablet = isTablet)
                         UpdateChannelSettingsRow(isTablet = isTablet)
                         SettingsGroupDivider(isTablet = isTablet)
+                        val tokens = MaterialTheme.nuvio
                         SettingsNavigationRow(
                             title = stringResource(Res.string.compose_settings_root_check_updates_title),
                             description = stringResource(Res.string.compose_settings_root_check_updates_description),
                             icon = Icons.Rounded.CloudDownload,
                             isTablet = isTablet,
+                            trailingContent = {
+                                Text(
+                                    text = AppVersionPolicy.displayVersionName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = tokens.colors.textSecondary,
+                                )
+                            },
                             onClick = onCheckForUpdatesClick,
                         )
                     }

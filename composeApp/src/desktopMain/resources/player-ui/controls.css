@@ -210,6 +210,7 @@ button:disabled {
 .player.opening-active .pause-metadata-overlay,
 .player.opening-active .skip-prompt,
 .player.opening-active .next-episode-card,
+.player.opening-active .torrent-stats-overlay,
 .player.opening-active .content {
   visibility: hidden;
   opacity: 0;
@@ -231,6 +232,13 @@ button:disabled {
 .player.error-active .progress,
 .player.error-active .modal-layer,
 .player.error-active .torrent-stats-overlay {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.player.modal-active .torrent-stats-overlay,
+.player:has(.modal-layer.modal-visible) .torrent-stats-overlay,
+.player:has(.modal-layer.modal-closing) .torrent-stats-overlay {
   opacity: 0;
   pointer-events: none;
 }
@@ -303,7 +311,7 @@ button:disabled {
   position: absolute;
   top: calc(88px + env(safe-area-inset-top));
   right: clamp(16px, 2.5vw, 32px);
-  z-index: 38;
+  z-index: 25;
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;
@@ -319,6 +327,7 @@ button:disabled {
 }
 
 .torrent-stats-overlay[hidden],
+.player.modal-active .torrent-stats-overlay,
 .player.pip-mode .torrent-stats-overlay {
   display: none !important;
 }

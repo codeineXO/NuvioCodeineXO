@@ -1013,7 +1013,7 @@ const renderPauseMetadataOverlay = showOpening => {
   const showOverlay = Boolean(
     pauseMetadataReady &&
     !state.controlsVisible &&
-    !activeModal &&
+    !hasOpenModal() &&
     !showOpening,
   );
 
@@ -1053,6 +1053,10 @@ const modalByName = {
   p2pConsent: p2pConsentModal,
 };
 const modalElements = Object.values(modalByName);
+const hasOpenModal = () => Boolean(
+  activeModal ||
+  modalElements.some(modal => Boolean(modal) && (!modal.hidden || modal.classList.contains("modal-visible") || modal.classList.contains("modal-closing")))
+);
 const modalCloseTimers = new Map();
 
 const setModalVisibility = (modal, visible, animated = true) => {
@@ -1087,6 +1091,7 @@ const setModalVisibility = (modal, visible, animated = true) => {
     if (modal.dataset.modalState === "closed") {
       modal.hidden = true;
       modal.classList.remove("modal-closing");
+      renderChrome();
     }
   }, modalTransitionMs);
   modalCloseTimers.set(modal, timer);
@@ -2481,13 +2486,15 @@ const renderChrome = () => {
   root.dataset.playerUi = isCodeineXo ? "codeinexo" : "official";
   root.classList.toggle("pip-mode", Boolean(state.isInPip));
   if (!state.isInPip && isPipLocked) setPipLocked(false);
+  const modalActive = hasOpenModal();
+  root.classList.toggle("modal-active", modalActive);
   root.classList.toggle("chrome-hidden", Boolean(showError || !state.controlsVisible));
   root.classList.toggle("source-visible", Boolean(!showError && !isPlaying && !state.isLoading && (state.streamTitle || state.providerName)));
   syncHiddenCursor();
   const showOpening = renderOpeningOverlay(showError);
   if (state.pauseOverlayEnabled || showError) renderPauseMetadataOverlay(showOpening || showError);
   syncParentalGuide(showOpening || showError);
-  syncTorrentStatsOverlay(showOpening || showError);
+  syncTorrentStatsOverlay(showOpening || showError || modalActive);
 
   title.textContent = state.title || "";
   setText(episode, state.episodeText);
