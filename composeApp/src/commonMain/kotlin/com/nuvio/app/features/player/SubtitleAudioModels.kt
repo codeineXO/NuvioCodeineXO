@@ -51,7 +51,6 @@ internal val subtitleFontSizeRangeSp: IntRange
 
 enum class SubtitleOutlineEffect(val id: String, val label: String) {
     OUTLINE("outline", "Classic Outline"),
-    DROP_SHADOW("drop_shadow", "Drop Shadow"),
     SOFT_GLOW("soft_glow", "Soft Glow"),
     OUTLINE_AND_SHADOW("outline_shadow", "Outline + Shadow"),
     BACKGROUND_BOX("background_box", "Background Box"),

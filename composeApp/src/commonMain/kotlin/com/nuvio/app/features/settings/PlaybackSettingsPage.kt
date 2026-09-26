@@ -2895,7 +2895,6 @@ private fun SubtitleOutlineEffectDialog(
 ) {
     val effectDescriptions = mapOf(
         SubtitleOutlineEffect.OUTLINE to "Clean sharp border with adjustable thickness",
-        SubtitleOutlineEffect.DROP_SHADOW to "Subtle directional 3D shadow behind words",
         SubtitleOutlineEffect.SOFT_GLOW to "Gaussian blurred diffused halo around text",
         SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Both border and offset shadow for maximum contrast",
         SubtitleOutlineEffect.BACKGROUND_BOX to "Semi-transparent dark box behind subtitles",

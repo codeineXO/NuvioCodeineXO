@@ -143,29 +143,28 @@ internal object WindowsMpvSubStyleHelper {
                         setProp("sub-border-style", "outline-and-shadow")
                         setProp("sub-outline-size", size)
                         setProp("sub-shadow-offset", "0")
-                        setProp("sub-blur", "0")
-                    }
-                    SubtitleOutlineEffect.DROP_SHADOW -> {
-                        setProp("sub-border-style", "outline-and-shadow")
-                        setProp("sub-outline-size", "0")
-                        val offset = (width + 1).coerceIn(2, 6).toString()
-                        setProp("sub-shadow-offset", offset)
-                        setProp("sub-blur", "0")
+                        // Tiny ambient blur softens the hard edge of the outline naturally
+                        setProp("sub-blur", "0.3")
                     }
                     SubtitleOutlineEffect.SOFT_GLOW -> {
                         setProp("sub-border-style", "outline-and-shadow")
-                        setProp("sub-outline-size", (width * 1.5f).toString())
+                        // Wide spread outline acts as the glow halo
+                        val glowSize = String.format(Locale.US, "%.1f", (width * 2.0f).coerceIn(2f, 12f))
+                        setProp("sub-outline-size", glowSize)
                         setProp("sub-shadow-offset", "0")
-                        val blurVal = String.format(Locale.US, "%.1f", (width * 0.8f + 1.2f).coerceIn(1.5f, 7.0f))
+                        // Heavy blur makes it bloom softly like a backlit glow
+                        val blurVal = String.format(Locale.US, "%.1f", (width * 1.2f + 2.0f).coerceIn(2.5f, 9.0f))
                         setProp("sub-blur", blurVal)
                     }
                     SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> {
                         val size = if (style.outlineEnabled) width.toString() else "0"
                         setProp("sub-border-style", "outline-and-shadow")
                         setProp("sub-outline-size", size)
-                        val offset = (width + 1).coerceIn(2, 6).toString()
+                        val offset = (width + 1).coerceIn(2, 5).toString()
                         setProp("sub-shadow-offset", offset)
-                        setProp("sub-blur", "0")
+                        // Blur the shadow only — outline stays crisp, shadow feathers behind it
+                        val blurVal = String.format(Locale.US, "%.1f", (width * 0.5f + 0.8f).coerceIn(1.0f, 4.0f))
+                        setProp("sub-blur", blurVal)
                     }
                     SubtitleOutlineEffect.BACKGROUND_BOX -> {
                         setProp("sub-border-style", "opaque-box")

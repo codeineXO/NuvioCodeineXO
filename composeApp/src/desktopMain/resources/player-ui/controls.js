@@ -126,8 +126,6 @@ const fontSizeLabel = document.getElementById("fontSizeLabel");
 const fontSizeMinus = document.getElementById("fontSizeMinus");
 const fontSizeValue = document.getElementById("fontSizeValue");
 const fontSizePlus = document.getElementById("fontSizePlus");
-const outlineLabel = document.getElementById("outlineLabel");
-const outlineToggle = document.getElementById("outlineToggle");
 const boldLabel = document.getElementById("boldLabel");
 const boldToggle = document.getElementById("boldToggle");
 const bottomOffsetLabel = document.getElementById("bottomOffsetLabel");
@@ -171,7 +169,8 @@ const outlineEffectPlus = document.getElementById("outlineEffectPlus");
 const outlineThicknessSection = document.getElementById("outlineThicknessSection");
 const outlineThicknessLabel = document.getElementById("outlineThicknessLabel");
 const outlineThicknessValue = document.getElementById("outlineThicknessValue");
-const outlineThicknessSlider = document.getElementById("subtitleOutlineThicknessSlider");
+const outlineThicknessMinus = document.getElementById("outlineThicknessMinus");
+const outlineThicknessPlus = document.getElementById("outlineThicknessPlus");
 const subtitleStyleReset = document.getElementById("subtitleStyleReset");
 const sourceModal = document.getElementById("sourceModal");
 const sourcePanelTitle = document.getElementById("sourcePanelTitle");
@@ -1578,9 +1577,6 @@ const renderSubtitleStylePanel = () => {
     fontValue.textContent = font;
     fontValue.style.fontFamily = `"${font}", sans-serif`;
   }
-  outlineLabel.textContent = state.outlineLabel || "Outline";
-  outlineToggle.textContent = style.outlineEnabled ? (state.onLabel || "On") : (state.offLabel || "Off");
-  outlineToggle.classList.toggle("primary", Boolean(style.outlineEnabled));
   if (outlineEffectLabel) outlineEffectLabel.textContent = state.outlineEffectLabel || "Outline Style";
   if (outlineEffectValue) {
     const rawEffect = String(style.outlineEffect || "outline").toLowerCase();
@@ -1588,13 +1584,15 @@ const renderSubtitleStylePanel = () => {
                    SubtitleOutlineEffects.find(e => e.id.toLowerCase() === rawEffect) ||
                    SubtitleOutlineEffects[0];
     outlineEffectValue.textContent = effect.label;
+    // Hide thickness for modes that have no thickness concept
+    if (outlineThicknessSection) {
+      outlineThicknessSection.hidden = effect.id === "none" || effect.id === "background_box";
+    }
   }
   if (outlineThicknessLabel) outlineThicknessLabel.textContent = state.outlineThicknessLabel || "Outline Thickness";
-  if (outlineThicknessSection && outlineThicknessValue && outlineThicknessSlider) {
-    outlineThicknessSection.hidden = !style.outlineEnabled;
+  if (outlineThicknessValue) {
     const thickness = Number(style.outlineWidth) || 2;
-    outlineThicknessValue.textContent = `${thickness} px`;
-    outlineThicknessSlider.value = String(thickness);
+    outlineThicknessValue.textContent = String(thickness);
   }
   boldLabel.textContent = state.boldLabel || "Bold";
   boldToggle.textContent = style.bold ? (state.onLabel || "On") : (state.offLabel || "Off");
@@ -3028,10 +3026,6 @@ fontSizePlus.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleFontSizeDelta", 2);
 });
-outlineToggle.addEventListener("click", event => {
-  event.stopPropagation();
-  send("subtitleOutlineToggle", 0);
-});
 if (fontMinus) {
   fontMinus.addEventListener("click", event => {
     event.stopPropagation();
@@ -3056,11 +3050,16 @@ if (outlineEffectPlus) {
     send("subtitleOutlineEffectDelta", 1);
   });
 }
-if (outlineThicknessSlider) {
-  outlineThicknessSlider.addEventListener("input", () => {
-    const val = Number(outlineThicknessSlider.value) || 2;
-    if (outlineThicknessValue) outlineThicknessValue.textContent = `${val} px`;
-    send("subtitleOutlineThickness", val);
+if (outlineThicknessMinus) {
+  outlineThicknessMinus.addEventListener("click", event => {
+    event.stopPropagation();
+    send("subtitleOutlineThicknessDelta", -1);
+  });
+}
+if (outlineThicknessPlus) {
+  outlineThicknessPlus.addEventListener("click", event => {
+    event.stopPropagation();
+    send("subtitleOutlineThicknessDelta", 1);
   });
 }
 boldToggle.addEventListener("click", event => {

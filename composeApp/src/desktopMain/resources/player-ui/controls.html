@@ -434,8 +434,6 @@
                       </div>
                     </div>
                     <div class="style-section">
-                      <span class="style-label" id="outlineLabel">Outline</span>
-                      <button class="panel-button" id="outlineToggle" type="button">On</button>
                       <div class="style-header-row">
                         <span class="style-label" id="outlineColorLabel">Outline Color</span>
                         <button class="panel-button small" id="subtitleOutlineCustomToggle" type="button">Custom</button>
@@ -470,12 +468,11 @@
                       </div>
                     </div>
                     <div class="style-section" id="outlineThicknessSection">
-                      <div class="slider-row">
-                        <div class="slider-header">
-                          <span class="style-label" id="outlineThicknessLabel">Outline Thickness</span>
-                          <span id="outlineThicknessValue">2 px</span>
-                        </div>
-                        <input type="range" min="1" max="8" step="1" value="2" class="color-slider" id="subtitleOutlineThicknessSlider" />
+                      <span class="style-label" id="outlineThicknessLabel">Outline Thickness</span>
+                      <div class="stepper">
+                        <button class="round-step" id="outlineThicknessMinus" type="button">-</button>
+                        <span class="stepper-value" id="outlineThicknessValue">2</span>
+                        <button class="round-step" id="outlineThicknessPlus" type="button">+</button>
                       </div>
                     </div>
                   </div>

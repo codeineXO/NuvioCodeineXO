@@ -240,17 +240,14 @@ button:disabled {
   top: calc(96px + env(safe-area-inset-top));
   left: 50%;
   z-index: 42;
-  min-width: 108px;
-  max-width: min(240px, calc(100% - 40px));
-  min-height: 41px;
-  padding: 11px 16px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 18px;
-  background: rgba(22, 22, 24, .88);
+  max-width: min(320px, calc(100% - 40px));
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   color: #fff;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, .36);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1.25;
   text-align: center;
   display: flex;
@@ -260,19 +257,24 @@ button:disabled {
   opacity: 0;
   transform: translate3d(-50%, -12px, 0) scale(.98);
   pointer-events: none;
-  backdrop-filter: blur(18px) saturate(1.12);
-  -webkit-backdrop-filter: blur(18px) saturate(1.12);
   transition:
     opacity 260ms var(--ease-out),
     transform 280ms var(--ease-out);
   will-change: opacity, transform;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.98),
+    0 2px 8px rgba(0, 0, 0, 0.75),
+    0 4px 16px rgba(0, 0, 0, 0.40);
 }
 
 .player-toast-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   fill: currentColor;
+  filter:
+    drop-shadow(0 1px 3px rgba(0, 0, 0, 0.98))
+    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.70));
 }
 
 .player-toast-icon[hidden] {
@@ -282,8 +284,7 @@ button:disabled {
 .player-toast-text {
   display: block;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   white-space: nowrap;
 }
 

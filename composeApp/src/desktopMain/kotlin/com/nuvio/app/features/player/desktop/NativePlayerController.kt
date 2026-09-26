@@ -1100,7 +1100,6 @@ internal class NativePlayerController(
         val resolvedOutlineSize = when (style.outlineEffect) {
             SubtitleOutlineEffect.NONE -> 0f
             SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
-            SubtitleOutlineEffect.DROP_SHADOW -> 1f
             SubtitleOutlineEffect.SOFT_GLOW -> (style.outlineWidth.toFloat() * 1.5f).coerceAtLeast(3f)
             SubtitleOutlineEffect.OUTLINE,
             SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f

@@ -259,7 +259,6 @@ private fun SubtitleLivePreviewCard(
     }
 
     val showShadow = when (style.outlineEffect) {
-        SubtitleOutlineEffect.DROP_SHADOW,
         SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> true
         else -> false
     }
