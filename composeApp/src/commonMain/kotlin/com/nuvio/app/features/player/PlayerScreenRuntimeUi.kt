@@ -580,7 +580,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     playerControllerSourceUrl = surfaceSource?.sourceUrl
                 },
                 onSnapshot = { snapshot ->
-                    updatePlaybackSnapshot(snapshot)
+                    if (!updatePlaybackSnapshot(snapshot)) return@PlatformPlayerSurface
                     refreshAudioTracksIfChanged()
                     if (!snapshot.isLoading) initialLoadCompleted = true
                     if (snapshot.isEnded) {
@@ -1812,16 +1812,12 @@ private fun BoxScope.RenderPlaybackOverlays(
             nextEpisodeAutoPlayCountdown = nextEpisodeAutoPlayCountdown,
             blurUnwatchedEpisodes = metaScreenSettingsUiState.blurUnwatchedEpisodes,
             onPlayNextEpisode = {
-                nextEpisodeAutoPlayJob?.cancel()
                 playNextEpisode()
             },
             onDismissNextEpisode = {
-                nextEpisodeAutoPlayJob?.cancel()
+                cancelNextEpisodeAutoPlay()
                 nextEpisodeCardDismissed = true
                 showNextEpisodeCard = false
-                nextEpisodeAutoPlaySearching = false
-                nextEpisodeAutoPlaySourceName = null
-                nextEpisodeAutoPlayCountdown = null
             },
             errorMessage = errorMessage,
             onDismissError = { requestBack() },
