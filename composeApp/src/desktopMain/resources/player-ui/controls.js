@@ -412,7 +412,7 @@ let state = {
     bold: false,
     fontSizeSp: 18,
     bottomOffset: 20,
-    fontName: "Trebuchet MS",
+    fontName: "Arial",
     outlineEffect: "outline",
     outlineWidth: 2,
   },

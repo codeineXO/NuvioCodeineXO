@@ -82,7 +82,7 @@ data class SubtitleStyleState(
     val outlineEnabled: Boolean = true,
     val outlineWidth: Int = 2,
     val outlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE_AND_SHADOW,
-    val fontName: String = "Segoe UI",
+    val fontName: String = "Arial",
     val bold: Boolean = true,
     val fontSizeSp: Int = 12,
     val bottomOffset: Int = 10,
