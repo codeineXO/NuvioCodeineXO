@@ -48,6 +48,7 @@ composeApp/src/desktopMain/wix/UninstallPrompt.exe
 *.wixpdb
 *.cab
 /*.wxs
+/test-merge-1/
 
 # JVM Crash & Diagnostic Dumps
 hs_err_pid*.log
