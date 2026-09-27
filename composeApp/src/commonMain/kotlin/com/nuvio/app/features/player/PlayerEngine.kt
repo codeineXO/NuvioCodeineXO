@@ -78,6 +78,7 @@ enum class PlayerControlsAction {
 data class PlayerControlsState(
     val title: String = "",
     val playerUiMode: String = "codeine_xo",
+    val showPlaybackTimeOverlay: Boolean = false,
     val showTorrentStatsOverlay: Boolean = true,
     val torrentStatsText: String = "",
     val episodeText: String = "",

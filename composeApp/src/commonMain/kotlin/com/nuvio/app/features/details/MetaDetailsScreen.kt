@@ -377,7 +377,11 @@ fun MetaDetailsScreen(
     }
 
     LaunchedEffect(
+        type,
+        id,
         displayedMeta?.id,
+        displayedMeta?.type,
+        displayedMeta?.imdbId,
         displayedMeta?.videos,
         deferredMetaWorkAllowed,
         metaScreenSettingsUiState.episodeRatingsVisibility,
@@ -393,7 +397,9 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
 
-        val imdbId = extractImdbId(metaForRatings.id) ?: extractImdbId(id) ?: metaForRatings.imdbId
+        val imdbId = extractImdbId(metaForRatings.id)
+            ?: extractImdbId(id)
+            ?: extractImdbId(metaForRatings.imdbId)
         val tmdbId = extractTmdbId(metaForRatings.id)
             ?: extractTmdbId(id)
             ?: TmdbService.ensureTmdbId(metaForRatings.id, metaForRatings.type, fallbackImdbId = metaForRatings.imdbId)?.toIntOrNull()
@@ -407,6 +413,7 @@ fun MetaDetailsScreen(
         episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
             imdbId = imdbId,
             tmdbId = tmdbId,
+            seasonNumbers = metaForRatings.videos.mapNotNull { it.season }.distinct(),
         )
     }
 

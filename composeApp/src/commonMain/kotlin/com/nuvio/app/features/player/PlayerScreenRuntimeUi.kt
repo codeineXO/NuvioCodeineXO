@@ -295,6 +295,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
+        showPlaybackTimeOverlay = (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
+            !hasActivePlayerPanel,
         showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
@@ -1132,7 +1134,7 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = subtitleStyle.textColor.copy(alpha = alpha)))
         }
         "subtitleBackgroundOpacity" -> {
-            val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
+            val alpha = (value.toFloat() / 100f).coerceIn(0.2f, 1f)
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)))
         }
         "subtitleFontDelta" -> {
@@ -1163,8 +1165,20 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
         }
         "subtitleOutlineThicknessDelta" -> {
-            val thickness = (subtitleStyle.outlineWidth + value.toInt()).coerceIn(1, 8)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
+            if (subtitleStyle.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
+                val currentPercent = (subtitleStyle.backgroundColor.alpha * 100f)
+                    .roundToInt()
+                    .takeIf { it >= 20 }
+                    ?: 65
+                val nextPercent = (currentPercent + value.toInt() * 10).coerceIn(20, 100)
+                val alpha = nextPercent / 100f
+                PlayerSettingsRepository.setSubtitleStyle(
+                    subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)),
+                )
+            } else {
+                val thickness = (subtitleStyle.outlineWidth + value.toInt()).coerceIn(1, 8)
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
+            }
         }
         "subtitleStyleReset" -> PlayerSettingsRepository.setSubtitleStyle(SubtitleStyleState.DEFAULT)
         "parentalGuideComplete" -> {

@@ -1,4 +1,4 @@
-const root = document.getElementById("playerRoot");
+﻿const root = document.getElementById("playerRoot");
 const seek = document.getElementById("seek");
 const positionLabel = document.getElementById("position");
 const durationLabel = document.getElementById("duration");
@@ -225,9 +225,13 @@ const playerToastIconUse = document.getElementById("playerToastIconUse");
 const playerToastText = document.getElementById("playerToastText");
 const torrentStatsOverlay = document.getElementById("torrentStatsOverlay");
 const torrentStatsText = document.getElementById("torrentStatsText");
+const torrentStatsClock = document.getElementById("torrentStatsClock");
+const torrentStatsTimeRow = document.getElementById("torrentStatsTimeRow");
+const torrentStatsEnds = document.getElementById("torrentStatsEnds");
 
 let state = {
   playerUiMode: "codeine_xo",
+  showPlaybackTimeOverlay: false,
   showTorrentStatsOverlay: true,
   torrentStatsText: "",
   bufferedPositionMs: 0,
@@ -620,7 +624,6 @@ const settingToastLabel = command => {
 };
 
 const maxVolumeLevel = 2;
-const standardMaxVolumeLevel = 1;
 const volumeStepLevel = 0.05;
 
 const clampVolumeLevel = level => Math.max(0, Math.min(maxVolumeLevel, level));
@@ -832,12 +835,67 @@ const syncParentalGuide = showOpening => {
   runParentalGuideAnimation(warnings, key, parentalGuideRunId);
 };
 
+// ── Clock & "Ends at" overlay helpers ─────────────────────────────────────
+const formatWallClock = () => {
+  const now = new Date();
+  let h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+};
+
+const computeEndsAt = () => {
+  const durationMs = Math.max(0, Number(state.durationMs) || 0);
+  const positionMs = Math.max(0, Number(state.positionMs) || 0);
+  if (durationMs <= 0) return '';
+  const remainingMs = Math.max(0, durationMs - positionMs);
+  // Parse playback speed from label like "1x", "1.5x", "2x"
+  const speedStr = String(state.playbackSpeedLabel || '1x').replace(/x$/i, '');
+  const speed = Math.max(0.01, parseFloat(speedStr) || 1.0);
+  const wallRemainingMs = remainingMs / speed;
+  const endsAt = new Date(Date.now() + wallRemainingMs);
+  let h = endsAt.getHours();
+  const m = String(endsAt.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `Ends at ${h}:${m} ${ampm}`;
+};
+
+const updateStatsTimeRow = () => {
+  if (!torrentStatsClock || !torrentStatsEnds) return;
+  torrentStatsClock.textContent = formatWallClock();
+  torrentStatsEnds.textContent = computeEndsAt();
+};
+
+// Live-tick the clock every second while the overlay exists
+let statsClockIntervalId = null;
+const startStatsClockTick = () => {
+  if (statsClockIntervalId !== null) return;
+  statsClockIntervalId = window.setInterval(() => {
+    updateStatsTimeRow();
+  }, 1000);
+};
+const stopStatsClockTick = () => {
+  if (statsClockIntervalId === null) return;
+  window.clearInterval(statsClockIntervalId);
+  statsClockIntervalId = null;
+};
+// ──────────────────────────────────────────────────────────────────────────
+
 const syncTorrentStatsOverlay = suppressed => {
   if (!torrentStatsOverlay) return;
-  const showStats = Boolean(state.showTorrentStatsOverlay && state.torrentStatsText && !suppressed);
-  torrentStatsOverlay.hidden = !showStats;
-  if (showStats && torrentStatsText) {
-    torrentStatsText.textContent = state.torrentStatsText;
+  const showClock = Boolean(state.showPlaybackTimeOverlay && !suppressed);
+  const showStats = Boolean(state.showTorrentStatsOverlay && String(state.torrentStatsText || "").trim() && !suppressed);
+  torrentStatsOverlay.hidden = !showClock && !showStats;
+  if (torrentStatsTimeRow) torrentStatsTimeRow.hidden = !showClock;
+  if (torrentStatsText) torrentStatsText.hidden = !showStats;
+  if (!torrentStatsOverlay.hidden) {
+    if (torrentStatsText) torrentStatsText.textContent = String(state.torrentStatsText || "").trim();
+    updateStatsTimeRow();
+    startStatsClockTick();
+  } else {
+    stopStatsClockTick();
   }
 };
 
@@ -1594,17 +1652,22 @@ const renderSubtitleStylePanel = () => {
     outlineEffectValue.textContent = effect.label;
     const isBackgroundBox = effect.id === "background_box";
     const isNone = effect.id === "none";
-    // Thickness section: hidden only for background_box; shown for none but buttons disabled
-    if (outlineThicknessSection) outlineThicknessSection.hidden = isBackgroundBox;
+    if (outlineThicknessLabel) outlineThicknessLabel.textContent = isBackgroundBox ? "Subtitle Box Opacity" : (state.outlineThicknessLabel || "Outline Thickness");
+    // Reuse the thickness stepper for box opacity; keep the separate legacy section hidden.
+    if (outlineThicknessSection) outlineThicknessSection.hidden = false;
+    if (bgOpacitySection) bgOpacitySection.hidden = true;
     if (outlineThicknessMinus)   outlineThicknessMinus.disabled = isNone;
     if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = isNone;
-    // Box opacity section: only shown for background_box
-    if (bgOpacitySection) bgOpacitySection.hidden = !isBackgroundBox;
   }
-  if (outlineThicknessLabel) outlineThicknessLabel.textContent = state.outlineThicknessLabel || "Outline Thickness";
   if (outlineThicknessValue) {
-    const thickness = Number(style.outlineWidth) || 2;
-    outlineThicknessValue.textContent = String(thickness);
+    const isBackgroundBox = String(style.outlineEffect || "").toLowerCase() === "background_box";
+    if (isBackgroundBox) {
+      const opacity = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
+      outlineThicknessValue.textContent = `${Math.max(20, opacity || 65)}%`;
+    } else {
+      const thickness = Number(style.outlineWidth) || 2;
+      outlineThicknessValue.textContent = String(thickness);
+    }
   }
   if (bgOpacityValue) {
     const bgAlpha = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
@@ -2789,14 +2852,12 @@ const sendKeyboardVolume = delta => {
   const currentLevel = typeof state.volumeLevel === "number" && Number.isFinite(state.volumeLevel)
     ? state.volumeLevel
     : 1;
-  if (delta > 0 && currentLevel >= standardMaxVolumeLevel) {
+  if (delta > 0 && currentLevel >= maxVolumeLevel) {
     showPlayerToast(volumeToastLabel(delta));
     return;
   }
   const adjustedLevel = currentLevel + (delta * volumeStepLevel);
-  const nextLevel = delta > 0
-    ? Math.min(standardMaxVolumeLevel, clampVolumeLevel(adjustedLevel))
-    : clampVolumeLevel(adjustedLevel);
+  const nextLevel = clampVolumeLevel(adjustedLevel);
   state.volumeLevel = nextLevel;
   if (nextLevel > 0) {
     preMuteVolumeLevel = nextLevel;

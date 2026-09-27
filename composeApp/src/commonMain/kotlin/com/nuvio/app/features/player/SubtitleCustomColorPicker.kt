@@ -264,6 +264,7 @@ private fun SubtitleLivePreviewCard(
     }
 
     val showGlow = style.outlineEffect == SubtitleOutlineEffect.SOFT_GLOW
+    val showBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
 
     Box(
         modifier = Modifier
@@ -275,11 +276,21 @@ private fun SubtitleLivePreviewCard(
     ) {
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(effectiveBgColor)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(
+                    horizontal = if (showBackgroundBox) 1.dp else 0.dp,
+                    vertical = 0.dp,
+                ),
             contentAlignment = Alignment.Center,
         ) {
+            // Keep the box behind the glyphs as its own layer so text stays crisp.
+            if (showBackgroundBox) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(effectiveBgColor, RoundedCornerShape(3.dp)),
+                )
+            }
+
             // Drop shadow layer
             if (showShadow) {
                 val shadowOffset = (outlineWidth + 1).dp

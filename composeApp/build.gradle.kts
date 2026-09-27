@@ -477,7 +477,9 @@ val desktopReleaseVersionCode = (
     ?.toIntOrNull()
     ?: 1
 val desktopReleasePackageVersion = jpackageCompatibleVersion(desktopReleaseVersionName)
-val windowsMsiUpgradeUuid = "395990ee-9b8a-3548-922c-e7a23a495b8d"
+// Keep the fork's MSI upgrade family separate from the official Nuvio installer.
+// Sharing an UpgradeCode makes Windows Installer uninstall this app as a related product.
+val windowsMsiUpgradeUuid = "a9ef29b7-31f4-4c26-8c2a-f990d3dce9b4"
 val iosDistribution = (
     providers.gradleProperty("nuvio.ios.distribution").orNull
         ?: System.getenv("NUVIO_IOS_DISTRIBUTION")

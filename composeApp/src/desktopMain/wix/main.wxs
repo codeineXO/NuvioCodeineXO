@@ -60,10 +60,10 @@
 
     <!-- Registry Searches for Existing Installation Directory -->
     <Property Id="PREVIOUSINSTALLDIR_CUSTOM">
-      <RegistrySearch Id="SearchPrevNuvioCodeineXO" Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO" Name="InstallDir" Type="raw" Win64="yes" />
+      <RegistrySearch Id="SearchPrevNuvioCodeineXO" Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO-Fork" Name="InstallDir" Type="raw" Win64="yes" />
     </Property>
     <Property Id="PREVIOUSINSTALLDIR_LEGACY">
-      <RegistrySearch Id="SearchPrevNuvio" Root="HKLM" Key="Software\Nuvio Media\Nuvio" Name="InstallDir" Type="raw" Win64="yes" />
+      <RegistrySearch Id="SearchPrevNuvioCodeineXOLegacy" Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO" Name="InstallDir" Type="raw" Win64="yes" />
     </Property>
 
     <!-- Align INSTALLDIR to previous installation folder if detected -->
@@ -101,8 +101,8 @@
 
     <!-- Standard required root -->
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Component Id="C_RegInstallLocation" Guid="{5A3E9281-229D-424B-B368-6F3F4D201A4E}" Win64="yes">
-        <RegistryKey Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO">
+      <Component Id="C_RegInstallLocation" Guid="{5DDCEDDD-AF2C-4FF1-A980-2E08691BFCA7}" Win64="yes">
+        <RegistryKey Root="HKLM" Key="Software\Nuvio Media\NuvioCodeineXO-Fork">
           <RegistryValue Type="string" Name="InstallDir" Value="[INSTALLDIR]" KeyPath="yes" />
         </RegistryKey>
       </Component>

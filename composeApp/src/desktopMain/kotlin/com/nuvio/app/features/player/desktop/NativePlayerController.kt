@@ -1099,42 +1099,50 @@ internal class NativePlayerController(
     }
 
     private fun applySubtitleStyle(handle: Long, style: SubtitleStyleState, useLibass: Boolean) {
+        // Use small per-line opaque boxes so each line gets a close-fitting backdrop.
+        val applyLibass = useLibass && style.outlineEffect != SubtitleOutlineEffect.BACKGROUND_BOX
+        val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
+        val resolvedBoxColor = if (style.backgroundColor.alpha == 0f) {
+            androidx.compose.ui.graphics.Color(0, 0, 0, (0.65f * 255f).toInt())
+        } else {
+            style.backgroundColor
+        }
         val resolvedOutlineSize = when (style.outlineEffect) {
             SubtitleOutlineEffect.NONE -> 0f
-            SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
+            SubtitleOutlineEffect.BACKGROUND_BOX -> 0.5f
             SubtitleOutlineEffect.SOFT_GLOW -> (style.outlineWidth.toFloat() * 1.5f).coerceAtLeast(3f)
             SubtitleOutlineEffect.OUTLINE,
             SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f
         }
 
-        val resolvedBackgroundColor = when (style.outlineEffect) {
-            SubtitleOutlineEffect.BACKGROUND_BOX -> {
-                if (style.backgroundColor.alpha == 0f) {
-                    androidx.compose.ui.graphics.Color(0, 0, 0, (0.65f * 255f).toInt()).toMpvColorString()
-                } else {
-                    style.backgroundColor.toMpvColorString()
-                }
-            }
-            else -> style.backgroundColor.toMpvColorString()
+        val resolvedBackgroundColor = if (isBackgroundBox) {
+            resolvedBoxColor.toMpvColorString()
+        } else {
+            androidx.compose.ui.graphics.Color.Transparent.toMpvColorString()
+        }
+        val resolvedOutlineColor = if (isBackgroundBox) {
+            resolvedBoxColor.toMpvColorString()
+        } else {
+            style.outlineColor.toMpvColorString()
         }
 
         NativePlayerBridge.applySubtitleStyle(
             handle = handle,
             textColor = style.textColor.toMpvColorString(),
             backgroundColor = resolvedBackgroundColor,
-            outlineColor = style.outlineColor.toMpvColorString(),
+            outlineColor = resolvedOutlineColor,
             outlineSize = resolvedOutlineSize,
             bold = style.bold,
             fontSize = style.toMpvSubtitleFontSize(),
             subPos = style.toMpvSubtitlePosition(),
-            useLibass = useLibass,
+            useLibass = applyLibass,
             stripSdh = style.stripSdh,
         )
 
         WindowsMpvSubStyleHelper.applyExtendedSubtitleStyle(
             bridgeHandle = handle,
             style = style,
-            useLibass = useLibass,
+            useLibass = applyLibass,
         )
     }
 
@@ -1305,7 +1313,7 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         append(',')
         appendJsonField("isFullscreen", isFullscreen)
         append(',')
-        appendJsonField("volumeLevel", volumeLevel)
+        appendJsonVolumeLevel("volumeLevel", volumeLevel)
         append(',')
         appendJsonField("subtitlesLabel", subtitlesLabel)
         append(',')
@@ -1646,6 +1654,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         append(',')
         appendJsonField("notificationToken", notificationToken)
         append(',')
+        appendJsonField("showPlaybackTimeOverlay", showPlaybackTimeOverlay)
+        append(',')
         appendJsonField("showTorrentStatsOverlay", showTorrentStatsOverlay)
         append(',')
         appendJsonField("torrentStatsText", torrentStatsText)
@@ -1680,6 +1690,15 @@ private fun StringBuilder.appendJsonField(name: String, value: Float?) {
         append("null")
     } else {
         append(value.coerceIn(0f, 1f))
+    }
+}
+
+private fun StringBuilder.appendJsonVolumeLevel(name: String, value: Float?) {
+    append('"').append(name).append("\":")
+    if (value == null || value.isNaN() || value.isInfinite()) {
+        append("null")
+    } else {
+        append(value.coerceDesktopPlayerVolumeLevel())
     }
 }
 
@@ -1870,6 +1889,8 @@ private fun StringBuilder.appendSubtitleStyleJson(style: SubtitleStyleState) {
     appendJsonField("textColor", style.textColor.toStorageHexString())
     append(',')
     appendJsonField("outlineColor", style.outlineColor.toStorageHexString())
+    append(',')
+    appendJsonField("backgroundColor", style.backgroundColor.toStorageHexString())
     append(',')
     appendJsonField("outlineEnabled", style.outlineEnabled)
     append(',')

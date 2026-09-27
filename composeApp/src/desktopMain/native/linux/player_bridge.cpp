@@ -1930,7 +1930,7 @@ JNIEXPORT void JNICALL NP(setSubtitleDelayMs)(JNIEnv *, jobject, jlong handle, j
 }
 
 JNIEXPORT void JNICALL NP(applySubtitleStyle)(
-    JNIEnv *env, jobject, jlong handle, jstring textColor, jstring /*backgroundColor*/,
+    JNIEnv *env, jobject, jlong handle, jstring textColor, jstring backgroundColor,
     jstring outlineColor, jfloat outlineSize, jboolean bold, jfloat fontSize, jint subPos,
     jboolean useLibass, jboolean stripSdh) {
     Player *p = asPlayer(handle);
@@ -1940,6 +1940,12 @@ JNIEXPORT void JNICALL NP(applySubtitleStyle)(
     mpv_set_property_string(p->mpv, "sub-ass-override",
                             useLibass == JNI_TRUE ? "scale" : "force");
     mpv_set_property_string(p->mpv, "sub-color", jstringToUtf8(env, textColor).c_str());
+    const std::string background = jstringToUtf8(env, backgroundColor);
+    mpv_set_property_string(p->mpv, "sub-back-color", background.c_str());
+    const bool hasBackground = background.rfind("#00", 0) != 0;
+    mpv_set_property_string(p->mpv, "sub-border-style", hasBackground ? "opaque-box" : "outline-and-shadow");
+    mpv_set_property_string(p->mpv, "sub-shadow-offset", "0");
+    mpv_set_property_string(p->mpv, "sub-blur", "0");
     mpv_set_property_string(p->mpv, "sub-border-color", jstringToUtf8(env, outlineColor).c_str());
     std::string border = std::to_string(outlineSize);
     mpv_set_property_string(p->mpv, "sub-border-size", border.c_str());

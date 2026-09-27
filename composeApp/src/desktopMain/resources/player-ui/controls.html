@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -164,7 +164,12 @@
         <div class="parental-guide-list" id="parentalGuideList"></div>
       </section>
 
-      <aside class="torrent-stats-overlay" id="torrentStatsOverlay" aria-label="Torrent statistics" hidden>
+      <aside class="torrent-stats-overlay" id="torrentStatsOverlay" aria-label="Network statistics" hidden>
+        <span class="torrent-stats-time-row" id="torrentStatsTimeRow">
+          <span class="torrent-stats-clock" id="torrentStatsClock"></span>
+          <span class="torrent-stats-dot" aria-hidden="true">·</span>
+          <span class="torrent-stats-ends" id="torrentStatsEnds"></span>
+        </span>
         <span class="torrent-stats-text" id="torrentStatsText"></span>
       </aside>
 

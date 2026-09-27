@@ -217,19 +217,50 @@ fun SubtitleStylePanel(
             )
         }
 
-        SubtitleStyleSection(title = stringResource(Res.string.compose_player_outline)) {
-            SubtitleToggleChip(
-                enabled = style.outlineEnabled,
-                onClick = { onStyleChanged(style.copy(outlineEnabled = !style.outlineEnabled)) },
-            )
-            if (style.outlineEnabled) {
+        val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
+        SubtitleStyleSection(
+            title = if (isBackgroundBox) "Subtitle Box" else stringResource(Res.string.compose_player_outline),
+        ) {
+            if (isBackgroundBox) {
+                val opacity = ((style.backgroundColor.alpha.takeIf { it >= 0.2f } ?: 0.65f) * 100f)
+                    .roundToInt()
+                    .coerceIn(20, 100)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Thickness",
+                        text = "Subtitle Box Opacity",
+                        color = Color.White.copy(alpha = 0.72f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    SubtitleStyleStepper(
+                        value = "$opacity%",
+                        onDecrease = {
+                            val alpha = ((opacity - 10).coerceAtLeast(20)) / 100f
+                            onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
+                        },
+                        onIncrease = {
+                            val alpha = ((opacity + 10).coerceAtMost(100)) / 100f
+                            onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
+                        },
+                    )
+                }
+            } else {
+                SubtitleToggleChip(
+                    enabled = style.outlineEnabled,
+                    onClick = { onStyleChanged(style.copy(outlineEnabled = !style.outlineEnabled)) },
+                )
+            }
+            if (!isBackgroundBox && style.outlineEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Outline Thickness",
                         color = Color.White.copy(alpha = 0.72f),
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -244,7 +275,7 @@ fun SubtitleStylePanel(
                     )
                 }
             }
-            Row(
+            if (!isBackgroundBox) Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -262,15 +293,17 @@ fun SubtitleStylePanel(
                     )
                 }
             }
-            SubtitleColorPicker(
-                colors = SubtitleOutlineColorSwatches,
-                selectedColor = style.outlineColor,
-                enabled = style.outlineEnabled,
-                onColorSelected = { color ->
-                    onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
-                },
-            )
-            if (style.outlineEnabled) {
+            if (!isBackgroundBox) {
+                SubtitleColorPicker(
+                    colors = SubtitleOutlineColorSwatches,
+                    selectedColor = style.outlineColor,
+                    enabled = style.outlineEnabled,
+                    onColorSelected = { color ->
+                        onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
+                    },
+                )
+            }
+            if (!isBackgroundBox && style.outlineEnabled) {
                 AnimatedVisibility(visible = showCustomOutlineColorPicker) {
                     SubtitleCustomColorPicker(
                         selectedColor = style.outlineColor,

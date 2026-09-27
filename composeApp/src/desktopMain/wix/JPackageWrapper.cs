@@ -84,11 +84,11 @@ class JPackageWrapper
             if (Directory.Exists(wixBin))
             {
                 string path = Environment.GetEnvironmentVariable("PATH") ?? "";
-                if (!path.Contains(wixBin))
+                if (path.IndexOf(wixBin, StringComparison.OrdinalIgnoreCase) < 0)
                 {
-                    psi.EnvironmentVariables["PATH"] = wixBin + ";" + path;
+                    Environment.SetEnvironmentVariable("PATH", wixBin + ";" + path);
                 }
-                psi.EnvironmentVariables["WIX"] = wixBin;
+                Environment.SetEnvironmentVariable("WIX", wixBin);
             }
 
             using (var proc = Process.Start(psi))
@@ -103,4 +103,5 @@ class JPackageWrapper
             return 1;
         }
     }
+
 }

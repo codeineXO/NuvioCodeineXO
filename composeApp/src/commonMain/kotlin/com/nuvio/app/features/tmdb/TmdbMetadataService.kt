@@ -1173,6 +1173,33 @@ object TmdbMetadataService {
         merged
     }
 
+    internal suspend fun fetchEpisodeRatings(
+        tmdbId: Int,
+        seasonNumbers: List<Int>,
+    ): Map<Pair<Int, Int>, Double> = withContext(Dispatchers.Default) {
+        if (tmdbId <= 0) return@withContext emptyMap()
+        val seasons = seasonNumbers.distinct().filter { it >= 0 }.sorted()
+        if (seasons.isEmpty()) return@withContext emptyMap()
+
+        val pairs = coroutineScope {
+            seasons.map { season ->
+                async {
+                    val details = fetch<TmdbSeasonDetailsResponse>(
+                        endpoint = "tv/$tmdbId/season/$season",
+                        query = mapOf("language" to "en-US"),
+                    ) ?: return@async emptyMap()
+
+                    details.episodes.mapNotNull { episode ->
+                        val episodeNumber = episode.episodeNumber ?: return@mapNotNull null
+                        val rating = episode.voteAverage?.takeIf { it > 0.0 } ?: return@mapNotNull null
+                        (season to episodeNumber) to rating
+                    }.toMap()
+                }
+            }.awaitAll()
+        }
+        pairs.fold(emptyMap()) { result, seasonRatings -> result + seasonRatings }
+    }
+
     private suspend inline fun <reified T> fetch(
         endpoint: String,
         query: Map<String, String> = emptyMap(),
@@ -2078,6 +2105,7 @@ private data class TmdbEpisodeResponse(
     @SerialName("air_date") val airDate: String? = null,
     val runtime: Int? = null,
     @SerialName("episode_number") val episodeNumber: Int? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
 )
 
 // ─── Person Detail Models ───

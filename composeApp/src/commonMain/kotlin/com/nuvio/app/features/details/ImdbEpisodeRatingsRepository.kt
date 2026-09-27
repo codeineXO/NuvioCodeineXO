@@ -2,6 +2,8 @@ package com.nuvio.app.features.details
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.library.LibraryClock
+import com.nuvio.app.features.tmdb.TmdbMetadataService
+import com.nuvio.app.features.tmdb.TmdbService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,7 @@ object ImdbEpisodeRatingsRepository {
     suspend fun getEpisodeRatings(
         imdbId: String?,
         tmdbId: Int?,
+        seasonNumbers: List<Int> = emptyList(),
     ): Map<Pair<Int, Int>, Double> {
         val normalizedImdbId = normalizeImdbId(imdbId)
         val normalizedTmdbId = tmdbId?.takeIf { it > 0 }
@@ -45,6 +48,7 @@ object ImdbEpisodeRatingsRepository {
                     fetchEpisodeRatings(
                         imdbId = normalizedImdbId,
                         tmdbId = normalizedTmdbId,
+                        seasonNumbers = seasonNumbers,
                     ).also { ratings ->
                         mutex.withLock {
                             cache[cacheKey] = CacheEntry(
@@ -74,6 +78,7 @@ object ImdbEpisodeRatingsRepository {
     private suspend fun fetchEpisodeRatings(
         imdbId: String?,
         tmdbId: Int?,
+        seasonNumbers: List<Int>,
     ): Map<Pair<Int, Int>, Double> {
         if (!imdbId.isNullOrBlank()) {
             val primary = toRatingsMap(ImdbTapframeApi.getSeasonRatings(imdbId))
@@ -82,10 +87,15 @@ object ImdbEpisodeRatingsRepository {
         }
 
         if (tmdbId != null) {
-            return toRatingsMap(SeriesGraphApi.getSeasonRatings(tmdbId))
+            val configuredServiceRatings = toRatingsMap(SeriesGraphApi.getSeasonRatings(tmdbId))
+            if (configuredServiceRatings.isNotEmpty()) return configuredServiceRatings
         }
 
-        return emptyMap()
+        val resolvedTmdbId = tmdbId ?: imdbId
+            ?.let { TmdbService.ensureTmdbId(it, "series") }
+            ?.toIntOrNull()
+            ?: return emptyMap()
+        return TmdbMetadataService.fetchEpisodeRatings(resolvedTmdbId, seasonNumbers)
     }
 
     private fun toRatingsMap(payload: List<SeriesGraphSeasonRatingsDto>): Map<Pair<Int, Int>, Double> =

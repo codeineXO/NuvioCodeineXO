@@ -1248,6 +1248,14 @@ public:
                     "sub-border-style",
                     resolvedBackgroundColor.rfind("#00", 0) == 0 ? "outline-and-shadow" : "opaque-box"
                 );
+                setStringProperty(
+                    "sub-shadow-offset",
+                    "0"
+                );
+                setStringProperty(
+                    "sub-blur",
+                    "0"
+                );
             }
             if (modeChanged || outlineColorChanged) {
                 setStringProperty("sub-outline-color", resolvedOutlineColor);

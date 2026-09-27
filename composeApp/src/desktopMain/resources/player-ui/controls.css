@@ -1,4 +1,4 @@
-/* __NUVIO_PLAYER_FONT_FACES__ */
+﻿/* __NUVIO_PLAYER_FONT_FACES__ */
 
 :root {
   --hp: 20px;
@@ -309,21 +309,79 @@ button:disabled {
 
 .torrent-stats-overlay {
   position: absolute;
-  top: calc(88px + env(safe-area-inset-top));
-  right: clamp(16px, 2.5vw, 32px);
+  top: calc(20px + env(safe-area-inset-top));
+  right: clamp(18px, 1.8vw, 26px);
   z-index: 25;
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 14px;
-  border-radius: 999px;
+  /*
+   * Column layout: each row (clock row + net stat row) is stretched to fill
+   * the full container width, then text-align: right pins every row's
+   * rightmost character to the same edge — no asymmetric padding can sneak in.
+   */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: min(280px, calc(100vw - 32px));
+  padding: 7px 14px;
+  border-radius: 14px;
   background: rgba(18, 18, 22, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
+  letter-spacing: 0;
+  text-align: right;
+  /*
+   * tnum: force tabular (fixed-width) figures so digits don't shift the
+   * layout as numbers change (e.g. 9→10, 0 B/s → 12 MB/s).
+   */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
   pointer-events: none;
   transition: opacity 160ms ease;
+}
+
+/*
+ * Row 1: clock + "Ends at" inline.
+ * justify-content: flex-end keeps the whole group right-anchored inside the
+ * stretched row so the row's left edge never causes the container to expand.
+ */
+.torrent-stats-time-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  white-space: nowrap;
+  margin-bottom: 5px;
+}
+
+/* Slightly larger clock for quick readability — same tnum/tabular guarantees */
+.torrent-stats-clock {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  line-height: 1;
+}
+
+/*
+ * Dot separator: spacing is CSS-only (margin) so no invisible whitespace node
+ * ever changes the line's rendered width.
+ */
+.torrent-stats-dot {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.72;
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.torrent-stats-ends {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  line-height: 1;
 }
 
 .torrent-stats-overlay[hidden],
@@ -332,9 +390,15 @@ button:disabled {
   display: none !important;
 }
 
+/* Row 2: network speed — same right-edge as row 1 via inherited text-align */
 .torrent-stats-text {
+  font-size: 12px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
   white-space: nowrap;
+  line-height: 1;
+  display: block;
 }
 
 [hidden] {
@@ -3659,13 +3723,13 @@ svg {
 }
 
 .player.ui-codeinexo .torrent-stats-overlay {
-  top: calc(32px + env(safe-area-inset-top));
-  right: clamp(16px, 2.5vw, 32px);
+  top: calc(20px + env(safe-area-inset-top));
+  right: clamp(18px, 1.8vw, 26px);
   height: 48px;
   min-height: 48px;
   box-sizing: border-box;
-  padding: 4px 12px;
-  margin: -4px -12px 0 0;
+  padding: 4px 2px;
+  margin: 0;
   border-radius: 0;
   background: transparent;
   border: none;
@@ -3681,9 +3745,10 @@ svg {
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 2px 6px rgba(0, 0, 0, 0.70),
     0 4px 12px rgba(0, 0, 0, 0.35);
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
   pointer-events: none;
 }
 
