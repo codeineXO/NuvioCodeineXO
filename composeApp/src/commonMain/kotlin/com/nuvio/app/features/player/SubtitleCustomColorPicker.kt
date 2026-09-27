@@ -108,6 +108,28 @@ fun SubtitleCustomColorPicker(
         }
     }
 
+    fun updateHue(hue: Float) {
+        // Hue is invisible on gray/white (zero saturation) and black
+        // (zero brightness). Give those achromatic starting colors enough
+        // chroma and brightness for hue adjustments to take effect directly.
+        updateColorFromHsv(
+            hsv.copy(
+                hue = hue,
+                saturation = hsv.saturation.takeIf { it > 0f } ?: 1f,
+                brightness = hsv.brightness.takeIf { it > 0f } ?: 1f,
+            ),
+        )
+    }
+
+    fun updateSaturation(saturation: Float) {
+        updateColorFromHsv(
+            hsv.copy(
+                saturation = saturation,
+                brightness = if (saturation > 0f && hsv.brightness == 0f) 1f else hsv.brightness,
+            ),
+        )
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
@@ -161,7 +183,7 @@ fun SubtitleCustomColorPicker(
             valueRange = 0f..359f,
             valueLabel = "${hsv.hue.roundToInt()}°",
             brush = remember { Brush.horizontalGradient((0..6).map { Color.hsv(it * 60f, 1f, 1f) }) },
-            onValueChange = { updateColorFromHsv(hsv.copy(hue = it)) },
+            onValueChange = ::updateHue,
         )
 
         ColorChannelSlider(
@@ -169,7 +191,7 @@ fun SubtitleCustomColorPicker(
             value = hsv.saturation,
             valueLabel = "${(hsv.saturation * 100).roundToInt()}%",
             brush = Brush.horizontalGradient(listOf(Color.White, Color.hsv(hsv.hue, 1f, 1f))),
-            onValueChange = { updateColorFromHsv(hsv.copy(saturation = it)) },
+            onValueChange = ::updateSaturation,
         )
 
         ColorChannelSlider(

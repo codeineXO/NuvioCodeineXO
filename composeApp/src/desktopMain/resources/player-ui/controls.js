@@ -3199,10 +3199,30 @@ if (subtitleOutlineCustomToggle) {
   });
 }
 
-const updateTextColorFromSliders = () => {
+const resolveSliderHsv = (channel, saturationSlider, brightnessSlider) => {
+  let saturation = Number(saturationSlider.value) / 100;
+  let brightness = Number(brightnessSlider.value) / 100;
+  // Hue has no visible effect on gray or black, and saturation has no visible
+  // effect on black. Lift only the hidden HSV components when the user edits
+  // those channels so the custom sliders work from default white/black too.
+  if (channel === "hue") {
+    if (saturation === 0) saturation = 1;
+    if (brightness === 0) brightness = 1;
+  } else if (channel === "saturation" && saturation > 0 && brightness === 0) {
+    brightness = 1;
+  }
+  saturationSlider.value = String(Math.round(saturation * 100));
+  brightnessSlider.value = String(Math.round(brightness * 100));
+  return { saturation, brightness };
+};
+
+const updateTextColorFromSliders = channel => {
   const h = Number(subtitleTextHueSlider.value);
-  const s = Number(subtitleTextSatSlider.value) / 100;
-  const v = Number(subtitleTextBriSlider.value) / 100;
+  const { saturation: s, brightness: v } = resolveSliderHsv(
+    channel,
+    subtitleTextSatSlider,
+    subtitleTextBriSlider,
+  );
   subtitleTextHueValue.textContent = `${h}°`;
   subtitleTextSatValue.textContent = `${Math.round(s * 100)}%`;
   subtitleTextBriValue.textContent = `${Math.round(v * 100)}%`;
@@ -3214,9 +3234,9 @@ const updateTextColorFromSliders = () => {
 };
 
 if (subtitleTextHueSlider) {
-  subtitleTextHueSlider.addEventListener("input", updateTextColorFromSliders);
-  subtitleTextSatSlider.addEventListener("input", updateTextColorFromSliders);
-  subtitleTextBriSlider.addEventListener("input", updateTextColorFromSliders);
+  subtitleTextHueSlider.addEventListener("input", () => updateTextColorFromSliders("hue"));
+  subtitleTextSatSlider.addEventListener("input", () => updateTextColorFromSliders("saturation"));
+  subtitleTextBriSlider.addEventListener("input", () => updateTextColorFromSliders("brightness"));
   subtitleTextHexInput.addEventListener("change", () => {
     const hex = subtitleTextHexInput.value.trim().replace("#", "");
     if (/^[0-9a-fA-F]{6}$/.test(hex)) {
@@ -3226,10 +3246,13 @@ if (subtitleTextHueSlider) {
   });
 }
 
-const updateOutlineColorFromSliders = () => {
+const updateOutlineColorFromSliders = channel => {
   const h = Number(subtitleOutlineHueSlider.value);
-  const s = Number(subtitleOutlineSatSlider.value) / 100;
-  const v = Number(subtitleOutlineBriSlider.value) / 100;
+  const { saturation: s, brightness: v } = resolveSliderHsv(
+    channel,
+    subtitleOutlineSatSlider,
+    subtitleOutlineBriSlider,
+  );
   subtitleOutlineHueValue.textContent = `${h}°`;
   subtitleOutlineSatValue.textContent = `${Math.round(s * 100)}%`;
   subtitleOutlineBriValue.textContent = `${Math.round(v * 100)}%`;
@@ -3241,9 +3264,9 @@ const updateOutlineColorFromSliders = () => {
 };
 
 if (subtitleOutlineHueSlider) {
-  subtitleOutlineHueSlider.addEventListener("input", updateOutlineColorFromSliders);
-  subtitleOutlineSatSlider.addEventListener("input", updateOutlineColorFromSliders);
-  subtitleOutlineBriSlider.addEventListener("input", updateOutlineColorFromSliders);
+  subtitleOutlineHueSlider.addEventListener("input", () => updateOutlineColorFromSliders("hue"));
+  subtitleOutlineSatSlider.addEventListener("input", () => updateOutlineColorFromSliders("saturation"));
+  subtitleOutlineBriSlider.addEventListener("input", () => updateOutlineColorFromSliders("brightness"));
   subtitleOutlineHexInput.addEventListener("change", () => {
     const hex = subtitleOutlineHexInput.value.trim().replace("#", "");
     if (/^[0-9a-fA-F]{6}$/.test(hex)) {
