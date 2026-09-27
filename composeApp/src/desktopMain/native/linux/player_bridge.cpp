@@ -1943,8 +1943,8 @@ JNIEXPORT void JNICALL NP(applySubtitleStyle)(
     const std::string background = jstringToUtf8(env, backgroundColor);
     mpv_set_property_string(p->mpv, "sub-back-color", background.c_str());
     const bool hasBackground = background.rfind("#00", 0) != 0;
-    mpv_set_property_string(p->mpv, "sub-border-style", hasBackground ? "opaque-box" : "outline-and-shadow");
-    mpv_set_property_string(p->mpv, "sub-shadow-offset", "0");
+    mpv_set_property_string(p->mpv, "sub-border-style", hasBackground ? "background-box" : "outline-and-shadow");
+    mpv_set_property_string(p->mpv, "sub-shadow-offset", hasBackground ? "4" : "0");
     mpv_set_property_string(p->mpv, "sub-blur", "0");
     mpv_set_property_string(p->mpv, "sub-border-color", jstringToUtf8(env, outlineColor).c_str());
     std::string border = std::to_string(outlineSize);

@@ -1030,9 +1030,11 @@ public:
     }
 
     void seekToMilliseconds(long long positionMs) {
+        // doubleProperty acquires mpvMutex itself, so read the current position
+        // before taking the lock used to submit the seek command.
+        long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
-        long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
         long long deltaMs = std::abs(positionMs - currentPosMs);
         const char *mode = (deltaMs <= 3000) ? "absolute+exact" : "absolute+keyframes";
         std::string seconds = std::to_string((double)positionMs / 1000.0);
@@ -1246,11 +1248,11 @@ public:
                 setStringProperty("sub-back-color", resolvedBackgroundColor);
                 setStringProperty(
                     "sub-border-style",
-                    resolvedBackgroundColor.rfind("#00", 0) == 0 ? "outline-and-shadow" : "opaque-box"
+                    resolvedBackgroundColor.rfind("#00", 0) == 0 ? "outline-and-shadow" : "background-box"
                 );
                 setStringProperty(
                     "sub-shadow-offset",
-                    "0"
+                    resolvedBackgroundColor.rfind("#00", 0) == 0 ? "0" : "4"
                 );
                 setStringProperty(
                     "sub-blur",
@@ -1669,6 +1671,11 @@ private:
             setMpvOptionStringLocked("deband", "yes");
             setMpvOptionStringLocked("scale", "spline36");
             setMpvOptionStringLocked("cscale", "spline36");
+            // Streams are often served through a localhost proxy, which mpv's
+            // cache=auto heuristic may treat as a local file. Explicitly enable
+            // the network cache so cache-secs and the seekbar's buffered range
+            // work for both HTTP and torrent-backed streams.
+            setMpvOptionStringLocked("cache", "yes");
             setMpvOptionStringLocked("demuxer-max-bytes", "512MiB");
             setMpvOptionStringLocked("demuxer-max-back-bytes", "256MiB");
             setMpvOptionStringLocked("demuxer-seekable-cache", "yes");

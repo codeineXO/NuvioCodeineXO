@@ -1099,7 +1099,6 @@ internal class NativePlayerController(
     }
 
     private fun applySubtitleStyle(handle: Long, style: SubtitleStyleState, useLibass: Boolean) {
-        // Use small per-line opaque boxes so each line gets a close-fitting backdrop.
         val applyLibass = useLibass && style.outlineEffect != SubtitleOutlineEffect.BACKGROUND_BOX
         val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
         val resolvedBoxColor = if (style.backgroundColor.alpha == 0f) {
@@ -1109,7 +1108,7 @@ internal class NativePlayerController(
         }
         val resolvedOutlineSize = when (style.outlineEffect) {
             SubtitleOutlineEffect.NONE -> 0f
-            SubtitleOutlineEffect.BACKGROUND_BOX -> 0.5f
+            SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
             SubtitleOutlineEffect.SOFT_GLOW -> (style.outlineWidth.toFloat() * 1.5f).coerceAtLeast(3f)
             SubtitleOutlineEffect.OUTLINE,
             SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f

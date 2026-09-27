@@ -215,23 +215,18 @@ internal object WindowsMpvSubStyleHelper {
                         setProp("sub-blur", blurVal)
                     }
                     SubtitleOutlineEffect.BACKGROUND_BOX -> {
-                        // Use a very small per-line margin for a close fit. Do not blur:
-                        // mpv's subtitle blur also softens the text border.
+                        // Use one padded panel for the whole caption block instead of
+                        // drawing separate boxes tightly around each line.
                         val boxColor = if (style.backgroundColor.alpha == 0f) {
                             Color.Black.copy(alpha = 0.65f)
                         } else {
                             style.backgroundColor
                         }
-                        setProp("sub-border-style", "opaque-box")
-                        // The outline color is the per-line box fill in opaque-box mode.
-                        // Apply both colors so live opacity changes reach mpv and any
-                        // renderer path that uses the back color for the box fill.
+                        setProp("sub-border-style", "background-box")
                         setProp("sub-outline-color", boxColor.toMpvHexColor())
                         setProp("sub-back-color", boxColor.toMpvHexColor())
-                        // mpv disables opaque boxes at size 0, so retain a small
-                        // positive margin for a visible, tight per-line box.
-                        setProp("sub-outline-size", "0.5")
-                        setProp("sub-shadow-offset", "0")
+                        setProp("sub-outline-size", "0")
+                        setProp("sub-shadow-offset", "4")
                         setProp("sub-blur", "0")
                     }
                 }

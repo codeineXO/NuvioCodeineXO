@@ -2265,9 +2265,9 @@ static void nuvioMpvWakeup(void *ctx) {
         if (modeChanged || backgroundColorChanged) {
             [self setStringProperty:"sub-back-color" value:resolvedBackgroundColor];
             [self setStringProperty:"sub-border-style"
-                              value:[resolvedBackgroundColor hasPrefix:@"#00"] ? @"outline-and-shadow" : @"opaque-box"];
+                              value:[resolvedBackgroundColor hasPrefix:@"#00"] ? @"outline-and-shadow" : @"background-box"];
             [self setStringProperty:"sub-shadow-offset"
-                              value:@"0"];
+                              value:[resolvedBackgroundColor hasPrefix:@"#00"] ? @"0" : @"4"];
             [self setStringProperty:"sub-blur" value:@"0"];
         }
         if (modeChanged || outlineColorChanged) {
