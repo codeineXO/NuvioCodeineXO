@@ -573,7 +573,19 @@ object PlayerSettingsRepository {
 
     fun setSubtitleStyle(style: SubtitleStyleState) {
         ensureLoaded()
-        val normalized = style.copy(fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp))
+        // Changing the effect re-derives whether an outline is wanted. Without
+        // this, switching to Background Box or None leaves outlineEnabled
+        // false, and every later effect that needs a stroke inherits that stale
+        // flag and renders as bare text.
+        val outlineEnabled = if (style.outlineEffect != subtitleStyle.outlineEffect) {
+            style.outlineEffect.needsOutline
+        } else {
+            style.outlineEnabled
+        }
+        val normalized = style.copy(
+            fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp),
+            outlineEnabled = outlineEnabled,
+        )
         if (subtitleStyle == normalized) return
         subtitleStyle = normalized
         publish()

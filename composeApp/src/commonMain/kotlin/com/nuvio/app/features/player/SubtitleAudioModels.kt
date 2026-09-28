@@ -56,6 +56,14 @@ enum class SubtitleOutlineEffect(val id: String, val label: String) {
     BACKGROUND_BOX("background_box", "Background Box"),
     NONE("none", "None");
 
+    /**
+     * Whether this effect needs a stroked border to render at all. The effects
+     * that build their look on top of an outline must never be zeroed out by a
+     * stale `outlineEnabled` flag, otherwise they degrade to plain text.
+     */
+    val needsOutline: Boolean
+        get() = this != NONE && this != BACKGROUND_BOX
+
     companion object {
         fun fromId(id: String?): SubtitleOutlineEffect =
             entries.firstOrNull { it.id == id } ?: OUTLINE_AND_SHADOW
