@@ -75,11 +75,15 @@ class CollectionCardRemoteImageTest {
                 }
             }
             waitForColor(2)
-            assertEquals(0, requests.get(), "The focus asset should not load before hover")
+            // Visible cards prefetch the animation on purpose, so the first hover is
+            // instant. See CollectionCardRemoteImage.desktop.kt.
+            compose.waitUntil(timeoutMillis = 5_000) { requests.get() >= 1 }
             card.performMouseInput { enter(center) }
             waitForColor(0)
             waitForColor(1)
-            assertEquals(1, requests.get())
+            // Hover must reuse the prefetched codec instead of fetching the asset a
+            // second time, so the request count stays at one.
+            assertEquals(1, requests.get(), "the focus asset must be fetched exactly once")
             card.performMouseInput { exit() }
             waitForColor(2)
         } finally {
