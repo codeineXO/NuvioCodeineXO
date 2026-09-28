@@ -43,6 +43,28 @@ class VersionUtilsTest {
     }
 
     @Test
+    fun `legacy comparison orders numeric components`() {
+        assertTrue(VersionUtils.isRemoteNewerLegacy("1.0.1", "1.0.0"))
+        assertTrue(VersionUtils.isRemoteNewerLegacy("1.1.0", "1.0.9"))
+        assertTrue(VersionUtils.isRemoteNewerLegacy("2.0", "1.9.9"))
+        assertFalse(VersionUtils.isRemoteNewerLegacy("1.0.0", "1.0.0"))
+        assertFalse(VersionUtils.isRemoteNewerLegacy("0.9.9", "1.0.0"))
+    }
+
+    @Test
+    fun `legacy comparison ignores the version prefix`() {
+        assertTrue(VersionUtils.isRemoteNewerLegacy("v1.0.1", "1.0.0"))
+        assertTrue(VersionUtils.isRemoteNewerLegacy("1.0.1", "v1.0.0"))
+        assertFalse(VersionUtils.isRemoteNewerLegacy("v1.0.0", "1.0.0"))
+    }
+
+    @Test
+    fun `legacy comparison pads missing components with zero`() {
+        assertTrue(VersionUtils.isRemoteNewerLegacy("1.0.1", "1.0"))
+        assertFalse(VersionUtils.isRemoteNewerLegacy("1.0", "1.0.0"))
+    }
+
+    @Test
     fun `current beta naming is recognized as prerelease`() {
         assertTrue(VersionUtils.isPrerelease("0.8.12-beta"))
     }
