@@ -96,8 +96,10 @@ internal object WindowsMpvSubStyleHelper {
         }.getOrDefault(false)
     }
 
+    fun supportsCacheSpeed(): Boolean = DesktopHostOs.current == DesktopHostOs.WINDOWS
+
     fun getCacheSpeed(bridgeHandle: Long): Long {
-        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return 0L
+        if (!supportsCacheSpeed()) return 0L
         if (!ensureInitialized()) return 0L
         val getProp = getPropertyHandle ?: return 0L
         val mpvCtx = resolveMpvHandle(bridgeHandle) ?: return 0L

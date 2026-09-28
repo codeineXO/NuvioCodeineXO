@@ -669,6 +669,7 @@ internal class NativePlayerController(
                 bufferedPositionMs = NativePlayerBridge.bufferedPositionMs(current),
                 playbackSpeed = NativePlayerBridge.speed(current),
                 downloadSpeedBytes = cacheSpeed,
+                downloadSpeedAvailable = WindowsMpvSubStyleHelper.supportsCacheSpeed(),
             )
         }.getOrDefault(PlayerPlaybackSnapshot(isLoading = true))
     }

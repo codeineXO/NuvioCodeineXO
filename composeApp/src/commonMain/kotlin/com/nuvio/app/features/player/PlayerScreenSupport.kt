@@ -48,6 +48,19 @@ private fun saturatingProgress(value: Long, midpoint: Long): Float {
     return (safeValue / (safeValue + midpoint.toDouble())).toFloat()
 }
 
+/**
+ * Direct (non-P2P) streams expose no byte counters, so progress is derived purely
+ * from how far the demuxer has buffered ahead. Unlike [p2pInitialLoadingProgress]
+ * this starts at 0 rather than at [P2pInitialPlayerStageStart], because there is no
+ * engine-side work being reported and jumping to 75% the moment any buffer lands
+ * would misrepresent a stream that has barely started.
+ */
+internal fun httpInitialLoadingProgress(bufferedAheadMs: Long): Float {
+    if (bufferedAheadMs <= 0L) return 0f
+    return (bufferedAheadMs.toFloat() / P2pInitialBufferTargetMs.toFloat())
+        .coerceIn(0f, 1f) * P2pInitialLoadingMaximum
+}
+
 internal val PlayerSideGestureSystemEdgeExclusion = 72.dp
 internal val PlayerSliderOverlayGap = 12.dp
 internal val PlayerTimeRowHeight = 36.dp

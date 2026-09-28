@@ -228,6 +228,7 @@ data class PlayerPlaybackSnapshot(
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,
     val downloadSpeedBytes: Long = 0L,
+    val downloadSpeedAvailable: Boolean = false,
 )
 
 data class PlayerNowPlayingInfo(

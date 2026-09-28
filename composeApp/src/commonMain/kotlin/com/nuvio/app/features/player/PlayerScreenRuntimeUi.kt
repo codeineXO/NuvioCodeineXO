@@ -157,6 +157,21 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             deliveredBytes = p2pStats.deliveredBytes,
         )
     }
+    val showHttpInitialLoadingStats = !isP2pPlaybackActive &&
+        !initialLoadCompleted &&
+        activeSourceUrl.isNotBlank() &&
+        playerSettingsUiState.showPlayerLoadingStatus &&
+        playbackSnapshot.downloadSpeedAvailable
+    val httpInitialLoadingMessage = when {
+        !showHttpInitialLoadingStats -> null
+        else -> "⬇ ${formatP2pSpeed(playbackSnapshot.downloadSpeedBytes)}"
+    }
+    val httpInitialLoadingProgress = when {
+        !showHttpInitialLoadingStats -> null
+        else -> httpInitialLoadingProgress(bufferedAheadMs = bufferedAheadMs)
+    }
+    val initialLoadingMessage = p2pInitialLoadingMessage ?: httpInitialLoadingMessage
+    val initialLoadingProgress = p2pInitialLoadingProgress ?: httpInitialLoadingProgress
     val showP2pRebufferStats = isP2pPlaybackActive &&
         initialLoadCompleted &&
         playbackSnapshot.isLoading &&
@@ -273,7 +288,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             }
         }
         else -> {
-            if (activeSourceUrl == null || playbackSnapshot.isEnded) {
+            if (activeSourceUrl == null || playbackSnapshot.isEnded ||
+                !playbackSnapshot.downloadSpeedAvailable
+            ) {
                 ""
             } else {
                 val speedBytes = playbackSnapshot.downloadSpeedBytes
@@ -476,8 +493,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         openingArtwork = background ?: poster,
         openingLogo = logo,
         openingTitle = title,
-        openingMessage = p2pInitialLoadingMessage,
-        openingProgress = p2pInitialLoadingProgress,
+        openingMessage = initialLoadingMessage,
+        openingProgress = initialLoadingProgress,
         skipPromptVisible = nativeSkipInterval != null && !playerControlsLocked,
         skipPromptLabel = if (nativeSkipAction?.skipsToPostCredits == true) {
             stringResource(Res.string.player_skip_to_post_credits)
@@ -629,8 +646,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             runtime = runtime,
             displayedPositionMs = displayedPositionMs,
             currentGestureFeedback = currentGestureFeedback,
-            p2pInitialLoadingMessage = p2pInitialLoadingMessage,
-            p2pInitialLoadingProgress = p2pInitialLoadingProgress,
+            initialLoadingMessage = initialLoadingMessage,
+            initialLoadingProgress = initialLoadingProgress,
             showP2pRebufferStats = showP2pRebufferStats,
             p2pRebufferMessage = p2pRebufferMessage,
             p2pRebufferProgress = p2pRebufferProgress,
@@ -1748,8 +1765,8 @@ private fun BoxScope.RenderPlaybackOverlays(
     runtime: PlayerScreenRuntime,
     displayedPositionMs: Long,
     currentGestureFeedback: GestureFeedbackState?,
-    p2pInitialLoadingMessage: String?,
-    p2pInitialLoadingProgress: Float?,
+    initialLoadingMessage: String?,
+    initialLoadingProgress: Float?,
     showP2pRebufferStats: Boolean,
     p2pRebufferMessage: String?,
     p2pRebufferProgress: Float?,
@@ -1775,13 +1792,13 @@ private fun BoxScope.RenderPlaybackOverlays(
             title = title,
             onBackWithProgress = { requestBack() },
             openingLoadingMessage = if (playerSettingsUiState.showPlayerLoadingStatus) {
-                p2pInitialLoadingMessage ?: playerLoadingStatusMessage(
+                initialLoadingMessage ?: playerLoadingStatusMessage(
                     showStatus = true,
                     controllerReady = playerController != null,
                     buffering = playbackSnapshot.isLoading,
                 )
             } else null,
-            p2pInitialLoadingProgress = p2pInitialLoadingProgress,
+            initialLoadingProgress = initialLoadingProgress,
             showP2pRebufferStats = showP2pRebufferStats,
             p2pRebufferMessage = p2pRebufferMessage,
             p2pRebufferProgress = p2pRebufferProgress,
