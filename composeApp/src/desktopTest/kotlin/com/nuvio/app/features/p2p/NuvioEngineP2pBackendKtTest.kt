@@ -1,6 +1,7 @@
 package com.nuvio.app.features.p2p
 
 import com.nuvio.app.features.player.DesktopBufferPreset
+import com.nuvio.engine.NuvioEngineException
 import com.nuvio.engine.NuvioTorrentProfile
 import com.nuvio.engine.NuvioUploadMode
 import java.io.File
@@ -10,6 +11,25 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NuvioEngineP2pBackendKtTest {
+
+    @Test
+    fun `metadata not ready triggers engine recovery regardless of torrent reuse`() {
+        assertTrue(
+            shouldRestartEngineForMetadataRecovery(
+                error = NuvioEngineException(4, "torrent metadata not ready"),
+            ),
+        )
+        assertTrue(
+            shouldRestartEngineForMetadataRecovery(
+                error = NuvioEngineException(4, "TORRENT METADATA NOT READY"),
+            ),
+        )
+        assertTrue(
+            !shouldRestartEngineForMetadataRecovery(
+                error = NuvioEngineException(4, "index out of range"),
+            ),
+        )
+    }
 
     @Test
     fun `nuvioEngineWindowBytes maps presets correctly`() {

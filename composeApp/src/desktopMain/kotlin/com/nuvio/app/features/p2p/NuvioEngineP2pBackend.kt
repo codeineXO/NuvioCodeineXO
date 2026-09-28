@@ -5,6 +5,7 @@ import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.features.player.DesktopBufferPreset
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.engine.NuvioEngine
+import com.nuvio.engine.NuvioEngineException
 import com.nuvio.engine.NuvioEventType
 import com.nuvio.engine.NuvioStream
 import kotlinx.coroutines.CancellationException
@@ -258,7 +259,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         try {
             phase.set("starting_engine")
             val magnetUri = buildP2pMagnetUri(request.infoHash, (DEFAULT_TRACKERS + request.trackers).distinct())
-            val resolvedEngine = ensureEngine()
+            var resolvedEngine = ensureEngine()
             activeEngine = resolvedEngine
             val payloadDownloadBaseline = resolvedEngine.stats.value.totalPayloadDownloadBytes
             ensureCurrentGeneration(generation)
@@ -267,24 +268,60 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
 
             phase.set("add_magnet")
             val canonicalHash = canonicalP2pInfoHash(request.infoHash)
-            val isKnown = knownTorrentIds.contains(canonicalHash)
-            val torrentId = if (isKnown) {
+            val isKnown = synchronized(lifecycleLock) { knownTorrentIds.contains(canonicalHash) }
+            var reusedExistingTorrent = isKnown
+            var torrentId = if (isKnown) {
                 canonicalHash
             } else {
                 addMagnetWithWatchdog(resolvedEngine, magnetUri, canonicalHash, sequence, startedAt).also {
-                    knownTorrentIds.add(it)
+                    synchronized(lifecycleLock) { knownTorrentIds.add(it) }
                 }
             }
 
             ensureCurrentGeneration(generation)
-            val metadataElapsed = elapsedMillis(startedAt)
+            var metadataElapsed = elapsedMillis(startedAt)
 
             phase.set("prepare_stream")
-            val stream = resolvedEngine.prepareStream(
-                torrentId = torrentId,
-                fileIndex = request.fileIdx,
-                filenameHint = request.filename
-            )
+            val stream = try {
+                resolvedEngine.prepareStream(
+                    torrentId = torrentId,
+                    fileIndex = request.fileIdx,
+                    filenameHint = request.filename
+                )
+            } catch (error: NuvioEngineException) {
+                if (!shouldRestartEngineForMetadataRecovery(error)) throw error
+
+                log.w(error) {
+                    "Torrent metadata was not ready; restarting the native engine before retry: request=$sequence hash=${diagnosticId(canonicalHash)} known=$isKnown"
+                }
+                phase.set("restart_engine_for_metadata")
+                startupStatsJob.cancel()
+                startupStatsJob = null
+                runCatching { resolvedEngine.removeTorrent(torrentId) }
+                synchronized(lifecycleLock) { knownTorrentIds.remove(canonicalHash) }
+                closeEngine(resolvedEngine)
+                resolvedEngine = ensureEngine()
+                activeEngine = resolvedEngine
+                startupStatsJob = startStartupStatsPolling(resolvedEngine, generation, phase, sequence, startedAt)
+                torrentId = addMagnetWithWatchdog(
+                    activeEngine = resolvedEngine,
+                    magnetUri = magnetUri,
+                    canonicalHash = canonicalHash,
+                    sequence = sequence,
+                    startedAt = startedAt,
+                ).also { refreshedTorrentId ->
+                    synchronized(lifecycleLock) { knownTorrentIds.add(refreshedTorrentId) }
+                }
+                reusedExistingTorrent = false
+                metadataElapsed = elapsedMillis(startedAt)
+                ensureCurrentGeneration(generation)
+                phase.set("prepare_stream_retry")
+                resolvedEngine.prepareStream(
+                    torrentId = torrentId,
+                    fileIndex = request.fileIdx,
+                    filenameHint = request.filename
+                )
+            }
             preparedStream = stream
 
             currentCoroutineContext().ensureActive()
@@ -299,7 +336,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
 
             val totalElapsed = elapsedMillis(startedAt)
             log.i {
-                "P2P startup ready: request=$sequence hash=${diagnosticId(torrentId)} file=${stream.fileIndex} fileBytes=${stream.fileSize} total=${totalElapsed}ms engine=${engineReadyElapsed}ms metadata=${metadataElapsed - engineReadyElapsed}ms${if (isKnown) " (warm)" else ""} prepare=${totalElapsed - metadataElapsed}ms"
+                "P2P startup ready: request=$sequence hash=${diagnosticId(torrentId)} file=${stream.fileIndex} fileBytes=${stream.fileSize} total=${totalElapsed}ms engine=${engineReadyElapsed}ms metadata=${metadataElapsed - engineReadyElapsed}ms${if (reusedExistingTorrent) " (warm)" else ""} prepare=${totalElapsed - metadataElapsed}ms"
             }
 
             startStatsPolling(resolvedEngine, stream, generation, sequence, startedAt, payloadDownloadBaseline)
