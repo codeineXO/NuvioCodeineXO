@@ -1764,6 +1764,8 @@
     <string name="updates_debug_test_description">Preview the banner and simulated download progress.</string>
     <string name="updates_debug_test_title">Test update banner</string>
     <string name="updates_install_failed">Unable to start installation</string>
+    <string name="updates_installer_failed">The installer stopped with code %1$d. Details: %2$s</string>
+    <string name="updates_installer_timeout">The installer did not finish in time.</string>
     <string name="updates_latest_version">You&apos;re using the latest version.</string>
     <string name="updates_message_allow_installs">Enable app installs for Nuvio, then come back and continue.</string>
     <string name="updates_message_downloading">Downloading update...</string>

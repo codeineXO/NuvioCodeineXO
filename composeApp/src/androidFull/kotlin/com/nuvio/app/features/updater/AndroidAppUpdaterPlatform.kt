@@ -139,7 +139,7 @@ object AndroidAppUpdaterPlatform {
         context.startActivity(intent)
     }
 
-    fun installDownloadedUpdate(path: String): Result<Unit> = runCatching {
+    suspend fun installDownloadedUpdate(path: String): Result<Unit> = runCatching {
         val context = requireContext()
         val apkFile = File(path)
         check(apkFile.exists()) { runBlocking { getString(Res.string.updates_downloaded_file_missing) } }

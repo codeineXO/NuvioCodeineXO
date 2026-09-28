@@ -2,7 +2,10 @@ package com.nuvio.app.features.updater
 
 import com.nuvio.app.core.build.AppVersionConfig
 import com.nuvio.app.core.storage.DesktopStorage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import nuvio.composeapp.generated.resources.Res
@@ -10,6 +13,8 @@ import nuvio.composeapp.generated.resources.updates_download_failed
 import nuvio.composeapp.generated.resources.updates_download_failed_http
 import nuvio.composeapp.generated.resources.updates_downloaded_file_missing
 import nuvio.composeapp.generated.resources.updates_empty_download_body
+import nuvio.composeapp.generated.resources.updates_installer_failed
+import nuvio.composeapp.generated.resources.updates_installer_timeout
 import org.jetbrains.compose.resources.getString
 import java.io.File
 import java.io.FileOutputStream
@@ -142,16 +147,61 @@ actual object AppUpdaterPlatform {
 
     actual fun openInstallPermissionSettings() = Unit
 
-    actual fun installDownloadedUpdate(path: String): Result<Unit> = runCatching {
+    actual suspend fun installDownloadedUpdate(path: String): Result<Unit> =
+        try {
+            installDownloadedUpdateOrThrow(path)
+            Result.success(Unit)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Throwable) {
+            Result.failure(failure)
+        }
+
+    private suspend fun installDownloadedUpdateOrThrow(path: String) {
         val updateFile = File(path)
         check(updateFile.exists()) { runBlocking { getString(Res.string.updates_downloaded_file_missing) } }
 
-        launchInstaller(updateFile)
+        val logFile = installerLogFile(updateFile)
+        val installer = launchInstaller(updateFile, logFile)
+
+        // Only msiexec is waited on. It is the one installer that can refuse to
+        // run and say nothing, and the AppImage replacement script deliberately
+        // waits for this process to exit, so blocking on it would deadlock the
+        // Linux handoff. macOS and Linux hand the file to the desktop and return
+        // immediately, as before.
+        if (currentOs == DesktopUpdaterOs.WINDOWS) {
+            when (val exitCode = installer.awaitExit()) {
+                null -> error(getString(Res.string.updates_installer_timeout))
+                in windowsInstallerSuccessCodes -> Unit
+                else -> error(
+                    getString(
+                        Res.string.updates_installer_failed,
+                        exitCode,
+                        logFile?.absolutePath.orEmpty(),
+                    ),
+                )
+            }
+        }
+
+        // Reached only once the installer has finished, so this is no longer a
+        // blind race: on Windows the MSI has already closed the app through
+        // WixCloseApplications and this simply never runs.
         scheduleAppExit()
     }
 
     private fun updatesDir(): File =
         File(DesktopStorage.rootDir.resolve("updates").also { it.createDirectories() }.toUri())
+
+    // Windows Installer writes nothing anywhere useful when it is spawned without
+    // a console, so the log file is the only record of why a run was refused.
+    private fun installerLogFile(updateFile: File): File? =
+        if (currentOs == DesktopUpdaterOs.WINDOWS &&
+            updateFile.extension.equals("msi", ignoreCase = true)
+        ) {
+            File(updatesDir(), "${updateFile.name}.log")
+        } else {
+            null
+        }
 
     private fun clearDir(dirPath: File) {
         if (dirPath.exists() and dirPath.isDirectory) {
@@ -161,9 +211,9 @@ actual object AppUpdaterPlatform {
         }
     }
 
-    private fun launchInstaller(updateFile: File) {
+    private fun launchInstaller(updateFile: File, logFile: File?): Process {
         val command = when (currentOs) {
-            DesktopUpdaterOs.WINDOWS -> windowsInstallerCommand(updateFile)
+            DesktopUpdaterOs.WINDOWS -> windowsInstallerCommand(updateFile, logFile)
             DesktopUpdaterOs.MACOS -> listOf("open", updateFile.absolutePath)
             DesktopUpdaterOs.LINUX -> linuxInstallerCommand(
                 method = linuxInstallMethod,
@@ -173,7 +223,24 @@ actual object AppUpdaterPlatform {
             )
             DesktopUpdaterOs.UNKNOWN -> error("Desktop updates are not supported on this operating system.")
         }
-        ProcessBuilder(command).start()
+        return ProcessBuilder(command).start()
+    }
+
+    // Polling rather than waitFor() so the wait stays cancellable and so a hung
+    // installer is reported instead of pinning the coroutine forever. Returns null
+    // on timeout.
+    private suspend fun Process.awaitExit(): Int? = withContext(Dispatchers.IO) {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(installerExitTimeoutMillis)
+        var exitCode: Int? = null
+        while (exitCode == null) {
+            currentCoroutineContext().ensureActive()
+            exitCode = when {
+                waitFor(installerExitPollMillis, TimeUnit.MILLISECONDS) -> exitValue()
+                System.nanoTime() - deadline >= 0L -> return@withContext null
+                else -> null
+            }
+        }
+        exitCode
     }
 
     private fun scheduleAppExit() {
@@ -235,13 +302,31 @@ private fun desktopArchitectureFragments(): List<String> {
     }
 }
 
-internal fun windowsInstallerCommand(updateFile: File): List<String> {
+// ALLOWSAMEVERSIONUPGRADES is what lets the MSI run when its own version is
+// already registered. Without it Windows Installer refuses with 1638 ("Another
+// version of this product is already installed"), which is exactly the state a
+// retried, already-current or partially-applied update lands in. /L*v records
+// the run so a refusal that still happens can be read back afterwards.
+internal fun windowsInstallerCommand(updateFile: File, logFile: File? = null): List<String> {
     if (!updateFile.extension.equals("msi", ignoreCase = true)) {
         return listOf(updateFile.absolutePath)
     }
 
-    return listOf("msiexec", "/i", updateFile.absolutePath)
+    return buildList {
+        add("msiexec")
+        add("/i")
+        add(updateFile.absolutePath)
+        add("ALLOWSAMEVERSIONUPGRADES=1")
+        logFile?.let {
+            add("/L*v")
+            add(it.absolutePath)
+        }
+    }
 }
+
+// 0 is a clean run, 1641 means the installer rebooted the machine and 3010 means
+// it wants one. All three leave the new version in place.
+internal val windowsInstallerSuccessCodes = setOf(0, 1641, 3010)
 
 internal enum class LinuxInstallMethod {
     APP_IMAGE,
@@ -258,6 +343,8 @@ private const val jpackageAppPathProperty = "jpackage.app-path"
 private const val javaExecutableName = "java"
 private const val packageQueryTimeoutSeconds = 3L
 private const val appImageExitWaitTicks = 100
+private const val installerExitPollMillis = 200L
+private const val installerExitTimeoutMillis = 60L * 60L * 1000L
 
 // A release carries every Linux format at once, so the extension list has to be
 // the one the running install can actually consume. An unresolved install keeps
