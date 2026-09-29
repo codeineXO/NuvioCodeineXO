@@ -40,6 +40,36 @@ class AppUpdaterPlatformDesktopTest {
     fun legacyVersionComparisonWorksForDesktopAllReleases() {
         assertNewerRemoteIsOffered(VersionUtils::isRemoteNewerLegacy)
     }
+
+    @Test
+    fun windowsInstallerCommandBuildsCorrectMsiArguments() {
+        val msiFile = java.io.File("C:\\Program Files\\Nuvio\\update.msi")
+        val logFile = java.io.File("C:\\Program Files\\Nuvio\\update.log")
+        val command = windowsInstallerCommand(msiFile, logFile)
+
+        assertEquals(
+            listOf("msiexec", "/i", msiFile.absolutePath, "ALLOWSAMEVERSIONUPGRADES=1", "/L*v", logFile.absolutePath),
+            command,
+        )
+    }
+
+    @Test
+    fun formatBatchCommandLineDoesNotQuoteMsiexecSwitches() {
+        val command = listOf(
+            "msiexec",
+            "/i",
+            "C:\\Users\\User Name\\AppData\\Local\\update.msi",
+            "ALLOWSAMEVERSIONUPGRADES=1",
+            "/L*v",
+            "C:\\Users\\User Name\\AppData\\Local\\update.msi.log",
+        )
+        val formatted = formatBatchCommandLine(command)
+
+        assertEquals(
+            "msiexec /i \"C:\\Users\\User Name\\AppData\\Local\\update.msi\" ALLOWSAMEVERSIONUPGRADES=1 /L*v \"C:\\Users\\User Name\\AppData\\Local\\update.msi.log\"",
+            formatted,
+        )
+    }
 }
 
 /**

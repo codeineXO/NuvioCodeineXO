@@ -195,9 +195,7 @@ actual object AppUpdaterPlatform {
     private fun writeWindowsUpdateScript(updateFile: File, command: List<String>, currentPid: Long): File {
         val dir = updatesDir()
         val script = File(dir, "${updateFile.nameWithoutExtension}-install.bat")
-        val quotedCommand = command.joinToString(" ") { part ->
-            "\"" + part.replace("\"", "\"\"") + "\""
-        }
+        val formattedCommand = formatBatchCommandLine(command)
         // Wait up to ~30s for the app pid to disappear, then run msiexec.
         // The MSI itself also sends WM_CLOSE + TerminateProcess as a fallback.
         val lines = listOf(
@@ -210,7 +208,7 @@ actual object AppUpdaterPlatform {
             "  ping -n 2 127.0.0.1 >nul",
             ")",
             ":run",
-            "start \"\" $quotedCommand",
+            "start \"\" $formattedCommand",
             "exit /b 0",
         )
         script.writeText(lines.joinToString("\r\n"))
@@ -362,6 +360,16 @@ internal fun windowsInstallerCommand(updateFile: File, logFile: File? = null): L
 // 0 is a clean run, 1641 means the installer rebooted the machine and 3010 means
 // it wants one. All three leave the new version in place.
 internal val windowsInstallerSuccessCodes = setOf(0, 1641, 3010)
+
+internal fun formatBatchCommandLine(command: List<String>): String =
+    command.joinToString(" ") { part ->
+        if (part.startsWith("/") || part.startsWith("-") || (!part.contains(" ") && !part.contains("&") && !part.contains("^") && !part.contains("|"))) {
+            part
+        } else {
+            "\"" + part.replace("\"", "\"\"") + "\""
+        }
+    }
+
 
 internal enum class LinuxInstallMethod {
     APP_IMAGE,
