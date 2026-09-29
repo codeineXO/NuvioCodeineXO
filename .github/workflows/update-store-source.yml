@@ -23,6 +23,9 @@ concurrency:
 jobs:
   update:
     name: Update store.json
+    # Desktop releases (v*) have no IPA and must not fail this workflow.
+    # workflow_call callers always run.
+    if: github.event_name == 'workflow_call' || !startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -38,6 +41,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download and verify published IPA
+        id: download
         run: |
           release_json="${RUNNER_TEMP}/release.json"
           gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > "${release_json}"
@@ -48,6 +52,11 @@ jobs:
           fi
 
           mapfile -t ipa_names < <(jq -r '.assets[] | select(.name | endswith(".ipa")) | .name' "${release_json}")
+          if (( ${#ipa_names[@]} == 0 )); then
+            echo "No IPA assets in ${RELEASE_TAG}; skipping sideload source update (likely desktop release)."
+            echo "skip=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
           if (( ${#ipa_names[@]} != 1 )); then
             echo "Expected exactly one published IPA, found ${#ipa_names[@]}." >&2
             exit 1
@@ -76,6 +85,7 @@ jobs:
           fi
 
       - name: Update sideload source
+        if: steps.download.outputs.skip != 'true'
         run: |
           release_json="${RUNNER_TEMP}/release.json"
           release_notes="${RUNNER_TEMP}/release-notes.md"
@@ -98,6 +108,7 @@ jobs:
             --download-url "${download_url}"
 
       - name: Commit sideload source
+        if: steps.download.outputs.skip != 'true'
         run: |
           if [[ -z "$(git status --porcelain -- store.json)" ]]; then
             echo "store.json is already current for ${RELEASE_VERSION}."
