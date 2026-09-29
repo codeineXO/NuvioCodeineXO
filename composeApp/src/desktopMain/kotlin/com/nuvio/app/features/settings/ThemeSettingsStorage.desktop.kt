@@ -29,6 +29,7 @@ internal actual object ThemeSettingsStorage {
     private const val selectedAppLanguageKey = "selected_app_language"
     private const val navBarStyleKey = "nav_bar_style"
     private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
+    private const val auraBackgroundEnabledKey = "aura_background_enabled"
     private val profileScopedSyncKeys = listOf(
         selectedThemeKey,
         customThemeColorsKey,
@@ -37,6 +38,7 @@ internal actual object ThemeSettingsStorage {
         desktopNavigationLayoutKey,
         navBarStyleKey,
         navBarGlowEnabledKey,
+        auraBackgroundEnabledKey,
     )
     private val deviceLocale = Locale.getDefault()
     private val store = DesktopStorage.store("nuvio_theme_settings")
@@ -102,6 +104,13 @@ internal actual object ThemeSettingsStorage {
         store.putBoolean(ProfileScopedKey.of(navBarGlowEnabledKey), enabled)
     }
 
+    actual fun loadAuraBackgroundEnabled(): Boolean? =
+        store.getBoolean(ProfileScopedKey.of(auraBackgroundEnabledKey))
+
+    actual fun saveAuraBackgroundEnabled(enabled: Boolean) {
+        store.putBoolean(ProfileScopedKey.of(auraBackgroundEnabledKey), enabled)
+    }
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadSelectedTheme()?.let { put(selectedThemeKey, encodeSyncString(it)) }
         loadCustomThemeColors()?.let { put(customThemeColorsKey, encodeSyncString(it)) }
@@ -110,6 +119,7 @@ internal actual object ThemeSettingsStorage {
         loadDesktopNavigationLayout()?.let { put(desktopNavigationLayoutKey, encodeSyncString(it)) }
         loadNavBarStyle()?.let { put(navBarStyleKey, encodeSyncString(it)) }
         loadNavBarGlowEnabled()?.let { put(navBarGlowEnabledKey, encodeSyncBoolean(it)) }
+        loadAuraBackgroundEnabled()?.let { put(auraBackgroundEnabledKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -121,6 +131,7 @@ internal actual object ThemeSettingsStorage {
         payload.decodeSyncString(desktopNavigationLayoutKey)?.let(::saveDesktopNavigationLayout)
         payload.decodeSyncString(navBarStyleKey)?.let(::saveNavBarStyle)
         payload.decodeSyncBoolean(navBarGlowEnabledKey)?.let(::saveNavBarGlowEnabled)
+        payload.decodeSyncBoolean(auraBackgroundEnabledKey)?.let(::saveAuraBackgroundEnabled)
         applySelectedAppLanguage(loadSelectedAppLanguage() ?: AppLanguage.ENGLISH.code)
     }
 }

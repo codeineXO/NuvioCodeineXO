@@ -85,7 +85,7 @@ class PlayerNextEpisodeTransitionTest {
                         title = "Series",
                         onBackWithProgress = {},
                         openingLoadingMessage = null,
-                        p2pInitialLoadingProgress = null,
+                        initialLoadingProgress = null,
                         showP2pRebufferStats = false,
                         p2pRebufferMessage = null,
                         p2pRebufferProgress = null,

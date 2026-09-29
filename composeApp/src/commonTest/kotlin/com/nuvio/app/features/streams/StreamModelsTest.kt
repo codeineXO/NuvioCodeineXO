@@ -210,9 +210,42 @@ class StreamModelsTest {
     }
 
     @Test
+    fun `p2pFileIdx extracts index query parameter from torrent url`() {
+        val stream = stream(url = "torrent://$hexHash?index=3")
+        assertEquals(3, stream.p2pFileIdx)
+    }
+
+    @Test
+    fun `p2pFileIdx extracts index query parameter after other parameters`() {
+        val stream = stream(url = "torrent://$hexHash?source=addon&index=12")
+        assertEquals(12, stream.p2pFileIdx)
+    }
+
+    @Test
+    fun `p2pFileIdx accepts fileIdx query parameter case insensitively`() {
+        val stream = stream(url = "torrent://$hexHash?FILEIDX=5")
+        assertEquals(5, stream.p2pFileIdx)
+    }
+
+    @Test
     fun `dedicated fileIdx field wins over torrent url segment`() {
         val stream = stream(url = "torrent://$hexHash/3", fileIdx = 7)
         assertEquals(7, stream.p2pFileIdx)
+    }
+
+    @Test
+    fun `dedicated fileIdx field wins over torrent url query`() {
+        val stream = stream(url = "torrent://$hexHash?index=3", fileIdx = 7)
+        assertEquals(7, stream.p2pFileIdx)
+    }
+
+    @Test
+    fun `client resolve fileIdx is used when stream fileIdx is missing`() {
+        val stream = stream(
+            infoHash = hexHash,
+            clientResolve = StreamClientResolve(infoHash = hexHash, fileIdx = 4),
+        )
+        assertEquals(4, stream.p2pFileIdx)
     }
 
     @Test
@@ -316,11 +349,13 @@ class StreamModelsTest {
         infoHash: String? = null,
         fileIdx: Int? = null,
         externalUrl: String? = null,
+        clientResolve: StreamClientResolve? = null,
     ): StreamItem = StreamItem(
         url = url,
         infoHash = infoHash,
         fileIdx = fileIdx,
         externalUrl = externalUrl,
+        clientResolve = clientResolve,
         addonName = "TestAddon",
         addonId = "test.addon",
     )

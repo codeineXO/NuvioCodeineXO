@@ -101,6 +101,11 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
         ThemeSettingsRepository.amoledEnabled
     }.collectAsStateWithLifecycle()
 
+    val auraBackgroundEnabled by remember {
+        ThemeSettingsRepository.ensureLoaded()
+        ThemeSettingsRepository.auraBackgroundEnabled
+    }.collectAsStateWithLifecycle()
+
     val customThemeColors by ThemeSettingsRepository.customThemeColors.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -109,6 +114,7 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
             amoled = amoledEnabled,
             customThemeColors = customThemeColors,
             desktopUiScale = desktopUiScaleForWindow(maxWidth.value, maxHeight.value),
+            auraEnabled = auraBackgroundEnabled,
         ) {
             content()
         }

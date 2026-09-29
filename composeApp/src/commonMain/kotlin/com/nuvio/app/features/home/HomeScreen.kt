@@ -19,9 +19,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.isDesktop
@@ -34,6 +36,7 @@ import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.rememberHeroStretchState
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -44,6 +47,12 @@ import com.nuvio.app.features.addons.firstEnabledManifestError
 import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.CloudLibraryRepository
 import com.nuvio.app.features.cloud.CloudLibraryUiState
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.Alignment
+import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
+import com.nuvio.app.core.ui.isFullscreenActionSupported
 import com.nuvio.app.features.cloud.findPlaybackTargetForProgress
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -55,6 +64,7 @@ import com.nuvio.app.features.home.components.HomeContinueWatchingSection
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import com.nuvio.app.features.home.components.HomeHeroReservedSpace
 import com.nuvio.app.features.home.components.HomeHeroSection
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.home.components.HomeSkeletonHero
 import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
@@ -507,10 +517,12 @@ fun HomeScreen(
         )
     }
 
-    val customPosterPattern by com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
+    val cwPosterPattern by com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
         repo.ensureLoaded()
-        repo.pattern
-    }.collectAsStateWithLifecycle()
+        kotlinx.coroutines.flow.combine(repo.pattern, repo.enabledScreens) { pattern, screens ->
+            if (com.nuvio.app.core.poster.CustomPosterScreen.CONTINUE_WATCHING in screens) pattern else ""
+        }
+    }.collectAsStateWithLifecycle(initialValue = com.nuvio.app.core.poster.CustomPosterUrlRepository.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.CONTINUE_WATCHING))
 
     val allContinueWatchingItems = remember(
         visibleContinueWatchingEntries,
@@ -519,7 +531,7 @@ fun HomeScreen(
         nextUpSuppressedSeriesIds,
         continueWatchingPreferences.sortMode,
         cloudLibraryUiState,
-        customPosterPattern,
+        cwPosterPattern,
     ) {
         buildHomeContinueWatchingItems(
             visibleEntries = visibleContinueWatchingEntries,
@@ -530,7 +542,7 @@ fun HomeScreen(
             todayIsoDate = CurrentDateProvider.todayIsoDate(),
             cloudLibraryUiState = cloudLibraryUiState,
         ).let { items ->
-            items.withCustomPosterUrls(customPosterPattern)
+            items.withCustomPosterUrls(cwPosterPattern)
         }
     }
     val (continueWatchingItems, upcomingItems) = remember(
@@ -909,7 +921,16 @@ fun HomeScreen(
         homeCatalogLoading = homeUiState.isLoading,
     )
 
+    val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        if (auraBackgroundEnabled) {
+            HomeInteractiveGradientBackground(
+                modifier = Modifier.fillMaxSize(),
+                listState = homeListState,
+            )
+        }
+
         val homeSectionPadding = homeSectionHorizontalPaddingForWidth(maxWidth.value)
         val posterCardStyle = rememberPosterCardStyleUiState()
         val homeCatalogPreviewLimit = if (isDesktop) {
@@ -971,6 +992,7 @@ fun HomeScreen(
             horizontalPadding = 0.dp,
             topPadding = effectiveTopPadding,
             listState = homeListState,
+            backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
             if (showHeroSlot) {
                 item(key = "home_hero", contentType = "hero") {
@@ -1196,6 +1218,25 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        if (isFullscreenActionSupported) {
+            val space = NuvioTokens.Space
+            val colorScheme = MaterialTheme.colorScheme
+            val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
+            FullscreenActionButton(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(
+                        top = if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
+                        end = actionHorizontalInset,
+                    ),
+                buttonSize = 48.dp,
+                iconSize = 24.dp,
+                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
+                contentColor = colorScheme.onSurface,
+            )
         }
     }
 }

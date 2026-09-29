@@ -2,16 +2,22 @@ package com.nuvio.app.features.p2p
 
 import com.nuvio.app.features.player.DesktopBufferPreset
 import com.nuvio.engine.NuvioEngineConfig
+import com.nuvio.engine.NuvioEngineException
 import com.nuvio.engine.NuvioTorrentProfile
 import com.nuvio.engine.NuvioUploadMode
 import java.io.File
 
 internal const val UNKNOWN_TORRENT_ERROR = "Unknown torrent error"
+private const val TORRENT_METADATA_NOT_READY = "torrent metadata not ready"
 internal const val STREAMING_SAMPLE_INTERVAL_MS = 5000L
 internal const val STARTUP_SAMPLE_INTERVAL_MS = 1000L
 const val METADATA_DEADLINE_MS = 60000L
 const val METADATA_STALL_MIN_WAIT_MS = 20000L
 const val METADATA_STALL_MS = 15000L
+
+internal fun shouldRestartEngineForMetadataRecovery(error: Throwable): Boolean =
+    error is NuvioEngineException &&
+        error.message.equals(TORRENT_METADATA_NOT_READY, ignoreCase = true)
 
 fun nuvioEngineWindowBytes(preset: DesktopBufferPreset = DesktopBufferPreset.Balanced): Long = when (preset) {
     DesktopBufferPreset.Metered -> 64L * 1024L * 1024L

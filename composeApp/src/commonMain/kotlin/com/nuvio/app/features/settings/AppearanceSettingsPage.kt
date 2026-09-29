@@ -126,12 +126,21 @@ internal fun LazyListScope.appearanceSettingsContent(
         var showAppIconPicker by rememberSaveable { mutableStateOf(false) }
         val navBarStyleAvailable = !isIos
         val glowEnabled by ThemeSettingsRepository.navBarGlowEnabled.collectAsStateWithLifecycle()
+        val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
         val effectiveNavBarStyle = if (isTablet) NavBarStyle.COMPACT else selectedNavBarStyle
         SettingsSection(
             title = stringResource(Res.string.settings_appearance_section_display),
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = "CodeineXO Aura",
+                    description = "Interactive glowing chromatic background with reactive pointer tracking",
+                    checked = auraBackgroundEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = ThemeSettingsRepository::setAuraBackgroundEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_appearance_amoled_black),
                     description = stringResource(Res.string.settings_appearance_amoled_description),

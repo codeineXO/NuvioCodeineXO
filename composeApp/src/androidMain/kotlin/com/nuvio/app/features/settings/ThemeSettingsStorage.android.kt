@@ -23,6 +23,7 @@ actual object ThemeSettingsStorage {
     private const val selectedAppLanguageKey = "selected_app_language"
     private const val NAV_BAR_STYLE_KEY = "nav_bar_style"
     private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
+    private const val auraBackgroundEnabledKey = "aura_background_enabled"
     private val profileScopedSyncKeys = listOf(
         selectedThemeKey,
         customThemeColorsKey,
@@ -31,6 +32,7 @@ actual object ThemeSettingsStorage {
         liquidGlassNativeTabBarEnabledKey,
         desktopNavigationLayoutKey,
         NAV_BAR_STYLE_KEY,
+        auraBackgroundEnabledKey,
     )
 
     private var preferences: SharedPreferences? = null
@@ -144,6 +146,22 @@ actual object ThemeSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadAuraBackgroundEnabled(): Boolean? {
+        val key = ProfileScopedKey.of(auraBackgroundEnabledKey)
+        return if (preferences?.contains(key) == true) {
+            preferences?.getBoolean(key, true)
+        } else {
+            null
+        }
+    }
+
+    actual fun saveAuraBackgroundEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(auraBackgroundEnabledKey), enabled)
+            ?.apply()
+    }
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadSelectedTheme()?.let { put(selectedThemeKey, encodeSyncString(it)) }
         loadCustomThemeColors()?.let { put(customThemeColorsKey, encodeSyncString(it)) }
@@ -152,6 +170,7 @@ actual object ThemeSettingsStorage {
         loadLiquidGlassNativeTabBarEnabled()?.let { put(liquidGlassNativeTabBarEnabledKey, encodeSyncBoolean(it)) }
         loadDesktopNavigationLayout()?.let { put(desktopNavigationLayoutKey, encodeSyncString(it)) }
         loadNavBarStyle()?.let { put(NAV_BAR_STYLE_KEY, encodeSyncString(it)) }
+        loadAuraBackgroundEnabled()?.let { put(auraBackgroundEnabledKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -166,6 +185,7 @@ actual object ThemeSettingsStorage {
         payload.decodeSyncBoolean(liquidGlassNativeTabBarEnabledKey)?.let(::saveLiquidGlassNativeTabBarEnabled)
         payload.decodeSyncString(desktopNavigationLayoutKey)?.let(::saveDesktopNavigationLayout)
         payload.decodeSyncString(NAV_BAR_STYLE_KEY)?.let(::saveNavBarStyle)
+        payload.decodeSyncBoolean(auraBackgroundEnabledKey)?.let(::saveAuraBackgroundEnabled)
         applySelectedAppLanguage(loadSelectedAppLanguage() ?: AppLanguage.DEVICE.code)
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
@@ -18,9 +19,19 @@ import androidx.compose.material.icons.rounded.Policy
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import com.nuvio.app.core.build.AppVersionPolicy
+import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.updater.AppUpdaterPlatform
+import com.nuvio.app.features.updater.AppUpdaterRepository
+import com.nuvio.app.features.updater.UpdatePreferences
+import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_page_account
 import nuvio.composeapp.generated.resources.compose_settings_page_advanced
@@ -56,6 +67,9 @@ import nuvio.composeapp.generated.resources.updates_debug_test_description
 import nuvio.composeapp.generated.resources.updates_debug_test_title
 import nuvio.composeapp.generated.resources.about_supporters_contributors_subtitle
 import nuvio.composeapp.generated.resources.about_licenses_attributions_subtitle
+import nuvio.composeapp.generated.resources.updates_check_failed
+import nuvio.composeapp.generated.resources.updates_open_release_description
+import nuvio.composeapp.generated.resources.updates_open_release_title
 import org.jetbrains.compose.resources.stringResource
 
 private const val PRIVACY_POLICY_URL = "https://nuvio.tv/privacy-policy"
@@ -234,6 +248,40 @@ internal fun LazyListScope.settingsRootContent(
                                 )
                             },
                             onClick = onCheckForUpdatesClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        val releaseScope = rememberCoroutineScope()
+                        var isOpeningRelease by rememberSaveable { mutableStateOf(false) }
+                        val checkFailedMessage = stringResource(Res.string.updates_check_failed)
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.updates_open_release_title),
+                            description = stringResource(Res.string.updates_open_release_description),
+                            icon = Icons.Rounded.OpenInBrowser,
+                            isTablet = isTablet,
+                            onClick = {
+                                if (isOpeningRelease) return@SettingsNavigationRow
+                                isOpeningRelease = true
+                                releaseScope.launch {
+                                    try {
+                                        val channel = UpdatePreferences.shared.channel.value
+                                        AppUpdaterRepository.getLatestChannelUpdate(channel)
+                                            .onSuccess { update ->
+                                                val url = update.releaseUrl?.takeIf { it.isNotBlank() }
+                                                    ?: with(AppUpdaterPlatform.releaseSource) {
+                                                        "https://github.com/$owner/$repo/releases/latest"
+                                                    }
+                                                uriHandler.openUri(url)
+                                            }
+                                            .onFailure { error ->
+                                                NuvioToastController.show(
+                                                    error.message ?: checkFailedMessage,
+                                                )
+                                            }
+                                    } finally {
+                                        isOpeningRelease = false
+                                    }
+                                }
+                            },
                         )
                     }
                     if (onTestUpdateBannerClick != null) {

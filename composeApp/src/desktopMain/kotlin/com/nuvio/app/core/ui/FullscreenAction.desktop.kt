@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.nuvio.app.features.player.desktop.desktopFullscreenChanges
+import com.nuvio.app.features.player.desktop.exitDesktopAppFullscreen
 import com.nuvio.app.features.player.desktop.isDesktopAppFullscreen
 import com.nuvio.app.features.player.desktop.toggleDesktopAppFullscreen
 
@@ -18,4 +19,8 @@ internal actual fun isFullscreenActionActive(): Boolean {
 
 internal actual fun toggleFullscreenAction() {
     toggleDesktopAppFullscreen()
+}
+
+internal actual fun exitFullscreenAction() {
+    exitDesktopAppFullscreen()
 }

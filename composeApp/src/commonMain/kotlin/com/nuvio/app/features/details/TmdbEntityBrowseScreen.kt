@@ -110,7 +110,7 @@ fun TmdbEntityBrowseScreen(
         uiState = if (data != null) {
             val pattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
                 repo.ensureLoaded()
-                repo.pattern.value
+                repo.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.DETAILS)
             }
             EntityBrowseUiState.Success(data.withCustomPosterUrls(pattern))
         } else {
@@ -145,6 +145,7 @@ fun TmdbEntityBrowseScreen(
                     NuvioBackButton(
                         onClick = onBack,
                         modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.statusBars)
                             .padding(
                                 start = desktopPageHorizontalPaddingForWidth(maxWidth.value),
                                 top = 32.dp,

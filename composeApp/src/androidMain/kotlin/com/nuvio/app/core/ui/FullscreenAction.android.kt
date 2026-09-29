@@ -8,3 +8,5 @@ internal actual val isFullscreenActionSupported: Boolean = false
 internal actual fun isFullscreenActionActive(): Boolean = false
 
 internal actual fun toggleFullscreenAction() = Unit
+
+internal actual fun exitFullscreenAction() = Unit

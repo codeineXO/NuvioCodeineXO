@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
@@ -43,8 +44,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,12 +62,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
-import com.nuvio.app.core.ui.FullscreenActionButton
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.NuvioDesktopImageScaling
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioTokens
-import com.nuvio.app.core.ui.isFullscreenActionSupported
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.heroStretchHeight
 import com.nuvio.app.core.ui.ScreenActivityEffect
@@ -112,6 +114,26 @@ internal data class HomeHeroLayout(
     val logoWidthFraction: Float,
     val backgroundMotionStrength: Float,
 )
+
+internal fun Modifier.heroBottomFeather(bottomFadeRatio: Float = 0.42f): Modifier =
+    this.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+        .drawWithContent {
+            drawContent()
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.00f to Color.Black,
+                        (1f - bottomFadeRatio) to Color.Black,
+                        (1f - bottomFadeRatio * 0.65f) to Color.Black.copy(alpha = 0.90f),
+                        (1f - bottomFadeRatio * 0.38f) to Color.Black.copy(alpha = 0.58f),
+                        (1f - bottomFadeRatio * 0.18f) to Color.Black.copy(alpha = 0.25f),
+                        (1f - bottomFadeRatio * 0.06f) to Color.Black.copy(alpha = 0.06f),
+                        1.00f to Color.Transparent,
+                    ),
+                ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
 
 @Composable
 fun HomeHeroSection(
@@ -172,13 +194,7 @@ fun HomeHeroSection(
                 coroutineScope = coroutineScope,
                 onDragActiveChange = { pagerDragActive = it },
             )
-            .then(
-                if (isDesktop) {
-                    Modifier.graphicsLayer { clip = true }
-                } else {
-                    Modifier.clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                },
-            ),
+            .heroBottomFeather(bottomFadeRatio = 0.42f),
     ) {
         val layout = homeHeroLayout(
             maxWidthDp = maxWidth.value,
@@ -443,10 +459,10 @@ private fun DefaultHomeHeroFrame(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.02f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.12f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.34f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.78f),
+                            Color.Black.copy(alpha = 0.02f),
+                            Color.Black.copy(alpha = 0.10f),
+                            Color.Black.copy(alpha = 0.28f),
+                            Color.Black.copy(alpha = 0.65f),
                         ),
                     ),
                 ),
@@ -460,8 +476,9 @@ private fun DefaultHomeHeroFrame(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
-                            MaterialTheme.colorScheme.background,
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Black.copy(alpha = 0.75f),
                         ),
                     ),
                 ),
@@ -537,15 +554,12 @@ private fun DesktopHomeHeroFrame(
     coroutineScope: CoroutineScope,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
     val opacity = NuvioTokens.Opacity
     val space = NuvioTokens.Space
-    val backgroundColor = colorScheme.background
+    val colorScheme = MaterialTheme.colorScheme
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColor),
+        modifier = Modifier.fillMaxSize(),
     ) {
         HeroBackgroundLayers(
             items = items,
@@ -567,7 +581,7 @@ private fun DesktopHomeHeroFrame(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            backgroundColor.copy(alpha = opacity.overlayHeavy),
+                            Color.Black.copy(alpha = opacity.overlayHeavy),
                             Color.Transparent,
                         ),
                     ),
@@ -580,13 +594,13 @@ private fun DesktopHomeHeroFrame(
                 .background(
                     Brush.horizontalGradient(
                         colorStops = arrayOf(
-                            0.00f to backgroundColor.copy(alpha = 0.96f),
-                            0.08f to backgroundColor.copy(alpha = 0.90f),
-                            0.16f to backgroundColor.copy(alpha = 0.76f),
-                            0.26f to backgroundColor.copy(alpha = 0.54f),
-                            0.36f to backgroundColor.copy(alpha = 0.30f),
-                            0.46f to backgroundColor.copy(alpha = 0.12f),
-                            0.54f to Color.Transparent,
+                            0.00f to Color.Black.copy(alpha = 0.88f),
+                            0.08f to Color.Black.copy(alpha = 0.82f),
+                            0.16f to Color.Black.copy(alpha = 0.68f),
+                            0.26f to Color.Black.copy(alpha = 0.46f),
+                            0.36f to Color.Black.copy(alpha = 0.24f),
+                            0.46f to Color.Black.copy(alpha = 0.08f),
+                            0.56f to Color.Transparent,
                         ),
                     ),
                 ),
@@ -600,8 +614,9 @@ private fun DesktopHomeHeroFrame(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            backgroundColor.copy(alpha = 0f),
-                            backgroundColor,
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Black.copy(alpha = 0.75f),
                         ),
                     ),
                 ),
@@ -632,21 +647,6 @@ private fun DesktopHomeHeroFrame(
                     heroWidthPx = heroWidthPx,
                     onItemClick = onItemClick,
                     includePagerNeighbors = includePagerNeighbors,
-                )
-            }
-
-            if (isFullscreenActionSupported) {
-                FullscreenActionButton(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(
-                            top = space.s32,
-                            end = contentHorizontalPadding,
-                        ),
-                    buttonSize = 48.dp,
-                    iconSize = 24.dp,
-                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
-                    contentColor = colorScheme.onSurface,
                 )
             }
 
@@ -788,7 +788,7 @@ fun HomeHeroReservedSpace(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+            .heroBottomFeather(bottomFadeRatio = 0.42f),
     ) {
         val layout = homeHeroLayout(
             maxWidthDp = maxWidth.value,
@@ -1137,7 +1137,7 @@ private fun desktopHeroHeight(
     maxWidthDp: Float,
     viewportHeightDp: Float?,
 ): Dp {
-    val baselineHeight = (maxWidthDp * 0.56f).dp.coerceIn(460.dp, 660.dp)
+    val baselineHeight = (maxWidthDp * 0.56f).dp.coerceIn(460.dp, 640.dp)
     val viewportHeight = viewportHeightDp ?: return baselineHeight
     val ultrawideProgress = ultrawideViewportProgress(
         widthDp = maxWidthDp,

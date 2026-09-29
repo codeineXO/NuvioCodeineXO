@@ -95,7 +95,7 @@ data class StreamItem(
             ?: torrentSchemeUri.extractTorrentSchemeInfoHash()
 
     val p2pFileIdx: Int?
-        get() = fileIdx ?: torrentSchemeUri.extractTorrentSchemeFileIdx()
+        get() = fileIdx ?: clientResolve?.fileIdx ?: torrentSchemeUri.extractTorrentSchemeFileIdx()
 
     val p2pTrackers: List<String>
         get() = sources
@@ -142,12 +142,27 @@ private fun String?.extractTorrentSchemeInfoHash(): String? {
 
 private fun String?.extractTorrentSchemeFileIdx(): Int? {
     val raw = this?.trimStart()?.takeIf { it.isTorrentSchemeUrl() } ?: return null
-    val path = raw.removeRange(0, "torrent://".length).substringBefore('?')
-    if ('/' !in path) return null
-    return path.substringAfter('/')
+    val remainder = raw.removeRange(0, "torrent://".length)
+    val path = remainder.substringBefore('?').substringBefore('#')
+    val pathIndex = path.substringAfter('/', missingDelimiterValue = "")
         .trim()
         .takeIf { segment -> segment.isNotEmpty() && segment.all { it.isDigit() } }
         ?.toIntOrNull()
+    if (pathIndex != null) return pathIndex
+
+    val query = remainder.substringAfter('?', missingDelimiterValue = "").substringBefore('#')
+    return query.split('&').firstNotNullOfOrNull { parameter ->
+        val separator = parameter.indexOf('=')
+        if (separator < 0) return@firstNotNullOfOrNull null
+        val name = parameter.substring(0, separator).trim()
+        if (!name.equals("index", ignoreCase = true) && !name.equals("fileIdx", ignoreCase = true)) {
+            return@firstNotNullOfOrNull null
+        }
+        parameter.substring(separator + 1)
+            .trim()
+            .takeIf { value -> value.isNotEmpty() && value.all { it.isDigit() } }
+            ?.toIntOrNull()
+    }
 }
 
 private fun String.isValidInfoHash(): Boolean =

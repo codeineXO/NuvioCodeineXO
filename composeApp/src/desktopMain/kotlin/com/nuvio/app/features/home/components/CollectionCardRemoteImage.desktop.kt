@@ -1,9 +1,6 @@
 package com.nuvio.app.features.home.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -63,8 +60,8 @@ private val desktopGifHttpClient by lazy {
 
 private val downloadSemaphore = Semaphore(4)
 
-// Disk-persisted cache of raw gif bytes, so a gif that was ever hovered doesn't need to hit
-// the network again on the next app launch - only the very first hover ever pays network cost.
+// Disk-persisted cache of raw gif bytes, so a gif that was ever shown doesn't need to hit
+// the network again on the next app launch - only the very first display ever pays network cost.
 private val gifDiskCacheDir: Path by lazy {
     DesktopStorage.cacheDir.resolve("gif-cache").also {
         runCatching { Files.createDirectories(it) }
@@ -222,14 +219,21 @@ internal actual fun CollectionCardRemoteImage(
     contentScale: ContentScale,
     animateIfPossible: Boolean,
 ) {
-    val hoverInteractionSource = remember { MutableInteractionSource() }
-    val isHovered by hoverInteractionSource.collectIsHoveredAsState()
-
-    val shouldAnimate = animateIfPossible && (isHovered || staticImageUrl.isNullOrBlank())
+    // Collection banners always animate once visible - no hover required.
+    val shouldAnimate = animateIfPossible
 
     var composeBitmap by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
 
-
+    // Prefetch as soon as the card becomes visible (not on hover) so the codec is already
+    // downloaded/decoded and cached by the time animation starts - playback then reads
+    // straight from gifCodecCache with zero network/decode delay.
+    if (animateIfPossible) {
+        LaunchedEffect(imageUrl) {
+            if (synchronized(gifCodecCache) { !gifCodecCache.containsKey(imageUrl) }) {
+                loadDesktopGifCodec(imageUrl)
+            }
+        }
+    }
 
     if (shouldAnimate) {
         var codecHolder by remember(imageUrl) {
@@ -246,7 +250,7 @@ internal actual fun CollectionCardRemoteImage(
         if (currentHolder != null && currentHolder.frameDelaysMs.isNotEmpty()) {
             var frameIndex by remember(imageUrl) { mutableStateOf(0) }
 
-            // Allocate ONLY ONE single reusable Skia Bitmap for this card while hovered
+            // Allocate ONLY ONE single reusable Skia Bitmap for this card while animating
             val singleBitmap = remember(imageUrl, currentHolder) {
                 try {
                     Bitmap().apply {
@@ -331,7 +335,7 @@ internal actual fun CollectionCardRemoteImage(
             .build()
     }
 
-    Box(modifier = modifier.hoverable(hoverInteractionSource)) {
+    Box(modifier = modifier) {
         // Stacked Base Layer: uses NuvioAsyncImage with desktop high-quality anti-aliased scaling
         AsyncImage(
             model = request,

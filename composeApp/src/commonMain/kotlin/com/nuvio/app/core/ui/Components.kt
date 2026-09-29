@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -83,6 +84,7 @@ fun NuvioScreen(
     horizontalPadding: Dp = MaterialTheme.nuvio.spacing.screenHorizontal,
     topPadding: Dp? = null,
     listState: LazyListState = rememberLazyListState(),
+    backgroundColor: Color = MaterialTheme.nuvio.colors.background,
     content: LazyListScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -90,7 +92,13 @@ fun NuvioScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(tokens.colors.background),
+            .then(
+                if (backgroundColor != Color.Transparent) {
+                    Modifier.background(backgroundColor)
+                } else {
+                    Modifier
+                }
+            ),
     ) {
         LazyColumn(
             state = listState,
@@ -136,6 +144,7 @@ fun NuvioSurfaceCard(
         modifier = modifier.fillMaxWidth(),
         color = tokens.colors.surface,
         shape = tokens.shapes.card,
+        border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
         tonalElevation = tonalElevation.dp,
         shadowElevation = tokens.elevation.flat,
     ) {

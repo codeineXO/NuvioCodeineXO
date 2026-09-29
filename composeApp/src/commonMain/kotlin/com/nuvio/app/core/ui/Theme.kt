@@ -46,20 +46,29 @@ val MaterialTheme.appTheme: AppTheme
 private fun contentColorFor(background: Color): Color =
     if (background.luminance() > 0.5f) Color(0xFF111111) else Color(0xFFF5F7F8)
 
-private fun buildColorScheme(palette: ThemeColorPalette, amoled: Boolean = false) = darkColorScheme(
+private fun buildColorScheme(
+    palette: ThemeColorPalette,
+    amoled: Boolean = false,
+    auraEnabled: Boolean = false,
+) = darkColorScheme(
     primary = palette.secondary,
     onPrimary = palette.onSecondary,
-    primaryContainer = palette.focusBackground,
+    primaryContainer = if (auraEnabled) palette.focusBackground.copy(alpha = 0.80f) else palette.focusBackground,
     onPrimaryContainer = contentColorFor(palette.focusBackground),
     secondary = palette.secondaryVariant,
     onSecondary = palette.onSecondaryVariant,
     background = if (amoled) Color.Black else palette.background,
     onBackground = Color(0xFFF5F7F8),
-    surface = palette.backgroundElevated,
+    surface = if (auraEnabled) palette.backgroundElevated.copy(alpha = 0.85f) else palette.backgroundElevated,
     onSurface = Color(0xFFF5F7F8),
-    surfaceVariant = palette.backgroundCard,
+    surfaceVariant = if (auraEnabled) palette.backgroundCard.copy(alpha = 0.80f) else palette.backgroundCard,
     onSurfaceVariant = Color(0xFF969CA3),
-    outline = Color(0xFF252A2A),
+    surfaceContainer = if (auraEnabled) palette.backgroundElevated.copy(alpha = 0.85f) else palette.backgroundElevated,
+    surfaceContainerLow = if (auraEnabled) palette.backgroundElevated.copy(alpha = 0.75f) else Color(0xFF161616),
+    surfaceContainerHigh = if (auraEnabled) palette.backgroundElevated.copy(alpha = 0.90f) else Color(0xFF222222),
+    surfaceContainerHighest = if (auraEnabled) palette.backgroundCard.copy(alpha = 0.92f) else Color(0xFF282828),
+    outline = if (auraEnabled) Color.White.copy(alpha = 0.14f) else Color(0xFF252A2A),
+    outlineVariant = if (auraEnabled) Color.White.copy(alpha = 0.08f) else Color(0xFF252A2A).copy(alpha = 0.55f),
     error = Color(0xFFE36A8A),
     onError = Color(0xFFFCE5EC),
 )
@@ -220,13 +229,14 @@ fun NuvioTheme(
     amoled: Boolean = false,
     desktopUiScale: Float = NuvioDesktopMinUiScale,
     customThemeColors: CustomThemeColors = CustomThemeColors.Default,
+    auraEnabled: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val palette = remember(appTheme, customThemeColors) {
         ThemeColors.getColorPalette(appTheme, customThemeColors)
     }
-    val colorScheme = buildColorScheme(palette, amoled = amoled)
-    val tokens = defaultNuvioThemeTokens(palette, amoled = amoled, colorScheme = colorScheme)
+    val colorScheme = buildColorScheme(palette, amoled = amoled, auraEnabled = auraEnabled)
+    val tokens = defaultNuvioThemeTokens(palette, amoled = amoled, colorScheme = colorScheme, auraEnabled = auraEnabled)
 
     val density = LocalDensity.current
     val effectiveDesktopUiScale = if (isDesktop) {

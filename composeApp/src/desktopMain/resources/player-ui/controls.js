@@ -1,4 +1,4 @@
-﻿const root = document.getElementById("playerRoot");
+const root = document.getElementById("playerRoot");
 const seek = document.getElementById("seek");
 const positionLabel = document.getElementById("position");
 const durationLabel = document.getElementById("duration");
@@ -904,7 +904,34 @@ const cssColorOrFallback = (value, fallback) => {
   return /^(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))$/.test(text) ? text : fallback;
 };
 
+let lastAppliedThemeSignature = "";
+const getThemeSignature = () => [
+  state.themeAccentColor || "",
+  (state.themeAccentGradientColors || []).join(","),
+  state.themeAccentStrongColor || "",
+  state.themeOnAccentColor || "",
+  state.themeFocusColor || "",
+  state.themeSelectedSurfaceColor || "",
+  state.themeSelectedSurfaceHoverColor || "",
+  state.themeSelectedRingColor || "",
+  state.themeTimelineFillColor || "",
+  state.themeTimelineTrackColor || "",
+  state.themeBufferingColor || "",
+  state.themeBufferingTrackColor || "",
+  state.themeControlForegroundColor || "",
+  state.themeSurfaceElevatedColor || "",
+  state.themeSurfaceCardColor || "",
+  state.themeSurfacePopoverColor || "",
+  state.themeTextPrimaryColor || "",
+  state.themeTextSecondaryColor || "",
+  state.themeTextMutedColor || "",
+  state.themeBorderDefaultColor || "",
+].join("##");
+
 const applyTheme = () => {
+  const sig = getThemeSignature();
+  if (sig === lastAppliedThemeSignature) return;
+  lastAppliedThemeSignature = sig;
   const style = document.documentElement.style;
   const gradientColors = Array.isArray(state.themeAccentGradientColors)
     ? state.themeAccentGradientColors.map(color => cssColorOrFallback(color, "")).filter(Boolean)
@@ -976,8 +1003,11 @@ const setProgress = (positionMs, durationMs) => {
 };
 
 const setText = (element, text) => {
-  element.textContent = text || "";
-  element.hidden = !text;
+  if (!element) return;
+  const clean = text || "";
+  if (element.textContent !== clean) element.textContent = clean;
+  const isHidden = !clean;
+  if (element.hidden !== isHidden) element.hidden = isHidden;
 };
 
 const setVisible = (element, visible) => {
@@ -1158,6 +1188,8 @@ const setModalVisibility = (modal, visible, animated = true) => {
 const closePlayerModal = (notifyDismiss = false, animated = true) => {
   const closingModal = activeModal;
   activeModal = "";
+  lastRenderedModal = "";
+  lastRenderedModalSignature = "";
   modalElements.forEach(modal => {
     setModalVisibility(modal, false, animated);
   });
@@ -1189,7 +1221,7 @@ const openPlayerModal = modal => {
   if (modal === "subtitles") {
     resetSubtitleSelectionState();
   }
-  renderActiveModal();
+  renderActiveModal(true);
   modalElements.forEach(modalElement => {
     setModalVisibility(modalElement, modalElement === targetModal);
   });
@@ -1258,6 +1290,8 @@ const renderSpeedOptionList = () => {
     row.appendChild(buildCheckIcon());
     speedOptionList.appendChild(row);
   });
+  lastRenderedModal = "speed";
+  lastRenderedModalSignature = getSpeedModalSignature();
 };
 
 const renderAudioTrackList = () => {
@@ -1266,6 +1300,8 @@ const renderAudioTrackList = () => {
   const tracks = normalizeTracks(state.audioTracks);
   if (tracks.length === 0) {
     appendEmptyTrackState(audioTrackList, state.noAudioTracksLabel || "No audio tracks available");
+    lastRenderedModal = "audio";
+    lastRenderedModalSignature = getAudioModalSignature();
     return;
   }
   tracks.forEach(track => {
@@ -1294,6 +1330,8 @@ const renderAudioTrackList = () => {
     row.appendChild(buildCheckIcon());
     audioTrackList.appendChild(row);
   });
+  lastRenderedModal = "audio";
+  lastRenderedModalSignature = getAudioModalSignature();
 };
 
 const normalizedLanguageCode = value => String(value || "")
@@ -1697,10 +1735,95 @@ const renderSubtitleModal = () => {
   subtitleOptionsRailTitle.textContent = state.subtitlesPanelTitle || "Subtitles";
   subtitleStyleRailTitle.textContent = state.subtitleStyleTabLabel || "Style";
   renderSubtitleSelectionRails();
+  lastRenderedModal = "subtitles";
+  lastRenderedModalSignature = getSubtitlesModalSignature();
 };
 
 const normalizeItems = items =>
   Array.isArray(items) ? items.filter(item => item && typeof item === "object") : [];
+
+const enableHorizontalDragScroll = container => {
+  if (!container || container.dataset.dragScrollEnabled) return;
+  container.dataset.dragScrollEnabled = "true";
+
+  let isDown = false;
+  let startX = 0;
+  let scrollLeft = 0;
+  let hasDragged = false;
+  let activePointerId = null;
+
+  container.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    isDown = true;
+    hasDragged = false;
+    startX = event.pageX;
+    scrollLeft = container.scrollLeft;
+    activePointerId = event.pointerId;
+  });
+
+  const onPointerMove = event => {
+    if (!isDown) return;
+    if (activePointerId !== null && event.pointerId !== activePointerId) return;
+    const walk = event.pageX - startX;
+    if (!hasDragged && Math.abs(walk) > 6) {
+      hasDragged = true;
+      container.classList.add("is-dragging");
+      try {
+        container.setPointerCapture(event.pointerId);
+      } catch (_) {}
+    }
+    if (hasDragged) {
+      container.scrollLeft = scrollLeft - walk;
+      event.preventDefault();
+    }
+  };
+
+  const onPointerUp = event => {
+    if (!isDown) return;
+    isDown = false;
+    container.classList.remove("is-dragging");
+    if (activePointerId !== null) {
+      try {
+        if (container.hasPointerCapture(activePointerId)) {
+          container.releasePointerCapture(activePointerId);
+        }
+      } catch (_) {}
+      activePointerId = null;
+    }
+    if (hasDragged) {
+      window.setTimeout(() => {
+        hasDragged = false;
+      }, 50);
+    }
+  };
+
+  container.addEventListener("pointermove", onPointerMove);
+  container.addEventListener("pointerup", onPointerUp);
+  container.addEventListener("pointercancel", onPointerUp);
+
+  container.addEventListener(
+    "click",
+    event => {
+      if (hasDragged) {
+        event.stopPropagation();
+        event.preventDefault();
+        hasDragged = false;
+      }
+    },
+    true
+  );
+
+  container.addEventListener(
+    "wheel",
+    event => {
+      if (event.deltaX === 0 && event.deltaY !== 0) {
+        container.scrollLeft += event.deltaY;
+        event.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+};
 
 const appendFilterChip = (container, label, selected, onSelect, isLoading = false, hasError = false) => {
   const chip = document.createElement("button");
@@ -1722,6 +1845,7 @@ const appendFilterChip = (container, label, selected, onSelect, isLoading = fals
 };
 
 const renderFilterRow = (container, filters, selectedId, onSelect) => {
+  enableHorizontalDragScroll(container);
   container.textContent = "";
   const list = normalizeItems(filters);
   container.hidden = list.length === 0;
@@ -2013,6 +2137,8 @@ const renderSourceModal = () => {
       sourceList,
       state.sourceIsLoading ? "Loading streams..." : (state.noStreamsLabel || "No streams found"),
     );
+    lastRenderedModal = "sources";
+    lastRenderedModalSignature = getSourcesModalSignature();
     return;
   }
   const nextKey = sourceKeyForItems(items);
@@ -2028,6 +2154,8 @@ const renderSourceModal = () => {
   sourceList.appendChild(sourceVirtualSpacer);
   rebuildSourceVirtualLayout();
   renderSourceVirtualRows();
+  lastRenderedModal = "sources";
+  lastRenderedModalSignature = getSourcesModalSignature();
 };
 
 const appendEpisodeRow = (container, item) => {
@@ -2113,7 +2241,7 @@ const renderEpisodeList = () => {
     selectedSeason == null ? "" : String(selectedSeason),
     id => {
       selectedEpisodeSeason = Number(id);
-      renderEpisodeList();
+      renderEpisodesModal();
     },
   );
 
@@ -2143,7 +2271,7 @@ const renderEpisodeStreams = () => {
   }
   renderFilterRow(episodeStreamFilterList, filters, episodeStreamFilterId, id => {
     episodeStreamFilterId = id;
-    renderEpisodeStreams();
+    renderEpisodesModal();
   });
 
   episodeStreamList.textContent = "";
@@ -2175,6 +2303,8 @@ const renderEpisodesModal = () => {
   } else {
     renderEpisodeList();
   }
+  lastRenderedModal = "episodes";
+  lastRenderedModalSignature = getEpisodesModalSignature();
 };
 
 const setInputValue = (input, value) => {
@@ -2206,6 +2336,9 @@ const renderSubmitIntroModal = () => {
   setInputValue(submitIntroStartInput, submitIntroDraft.startTime);
   setInputValue(submitIntroEndInput, submitIntroDraft.endTime);
   submitIntroStatus.textContent = submitIntroDraft.status || state.submitIntroStatusMessage || "";
+
+  lastRenderedModal = "submitIntro";
+  lastRenderedModalSignature = getSubmitIntroModalSignature();
 };
 
 const renderP2pConsentModal = () => {
@@ -2214,26 +2347,9 @@ const renderP2pConsentModal = () => {
   p2pConsentCloseButton.textContent = state.p2pConsentCancelLabel || "Cancel";
   p2pConsentCancelButton.textContent = state.p2pConsentCancelLabel || "Cancel";
   p2pConsentEnableButton.textContent = state.p2pConsentEnableLabel || "Enable P2P";
-};
 
-const renderActiveModal = () => {
-  if (activeModal === "audio") renderAudioTrackList();
-  if (activeModal === "subtitles") renderSubtitleModal();
-  if (activeModal === "speed") renderSpeedOptionList();
-  if (activeModal === "sources") renderSourceModal();
-  if (activeModal === "episodes") renderEpisodesModal();
-  if (activeModal === "submitIntro") renderSubmitIntroModal();
-  if (activeModal === "p2pConsent") renderP2pConsentModal();
-};
-
-window.nuvioNativeViewportChanged = () => {
-  root.classList.add("native-resizing");
-  window.clearTimeout(nativeViewportTimer);
-  nativeViewportTimer = window.setTimeout(() => {
-    root.classList.remove("native-resizing");
-  }, 180);
-  syncSkipPromptPlacement(skipPrompt.classList.contains("visible"));
-  if (activeModal) renderActiveModal();
+  lastRenderedModal = "p2pConsent";
+  lastRenderedModalSignature = getP2pConsentModalSignature();
 };
 
 const trackListSignature = tracks =>
@@ -2246,6 +2362,192 @@ const trackListSignature = tracks =>
       Boolean(track.selected) ? "1" : "0",
     ].join(":"))
     .join("|");
+
+let lastRenderedModal = "";
+let lastRenderedModalSignature = "";
+
+const getAudioModalSignature = () => [
+  state.audioTracksPanelTitle || "",
+  state.noAudioTracksLabel || "",
+  trackListSignature(state.audioTracks),
+].join("##");
+
+const getSpeedModalSignature = () => [
+  state.speedPanelTitle || "",
+  state.playbackSpeedLabel || "",
+].join("##");
+
+const getSubtitlesModalSignature = () => {
+  const style = state.subtitleStyle || {};
+  return [
+    state.subtitlesPanelTitle || "",
+    state.subtitleLanguagesLabel || "",
+    state.subtitleBuiltInTabLabel || "",
+    state.subtitleAddonsTabLabel || "",
+    state.subtitleStyleTabLabel || "",
+    state.customSubtitleStyleLabel || "",
+    state.noneLabel || "",
+    state.fetchSubtitlesLabel || "",
+    state.subtitleDelayLabel || "",
+    state.resetLabel || "",
+    state.autoSyncLabel || "",
+    state.reloadSmallLabel || "",
+    state.captureLineLabel || "",
+    state.selectAddonSubtitleFirstLabel || "",
+    state.loadingSubtitleLinesLabel || "",
+    state.fontSizeLabel || "",
+    state.fontLabel || "",
+    state.outlineEffectLabel || "",
+    state.outlineLabel || "",
+    state.outlineThicknessLabel || "",
+    state.boldLabel || "",
+    state.bottomOffsetLabel || "",
+    state.colorLabel || "",
+    state.textOpacityLabel || "",
+    state.outlineColorLabel || "",
+    state.noSubtitleLinesFoundLabel || "",
+    state.resetDefaultsLabel || "",
+    state.onLabel || "",
+    state.offLabel || "",
+    Boolean(state.isLoadingAddonSubtitles),
+    activeSubtitleLanguageKey || "",
+    pendingSubtitleOptionId || "",
+    state.selectedSubtitleLanguageKey || "",
+    state.selectedSubtitleOptionId || "",
+    state.selectedAddonSubtitleId || "",
+    Boolean(state.useCustomSubtitles),
+    Boolean(state.customSubtitleStylingEnabled),
+    pendingCustomSubtitleStyling,
+    Number(state.subtitleDelayMs) || 0,
+    Boolean(state.hasSelectedAddonSubtitle),
+    Number(state.subtitleAutoSyncCapturedPositionMs) || 0,
+    Boolean(state.subtitleAutoSyncIsLoading),
+    state.subtitleAutoSyncErrorMessage || "",
+    style.textColor || "",
+    style.outlineColor || "",
+    Boolean(style.outlineEnabled),
+    Boolean(style.bold),
+    style.fontSizeSp || 18,
+    style.bottomOffset || 20,
+    style.fontName || "",
+    style.outlineEffect || "",
+    style.outlineWidth || 2,
+    style.backgroundColor || "",
+    (state.subtitleLanguageItems || []).map(l => `${l.key || ""}:${l.count || 0}:${l.label || ""}:${l.isSelected ? 1 : 0}`).join(";"),
+    (state.subtitleOptionItems || []).map(o => `${o.id || ""}:${o.kind || ""}:${o.languageKey || ""}:${o.sourceLabel || ""}:${o.title || ""}:${o.metadata || ""}:${o.isSelected ? 1 : 0}:${o.index || 0}`).join(";"),
+    (state.subtitleAutoSyncCues || []).map(c => `${c.index}:${c.timeLabel || ""}:${c.text || ""}`).join(";"),
+    (state.subtitleColorSwatches || []).join(","),
+    (state.subtitleOutlineColorSwatches || []).join(","),
+    trackListSignature(state.subtitleTracks),
+  ].join("##");
+};
+
+const getSourcesModalSignature = () => [
+  state.sourcesPanelTitle || "",
+  state.reloadLabel || "",
+  state.panelCloseLabel || "",
+  state.episodeText || "",
+  state.title || "",
+  state.noStreamsLabel || "",
+  Boolean(state.sourceIsLoading),
+  sourceFilterId || "",
+  (state.sourceFilters || []).map(f => `${f.id || ""}:${f.label || ""}:${f.isLoading ? 1 : 0}:${f.hasError ? 1 : 0}`).join(";"),
+  (state.sourceItems || []).map(i => `${i.index}:${i.filterId || ""}:${i.title || ""}:${i.details || ""}:${i.quality || ""}:${i.addonName || ""}:${i.isSelected ? 1 : 0}:${i.isCached ? 1 : 0}:${i.badgeText || ""}:${i.isDebrid ? 1 : 0}:${i.showAddonLogo ? 1 : 0}:${i.addonLogo || ""}`).join(";"),
+].join("##");
+
+const getEpisodesModalSignature = () => {
+  const showStreams = Boolean(state.episodeStreamsVisible);
+  return [
+    showStreams ? "streams" : "episodes",
+    state.episodesPanelTitle || "",
+    state.streamsPanelTitle || "",
+    state.panelCloseLabel || "",
+    state.backLabel || "",
+    state.reloadLabel || "",
+    state.noEpisodesLabel || "",
+    state.noStreamsLabel || "",
+    Boolean(state.blurUnwatchedEpisodes),
+    Boolean(state.episodeStreamsIsLoading),
+    state.selectedEpisodeLabel || "",
+    selectedEpisodeSeason == null ? "" : selectedEpisodeSeason,
+    episodeStreamFilterId || "",
+    (state.episodeSeasons || []).map(sea => `${sea.season}:${sea.label || ""}:${sea.isSelected ? 1 : 0}`).join(";"),
+    (state.episodeItems || []).map(ep => `${ep.index}:${ep.season}:${ep.episode}:${ep.code || ""}:${ep.title || ""}:${ep.thumbnail || ""}:${ep.isCurrent ? 1 : 0}:${ep.isWatched ? 1 : 0}:${ep.released || ""}:${ep.overview || ""}`).join(";"),
+    (state.episodeStreamFilters || []).map(f => `${f.id || ""}:${f.label || ""}:${f.isLoading ? 1 : 0}:${f.hasError ? 1 : 0}`).join(";"),
+    (state.episodeStreamItems || []).map(i => `${i.index}:${i.filterId || ""}:${i.title || ""}:${i.details || ""}:${i.quality || ""}:${i.addonName || ""}:${i.isSelected ? 1 : 0}:${i.isCached ? 1 : 0}:${i.badgeText || ""}:${i.isDebrid ? 1 : 0}:${i.showAddonLogo ? 1 : 0}:${i.addonLogo || ""}`).join(";"),
+  ].join("##");
+};
+
+const getSubmitIntroModalSignature = () => [
+  state.submitIntroPanelTitle || "",
+  state.panelCloseLabel || "",
+  state.submitIntroSegmentTypeLabel || "",
+  state.submitIntroSegmentIntroLabel || "",
+  state.submitIntroSegmentRecapLabel || "",
+  state.submitIntroSegmentOutroLabel || "",
+  state.submitIntroStartTimeLabel || "",
+  state.submitIntroEndTimeLabel || "",
+  state.submitIntroCaptureLabel || "",
+  state.submitIntroSubmitLabel || "",
+  state.cancelLabel || "",
+  Boolean(state.isSubmitIntroSubmitting),
+  state.submitIntroStatusMessage || "",
+  submitIntroDraft.contentKey || "",
+  submitIntroDraft.segmentType || "",
+  submitIntroDraft.startTime || "",
+  submitIntroDraft.endTime || "",
+  submitIntroDraft.status || "",
+].join("##");
+
+const getP2pConsentModalSignature = () => [
+  state.p2pConsentTitle || "",
+  state.p2pConsentBody || "",
+  state.p2pConsentCancelLabel || "",
+  state.p2pConsentEnableLabel || "",
+].join("##");
+
+const getActiveModalSignature = modal => {
+  if (modal === "audio") return getAudioModalSignature();
+  if (modal === "subtitles") return getSubtitlesModalSignature();
+  if (modal === "speed") return getSpeedModalSignature();
+  if (modal === "sources") return getSourcesModalSignature();
+  if (modal === "episodes") return getEpisodesModalSignature();
+  if (modal === "submitIntro") return getSubmitIntroModalSignature();
+  if (modal === "p2pConsent") return getP2pConsentModalSignature();
+  return "";
+};
+
+const renderActiveModal = (force = false) => {
+  if (!activeModal) {
+    lastRenderedModal = "";
+    lastRenderedModalSignature = "";
+    return;
+  }
+  const signature = getActiveModalSignature(activeModal);
+  if (!force && activeModal === lastRenderedModal && signature === lastRenderedModalSignature) {
+    return;
+  }
+  if (activeModal === "audio") renderAudioTrackList();
+  else if (activeModal === "subtitles") renderSubtitleModal();
+  else if (activeModal === "speed") renderSpeedOptionList();
+  else if (activeModal === "sources") renderSourceModal();
+  else if (activeModal === "episodes") renderEpisodesModal();
+  else if (activeModal === "submitIntro") renderSubmitIntroModal();
+  else if (activeModal === "p2pConsent") renderP2pConsentModal();
+
+  lastRenderedModal = activeModal;
+  lastRenderedModalSignature = signature;
+};
+
+window.nuvioNativeViewportChanged = () => {
+  root.classList.add("native-resizing");
+  window.clearTimeout(nativeViewportTimer);
+  nativeViewportTimer = window.setTimeout(() => {
+    root.classList.remove("native-resizing");
+  }, 180);
+  syncSkipPromptPlacement(skipPrompt.classList.contains("visible"));
+  if (activeModal) renderActiveModal(true);
+};
 
 const renderOpeningOverlay = suppress => {
   const progress = normalizedOpeningProgress();
@@ -2666,7 +2968,7 @@ const renderChrome = () => {
 const render = () => {
   applyTheme();
   renderChrome();
-  renderActiveModal();
+  renderActiveModal(false);
 };
 
 const focusShortcutRoot = () => {
@@ -3307,6 +3609,8 @@ episodeReloadButton.addEventListener("click", event => {
   send("reloadEpisodeStreams", 0);
 });
 
+[seasonFilterList, sourceFilterList, episodeStreamFilterList].forEach(enableHorizontalDragScroll);
+
 const updateSubmitSegment = segment => {
   submitIntroDraft.segmentType = segment;
   submitIntroDraft.status = "";
@@ -3538,7 +3842,7 @@ window.playerUpdate = update => {
   renderChrome();
   if ((audioTracksChanged && activeModal === "audio") ||
       (subtitleTracksChanged && activeModal === "subtitles")) {
-    renderActiveModal();
+    renderActiveModal(true);
   }
 };
 
@@ -3864,8 +4168,6 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     if (state.isInPip) {
       send("pictureInPicture", 0);
-    } else if (state.isFullscreen) {
-      togglePlayerFullscreen();
     } else {
       send("back", 0);
     }

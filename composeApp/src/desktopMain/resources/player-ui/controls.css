@@ -1,4 +1,4 @@
-﻿/* __NUVIO_PLAYER_FONT_FACES__ */
+/* __NUVIO_PLAYER_FONT_FACES__ */
 
 :root {
   --hp: 20px;
@@ -2278,10 +2278,22 @@ button:disabled {
   padding: 4px 8px;
   flex: 0 0 auto;
   scrollbar-width: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-x;
 }
 
 .filter-row::-webkit-scrollbar {
   display: none;
+}
+
+.filter-row.is-dragging {
+  cursor: grabbing;
+}
+
+.filter-row.is-dragging .filter-chip {
+  cursor: grabbing;
 }
 
 .player-side-panel .filter-row {

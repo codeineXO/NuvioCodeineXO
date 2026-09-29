@@ -669,6 +669,7 @@ internal class NativePlayerController(
                 bufferedPositionMs = NativePlayerBridge.bufferedPositionMs(current),
                 playbackSpeed = NativePlayerBridge.speed(current),
                 downloadSpeedBytes = cacheSpeed,
+                downloadSpeedAvailable = WindowsMpvSubStyleHelper.supportsCacheSpeed(),
             )
         }.getOrDefault(PlayerPlaybackSnapshot(isLoading = true))
     }
@@ -1111,7 +1112,11 @@ internal class NativePlayerController(
             SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
             SubtitleOutlineEffect.SOFT_GLOW -> (style.outlineWidth.toFloat() * 1.5f).coerceAtLeast(3f)
             SubtitleOutlineEffect.OUTLINE,
-            SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f
+            SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> if (style.outlineEffect.needsOutline) {
+                style.outlineWidth.toFloat()
+            } else {
+                0f
+            }
         }
 
         val resolvedBackgroundColor = if (isBackgroundBox) {

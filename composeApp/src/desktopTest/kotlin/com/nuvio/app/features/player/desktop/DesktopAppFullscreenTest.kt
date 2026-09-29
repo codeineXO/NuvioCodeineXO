@@ -61,4 +61,62 @@ class DesktopAppFullscreenTest {
             updates,
         )
     }
+
+    @Test
+    fun `exitDesktopAppFullscreen is a no-op when already windowed`() {
+        var toggled = false
+        val unregister = registerDesktopAppFullscreenToggle(
+            handler = { toggled = true },
+            isFullscreen = { false },
+        )
+        try {
+            exitDesktopAppFullscreen()
+            javax.swing.SwingUtilities.invokeAndWait {}
+            assertEquals(false, toggled)
+        } finally {
+            unregister()
+        }
+    }
+
+    @Test
+    fun `exitDesktopAppFullscreen triggers toggle when fullscreen`() {
+        var toggled = false
+        val unregister = registerDesktopAppFullscreenToggle(
+            handler = { toggled = true },
+            isFullscreen = { true },
+        )
+        try {
+            exitDesktopAppFullscreen()
+            javax.swing.SwingUtilities.invokeAndWait {}
+            assertEquals(true, toggled)
+        } finally {
+            unregister()
+        }
+    }
+
+    @Test
+    fun `setDesktopAppFullscreen is a no-op when already in target state`() {
+        var toggleCount = 0
+        var isFullscreenState = true
+        val unregister = registerDesktopAppFullscreenToggle(
+            handler = { toggleCount++ },
+            isFullscreen = { isFullscreenState },
+        )
+        try {
+            setDesktopAppFullscreen(fullscreen = true)
+            javax.swing.SwingUtilities.invokeAndWait {}
+            assertEquals(0, toggleCount)
+
+            isFullscreenState = false
+            setDesktopAppFullscreen(fullscreen = false)
+            javax.swing.SwingUtilities.invokeAndWait {}
+            assertEquals(0, toggleCount)
+
+            setDesktopAppFullscreen(fullscreen = true)
+            javax.swing.SwingUtilities.invokeAndWait {}
+            assertEquals(1, toggleCount)
+        } finally {
+            unregister()
+        }
+    }
 }

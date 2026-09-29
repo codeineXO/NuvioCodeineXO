@@ -50,6 +50,18 @@
         Maximum="$(var.JpAppVersion)"
         MigrateFeatures="yes"
         IncludeMaximum="$(var.JpUpgradeVersionOnlyDetectUpgrade)" />
+      <!-- RemoveExistingProducts only acts on OLDERVERSIONBEINGUPGRADED. Without
+           this row the older install is never uninstalled and stays listed in
+           Apps &amp; features even though its files were overwritten. Minimum is
+           pinned to 1.0.0 so this row cannot collide with the identical
+           JP_UPGRADABLE_FOUND row above, since the Upgrade table key includes it. -->
+      <UpgradeVersion
+        OnlyDetect="$(var.JpUpgradeVersionOnlyDetectUpgrade)"
+        Property="OLDERVERSIONBEINGUPGRADED"
+        Minimum="1.0.0"
+        Maximum="$(var.JpAppVersion)"
+        MigrateFeatures="yes"
+        IncludeMaximum="$(var.JpUpgradeVersionOnlyDetectUpgrade)" />
       <UpgradeVersion
         OnlyDetect="$(var.JpUpgradeVersionOnlyDetectDowngrade)"
         Property="JP_DOWNGRADABLE_FOUND"
@@ -70,7 +82,12 @@
     <CustomAction Id="SetINSTALLDIRFromPrev" Property="INSTALLDIR" Value="[PREVIOUSINSTALLDIR_CUSTOM]" />
     <CustomAction Id="SetINSTALLDIRFromPrevLegacy" Property="INSTALLDIR" Value="[PREVIOUSINSTALLDIR_LEGACY]" />
 
-    <!-- Graceful shutdown of running processes before upgrade/uninstall -->
+    <!-- Graceful shutdown of running processes before upgrade/uninstall.
+         The app handles WM_CLOSE itself (DesktopAppShutdown: window closes
+         immediately, bounded cleanup, then guaranteed exitProcess), so a plain
+         close message suffices. No force-kill here: it broke the install with
+         MSI 2762, and the app-side exit plus the updater's launch-and-exit
+         watchdog already guarantee the files are unlocked. -->
     <util:CloseApplication Id="CloseNuvioApp" Target="NuvioCodeineXO.exe" CloseMessage="yes" RebootPrompt="no" />
     <util:CloseApplication Id="CloseNuvioLegacy" Target="Nuvio.exe" CloseMessage="yes" RebootPrompt="no" />
 
@@ -97,7 +114,12 @@
     <?endif?>
 
     <Binary Id="JpCaDll" SourceFile="wixhelper.dll"/>
-    <CustomAction Id="JpFindRelatedProducts" BinaryKey="JpCaDll" DllEntry="FindRelatedProductsEx" />
+    <!-- JpFindRelatedProducts (FindRelatedProductsEx in wixhelper.dll) is
+         deliberately not scheduled. It calls MsiEnumRelatedProducts, which fails
+         with error 87 on this host, and then clears JP_UPGRADABLE_FOUND, so
+         RemoveExistingProducts sees nothing to uninstall and the previous
+         version stays registered in Apps & features. The built-in
+         FindRelatedProducts action plus the Upgrade table do this correctly. -->
 
     <!-- Standard required root -->
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -158,13 +180,18 @@
       <?endif?>
 
       <?ifndef JpAllowUpgrades ?>
-      <Custom Action="JpDisallowUpgrade" After="JpFindRelatedProducts">JP_UPGRADABLE_FOUND</Custom>
+      <Custom Action="JpDisallowUpgrade" After="FindRelatedProducts">JP_UPGRADABLE_FOUND</Custom>
       <?endif?>
       <?ifndef JpAllowDowngrades ?>
-      <Custom Action="JpDisallowDowngrade" After="JpFindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
+      <Custom Action="JpDisallowDowngrade" After="FindRelatedProducts">JP_DOWNGRADABLE_FOUND</Custom>
       <?endif?>
+      <!-- The updater launches MSI detached and exits first, but a manual
+           double-click install must still close a running app here.
+           RemoveExistingProducts sits at 798, and util:CloseApplication would
+           schedule WixCloseApplications at 1499, so the removal would unlink
+           the running app's files first. Close it ahead of the removal instead. -->
+      <Custom Action="WixCloseApplications" Before="RemoveExistingProducts">VersionNT &gt; 400</Custom>
       <RemoveExistingProducts Before="CostInitialize"/>
-      <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
 
       <!-- Clean old files on upgrade before copying new files -->
       <Custom Action="SetCleanOldFilesCmd" Before="CleanOldFilesAction">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
@@ -174,7 +201,6 @@
     <InstallUISequence>
       <Custom Action="SetINSTALLDIRFromPrev" After="AppSearch">PREVIOUSINSTALLDIR_CUSTOM</Custom>
       <Custom Action="SetINSTALLDIRFromPrevLegacy" After="SetINSTALLDIRFromPrev">PREVIOUSINSTALLDIR_LEGACY AND NOT PREVIOUSINSTALLDIR_CUSTOM</Custom>
-      <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
     </InstallUISequence>
 
   </Product>

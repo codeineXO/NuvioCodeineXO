@@ -46,6 +46,9 @@ typedef enum mpv_format {
 typedef enum mpv_event_id {
     MPV_EVENT_NONE = 0,
     MPV_EVENT_SHUTDOWN = 1,
+    // mpv's documented "seek request is finished" notification. Values must
+    // match libmpv's mpv_event_id exactly.
+    MPV_EVENT_PLAYBACK_RESTART = 21,
 } mpv_event_id;
 
 typedef struct mpv_event {
@@ -594,6 +597,29 @@ MpvApi &mpvApi() {
     api.ensureLoaded();
     return api;
 }
+
+// Demuxer cache sizing. The streaming window is large on purpose: the engine
+// serves a generous read-ahead of its own, and mpv's buffer absorbs jitter on
+// top of it. The resume window is a deliberately small cap used only while a
+// mid-file resume has not yet completed its initial seek (see
+// promoteResumeCache).
+struct MpvCacheWindow {
+    int64_t maxBytes;
+    int64_t maxBackBytes;
+    double seconds;
+};
+
+constexpr MpvCacheWindow kStreamingCacheWindow{
+    512ll * 1024 * 1024,
+    256ll * 1024 * 1024,
+    36000.0,
+};
+
+constexpr MpvCacheWindow kResumeCacheWindow{
+    32ll * 1024 * 1024,
+    8ll * 1024 * 1024,
+    5.0,
+};
 
 class WindowsMpvWebPlayer;
 LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -1331,6 +1357,9 @@ private:
     std::mutex controlsMutex;
     std::string pendingControlsJson;
     double initialStartSeconds = 0.0;
+    // Set while a resume is still seeking, so the event drain can widen the
+    // demuxer cache back to the streaming window once the seek has landed.
+    std::atomic_bool resumeCachePending = false;
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -1676,11 +1705,23 @@ private:
             // the network cache so cache-secs and the seekbar's buffered range
             // work for both HTTP and torrent-backed streams.
             setMpvOptionStringLocked("cache", "yes");
-            setMpvOptionStringLocked("demuxer-max-bytes", "512MiB");
-            setMpvOptionStringLocked("demuxer-max-back-bytes", "256MiB");
             setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
-            setMpvOptionStringLocked("cache-secs", "36000");
             setMpvOptionStringLocked("hr-seek", "default");
+            if (initialPositionMs > 0) {
+                // mpv starts prefetching into the demuxer cache from the start of
+                // the file as soon as the file opens, but a `loadfile ... start=`
+                // resume only issues its seek after that open. With the full
+                // streaming window, the cache therefore races a large forward
+                // read-ahead of the head of the file, which on a torrent-backed
+                // stream makes the engine download from byte 0 before playback
+                // resumes at the saved position. Open with a window just large
+                // enough for the container index and stream probing, and widen it
+                // once the initial seek has landed (see promoteResumeCache).
+                setCacheWindowLocked(kResumeCacheWindow);
+                resumeCachePending.store(true);
+            } else {
+                setCacheWindowLocked(kStreamingCacheWindow);
+            }
 
             int64_t wid = (int64_t)(intptr_t)containerHwnd;
             int widResult = api.setOption(mpv, "wid", MPV_FORMAT_INT64, &wid);
@@ -1916,6 +1957,14 @@ private:
 
             mpv_event *event = mpvApi().waitEvent(current, 0.5);
             if (!event) continue;
+            if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
+                // MPV_EVENT_FILE_LOADED is not enough here: mpv posts it before
+                // it applies the `start=` seek of a resuming loadfile. Playback
+                // restart is the documented "seek is finished" signal, so the
+                // first one after a resuming load is the one that means the
+                // read-ahead from byte 0 is over.
+                promoteResumeCache();
+            }
             if (event->event_id == MPV_EVENT_SHUTDOWN) {
                 return;
             }
@@ -1957,6 +2006,32 @@ private:
 
     void setMpvOptionStringLocked(const char *name, const char *value) {
         (void)mpvApi().setOptionString(mpv, name, value);
+    }
+
+    // Applies a cache window before mpv_initialize, so the values are in place
+    // by the time the first file is opened.
+    void setCacheWindowLocked(const MpvCacheWindow &window) {
+        setMpvOptionStringLocked("demuxer-max-bytes", std::to_string(window.maxBytes).c_str());
+        setMpvOptionStringLocked("demuxer-max-back-bytes", std::to_string(window.maxBackBytes).c_str());
+        setMpvOptionStringLocked("cache-secs", std::to_string(window.seconds).c_str());
+    }
+
+    // Widens the demuxer cache from the resume window to the streaming window
+    // after a resume's initial seek has landed. Setting the options as properties
+    // (rather than options) is what makes this reach the already-open demuxer:
+    // its worker re-reads the config and re-applies update_opts whenever it
+    // changes, and a growing window is applied in place without dropping the
+    // packets already buffered at the resumed position.
+    void promoteResumeCache() {
+        if (!resumeCachePending.exchange(false)) return;
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        int64_t maxBytes = kStreamingCacheWindow.maxBytes;
+        int64_t maxBackBytes = kStreamingCacheWindow.maxBackBytes;
+        double seconds = kStreamingCacheWindow.seconds;
+        (void)mpvApi().setProperty(mpv, "demuxer-max-bytes", MPV_FORMAT_INT64, &maxBytes);
+        (void)mpvApi().setProperty(mpv, "demuxer-max-back-bytes", MPV_FORMAT_INT64, &maxBackBytes);
+        (void)mpvApi().setProperty(mpv, "cache-secs", MPV_FORMAT_DOUBLE, &seconds);
     }
 
     double doubleProperty(const char *name, double fallback) {

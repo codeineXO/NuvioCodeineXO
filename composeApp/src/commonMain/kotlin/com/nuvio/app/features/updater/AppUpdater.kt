@@ -260,14 +260,16 @@ class AppUpdaterController internal constructor(
             return
         }
 
-        AppUpdaterPlatform.installDownloadedUpdate(updatePath).onSuccess {
-            _uiState.update { state -> state.copy(showInstallPermissionDialog = false) }
-        }.onFailure { error ->
-            scope.launch {
-                val fallbackMessage = error.message ?: getString(Res.string.updates_install_failed)
+        // Installing can block on an interactive installer, and a refused install
+        // has to be reported back, so it never runs on the caller's thread. The
+        // downloaded file is left in place on failure so the prompt can be retried.
+        scope.launch {
+            AppUpdaterPlatform.installDownloadedUpdate(updatePath).onSuccess {
+                _uiState.update { state -> state.copy(showInstallPermissionDialog = false) }
+            }.onFailure { error ->
                 _uiState.update { state ->
                     state.copy(
-                        errorMessage = fallbackMessage,
+                        errorMessage = error.message ?: getString(Res.string.updates_install_failed),
                         showDialog = true,
                     )
                 }

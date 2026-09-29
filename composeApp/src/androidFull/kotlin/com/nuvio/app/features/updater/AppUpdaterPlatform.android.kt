@@ -55,5 +55,5 @@ actual object AppUpdaterPlatform {
         AndroidAppUpdaterPlatform.openUnknownSourcesSettings()
     }
 
-    actual fun installDownloadedUpdate(path: String): Result<Unit> = AndroidAppUpdaterPlatform.installDownloadedUpdate(path)
+    actual suspend fun installDownloadedUpdate(path: String): Result<Unit> = AndroidAppUpdaterPlatform.installDownloadedUpdate(path)
 }

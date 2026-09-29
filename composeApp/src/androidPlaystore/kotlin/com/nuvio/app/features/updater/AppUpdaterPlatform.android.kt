@@ -46,6 +46,6 @@ actual object AppUpdaterPlatform {
 
     actual fun openInstallPermissionSettings() = Unit
 
-    actual fun installDownloadedUpdate(path: String): Result<Unit> =
+    actual suspend fun installDownloadedUpdate(path: String): Result<Unit> =
         Result.failure(IllegalStateException(runBlocking { getString(Res.string.updates_not_available) }))
 }

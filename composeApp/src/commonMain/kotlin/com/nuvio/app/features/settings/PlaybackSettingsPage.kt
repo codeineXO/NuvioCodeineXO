@@ -1536,20 +1536,7 @@ private fun PlaybackSettingsSection(
         SubtitleOutlineEffectDialog(
             selectedEffect = autoPlayPlayerSettings.subtitleStyle.outlineEffect,
             onEffectSelected = { effect ->
-                val updated = when (effect) {
-                    SubtitleOutlineEffect.NONE -> autoPlayPlayerSettings.subtitleStyle.copy(
-                        outlineEffect = effect,
-                        outlineEnabled = false,
-                    )
-                    SubtitleOutlineEffect.BACKGROUND_BOX -> autoPlayPlayerSettings.subtitleStyle.copy(
-                        outlineEffect = effect,
-                        outlineEnabled = false,
-                    )
-                    else -> autoPlayPlayerSettings.subtitleStyle.copy(
-                        outlineEffect = effect,
-                        outlineEnabled = true,
-                    )
-                }
+                val updated = autoPlayPlayerSettings.subtitleStyle.copy(outlineEffect = effect)
                 PlayerSettingsRepository.setSubtitleStyle(updated)
                 showSubtitleOutlineEffectDialog = false
             },
