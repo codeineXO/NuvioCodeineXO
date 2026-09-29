@@ -19,9 +19,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.isDesktop
@@ -34,6 +36,7 @@ import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.rememberHeroStretchState
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -55,6 +58,7 @@ import com.nuvio.app.features.home.components.HomeContinueWatchingSection
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import com.nuvio.app.features.home.components.HomeHeroReservedSpace
 import com.nuvio.app.features.home.components.HomeHeroSection
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.home.components.HomeSkeletonHero
 import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
@@ -911,7 +915,16 @@ fun HomeScreen(
         homeCatalogLoading = homeUiState.isLoading,
     )
 
+    val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        if (auraBackgroundEnabled) {
+            HomeInteractiveGradientBackground(
+                modifier = Modifier.fillMaxSize(),
+                listState = homeListState,
+            )
+        }
+
         val homeSectionPadding = homeSectionHorizontalPaddingForWidth(maxWidth.value)
         val posterCardStyle = rememberPosterCardStyleUiState()
         val homeCatalogPreviewLimit = if (isDesktop) {
@@ -973,6 +986,7 @@ fun HomeScreen(
             horizontalPadding = 0.dp,
             topPadding = effectiveTopPadding,
             listState = homeListState,
+            backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
             if (showHeroSlot) {
                 item(key = "home_hero", contentType = "hero") {

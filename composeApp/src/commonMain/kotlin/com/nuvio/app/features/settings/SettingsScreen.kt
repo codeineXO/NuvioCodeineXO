@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +63,7 @@ import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isLiquidGlassNativeTabBarSupported
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsUiState
@@ -77,6 +79,7 @@ import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepository
@@ -154,6 +157,15 @@ fun SettingsScreen(
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
     ) {
+        val auraBackgroundEnabled by remember {
+            ThemeSettingsRepository.ensureLoaded()
+            ThemeSettingsRepository.auraBackgroundEnabled
+        }.collectAsStateWithLifecycle()
+
+        if (auraBackgroundEnabled) {
+            HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
+        }
+
         val screenActive = LocalScreenActive.current
         val pageStateHolder = rememberSaveableStateHolder()
         val playerSettingsUiState by remember {
@@ -396,6 +408,7 @@ fun SettingsScreen(
                 homescreenHeroEnabled = homescreenSettingsUiState.heroEnabled,
                 homescreenShowCatalogType = homescreenSettingsUiState.showCatalogType,
                 homescreenHideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
+                auraBackgroundEnabled = auraBackgroundEnabled,
                 homescreenItems = homescreenSettingsUiState.items,
                 homescreenCatalogLoading = addonManifestsLoading,
                 homescreenCatalogErrorMessage = addonManifestErrorMessage,
@@ -464,6 +477,7 @@ fun SettingsScreen(
                 homescreenHeroEnabled = homescreenSettingsUiState.heroEnabled,
                 homescreenShowCatalogType = homescreenSettingsUiState.showCatalogType,
                 homescreenHideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
+                auraBackgroundEnabled = auraBackgroundEnabled,
                 homescreenItems = homescreenSettingsUiState.items,
                 homescreenCatalogLoading = addonManifestsLoading,
                 homescreenCatalogErrorMessage = addonManifestErrorMessage,
@@ -544,6 +558,7 @@ private fun MobileSettingsScreen(
     homescreenHeroEnabled: Boolean,
     homescreenShowCatalogType: Boolean,
     homescreenHideUnreleasedContent: Boolean,
+    auraBackgroundEnabled: Boolean = true,
     homescreenItems: List<HomeCatalogSettingsItem>,
     homescreenCatalogLoading: Boolean,
     homescreenCatalogErrorMessage: String?,
@@ -643,6 +658,7 @@ private fun MobileSettingsScreen(
             modifier = Modifier.nestedScroll(rootSearchRevealConnection),
             topPadding = if (topChromePadding != null) 0.dp else null,
             listState = listState,
+            backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
             if (showInternalHeader) {
                 stickyHeader {
@@ -939,6 +955,7 @@ private fun TabletSettingsScreen(
     homescreenHeroEnabled: Boolean,
     homescreenShowCatalogType: Boolean,
     homescreenHideUnreleasedContent: Boolean,
+    auraBackgroundEnabled: Boolean = true,
     homescreenItems: List<HomeCatalogSettingsItem>,
     homescreenCatalogLoading: Boolean,
     homescreenCatalogErrorMessage: String?,
@@ -979,7 +996,7 @@ private fun TabletSettingsScreen(
             modifier = Modifier
                 .width(240.dp)
                 .fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface,
+            color = if (auraBackgroundEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier = Modifier

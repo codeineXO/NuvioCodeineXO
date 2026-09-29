@@ -34,6 +34,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -234,9 +236,18 @@ fun SearchScreen(
         }
     }
 
+    val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
     ) {
+        if (auraBackgroundEnabled) {
+            com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
+                modifier = Modifier.fillMaxSize(),
+                listState = listState,
+            )
+        }
+
         val posterCardStyle = rememberPosterCardStyleUiState()
         val discoverColumns = remember(maxWidth, maxHeight, posterCardStyle.widthDp, isDesktop) {
             if (isDesktop) {
@@ -261,6 +272,7 @@ fun SearchScreen(
             horizontalPadding = 0.dp,
             topPadding = if (topChromePadding != null) 0.dp else null,
             listState = listState,
+            backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
             modifier = Modifier.fillMaxSize(),
         ) {
         stickyHeader {
@@ -268,7 +280,13 @@ fun SearchScreen(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(
+                            if (auraBackgroundEnabled) {
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
+                            } else {
+                                MaterialTheme.colorScheme.background
+                            }
+                        )
                         .nuvioConsumePointerEvents(),
                 )
                 androidx.compose.foundation.layout.Column(

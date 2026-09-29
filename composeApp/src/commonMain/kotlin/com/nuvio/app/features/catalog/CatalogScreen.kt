@@ -173,10 +173,14 @@ fun CatalogScreen(
         }
     }
 
+    val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .then(
+                if (auraBackgroundEnabled) Modifier else Modifier.background(MaterialTheme.colorScheme.background)
+            ),
     ) {
         val pageHorizontalPadding = if (isDesktop) {
             desktopPageHorizontalPaddingForWidth(maxWidth.value)
@@ -204,6 +208,12 @@ fun CatalogScreen(
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
+            if (auraBackgroundEnabled) {
+                com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
+                    modifier = Modifier.fillMaxSize(),
+                    gridState = gridState,
+                )
+            }
             LazyVerticalGrid(
                 columns = gridCells,
                 state = gridState,
@@ -299,6 +309,7 @@ fun CatalogScreen(
                 title = title,
                 subtitle = subtitle,
                 pageHorizontalPadding = pageHorizontalPadding,
+                auraBackgroundEnabled = auraBackgroundEnabled,
                 modifier = Modifier.onSizeChanged { headerHeightPx = it.height },
                 onBack = onBack,
             )
@@ -311,6 +322,7 @@ private fun CatalogHeader(
     title: String,
     subtitle: String,
     pageHorizontalPadding: Dp,
+    auraBackgroundEnabled: Boolean = false,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -327,7 +339,13 @@ private fun CatalogHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
+            .background(
+                if (auraBackgroundEnabled) {
+                    MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
+                } else {
+                    MaterialTheme.colorScheme.background
+                }
+            )
             .then(if (isDesktop) Modifier.windowInsetsPadding(WindowInsets.statusBars) else Modifier)
             .padding(horizontal = pageHorizontalPadding)
             .padding(top = if (isDesktop) 32.dp else 52.dp, bottom = 12.dp),

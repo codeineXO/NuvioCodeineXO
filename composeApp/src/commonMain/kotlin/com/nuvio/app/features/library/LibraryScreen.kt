@@ -71,6 +71,7 @@ import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.NuvioViewAllPillSize
 import com.nuvio.app.core.ui.ScopedDisintegrationTracker
 import com.nuvio.app.core.ui.SkeletonBlock
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioConsumePointerEvents
 import com.nuvio.app.core.ui.posterGridColumnCountForViewport
 import com.nuvio.app.features.home.components.posterGridColumnCountForWidth
@@ -264,7 +265,16 @@ fun LibraryScreen(
         emptyList()
     }
 
+    val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        if (auraBackgroundEnabled) {
+            com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
+                modifier = Modifier.fillMaxSize(),
+                listState = listState,
+            )
+        }
+
         val posterCardStyle = rememberPosterCardStyleUiState()
         val gridColumns = remember(maxWidth, maxHeight, posterCardStyle.widthDp, isDesktop) {
             if (isDesktop) {
@@ -279,13 +289,20 @@ fun LibraryScreen(
             horizontalPadding = 0.dp,
             topPadding = if (topChromePadding != null) 0.dp else null,
             listState = listState,
+            backgroundColor = if (auraBackgroundEnabled) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
             stickyHeader {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(MaterialTheme.colorScheme.background)
+                            .background(
+                                if (auraBackgroundEnabled) {
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
+                                } else {
+                                    MaterialTheme.colorScheme.background
+                                }
+                            )
                             .nuvioConsumePointerEvents(),
                     )
                     androidx.compose.foundation.layout.Column(

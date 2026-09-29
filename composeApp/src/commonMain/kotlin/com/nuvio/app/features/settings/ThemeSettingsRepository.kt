@@ -46,6 +46,9 @@ object ThemeSettingsRepository {
     private val _navBarGlowEnabled = MutableStateFlow(true)
     val navBarGlowEnabled: StateFlow<Boolean> = _navBarGlowEnabled.asStateFlow()
 
+    private val _auraBackgroundEnabled = MutableStateFlow(true)
+    val auraBackgroundEnabled: StateFlow<Boolean> = _auraBackgroundEnabled.asStateFlow()
+
     private var hasLoaded = false
     private var observesMembership = false
 
@@ -73,6 +76,7 @@ object ThemeSettingsRepository {
         _selectedAppLanguage.value = AppLanguage.DEVICE
         _navBarGlowEnabled.value = true
         _navBarStyle.value = NavBarStyle.ADAPTIVE
+        _auraBackgroundEnabled.value = true
     }
 
     private fun loadFromDisk() {
@@ -102,6 +106,7 @@ object ThemeSettingsRepository {
         _selectedAppLanguage.value = appLanguage
         _navBarGlowEnabled.value = ThemeSettingsStorage.loadNavBarGlowEnabled() ?: true
         _navBarStyle.value = NavBarStyle.fromKey(ThemeSettingsStorage.loadNavBarStyle())
+        _auraBackgroundEnabled.value = ThemeSettingsStorage.loadAuraBackgroundEnabled() ?: true
     }
 
     fun setTheme(theme: AppTheme) {
@@ -167,6 +172,13 @@ object ThemeSettingsRepository {
         if (_navBarGlowEnabled.value == enabled) return
         _navBarGlowEnabled.value = enabled
         ThemeSettingsStorage.saveNavBarGlowEnabled(enabled)
+    }
+
+    fun setAuraBackgroundEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (_auraBackgroundEnabled.value == enabled) return
+        _auraBackgroundEnabled.value = enabled
+        ThemeSettingsStorage.saveAuraBackgroundEnabled(enabled)
     }
 
     private fun observeMembership() {
