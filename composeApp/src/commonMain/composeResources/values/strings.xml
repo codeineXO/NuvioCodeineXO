@@ -47,6 +47,8 @@
     <string name="addons_badge_resources">%1$d resources</string>
     <string name="addons_badge_unavailable">Unavailable</string>
     <string name="addons_configure">Configure addon</string>
+    <string name="addons_copy_manifest_url">Copy manifest link</string>
+    <string name="addons_manifest_url_copied">Manifest link copied</string>
     <string name="addons_delete">Delete addon</string>
     <string name="addons_delete_confirm_title">Delete addon?</string>
     <string name="addons_appstore_add_description">Bring your library into Nuvio with the addons you use.</string>
@@ -426,6 +428,7 @@
     <string name="compose_nav_profile">Profile</string>
     <string name="compose_nav_settings">Settings</string>
     <string name="compose_nav_search">Search</string>
+    <string name="compose_nav_close_app">Exit</string>
     <string name="compose_player_audio_tracks">Audio Tracks</string>
     <string name="compose_player_audio">Audio</string>
     <string name="compose_player_auto_sync">Auto Sync</string>

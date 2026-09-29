@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
@@ -267,10 +270,12 @@ fun SearchScreen(
             discoverInFocus -> stringResource(Res.string.compose_search_discover_title)
             else -> stringResource(Res.string.compose_nav_search)
         }
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val effectiveHeaderTopPadding = topChromePadding ?: (statusBarTop + MaterialTheme.nuvio.spacing.screenTop)
 
         NuvioScreen(
             horizontalPadding = 0.dp,
-            topPadding = if (topChromePadding != null) 0.dp else null,
+            topPadding = 0.dp,
             listState = listState,
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
             modifier = Modifier.fillMaxSize(),
@@ -295,7 +300,7 @@ fun SearchScreen(
                     NuvioScreenHeader(
                         title = headerTitle,
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        topPadding = topChromePadding,
+                        topPadding = effectiveHeaderTopPadding,
                     )
                     androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(6.dp))
                     androidx.compose.foundation.layout.Box(modifier = Modifier.padding(horizontal = 16.dp)) {

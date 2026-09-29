@@ -13,11 +13,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -284,10 +287,13 @@ fun LibraryScreen(
             }
         }
 
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val effectiveHeaderTopPadding = topChromePadding ?: (statusBarTop + MaterialTheme.nuvio.spacing.screenTop)
+
         NuvioScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalPadding = 0.dp,
-            topPadding = if (topChromePadding != null) 0.dp else null,
+            topPadding = 0.dp,
             listState = listState,
             backgroundColor = if (auraBackgroundEnabled) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -320,7 +326,7 @@ fun LibraryScreen(
                                 }
                             },
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            topPadding = topChromePadding,
+                            topPadding = effectiveHeaderTopPadding,
                             actions = {
                                 if (sourceMode == LibraryViewMode.Saved) {
                                     LibraryListManagementButton()

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Refresh
@@ -40,7 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +58,7 @@ import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioSurfaceCard
+import com.nuvio.app.core.ui.NuvioToastController
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -98,6 +102,8 @@ internal fun AddonsSettingsPageContent(
     val usePersonalMediaCopy = AppFeaturePolicy.personalMediaAddonCopyEnabled
 
     val overview = remember(uiState.addons) { uiState.addons.toOverview() }
+    val clipboardManager = LocalClipboardManager.current
+    val manifestCopiedText = stringResource(Res.string.addons_manifest_url_copied)
 
     Column(
         modifier = modifier,
@@ -167,6 +173,10 @@ internal fun AddonsSettingsPageContent(
                             manifestUrl = addon.manifestUrl,
                             forceRefresh = true,
                         )
+                    },
+                    onCopyManifestClick = {
+                        clipboardManager.setText(AnnotatedString(addon.manifestUrl))
+                        NuvioToastController.show(manifestCopiedText)
                     },
                     onEnabledChange = { enabled ->
                         AddonRepository.setAddonEnabled(addon.manifestUrl, enabled)
@@ -412,6 +422,7 @@ private fun InstalledAddonCard(
     onMoveUpClick: (() -> Unit)?,
     onMoveDownClick: (() -> Unit)?,
     onRefreshClick: () -> Unit,
+    onCopyManifestClick: () -> Unit,
     onEnabledChange: (Boolean) -> Unit,
     onConfigureClick: (() -> Unit)?,
     onDeleteClick: () -> Unit,
@@ -487,6 +498,12 @@ private fun InstalledAddonCard(
                 contentDescription = stringResource(Res.string.addons_refresh),
                 tint = MaterialTheme.colorScheme.primary,
                 onClick = onRefreshClick,
+            )
+            NuvioIconActionButton(
+                icon = Icons.Rounded.ContentCopy,
+                contentDescription = stringResource(Res.string.addons_copy_manifest_url),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = onCopyManifestClick,
             )
             onConfigureClick?.let { onConfigure ->
                 NuvioIconActionButton(

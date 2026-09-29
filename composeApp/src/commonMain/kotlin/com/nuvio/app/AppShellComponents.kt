@@ -35,7 +35,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Settings
+import com.nuvio.app.core.ui.platformExitApp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -102,6 +104,7 @@ import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.flow.Flow
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.app_brand_name
+import nuvio.composeapp.generated.resources.compose_nav_close_app
 import nuvio.composeapp.generated.resources.compose_nav_home
 import nuvio.composeapp.generated.resources.compose_nav_library
 import nuvio.composeapp.generated.resources.compose_nav_profile
@@ -764,8 +767,9 @@ internal fun DesktopHoverSidebar(
                 0.dp
             }
             val navColumnHeight = DesktopSidebarItemHeight * AppScreenTab.entries.size
+            val bottomReserved = DesktopSidebarItemHeight + 18.dp
             val centeredNavTop = ((maxHeight - navColumnHeight) / 2).coerceAtLeast(0.dp)
-            val availableNavOffset = (maxHeight - navColumnHeight - centeredNavTop).coerceAtLeast(0.dp)
+            val availableNavOffset = (maxHeight - navColumnHeight - centeredNavTop - bottomReserved).coerceAtLeast(0.dp)
             val navColumnOffset = (minNavTop - centeredNavTop)
                 .coerceIn(0.dp, availableNavOffset)
             val animatedNavColumnOffset by animateDpAsState(
@@ -864,6 +868,28 @@ internal fun DesktopHoverSidebar(
                     Icon(
                         imageVector = Icons.Rounded.Settings,
                         contentDescription = stringResource(Res.string.compose_settings_page_root),
+                        modifier = Modifier.size(DesktopSidebarIconSize),
+                        tint = color,
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 18.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                DesktopSidebarItem(
+                    label = stringResource(Res.string.compose_nav_close_app),
+                    selected = false,
+                    expanded = sidebarExpanded,
+                    onClick = { platformExitApp() },
+                ) { color ->
+                    Icon(
+                        imageVector = Icons.Rounded.PowerSettingsNew,
+                        contentDescription = stringResource(Res.string.compose_nav_close_app),
                         modifier = Modifier.size(DesktopSidebarIconSize),
                         tint = color,
                     )
