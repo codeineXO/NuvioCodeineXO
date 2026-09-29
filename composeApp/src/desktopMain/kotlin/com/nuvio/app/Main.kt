@@ -20,10 +20,10 @@ import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.deeplink.handleAppUrl
 import com.nuvio.app.core.diagnostics.SentryInitializer
+import com.nuvio.app.core.ui.DesktopAppShutdown
 import com.nuvio.app.core.ui.NuvioTheme
 import com.nuvio.app.core.ui.ProvideDesktopWindowInsets
 import com.nuvio.app.features.discordrpc.DiscordPresenceManager
-import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.plugins.configureDesktopQuickJsLibrary
 import com.nuvio.app.features.player.PlatformPlayerSurface
 import com.nuvio.app.features.player.desktop.DesktopAppFullscreenController
@@ -123,10 +123,10 @@ fun main(args: Array<String>) {
 
         SwingWindow(
             onCloseRequest = {
-                P2pStreamingEngine.shutdown()
-                DiscordPresenceManager.shutdown()
-                SentryInitializer.close()
-                exitApplication()
+                // Guaranteed exit: dispose window fast for WM_CLOSE, bounded
+                // cleanup of P2P/Discord/Sentry/native player, then exitProcess.
+                // Bare exitApplication() leaves a windowless JVM locking MSI files.
+                DesktopAppShutdown.requestExit(exitApplication = ::exitApplication)
             },
             title = if (smokePlayerUrl == null) "Nuvio" else "Nuvio Player Smoke",
             state = windowState,

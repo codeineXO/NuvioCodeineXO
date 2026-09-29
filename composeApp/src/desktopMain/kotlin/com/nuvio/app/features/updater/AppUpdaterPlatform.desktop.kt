@@ -161,32 +161,60 @@ actual object AppUpdaterPlatform {
         val updateFile = File(path)
         check(updateFile.exists()) { runBlocking { getString(Res.string.updates_downloaded_file_missing) } }
 
-        val logFile = installerLogFile(updateFile)
-        val installer = launchInstaller(updateFile, logFile)
-
-        // Only msiexec is waited on. It is the one installer that can refuse to
-        // run and say nothing, and the AppImage replacement script deliberately
-        // waits for this process to exit, so blocking on it would deadlock the
-        // Linux handoff. macOS and Linux hand the file to the desktop and return
-        // immediately, as before.
+        // Launch-and-exit: the MSI closes the app via WixCloseApplications, so
+        // waiting for msiexec here deadlocks (app waits MSI waits app) and the
+        // surviving JVM keeps MSI files locked. Spawn a detached watchdog that
+        // waits for this pid to disappear, then runs msiexec. Exit immediately
+        // so the install runs unlocked. Errors are reported via the /L*v log
+        // and surfaced on next launch if the version did not change.
         if (currentOs == DesktopUpdaterOs.WINDOWS) {
-            when (val exitCode = installer.awaitExit()) {
-                null -> error(getString(Res.string.updates_installer_timeout))
-                in windowsInstallerSuccessCodes -> Unit
-                else -> error(
-                    getString(
-                        Res.string.updates_installer_failed,
-                        exitCode,
-                        logFile?.absolutePath.orEmpty(),
-                    ),
-                )
-            }
+            launchWindowsUpdateAndExit(updateFile, installerLogFile(updateFile))
+            scheduleAppExit()
+            return
         }
 
-        // Reached only once the installer has finished, so this is no longer a
-        // blind race: on Windows the MSI has already closed the app through
-        // WixCloseApplications and this simply never runs.
+        val logFile = installerLogFile(updateFile)
+        launchInstaller(updateFile, logFile)
+
+        // macOS and Linux hand the file to the desktop and return immediately.
         scheduleAppExit()
+    }
+
+    private fun launchWindowsUpdateAndExit(updateFile: File, logFile: File?) {
+        val currentPid = ProcessHandle.current().pid()
+        val command = windowsInstallerCommand(updateFile, logFile)
+        val script = writeWindowsUpdateScript(updateFile, command, currentPid)
+        // Detached: `start` returns at once so this process can exit and
+        // unlock [INSTALLDIR]/app before msiexec touches it.
+        ProcessBuilder("cmd", "/c", "start", "\"\"", "/min", script.absolutePath)
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+    }
+
+    private fun writeWindowsUpdateScript(updateFile: File, command: List<String>, currentPid: Long): File {
+        val dir = updatesDir()
+        val script = File(dir, "${updateFile.nameWithoutExtension}-install.bat")
+        val quotedCommand = command.joinToString(" ") { part ->
+            "\"" + part.replace("\"", "\"\"") + "\""
+        }
+        // Wait up to ~30s for the app pid to disappear, then run msiexec.
+        // The MSI itself also sends WM_CLOSE + TerminateProcess as a fallback.
+        val lines = listOf(
+            "@echo off",
+            "setlocal",
+            "set _pid=$currentPid",
+            "for /L %%i in (1,1,300) do (",
+            "  tasklist /FI \"PID eq %_pid%\" 2>nul | findstr /R \"^[^ ]\" >nul",
+            "  tasklist /FI \"PID eq %_pid%\" 2>nul | find /I \"%_pid%\" >nul || goto run",
+            "  ping -n 2 127.0.0.1 >nul",
+            ")",
+            ":run",
+            "start \"\" $quotedCommand",
+            "exit /b 0",
+        )
+        script.writeText(lines.joinToString("\r\n"))
+        return script
     }
 
     private fun updatesDir(): File =
@@ -247,6 +275,13 @@ actual object AppUpdaterPlatform {
         thread(name = "nuvio-updater-exit", isDaemon = true) {
             Thread.sleep(500)
             exitProcess(0)
+        }
+        // exitProcess() blocks until shutdown hooks finish; a hook stuck in
+        // native code would keep the pid alive and the update watchdog would
+        // time out with files still locked. Halt unconditionally as fallback.
+        thread(name = "nuvio-updater-exit-watchdog", isDaemon = true) {
+            Thread.sleep(3500)
+            Runtime.getRuntime().halt(0)
         }
     }
 }
