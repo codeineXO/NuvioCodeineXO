@@ -248,6 +248,7 @@ internal fun TabletStreamsLayout(
                     .hazeEffect(state = hazeState) {
                         inputScale = HazeInputScale.Fixed(0.66f)
                         blurRadius = 56.dp
+                        noiseFactor = 0f
                     }
                     .background(Color.Black.copy(alpha = 0.36f)),
             ) {
@@ -422,6 +423,7 @@ private fun LegacyTabletStreamsLayout(
                         .hazeEffect(state = hazeState) {
                             inputScale = HazeInputScale.Fixed(0.66f)
                             blurRadius = 56.dp
+                            noiseFactor = 0f
                         }
                         .background(Color.Black.copy(alpha = 0.36f)),
                 ) {
