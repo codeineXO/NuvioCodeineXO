@@ -62,12 +62,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
-import com.nuvio.app.core.ui.FullscreenActionButton
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.NuvioDesktopImageScaling
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioTokens
-import com.nuvio.app.core.ui.isFullscreenActionSupported
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.heroStretchHeight
 import com.nuvio.app.core.ui.ScreenActivityEffect
@@ -649,22 +647,6 @@ private fun DesktopHomeHeroFrame(
                     heroWidthPx = heroWidthPx,
                     onItemClick = onItemClick,
                     includePagerNeighbors = includePagerNeighbors,
-                )
-            }
-
-            if (isFullscreenActionSupported) {
-                FullscreenActionButton(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .statusBarsPadding()
-                        .padding(
-                            top = space.s32,
-                            end = contentHorizontalPadding,
-                        ),
-                    buttonSize = 48.dp,
-                    iconSize = 24.dp,
-                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
-                    contentColor = colorScheme.onSurface,
                 )
             }
 

@@ -47,6 +47,12 @@ import com.nuvio.app.features.addons.firstEnabledManifestError
 import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.CloudLibraryRepository
 import com.nuvio.app.features.cloud.CloudLibraryUiState
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.Alignment
+import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
+import com.nuvio.app.core.ui.isFullscreenActionSupported
 import com.nuvio.app.features.cloud.findPlaybackTargetForProgress
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -1212,6 +1218,25 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        if (isFullscreenActionSupported) {
+            val space = NuvioTokens.Space
+            val colorScheme = MaterialTheme.colorScheme
+            val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
+            FullscreenActionButton(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(
+                        top = if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
+                        end = actionHorizontalInset,
+                    ),
+                buttonSize = 48.dp,
+                iconSize = 24.dp,
+                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
+                contentColor = colorScheme.onSurface,
+            )
         }
     }
 }

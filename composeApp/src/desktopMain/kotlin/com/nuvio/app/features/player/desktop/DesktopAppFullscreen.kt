@@ -50,6 +50,11 @@ private object DesktopAppFullscreen {
         }
     }
 
+    fun setFullscreen(window: Window? = null, fullscreen: Boolean) {
+        if (isFullscreen(window) == fullscreen) return
+        toggle(window)
+    }
+
     fun isFullscreen(window: Window? = null): Boolean =
         fullscreenStateProvider?.invoke(window) == true
 
@@ -68,6 +73,14 @@ internal fun toggleDesktopAppFullscreen(window: Window? = null) {
     DesktopAppFullscreen.toggle(window)
 }
 
+internal fun setDesktopAppFullscreen(window: Window? = null, fullscreen: Boolean) {
+    DesktopAppFullscreen.setFullscreen(window, fullscreen)
+}
+
+internal fun exitDesktopAppFullscreen(window: Window? = null) {
+    DesktopAppFullscreen.setFullscreen(window, false)
+}
+
 internal fun isDesktopAppFullscreen(window: Window? = null): Boolean =
     DesktopAppFullscreen.isFullscreen(window)
 
@@ -77,6 +90,11 @@ internal val desktopFullscreenChanges: StateFlow<Int>
 internal class DesktopAppFullscreenController {
     private var restoreWindowPlacement = WindowPlacement.Floating
     private var windowsFullscreenState: WindowsFullscreenState? = null
+
+    fun setFullscreen(window: Window, windowState: WindowState, fullscreen: Boolean) {
+        if (isFullscreen(window, windowState) == fullscreen) return
+        toggle(window, windowState)
+    }
 
     fun toggle(window: Window, windowState: WindowState) {
         if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {

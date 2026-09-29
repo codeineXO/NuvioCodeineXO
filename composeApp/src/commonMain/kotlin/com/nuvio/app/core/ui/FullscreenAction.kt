@@ -34,6 +34,8 @@ internal expect fun isFullscreenActionActive(): Boolean
 
 internal expect fun toggleFullscreenAction()
 
+internal expect fun exitFullscreenAction()
+
 internal fun fullscreenActionHorizontalInsetForWidth(maxWidthDp: Float): Dp =
     desktopPageHorizontalPaddingForWidth(maxWidthDp)
 
