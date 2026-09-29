@@ -1,9 +1,6 @@
 name: Update Sideload Source
 
 on:
-  release:
-    types:
-      - published
   workflow_call:
     inputs:
       tag:
@@ -17,20 +14,17 @@ permissions:
   contents: write
 
 concurrency:
-  group: sideload-source-${{ inputs.tag || github.event.release.tag_name }}
+  group: sideload-source-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:
   update:
     name: Update store.json
-    # Desktop releases (v*) have no IPA and must not fail this workflow.
-    # workflow_call callers always run.
-    if: github.event_name == 'workflow_call' || !startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name }}
-      RELEASE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_VERSION: ${{ inputs.version }}
       RELEASE_BRANCH: ${{ github.event.repository.default_branch }}
 
     steps:
