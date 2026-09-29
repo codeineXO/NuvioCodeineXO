@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -72,6 +74,7 @@ import nuvio.composeapp.generated.resources.updates_downloading_progress
 import nuvio.composeapp.generated.resources.updates_message_allow_installs
 import nuvio.composeapp.generated.resources.updates_message_ready
 import nuvio.composeapp.generated.resources.updates_no_release_notes
+import nuvio.composeapp.generated.resources.updates_open_release_title
 import nuvio.composeapp.generated.resources.updates_preparing_download
 import nuvio.composeapp.generated.resources.updates_release_notes
 import nuvio.composeapp.generated.resources.updates_title_allow_installs
@@ -101,6 +104,7 @@ fun AppUpdaterHost(
 
     val update = state.update
     val showBanner = state.showDialog && update != null
+    val uriHandler = LocalUriHandler.current
 
     Column(modifier = modifier) {
         AnimatedVisibility(
@@ -115,6 +119,7 @@ fun AppUpdaterHost(
             ) + fadeOut(animationSpec = tween(durationMillis = 150)),
         ) {
             update?.let { availableUpdate ->
+                val releaseUrl = availableUpdate.releaseUrl?.takeIf { it.isNotBlank() }
                 AppUpdateBanner(
                     state = state,
                     update = availableUpdate,
@@ -122,6 +127,7 @@ fun AppUpdaterHost(
                     onInstall = controller::installDownloadedUpdate,
                     onShowReleaseNotes = { showReleaseNotes = true },
                     onDismiss = controller::dismissDialog,
+                    onOpenReleasePage = releaseUrl?.let { url -> { uriHandler.openUri(url) } },
                 )
             }
         }
@@ -165,6 +171,7 @@ private fun AppUpdateBanner(
     onInstall: () -> Unit,
     onShowReleaseNotes: () -> Unit,
     onDismiss: () -> Unit,
+    onOpenReleasePage: (() -> Unit)? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     val targetProgress = when {
@@ -269,6 +276,19 @@ private fun AppUpdateBanner(
                     contentDescription = stringResource(Res.string.updates_release_notes),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
+            }
+
+            if (onOpenReleasePage != null) {
+                IconButton(
+                    onClick = onOpenReleasePage,
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.OpenInBrowser,
+                        contentDescription = stringResource(Res.string.updates_open_release_title),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
 
             if (!state.isDownloading && !debugTestComplete) {

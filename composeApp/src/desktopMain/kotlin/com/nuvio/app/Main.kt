@@ -128,7 +128,7 @@ fun main(args: Array<String>) {
                 // Bare exitApplication() leaves a windowless JVM locking MSI files.
                 DesktopAppShutdown.requestExit(exitApplication = ::exitApplication)
             },
-            title = if (smokePlayerUrl == null) "Nuvio" else "Nuvio Player Smoke",
+            title = if (smokePlayerUrl == null) "NuvioCodeineXO" else "NuvioCodeineXO Player Smoke",
             state = windowState,
             icon = painterResource(appIconState.selected.transparentPreviewResource),
             init = ::configureMacosWindowBeforePeer,

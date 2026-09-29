@@ -1778,6 +1778,8 @@
     <string name="updates_title_allow_installs">Allow installs to continue</string>
     <string name="updates_title_available">Update available</string>
     <string name="updates_title_status">Update status</string>
+    <string name="updates_open_release_title">View latest release</string>
+    <string name="updates_open_release_description">Open the latest release on GitHub in your browser</string>
     <string name="addon_already_installed">That addon is already installed.</string>
     <string name="addon_invalid_url">Enter a valid addon URL</string>
     <string name="addon_load_manifest_failed">Unable to load manifest</string>
