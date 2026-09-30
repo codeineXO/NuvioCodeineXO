@@ -204,13 +204,14 @@ fun AuthScreen(
     var showOfficialServerDialog by rememberSaveable { mutableStateOf(false) }
 
     fun submitAuth() {
-        if (email.isBlank() || password.length < 6 || isLoading) return
+        val trimmedEmail = email.trim()
+        if (trimmedEmail.isBlank() || password.length < 6 || isLoading) return
         DeviceLinkAuthRepository.cancel()
         isLoading = true
         focusManager.clearFocus(force = true)
         scope.launch {
-            if (isSignUp) AuthRepository.signUpWithEmail(email, password)
-            else AuthRepository.signInWithEmail(email, password)
+            if (isSignUp) AuthRepository.signUpWithEmail(trimmedEmail, password)
+            else AuthRepository.signInWithEmail(trimmedEmail, password)
             isLoading = false
         }
     }

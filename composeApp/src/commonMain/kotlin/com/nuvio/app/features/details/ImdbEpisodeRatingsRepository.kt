@@ -80,10 +80,11 @@ object ImdbEpisodeRatingsRepository {
         tmdbId: Int?,
         seasonNumbers: List<Int>,
     ): Map<Pair<Int, Int>, Double> {
-        if (!imdbId.isNullOrBlank()) {
-            val primary = toRatingsMap(ImdbTapframeApi.getSeasonRatings(imdbId))
+        val resolvedImdbId = imdbId ?: tmdbId?.let { TmdbService.tmdbToImdb(it, "series") }
+        if (!resolvedImdbId.isNullOrBlank()) {
+            val primary = toRatingsMap(ImdbTapframeApi.getSeasonRatings(resolvedImdbId))
             if (primary.isNotEmpty()) return primary
-            log.w { "Primary episode ratings empty for imdbId=$imdbId, trying fallback" }
+            log.w { "Primary episode ratings empty for imdbId=$resolvedImdbId, trying fallback" }
         }
 
         if (tmdbId != null) {
@@ -91,7 +92,7 @@ object ImdbEpisodeRatingsRepository {
             if (configuredServiceRatings.isNotEmpty()) return configuredServiceRatings
         }
 
-        val resolvedTmdbId = tmdbId ?: imdbId
+        val resolvedTmdbId = tmdbId ?: resolvedImdbId
             ?.let { TmdbService.ensureTmdbId(it, "series") }
             ?.toIntOrNull()
             ?: return emptyMap()

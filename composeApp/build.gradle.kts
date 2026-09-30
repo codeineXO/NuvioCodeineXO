@@ -120,8 +120,8 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.trakt
                 |
                 |object TraktConfig {
-                |    const val CLIENT_ID = "${props.getProperty("TRAKT_CLIENT_ID", "")}" 
-                |    const val CLIENT_SECRET = "${props.getProperty("TRAKT_CLIENT_SECRET", "")}" 
+                |    const val CLIENT_ID = "${props.getProperty("TRAKT_CLIENT_ID", "5783db7c46a5b22f072d4b224f9bd7dc2cbaba66dbe3515d1feb59e3ca72394c")}" 
+                |    const val CLIENT_SECRET = "${props.getProperty("TRAKT_CLIENT_SECRET", "bf6e7561dafee902f5a2a67d2b31feac1563632f331f3958c978aff6389ea384")}" 
                 |    const val REDIRECT_URI = "${props.getProperty("TRAKT_REDIRECT_URI", "nuvio://auth/trakt")}" 
                 |}
                 """.trimMargin()
@@ -135,7 +135,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.simkl
                 |
                 |object SimklConfig {
-                |    const val CLIENT_ID = "${props.getProperty("SIMKL_CLIENT_ID", "")}"
+                |    const val CLIENT_ID = "${props.getProperty("SIMKL_CLIENT_ID", "dc20e0db975583b15096267cee79cd23b1f56d4bd301ce3c51e4a96a49c834a6")}"
                 |    const val REDIRECT_URI = "${props.getProperty("SIMKL_REDIRECT_URI", "nuvio://auth/simkl")}"
                 |    const val APP_NAME = "${props.getProperty("SIMKL_APP_NAME", "nuvio")}"
                 |}
@@ -176,7 +176,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.player.skip
                 |
                 |object IntroDbConfig {
-                |    const val URL = "${props.getProperty("INTRODB_API_URL", "")}" 
+                |    const val URL = "${props.getProperty("INTRODB_API_URL", "https://api.introdb.app/")}" 
                 |}
                 """.trimMargin()
             )
@@ -189,8 +189,8 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.details
                 |
                 |object ImdbEpisodeRatingsConfig {
-                |    const val IMDB_RATINGS_API_BASE_URL = "${props.getProperty("IMDB_RATINGS_API_BASE_URL", "")}" 
-                |    const val IMDB_TAPFRAME_API_BASE_URL = "${props.getProperty("IMDB_TAPFRAME_API_BASE_URL", "")}" 
+                |    const val IMDB_RATINGS_API_BASE_URL = "${props.getProperty("IMDB_RATINGS_API_BASE_URL", "https://seriesgraph.com/")}" 
+                |    const val IMDB_TAPFRAME_API_BASE_URL = "${props.getProperty("IMDB_TAPFRAME_API_BASE_URL", "https://imdb.tapframe.space/")}" 
                 |}
                 """.trimMargin()
             )
@@ -203,7 +203,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.debrid
                 |
                 |object PremiumizeConfig {
-                |    const val CLIENT_ID = "${props.getProperty("PREMIUMIZE_CLIENT_ID", "")}"
+                |    const val CLIENT_ID = "${props.getProperty("PREMIUMIZE_CLIENT_ID", "450935904")}"
                 |}
                 """.trimMargin()
             )
@@ -232,10 +232,10 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |package com.nuvio.app.features.settings
                 |
                 |object CommunityConfig {
-                |    const val CONTRIBUTIONS_URL = "${props.getProperty("CONTRIBUTIONS_URL", "")}" 
-                |    const val SUPPORTERS_WALL_URL = "${props.getProperty("SUPPORTERS_WALL_URL", "https://nuvio.tv/api/supporters/wall")}"
-                |    const val DONATIONS_BASE_URL = "${props.getProperty("DONATIONS_BASE_URL", "")}" 
-                |    const val DONATIONS_DONATE_URL = "${props.getProperty("DONATIONS_DONATE_URL", "")}" 
+                |    const val CONTRIBUTIONS_URL = "" 
+                |    const val SUPPORTERS_WALL_URL = ""
+                |    const val DONATIONS_BASE_URL = "" 
+                |    const val DONATIONS_DONATE_URL = "" 
                 |}
                 """.trimMargin()
             )
@@ -563,12 +563,12 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     appVersionCode.set(releaseAppVersionCode)
     desktopAppVersionName.set(desktopReleaseVersionName)
     desktopAppVersionCode.set(desktopReleaseVersionCode)
-    supabaseUrl.set(runtimeConfigValue("NUVIO_SUPABASE_URL"))
-    supabaseAnonKey.set(runtimeConfigValue("NUVIO_SUPABASE_ANON_KEY"))
-    supabaseFallbackUrl.set(runtimeConfigValue("NUVIO_SUPABASE_FALLBACK_URL"))
-    sentryDsn.set(runtimeConfigValue("SENTRY_DSN"))
-    sentryDesktopDsn.set(runtimeConfigValue("SENTRY_DESKTOP_DSN"))
-    tmdbApiKey.set(runtimeConfigValue("TMDB_API_KEY"))
+    supabaseUrl.set(runtimeConfigValue("NUVIO_SUPABASE_URL", "https://api.nuvio.tv"))
+    supabaseAnonKey.set(runtimeConfigValue("NUVIO_SUPABASE_ANON_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgxNTIxMzQ2LCJleHAiOjE5MzkyMDEzNDZ9.tmQaj682pwzehpqlgCDMnySOqiUvpgRbrE43T4VJpDI"))
+    supabaseFallbackUrl.set(runtimeConfigValue("NUVIO_SUPABASE_FALLBACK_URL", "https://api-two.nuvioapp.space"))
+    sentryDsn.set(runtimeConfigValue("SENTRY_DSN", "https://a4f60d0d86876166059c050511332924@o4511671534354432.ingest.us.sentry.io/4511676526166016"))
+    sentryDesktopDsn.set(runtimeConfigValue("SENTRY_DESKTOP_DSN", "https://36c7f0a556040da6ab5b78e7416a1804@o4511671534354432.ingest.us.sentry.io/4511882360979456"))
+    tmdbApiKey.set(runtimeConfigValue("TMDB_API_KEY", "01926d2187b6a5d861eefc750e9df3e3"))
     sentryEnvironment.set(
         when {
             requestedGradleTasks.any { "benchmark" in it } -> "benchmark"

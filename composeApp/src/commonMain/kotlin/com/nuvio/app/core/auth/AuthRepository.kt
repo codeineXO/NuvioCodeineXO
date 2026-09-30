@@ -52,9 +52,9 @@ object AuthRepository {
 
         sessionStatusJob = scope.launch {
             SupabaseProvider.client.auth.sessionStatus.collect { status ->
-                if (AuthStorage.loadAnonymousUserId() != null) return@collect
                 when (status) {
                     is SessionStatus.Authenticated -> {
+                        AuthStorage.clearAnonymousUserId()
                         val user = status.session.user
                         val userId = user?.id.orEmpty()
                         if (!validateRemoteSession(userId)) return@collect
@@ -65,7 +65,9 @@ object AuthRepository {
                         )
                     }
                     is SessionStatus.NotAuthenticated -> {
-                        _state.value = AuthState.Unauthenticated
+                        if (AuthStorage.loadAnonymousUserId() == null) {
+                            _state.value = AuthState.Unauthenticated
+                        }
                     }
                     is SessionStatus.Initializing -> {
                         if (AuthStorage.loadAnonymousUserId() == null) {
@@ -73,7 +75,9 @@ object AuthRepository {
                         }
                     }
                     is SessionStatus.RefreshFailure -> {
-                        _state.value = AuthState.Unauthenticated
+                        if (AuthStorage.loadAnonymousUserId() == null) {
+                            _state.value = AuthState.Unauthenticated
+                        }
                     }
                 }
             }
@@ -113,9 +117,21 @@ object AuthRepository {
 
     suspend fun signUpWithEmail(email: String, password: String): Result<Unit> = runCatching {
         _error.value = null
+        val trimmedEmail = email.trim()
         SupabaseProvider.client.auth.signUpWith(Email) {
-            this.email = email
+            this.email = trimmedEmail
             this.password = password
+        }
+        val user = SupabaseProvider.client.auth.currentSessionOrNull()?.user
+        if (user != null) {
+            AuthStorage.clearAnonymousUserId()
+            val userId = user.id
+            validatedRemoteUserId = userId
+            _state.value = AuthState.Authenticated(
+                userId = userId,
+                email = user.email ?: trimmedEmail,
+                isAnonymous = false,
+            )
         }
         Unit
     }.onFailure { e ->
@@ -126,10 +142,20 @@ object AuthRepository {
 
     suspend fun signInWithEmail(email: String, password: String): Result<Unit> = runCatching {
         _error.value = null
+        val trimmedEmail = email.trim()
         SupabaseProvider.client.auth.signInWith(Email) {
-            this.email = email
+            this.email = trimmedEmail
             this.password = password
         }
+        AuthStorage.clearAnonymousUserId()
+        val user = SupabaseProvider.client.auth.currentSessionOrNull()?.user
+        val userId = user?.id.orEmpty()
+        validatedRemoteUserId = userId
+        _state.value = AuthState.Authenticated(
+            userId = userId,
+            email = user?.email ?: trimmedEmail,
+            isAnonymous = false,
+        )
     }.onFailure { e ->
         log.e(e) { "Email sign-in failed" }
         _error.value = e.safeAuthErrorDescription()
@@ -277,11 +303,8 @@ object AuthRepository {
 
     private fun Throwable.safeAuthErrorDescription(): String? =
         findCause<AuthRestException>()
-            ?.errorDescription
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
+            ?.let { it.errorDescription?.trim()?.takeIf { s -> s.isNotEmpty() } ?: it.message?.trim()?.takeIf { s -> s.isNotEmpty() } }
             ?: findCause<RestException>()
-                ?.description
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
+                ?.let { it.description?.trim()?.takeIf { s -> s.isNotEmpty() } ?: it.message?.trim()?.takeIf { s -> s.isNotEmpty() } }
+            ?: message?.trim()?.takeIf { it.isNotEmpty() && !it.startsWith("io.github.jan") && !it.startsWith("io.ktor") }
 }

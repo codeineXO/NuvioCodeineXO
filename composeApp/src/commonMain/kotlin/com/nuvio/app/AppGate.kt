@@ -581,10 +581,7 @@ internal fun AppGate(
                 }
                 ProfileSelectionScreen(
                     onProfileSelected = { profile ->
-                        if (
-                            !profileSelectionLoading &&
-                            (autoSkipProfileSelection || profile.profileIndex != ProfileRepository.state.value.activeProfile?.profileIndex)
-                        ) {
+                        if (!profileSelectionLoading) {
                             profileSelectionLoading = true
                             profileSelectionTransitionActive = true
                             skipProfileSelectionEnterAnimation = false
@@ -612,7 +609,7 @@ internal fun AppGate(
                     },
                     interactionEnabled = !profileSelectionLoading,
                     onBack = onBack,
-                    activeProfileIndex = if (autoSkipProfileSelection) null else profileState.activeProfile?.profileIndex,
+                    activeProfileIndex = null,
                     contentVisible = !profileSelectionTransitionActive,
                     modifier = Modifier.fillMaxSize(),
                 )

@@ -342,7 +342,7 @@ fun ProfileSelectionScreen(
             onVerify = { pin -> ProfileRepository.verifyPin(profile.profileIndex, pin) },
             onVerified = {
                 pinDialogProfile = null
-                if (interactionEnabled && profile.profileIndex != activeProfileIndex) {
+                if (interactionEnabled) {
                     onProfileSelected(profile)
                 }
             },

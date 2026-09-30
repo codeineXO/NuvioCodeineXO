@@ -103,19 +103,38 @@ object ProfileRepository {
 
         val stored = decodeStoredPayload()
         loadedCacheForUserId = userId
-        if (stored == null) {
-            _state.value = ProfileState()
-            activeProfileIndex = 1
-            return
-        }
-
-        if (stored.userId != userId) {
-            _state.value = ProfileState()
-            activeProfileIndex = 1
+        if (stored == null || stored.userId != userId) {
+            createDefaultProfileLocally()
             return
         }
 
         applyStoredPayload(stored)
+        if (_state.value.profiles.isEmpty()) {
+            createDefaultProfileLocally()
+        }
+    }
+
+    private fun createDefaultProfileLocally() {
+        val currentUserId = (AuthRepository.state.value as? AuthState.Authenticated)?.userId
+            ?: loadedCacheForUserId
+            ?: "anonymous"
+        val authUser = AuthRepository.state.value as? AuthState.Authenticated
+        val defaultName = authUser?.email?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+            ?.takeIf { it.isNotBlank() } ?: "Profile 1"
+        val defaultProfile = NuvioProfile(
+            id = "",
+            userId = currentUserId,
+            profileIndex = 1,
+            name = defaultName,
+            avatarColorHex = "#1E88E5",
+        )
+        _state.value = ProfileState(
+            profiles = listOf(defaultProfile),
+            activeProfile = defaultProfile,
+            isLoaded = true,
+        )
+        activeProfileIndex = 1
+        persist()
     }
 
     fun clearInMemory() {
@@ -127,28 +146,47 @@ object ProfileRepository {
     suspend fun pullProfiles() {
         if (AuthRepository.state.value.isAnonymous) {
             if (!_state.value.isLoaded) {
-                _state.value = _state.value.copy(isLoaded = true)
+                if (_state.value.profiles.isEmpty()) {
+                    createDefaultProfileLocally()
+                } else {
+                    _state.value = _state.value.copy(isLoaded = true)
+                }
             }
             return
         }
         try {
             val result = SupabaseProvider.client.postgrest.rpc("sync_pull_profiles")
             val profiles = result.decodeList<NuvioProfile>()
-            _state.value = _state.value.copy(
-                profiles = profiles.sortedBy { it.profileIndex },
-                isLoaded = true,
-                activeProfile = profiles.find { it.profileIndex == activeProfileIndex }
-                    ?: profiles.firstOrNull(),
-            )
-            if (_state.value.activeProfile != null) {
-                activeProfileIndex = _state.value.activeProfile!!.profileIndex
+            if (profiles.isEmpty()) {
+                val authUser = AuthRepository.state.value as? AuthState.Authenticated
+                val defaultName = authUser?.email?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+                    ?.takeIf { it.isNotBlank() } ?: "Profile 1"
+                createProfile(
+                    name = defaultName,
+                    avatarColorHex = "#1E88E5",
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    profiles = profiles.sortedBy { it.profileIndex },
+                    isLoaded = true,
+                    activeProfile = profiles.find { it.profileIndex == activeProfileIndex }
+                        ?: profiles.firstOrNull(),
+                )
+                if (_state.value.activeProfile != null) {
+                    activeProfileIndex = _state.value.activeProfile!!.profileIndex
+                }
+                syncPinCache(profiles)
+                persist()
             }
-            persist()
         } catch (e: Throwable) {
             if (AuthRepository.signOutIfSessionInvalid(e, "Profile pull")) return
             log.e(e) { "Failed to pull profiles" }
             if (!_state.value.isLoaded) {
-                _state.value = _state.value.copy(isLoaded = true)
+                if (_state.value.profiles.isEmpty()) {
+                    createDefaultProfileLocally()
+                } else {
+                    _state.value = _state.value.copy(isLoaded = true)
+                }
             }
         }
     }
@@ -219,6 +257,7 @@ object ProfileRepository {
         } catch (e: Throwable) {
             if (AuthRepository.signOutIfSessionInvalid(e, "Profile push")) return
             log.e(e) { "Failed to push profiles" }
+            applyPayloadsLocally(profiles)
         }
     }
 
@@ -297,17 +336,24 @@ object ProfileRepository {
     }
 
     suspend fun deleteProfile(profileIndex: Int) {
-        if (AuthRepository.state.value.isAnonymous) {
-            val remaining = _state.value.profiles.filter { it.profileIndex != profileIndex }
-            ProfilePinCacheStorage.removePayload(profileIndex)
-            _state.value = _state.value.copy(
-                profiles = remaining,
-                activeProfile = if (_state.value.activeProfile?.profileIndex == profileIndex) remaining.firstOrNull() else _state.value.activeProfile,
+        val remainingProfiles = _state.value.profiles.filter { it.profileIndex != profileIndex }
+        val remainingPayloads = remainingProfiles.map { profile ->
+            ProfilePushPayload(
+                profileIndex = profile.profileIndex,
+                name = profile.name,
+                avatarColorHex = profile.avatarColorHex,
+                usesPrimaryAddons = profile.usesPrimaryAddons,
+                usesPrimaryPlugins = profile.usesPrimaryPlugins,
+                avatarId = profile.avatarId,
+                avatarUrl = profile.avatarUrl,
+                profileBackgroundId = profile.profileBackgroundId,
+                profileBackgroundUrl = profile.profileBackgroundUrl,
             )
-            if (_state.value.activeProfile != null) {
-                activeProfileIndex = _state.value.activeProfile!!.profileIndex
-            }
-            persist()
+        }
+        ProfilePinCacheStorage.removePayload(profileIndex)
+
+        if (AuthRepository.state.value.isAnonymous) {
+            applyPayloadsLocally(remainingPayloads)
             return
         }
         try {
@@ -316,11 +362,11 @@ object ProfileRepository {
                 putSyncOriginClientId()
             }
             SupabaseProvider.client.postgrest.rpc("sync_delete_profile_data", params)
-            pullProfiles()
         } catch (e: Throwable) {
             if (AuthRepository.signOutIfSessionInvalid(e, "Profile delete")) return
-            log.e(e) { "Failed to delete profile $profileIndex" }
+            log.e(e) { "Failed to delete profile $profileIndex data" }
         }
+        pushProfiles(remainingPayloads)
     }
 
     suspend fun verifyPin(profileIndex: Int, pin: String): PinVerifyResult {
@@ -414,11 +460,15 @@ object ProfileRepository {
     }
 
     private fun applyPayloadsLocally(payloads: List<ProfilePushPayload>) {
-        val authState = AuthRepository.state.value as? AuthState.Authenticated ?: return
+        val currentUserId = (AuthRepository.state.value as? AuthState.Authenticated)?.userId
+            ?: loadedCacheForUserId
+            ?: "anonymous"
+        val existingByIndex = _state.value.profiles.associateBy { it.profileIndex }
         val profiles = payloads.map { p ->
+            val existing = existingByIndex[p.profileIndex]
             NuvioProfile(
-                id = "",
-                userId = authState.userId,
+                id = existing?.id.orEmpty(),
+                userId = currentUserId,
                 profileIndex = p.profileIndex,
                 name = p.name,
                 avatarColorHex = p.avatarColorHex,
@@ -428,6 +478,10 @@ object ProfileRepository {
                 profileBackgroundUrl = p.profileBackgroundUrl,
                 usesPrimaryAddons = p.usesPrimaryAddons,
                 usesPrimaryPlugins = p.usesPrimaryPlugins,
+                pinEnabled = existing?.pinEnabled ?: false,
+                pinLockedUntil = existing?.pinLockedUntil,
+                createdAt = existing?.createdAt.orEmpty(),
+                updatedAt = existing?.updatedAt.orEmpty(),
             )
         }.sortedBy { it.profileIndex }
         _state.value = _state.value.copy(
@@ -547,12 +601,14 @@ object ProfileRepository {
     }
 
     private fun persist() {
-        val authState = AuthRepository.state.value as? AuthState.Authenticated ?: return
+        val currentUserId = (AuthRepository.state.value as? AuthState.Authenticated)?.userId
+            ?: loadedCacheForUserId
+            ?: "anonymous"
         val state = _state.value
         ProfileStorage.savePayload(
             json.encodeToString(
                 StoredProfilePayload(
-                    userId = authState.userId,
+                    userId = currentUserId,
                     activeProfileIndex = activeProfileIndex,
                     hasEverSelectedProfile = state.hasEverSelectedProfile,
                     rememberLastProfileEnabled = state.rememberLastProfileEnabled,
