@@ -184,12 +184,36 @@ actual object AppUpdaterPlatform {
         val currentPid = ProcessHandle.current().pid()
         val command = windowsInstallerCommand(updateFile, logFile)
         val script = writeWindowsUpdateScript(updateFile, command, currentPid)
+        val runner = writeWindowsUpdateRunner(updateFile)
+
         // Detached: `start` returns at once so this process can exit and
         // unlock [INSTALLDIR]/app before msiexec touches it.
-        ProcessBuilder("cmd", "/c", "start", "\"\"", "/min", script.absolutePath)
-            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-            .redirectError(ProcessBuilder.Redirect.DISCARD)
-            .start()
+        // Launch silently via wscript to avoid flashing or opening a cmd console window,
+        // with fallback to minimized cmd if wscript is unavailable.
+        val launched = runCatching {
+            ProcessBuilder("wscript.exe", "//B", runner.absolutePath, script.absolutePath)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+        }.isSuccess
+
+        if (!launched) {
+            ProcessBuilder("cmd", "/c", "start", "\"\"", "/min", script.absolutePath)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+        }
+    }
+
+    private fun writeWindowsUpdateRunner(updateFile: File): File {
+        val dir = updatesDir()
+        val script = File(dir, "${updateFile.nameWithoutExtension}-runner.vbs")
+        val lines = listOf(
+            "Set WshShell = CreateObject(\"WScript.Shell\")",
+            "WshShell.Run \"\"\"\" & WScript.Arguments(0) & \"\"\"\", 0, False",
+        )
+        script.writeText(lines.joinToString("\r\n"))
+        return script
     }
 
     private fun writeWindowsUpdateScript(updateFile: File, command: List<String>, currentPid: Long): File {
