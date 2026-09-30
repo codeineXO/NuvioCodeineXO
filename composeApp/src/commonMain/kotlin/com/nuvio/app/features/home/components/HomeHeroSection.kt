@@ -498,7 +498,7 @@ private fun DefaultHomeHeroFrame(
                 modifier = Modifier
                     .fillMaxWidth(layout.contentWidthFraction)
                     .widthIn(max = layout.contentMaxWidth),
-                contentAlignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center,
+                contentAlignment = if (layout.isTablet) Alignment.CenterStart else Alignment.BottomStart,
             ) {
                 HeroContentLayers(
                     items = items,
@@ -638,7 +638,7 @@ private fun DesktopHomeHeroFrame(
                     )
                     .fillMaxWidth(layout.contentWidthFraction)
                     .widthIn(max = layout.contentMaxWidth),
-                contentAlignment = Alignment.CenterStart,
+                contentAlignment = Alignment.BottomStart,
             ) {
                 HeroDesktopContentLayers(
                     items = items,

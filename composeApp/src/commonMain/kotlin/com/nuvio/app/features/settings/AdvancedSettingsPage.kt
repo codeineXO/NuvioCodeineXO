@@ -9,15 +9,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,15 +25,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Icon
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.DialogButton
+import com.nuvio.app.core.ui.DialogButtons
+import com.nuvio.app.core.ui.DialogButtonStyle
+import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
@@ -280,117 +280,85 @@ private fun SentrySettingsDialog(
     onDismiss: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
-    BasicAlertDialog(
+    DialogSurface(
         onDismissRequest = onDismiss,
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = tokens.colors.surfaceDialog,
-            shape = tokens.shapes.dialog,
-        ) {
-            Column(
-                modifier = Modifier.padding(tokens.spacing.dialogPadding),
-            ) {
-                Text(
-                    text = stringResource(
+        title = stringResource(
                         if (enabled) {
                             Res.string.sentry_disable_dialog_title
                         } else {
                             Res.string.sentry_enable_dialog_title
                         },
                     ),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = tokens.colors.textPrimary,
-                )
-                Spacer(modifier = Modifier.height(tokens.spacing.controlGap))
-                Text(
-                    text = stringResource(
-                        when {
-                            enabled && SentrySettingsPlatform.usesDesktopCopy -> {
-                                Res.string.sentry_disable_dialog_subtitle_desktop
-                            }
-                            enabled -> Res.string.sentry_disable_dialog_subtitle
-                            SentrySettingsPlatform.usesDesktopCopy -> {
-                                Res.string.sentry_enable_dialog_subtitle_desktop
-                            }
-                            else -> Res.string.sentry_enable_dialog_subtitle
+    ) {
+        Text(
+            text = stringResource(
+                when {
+                    enabled && SentrySettingsPlatform.usesDesktopCopy -> {
+                        Res.string.sentry_disable_dialog_subtitle_desktop
+                    }
+                    enabled -> Res.string.sentry_disable_dialog_subtitle
+                    SentrySettingsPlatform.usesDesktopCopy -> {
+                        Res.string.sentry_enable_dialog_subtitle_desktop
+                    }
+                    else -> Res.string.sentry_enable_dialog_subtitle
+                },
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+            color = tokens.colors.textMuted,
+        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
+        ) {
+            SentryInfoSection(
+                title = stringResource(Res.string.sentry_help_title),
+                body = stringResource(
+                    if (SentrySettingsPlatform.usesDesktopCopy) {
+                        Res.string.sentry_help_body_desktop
+                    } else {
+                        Res.string.sentry_help_body
+                    },
+                ),
+            )
+            SentryInfoSection(
+                title = stringResource(Res.string.sentry_sent_title),
+                body = stringResource(
+                    if (SentrySettingsPlatform.usesDesktopCopy) {
+                        Res.string.sentry_sent_body_desktop
+                    } else {
+                        Res.string.sentry_sent_body
+                    },
+                ),
+            )
+            SentryInfoSection(
+                title = stringResource(Res.string.sentry_not_sent_title),
+                body = stringResource(Res.string.sentry_not_sent_body),
+            )
+        }
+        DialogButtons {
+            DialogButton(
+                text = stringResource(
+                        if (enabled) {
+                            Res.string.sentry_keep_enabled
+                        } else {
+                            Res.string.action_cancel
                         },
                     ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = tokens.colors.textMuted,
-                )
-                Spacer(modifier = Modifier.height(NuvioTokens.Space.s18))
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
-                ) {
-                    SentryInfoSection(
-                        title = stringResource(Res.string.sentry_help_title),
-                        body = stringResource(
-                            if (SentrySettingsPlatform.usesDesktopCopy) {
-                                Res.string.sentry_help_body_desktop
-                            } else {
-                                Res.string.sentry_help_body
-                            },
-                        ),
-                    )
-                    SentryInfoSection(
-                        title = stringResource(Res.string.sentry_sent_title),
-                        body = stringResource(
-                            if (SentrySettingsPlatform.usesDesktopCopy) {
-                                Res.string.sentry_sent_body_desktop
-                            } else {
-                                Res.string.sentry_sent_body
-                            },
-                        ),
-                    )
-                    SentryInfoSection(
-                        title = stringResource(Res.string.sentry_not_sent_title),
-                        body = stringResource(Res.string.sentry_not_sent_body),
-                    )
-                }
-                Spacer(modifier = Modifier.height(NuvioTokens.Space.s18))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    Button(
-                        onClick = onDismiss,
-                        shape = tokens.shapes.button,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = tokens.colors.surfaceCard,
-                            contentColor = tokens.colors.textPrimary,
-                        ),
-                    ) {
-                        Text(
-                            text = stringResource(
-                                if (enabled) {
-                                    Res.string.sentry_keep_enabled
-                                } else {
-                                    Res.string.action_cancel
-                                },
-                            ),
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(NuvioTokens.Space.s10))
-                    Button(
-                        onClick = {
-                            onConfirm()
-                            onDismiss()
+                onClick = onDismiss,
+            )
+            DialogButton(
+                text = stringResource(
+                        if (enabled) {
+                            Res.string.sentry_turn_off
+                        } else {
+                            Res.string.sentry_turn_on
                         },
-                        shape = tokens.shapes.button,
-                    ) {
-                        Text(
-                            text = stringResource(
-                                if (enabled) {
-                                    Res.string.sentry_turn_off
-                                } else {
-                                    Res.string.sentry_turn_on
-                                },
-                            ),
-                        )
-                    }
-                }
-            }
+                    ),
+                onClick = {
+                    onConfirm()
+                    onDismiss()
+                },
+                style = DialogButtonStyle.Primary,
+            )
         }
     }
 }

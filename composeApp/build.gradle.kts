@@ -1275,6 +1275,7 @@ compose.desktop {
                 "java.instrument",
                 "java.management",
                 "java.net.http",
+                "jdk.accessibility",
                 "jdk.httpserver",
                 "jdk.unsupported",
             )
