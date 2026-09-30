@@ -36,7 +36,7 @@ internal actual object DesktopRendererSettings {
     }
 
     fun applyBeforeCompose() {
-        val storedOpenGlEnabled = runCatching(::loadStoredPreference).getOrDefault(false)
+        val storedOpenGlEnabled = runCatching(::loadStoredPreference).getOrDefault(true)
         if (!shouldApplyStoredOpenGlRenderer(
                 osName = System.getProperty("os.name").orEmpty(),
                 osArchitecture = System.getProperty("os.arch").orEmpty(),
@@ -56,7 +56,7 @@ internal actual object DesktopRendererSettings {
     }
 
     private fun loadStoredPreference(): Boolean =
-        store.getBoolean(openGlEnabledKey) ?: false
+        store.getBoolean(openGlEnabledKey) ?: true
 
     private fun externalRendererOverride(): String? =
         System.getenv(RenderApiEnvironmentVariable) ?: System.getProperty(RenderApiSystemProperty)

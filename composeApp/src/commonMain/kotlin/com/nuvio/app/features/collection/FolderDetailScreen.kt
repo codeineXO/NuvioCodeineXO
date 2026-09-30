@@ -403,7 +403,7 @@ private fun TabbedGridContent(
             }
             val basePosterWidthDp = catalogPosterBaseWidthDp(posterCardStyle.widthDp)
             val gridCells = if (isDesktop) {
-                GridCells.FixedSize(basePosterWidthDp.dp)
+                GridCells.Adaptive(basePosterWidthDp.dp)
             } else {
                 GridCells.Fixed(columns)
             }
@@ -441,12 +441,14 @@ private fun TabbedGridContent(
                                     isWatched = isWatched,
                                     onClick = { onPosterClick(item) },
                                     onLongClick = null,
+                                    modifier = if (isDesktop) Modifier.fillMaxWidth() else Modifier,
                                 ) { cardModifier ->
                                     NuvioPosterCard(
                                         title = item.name,
                                         imageUrl = item.poster,
                                         modifier = cardModifier,
                                         basePosterWidthDp = if (isDesktop) basePosterWidthDp else null,
+                                        fillMaxWidth = isDesktop,
                                         fallbackImageUrl = item.rawPosterUrl,
                                         shape = NuvioPosterShape.Poster,
                                         detailLine = item.releaseInfo,

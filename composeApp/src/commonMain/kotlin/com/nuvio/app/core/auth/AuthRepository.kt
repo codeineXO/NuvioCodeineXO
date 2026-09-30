@@ -57,7 +57,7 @@ object AuthRepository {
                         AuthStorage.clearAnonymousUserId()
                         val user = status.session.user
                         val userId = user?.id.orEmpty()
-                        if (!validateRemoteSession(userId)) return@collect
+                        if (userId.isBlank() || !validateRemoteSession(userId)) return@collect
                         _state.value = AuthState.Authenticated(
                             userId = userId,
                             email = user?.email,
@@ -147,15 +147,17 @@ object AuthRepository {
             this.email = trimmedEmail
             this.password = password
         }
-        AuthStorage.clearAnonymousUserId()
         val user = SupabaseProvider.client.auth.currentSessionOrNull()?.user
         val userId = user?.id.orEmpty()
-        validatedRemoteUserId = userId
-        _state.value = AuthState.Authenticated(
-            userId = userId,
-            email = user?.email ?: trimmedEmail,
-            isAnonymous = false,
-        )
+        if (user != null && userId.isNotBlank()) {
+            AuthStorage.clearAnonymousUserId()
+            validatedRemoteUserId = userId
+            _state.value = AuthState.Authenticated(
+                userId = userId,
+                email = user.email ?: trimmedEmail,
+                isAnonymous = false,
+            )
+        }
     }.onFailure { e ->
         log.e(e) { "Email sign-in failed" }
         _error.value = e.safeAuthErrorDescription()

@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +26,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.nuvio.app.core.ui.NuvioBackButton
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.nuvioConsumePointerEvents
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -187,22 +191,23 @@ fun CatalogScreen(
         } else {
             16.dp
         }
-        val columns = remember(maxWidth, maxHeight, posterCardStyle.widthDp, isDesktop) {
+        val basePosterWidthDp = catalogPosterBaseWidthDp(posterCardStyle.widthDp)
+        val targetPosterWidthDp = if (posterCardStyle.catalogLandscapeModeEnabled) {
+            landscapePosterWidth(basePosterWidthDp)
+        } else {
+            basePosterWidthDp.dp
+        }
+        val columns = remember(maxWidth, maxHeight, targetPosterWidthDp, pageHorizontalPadding, isDesktop) {
             if (isDesktop) {
-                posterGridColumnCountForViewport(maxWidth, maxHeight, posterCardStyle.widthDp)
+                val availableWidth = (maxWidth - pageHorizontalPadding * 2).coerceAtLeast(0.dp)
+                val spacing = 12.dp
+                ((availableWidth + spacing) / (targetPosterWidthDp + spacing)).toInt().coerceAtLeast(1)
             } else {
                 catalogGridColumnsForWidth(maxWidth)
             }
         }
-        val basePosterWidthDp = catalogPosterBaseWidthDp(posterCardStyle.widthDp)
         val gridCells = if (isDesktop) {
-            GridCells.FixedSize(
-                if (posterCardStyle.catalogLandscapeModeEnabled) {
-                    landscapePosterWidth(basePosterWidthDp)
-                } else {
-                    basePosterWidthDp.dp
-                },
-            )
+            GridCells.Adaptive(minSize = targetPosterWidthDp)
         } else {
             GridCells.Fixed(columns)
         }
@@ -276,6 +281,7 @@ fun CatalogScreen(
                                 item = item,
                                 useLandscapeBackdropMode = posterCardStyle.catalogLandscapeModeEnabled,
                                 isWatched = isWatched,
+                                fillMaxWidth = true,
                                 onClick = onPosterClick?.let { { it(item) } },
                                 onLongClick = onPosterLongClick?.let { { it(item) } },
                             )
@@ -336,7 +342,10 @@ private fun CatalogHeader(
         return
     }
 
-    Column(
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val effectiveTopPadding = statusBarTop + MaterialTheme.nuvio.spacing.screenTop
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .background(
@@ -346,35 +355,44 @@ private fun CatalogHeader(
                     MaterialTheme.colorScheme.background
                 }
             )
-            .then(if (isDesktop) Modifier.windowInsetsPadding(WindowInsets.statusBars) else Modifier)
+            .nuvioConsumePointerEvents()
             .padding(horizontal = pageHorizontalPadding)
-            .padding(top = if (isDesktop) 32.dp else 52.dp, bottom = 12.dp),
+            .padding(top = effectiveTopPadding, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         NuvioBackButton(
             onClick = onBack,
-            modifier = Modifier.size(if (isDesktop) 48.dp else 40.dp),
+            modifier = Modifier.size(if (isDesktop) 44.dp else 40.dp),
+            buttonSize = if (isDesktop) 44.dp else 40.dp,
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             iconSize = 24.dp,
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (subtitle.isNotBlank()) {
-            Spacer(modifier = Modifier.height(6.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center,
+        ) {
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

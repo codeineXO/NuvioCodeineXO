@@ -609,7 +609,6 @@ internal fun AppGate(
                     },
                     interactionEnabled = !profileSelectionLoading,
                     onBack = onBack,
-                    activeProfileIndex = null,
                     contentVisible = !profileSelectionTransitionActive,
                     modifier = Modifier.fillMaxSize(),
                 )

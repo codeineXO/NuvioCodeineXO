@@ -336,6 +336,7 @@ object ProfileRepository {
     }
 
     suspend fun deleteProfile(profileIndex: Int) {
+        val wasActive = _state.value.activeProfile?.profileIndex == profileIndex
         val remainingProfiles = _state.value.profiles.filter { it.profileIndex != profileIndex }
         val remainingPayloads = remainingProfiles.map { profile ->
             ProfilePushPayload(
@@ -354,6 +355,11 @@ object ProfileRepository {
 
         if (AuthRepository.state.value.isAnonymous) {
             applyPayloadsLocally(remainingPayloads)
+            if (wasActive) {
+                _state.value.activeProfile?.profileIndex?.let { newIndex ->
+                    switchToProfile(newIndex)
+                }
+            }
             return
         }
         try {
@@ -367,6 +373,11 @@ object ProfileRepository {
             log.e(e) { "Failed to delete profile $profileIndex data" }
         }
         pushProfiles(remainingPayloads)
+        if (wasActive) {
+            _state.value.activeProfile?.profileIndex?.let { newIndex ->
+                switchToProfile(newIndex)
+            }
+        }
     }
 
     suspend fun verifyPin(profileIndex: Int, pin: String): PinVerifyResult {

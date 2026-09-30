@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home.components
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
@@ -16,6 +17,7 @@ fun HomePosterCard(
     modifier: Modifier = Modifier,
     useLandscapeBackdropMode: Boolean = false,
     isWatched: Boolean = false,
+    fillMaxWidth: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     showLandscapeOverlay: Boolean = true,
@@ -35,11 +37,12 @@ fun HomePosterCard(
         isWatched = isWatched,
         onClick = onClick,
         onLongClick = onLongClick,
+        modifier = if (fillMaxWidth) modifier.fillMaxWidth() else modifier,
     ) { hoverModifier ->
         NuvioPosterCard(
             title = item.name,
             imageUrl = if (isLandscapeMode) (item.landscapePoster ?: item.banner ?: item.poster) else item.poster,
-            modifier = modifier.then(hoverModifier),
+            modifier = hoverModifier,
             fallbackImageUrl = fallbackImageUrl,
             basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp),
             shape = if (isLandscapeMode) NuvioPosterShape.Landscape else item.posterShape.toNuvioPosterShape(),
@@ -48,6 +51,7 @@ fun HomePosterCard(
             bottomLeftLogoUrl = if (isLandscapeMode && showLandscapeOverlay) item.logo else null,
             bottomLeftText = if (isLandscapeMode && showLandscapeOverlay && item.logo.isNullOrBlank() && !posterCardStyle.hideLabelsEnabled) item.name else null,
             isWatched = isWatched,
+            fillMaxWidth = fillMaxWidth,
             onClick = onClick,
             onLongClick = onLongClick,
         )

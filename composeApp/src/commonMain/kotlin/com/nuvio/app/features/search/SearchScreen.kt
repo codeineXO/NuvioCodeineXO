@@ -37,6 +37,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.focus.FocusRequester
@@ -343,6 +344,7 @@ fun SearchScreen(
                 item(key = "recent_searches") {
                     SearchRecentSection(
                         recentSearches = recentSearches,
+                        auraBackgroundEnabled = auraBackgroundEnabled,
                         onSearchPress = { recentQuery -> query = recentQuery },
                         onRemoveSearch = SearchHistoryRepository::removeSearch,
                     )
@@ -507,6 +509,7 @@ private fun SearchEmptyStateCard(
 @Composable
 private fun SearchRecentSection(
     recentSearches: List<String>,
+    auraBackgroundEnabled: Boolean,
     onSearchPress: (String) -> Unit,
     onRemoveSearch: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -526,6 +529,7 @@ private fun SearchRecentSection(
         recentSearches.forEach { recentQuery ->
             SearchRecentRow(
                 query = recentQuery,
+                auraBackgroundEnabled = auraBackgroundEnabled,
                 onSearchPress = { onSearchPress(recentQuery) },
                 onRemovePress = { onRemoveSearch(recentQuery) },
             )
@@ -537,20 +541,25 @@ private fun SearchRecentSection(
 @Composable
 private fun SearchRecentRow(
     query: String,
+    auraBackgroundEnabled: Boolean,
     onSearchPress: () -> Unit,
     onRemovePress: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cardColor = if (auraBackgroundEnabled) {
+        MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
+    } else {
+        MaterialTheme.nuvio.colors.surfaceCard
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onSearchPress)
             .padding(vertical = 2.dp)
-            .background(
-                color = MaterialTheme.colorScheme.background,
-                shape = RoundedCornerShape(16.dp),
-            )
-            .padding(start = 2.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            .clip(RoundedCornerShape(16.dp))
+            .background(cardColor)
+            .clickable(onClick = onSearchPress)
+            .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -87,16 +87,17 @@ object ImdbEpisodeRatingsRepository {
             log.w { "Primary episode ratings empty for imdbId=$resolvedImdbId, trying fallback" }
         }
 
-        if (tmdbId != null) {
-            val configuredServiceRatings = toRatingsMap(SeriesGraphApi.getSeasonRatings(tmdbId))
-            if (configuredServiceRatings.isNotEmpty()) return configuredServiceRatings
-        }
-
         val resolvedTmdbId = tmdbId ?: resolvedImdbId
             ?.let { TmdbService.ensureTmdbId(it, "series") }
             ?.toIntOrNull()
-            ?: return emptyMap()
-        return TmdbMetadataService.fetchEpisodeRatings(resolvedTmdbId, seasonNumbers)
+
+        if (resolvedTmdbId != null) {
+            val configuredServiceRatings = toRatingsMap(SeriesGraphApi.getSeasonRatings(resolvedTmdbId))
+            if (configuredServiceRatings.isNotEmpty()) return configuredServiceRatings
+            return TmdbMetadataService.fetchEpisodeRatings(resolvedTmdbId, seasonNumbers)
+        }
+
+        return emptyMap()
     }
 
     private fun toRatingsMap(payload: List<SeriesGraphSeasonRatingsDto>): Map<Pair<Int, Int>, Double> =
