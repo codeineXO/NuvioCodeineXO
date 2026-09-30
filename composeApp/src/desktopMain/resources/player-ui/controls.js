@@ -239,7 +239,7 @@ let state = {
   episodeText: "",
   streamTitle: "",
   providerName: "",
-  pauseOverlayEnabled: false,
+  pauseOverlayEnabled: true,
   pauseOverlayWatchingLabel: "You're watching",
   pauseOverlayLogo: "",
   pauseOverlayEpisodeInfo: "",
@@ -1073,8 +1073,13 @@ const resetPauseMetadataTimer = () => {
 
 const syncPauseMetadataTimer = showOpening => {
   const durationMs = Math.max(0, Number(state.durationMs) || 0);
-  const eligible = Boolean(!state.isPlaying && !state.isLoading && durationMs > 0 && !showOpening);
-  const key = eligible ? `${Math.round(durationMs)}:${state.title || ""}:${state.pauseOverlayEpisodeInfo || ""}` : "";
+  const eligible = Boolean(
+    state.pauseOverlayEnabled &&
+    !state.isPlaying &&
+    durationMs > 0 &&
+    !showOpening,
+  );
+  const key = eligible ? `${state.title || ""}:${state.episodeText || state.pauseOverlayEpisodeInfo || ""}` : "";
   if (!eligible) {
     resetPauseMetadataTimer();
     return;
@@ -1099,6 +1104,7 @@ const renderPauseMetadataOverlay = showOpening => {
   const episodeTitleText = String(state.pauseOverlayEpisodeTitle || "").trim();
   const descriptionText = String(state.pauseOverlayDescription || "").trim();
   const showOverlay = Boolean(
+    state.pauseOverlayEnabled &&
     pauseMetadataReady &&
     !state.controlsVisible &&
     !hasOpenModal() &&
@@ -2715,7 +2721,7 @@ const isInteractingWithChrome = () =>
 
 const canAutoHideChrome = showOpening => Boolean(
   state.controlsVisible &&
-  !state.isLoading &&
+  (!state.isLoading || !state.isPlaying) &&
   !activeModal &&
   !isScrubbing &&
   !isInteractingWithChrome() &&
@@ -2729,7 +2735,7 @@ const currentChromeAutoHideKey = showOpening => {
     chromeAutoHideActivity,
     state.controlsVisible ? "visible" : "hidden",
     state.isPlaying ? "playing" : "paused",
-    state.isLoading ? "loading" : "ready",
+    !state.isPlaying ? "paused" : (state.isLoading ? "loading" : "ready"),
     activeModal || "none",
     isScrubbing ? "scrubbing" : "idle",
     isInteractingWithChrome() ? "interacting" : "idle-controls",
@@ -2857,7 +2863,7 @@ const renderChrome = () => {
   root.classList.toggle("source-visible", Boolean(!showError && !isPlaying && !state.isLoading && (state.streamTitle || state.providerName)));
   syncHiddenCursor();
   const showOpening = renderOpeningOverlay(showError);
-  if (state.pauseOverlayEnabled || showError) renderPauseMetadataOverlay(showOpening || showError);
+  renderPauseMetadataOverlay(showOpening || showError);
   syncParentalGuide(showOpening || showError);
   syncTorrentStatsOverlay(showOpening || showError || modalActive);
 
@@ -3241,7 +3247,11 @@ document.addEventListener("pointermove", event => {
   noteCursorActivity();
   const inside = isChromeInteractionTarget(event.target);
   updateChromePointerInside(inside);
-  if (inside) {
+  if (!state.controlsVisible) {
+    state = { ...state, controlsVisible: true };
+    renderChrome();
+    noteChromeActivity(true);
+  } else if (inside) {
     noteChromeActivity();
   }
 }, true);
@@ -3864,6 +3874,7 @@ window.playerControls = nextState => {
     ...nextState,
     isPlaying: currentPlaybackState,
     volumeLevel: currentVolumeLevel ?? nextState.volumeLevel,
+    controlsVisible: nextState.controlsVisible ?? true,
   };
   if (typeof state.volumeLevel === "number" && state.volumeLevel > 0) {
     preMuteVolumeLevel = state.volumeLevel;
