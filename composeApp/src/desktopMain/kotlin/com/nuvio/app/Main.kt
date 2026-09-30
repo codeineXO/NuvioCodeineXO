@@ -98,16 +98,16 @@ fun main(args: Array<String>) {
         val maxScreenBounds = remember {
             runCatching {
                 java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
-            }.getOrNull()
+            }.getOrNull()?.takeIf { it.width > 200 && it.height > 200 }
         }
         val initialWidth = when {
             isStartingMaximizedOrFullscreen && maxScreenBounds != null -> maxScreenBounds.width.dp
-            savedGeometry != null -> savedGeometry.width.dp
+            savedGeometry != null && savedGeometry.width > 200f -> savedGeometry.width.dp
             else -> 1280.dp
         }
         val initialHeight = when {
             isStartingMaximizedOrFullscreen && maxScreenBounds != null -> maxScreenBounds.height.dp
-            savedGeometry != null -> savedGeometry.height.dp
+            savedGeometry != null && savedGeometry.height > 200f -> savedGeometry.height.dp
             else -> 820.dp
         }
         val windowState = rememberWindowState(
@@ -150,11 +150,14 @@ fun main(args: Array<String>) {
             }
 
             LaunchedEffect(window) {
+                window.isVisible = true
                 applyNativeDesktopWindowChrome(window)
                 installLinuxExtendedMouseButtons()
                 // Windows fullscreen is emulated natively and isn't reflected by
                 // WindowPlacement, so it must be re-applied once the window peer exists.
                 fullscreenController.applyRestoredFullscreenState(window, windowState, wasFullscreenOnLastExit)
+                window.toFront()
+                window.repaint()
             }
             LaunchedEffect(windowState) {
                 // Covers OS-driven placement changes too (e.g. the native macOS
