@@ -4105,9 +4105,128 @@ root.addEventListener("click", event => {
   }, 220);
 });
 
+let isPipResizing = false;
+let pipResizeDir = null;
+let pipResizeStartX = 0;
+let pipResizeStartY = 0;
+let pipResizeStartWidth = 0;
+let pipResizeStartHeight = 0;
+
+const getPipResizeDir = (event, threshold = 12) => {
+  if (!state.isInPip) return null;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const x = event.clientX;
+  const y = event.clientY;
+  const onLeft = x <= threshold;
+  const onRight = x >= w - threshold;
+  const onTop = y <= threshold;
+  const onBottom = y >= h - threshold;
+  if (onTop && onLeft) return "nw";
+  if (onTop && onRight) return "ne";
+  if (onBottom && onLeft) return "sw";
+  if (onBottom && onRight) return "se";
+  if (onLeft) return "w";
+  if (onRight) return "e";
+  if (onTop) return "n";
+  if (onBottom) return "s";
+  return null;
+};
+
+const pipResizeCursorMap = {
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  w: "ew-resize",
+  e: "ew-resize",
+  n: "ns-resize",
+  s: "ns-resize",
+};
+
+root.addEventListener("pointermove", event => {
+  if (!state.isInPip) return;
+  if (isPipResizing) {
+    event.preventDefault();
+    const dx = event.screenX - pipResizeStartX;
+    const dy = event.screenY - pipResizeStartY;
+    let newW = pipResizeStartWidth;
+    let anchor = 0; // 0: Top-Left, 1: Bottom-Right, 2: Bottom-Left, 3: Top-Right
+    const aspect = pipResizeStartWidth / Math.max(1, pipResizeStartHeight);
+
+    switch (pipResizeDir) {
+      case "se":
+      case "e":
+        newW = pipResizeStartWidth + dx;
+        anchor = 0;
+        break;
+      case "s":
+        newW = pipResizeStartWidth + dy * aspect;
+        anchor = 0;
+        break;
+      case "nw":
+      case "w":
+        newW = pipResizeStartWidth - dx;
+        anchor = 1;
+        break;
+      case "n":
+        newW = pipResizeStartWidth - dy * aspect;
+        anchor = 1;
+        break;
+      case "ne":
+        newW = pipResizeStartWidth + dx;
+        anchor = 2;
+        break;
+      case "sw":
+        newW = pipResizeStartWidth - dx;
+        anchor = 3;
+        break;
+      default:
+        break;
+    }
+    newW = Math.max(320, Math.min(1920, Math.round(newW)));
+    send("resizePip", newW + anchor * 100000);
+    return;
+  }
+  const dir = getPipResizeDir(event);
+  if (dir) {
+    root.style.cursor = pipResizeCursorMap[dir] || "";
+  } else if (root.style.cursor && root.style.cursor.includes("resize")) {
+    root.style.cursor = "";
+  }
+});
+
+const stopPipResizing = event => {
+  if (!isPipResizing) return;
+  isPipResizing = false;
+  pipResizeDir = null;
+  root.style.cursor = "";
+  if (root.releasePointerCapture && event && event.pointerId !== undefined) {
+    try { root.releasePointerCapture(event.pointerId); } catch (_) {}
+  }
+};
+
+root.addEventListener("pointerup", stopPipResizing);
+root.addEventListener("pointercancel", stopPipResizing);
+
 root.addEventListener("pointerdown", event => {
   if (!state.isInPip || event.button !== 0) return;
   if (event.target.closest("button, input, select, textarea, [data-command], a, #seek, .volume-control, .pip-lock-badge")) return;
+  const dir = getPipResizeDir(event);
+  if (dir) {
+    event.preventDefault();
+    event.stopPropagation();
+    isPipResizing = true;
+    pipResizeDir = dir;
+    pipResizeStartX = event.screenX;
+    pipResizeStartY = event.screenY;
+    pipResizeStartWidth = window.innerWidth;
+    pipResizeStartHeight = window.innerHeight;
+    if (root.setPointerCapture) {
+      try { root.setPointerCapture(event.pointerId); } catch (_) {}
+    }
+    return;
+  }
   event.preventDefault();
   if (event.target && event.target.releasePointerCapture) {
     try { event.target.releasePointerCapture(event.pointerId); } catch (_) {}
@@ -4128,10 +4247,9 @@ if (pipLockBadge) {
   });
 }
 
-
 root.addEventListener("dblclick", event => {
   if (event.button !== 0) return;
-  if (isPipLocked) return;
+  if (isPipLocked || isPipResizing) return;
   if (playbackErrorText() || isControlsSurfaceEvent(event)) return;
   event.preventDefault();
   window.clearTimeout(tapTimer);

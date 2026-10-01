@@ -3,6 +3,7 @@ package com.nuvio.app.features.player.desktop
 import androidx.compose.ui.unit.IntSize
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.settings.AppIconRepository
+import java.awt.Frame
 import java.awt.GraphicsEnvironment
 import java.awt.KeyboardFocusManager
 import java.awt.Rectangle
@@ -26,6 +27,7 @@ internal object DesktopPlayerPictureInPicture {
     private var host: NativePlayerHost? = null
     private var controller: NativePlayerController? = null
     private var pipWindow: DesktopPlayerPipWindow? = null
+    private var mainWindow: Window? = null
     private var windowTitle = ""
     private var lastVideoSize = IntSize.Zero
     private var transition = false
@@ -54,6 +56,24 @@ internal object DesktopPlayerPictureInPicture {
         }
     }
 
+    fun resizeWindow(encodedValue: Double) = onEdt {
+        val win = pipWindow ?: return@onEdt
+        val anchor = (encodedValue / 100000.0).toInt()
+        val targetWidth = (encodedValue % 100000.0).toInt().coerceIn(320, 1920)
+        val targetHeight = (targetWidth / win.aspectRatio).toInt()
+        val b = win.bounds
+        val newX = when (anchor) {
+            1, 3 -> b.x + b.width - targetWidth
+            else -> b.x
+        }
+        val newY = when (anchor) {
+            1, 2 -> b.y + b.height - targetHeight
+            else -> b.y
+        }
+        win.setBounds(newX, newY, targetWidth, targetHeight)
+        win.revalidate()
+    }
+
     fun toggle() = onEdt {
         if (!isSupportedHost()) return@onEdt
         if (transition) return@onEdt
@@ -72,9 +92,22 @@ internal object DesktopPlayerPictureInPicture {
     fun release() = onEdt {
         transition = true
         val window = pipWindow
+        val mainWin = mainWindow
         pipWindow = null
+        mainWindow = null
         isEnabled = false
         window?.dispose()
+        if (mainWin != null && !mainWin.isVisible) {
+            mainWin.isVisible = true
+            if (mainWin is Frame) {
+                val state = mainWin.extendedState
+                if (state and Frame.ICONIFIED != 0) {
+                    mainWin.extendedState = state and Frame.ICONIFIED.inv()
+                }
+            }
+            mainWin.toFront()
+            mainWin.requestFocus()
+        }
         host = null
         controller = null
         transition = false
@@ -87,9 +120,9 @@ internal object DesktopPlayerPictureInPicture {
         if (!mainHost.isDisplayable) return
 
         transition = true
-        val owner = currentWindow() ?: SwingUtilities.getWindowAncestor(mainHost)
+        val owner = SwingUtilities.getWindowAncestor(mainHost) ?: currentWindow()
+        mainWindow = owner
         val window = DesktopPlayerPipWindow(
-            ownerWindow = null,
             onCloseRequested = ::clear,
         ).apply {
             aspectRatio = videoAspectRatio()
@@ -109,14 +142,15 @@ internal object DesktopPlayerPictureInPicture {
 
         runCatching {
             val windowPointer = AwtNativeViewResolver.resolveNativeViewPointer(window)
-            NativePlayerBridge.setWindowResizable(windowPointer, true)
-        }.onFailure { error -> log.w(error) { "failed to enable PiP native resize" } }
+            NativePlayerBridge.setWindowResizable(windowPointer, false)
+        }.onFailure { error -> log.w(error) { "failed to set PiP window borderless" } }
 
         val pipHost = window.videoHolderPanel
         log.d { "created window displayable=${window.isDisplayable} visible=${window.isVisible} pipHostDisplayable=${pipHost.isDisplayable}" }
         if (!pipHost.isDisplayable) {
             window.dispose()
             pipWindow = null
+            mainWindow = null
             transition = false
             return
         }
@@ -124,11 +158,13 @@ internal object DesktopPlayerPictureInPicture {
             log.w { "native surface reparent failed; closing PiP window" }
             window.dispose()
             pipWindow = null
+            mainWindow = null
             transition = false
             return
         }
         isEnabled = true
         log.d { "PiP entered" }
+        owner?.isVisible = false
         transition = false
         notifyChanged()
         window.toFront()
@@ -139,8 +175,20 @@ internal object DesktopPlayerPictureInPicture {
         val window = pipWindow ?: return
         val mainHost = host
         val player = controller
+        val mainWin = mainWindow
 
         transition = true
+        if (mainWin != null) {
+            mainWin.isVisible = true
+            if (mainWin is Frame) {
+                val state = mainWin.extendedState
+                if (state and Frame.ICONIFIED != 0) {
+                    mainWin.extendedState = state and Frame.ICONIFIED.inv()
+                }
+            }
+            mainWin.toFront()
+            mainWin.requestFocus()
+        }
         if (mainHost != null && mainHost.isDisplayable && player != null) {
             val restored = player.reparentSurface(mainHost)
             log.d { "restoring PiP native surface success=$restored" }
@@ -149,6 +197,7 @@ internal object DesktopPlayerPictureInPicture {
         window.isVisible = false
         window.dispose()
         pipWindow = null
+        mainWindow = null
         isEnabled = false
         transition = false
         notifyChanged()
