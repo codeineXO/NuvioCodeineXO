@@ -28,8 +28,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -48,12 +53,15 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_tab_all
 import org.jetbrains.compose.resources.stringResource
 
+internal val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
+
 @Composable
 internal fun PlayerSidePanel(
     visible: Boolean,
     onDismiss: () -> Unit,
     width: Dp = 520.dp,
     modifier: Modifier = Modifier,
+    hazeState: HazeState? = LocalPlayerHazeState.current,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -87,19 +95,38 @@ internal fun PlayerSidePanel(
                 exit = slideOutHorizontally(tween(200)) { it },
                 modifier = Modifier.align(Alignment.CenterEnd),
             ) {
-                Column(
-                    modifier = Modifier
-                        .width(resolvedWidth)
-                        .fillMaxHeight()
-                        .clip(shape)
-                        .background(tokens.colors.surfaceElevated)
-                        .clickable(
-                            interactionSource = panelInteraction,
-                            indication = null,
-                            onClick = {},
-                        ),
-                    content = content,
-                )
+                CompositionLocalProvider(LocalPlayerHazeState provides hazeState) {
+                    Column(
+                        modifier = Modifier
+                            .width(resolvedWidth)
+                            .fillMaxHeight()
+                            .clip(shape)
+                            .then(
+                                if (hazeState != null) {
+                                    Modifier.hazeEffect(state = hazeState) {
+                                        blurRadius = 100.dp
+                                        noiseFactor = 0f
+                                        backgroundColor = Color.Black.copy(alpha = 0.58f)
+                                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.58f)))
+                                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
+                                    }
+                                } else {
+                                    Modifier.background(Color.Black.copy(alpha = 0.90f))
+                                },
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = Color.White.copy(alpha = 0.10f),
+                                shape = shape,
+                            )
+                            .clickable(
+                                interactionSource = panelInteraction,
+                                indication = null,
+                                onClick = {},
+                            ),
+                        content = content,
+                    )
+                }
             }
         }
     }
@@ -143,12 +170,30 @@ internal fun PlayerDialogButton(
     enabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
+    val hazeState = LocalPlayerHazeState.current
 
     Box(
         modifier = modifier
             .alpha(if (enabled) 1f else tokens.opacity.disabled)
             .clip(RoundedCornerShape(12.dp))
-            .background(tokens.colors.surfaceCard)
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        blurRadius = 120.dp
+                        noiseFactor = 0f
+                        backgroundColor = Color.Black.copy(alpha = 0.65f)
+                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.65f)))
+                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
+                    }
+                } else {
+                    Modifier.background(Color.Black.copy(alpha = 0.88f))
+                },
+            )
+            .border(
+                width = 1.dp,
+                color = if (hazeState != null) Color.White.copy(alpha = 0.10f) else Color.Transparent,
+                shape = RoundedCornerShape(12.dp),
+            )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
@@ -211,10 +256,11 @@ private fun AddonFilterChip(
     hasError: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
+    val hazeState = LocalPlayerHazeState.current
     val containerColor = when {
         hasError -> tokens.colors.danger.copy(alpha = 0.06f)
         isSelected -> tokens.colors.accent
-        else -> tokens.colors.surfaceCard
+        else -> Color.Black.copy(alpha = 0.70f)
     }
     val contentColor = when {
         hasError -> tokens.colors.danger
@@ -225,10 +271,27 @@ private fun AddonFilterChip(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(containerColor)
+            .then(
+                if (!isSelected && !hasError && hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        blurRadius = 120.dp
+                        noiseFactor = 0f
+                        backgroundColor = containerColor
+                        tints = listOf(HazeTint(containerColor))
+                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
+                    }
+                } else {
+                    Modifier.background(if (hasError || isSelected) containerColor else Color.Black.copy(alpha = 0.88f))
+                },
+            )
             .border(
                 1.dp,
-                if (hasError) tokens.colors.danger.copy(alpha = 0.7f) else tokens.colors.borderDefault,
+                when {
+                    hasError -> tokens.colors.danger.copy(alpha = 0.7f)
+                    isSelected -> Color.Transparent
+                    hazeState != null -> Color.White.copy(alpha = 0.10f)
+                    else -> tokens.colors.borderDefault
+                },
                 RoundedCornerShape(20.dp),
             )
             .clickable(onClick = onClick)

@@ -1462,8 +1462,10 @@ if (isWindowsHost) {
         val outputExe = jpackageWrapperDir.resolve("bin/jpackage.exe")
         val promptSourceFile = layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.cs").asFile
         val promptOutputExe = layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.exe").asFile
-        inputs.files(sourceFile, promptSourceFile)
-        outputs.files(outputExe, promptOutputExe)
+        val shortcutHelperSourceFile = layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.cs").asFile
+        val shortcutHelperOutputExe = layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.exe").asFile
+        inputs.files(sourceFile, promptSourceFile, shortcutHelperSourceFile)
+        outputs.files(outputExe, promptOutputExe, shortcutHelperOutputExe)
         doLast {
             outputExe.parentFile.mkdirs()
             val cscCandidates = listOf(
@@ -1483,6 +1485,12 @@ if (isWindowsHost) {
                 .start()
             val exitCodePrompt = procPrompt.waitFor()
             check(exitCodePrompt == 0) { "csc compilation of UninstallPrompt failed with exit code $exitCodePrompt" }
+
+            val procShortcutHelper = ProcessBuilder(csc.absolutePath, "/nologo", "/target:winexe", "/out:${shortcutHelperOutputExe.absolutePath}", shortcutHelperSourceFile.absolutePath)
+                .inheritIO()
+                .start()
+            val exitCodeShortcutHelper = procShortcutHelper.waitFor()
+            check(exitCodeShortcutHelper == 0) { "csc compilation of DesktopShortcutHelper failed with exit code $exitCodeShortcutHelper" }
         }
     }
     gradle.taskGraph.whenReady {
@@ -1493,6 +1501,7 @@ if (isWindowsHost) {
     tasks.matching { it.name in listOf("packageMsi", "packageReleaseMsi") }.configureEach {
         dependsOn(prepareJPackageWrapper)
         inputs.file(layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.cs"))
+        inputs.file(layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.cs"))
         inputs.file(layout.projectDirectory.file("src/desktopMain/wix/main.wxs"))
         doFirst {
             val task = this as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask

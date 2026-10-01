@@ -40,6 +40,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioAnimatedWatchedBadge
 import com.nuvio.app.core.ui.NuvioTokens
@@ -294,15 +296,30 @@ private fun EpisodeSeasonChip(
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    val hazeState = LocalPlayerHazeState.current
     val shape = RoundedCornerShape(24.dp)
 
     Box(
         modifier = Modifier
             .clip(shape)
-            .background(if (isSelected) Color(0xFFF5F5F5) else tokens.colors.surfaceCard)
+            .then(
+                if (isSelected) {
+                    Modifier.background(Color(0xFFF5F5F5))
+                } else if (hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        blurRadius = 120.dp
+                        noiseFactor = 0f
+                        backgroundColor = Color.Black.copy(alpha = 0.65f)
+                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.65f)))
+                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
+                    }
+                } else {
+                    Modifier.background(Color.Black.copy(alpha = 0.88f))
+                },
+            )
             .border(
                 1.dp,
-                if (isSelected) Color.Transparent else tokens.colors.borderDefault,
+                if (isSelected) Color.Transparent else if (hazeState != null) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
                 shape,
             )
             .clickable(onClick = onClick)
@@ -325,6 +342,7 @@ private fun EpisodeRow(
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    val hazeState = LocalPlayerHazeState.current
     val cardShape = RoundedCornerShape(16.dp)
     val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
     val playingDescription = stringResource(Res.string.compose_player_playing)
@@ -345,10 +363,24 @@ private fun EpisodeRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(cardShape)
-            .background(tokens.colors.surfaceCard)
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        blurRadius = 160.dp
+                        noiseFactor = 0f
+                        backgroundColor = Color.Black.copy(alpha = 0.68f)
+                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.68f)))
+                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.95f))
+                    }
+                } else {
+                    Modifier.background(Color.Black.copy(alpha = 0.88f))
+                },
+            )
             .then(
                 if (isCurrent) {
                     Modifier.border(width = 2.dp, color = tokens.colors.focusRing, shape = cardShape)
+                } else if (hazeState != null) {
+                    Modifier.border(width = 1.dp, color = Color.White.copy(alpha = 0.10f), shape = cardShape)
                 } else {
                     Modifier
                 },

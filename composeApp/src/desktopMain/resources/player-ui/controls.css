@@ -2112,9 +2112,12 @@ button:disabled {
   max-height: none;
   padding: 24px;
   border: 0;
+  border-left: 1px solid rgba(255, 255, 255, .12);
   border-radius: 16px 0 0 16px;
-  background: var(--theme-surface-elevated);
-  box-shadow: -18px 0 54px rgba(0, 0, 0, .32);
+  background: rgba(0, 0, 0, .58);
+  backdrop-filter: blur(100px) saturate(160%);
+  -webkit-backdrop-filter: blur(100px) saturate(160%);
+  box-shadow: -18px 0 54px rgba(0, 0, 0, .55);
   transform: translateX(100%);
 }
 
@@ -2232,6 +2235,22 @@ button:disabled {
 .segment-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, .13);
   color: rgba(255, 255, 255, .9);
+}
+
+.player-side-panel .panel-button,
+.player-side-panel .filter-chip {
+  background: rgba(0, 0, 0, .65);
+  backdrop-filter: blur(120px) saturate(160%);
+  -webkit-backdrop-filter: blur(120px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .88);
+}
+
+.player-side-panel .panel-button:hover:not(:disabled),
+.player-side-panel .filter-chip:hover:not(:disabled) {
+  background: rgba(35, 35, 35, .82);
+  border-color: rgba(255, 255, 255, .20);
+  color: #fff;
 }
 
 .panel-button:active:not(:disabled),
@@ -2773,8 +2792,17 @@ button:disabled {
   min-height: 68px;
   align-items: flex-start;
   padding: 14px;
-  background: rgba(255, 255, 255, .05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, .04);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(0, 0, 0, .68);
+  backdrop-filter: blur(160px) saturate(160%);
+  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .36);
+}
+
+.track-row.source-row:hover:not(:disabled) {
+  background: rgba(35, 35, 35, .85);
+  border-color: rgba(255, 255, 255, .20);
 }
 
 .track-row.disabled {
@@ -2801,13 +2829,13 @@ button:disabled {
 }
 
 .track-row.source-row.selected {
-  border-color: color-mix(in srgb, var(--theme-accent) 52%, transparent);
-  background: color-mix(in srgb, var(--theme-accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--theme-accent) 60%, rgba(255, 255, 255, .24));
+  background: color-mix(in srgb, var(--theme-accent) 22%, rgba(0, 0, 0, .85));
   color: var(--theme-text-primary);
 }
 
 .track-row.source-row.selected:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--theme-accent) 30%, rgba(0, 0, 0, .85));
 }
 
 .subtitle-language-row,
@@ -3166,18 +3194,26 @@ button:disabled {
   gap: 14px;
   padding: 10px;
   border-radius: 16px;
-  background: var(--theme-surface-card);
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: rgba(0, 0, 0, .68);
+  backdrop-filter: blur(160px) saturate(160%);
+  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .36);
 }
 
 .track-row.episode-row.selected {
   border: 2px solid var(--theme-focus);
-  background: var(--theme-surface-card);
+  background: rgba(0, 0, 0, .85);
   color: var(--theme-text-primary);
 }
 
-.track-row.episode-row:hover:not(:disabled),
+.track-row.episode-row:hover:not(:disabled) {
+  background: rgba(35, 35, 35, .85);
+  border-color: rgba(255, 255, 255, .24);
+}
+
 .track-row.episode-row.selected:hover:not(:disabled) {
-  background: rgba(255, 255, 255, .12);
+  background: rgba(45, 45, 45, .88);
 }
 
 .episode-copy {

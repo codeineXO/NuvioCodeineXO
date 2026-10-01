@@ -104,6 +104,15 @@
     <Binary Id="UninstallPromptExe" SourceFile="$(var.UninstallPromptSource)" />
     <CustomAction Id="PromptDeleteAppData" BinaryKey="UninstallPromptExe" ExeCommand="" Execute="immediate" Return="ignore" />
 
+    <?ifndef DesktopShortcutHelperSource ?>
+      <?define DesktopShortcutHelperSource="DesktopShortcutHelper.exe" ?>
+    <?endif?>
+
+    <!-- Preserve desktop shortcut position across updates -->
+    <Binary Id="DesktopShortcutHelperExe" SourceFile="$(var.DesktopShortcutHelperSource)" />
+    <CustomAction Id="SaveDesktopShortcutPos" BinaryKey="DesktopShortcutHelperExe" ExeCommand="save" Execute="immediate" Return="ignore" />
+    <CustomAction Id="RestoreDesktopShortcutPos" BinaryKey="DesktopShortcutHelperExe" ExeCommand="restore" Execute="immediate" Return="ignore" />
+
 
 
     <?ifndef JpAllowUpgrades ?>
@@ -190,12 +199,16 @@
            RemoveExistingProducts sits at 798, and util:CloseApplication would
            schedule WixCloseApplications at 1499, so the removal would unlink
            the running app's files first. Close it ahead of the removal instead. -->
+      <Custom Action="SaveDesktopShortcutPos" Before="WixCloseApplications">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
       <Custom Action="WixCloseApplications" Before="RemoveExistingProducts">VersionNT &gt; 400</Custom>
       <RemoveExistingProducts Before="CostInitialize"/>
 
       <!-- Clean old files on upgrade before copying new files -->
       <Custom Action="SetCleanOldFilesCmd" Before="CleanOldFilesAction">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
       <Custom Action="CleanOldFilesAction" Before="InstallFiles">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
+
+      <!-- Restore desktop shortcut position or remove if it was not present before update -->
+      <Custom Action="RestoreDesktopShortcutPos" After="InstallFinalize">UPGRADINGPRODUCTCODE OR JP_UPGRADABLE_FOUND</Custom>
     </InstallExecuteSequence>
 
     <InstallUISequence>
