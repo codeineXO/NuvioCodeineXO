@@ -27,12 +27,17 @@ import com.nuvio.app.core.ui.DialogButtons
 import com.nuvio.app.core.ui.DialogButtonStyle
 import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -2192,6 +2197,7 @@ private fun SubtitleColorDialog(
     previewStyle: SubtitleStyleState? = null,
     showAlpha: Boolean = false,
     target: SubtitleColorEditTarget = SubtitleColorEditTarget.TEXT,
+) {
     var currentColor by remember(selectedColor) { mutableStateOf(selectedColor) }
 
     BasicAlertDialog(
@@ -2366,32 +2372,6 @@ private fun SubtitleOutlineEffectDialog(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
-=======
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            colors.forEach { color ->
-                DialogOption(
-                    text = subtitleColorLabel(color),
-                    selected = selectedColor.toStorageHexString() == color.toStorageHexString(),
-                    onClick = { onColorSelected(color) },
-                    leading = {
-                        Surface(
-                            modifier = Modifier.size(28.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (color.alpha == 0f) {
-                                MaterialTheme.colorScheme.surface
-                            } else {
-                                color
-                            },
-                            border = BorderStroke(
-                                1.dp,
-                                MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                            ),
-                        ) {}
-                    },
->>>>>>> upstream/Dev
                 )
 
                 SubtitleOutlineEffect.entries.forEach { effect ->
@@ -2448,13 +2428,6 @@ private fun SubtitleOutlineEffectDialog(
                     }
                 }
             }
-        }
-
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_done),
-                onClick = onDismiss,
-            )
         }
     }
 }

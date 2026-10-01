@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
