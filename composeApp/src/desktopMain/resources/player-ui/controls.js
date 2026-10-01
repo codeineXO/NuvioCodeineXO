@@ -886,6 +886,14 @@ const stopStatsClockTick = () => {
 
 const syncTorrentStatsOverlay = suppressed => {
   if (!torrentStatsOverlay) return;
+  const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
+  if (!isCodeineXo) {
+    torrentStatsOverlay.hidden = true;
+    if (torrentStatsTimeRow) torrentStatsTimeRow.hidden = true;
+    if (torrentStatsText) torrentStatsText.hidden = true;
+    stopStatsClockTick();
+    return;
+  }
   const showClock = Boolean(state.showPlaybackTimeOverlay && !suppressed);
   const showStats = Boolean(state.showTorrentStatsOverlay && String(state.torrentStatsText || "").trim() && !suppressed);
   torrentStatsOverlay.hidden = !showClock && !showStats;

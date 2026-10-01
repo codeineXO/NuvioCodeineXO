@@ -385,6 +385,8 @@ button:disabled {
 }
 
 .torrent-stats-overlay[hidden],
+.player.ui-official .torrent-stats-overlay,
+.player:not(.ui-codeinexo) .torrent-stats-overlay,
 .player.modal-active .torrent-stats-overlay,
 .player.pip-mode .torrent-stats-overlay {
   display: none !important;

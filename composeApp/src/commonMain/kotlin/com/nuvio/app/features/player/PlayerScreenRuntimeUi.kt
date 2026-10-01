@@ -309,12 +309,15 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         showEpisodesPanel ||
         showSubmitIntroModal ||
         (pendingP2pSwitch != null)
+    val isCodeineUi = playerSettingsUiState.playerUiMode == PlayerUiMode.CODEINE_XO
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
-        showPlaybackTimeOverlay = (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
+        showPlaybackTimeOverlay = isCodeineUi &&
+            (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
-        showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay &&
+        showTorrentStatsOverlay = isCodeineUi &&
+            p2pSettingsUiState.showTorrentStatsOverlay &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
         torrentStatsText = torrentStatsOverlayText,
