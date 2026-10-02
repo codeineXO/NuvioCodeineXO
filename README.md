@@ -1,17 +1,14 @@
 <div align="center">
 
-  <img src="composeApp/src/commonMain/composeResources/drawable/app_logo_wordmark.png" alt="Nuvio" width="300" />
-  <br />
-  <br />
 
-  <h1>Nuvio Desktop — CodeineXO Edition</h1>
-
+  <h1>NuvioCodeineXO Desktop</h1>
+  
   <p>
     An enhanced edition of Nuvio Desktop with a custom player UI, smoother playback, native streaming, deep subtitle styling, and independent profile storage.
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
-    <img src="https://img.shields.io/badge/⬇%20Download%20for%20Windows-.msi%20Installer-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" />
+    <img src="https://placehold.co/300x60/2ea44f/ffffff.png?text=DOWNLOAD" alt="DOWNLOAD" />
   </a>
 
   <p><sub>Click the button above → find the <b>.msi</b> file under <b>Assets</b> and download it.</sub></p>
