@@ -454,6 +454,8 @@ internal fun PlayerScreenRuntime.openEpisodesPanel() {
             playerMetaVideos = MetaDetailsRepository.fetch(parentMetaType, parentMetaId)?.videos ?: emptyList()
         }
     }
+    episodeStreamsPanelState = EpisodeStreamsPanelState()
+    PlayerStreamsRepository.clearEpisodeStreams()
     showEpisodesPanel = true
     showSourcesPanel = false
     controlsVisible = false

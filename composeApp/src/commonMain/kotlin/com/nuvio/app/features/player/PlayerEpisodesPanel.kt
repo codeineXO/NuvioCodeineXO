@@ -103,6 +103,12 @@ fun PlayerEpisodesPanel(
     modifier: Modifier = Modifier,
     episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
+    LaunchedEffect(visible) {
+        if (!visible && episodeStreamsState.showStreams) {
+            onBackToEpisodes()
+        }
+    }
+
     PlayerSidePanel(
         visible = visible,
         onDismiss = onDismiss,

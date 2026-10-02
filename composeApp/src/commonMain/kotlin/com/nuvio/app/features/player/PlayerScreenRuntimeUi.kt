@@ -982,6 +982,11 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             switchToSource(stream)
             playerControlsCloseModalsToken += 1
         }
+        "episodes" -> {
+            prepareEpisodesForPlayerControls()
+            episodeStreamsPanelState = EpisodeStreamsPanelState()
+            PlayerStreamsRepository.clearEpisodeStreams()
+        }
         "selectEpisode" -> {
             val episode = playerMetaVideos.getOrNull(value.toInt()) ?: return true
             if (selectDownloadedEpisodeForPlayback(

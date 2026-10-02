@@ -1211,6 +1211,15 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
   if (notifyDismiss && closingModal === "p2pConsent") {
     send("cancelP2pForPlayerControls", 0);
   }
+  if (closingModal === "episodes") {
+    state.episodeStreamsVisible = false;
+    episodeStreamFilterId = "";
+    if (episodeListView && episodeStreamsView) {
+      episodeListView.hidden = false;
+      episodeStreamsView.hidden = true;
+    }
+    send("backToEpisodes", 0);
+  }
   renderChrome();
 };
 
@@ -3361,6 +3370,19 @@ document.querySelectorAll("[data-command]").forEach(button => {
       return;
     }
     if (command === "episodes") {
+      if (activeModal === "episodes") {
+        closePlayerModal(true);
+        return;
+      }
+      if (state.episodeStreamsVisible) {
+        state.episodeStreamsVisible = false;
+        episodeStreamFilterId = "";
+        if (episodeListView && episodeStreamsView) {
+          episodeListView.hidden = false;
+          episodeStreamsView.hidden = true;
+        }
+        send("backToEpisodes", 0);
+      }
       episodeStreamFilterId = "";
       openPlayerModal("episodes");
       send("episodes", 0);
@@ -3647,6 +3669,12 @@ episodeStreamsCloseButton.addEventListener("click", event => {
 episodeBackButton.addEventListener("click", event => {
   event.stopPropagation();
   episodeStreamFilterId = "";
+  state.episodeStreamsVisible = false;
+  if (episodeListView && episodeStreamsView) {
+    episodeListView.hidden = false;
+    episodeStreamsView.hidden = true;
+  }
+  renderEpisodeList();
   send("backToEpisodes", 0);
 });
 episodeReloadButton.addEventListener("click", event => {
@@ -4482,6 +4510,15 @@ document.addEventListener("keydown", event => {
     if (activeModal === "episodes") {
       closePlayerModal(true);
     } else {
+      if (state.episodeStreamsVisible) {
+        state.episodeStreamsVisible = false;
+        episodeStreamFilterId = "";
+        if (episodeListView && episodeStreamsView) {
+          episodeListView.hidden = false;
+          episodeStreamsView.hidden = true;
+        }
+        send("backToEpisodes", 0);
+      }
       episodeStreamFilterId = "";
       openPlayerModal("episodes");
       send("episodes", 0);
