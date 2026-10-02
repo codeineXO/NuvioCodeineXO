@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -100,6 +100,11 @@
     </symbol>
     <symbol id="icon-lock-open" viewBox="0 0 24 24">
       <path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-sparkles" viewBox="0 0 24 24">
+      <path d="M12 2L13.8 7.2L19 9L13.8 10.8L12 16L10.2 10.8L5 9L10.2 7.2L12 2Z" fill="currentColor"/>
+      <path d="M19 15L20 18L23 19L20 20L19 23L18 20L15 19L18 18L19 15Z" fill="currentColor"/>
+      <path d="M5 16L5.75 18.25L8 19L5.75 19.75L5 22L4.25 19.75L2 19L4.25 18.25L5 16Z" fill="currentColor"/>
     </symbol>
   </svg>
 
@@ -253,6 +258,7 @@
             <button class="action" data-command="speed"><svg><use href="#icon-speed"></use></svg><span id="speedLabel">1x</span></button>
             <button class="action" data-command="subtitles"><svg><use href="#icon-subs"></use></svg><span id="subtitlesLabel">Subs</span></button>
             <button class="action" data-command="audio"><svg><use href="#icon-audio"></use></svg><span id="audioLabel">Audio</span></button>
+            <button class="action" data-command="shaders" aria-label="Anime Upscaler" title="Anime Upscaler"><svg><use href="#icon-sparkles"></use></svg><span id="shadersLabel">Shaders</span></button>
             <button class="action optional" id="sourcesButton" data-command="sources"><svg><use href="#icon-source"></use></svg><span id="sourcesLabel">Sources</span></button>
             <button class="action optional" id="episodesButton" data-command="episodes"><svg><use href="#icon-episodes"></use></svg><span id="episodesLabel">Episodes</span></button>
           </div>
@@ -296,6 +302,9 @@
             <button class="codeine-control-btn codeine-action-btn" id="codeineAudioButton" data-command="audio" aria-label="Audio">
               <svg><use href="#icon-audio"></use></svg>
             </button>
+            <button class="codeine-control-btn codeine-action-btn" id="codeineShadersButton" data-command="shaders" aria-label="Anime Upscaler" title="Anime Upscaler">
+              <svg><use href="#icon-sparkles"></use></svg>
+            </button>
             <button class="codeine-control-btn codeine-action-btn codeine-speed-btn" id="codeineSpeedButton" data-command="speed" aria-label="Playback speed">
               <svg><use href="#icon-speed"></use></svg>
               <span class="codeine-speed-text" id="codeineSpeedText">1x</span>
@@ -320,6 +329,12 @@
         <div class="track-panel audio-rail-panel">
           <div class="track-header" id="speedPanelTitle">Playback Speed</div>
           <div class="track-list" id="speedOptionList"></div>
+        </div>
+      </section>
+      <section class="modal-layer player-rail-modal" id="shaderModal" aria-label="Anime Upscaler" hidden>
+        <div class="track-panel audio-rail-panel">
+          <div class="track-header" id="shaderPanelTitle">Anime Upscaler</div>
+          <div class="track-list" id="shaderOptionList"></div>
         </div>
       </section>
       <section class="modal-layer player-rail-modal" id="audioModal" aria-label="Audio tracks" hidden>

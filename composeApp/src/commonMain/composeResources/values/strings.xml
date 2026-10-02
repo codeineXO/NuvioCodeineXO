@@ -515,6 +515,8 @@
     <string name="compose_settings_page_addons">Addons</string>
     <string name="compose_settings_page_advanced">Advanced</string>
     <string name="compose_settings_page_appearance">Layout</string>
+    <string name="compose_settings_page_codeine_xo">CodeineXO</string>
+    <string name="compose_settings_root_codeine_xo_description">Exclusive interface, player, subtitle, and integration settings</string>
     <string name="compose_settings_page_content_discovery">Content &amp; Discovery</string>
     <string name="compose_settings_page_continue_watching">Continue Watching</string>
     <string name="compose_settings_page_debrid">Connected Services</string>

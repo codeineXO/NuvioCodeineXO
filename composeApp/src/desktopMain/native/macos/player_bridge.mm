@@ -3086,6 +3086,21 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectSubtitleTrac
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setGlslShaders(
+    JNIEnv *env,
+    jobject /* bridge */,
+    jlong handle,
+    jstring shaders
+) {
+    if (handle == 0) return;
+    std::string s = jstringToString(env, shaders);
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    runOnMainAsync(^{
+        [player setStringProperty:"glsl-shaders" value:[NSString stringWithUTF8String:s.c_str()]];
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addSubtitleUrl(
     JNIEnv *env,
     jobject /* bridge */,

@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.CollectionsBookmark
@@ -210,6 +211,14 @@ internal fun settingsSearchEntries(
         description = stringResource(Res.string.compose_settings_root_tracking_description),
         category = accountCategory,
         icon = Icons.Default.Sync,
+    )
+    addPage(
+        page = SettingsPage.CodeineXO,
+        key = "codeine-xo",
+        title = stringResource(Res.string.compose_settings_page_codeine_xo),
+        description = stringResource(Res.string.compose_settings_root_codeine_xo_description),
+        category = advancedCategory,
+        icon = Icons.Rounded.AutoAwesome,
     )
     addPage(
         page = SettingsPage.Appearance,

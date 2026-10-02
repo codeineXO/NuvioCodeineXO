@@ -691,6 +691,7 @@ private fun MobileSettingsScreen(
                             isTablet = false,
                             onPlaybackClick = { onPageChange(SettingsPage.Playback) },
                             onAppearanceClick = { onPageChange(SettingsPage.Appearance) },
+                            onCodeineXOClick = { onPageChange(SettingsPage.CodeineXO) },
                             onAdvancedClick = { onPageChange(SettingsPage.Advanced) },
                             onNotificationsClick = { onPageChange(SettingsPage.Notifications) },
                             onContentDiscoveryClick = { onPageChange(SettingsPage.ContentDiscovery) },
@@ -708,6 +709,9 @@ private fun MobileSettingsScreen(
                     }
                 }
                 SettingsPage.Account -> accountSettingsContent(
+                    isTablet = false,
+                )
+                SettingsPage.CodeineXO -> codeineXOSettingsContent(
                     isTablet = false,
                 )
                 SettingsPage.SupportersContributors -> {
@@ -1142,6 +1146,7 @@ private fun TabletSettingsScreen(
                                         isTablet = true,
                                         onPlaybackClick = { openInlinePage(SettingsPage.Playback) },
                                         onAppearanceClick = { openInlinePage(SettingsPage.Appearance) },
+                                        onCodeineXOClick = { openInlinePage(SettingsPage.CodeineXO) },
                                         onAdvancedClick = { openInlinePage(SettingsPage.Advanced) },
                                         onNotificationsClick = { openInlinePage(SettingsPage.Notifications) },
                                         onContentDiscoveryClick = { openInlinePage(SettingsPage.ContentDiscovery) },
@@ -1164,6 +1169,9 @@ private fun TabletSettingsScreen(
                                 }
                             }
                             SettingsPage.Account -> accountSettingsContent(
+                                isTablet = true,
+                            )
+                            SettingsPage.CodeineXO -> codeineXOSettingsContent(
                                 isTablet = true,
                             )
                             SettingsPage.SupportersContributors -> {

@@ -262,6 +262,8 @@ data class PlayerControlsState(
     val submitIntroSuccessToken: Long = 0L,
     val notificationMessage: String = "",
     val notificationToken: Long = 0L,
+    val animeUpscalerEnabled: Boolean = false,
+    val animeUpscalerModeIndex: Int = 0,
 )
 
 data class PlayerControlFilterItem(

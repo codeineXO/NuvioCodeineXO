@@ -60,6 +60,7 @@ const codeinePipButton = document.getElementById("codeinePipButton");
 const codeineSourcesButton = document.getElementById("codeineSourcesButton");
 const codeineSubtitlesButton = document.getElementById("codeineSubtitlesButton");
 const codeineAudioButton = document.getElementById("codeineAudioButton");
+const codeineShadersButton = document.getElementById("codeineShadersButton");
 const codeineSpeedButton = document.getElementById("codeineSpeedButton");
 const codeineSpeedText = document.getElementById("codeineSpeedText");
 const codeineResizeButton = document.getElementById("codeineResizeButton");
@@ -99,6 +100,9 @@ const subtitleModal = document.getElementById("subtitleModal");
 const speedModal = document.getElementById("speedModal");
 const speedOptionList = document.getElementById("speedOptionList");
 const speedPanelTitle = document.getElementById("speedPanelTitle");
+const shaderModal = document.getElementById("shaderModal");
+const shaderOptionList = document.getElementById("shaderOptionList");
+const shaderPanelTitle = document.getElementById("shaderPanelTitle");
 const audioPanelTitle = document.getElementById("audioPanelTitle");
 const audioTrackList = document.getElementById("audioTrackList");
 const subtitleTrackList = document.getElementById("subtitleTrackList");
@@ -247,6 +251,8 @@ let state = {
   pauseOverlayDescription: "",
   resizeModeLabel: "Fit",
   playbackSpeedLabel: "1x",
+  animeUpscalerEnabled: false,
+  animeUpscalerModeIndex: 0,
   isFullscreen: false,
   volumeLevel: null,
   subtitlesLabel: "Subs",
@@ -1150,6 +1156,7 @@ const modalByName = {
   audio: audioModal,
   subtitles: subtitleModal,
   speed: speedModal,
+  shaders: shaderModal,
   sources: sourceModal,
   episodes: episodesModal,
   submitIntro: submitIntroModal,
@@ -1316,6 +1323,71 @@ const renderSpeedOptionList = () => {
   });
   lastRenderedModal = "speed";
   lastRenderedModalSignature = getSpeedModalSignature();
+};
+
+const shaderOptions = [
+  { enabled: false, modeIndex: 0, label: "Off", description: "Disabled" },
+  { enabled: true, modeIndex: 0, label: "Fast", description: "Low-end PCs & laptops" },
+  { enabled: true, modeIndex: 1, label: "Soft & Clear", description: "Smooth lines & balanced detail" },
+  { enabled: true, modeIndex: 2, label: "Sharp & Detailed", description: "Maximum clarity & fine lines" },
+];
+
+const getShaderModalSignature = () => [
+  Boolean(state.animeUpscalerEnabled),
+  Number(state.animeUpscalerModeIndex) || 0,
+].join("##");
+
+const renderShaderOptionList = () => {
+  if (!shaderOptionList) return;
+  shaderOptionList.textContent = "";
+  if (shaderPanelTitle) {
+    shaderPanelTitle.textContent = "Anime Upscaler";
+  }
+
+  const isEnabled = Boolean(state.animeUpscalerEnabled);
+  const currentModeIndex = Number(state.animeUpscalerModeIndex) || 0;
+
+  shaderOptions.forEach(opt => {
+    const isSelected = opt.enabled ? (isEnabled && currentModeIndex === opt.modeIndex) : !isEnabled;
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `track-row${isSelected ? " selected" : ""}`;
+    row.addEventListener("click", event => {
+      event.stopPropagation();
+      if (!opt.enabled) {
+        state.animeUpscalerEnabled = false;
+        send("toggleAnimeUpscaler", 0);
+      } else {
+        state.animeUpscalerEnabled = true;
+        state.animeUpscalerModeIndex = opt.modeIndex;
+        send("setAnimeUpscalerMode", opt.modeIndex);
+        send("toggleAnimeUpscaler", 1);
+      }
+      renderShaderOptionList();
+      renderChrome();
+      window.setTimeout(closePlayerModal, 120);
+    });
+
+    const copy = document.createElement("span");
+    copy.className = "audio-track-copy";
+    const name = document.createElement("span");
+    name.className = "audio-track-name";
+    name.textContent = opt.label;
+    copy.appendChild(name);
+
+    if (opt.description) {
+      const desc = document.createElement("span");
+      desc.className = "audio-track-language";
+      desc.textContent = opt.description;
+      copy.appendChild(desc);
+    }
+
+    row.appendChild(copy);
+    row.appendChild(buildCheckIcon());
+    shaderOptionList.appendChild(row);
+  });
+  lastRenderedModal = "shaders";
+  lastRenderedModalSignature = getShaderModalSignature();
 };
 
 const renderAudioTrackList = () => {
@@ -2558,6 +2630,7 @@ const getActiveModalSignature = modal => {
   if (modal === "audio") return getAudioModalSignature();
   if (modal === "subtitles") return getSubtitlesModalSignature();
   if (modal === "speed") return getSpeedModalSignature();
+  if (modal === "shaders") return getShaderModalSignature();
   if (modal === "sources") return getSourcesModalSignature();
   if (modal === "episodes") return getEpisodesModalSignature();
   if (modal === "submitIntro") return getSubmitIntroModalSignature();
@@ -2578,6 +2651,7 @@ const renderActiveModal = (force = false) => {
   if (activeModal === "audio") renderAudioTrackList();
   else if (activeModal === "subtitles") renderSubtitleModal();
   else if (activeModal === "speed") renderSpeedOptionList();
+  else if (activeModal === "shaders") renderShaderOptionList();
   else if (activeModal === "sources") renderSourceModal();
   else if (activeModal === "episodes") renderEpisodesModal();
   else if (activeModal === "submitIntro") renderSubmitIntroModal();
@@ -2995,6 +3069,12 @@ const renderChrome = () => {
     if (codeineSpeedButton) codeineSpeedButton.setAttribute("title", state.playbackSpeedLabel || "1x");
     if (codeineSubtitlesButton) codeineSubtitlesButton.setAttribute("title", state.subtitlesLabel || "Subs");
     if (codeineAudioButton) codeineAudioButton.setAttribute("title", state.audioLabel || "Audio");
+    if (codeineShadersButton) {
+      codeineShadersButton.classList.toggle("active", Boolean(state.animeUpscalerEnabled));
+      const upscalerTitle = state.animeUpscalerEnabled ? "Anime Upscaler (Enabled)" : "Anime Upscaler";
+      codeineShadersButton.setAttribute("title", upscalerTitle);
+      codeineShadersButton.setAttribute("aria-label", upscalerTitle);
+    }
     if (codeineSourcesButton) codeineSourcesButton.setAttribute("title", state.sourcesLabel || "Sources");
     if (codeineEpisodesButton) codeineEpisodesButton.setAttribute("title", state.episodesLabel || "Episodes");
   }
@@ -3361,6 +3441,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
     }
     if (command === "speed") {
       openPlayerModal("speed");
+      return;
+    }
+    if (command === "shaders") {
+      openPlayerModal("shaders");
       return;
     }
     if (command === "sources") {

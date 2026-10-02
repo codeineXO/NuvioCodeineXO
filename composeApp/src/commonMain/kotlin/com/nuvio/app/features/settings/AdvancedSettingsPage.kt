@@ -388,7 +388,7 @@ private fun SentryInfoSection(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DiscordActivityModeBottomSheet(
+internal fun DiscordActivityModeBottomSheet(
     selectedMode: DiscordActivityMode,
     onModeSelected: (DiscordActivityMode) -> Unit,
     onDismiss: () -> Unit,

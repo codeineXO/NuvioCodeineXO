@@ -336,6 +336,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         pauseOverlayDescription = (activePauseDescription ?: activeStreamSubtitle).orEmpty(),
         resizeModeLabel = stringResource(resizeMode.labelRes),
         playbackSpeedLabel = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
+        animeUpscalerEnabled = playerSettingsUiState.animeUpscalerEnabled,
+        animeUpscalerModeIndex = playerSettingsUiState.animeUpscalerMode.index,
         subtitlesLabel = stringResource(Res.string.compose_player_subs),
         audioLabel = stringResource(Res.string.compose_player_audio),
         sourcesLabel = stringResource(Res.string.compose_player_sources),
@@ -1035,6 +1037,14 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             submitIntroStatusMessage = null
         }
         "submitIntroCommit" -> submitIntroFromPlayerControls()
+        "setAnimeUpscalerMode" -> {
+            PlayerSettingsRepository.setAnimeUpscalerMode(AnimeUpscalerMode.fromIndex(value.toInt()))
+            true
+        }
+        "toggleAnimeUpscaler" -> {
+            PlayerSettingsRepository.setAnimeUpscalerEnabled(value >= 0.5)
+            true
+        }
         "skipInterval" -> {
             val interval = activeSkipInterval ?: return true
             val durationMs = playbackSnapshot.durationMs

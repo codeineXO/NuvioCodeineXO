@@ -62,6 +62,7 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.player.AndroidLibmpvVideoOutput
 import com.nuvio.app.features.player.AndroidPlaybackEngine
+import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.ExternalPlayerApp
@@ -227,7 +228,7 @@ fun ValueBox(
 }
 
 @Composable
-private fun SettingsSliderRow(
+internal fun SettingsSliderRow(
     title: String,
     value: Int,
     valueText: String,
@@ -279,7 +280,7 @@ private fun SettingsSliderRow(
 }
 
 @Composable
-private fun subtitleColorLabel(color: Color): String {
+internal fun subtitleColorLabel(color: Color): String {
     return if (color.alpha == 0f) {
         stringResource(Res.string.settings_playback_subtitle_color_transparent)
     } else {
@@ -337,6 +338,7 @@ private fun PlaybackSettingsSection(
     var showAutoPlayPluginSelectionDialog by remember { mutableStateOf(false) }
     var showAutoPlayRegexDialog by remember { mutableStateOf(false) }
     var showAutoSkipSegmentDialog by remember { mutableStateOf(false) }
+    var showAnimeUpscalerDialog by remember { mutableStateOf(false) }
     var showP2pConsentDialog by remember { mutableStateOf(false) }
     var showP2pProfileDialog by remember { mutableStateOf(false) }
     var showP2pCacheSizeDialog by remember { mutableStateOf(false) }
@@ -1061,6 +1063,32 @@ private fun PlaybackSettingsSection(
                         isTablet = isTablet,
                         onCheckedChange = PlayerSettingsRepository::setNvidiaRtxSuperResolutionEnabled,
                     )
+                }
+            }
+        }
+
+        if (isDesktop) {
+            SettingsSection(
+                title = "Anime Upscaler",
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = "Enable Anime Upscaler",
+                        description = "Enhance anime and cartoons using real-time Anime4K shaders",
+                        checked = autoPlayPlayerSettings.animeUpscalerEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setAnimeUpscalerEnabled,
+                    )
+                    if (autoPlayPlayerSettings.animeUpscalerEnabled) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsNavigationRow(
+                            title = "Upscaler Mode",
+                            description = autoPlayPlayerSettings.animeUpscalerMode.label,
+                            isTablet = isTablet,
+                            onClick = { showAnimeUpscalerDialog = true },
+                        )
+                    }
                 }
             }
         }
@@ -1808,6 +1836,52 @@ private fun PlaybackSettingsSection(
             onDismiss = { showAutoPlayRegexDialog = false },
         )
     }
+
+    if (showAnimeUpscalerDialog) {
+        AnimeUpscalerModeDialog(
+            selectedMode = autoPlayPlayerSettings.animeUpscalerMode,
+            onModeSelected = { mode ->
+                PlayerSettingsRepository.setAnimeUpscalerMode(mode)
+                showAnimeUpscalerDialog = false
+            },
+            onDismiss = { showAnimeUpscalerDialog = false },
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun AnimeUpscalerModeDialog(
+    selectedMode: AnimeUpscalerMode,
+    onModeSelected: (AnimeUpscalerMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = "Anime Upscaler Mode",
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            AnimeUpscalerMode.entries.forEach { mode ->
+                val isSelected = mode == selectedMode
+                DialogOption(
+                    text = mode.label,
+                    description = mode.description,
+                    selected = isSelected,
+                    onClick = { onModeSelected(mode) },
+                )
+            }
+        }
+
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+            )
+        }
+    }
 }
 
 @Composable
@@ -2068,7 +2142,7 @@ private fun PlaybackEngineDialog(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun <T> IosEnumSelectionDialog(
+internal fun <T> IosEnumSelectionDialog(
     title: String,
     options: List<T>,
     selected: T,
@@ -2188,7 +2262,7 @@ private fun LibassRenderTypeDialog(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun SubtitleColorDialog(
+internal fun SubtitleColorDialog(
     title: String,
     colors: List<Color>,
     selectedColor: Color,
@@ -2250,7 +2324,7 @@ private fun SubtitleColorDialog(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun SubtitleFontDialog(
+internal fun SubtitleFontDialog(
     selectedFont: String,
     onFontSelected: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -2338,7 +2412,7 @@ private fun SubtitleFontDialog(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-private fun SubtitleOutlineEffectDialog(
+internal fun SubtitleOutlineEffectDialog(
     selectedEffect: SubtitleOutlineEffect,
     onEffectSelected: (SubtitleOutlineEffect) -> Unit,
     onDismiss: () -> Unit,

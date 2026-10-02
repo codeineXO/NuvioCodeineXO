@@ -14,6 +14,7 @@ import nuvio.composeapp.generated.resources.compose_settings_page_account
 import nuvio.composeapp.generated.resources.compose_settings_page_addons
 import nuvio.composeapp.generated.resources.compose_settings_page_advanced
 import nuvio.composeapp.generated.resources.compose_settings_page_appearance
+import nuvio.composeapp.generated.resources.compose_settings_page_codeine_xo
 import nuvio.composeapp.generated.resources.compose_settings_page_content_discovery
 import nuvio.composeapp.generated.resources.compose_settings_page_debrid
 import nuvio.composeapp.generated.resources.compose_settings_page_continue_watching
@@ -59,6 +60,11 @@ internal enum class SettingsPage(
     Account(
         titleRes = Res.string.compose_settings_page_account,
         category = SettingsCategory.Account,
+        parentPage = Root,
+    ),
+    CodeineXO(
+        titleRes = Res.string.compose_settings_page_codeine_xo,
+        category = SettingsCategory.Advanced,
         parentPage = Root,
     ),
     SupportersContributors(

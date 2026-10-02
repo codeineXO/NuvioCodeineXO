@@ -1183,6 +1183,12 @@ public:
         mpvApi().setProperty(mpv, "sid", MPV_FORMAT_INT64, &id);
     }
 
+    void setGlslShaders(const std::string &shaders) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        mpvApi().setPropertyString(mpv, "glsl-shaders", shaders.c_str());
+    }
+
     void addSubtitleUrl(const std::string &url) {
         if (url.empty()) return;
         command({"sub-add", url, "select"});
@@ -2600,6 +2606,15 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectSubtitleTrack(JNIEnv *, jobject, jlong handle, jint trackId) {
     auto player = playerFromHandle(handle);
     if (player) player->selectSubtitleTrackId(trackId);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setGlslShaders(JNIEnv *env, jobject, jlong handle, jstring shaders) {
+    auto player = playerFromHandle(handle);
+    if (player) {
+        std::string shadersText = jstringToUtf8(env, shaders);
+        player->setGlslShaders(shadersText);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
