@@ -52,6 +52,16 @@ import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.details.EpisodeRatingsVisibility
+import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
+import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbService
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_back
 import nuvio.composeapp.generated.resources.action_close
@@ -64,7 +74,12 @@ import nuvio.composeapp.generated.resources.compose_player_panel_streams
 import nuvio.composeapp.generated.resources.compose_player_playing
 import nuvio.composeapp.generated.resources.episodes_season
 import nuvio.composeapp.generated.resources.episodes_specials
+import nuvio.composeapp.generated.resources.rating_imdb
+import nuvio.composeapp.generated.resources.source_imdb
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 
 @Composable
 fun PlayerEpisodesPanel(
@@ -86,6 +101,7 @@ fun PlayerEpisodesPanel(
     onReloadEpisodeStreams: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
     PlayerSidePanel(
         visible = visible,
@@ -133,6 +149,7 @@ fun PlayerEpisodesPanel(
                     blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                     onSeasonSelected = onSeasonSelected,
                     onEpisodeSelected = onEpisodeSelected,
+                    initialEpisodeRatings = episodeRatings,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -159,8 +176,49 @@ private fun EpisodesListPanelContent(
     onSeasonSelected: (Int) -> Unit,
     onEpisodeSelected: (MetaVideo) -> Unit,
     modifier: Modifier = Modifier,
+    initialEpisodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
     val tokens = MaterialTheme.nuvio
+    val metaScreenSettings by MetaScreenSettingsRepository.uiState.collectAsState()
+    var episodeImdbRatings by remember(parentMetaId, initialEpisodeRatings) {
+        mutableStateOf(initialEpisodeRatings)
+    }
+
+    LaunchedEffect(initialEpisodeRatings) {
+        if (initialEpisodeRatings.isNotEmpty()) {
+            episodeImdbRatings = initialEpisodeRatings
+        }
+    }
+
+    LaunchedEffect(parentMetaId, episodes, metaScreenSettings.episodeRatingsVisibility) {
+        if (!metaScreenSettings.episodeRatingsVisibility.showRatings || parentMetaId.isBlank()) {
+            episodeImdbRatings = emptyMap()
+            return@LaunchedEffect
+        }
+        if (initialEpisodeRatings.isNotEmpty()) {
+            episodeImdbRatings = initialEpisodeRatings
+            return@LaunchedEffect
+        }
+        val peekedMeta = MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+        val imdbId = extractImdbId(parentMetaId)
+            ?: extractImdbId(peekedMeta?.imdbId)
+            ?: extractImdbId(peekedMeta?.id)
+            ?: episodes.firstNotNullOfOrNull { extractImdbId(it.id) }
+        val tmdbId = extractTmdbId(parentMetaId)
+            ?: extractTmdbId(peekedMeta?.id)
+            ?: TmdbService.ensureTmdbId(peekedMeta?.id ?: parentMetaId, parentMetaType, fallbackImdbId = imdbId)?.toIntOrNull()
+            ?: TmdbService.ensureTmdbId(imdbId ?: parentMetaId, parentMetaType, fallbackImdbId = peekedMeta?.imdbId)?.toIntOrNull()
+        if (imdbId == null && tmdbId == null) {
+            episodeImdbRatings = emptyMap()
+            return@LaunchedEffect
+        }
+        episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
+            imdbId = imdbId,
+            tmdbId = tmdbId,
+            seasonNumbers = episodes.mapNotNull { it.season }.distinct(),
+        )
+    }
+
     val groupedEpisodes = remember(episodes) {
         episodes
             .filter { it.season != null || it.episode != null }
@@ -281,6 +339,8 @@ private fun EpisodesListPanelContent(
                         isCurrent = isCurrent,
                         isWatched = isWatched,
                         blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+                        episodeRatings = episodeImdbRatings,
+                        episodeRatingsVisibility = metaScreenSettings.episodeRatingsVisibility,
                         onClick = { onEpisodeSelected(episode) },
                     )
                 }
@@ -339,6 +399,8 @@ private fun EpisodeRow(
     isCurrent: Boolean,
     isWatched: Boolean,
     blurUnwatchedEpisodes: Boolean,
+    episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
+    episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -442,12 +504,35 @@ private fun EpisodeRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            episode.released?.takeIf { it.isNotBlank() }?.let { released ->
-                Text(
-                    text = formatReleaseDateForDisplay(released),
-                    color = tokens.colors.textMuted,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            val formattedReleaseDate = episode.released?.takeIf { it.isNotBlank() }?.let { formatReleaseDateForDisplay(it) }
+            val rawRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating
+            val ratingLabel = remember(rawRating, episodeRatingsVisibility, isWatched) {
+                rawRating?.takeIf { it > 0.0 && episodeRatingsVisibility.showRating(isWatched) }
+                    ?.let(::formatEpisodeRating)
+            }
+            if (formattedReleaseDate != null || ratingLabel != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (formattedReleaseDate != null) {
+                        Text(
+                            text = formattedReleaseDate,
+                            color = tokens.colors.textMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (formattedReleaseDate != null && ratingLabel != null) {
+                        Text(
+                            text = "•",
+                            color = tokens.colors.textMuted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (ratingLabel != null) {
+                        PlayerEpisodeRatingBadge(rating = ratingLabel)
+                    }
+                }
             }
             episode.overview?.takeIf { it.isNotBlank() }?.let { overview ->
                 Text(
@@ -459,6 +544,76 @@ private fun EpisodeRow(
                 )
             }
         }
+    }
+}
+
+private val imdbRegex = Regex("tt\\d+")
+
+internal fun extractImdbId(value: String?): String? {
+    if (value.isNullOrBlank()) return null
+    return imdbRegex.find(value)?.value
+}
+
+internal fun extractTmdbId(value: String?): Int? {
+    val trimmed = value?.trim().orEmpty()
+    if (trimmed.isBlank()) return null
+    return trimmed
+        .takeIf { it.startsWith("tmdb:", ignoreCase = true) }
+        ?.substringAfter(':')
+        ?.substringBefore(':')
+        ?.substringBefore('/')
+        ?.toIntOrNull()
+}
+
+internal fun MetaVideo.seasonEpisodeKey(): Pair<Int, Int>? {
+    val s = season ?: return null
+    val e = episode ?: return null
+    return s to e
+}
+
+internal fun formatEpisodeRating(rating: Double): String {
+    val roundedTenths = (rating * 10.0).roundToInt()
+    val whole = roundedTenths / 10
+    val tenth = (roundedTenths % 10).absoluteValue
+    return "$whole.$tenth"
+}
+
+@Composable
+private fun PlayerEpisodeRatingBadge(
+    rating: String,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (AppFeaturePolicy.imdbRatingLogoEnabled) {
+            Image(
+                painter = painterResource(Res.drawable.rating_imdb),
+                contentDescription = stringResource(Res.string.source_imdb),
+                modifier = Modifier
+                    .width(24.dp)
+                    .height(12.dp),
+                contentScale = ContentScale.Fit,
+            )
+        } else {
+            Text(
+                text = stringResource(Res.string.source_imdb),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.sp,
+                ),
+                color = Color.White.copy(alpha = 0.78f),
+                maxLines = 1,
+            )
+        }
+        Text(
+            text = rating,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+            ),
+            color = Color(0xFFF5C518),
+            maxLines = 1,
+        )
     }
 }
 

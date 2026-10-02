@@ -309,6 +309,7 @@ data class PlayerControlEpisodeItem(
     val overview: String = "",
     val thumbnail: String = "",
     val released: String = "",
+    val rating: String = "",
     val season: Int = 0,
     val episode: Int = 0,
     val isCurrent: Boolean = false,

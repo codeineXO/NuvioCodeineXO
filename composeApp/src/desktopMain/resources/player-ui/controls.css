@@ -3226,10 +3226,47 @@ button:disabled {
   line-height: 24px;
 }
 
+.episode-meta-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.episode-meta-dot {
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .episode-release {
   color: var(--theme-text-muted);
   font-size: 12px;
   line-height: 16px;
+}
+
+.episode-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.episode-rating-source {
+  background: #f5c518;
+  color: #000000;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  letter-spacing: -0.2px;
+}
+
+.episode-rating-val {
+  color: #f5c518;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .episode-overview {

@@ -2212,11 +2212,35 @@ const appendEpisodeRow = (container, item) => {
   name.className = "episode-name";
   name.textContent = item.title || item.code || "Episode";
   copy.appendChild(name);
-  if (item.released) {
-    const released = document.createElement("span");
-    released.className = "episode-release";
-    released.textContent = item.released;
-    copy.appendChild(released);
+  if (item.released || item.rating) {
+    const metaRow = document.createElement("span");
+    metaRow.className = "episode-meta-row";
+    if (item.released) {
+      const released = document.createElement("span");
+      released.className = "episode-release";
+      released.textContent = item.released;
+      metaRow.appendChild(released);
+    }
+    if (item.released && item.rating) {
+      const dot = document.createElement("span");
+      dot.className = "episode-meta-dot";
+      dot.textContent = "•";
+      metaRow.appendChild(dot);
+    }
+    if (item.rating) {
+      const ratingBadge = document.createElement("span");
+      ratingBadge.className = "episode-rating-badge";
+      const imdbLabel = document.createElement("span");
+      imdbLabel.className = "episode-rating-source";
+      imdbLabel.textContent = "IMDb";
+      const ratingVal = document.createElement("span");
+      ratingVal.className = "episode-rating-val";
+      ratingVal.textContent = item.rating;
+      ratingBadge.appendChild(imdbLabel);
+      ratingBadge.appendChild(ratingVal);
+      metaRow.appendChild(ratingBadge);
+    }
+    copy.appendChild(metaRow);
   }
   if (item.overview) {
     const overview = document.createElement("span");
@@ -2487,7 +2511,7 @@ const getEpisodesModalSignature = () => {
     selectedEpisodeSeason == null ? "" : selectedEpisodeSeason,
     episodeStreamFilterId || "",
     (state.episodeSeasons || []).map(sea => `${sea.season}:${sea.label || ""}:${sea.isSelected ? 1 : 0}`).join(";"),
-    (state.episodeItems || []).map(ep => `${ep.index}:${ep.season}:${ep.episode}:${ep.code || ""}:${ep.title || ""}:${ep.thumbnail || ""}:${ep.isCurrent ? 1 : 0}:${ep.isWatched ? 1 : 0}:${ep.released || ""}:${ep.overview || ""}`).join(";"),
+    (state.episodeItems || []).map(ep => `${ep.index}:${ep.season}:${ep.episode}:${ep.code || ""}:${ep.title || ""}:${ep.thumbnail || ""}:${ep.isCurrent ? 1 : 0}:${ep.isWatched ? 1 : 0}:${ep.released || ""}:${ep.rating || ""}:${ep.overview || ""}`).join(";"),
     (state.episodeStreamFilters || []).map(f => `${f.id || ""}:${f.label || ""}:${f.isLoading ? 1 : 0}:${f.hasError ? 1 : 0}`).join(";"),
     (state.episodeStreamItems || []).map(i => `${i.index}:${i.filterId || ""}:${i.title || ""}:${i.details || ""}:${i.quality || ""}:${i.addonName || ""}:${i.isSelected ? 1 : 0}:${i.isCached ? 1 : 0}:${i.badgeText || ""}:${i.isDebrid ? 1 : 0}:${i.showAddonLogo ? 1 : 0}:${i.addonLogo || ""}`).join(";"),
   ].join("##");

@@ -1706,6 +1706,11 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
                 metaId = parentMetaId,
                 episode = video,
             )
+        val rawRating = video.seasonEpisodeKey()?.let { episodeImdbRatings[it] } ?: video.rating
+        val ratingLabel = rawRating
+            ?.takeIf { it > 0.0 && metaScreenSettingsUiState.episodeRatingsVisibility.showRating(isWatched) }
+            ?.let(::formatEpisodeRating)
+            .orEmpty()
         items.add(
             PlayerControlEpisodeItem(
                 index = index,
@@ -1718,6 +1723,7 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::formatReleaseDateForDisplay)
                     .orEmpty(),
+                rating = ratingLabel,
                 season = video.season?.coerceAtLeast(0) ?: 0,
                 episode = video.episode ?: 0,
                 isCurrent = video.season == activeSeasonNumber && video.episode == activeEpisodeNumber,
@@ -1955,6 +1961,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         blurUnwatchedEpisodes = metaScreenSettingsUiState.blurUnwatchedEpisodes,
         episodeStreamsPanelState = episodeStreamsPanelState,
         episodeStreamsRepoState = episodeStreamsRepoState,
+        episodeImdbRatings = episodeImdbRatings,
         onEpisodeSelectedForDownload = { episode ->
             selectDownloadedEpisodeForPlayback(
                 parentMetaId = parentMetaId,

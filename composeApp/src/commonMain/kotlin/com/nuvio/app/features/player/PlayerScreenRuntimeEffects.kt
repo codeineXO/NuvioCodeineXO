@@ -13,7 +13,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamRequest
 import com.nuvio.app.features.p2p.P2pStreamingEngine
@@ -70,6 +72,40 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             playerMeta = currentMeta
             playerMetaVideos = currentMeta.videos
         }
+    }
+
+    LaunchedEffect(
+        isSeries,
+        parentMetaType,
+        parentMetaId,
+        playerMeta?.id,
+        playerMeta?.imdbId,
+        playerMetaVideos,
+        metaScreenSettingsUiState.episodeRatingsVisibility,
+    ) {
+        if (!isSeries || !metaScreenSettingsUiState.episodeRatingsVisibility.showRatings || parentMetaId.isBlank()) {
+            episodeImdbRatings = emptyMap()
+            return@LaunchedEffect
+        }
+        val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+        val imdbId = extractImdbId(parentMetaId)
+            ?: extractImdbId(targetMeta?.imdbId)
+            ?: extractImdbId(targetMeta?.id)
+            ?: playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
+        val tmdbId = extractTmdbId(parentMetaId)
+            ?: extractTmdbId(targetMeta?.id)
+            ?: TmdbService.ensureTmdbId(targetMeta?.id ?: parentMetaId, parentMetaType, fallbackImdbId = imdbId)?.toIntOrNull()
+            ?: TmdbService.ensureTmdbId(imdbId ?: parentMetaId, parentMetaType, fallbackImdbId = targetMeta?.imdbId)?.toIntOrNull()
+
+        if (imdbId == null && tmdbId == null) {
+            episodeImdbRatings = emptyMap()
+            return@LaunchedEffect
+        }
+        episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
+            imdbId = imdbId,
+            tmdbId = tmdbId,
+            seasonNumbers = playerMetaVideos.mapNotNull { it.season }.distinct(),
+        )
     }
 
     LaunchedEffect(currentStreamBingeGroup, parentMetaId) {
