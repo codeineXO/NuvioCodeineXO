@@ -1391,11 +1391,23 @@ fun publishWindowsMsiOutput(release: Boolean) {
         ?: error("Expected Windows MSI output in ${outputDir.absolutePath}")
 
     if (sourceMsi.canonicalFile != finalMsi.canonicalFile) {
-        sourceMsi.copyTo(finalMsi, overwrite = true)
+        if (finalMsi.exists()) {
+            finalMsi.delete()
+        }
+        if (!sourceMsi.renameTo(finalMsi)) {
+            sourceMsi.copyTo(finalMsi, overwrite = true)
+            sourceMsi.delete()
+        }
     }
 
     logger.lifecycle("Windows MSI artifact: ${finalMsi.absolutePath}")
     publishWindowsMsiArtifact(finalMsi)
+
+    // Clean up temporary jpackage working directories to save disk space
+    val jpackageTempDir = rootProject.layout.projectDirectory.dir("build/jpackage-temp").asFile
+    if (jpackageTempDir.exists()) {
+        jpackageTempDir.deleteRecursively()
+    }
 }
 
 fun publishWindowsMsiArtifact(msi: File) {
@@ -1420,7 +1432,13 @@ fun publishWindowsExeOutput(release: Boolean) {
         ?: error("Expected Windows EXE output in ${outputDir.absolutePath}")
 
     if (sourceExe.canonicalFile != finalExe.canonicalFile) {
-        sourceExe.copyTo(finalExe, overwrite = true)
+        if (finalExe.exists()) {
+            finalExe.delete()
+        }
+        if (!sourceExe.renameTo(finalExe)) {
+            sourceExe.copyTo(finalExe, overwrite = true)
+            sourceExe.delete()
+        }
     }
 
     logger.lifecycle("Windows EXE artifact: ${finalExe.absolutePath}")

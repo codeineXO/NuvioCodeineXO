@@ -41,6 +41,7 @@ ArchitecturesAllowed=x64compatible
 MinVersion=10.0
 CloseApplications=force
 CloseApplicationsFilter=*.exe,*.dll
+RestartApplications=no
 UninstallDisplayIcon={app}\NuvioCodeineXO.exe
 ChangesAssociations=yes
 
@@ -74,10 +75,21 @@ Root: HKA; Subkey: "Software\Classes\stremio\shell\open\command"; ValueType: str
 ; Install location tracking for future upgrades
 Root: HKA; Subkey: "Software\Nuvio Media\NuvioCodeineXO-Fork"; ValueType: string; ValueName: "InstallDir"; ValueData: "{app}"; Flags: uninsdeletekey
 
+; Launch uninstaller with /SILENT so Inno Setup built-in message boxes are suppressed
+; allowing the single unified dark window in InitializeUninstallProgressForm to handle confirmation and progress
+Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\{{5DDCEDDD-AF2C-4FF1-A980-2E08691BFCA7}_is1"; ValueType: string; ValueName: "UninstallString"; ValueData: """{uninstallexe}"" /SILENT"; Flags: preservestringtype
+
 [Run]
 Filename: "{app}\NuvioCodeineXO.exe"; Description: "{cm:LaunchProgram,NuvioCodeineXO}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+var
+  ConfirmPage: TNewNotebookPage;
+  ProgressPage: TNewNotebookPage;
+  DeleteDataCheckbox: TNewCheckBox;
+  UninstallBtn: TNewButton;
+  ConfirmedUninstall: Boolean;
+
 // Clean up legacy MSI installation if detected
 procedure RemoveLegacyMsi();
 var
@@ -135,33 +147,130 @@ begin
   end;
 end;
 
-// Prompt on uninstall to delete user settings & cache
+// Helper to force terminate running app instances before uninstalling
+procedure StopRunningApp();
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM NuvioCodeineXO.exe /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+// If invoked without /SILENT (e.g. user manually clicked unins000.exe in install folder),
+// re-launch with /SILENT so that the single unified window is used instead of default message boxes.
+function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
+  Params: string;
+  I: Integer;
+begin
+  Result := True;
+  if not UninstallSilent then
+  begin
+    Params := '/SILENT';
+    for I := 1 to ParamCount do
+    begin
+      Params := Params + ' "' + ParamStr(I) + '"';
+    end;
+    Exec(ExpandConstant('{uninstallexe}'), Params, '', SW_SHOW, ewNoWait, ResultCode);
+    Result := False;
+  end;
+end;
+
+procedure UninstallBtnClick(Sender: TObject);
+begin
+  ConfirmedUninstall := True;
+  UninstallProgressForm.Close;
+end;
+
+procedure CancelBtnClick(Sender: TObject);
+begin
+  ConfirmedUninstall := False;
+  UninstallProgressForm.Close;
+end;
+
+// Unified single-window uninstallation: embeds confirmation & appdata options directly into UninstallProgressForm
+procedure InitializeUninstallProgressForm();
+var
+  PromptLabel: TNewStaticText;
+begin
+  ProgressPage := UninstallProgressForm.InnerNotebook.ActivePage;
+
+  ConfirmPage := TNewNotebookPage.Create(UninstallProgressForm);
+  ConfirmPage.Notebook := UninstallProgressForm.InnerNotebook;
+
+  PromptLabel := TNewStaticText.Create(ConfirmPage);
+  PromptLabel.Parent := ConfirmPage;
+  PromptLabel.Left := ScaleX(10);
+  PromptLabel.Top := ScaleY(15);
+  PromptLabel.Width := ConfirmPage.ClientWidth - ScaleX(20);
+  PromptLabel.Caption := 'Are you sure you want to completely remove NuvioCodeineXO from your computer?';
+  PromptLabel.WordWrap := True;
+
+  DeleteDataCheckbox := TNewCheckBox.Create(ConfirmPage);
+  DeleteDataCheckbox.Parent := ConfirmPage;
+  DeleteDataCheckbox.Left := ScaleX(10);
+  DeleteDataCheckbox.Top := ScaleY(55);
+  DeleteDataCheckbox.Width := ConfirmPage.ClientWidth - ScaleX(20);
+  DeleteDataCheckbox.Caption := 'Also delete leftover application data from your PC (%appdata% and %localappdata%)';
+  DeleteDataCheckbox.Checked := False;
+
+  UninstallBtn := TNewButton.Create(UninstallProgressForm);
+  UninstallBtn.Parent := UninstallProgressForm;
+  UninstallBtn.Caption := '&Uninstall';
+  UninstallBtn.Left := UninstallProgressForm.CancelButton.Left - UninstallProgressForm.CancelButton.Width - ScaleX(10);
+  UninstallBtn.Top := UninstallProgressForm.CancelButton.Top;
+  UninstallBtn.Width := UninstallProgressForm.CancelButton.Width;
+  UninstallBtn.Height := UninstallProgressForm.CancelButton.Height;
+  UninstallBtn.OnClick := @UninstallBtnClick;
+
+  UninstallProgressForm.CancelButton.OnClick := @CancelBtnClick;
+
+  UninstallProgressForm.PageNameLabel.Caption := 'Uninstall NuvioCodeineXO';
+  UninstallProgressForm.PageDescriptionLabel.Caption := 'Please confirm uninstallation before proceeding.';
+
+  UninstallProgressForm.InnerNotebook.ActivePage := ConfirmPage;
+
+  UninstallProgressForm.ShowModal();
+
+  if not ConfirmedUninstall then
+  begin
+    Abort;
+  end;
+
+  // Make sure running instance is closed before uninstallation proceeds
+  StopRunningApp();
+
+  UninstallBtn.Visible := False;
+  UninstallProgressForm.InnerNotebook.ActivePage := ProgressPage;
+  UninstallProgressForm.PageNameLabel.Caption := 'Uninstalling NuvioCodeineXO';
+  UninstallProgressForm.PageDescriptionLabel.Caption := 'Please wait while NuvioCodeineXO is removed from your computer.';
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   LocalAppDir: string;
   RoamingAppDir: string;
-  HasLocalData: Boolean;
-  HasRoamingData: Boolean;
+  AppDir: string;
+  ResultCode: Integer;
 begin
-  if CurUninstallStep = usUninstall then
+  if CurUninstallStep = usPostUninstall then
   begin
-    LocalAppDir := ExpandConstant('{localappdata}\NuvioCodeineXO');
-    RoamingAppDir := ExpandConstant('{userappdata}\NuvioCodeineXO');
-    HasLocalData := DirExists(LocalAppDir);
-    HasRoamingData := DirExists(RoamingAppDir);
-
-    if HasLocalData or HasRoamingData then
+    if Assigned(DeleteDataCheckbox) and DeleteDataCheckbox.Checked then
     begin
-      if MsgBox('Do you want to delete your personal application data (settings, watch history, profiles, and cache) for NuvioCodeineXO?' + #13#10#13#10 +
-                '• Click ''Yes'' to permanently delete your NuvioCodeineXO personal data.' + #13#10 +
-                '• Click ''No'' to preserve your settings in case you reinstall later.',
-                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
-      begin
-        if HasLocalData then
-          DelTree(LocalAppDir, True, True, True);
-        if HasRoamingData then
-          DelTree(RoamingAppDir, True, True, True);
-      end;
+      LocalAppDir := ExpandConstant('{localappdata}\NuvioCodeineXO');
+      RoamingAppDir := ExpandConstant('{userappdata}\NuvioCodeineXO');
+      if DirExists(LocalAppDir) then
+        DelTree(LocalAppDir, True, True, True);
+      if DirExists(RoamingAppDir) then
+        DelTree(RoamingAppDir, True, True, True);
+    end;
+
+    // Clean up entire install directory ({app}) after uninstaller exits
+    // Inno Setup keeps unins000.exe running from {app} during execution, so schedule cmd rmdir once process terminates
+    AppDir := ExpandConstant('{app}');
+    if DirExists(AppDir) then
+    begin
+      Exec('cmd.exe', '/c start "" /min cmd.exe /c "timeout /t 2 /nobreak >nul & rmdir /s /q """' + AppDir + '""""', '', SW_HIDE, ewNoWait, ResultCode);
     end;
   end;
 end;
