@@ -596,9 +596,9 @@ internal class NativePlayerController(
                 }
             }
             PlayerControlsAction.SeekBack,
-            PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-5_000L)
+            PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-3_000L)
             PlayerControlsAction.SeekForward,
-            PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(5_000L)
+            PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(3_000L)
             PlayerControlsAction.KeyboardFineSeekBack -> fallbackSeekBy(-1_000L)
             PlayerControlsAction.KeyboardFineSeekForward -> fallbackSeekBy(1_000L)
             PlayerControlsAction.KeyboardVolumeDown -> adjustFallbackVolume(-10f)

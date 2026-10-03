@@ -686,8 +686,8 @@ const syncVolumeControl = () => {
 };
 
 const seekToastLabel = command => {
-  if (command === "seekBack" || command === "keyboardSeekBack") return "-5s";
-  if (command === "seekForward" || command === "keyboardSeekForward") return "+5s";
+  if (command === "seekBack" || command === "keyboardSeekBack") return "-3s";
+  if (command === "seekForward" || command === "keyboardSeekForward") return "+3s";
   if (command === "pictureInPicture" || command === "pip") return state.pipLabel || "";
   return "";
 };
