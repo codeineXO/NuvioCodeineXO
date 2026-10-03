@@ -1262,7 +1262,7 @@ compose.desktop {
         )
 
         nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Deb, TargetFormat.Rpm, TargetFormat.AppImage)
             packageName = "NuvioCodeineXO"
             packageVersion = desktopReleasePackageVersion
             vendor = "Nuvio Media"
@@ -1408,6 +1408,35 @@ fun publishWindowsMsiArtifact(msi: File) {
     logger.lifecycle("Published Windows MSI artifact: ${publishedMsi.absolutePath}")
 }
 
+fun publishWindowsExeOutput(release: Boolean) {
+    if (!isWindowsHost) return
+
+    val distributionName = if (release) "main-release" else "main"
+    val outputDir = layout.buildDirectory.dir("compose/binaries/$distributionName/exe").get().asFile
+    val finalExe = outputDir.resolve("NuvioCodeineXO-$desktopReleaseVersionName.exe")
+    val defaultExe = outputDir.resolve("NuvioCodeineXO-$desktopReleasePackageVersion.exe")
+    val sourceExe = defaultExe.takeIf { it.exists() }
+        ?: finalExe.takeIf { it.exists() }
+        ?: error("Expected Windows EXE output in ${outputDir.absolutePath}")
+
+    if (sourceExe.canonicalFile != finalExe.canonicalFile) {
+        sourceExe.copyTo(finalExe, overwrite = true)
+    }
+
+    logger.lifecycle("Windows EXE artifact: ${finalExe.absolutePath}")
+    publishWindowsExeArtifact(finalExe)
+}
+
+fun publishWindowsExeArtifact(exe: File) {
+    val publishedDir = layout.buildDirectory.dir("compose/release-exes").get().asFile
+    publishedDir.mkdirs()
+    val publishedExe = publishedDir.resolve(exe.name)
+    if (exe.canonicalFile != publishedExe.canonicalFile) {
+        exe.copyTo(publishedExe, overwrite = true)
+    }
+    logger.lifecycle("Published Windows EXE artifact: ${publishedExe.absolutePath}")
+}
+
 fun normalizedLinuxArch(value: String): String =
     when (value.lowercase()) {
         "amd64", "x64", "x86_64" -> "x86_64"
@@ -1507,6 +1536,113 @@ if (isWindowsHost) {
             val task = this as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
             task?.javaHome?.set(jpackageWrapperDir.absolutePath)
         }
+    }
+
+    fun findIsccCompiler(): File {
+        val onPath = findExecutableOnPath("iscc") ?: findExecutableOnPath("iscc.exe")
+        if (onPath != null) return onPath
+        val candidates = listOf(
+            rootProject.layout.projectDirectory.dir("build/innosetup/ISCC.exe").asFile,
+            File("C:/Program Files (x86)/Inno Setup 6/ISCC.exe"),
+            File("C:/Program Files/Inno Setup 6/ISCC.exe"),
+            File(System.getenv("LOCALAPPDATA") ?: "", "Programs/Inno Setup 6/ISCC.exe"),
+        )
+        candidates.firstOrNull { it.isFile && it.canExecute() }?.let { return it }
+
+        val targetDir = rootProject.layout.projectDirectory.dir("build/innosetup").asFile
+        val targetIscc = targetDir.resolve("ISCC.exe")
+        if (targetIscc.isFile && targetIscc.canExecute()) return targetIscc
+
+        targetDir.mkdirs()
+        val tempInstaller = File(System.getProperty("java.io.tmpdir"), "innosetup-installer.exe")
+        val curlCmd = listOf("curl.exe", "-L", "-o", tempInstaller.absolutePath, "https://github.com/jrsoftware/issrc/releases/download/is-6_3_3/innosetup-6.3.3.exe")
+        val curlProc = ProcessBuilder(curlCmd).inheritIO().start()
+        val curlExit = curlProc.waitFor()
+        check(curlExit == 0) { "Failed to download Inno Setup compiler with exit code $curlExit" }
+
+        val installCmd = listOf(tempInstaller.absolutePath, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/PORTABLE=1", "/CURRENTUSER", "/DIR=${targetDir.absolutePath}")
+        val installProc = ProcessBuilder(installCmd).inheritIO().start()
+        val installExit = installProc.waitFor()
+        check(installExit == 0 && targetIscc.isFile) { "Failed to unpack Inno Setup compiler with exit code $installExit" }
+
+        return targetIscc
+    }
+
+    val packageReleaseExe = tasks.register("packageReleaseExe") {
+        group = "distribution"
+        description = "Packages the release Windows EXE installer using Inno Setup."
+        dependsOn("createReleaseDistributable")
+        notCompatibleWithConfigurationCache("Windows Inno Setup installer publication uses script file operations.")
+        val installerScript = layout.projectDirectory.file("src/desktopMain/installer/installer.iss").asFile
+        val iconFile = layout.projectDirectory.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.ico").asFile
+        val distDir = layout.buildDirectory.dir("compose/binaries/main-release/app/NuvioCodeineXO").get().asFile
+        val outputDir = layout.buildDirectory.dir("compose/binaries/main-release/exe").get().asFile
+
+        inputs.file(installerScript)
+        inputs.file(iconFile)
+        inputs.dir(distDir)
+        outputs.dir(outputDir)
+
+        doLast {
+            val iscc = findIsccCompiler()
+            outputDir.mkdirs()
+            val isccArgs = listOf(
+                iscc.absolutePath,
+                "/Q",
+                "/DAppVersion=$desktopReleaseVersionName",
+                "/DAppSourceDir=${distDir.absolutePath}",
+                "/DOutputDir=${outputDir.absolutePath}",
+                "/DOutputBaseFilename=NuvioCodeineXO-$desktopReleaseVersionName",
+                "/DAppIconPath=${iconFile.absolutePath}",
+                installerScript.absolutePath,
+            )
+            val proc = ProcessBuilder(isccArgs).inheritIO().start()
+            val exitCode = proc.waitFor()
+            check(exitCode == 0) { "ISCC compilation failed with exit code $exitCode" }
+            publishWindowsExeOutput(release = true)
+        }
+    }
+
+    val packageExe = tasks.register("packageExe") {
+        group = "distribution"
+        description = "Packages the debug Windows EXE installer using Inno Setup."
+        dependsOn("createDistributable")
+        notCompatibleWithConfigurationCache("Windows Inno Setup installer publication uses script file operations.")
+        val installerScript = layout.projectDirectory.file("src/desktopMain/installer/installer.iss").asFile
+        val iconFile = layout.projectDirectory.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.ico").asFile
+        val distDir = layout.buildDirectory.dir("compose/binaries/main/app/NuvioCodeineXO").get().asFile
+        val outputDir = layout.buildDirectory.dir("compose/binaries/main/exe").get().asFile
+
+        inputs.file(installerScript)
+        inputs.file(iconFile)
+        inputs.dir(distDir)
+        outputs.dir(outputDir)
+
+        doLast {
+            val iscc = findIsccCompiler()
+            outputDir.mkdirs()
+            val isccArgs = listOf(
+                iscc.absolutePath,
+                "/Q",
+                "/DAppVersion=$desktopReleaseVersionName",
+                "/DAppSourceDir=${distDir.absolutePath}",
+                "/DOutputDir=${outputDir.absolutePath}",
+                "/DOutputBaseFilename=NuvioCodeineXO-$desktopReleaseVersionName",
+                "/DAppIconPath=${iconFile.absolutePath}",
+                installerScript.absolutePath,
+            )
+            val proc = ProcessBuilder(isccArgs).inheritIO().start()
+            val exitCode = proc.waitFor()
+            check(exitCode == 0) { "ISCC compilation failed with exit code $exitCode" }
+            publishWindowsExeOutput(release = false)
+        }
+    }
+
+    tasks.matching { it.name == "packageReleaseDistributionForCurrentOS" }.configureEach {
+        dependsOn(packageReleaseExe)
+    }
+    tasks.matching { it.name == "packageDistributionForCurrentOS" }.configureEach {
+        dependsOn(packageExe)
     }
 }
 
