@@ -31,8 +31,7 @@ OutputBaseFilename={#OutputBaseFilename}
 SetupIconFile={#AppIconPath}
 Compression=lzma2/ultra64
 SolidCompression=yes
-WizardStyle=modern
-WizardResizable=no
+WizardStyle=modern dark
 DisableProgramGroupPage=yes
 DisableDirPage=no
 PrivilegesRequired=lowest
@@ -50,7 +49,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "autostart"; Description: "Start NuvioCodeineXO automatically when Windows boots"; GroupDescription: "Additional options:"; Flags: unchecked
 
 [Files]
 Source: "{#AppSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -60,8 +58,6 @@ Name: "{autoprograms}\NuvioCodeineXO"; Filename: "{app}\NuvioCodeineXO.exe"
 Name: "{autodesktop}\NuvioCodeineXO"; Filename: "{app}\NuvioCodeineXO.exe"; Tasks: desktopicon
 
 [Registry]
-; Run on Windows Startup (optional task)
-Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NuvioCodeineXO"; ValueData: """{app}\NuvioCodeineXO.exe"""; Flags: uninsdeletevalue; Tasks: autostart
 
 ; Deep link protocol handler: nuvio://
 Root: HKA; Subkey: "Software\Classes\nuvio"; ValueType: string; ValueData: "URL:Nuvio Protocol"; Flags: uninsdeletekey

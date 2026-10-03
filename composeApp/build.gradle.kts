@@ -1555,7 +1555,7 @@ if (isWindowsHost) {
 
         targetDir.mkdirs()
         val tempInstaller = File(System.getProperty("java.io.tmpdir"), "innosetup-installer.exe")
-        val curlCmd = listOf("curl.exe", "-L", "-o", tempInstaller.absolutePath, "https://github.com/jrsoftware/issrc/releases/download/is-6_3_3/innosetup-6.3.3.exe")
+        val curlCmd = listOf("curl.exe", "-L", "-o", tempInstaller.absolutePath, "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe")
         val curlProc = ProcessBuilder(curlCmd).inheritIO().start()
         val curlExit = curlProc.waitFor()
         check(curlExit == 0) { "Failed to download Inno Setup compiler with exit code $curlExit" }
