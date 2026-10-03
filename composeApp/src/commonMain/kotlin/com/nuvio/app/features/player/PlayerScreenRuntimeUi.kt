@@ -991,6 +991,7 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         }
         "selectEpisode" -> {
             val episode = playerMetaVideos.getOrNull(value.toInt()) ?: return true
+            syncStreamLaunch(episode)
             if (selectDownloadedEpisodeForPlayback(
                     parentMetaId = parentMetaId,
                     episode = episode,
@@ -1309,6 +1310,7 @@ private fun PlayerScreenRuntime.requestEpisodeStreamsForPlayerControls(
     episode: MetaVideo,
     forceRefresh: Boolean = false,
 ) {
+    syncStreamLaunch(episode)
     PlayerStreamsRepository.loadEpisodeStreams(
         type = contentType ?: parentMetaType,
         videoId = episode.id,
@@ -1985,6 +1987,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
             )
         },
         onEpisodeStreamsRequested = { episode ->
+            syncStreamLaunch(episode)
             PlayerStreamsRepository.loadEpisodeStreams(
                 type = contentType ?: parentMetaType,
                 videoId = episode.id,

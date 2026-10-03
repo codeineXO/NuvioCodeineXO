@@ -43,6 +43,7 @@ internal fun PlayerScreen(
     initialProgressFraction: Float? = null,
     contentLanguage: String? = null,
     launchId: Long? = null,
+    streamLaunchId: Long? = null,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -84,6 +85,7 @@ internal fun PlayerScreen(
             initialProgressFraction = initialProgressFraction,
             contentLanguage = contentLanguage,
             launchId = launchId,
+            streamLaunchId = streamLaunchId,
         )
     )
 }

@@ -13,6 +13,7 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
+import com.nuvio.app.features.streams.StreamLaunchStore
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.coroutines.launch
@@ -378,6 +379,16 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeInitialPositionMs = epResumePositionMs
     activeInitialProgressFraction = epResumeFraction
     controlsVisible = true
+    syncStreamLaunch(
+        seasonNumber = episode.season,
+        episodeNumber = episode.episode,
+        episodeTitle = episode.title,
+        episodeThumbnail = episode.thumbnail,
+        pauseDescription = episode.overview,
+        videoId = resolvedVideoId,
+        resumePositionMs = epResumePositionMs,
+        resumeProgressFraction = epResumeFraction,
+    )
 }
 
 internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
@@ -391,6 +402,7 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
                 !nextEpisodeCardDismissed && isAtNextEpisodeThreshold()
             ))
     if (!isCurrentRequest()) return
+    playerMetaVideos.firstOrNull { it.id == nextVideoId }?.let { syncStreamLaunch(it) }
     nextEpisodeAutoPlayAutomatic = automatic
 
     scope.launchPlayerNextEpisodeAutoPlay(
@@ -410,6 +422,7 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
         },
         onManualSelectionRequired = { nextVideo ->
             if (isCurrentRequest()) {
+                syncStreamLaunch(nextVideo)
                 nextEpisodeCardDismissed = true
                 episodeStreamsPanelState = EpisodeStreamsPanelState(
                     showStreams = true,
@@ -461,7 +474,54 @@ internal fun PlayerScreenRuntime.openEpisodesPanel() {
     controlsVisible = false
 }
 
-private data class EpisodeResume(val positionMs: Long, val fraction: Float?)
+internal data class EpisodeResume(val positionMs: Long, val fraction: Float?)
+
+internal fun PlayerScreenRuntime.syncStreamLaunch(
+    seasonNumber: Int?,
+    episodeNumber: Int?,
+    episodeTitle: String?,
+    episodeThumbnail: String?,
+    pauseDescription: String?,
+    videoId: String?,
+    resumePositionMs: Long? = null,
+    resumeProgressFraction: Float? = null,
+) {
+    if (!isSeries) return
+    StreamLaunchStore.updateEpisode(
+        streamLaunchId = args.streamLaunchId,
+        parentMetaId = parentMetaId,
+        seasonNumber = seasonNumber,
+        episodeNumber = episodeNumber,
+        episodeTitle = episodeTitle,
+        episodeThumbnail = episodeThumbnail,
+        pauseDescription = pauseDescription,
+        videoId = videoId,
+        resumePositionMs = resumePositionMs,
+        resumeProgressFraction = resumeProgressFraction,
+    )
+}
+
+internal fun PlayerScreenRuntime.syncStreamLaunch(episode: MetaVideo, resume: EpisodeResume? = null) {
+    if (!isSeries) return
+    val resolvedResume = resume ?: resolveEpisodeResume(episode.id, episode)
+    val fallbackVideoId = buildPlaybackVideoId(
+        parentMetaId = parentMetaId,
+        seasonNumber = episode.season,
+        episodeNumber = episode.episode,
+        fallbackVideoId = episode.id,
+    )
+    val epVideoId = episode.id.takeIf { it.isNotBlank() } ?: fallbackVideoId
+    syncStreamLaunch(
+        seasonNumber = episode.season,
+        episodeNumber = episode.episode,
+        episodeTitle = episode.title,
+        episodeThumbnail = episode.thumbnail,
+        pauseDescription = episode.overview,
+        videoId = epVideoId,
+        resumePositionMs = resolvedResume.positionMs,
+        resumeProgressFraction = resolvedResume.fraction,
+    )
+}
 
 private fun PlayerScreenRuntime.resetEpisodePanelAndNextEpisodeState() {
     showNextEpisodeCard = false
@@ -472,7 +532,7 @@ private fun PlayerScreenRuntime.resetEpisodePanelAndNextEpisodeState() {
     PlayerStreamsRepository.clearEpisodeStreams()
 }
 
-private fun PlayerScreenRuntime.resolveEpisodeResume(epVideoId: String, episode: MetaVideo): EpisodeResume {
+internal fun PlayerScreenRuntime.resolveEpisodeResume(epVideoId: String, episode: MetaVideo): EpisodeResume {
     val epResumeVideoId = buildPlaybackVideoId(
         parentMetaId = parentMetaId,
         seasonNumber = episode.season,
@@ -512,6 +572,7 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     activeInitialPositionMs = resume.positionMs
     activeInitialProgressFraction = resume.fraction
     controlsVisible = true
+    syncStreamLaunch(episode, resume)
 }
 
 private fun PlayerScreenRuntime.saveDirectStreamForReuse(

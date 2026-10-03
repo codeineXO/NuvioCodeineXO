@@ -403,6 +403,21 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         PlayerStreamsRepository.pauseSearchForPlayback()
         onDispose {
             args.launchId?.let { launchId -> PlayerLaunchStore.update(launchId) { currentLaunch(it) } }
+            if (isSeries && (activeSeasonNumber != null || activeEpisodeNumber != null)) {
+                val currentPositionMs = playbackSnapshot.positionMs.takeIf {
+                    it > 0L && initialSeekApplied && playbackSnapshotKey == activePlaybackKey
+                } ?: activeInitialPositionMs
+                syncStreamLaunch(
+                    seasonNumber = activeSeasonNumber,
+                    episodeNumber = activeEpisodeNumber,
+                    episodeTitle = activeEpisodeTitle,
+                    episodeThumbnail = activeEpisodeThumbnail,
+                    pauseDescription = activePauseDescription,
+                    videoId = activeVideoId,
+                    resumePositionMs = currentPositionMs,
+                    resumeProgressFraction = activeInitialProgressFraction,
+                )
+            }
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
             PlayerStreamsRepository.clearAll()

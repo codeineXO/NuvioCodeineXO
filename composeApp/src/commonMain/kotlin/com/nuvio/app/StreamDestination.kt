@@ -65,9 +65,7 @@ internal fun StreamDestination(
     onLandscapeLoadingChanged: (Boolean) -> Unit,
 ) {
     val onBack = rememberGuardedPopBackStack(navController, route)
-    val launch = remember(route.launchId) {
-        StreamLaunchStore.get(route.launchId)
-    }
+    val launch = StreamLaunchStore.get(route.launchId)
     if (launch == null) {
         LaunchedEffect(route.launchId) {
             onBack()
@@ -76,9 +74,9 @@ internal fun StreamDestination(
     }
     val pauseDescription = launch.pauseDescription
     val streamRouteScope = rememberCoroutineScope()
-    var autoPlayNavigationStarted by remember(route.launchId) { mutableStateOf(false) }
-    var resolvingDebridStream by rememberSaveable(route.launchId) { mutableStateOf(false) }
-    var pendingP2pStreamOpen by remember { mutableStateOf<PendingP2pStreamOpen?>(null) }
+    var autoPlayNavigationStarted by remember(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
+    var resolvingDebridStream by rememberSaveable(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
+    var pendingP2pStreamOpen by remember(launch.seasonNumber, launch.episodeNumber) { mutableStateOf<PendingP2pStreamOpen?>(null) }
     val shouldResolveEpisodeVideoId =
         launch.parentMetaId != null &&
             launch.seasonNumber != null &&
@@ -212,6 +210,7 @@ internal fun StreamDestination(
             initialPositionMs = resolvedResumePositionMs ?: 0L,
             initialProgressFraction = resolvedResumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
+            streamLaunchId = route.launchId,
         )
 
         autoPlayNavigationStarted = replaceStreamRoute
@@ -259,8 +258,8 @@ internal fun StreamDestination(
         )
     }
 
-    var reuseHandled by rememberSaveable(launch.videoId, effectiveVideoId) { mutableStateOf(false) }
-    var reuseNavigated by remember { mutableStateOf(false) }
+    var reuseHandled by rememberSaveable(launch.videoId, effectiveVideoId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
+    var reuseNavigated by remember(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
     LaunchedEffect(effectiveVideoId, hasResolvedVideoId, playerSettings.streamReuseLastLinkEnabled, launch.manualSelection) {
         if (!hasResolvedVideoId) return@LaunchedEffect
         if (reuseHandled) return@LaunchedEffect
@@ -331,6 +330,7 @@ internal fun StreamDestination(
                 initialPositionMs = launch.resumePositionMs ?: 0L,
                 initialProgressFraction = launch.resumeProgressFraction,
                 contentLanguage = resolveLaunchContentLanguage(cached.contentLanguage),
+                streamLaunchId = route.launchId,
             )
             if (externalPlayerSupported && playerSettings.externalPlayerEnabled) {
                 openExternalPlayback(playerLaunch)
@@ -368,7 +368,7 @@ internal fun StreamDestination(
         manualSelection = launch.manualSelection,
     )
     SideEffect { onLandscapeLoadingChanged(useLandscapeLoading) }
-    var autoPlayHandled by rememberSaveable(launch.videoId, effectiveVideoId) { mutableStateOf(false) }
+    var autoPlayHandled by rememberSaveable(launch.videoId, effectiveVideoId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
     LaunchedEffect(
         streamsUiState.autoPlayStream,
         streamsUiState.requestToken,
@@ -483,6 +483,7 @@ internal fun StreamDestination(
             initialPositionMs = launch.resumePositionMs ?: 0L,
             initialProgressFraction = launch.resumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
+            streamLaunchId = route.launchId,
         )
         if (externalPlayerSupported && playerSettings.externalPlayerEnabled) {
             openExternalPlayback(playerLaunch)
@@ -631,6 +632,7 @@ internal fun StreamDestination(
             initialPositionMs = resolvedResumePositionMs ?: 0L,
             initialProgressFraction = resolvedResumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
+            streamLaunchId = route.launchId,
         )
 
         if (!forceInternal && externalPlayerSupported && (forceExternal || playerSettings.externalPlayerEnabled)) {
