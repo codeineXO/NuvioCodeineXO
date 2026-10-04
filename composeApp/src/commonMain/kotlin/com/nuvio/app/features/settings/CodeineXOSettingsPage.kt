@@ -47,7 +47,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
                     title = "CodeineXO Aura",
-                    description = "Interactive glowing chromatic background with reactive pointer tracking",
+                    description = "Dynamic chromatic aurora ambient background",
                     checked = auraBackgroundEnabled,
                     isTablet = isTablet,
                     onCheckedChange = ThemeSettingsRepository::setAuraBackgroundEnabled,
