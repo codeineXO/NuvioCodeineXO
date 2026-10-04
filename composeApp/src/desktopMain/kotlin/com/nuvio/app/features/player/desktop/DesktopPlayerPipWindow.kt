@@ -9,6 +9,7 @@ import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import java.awt.geom.RoundRectangle2D
 import javax.swing.JFrame
 import javax.swing.WindowConstants
 
@@ -24,6 +25,16 @@ internal class DesktopPlayerPipWindow(
     var aspectRatio: Float = 16f / 9f
 
     override fun getInsets(): Insets = Insets(0, 0, 0, 0)
+
+    fun updateWindowShape() {
+        val w = width
+        val h = height
+        if (w > 0 && h > 0) {
+            runCatching {
+                shape = RoundRectangle2D.Float(0f, 0f, w.toFloat(), h.toFloat(), 16f, 16f)
+            }
+        }
+    }
 
     init {
         isUndecorated = true
@@ -57,6 +68,7 @@ internal class DesktopPlayerPipWindow(
             private var resizing = false
 
             override fun componentResized(event: ComponentEvent) {
+                updateWindowShape()
                 if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
                     return
                 }

@@ -76,6 +76,7 @@ internal object DesktopPlayerPictureInPicture {
             else -> b.y
         }
         win.setBounds(newX, newY, targetWidth, targetHeight)
+        win.updateWindowShape()
         win.revalidate()
     }
 
@@ -145,6 +146,7 @@ internal object DesktopPlayerPictureInPicture {
                 stream?.use { ImageIO.read(it) }?.let { image -> iconImages = listOf(image) }
             }.onFailure { error -> log.w(error) { "failed to set PiP window icon key=$iconKey" } }
         }
+        window.updateWindowShape()
         pipWindow = window
 
         runCatching {

@@ -994,6 +994,7 @@ button:disabled {
 .player.pip-mode {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
   border-radius: 8px;
+  overflow: hidden;
 }
 
 .player.pip-mode .header-button:not(#pipButton):not(#pipLockButton),
