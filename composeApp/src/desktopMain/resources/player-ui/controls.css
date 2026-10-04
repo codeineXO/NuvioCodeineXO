@@ -3783,12 +3783,47 @@ svg {
 }
 
 .player.ui-codeinexo .header {
-  top: calc(32px + env(safe-area-inset-top));
+  top: calc(28px + env(safe-area-inset-top));
   left: clamp(16px, 2.5vw, 32px);
   right: clamp(16px, 2.5vw, 32px);
-  min-height: 48px;
+  min-height: 40px;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+}
+
+/* Smooth and soft UI hide/unhide transitions for CodeineXO */
+.player.ui-codeinexo .header-left,
+.player.ui-codeinexo .header-center,
+.player.ui-codeinexo .header-actions,
+.player.ui-codeinexo .center-controls,
+.player.ui-codeinexo .progress,
+.player.ui-codeinexo .torrent-stats-overlay,
+.player.ui-codeinexo .parental-guide,
+.player.ui-codeinexo .skip-prompt {
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+.player.ui-codeinexo.chrome-hidden .header-left,
+.player.ui-codeinexo.chrome-hidden .header-center,
+.player.ui-codeinexo.chrome-hidden .header-actions,
+.player.ui-codeinexo.chrome-hidden .center-controls,
+.player.ui-codeinexo.chrome-hidden .progress,
+.player.ui-codeinexo.chrome-hidden .torrent-stats-overlay,
+.player.ui-codeinexo.chrome-hidden .parental-guide,
+.player.ui-codeinexo.chrome-hidden .skip-prompt {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.native-resizing .header-left,
+.player.ui-codeinexo.native-resizing .header-center,
+.player.ui-codeinexo.native-resizing .header-actions,
+.player.ui-codeinexo.native-resizing .center-controls,
+.player.ui-codeinexo.native-resizing .progress,
+.player.ui-codeinexo.native-resizing .torrent-stats-overlay {
+  transition-duration: 1ms !important;
 }
 
 .player.ui-codeinexo .parental-guide {
@@ -3806,12 +3841,12 @@ svg {
 }
 
 .player.ui-codeinexo .torrent-stats-overlay {
-  top: calc(20px + env(safe-area-inset-top));
-  right: clamp(18px, 1.8vw, 26px);
-  height: 48px;
-  min-height: 48px;
+  top: calc(28px + env(safe-area-inset-top));
+  right: clamp(16px, 2.5vw, 32px);
+  height: auto;
+  min-height: 40px;
   box-sizing: border-box;
-  padding: 4px 2px;
+  padding: 0;
   margin: 0;
   border-radius: 0;
   background: transparent;
@@ -3830,67 +3865,84 @@ svg {
     0 4px 12px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-start;
   pointer-events: none;
+}
+
+.player.ui-codeinexo .torrent-stats-time-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 2px 0 0 0;
+  line-height: 1.25;
 }
 
 .player.ui-codeinexo .torrent-stats-text {
   text-shadow: inherit;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  margin-top: 2px;
 }
 
 .player.ui-codeinexo .header-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex: 0 0 auto;
 }
 
 .player.ui-codeinexo .codeine-back-button {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  box-sizing: border-box;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.34);
+  background: transparent;
   border: none;
   color: var(--theme-control-foreground);
   display: grid;
   place-items: center;
   cursor: pointer;
   padding: 0;
+  margin: -6px 0 0 0;
+  box-shadow: none;
+  transform: translateZ(0);
   transition:
     background-color var(--motion-standard) ease,
     transform var(--motion-fast) var(--ease-out);
 }
 
 .player.ui-codeinexo .codeine-back-button:hover {
-  background: rgba(0, 0, 0, 0.55);
-  transform: scale(1.04);
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateZ(0) scale(1.06);
 }
 
 .player.ui-codeinexo .codeine-back-button:active {
-  transform: scale(0.94);
+  transform: scale(0.93);
 }
 
 .player.ui-codeinexo .codeine-back-button svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
 }
 
 .player.ui-codeinexo .header-center {
   position: absolute;
   left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: center;
   width: max-content;
-  max-width: calc(100% - 140px);
+  max-width: calc(100% - 160px);
   overflow: visible;
   box-sizing: border-box;
   pointer-events: none;
@@ -3902,10 +3954,10 @@ svg {
 .player.ui-codeinexo .codeine-title {
   font-size: var(--title);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   color: #fff;
-  padding: 4px 12px;
-  margin: -4px -12px 0 -12px;
+  padding: 0 12px;
+  margin: 0;
   text-shadow:
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 2px 6px rgba(0, 0, 0, 0.70),
@@ -3921,10 +3973,7 @@ svg {
   line-height: 1.3;
   color: rgba(255, 255, 255, 0.85);
   margin-top: 2px;
-  padding: 4px 12px;
-  margin-left: -12px;
-  margin-right: -12px;
-  margin-bottom: -4px;
+  padding: 0 12px;
   text-shadow:
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 2px 6px rgba(0, 0, 0, 0.70),
@@ -3959,25 +4008,37 @@ svg {
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.3;
-  padding: 4px 6px;
-  margin: -4px -6px;
+  font-feature-settings: "tnum" 1;
+  line-height: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
   white-space: nowrap;
   user-select: none;
   background: transparent;
   border: none;
+  cursor: pointer;
   text-shadow:
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 2px 6px rgba(0, 0, 0, 0.70),
     0 4px 12px rgba(0, 0, 0, 0.35);
-  min-width: 42px;
+  min-width: 48px;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+
+.player.ui-codeinexo .codeine-time-pill:hover {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .player.ui-codeinexo .codeine-time-current {
+  justify-content: flex-end;
   text-align: right;
 }
 
 .player.ui-codeinexo .codeine-time-duration {
+  justify-content: flex-start;
   text-align: left;
 }
 
@@ -4024,7 +4085,7 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -4032,19 +4093,25 @@ svg {
 .player.ui-codeinexo .codeine-controls-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   flex: 0 0 auto;
 }
 
-.player.ui-codeinexo .codeine-controls-left {
-  gap: 14px;
-}
-
-.player.ui-codeinexo .codeine-control-btn {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
+.player.ui-codeinexo .codeine-control-btn,
+.player.ui-codeinexo .codeine-play-btn,
+.player.ui-codeinexo .codeine-volume-btn,
+.player.ui-codeinexo .codeine-action-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
   border-radius: 999px;
+  border: none;
   display: grid;
   place-items: center;
   color: var(--theme-control-foreground);
@@ -4057,13 +4124,19 @@ svg {
     color var(--motion-standard) ease;
 }
 
-.player.ui-codeinexo .codeine-control-btn:hover {
+.player.ui-codeinexo .codeine-control-btn:hover,
+.player.ui-codeinexo .codeine-play-btn:hover,
+.player.ui-codeinexo .codeine-volume-btn:hover,
+.player.ui-codeinexo .codeine-action-btn:hover {
   background: rgba(255, 255, 255, 0.14);
   transform: translateZ(0) scale(1.06);
 }
 
 .player.ui-codeinexo .codeine-control-btn:active,
-.player.ui-codeinexo .codeine-control-btn.is-pressed {
+.player.ui-codeinexo .codeine-control-btn.is-pressed,
+.player.ui-codeinexo .codeine-play-btn:active,
+.player.ui-codeinexo .codeine-volume-btn:active,
+.player.ui-codeinexo .codeine-action-btn:active {
   transform: scale(0.93);
 }
 
@@ -4076,47 +4149,40 @@ svg {
   filter: drop-shadow(0 0 6px var(--theme-accent)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
 }
 
-.player.ui-codeinexo .codeine-control-btn svg {
-  width: 22px;
-  height: 22px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
-}
-
-.player.ui-codeinexo .codeine-play-btn {
-  width: 46px;
-  height: 46px;
-  min-width: 46px;
-}
-
-.player.ui-codeinexo .codeine-play-btn svg {
-  width: 26px;
-  height: 26px;
+.player.ui-codeinexo .codeine-control-btn svg,
+.player.ui-codeinexo .codeine-play-btn svg,
+.player.ui-codeinexo .codeine-volume-btn svg,
+.player.ui-codeinexo .codeine-action-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
 }
 
 .player.ui-codeinexo .codeine-speed-btn {
-  width: auto;
-  min-width: 44px;
-  height: 42px;
-  padding: 0 10px;
-  gap: 4px;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .player.ui-codeinexo .codeine-speed-btn svg {
-  width: 18px;
-  height: 18px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
+  display: none;
 }
 
 .player.ui-codeinexo .codeine-speed-text {
   font-size: 13px;
-  font-weight: 600;
-  line-height: 1.3;
+  font-weight: 700;
+  line-height: 1;
   color: inherit;
-  padding: 2px 2px;
+  padding: 0;
+  margin: 0;
+  text-align: center;
   text-shadow:
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 2px 6px rgba(0, 0, 0, 0.70),
@@ -4126,29 +4192,38 @@ svg {
 .player.ui-codeinexo .codeine-volume-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
   color: var(--theme-control-foreground);
-}
-
-.player.ui-codeinexo .codeine-volume-btn {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  margin: 0;
-  padding: 0;
-}
-
-.player.ui-codeinexo .codeine-volume-btn svg {
-  width: 22px;
-  height: 22px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
+  position: relative;
 }
 
 .player.ui-codeinexo .codeine-volume-slider {
-  width: 96px;
+  width: 0;
+  max-width: 0;
   height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  margin-left: 0;
+  padding: 0;
   cursor: pointer;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+  overflow: hidden;
+  transition:
+    width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms ease,
+    margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width, opacity;
+}
+
+.player.ui-codeinexo .codeine-volume-control:hover .codeine-volume-slider,
+.player.ui-codeinexo .codeine-volume-control:focus-within .codeine-volume-slider,
+.player.ui-codeinexo .codeine-volume-control.is-active .codeine-volume-slider {
+  width: 80px;
+  max-width: 80px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-left: 6px;
 }
 
 .player.ui-codeinexo .codeine-volume-slider::-webkit-slider-runnable-track {
@@ -4198,7 +4273,7 @@ svg {
   display: none !important;
 }
 .player.ui-codeinexo.pip-mode .codeine-volume-slider {
-  width: 68px;
+  display: none !important;
 }
 
 @media (max-width: 1024px) {
@@ -4207,35 +4282,49 @@ svg {
   }
   .player.ui-codeinexo .codeine-time-pill {
     font-size: 12px;
-    min-width: 36px;
+    min-width: 44px;
+    height: 14px;
+    line-height: 14px;
   }
   .player.ui-codeinexo .codeine-action-row {
-    gap: 10px;
+    gap: 8px;
   }
   .player.ui-codeinexo .codeine-controls-left,
   .player.ui-codeinexo .codeine-controls-right {
-    gap: 6px;
+    gap: 4px;
   }
-  .player.ui-codeinexo .codeine-control-btn {
+  .player.ui-codeinexo .codeine-control-btn,
+  .player.ui-codeinexo .codeine-play-btn,
+  .player.ui-codeinexo .codeine-volume-btn,
+  .player.ui-codeinexo .codeine-action-btn,
+  .player.ui-codeinexo .codeine-back-button {
     width: 36px;
     height: 36px;
     min-width: 36px;
+    max-width: 36px;
+    min-height: 36px;
+    max-height: 36px;
   }
-  .player.ui-codeinexo .codeine-control-btn svg {
-    width: 19px;
-    height: 19px;
+  .player.ui-codeinexo .codeine-speed-btn {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
   }
-  .player.ui-codeinexo .codeine-play-btn {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
+  .player.ui-codeinexo .codeine-control-btn svg,
+  .player.ui-codeinexo .codeine-play-btn svg,
+  .player.ui-codeinexo .codeine-volume-btn svg,
+  .player.ui-codeinexo .codeine-action-btn svg,
+  .player.ui-codeinexo .codeine-back-button svg {
+    width: 18px;
+    height: 18px;
   }
-  .player.ui-codeinexo .codeine-play-btn svg {
-    width: 22px;
-    height: 22px;
-  }
-  .player.ui-codeinexo .codeine-volume-slider {
-    width: 72px;
+  .player.ui-codeinexo .codeine-volume-control:hover .codeine-volume-slider,
+  .player.ui-codeinexo .codeine-volume-control:focus-within .codeine-volume-slider,
+  .player.ui-codeinexo .codeine-volume-control.is-active .codeine-volume-slider {
+    width: 64px;
+    max-width: 64px;
+    margin-left: 4px;
   }
   .player.ui-codeinexo .header-center {
     max-width: calc(100% - 120px);

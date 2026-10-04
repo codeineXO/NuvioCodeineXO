@@ -515,6 +515,7 @@ let playerToastToken = 0;
 let pendingSettingToastCommand = "";
 let pendingSettingToastToken = 0;
 let timeLabelShowRemaining = false;
+let codeineShowRemaining = false;
 let isPipLocked = false;
 const pipLockButton = document.getElementById("pipLockButton");
 const pipLockOverlay = document.getElementById("pipLockOverlay");
@@ -1028,10 +1029,22 @@ const setProgress = (positionMs, durationMs) => {
     codeineTimeLabel.textContent = `${formatTime(positionMs)} / ${formatTime(durationMs)}`;
   }
   if (codeinePosition) {
-    codeinePosition.textContent = formatTime(positionMs);
+    const posText = formatTime(positionMs);
+    if (codeinePosition.textContent !== posText) {
+      codeinePosition.textContent = posText;
+    }
   }
   if (codeineDuration) {
-    codeineDuration.textContent = formatTime(durationMs);
+    let durText;
+    if (codeineShowRemaining && durationMs > 0) {
+      const remainingMs = Math.max(0, durationMs - positionMs);
+      durText = `-${formatTime(remainingMs)}`;
+    } else {
+      durText = formatTime(durationMs);
+    }
+    if (codeineDuration.textContent !== durText) {
+      codeineDuration.textContent = durText;
+    }
   }
   syncVolumeControl();
 };
@@ -3532,7 +3545,86 @@ window.addEventListener("blur", () => {
   }
 });
 
+const cycleAudioTrack = () => {
+  const tracks = normalizeTracks(state.audioTracks);
+  if (!tracks || tracks.length === 0) {
+    showPlayerToast("No audio tracks available");
+    return;
+  }
+  const currentIndex = tracks.findIndex(t => t.selected);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % tracks.length : 0;
+  const nextTrack = tracks[nextIndex];
+  send("selectAudioTrack", trackIdValue(nextTrack));
+  const trackLabel = nextTrack.label || nextTrack.title || nextTrack.language || `Track ${nextIndex + 1}`;
+  showPlayerToast(`Audio: ${trackLabel}`);
+};
+
+const cycleSubtitleTrack = () => {
+  const options = subtitleSelectionOptions();
+  if (options && options.length > 0) {
+    const currentIndex = options.findIndex(o => o.selected || (state.selectedSubtitleOptionId && o.id === String(state.selectedSubtitleOptionId)));
+    if (currentIndex === -1) {
+      const next = options[0];
+      if (next.kind === "addon") {
+        send("selectAddonSubtitle", next.index);
+      } else {
+        send("selectBuiltInSubtitleTrack", next.index);
+      }
+      showPlayerToast(`Subtitles: ${next.title || next.sourceLabel || next.languageKey || "Track 1"}`);
+    } else if (currentIndex >= options.length - 1) {
+      send("selectBuiltInSubtitleTrack", -1);
+      showPlayerToast("Subtitles: Off");
+    } else {
+      const next = options[currentIndex + 1];
+      if (next.kind === "addon") {
+        send("selectAddonSubtitle", next.index);
+      } else {
+        send("selectBuiltInSubtitleTrack", next.index);
+      }
+      showPlayerToast(`Subtitles: ${next.title || next.sourceLabel || next.languageKey || `Track ${currentIndex + 2}`}`);
+    }
+    return;
+  }
+
+  const tracks = normalizeTracks(state.subtitleTracks);
+  if (tracks && tracks.length > 0) {
+    const currentIndex = tracks.findIndex(t => t.selected);
+    if (currentIndex === -1) {
+      const next = tracks[0];
+      send("selectBuiltInSubtitleTrack", next.index);
+      showPlayerToast(`Subtitles: ${next.label || next.title || next.language || "Track 1"}`);
+    } else if (currentIndex >= tracks.length - 1) {
+      send("selectBuiltInSubtitleTrack", -1);
+      showPlayerToast("Subtitles: Off");
+    } else {
+      const next = tracks[currentIndex + 1];
+      send("selectBuiltInSubtitleTrack", next.index);
+      showPlayerToast(`Subtitles: ${next.label || next.title || next.language || `Track ${currentIndex + 2}`}`);
+    }
+    return;
+  }
+
+  showPlayerToast("No subtitles available");
+};
+
 document.querySelectorAll("[data-command]").forEach(button => {
+  button.addEventListener("contextmenu", event => {
+    const command = button.dataset.command;
+    if (command === "audio") {
+      event.preventDefault();
+      event.stopPropagation();
+      noteChromeActivity(true);
+      cycleAudioTrack();
+      return;
+    }
+    if (command === "subtitles") {
+      event.preventDefault();
+      event.stopPropagation();
+      noteChromeActivity(true);
+      cycleSubtitleTrack();
+      return;
+    }
+  });
   button.addEventListener("click", event => {
     event.stopPropagation();
     if (button.closest(".action-pill")) {
@@ -4041,6 +4133,12 @@ volumeButton.addEventListener("click", () => {
 });
 
 if (codeineVolumeSlider) {
+  codeineVolumeSlider.addEventListener("pointerdown", () => {
+    codeineVolumeControl?.classList.add("is-active");
+  });
+  window.addEventListener("pointerup", () => {
+    codeineVolumeControl?.classList.remove("is-active");
+  });
   codeineVolumeSlider.addEventListener("input", event => {
     if (event && !event.isTrusted) return;
     noteChromeActivity();
@@ -4075,6 +4173,24 @@ timeLabel.addEventListener("click", () => {
   timeLabelShowRemaining = !timeLabelShowRemaining;
   renderChrome();
 });
+
+const toggleCodeineTimeRemaining = event => {
+  if (event) event.stopPropagation();
+  noteChromeActivity();
+  codeineShowRemaining = !codeineShowRemaining;
+  const durMs = Math.max(0, Number(state.durationMs) || 0);
+  const posMs = isScrubbing ? scrubPositionMs : Math.max(0, Number(state.positionMs) || 0);
+  setProgress(posMs, durMs);
+};
+
+if (codeineDuration) {
+  codeineDuration.addEventListener("click", toggleCodeineTimeRemaining);
+  codeineDuration.setAttribute("title", "Click to toggle remaining time");
+}
+if (codeinePosition) {
+  codeinePosition.addEventListener("click", toggleCodeineTimeRemaining);
+  codeinePosition.setAttribute("title", "Click to toggle remaining time");
+}
 
 window.playerUpdate = update => {
   const durationMs = Math.round((Number(update.duration) || 0) * 1000);
