@@ -83,6 +83,40 @@ static constexpr double kMaxVolumePercent = 200.0;
 @property(nonatomic, weak) MpvWebPlayer *player;
 @end
 
+@interface PlayerControlsWebView : WKWebView
+@end
+
+@implementation PlayerControlsWebView
+
+- (BOOL)isTitleBarPoint:(NSPoint)point {
+    NSWindow *window = self.window;
+    if (!window
+        || !(window.styleMask & NSWindowStyleMaskTitled)
+        || !(window.styleMask & NSWindowStyleMaskFullSizeContentView)
+        || (window.styleMask & NSWindowStyleMaskFullScreen)) {
+        return NO;
+    }
+    NSRect boundsInWindow = [self convertRect:self.bounds toView:nil];
+    return NSPointInRect(point, boundsInWindow)
+        && point.y >= NSMaxY(window.contentLayoutRect);
+}
+
+- (NSView *)hitTest:(NSPoint)point {
+    NSView *view = [super hitTest:point];
+    NSPoint pointInWindow = [self.superview convertPoint:point toView:nil];
+    return view && [self isTitleBarPoint:pointInWindow] ? self : view;
+}
+
+- (void)mouseDown:(NSEvent *)event {
+    if ([self isTitleBarPoint:event.locationInWindow]) {
+        [self.window performWindowDragWithEvent:event];
+        return;
+    }
+    [super mouseDown:event];
+}
+
+@end
+
 @interface MpvWebPlayer : NSObject
 - (instancetype)initWithHostView:(NSView *)hostView
                        sourceUrl:(NSString *)sourceUrl
@@ -1153,7 +1187,7 @@ static void setMpvOptionString(mpv_handle *mpv, const char *name, const char *va
 
     WKWebViewConfiguration *configuration = [WKWebViewConfiguration new];
     configuration.userContentController = contentController;
-    _webView = [[WKWebView alloc] initWithFrame:_hostView.bounds configuration:configuration];
+    _webView = [[PlayerControlsWebView alloc] initWithFrame:_hostView.bounds configuration:configuration];
     _webView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     _webView.wantsLayer = YES;
     [_webView setValue:@NO forKey:@"drawsBackground"];
