@@ -1126,7 +1126,7 @@ const renderPauseMetadataOverlay = showOpening => {
 
   const logoUrl = setImageSource(pauseLogo, state.pauseOverlayLogo);
   const titleText = String(state.title || "").trim();
-  const episodeInfo = String(state.pauseOverlayEpisodeInfo || state.providerName || "").trim();
+  const episodeInfo = String(state.pauseOverlayEpisodeInfo || "").trim();
   const episodeTitleText = String(state.pauseOverlayEpisodeTitle || "").trim();
   const descriptionText = String(state.pauseOverlayDescription || "").trim();
   const showOverlay = Boolean(
@@ -1137,7 +1137,9 @@ const renderPauseMetadataOverlay = showOpening => {
     !showOpening,
   );
 
-  pauseWatchingLabel.textContent = state.pauseOverlayWatchingLabel || "You're watching";
+  if (pauseWatchingLabel) {
+    pauseWatchingLabel.textContent = state.pauseOverlayWatchingLabel || "";
+  }
   pauseLogo.hidden = !logoUrl;
   pauseTitle.textContent = titleText;
   pauseTitle.hidden = Boolean(logoUrl || !titleText);

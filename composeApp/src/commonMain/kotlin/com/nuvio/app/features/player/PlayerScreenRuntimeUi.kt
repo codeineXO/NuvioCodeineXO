@@ -330,7 +330,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         pauseOverlayEpisodeInfo = if (seasonNumber != null && episodeNumber != null) {
             stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
         } else {
-            activeProviderName
+            ""
         },
         pauseOverlayEpisodeTitle = activeEpisodeTitle.orEmpty(),
         pauseOverlayDescription = (activePauseDescription ?: activeStreamSubtitle).orEmpty(),

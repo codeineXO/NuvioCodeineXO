@@ -168,8 +168,8 @@ internal fun PauseMetadataOverlay(
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
-                        Color.Black.copy(alpha = 0.85f),
-                        Color.Black.copy(alpha = 0.45f),
+                        Color.Black.copy(alpha = 0.95f),
+                        Color.Black.copy(alpha = 0.75f),
                         Color.Transparent,
                     ),
                 ),
@@ -178,15 +178,11 @@ internal fun PauseMetadataOverlay(
         val compactHeight = maxHeight < 420.dp
         val veryCompactHeight = maxHeight < 340.dp
         val topPadding = if (compactHeight) 24.dp else 40.dp
-        val bottomPadding = when {
-            veryCompactHeight -> 24.dp
-            compactHeight -> 40.dp
-            else -> 120.dp
-        }
+        val bottomPadding = if (compactHeight) 24.dp else 40.dp
         val logoHeight = when {
-            veryCompactHeight -> 48.dp
-            compactHeight -> 64.dp
-            else -> 96.dp
+            veryCompactHeight -> 58.dp
+            compactHeight -> 77.dp
+            else -> 115.dp
         }
         val titleFontScale = if (compactHeight) 1.35f else 1.8f
         val descriptionStyle = if (compactHeight) {
@@ -206,21 +202,14 @@ internal fun PauseMetadataOverlay(
                     top = topPadding,
                     bottom = bottomPadding,
                 ),
-            verticalArrangement = Arrangement.Bottom,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = stringResource(Res.string.compose_player_youre_watching),
-                style = MaterialTheme.nuvioTypeScale.bodyLg,
-                color = Color(0xFFB8B8B8),
-            )
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(if (compactHeight) 8.dp else 12.dp))
-
             if (logoUrl != null && !logoLoadError) {
                 AsyncImage(
                     model = logoUrl,
                     contentDescription = title,
                     contentScale = ContentScale.Fit,
-                    alignment = Alignment.BottomStart,
+                    alignment = Alignment.CenterStart,
                     modifier = Modifier.height(logoHeight),
                     onError = { logoLoadError = true },
                 )
@@ -237,18 +226,14 @@ internal fun PauseMetadataOverlay(
                 )
             }
 
-            val episodeInfo = if (isEpisode && seasonNumber != null && episodeNumber != null) {
-                stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
-            } else {
-                providerName
+            if (isEpisode && seasonNumber != null && episodeNumber != null) {
+                Text(
+                    text = stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber),
+                    style = MaterialTheme.nuvioTypeScale.bodyLg,
+                    color = Color(0xFFCCCCCC),
+                    modifier = Modifier.padding(top = if (compactHeight) 6.dp else 8.dp),
+                )
             }
-
-            Text(
-                text = episodeInfo,
-                style = MaterialTheme.nuvioTypeScale.bodyLg,
-                color = Color(0xFFCCCCCC),
-                modifier = Modifier.padding(top = if (compactHeight) 6.dp else 8.dp),
-            )
 
             if (!episodeTitle.isNullOrBlank()) {
                 Text(
