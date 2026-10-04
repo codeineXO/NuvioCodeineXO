@@ -1,5 +1,11 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.features.shuffle.EpisodeShuffleRepository
+import com.nuvio.app.features.shuffle.ShuffleSurface
+import com.nuvio.app.features.shuffle.watchedShuffleEpisodes
+import com.nuvio.app.features.shuffle.shuffleEpisodeProgress
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -7,7 +13,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamRequest
 import com.nuvio.app.features.p2p.P2pStreamingEngine
@@ -64,6 +72,40 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             playerMeta = currentMeta
             playerMetaVideos = currentMeta.videos
         }
+    }
+
+    LaunchedEffect(
+        isSeries,
+        parentMetaType,
+        parentMetaId,
+        playerMeta?.id,
+        playerMeta?.imdbId,
+        playerMetaVideos,
+        metaScreenSettingsUiState.episodeRatingsVisibility,
+    ) {
+        if (!isSeries || !metaScreenSettingsUiState.episodeRatingsVisibility.showRatings || parentMetaId.isBlank()) {
+            episodeImdbRatings = emptyMap()
+            return@LaunchedEffect
+        }
+        val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+        val imdbId = extractImdbId(parentMetaId)
+            ?: extractImdbId(targetMeta?.imdbId)
+            ?: extractImdbId(targetMeta?.id)
+            ?: playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
+        val tmdbId = extractTmdbId(parentMetaId)
+            ?: extractTmdbId(targetMeta?.id)
+            ?: TmdbService.ensureTmdbId(targetMeta?.id ?: parentMetaId, parentMetaType, fallbackImdbId = imdbId)?.toIntOrNull()
+            ?: TmdbService.ensureTmdbId(imdbId ?: parentMetaId, parentMetaType, fallbackImdbId = targetMeta?.imdbId)?.toIntOrNull()
+
+        if (imdbId == null && tmdbId == null) {
+            episodeImdbRatings = emptyMap()
+            return@LaunchedEffect
+        }
+        episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
+            imdbId = imdbId,
+            tmdbId = tmdbId,
+            seasonNumbers = playerMetaVideos.mapNotNull { it.season }.distinct(),
+        )
     }
 
     LaunchedEffect(currentStreamBingeGroup, parentMetaId) {
@@ -360,6 +402,22 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
     DisposableEffect(Unit) {
         PlayerStreamsRepository.pauseSearchForPlayback()
         onDispose {
+            args.launchId?.let { launchId -> PlayerLaunchStore.update(launchId) { currentLaunch(it) } }
+            if (isSeries && (activeSeasonNumber != null || activeEpisodeNumber != null)) {
+                val currentPositionMs = playbackSnapshot.positionMs.takeIf {
+                    it > 0L && initialSeekApplied && playbackSnapshotKey == activePlaybackKey
+                } ?: activeInitialPositionMs
+                syncStreamLaunch(
+                    seasonNumber = activeSeasonNumber,
+                    episodeNumber = activeEpisodeNumber,
+                    episodeTitle = activeEpisodeTitle,
+                    episodeThumbnail = activeEpisodeThumbnail,
+                    pauseDescription = activePauseDescription,
+                    videoId = activeVideoId,
+                    resumePositionMs = currentPositionMs,
+                    resumeProgressFraction = activeInitialProgressFraction,
+                )
+            }
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
             PlayerStreamsRepository.clearAll()
@@ -453,6 +511,16 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
 
 @Composable
 private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
+    val shuffleProfile by remember {
+        EpisodeShuffleRepository.ensureLoaded()
+        EpisodeShuffleRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val shuffleSettings = remember(shuffleProfile, profileId, parentMetaId, parentMetaType) {
+        val profile = if (profileId == com.nuvio.app.features.profiles.ProfileRepository.activeProfileId) shuffleProfile
+            else EpisodeShuffleRepository.readProfile(profileId)
+        profile.settings(parentMetaId, parentMetaType)
+    }
+
     LaunchedEffect(activeVideoId, activeSeasonNumber, activeEpisodeNumber, parentMetaId, parentMetaType) {
         parentalWarnings = emptyList()
         showParentalGuide = false
@@ -623,6 +691,9 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
 
     LaunchedEffect(
         playerMetaVideos,
+        shuffleSettings,
+        profileId,
+        parentMetaId,
         activeSeasonNumber,
         activeEpisodeNumber,
         watchProgressUiState.entries,
@@ -634,11 +705,21 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         }
         val curSeason = activeSeasonNumber ?: return@LaunchedEffect
         val curEpisode = activeEpisodeNumber ?: return@LaunchedEffect
-        val nextVideo = PlayerNextEpisodeRules.resolveNextEpisode(
-            videos = playerMetaVideos,
-            currentSeason = curSeason,
-            currentEpisode = curEpisode,
-        )
+        val nextVideo = if (shuffleSettings.enabled) {
+            EpisodeShuffleRepository.shuffle.select(
+                profileId, parentMetaId, playerMetaVideos, shuffleSettings.includeWatched,
+                watchedShuffleEpisodes(parentMetaId, parentMetaType, playerMetaVideos, watchedUiState.watchedKeys),
+                shuffleEpisodeProgress(parentMetaId, watchProgressUiState.entries),
+                ShuffleSurface.PLAYBACK, current = curSeason to curEpisode,
+            )
+        } else {
+            EpisodeShuffleRepository.shuffle.clearSelection(profileId, parentMetaId, ShuffleSurface.PLAYBACK)
+            PlayerNextEpisodeRules.resolveNextEpisode(
+                videos = playerMetaVideos,
+                currentSeason = curSeason,
+                currentEpisode = curEpisode,
+            )
+        }
         val nextSeason = nextVideo?.season
         val nextEpisode = nextVideo?.episode
         nextEpisodeInfo = if (nextVideo != null && nextSeason != null && nextEpisode != null) {
@@ -731,9 +812,7 @@ private fun buildNowPlayingSubtitle(
     if (!isEpisode) return null
 
     val episodeParts = buildList {
-        if (seasonNumber != null && episodeNumber != null) {
-            add("S${seasonNumber}E${episodeNumber}")
-        }
+        localizedSeasonEpisodeCode(seasonNumber, episodeNumber)?.let { add(it) }
         episodeTitle?.takeIf { it.isNotBlank() }?.let { add(it) }
     }
 

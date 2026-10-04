@@ -1899,6 +1899,13 @@ JNIEXPORT void JNICALL NP(selectSubtitleTrack)(JNIEnv *, jobject, jlong handle, 
     else mpv_set_property(p->mpv, "sid", MPV_FORMAT_INT64, &id);
 }
 
+JNIEXPORT void JNICALL NP(setGlslShaders)(JNIEnv *env, jobject, jlong handle, jstring shaders) {
+    Player *p = asPlayer(handle);
+    if (!p) return;
+    std::string s = jstringToUtf8(env, shaders);
+    mpv_set_property_string(p->mpv, "glsl-shaders", s.c_str());
+}
+
 JNIEXPORT void JNICALL NP(addSubtitleUrl)(JNIEnv *env, jobject, jlong handle, jstring url) {
     Player *p = asPlayer(handle);
     if (!p) return;

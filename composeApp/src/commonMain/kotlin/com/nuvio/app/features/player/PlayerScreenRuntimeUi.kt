@@ -309,12 +309,15 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         showEpisodesPanel ||
         showSubmitIntroModal ||
         (pendingP2pSwitch != null)
+    val isCodeineUi = playerSettingsUiState.playerUiMode == PlayerUiMode.CODEINE_XO
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
-        showPlaybackTimeOverlay = (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
+        showPlaybackTimeOverlay = isCodeineUi &&
+            (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
-        showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay &&
+        showTorrentStatsOverlay = isCodeineUi &&
+            p2pSettingsUiState.showTorrentStatsOverlay &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
         torrentStatsText = torrentStatsOverlayText,
@@ -333,6 +336,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         pauseOverlayDescription = (activePauseDescription ?: activeStreamSubtitle).orEmpty(),
         resizeModeLabel = stringResource(resizeMode.labelRes),
         playbackSpeedLabel = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
+        animeUpscalerEnabled = playerSettingsUiState.animeUpscalerEnabled,
+        animeUpscalerModeIndex = playerSettingsUiState.animeUpscalerMode.index,
         subtitlesLabel = stringResource(Res.string.compose_player_subs),
         audioLabel = stringResource(Res.string.compose_player_audio),
         sourcesLabel = stringResource(Res.string.compose_player_sources),
@@ -515,6 +520,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         }.orEmpty(),
         nextEpisodeThumbnail = nextEpisodeForControls?.thumbnail.orEmpty(),
+        nextEpisodeThumbnailBlurred = metaScreenSettingsUiState.blurUnwatchedEpisodes && nextEpisodeInfo?.isWatched == false,
         nextEpisodeStatus = nextEpisodeStatus,
         nextEpisodeActionLabel = if (nextEpisodeForControls?.hasAired == true) {
             stringResource(Res.string.detail_btn_play)
@@ -712,8 +718,8 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             },
             onBack = { requestBack() },
             onTogglePlayback = { togglePlayback() },
-            onSeekBack = { seekBy(-5_000L) },
-            onSeekForward = { seekBy(5_000L) },
+            onSeekBack = { seekBy(-3_000L) },
+            onSeekForward = { seekBy(3_000L) },
             onResizeModeClick = { cycleResizeMode() },
             onSpeedClick = { cyclePlaybackSpeed() },
             onSubtitleClick = {
@@ -872,19 +878,19 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
             return false
         }
         PlayerControlsAction.SeekBack -> {
-            prepareSeekByForNativeFallback(-5_000L)
+            prepareSeekByForNativeFallback(-3_000L)
             return false
         }
         PlayerControlsAction.KeyboardSeekBack -> {
-            prepareSeekByForNativeFallback(-5_000L, revealControls = false)
+            prepareSeekByForNativeFallback(-3_000L, revealControls = false)
             return false
         }
         PlayerControlsAction.SeekForward -> {
-            prepareSeekByForNativeFallback(5_000L)
+            prepareSeekByForNativeFallback(3_000L)
             return false
         }
         PlayerControlsAction.KeyboardSeekForward -> {
-            prepareSeekByForNativeFallback(5_000L, revealControls = false)
+            prepareSeekByForNativeFallback(3_000L, revealControls = false)
             return false
         }
         PlayerControlsAction.KeyboardFineSeekBack -> {
@@ -978,8 +984,14 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             switchToSource(stream)
             playerControlsCloseModalsToken += 1
         }
+        "episodes" -> {
+            prepareEpisodesForPlayerControls()
+            episodeStreamsPanelState = EpisodeStreamsPanelState()
+            PlayerStreamsRepository.clearEpisodeStreams()
+        }
         "selectEpisode" -> {
             val episode = playerMetaVideos.getOrNull(value.toInt()) ?: return true
+            syncStreamLaunch(episode)
             if (selectDownloadedEpisodeForPlayback(
                     parentMetaId = parentMetaId,
                     episode = episode,
@@ -1026,6 +1038,14 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             submitIntroStatusMessage = null
         }
         "submitIntroCommit" -> submitIntroFromPlayerControls()
+        "setAnimeUpscalerMode" -> {
+            PlayerSettingsRepository.setAnimeUpscalerMode(AnimeUpscalerMode.fromIndex(value.toInt()))
+            true
+        }
+        "toggleAnimeUpscaler" -> {
+            PlayerSettingsRepository.setAnimeUpscalerEnabled(value >= 0.5)
+            true
+        }
         "skipInterval" -> {
             val interval = activeSkipInterval ?: return true
             val durationMs = playbackSnapshot.durationMs
@@ -1290,6 +1310,7 @@ private fun PlayerScreenRuntime.requestEpisodeStreamsForPlayerControls(
     episode: MetaVideo,
     forceRefresh: Boolean = false,
 ) {
+    syncStreamLaunch(episode)
     PlayerStreamsRepository.loadEpisodeStreams(
         type = contentType ?: parentMetaType,
         videoId = episode.id,
@@ -1702,6 +1723,11 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
                 metaId = parentMetaId,
                 episode = video,
             )
+        val rawRating = video.seasonEpisodeKey()?.let { episodeImdbRatings[it] } ?: video.rating
+        val ratingLabel = rawRating
+            ?.takeIf { it > 0.0 && metaScreenSettingsUiState.episodeRatingsVisibility.showRating(isWatched) }
+            ?.let(::formatEpisodeRating)
+            .orEmpty()
         items.add(
             PlayerControlEpisodeItem(
                 index = index,
@@ -1714,6 +1740,7 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::formatReleaseDateForDisplay)
                     .orEmpty(),
+                rating = ratingLabel,
                 season = video.season?.coerceAtLeast(0) ?: 0,
                 episode = video.episode ?: 0,
                 isCurrent = video.season == activeSeasonNumber && video.episode == activeEpisodeNumber,
@@ -1951,6 +1978,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         blurUnwatchedEpisodes = metaScreenSettingsUiState.blurUnwatchedEpisodes,
         episodeStreamsPanelState = episodeStreamsPanelState,
         episodeStreamsRepoState = episodeStreamsRepoState,
+        episodeImdbRatings = episodeImdbRatings,
         onEpisodeSelectedForDownload = { episode ->
             selectDownloadedEpisodeForPlayback(
                 parentMetaId = parentMetaId,
@@ -1959,6 +1987,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
             )
         },
         onEpisodeStreamsRequested = { episode ->
+            syncStreamLaunch(episode)
             PlayerStreamsRepository.loadEpisodeStreams(
                 type = contentType ?: parentMetaType,
                 videoId = episode.id,

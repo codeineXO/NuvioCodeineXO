@@ -48,8 +48,12 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.secondaryClickAt
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.SkeletonBlock
 import com.nuvio.app.features.debrid.DebridProviders
+import com.nuvio.app.features.player.LocalPlayerHazeState
 import com.nuvio.app.isDesktop
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 
 @Composable
 internal fun StreamCard(
@@ -67,6 +71,8 @@ internal fun StreamCard(
     currentLabel: String? = null,
 ) {
     val cardShape = RoundedCornerShape(12.dp)
+    val playerHazeState = LocalPlayerHazeState.current
+    val primaryColor = MaterialTheme.colorScheme.primary
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
     val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && stream.behaviorHints.videoSize != null)
     var cardPositionInRoot by remember { mutableStateOf(Offset.Zero) }
@@ -81,18 +87,54 @@ internal fun StreamCard(
                 spotColor = Color.Black.copy(alpha = 0.04f),
             )
             .clip(cardShape)
-            .background(
-                if (isCurrent) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            .then(
+                if (playerHazeState != null) {
+                    Modifier.hazeEffect(state = playerHazeState) {
+                        blurRadius = 160.dp
+                        noiseFactor = 0f
+                        backgroundColor = if (isCurrent) {
+                            primaryColor.copy(alpha = 0.25f)
+                        } else {
+                            Color.Black.copy(alpha = 0.68f)
+                        }
+                        tints = listOf(
+                            HazeTint(
+                                if (isCurrent) {
+                                    primaryColor.copy(alpha = 0.25f)
+                                } else {
+                                    Color.Black.copy(alpha = 0.68f)
+                                },
+                            ),
+                        )
+                        fallbackTint = HazeTint(
+                            if (isCurrent) {
+                                primaryColor.copy(alpha = 0.35f)
+                            } else {
+                                Color.Black.copy(alpha = 0.95f)
+                            },
+                        )
+                    }
                 } else {
-                    Color.White.copy(alpha = 0.05f)
+                    Modifier.background(
+                        if (isCurrent) {
+                            primaryColor.copy(alpha = 0.12f)
+                        } else {
+                            Color.White.copy(alpha = 0.05f)
+                        },
+                    )
                 },
             )
             .then(
                 if (isCurrent) {
                     Modifier.border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.52f),
+                        color = primaryColor.copy(alpha = 0.52f),
+                        shape = cardShape,
+                    )
+                } else if (playerHazeState != null) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.10f),
                         shape = cardShape,
                     )
                 } else {
@@ -191,6 +233,47 @@ internal fun StreamCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
+    val playerHazeState = LocalPlayerHazeState.current
+    val cardShape = RoundedCornerShape(12.dp)
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(cardShape)
+            .then(
+                if (playerHazeState != null) {
+                    Modifier.hazeEffect(state = playerHazeState) {
+                        blurRadius = 160.dp
+                        noiseFactor = 0f
+                        backgroundColor = Color.Black.copy(alpha = 0.65f)
+                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.65f)))
+                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
+                    }
+                } else {
+                    Modifier.background(Color.White.copy(alpha = 0.05f))
+                },
+            )
+            .then(
+                if (playerHazeState != null) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.10f),
+                        shape = cardShape,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+    ) {
+        SkeletonBlock(modifier = Modifier.fillMaxWidth(0.55f), height = 14.dp, cornerRadius = 4.dp)
+        SkeletonBlock(modifier = Modifier.fillMaxWidth(0.85f), height = 10.dp, cornerRadius = 4.dp)
     }
 }
 

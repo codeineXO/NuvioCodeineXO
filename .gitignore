@@ -41,6 +41,7 @@ iosApp/Configuration/DeviceSigning.local.json
 
 # Compiled native WiX helpers
 composeApp/src/desktopMain/wix/UninstallPrompt.exe
+composeApp/src/desktopMain/wix/DesktopShortcutHelper.exe
 
 # Package & Installer Artifacts
 *.msi

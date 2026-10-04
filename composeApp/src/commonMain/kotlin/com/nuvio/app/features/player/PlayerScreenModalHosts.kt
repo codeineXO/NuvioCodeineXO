@@ -89,6 +89,7 @@ internal fun PlayerScreenModalHosts(
     onSubmitIntroEndTimeChanged: (String) -> Unit,
     onSubmitIntroDismissed: () -> Unit,
     onSubmitIntroSuccess: () -> Unit,
+    episodeImdbRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
     if (pendingP2pSwitch != null) {
         P2pConsentDialog(
@@ -180,6 +181,7 @@ internal fun PlayerScreenModalHosts(
             progressByVideoId = watchProgressByVideoId,
             watchedKeys = watchedKeys,
             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+            episodeRatings = episodeImdbRatings,
             episodeStreamsState = episodeStreamsPanelState.copy(
                 streamsUiState = episodeStreamsRepoState,
             ),

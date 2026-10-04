@@ -98,6 +98,8 @@ data class PlayerSettingsUiState(
     val iosSaturation: Int = 0,
     val iosGamma: Int = 0,
     val nvidiaRtxSuperResolutionEnabled: Boolean = false,
+    val animeUpscalerEnabled: Boolean = false,
+    val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
 )
 
 object PlayerSettingsRepository {
@@ -170,6 +172,8 @@ object PlayerSettingsRepository {
     private var iosSaturation = 0
     private var iosGamma = 0
     private var nvidiaRtxSuperResolutionEnabled = false
+    private var animeUpscalerEnabled = false
+    private var animeUpscalerMode = AnimeUpscalerMode.FAST
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -247,6 +251,8 @@ object PlayerSettingsRepository {
         iosSaturation = 0
         iosGamma = 0
         nvidiaRtxSuperResolutionEnabled = false
+        animeUpscalerEnabled = false
+        animeUpscalerMode = AnimeUpscalerMode.FAST
         publish()
     }
 
@@ -401,6 +407,8 @@ object PlayerSettingsRepository {
         iosSaturation = PlayerSettingsStorage.loadIosSaturation() ?: 0
         iosGamma = PlayerSettingsStorage.loadIosGamma() ?: 0
         nvidiaRtxSuperResolutionEnabled = PlayerSettingsStorage.loadNvidiaRtxSuperResolutionEnabled() ?: false
+        animeUpscalerEnabled = PlayerSettingsStorage.loadAnimeUpscalerEnabled() ?: false
+        animeUpscalerMode = AnimeUpscalerMode.fromStorageKey(PlayerSettingsStorage.loadAnimeUpscalerMode())
         publish()
     }
 
@@ -847,6 +855,22 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveNvidiaRtxSuperResolutionEnabled(enabled)
     }
 
+    fun setAnimeUpscalerEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (animeUpscalerEnabled == enabled) return
+        animeUpscalerEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveAnimeUpscalerEnabled(enabled)
+    }
+
+    fun setAnimeUpscalerMode(mode: AnimeUpscalerMode) {
+        ensureLoaded()
+        if (animeUpscalerMode == mode) return
+        animeUpscalerMode = mode
+        publish()
+        PlayerSettingsStorage.saveAnimeUpscalerMode(mode.storageKey)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1087,6 +1111,8 @@ object PlayerSettingsRepository {
             iosSaturation = iosSaturation,
             iosGamma = iosGamma,
             nvidiaRtxSuperResolutionEnabled = nvidiaRtxSuperResolutionEnabled,
+            animeUpscalerEnabled = animeUpscalerEnabled,
+            animeUpscalerMode = animeUpscalerMode,
         )
     }
 

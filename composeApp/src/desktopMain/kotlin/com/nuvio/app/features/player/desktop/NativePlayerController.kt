@@ -2,6 +2,8 @@ package com.nuvio.app.features.player.desktop
 
 import androidx.compose.ui.graphics.Color
 import co.touchlab.kermit.Logger
+import com.nuvio.app.features.player.AnimeShaderProvider
+import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.PlayerControlAddonSubtitleItem
 import com.nuvio.app.features.player.PlayerControlEpisodeItem
 import com.nuvio.app.features.player.PlayerControlFilterItem
@@ -105,6 +107,8 @@ internal class NativePlayerController(
     private var pendingSubtitleDelayMs: Int? = null
     private var pendingSubtitleStyle: SubtitleStyleState? = null
     private var pendingUseLibass: Boolean = false
+    private var rememberedAnimeUpscalerEnabled: Boolean = false
+    private var rememberedAnimeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
@@ -344,6 +348,7 @@ internal class NativePlayerController(
                         updateControls(controlsState)
                         setResizeMode(rememberedResizeMode)
                         applyPendingSubtitleSettings()
+                        applyAnimeUpscaler(created, rememberedAnimeUpscalerEnabled, rememberedAnimeUpscalerMode)
                     }
                 }.onFailure { error ->
                     log.w(error) { "attach failed source=${pending.sourceUrl.toPlaybackLogKey()}" }
@@ -486,6 +491,27 @@ internal class NativePlayerController(
         }
     }
 
+    fun setAnimeUpscaler(enabled: Boolean, mode: AnimeUpscalerMode) {
+        rememberedAnimeUpscalerEnabled = enabled
+        rememberedAnimeUpscalerMode = mode
+        handle.takeIf { it != 0L }?.let { current ->
+            applyAnimeUpscaler(current, enabled, mode)
+        }
+    }
+
+    private fun applyAnimeUpscaler(targetHandle: Long, enabled: Boolean, mode: AnimeUpscalerMode) {
+        val shaderPath = if (enabled) {
+            AnimeShaderProvider.getShaderPath(mode).orEmpty()
+        } else {
+            ""
+        }
+        runCatching {
+            NativePlayerBridge.setGlslShaders(targetHandle, shaderPath)
+        }.onFailure { error ->
+            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle enabled=$enabled mode=$mode" }
+        }
+    }
+
     private fun handlePlayerEvent(type: String, value: Double) {
         if (type.shouldLogNativeControlEvent()) {
             log.d { "event received handle=$handle type=$type value=$value" }
@@ -523,6 +549,7 @@ internal class NativePlayerController(
                 }
             }
             "dragWindow" -> NativePlayerBridge.beginWindowDrag(handle)
+            "resizePip" -> DesktopPlayerPictureInPicture.resizeWindow(value)
             "volumeChange" -> setFallbackVolume(value.toFloat())
             "volumeChangeTemporary" -> setTemporaryVolume(value.toFloat())
             "setPlaybackSpeed" -> {
@@ -569,9 +596,9 @@ internal class NativePlayerController(
                 }
             }
             PlayerControlsAction.SeekBack,
-            PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-5_000L)
+            PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-3_000L)
             PlayerControlsAction.SeekForward,
-            PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(5_000L)
+            PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(3_000L)
             PlayerControlsAction.KeyboardFineSeekBack -> fallbackSeekBy(-1_000L)
             PlayerControlsAction.KeyboardFineSeekForward -> fallbackSeekBy(1_000L)
             PlayerControlsAction.KeyboardVolumeDown -> adjustFallbackVolume(-10f)
@@ -1291,6 +1318,10 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         append('{')
         appendJsonField("playerUiMode", playerUiMode)
         append(',')
+        appendJsonField("animeUpscalerEnabled", animeUpscalerEnabled)
+        append(',')
+        appendJsonField("animeUpscalerModeIndex", animeUpscalerModeIndex)
+        append(',')
         appendJsonField("title", title)
         append(',')
         appendJsonField("episodeText", episodeText)
@@ -1554,6 +1585,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         append(',')
         appendJsonField("nextEpisodeThumbnail", nextEpisodeThumbnail)
         append(',')
+        appendJsonField("nextEpisodeThumbnailBlurred", nextEpisodeThumbnailBlurred)
+        append(',')
         appendJsonField("nextEpisodeStatus", nextEpisodeStatus)
         append(',')
         appendJsonField("nextEpisodeActionLabel", nextEpisodeActionLabel)
@@ -1807,6 +1840,8 @@ private fun StringBuilder.appendEpisodeItemJson(item: PlayerControlEpisodeItem) 
     appendJsonField("thumbnail", item.thumbnail)
     append(',')
     appendJsonField("released", item.released)
+    append(',')
+    appendJsonField("rating", item.rating)
     append(',')
     appendJsonField("season", item.season)
     append(',')

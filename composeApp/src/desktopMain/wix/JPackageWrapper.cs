@@ -26,8 +26,9 @@ class JPackageWrapper
                 }
 
                 string promptExe = Path.Combine(wixSrc, "UninstallPrompt.exe");
+                string shortcutHelperExe = Path.Combine(wixSrc, "DesktopShortcutHelper.exe");
                 string overridesPath = Path.Combine(resourcesDir, "overrides.wxi");
-                string overridesContent = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<Include>\r\n  <?define UninstallPromptSource=\"" + promptExe + "\" ?>\r\n</Include>\r\n";
+                string overridesContent = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<Include>\r\n  <?define UninstallPromptSource=\"" + promptExe + "\" ?>\r\n  <?define DesktopShortcutHelperSource=\"" + shortcutHelperExe + "\" ?>\r\n</Include>\r\n";
                 File.WriteAllText(overridesPath, overridesContent);
 
                 Console.WriteLine("[JPackageWrapper] Successfully staged custom WiX templates to " + resourcesDir);

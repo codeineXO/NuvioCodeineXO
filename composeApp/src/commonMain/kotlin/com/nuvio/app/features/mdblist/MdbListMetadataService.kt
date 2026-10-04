@@ -1,6 +1,7 @@
 package com.nuvio.app.features.mdblist
 
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetaExternalRating
 
 object MdbListMetadataService {
     const val PROVIDER_IMDB = "imdb"
@@ -64,11 +65,41 @@ object MdbListMetadataService {
         return meta.copy(externalRatings = ratings)
     }
 
+    suspend fun getRatings(
+        itemId: String,
+        mediaType: String,
+        settings: MdbListSettings,
+    ): List<MetaExternalRating> {
+        if (!settings.isActive) return emptyList()
+        val enabledProviders = settings.enabledProvidersInPriorityOrder()
+        if (enabledProviders.isEmpty()) return emptyList()
+        val credential = settings.credential ?: return emptyList()
+
+        val imdbId = extractImdbId(itemId)
+            ?: (if (itemId.startsWith("tmdb:", ignoreCase = true)) {
+                itemId.substringAfter(':').toIntOrNull()?.let {
+                    com.nuvio.app.features.tmdb.TmdbService.tmdbToImdb(it, mediaType)
+                }
+            } else if (itemId.all { it.isDigit() }) {
+                itemId.toIntOrNull()?.let {
+                    com.nuvio.app.features.tmdb.TmdbService.tmdbToImdb(it, mediaType)
+                }
+            } else null)
+            ?: return emptyList()
+
+        return repository.getRatings(
+            imdbId = imdbId,
+            mediaType = toMdbListMediaType(mediaType),
+            credential = credential,
+            providers = enabledProviders,
+        )
+    }
+
     fun clearCache() {
         if (ratingsRepository.isInitialized()) repository.clearCache()
     }
 
-    private fun extractImdbId(value: String?): String? {
+    internal fun extractImdbId(value: String?): String? {
         if (value.isNullOrBlank()) return null
         return imdbRegex.find(value)?.value
     }

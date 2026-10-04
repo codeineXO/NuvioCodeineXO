@@ -77,7 +77,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.details.MetaExternalRating
+import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.details.components.DetailRatingsRow
+import com.nuvio.app.features.home.stableKey
+import com.nuvio.app.features.mdblist.MdbListMetadataService
+import com.nuvio.app.features.mdblist.MdbListSettingsRepository
+import kotlinx.coroutines.coroutineScope
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -185,6 +198,36 @@ fun HomeHeroSection(
         pagerState.animateScrollToPage(nextPage)
     }
 
+    val mdbListSettings by MdbListSettingsRepository.uiState.collectAsState()
+    val metaScreenSettingsUiState by MetaScreenSettingsRepository.uiState.collectAsState()
+    var ratingsByItemKey by remember { mutableStateOf<Map<String, List<MetaExternalRating>>>(emptyMap()) }
+
+    LaunchedEffect(Unit) {
+        MdbListSettingsRepository.ensureLoaded()
+        MetaScreenSettingsRepository.ensureLoaded()
+    }
+
+    LaunchedEffect(items, mdbListSettings) {
+        if (!mdbListSettings.isActive) {
+            ratingsByItemKey = emptyMap()
+            return@LaunchedEffect
+        }
+        coroutineScope {
+            items.forEach { item ->
+                launch {
+                    val ratings = MdbListMetadataService.getRatings(
+                        itemId = item.id,
+                        mediaType = item.type,
+                        settings = mdbListSettings,
+                    )
+                    if (ratings.isNotEmpty()) {
+                        ratingsByItemKey = ratingsByItemKey + (item.stableKey() to ratings)
+                    }
+                }
+            }
+        }
+    }
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -193,8 +236,7 @@ fun HomeHeroSection(
                 itemCount = items.size,
                 coroutineScope = coroutineScope,
                 onDragActiveChange = { pagerDragActive = it },
-            )
-            .heroBottomFeather(bottomFadeRatio = 0.42f),
+            ),
     ) {
         val layout = homeHeroLayout(
             maxWidthDp = maxWidth.value,
@@ -234,6 +276,9 @@ fun HomeHeroSection(
                         sectionPadding ?: layout.contentHorizontalPadding,
                         layout.contentHorizontalPadding,
                     ),
+                    ratingsByItemKey = ratingsByItemKey,
+                    isMdbListActive = mdbListSettings.isActive,
+                    showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
                     coroutineScope = coroutineScope,
                     onItemClick = onItemClick,
                 )
@@ -247,6 +292,9 @@ fun HomeHeroSection(
                     heroHeightPx = heroHeightPx,
                     stretchPx = stretchPx,
                     includePagerNeighbors = pagerDragActive,
+                    ratingsByItemKey = ratingsByItemKey,
+                    isMdbListActive = mdbListSettings.isActive,
+                    showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
                     coroutineScope = coroutineScope,
                     onItemClick = onItemClick,
                 )
@@ -331,6 +379,9 @@ private fun HeroContentLayers(
     pagerState: PagerState,
     layout: HomeHeroLayout,
     heroWidthPx: Float,
+    ratingsByItemKey: Map<String, List<MetaExternalRating>>,
+    isMdbListActive: Boolean,
+    showOverallRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
     includePagerNeighbors: Boolean,
 ) {
@@ -341,6 +392,7 @@ private fun HeroContentLayers(
     )
 
     layerPages.forEach { page ->
+        val item = items[page % items.size]
         Box(
             modifier = Modifier.graphicsLayer {
                 val pageOffset = heroPageOffset(pagerState, page)
@@ -350,8 +402,11 @@ private fun HeroContentLayers(
             },
         ) {
             HeroContentBlock(
-                item = items[page % items.size],
+                item = item,
                 layout = layout,
+                ratings = ratingsByItemKey[item.stableKey()].orEmpty(),
+                isMdbListActive = isMdbListActive,
+                showOverallRatings = showOverallRatings,
                 onItemClick = onItemClick,
             )
         }
@@ -397,6 +452,9 @@ private fun HeroDesktopContentLayers(
     pagerState: PagerState,
     layout: HomeHeroLayout,
     heroWidthPx: Float,
+    ratingsByItemKey: Map<String, List<MetaExternalRating>>,
+    isMdbListActive: Boolean,
+    showOverallRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
     includePagerNeighbors: Boolean,
 ) {
@@ -407,6 +465,7 @@ private fun HeroDesktopContentLayers(
     )
 
     layerPages.forEach { page ->
+        val item = items[page % items.size]
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -418,8 +477,11 @@ private fun HeroDesktopContentLayers(
                 },
         ) {
             DesktopHeroContentBlock(
-                item = items[page % items.size],
+                item = item,
                 layout = layout,
+                ratings = ratingsByItemKey[item.stableKey()].orEmpty(),
+                isMdbListActive = isMdbListActive,
+                showOverallRatings = showOverallRatings,
                 onItemClick = onItemClick,
             )
         }
@@ -436,53 +498,62 @@ private fun DefaultHomeHeroFrame(
     heroHeightPx: Float,
     stretchPx: () -> Float,
     includePagerNeighbors: Boolean,
+    ratingsByItemKey: Map<String, List<MetaExternalRating>> = emptyMap(),
+    isMdbListActive: Boolean = false,
+    showOverallRatings: Boolean = true,
     coroutineScope: CoroutineScope,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        HeroBackgroundLayers(
-            items = items,
-            pagerState = pagerState,
-            listState = listState,
-            layout = layout,
-            heroWidthPx = heroWidthPx,
-            heroHeightPx = heroHeightPx,
-            stretchPx = stretchPx,
-            includePagerNeighbors = includePagerNeighbors,
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.02f),
-                            Color.Black.copy(alpha = 0.10f),
-                            Color.Black.copy(alpha = 0.28f),
-                            Color.Black.copy(alpha = 0.65f),
-                        ),
-                    ),
-                ),
-        )
+                .heroBottomFeather(bottomFadeRatio = 0.42f),
+        ) {
+            HeroBackgroundLayers(
+                items = items,
+                pagerState = pagerState,
+                listState = listState,
+                layout = layout,
+                heroWidthPx = heroWidthPx,
+                heroHeightPx = heroHeightPx,
+                stretchPx = stretchPx,
+                includePagerNeighbors = includePagerNeighbors,
+            )
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.bottomFadeHeight)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.35f),
-                            Color.Black.copy(alpha = 0.75f),
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.02f),
+                                Color.Black.copy(alpha = 0.10f),
+                                Color.Black.copy(alpha = 0.28f),
+                                Color.Black.copy(alpha = 0.65f),
+                            ),
                         ),
                     ),
-                ),
-        )
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.bottomFadeHeight)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Black.copy(alpha = 0.75f),
+                            ),
+                        ),
+                    ),
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -498,13 +569,16 @@ private fun DefaultHomeHeroFrame(
                 modifier = Modifier
                     .fillMaxWidth(layout.contentWidthFraction)
                     .widthIn(max = layout.contentMaxWidth),
-                contentAlignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center,
+                contentAlignment = if (layout.isTablet) Alignment.CenterStart else Alignment.BottomStart,
             ) {
                 HeroContentLayers(
                     items = items,
                     pagerState = pagerState,
                     layout = layout,
                     heroWidthPx = heroWidthPx,
+                    ratingsByItemKey = ratingsByItemKey,
+                    isMdbListActive = isMdbListActive,
+                    showOverallRatings = showOverallRatings,
                     onItemClick = onItemClick,
                     includePagerNeighbors = includePagerNeighbors,
                 )
@@ -551,6 +625,9 @@ private fun DesktopHomeHeroFrame(
     stretchPx: () -> Float,
     includePagerNeighbors: Boolean,
     contentHorizontalPadding: Dp,
+    ratingsByItemKey: Map<String, List<MetaExternalRating>> = emptyMap(),
+    isMdbListActive: Boolean = false,
+    showOverallRatings: Boolean = true,
     coroutineScope: CoroutineScope,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
@@ -561,66 +638,72 @@ private fun DesktopHomeHeroFrame(
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        HeroBackgroundLayers(
-            items = items,
-            pagerState = pagerState,
-            listState = listState,
-            layout = layout,
-            heroWidthPx = heroWidthPx,
-            heroHeightPx = heroHeightPx,
-            stretchPx = stretchPx,
-            includePagerNeighbors = includePagerNeighbors,
-            desktopFrame = true,
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.topFadeHeight)
-                .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = opacity.overlayHeavy),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Black.copy(alpha = 0.88f),
-                            0.08f to Color.Black.copy(alpha = 0.82f),
-                            0.16f to Color.Black.copy(alpha = 0.68f),
-                            0.26f to Color.Black.copy(alpha = 0.46f),
-                            0.36f to Color.Black.copy(alpha = 0.24f),
-                            0.46f to Color.Black.copy(alpha = 0.08f),
-                            0.56f to Color.Transparent,
-                        ),
-                    ),
-                ),
-        )
+                .heroBottomFeather(bottomFadeRatio = 0.42f),
+        ) {
+            HeroBackgroundLayers(
+                items = items,
+                pagerState = pagerState,
+                listState = listState,
+                layout = layout,
+                heroWidthPx = heroWidthPx,
+                heroHeightPx = heroHeightPx,
+                stretchPx = stretchPx,
+                includePagerNeighbors = includePagerNeighbors,
+                desktopFrame = true,
+            )
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(layout.bottomFadeHeight)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.35f),
-                            Color.Black.copy(alpha = 0.75f),
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.topFadeHeight)
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = opacity.overlayHeavy),
+                                Color.Transparent,
+                            ),
                         ),
                     ),
-                ),
-        )
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Black.copy(alpha = 0.88f),
+                                0.08f to Color.Black.copy(alpha = 0.82f),
+                                0.16f to Color.Black.copy(alpha = 0.68f),
+                                0.26f to Color.Black.copy(alpha = 0.46f),
+                                0.36f to Color.Black.copy(alpha = 0.24f),
+                                0.46f to Color.Black.copy(alpha = 0.08f),
+                                0.56f to Color.Transparent,
+                            ),
+                        ),
+                    ),
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(layout.bottomFadeHeight)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.35f),
+                                Color.Black.copy(alpha = 0.75f),
+                            ),
+                        ),
+                    ),
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -638,13 +721,16 @@ private fun DesktopHomeHeroFrame(
                     )
                     .fillMaxWidth(layout.contentWidthFraction)
                     .widthIn(max = layout.contentMaxWidth),
-                contentAlignment = Alignment.CenterStart,
+                contentAlignment = Alignment.BottomStart,
             ) {
                 HeroDesktopContentLayers(
                     items = items,
                     pagerState = pagerState,
                     layout = layout,
                     heroWidthPx = heroWidthPx,
+                    ratingsByItemKey = ratingsByItemKey,
+                    isMdbListActive = isMdbListActive,
+                    showOverallRatings = showOverallRatings,
                     onItemClick = onItemClick,
                     includePagerNeighbors = includePagerNeighbors,
                 )
@@ -809,6 +895,9 @@ fun HomeHeroReservedSpace(
 private fun HeroContentBlock(
     item: MetaPreview,
     layout: HomeHeroLayout,
+    ratings: List<MetaExternalRating> = emptyList(),
+    isMdbListActive: Boolean = false,
+    showOverallRatings: Boolean = true,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
     var logoLoadError by remember(item.type, item.id, item.logo) {
@@ -855,6 +944,41 @@ private fun HeroContentBlock(
             )
         }
 
+        val validImdbRating = item.imdbRating
+            ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+
+        if (isMdbListActive && ratings.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            DetailRatingsRow(
+                ratings = ratings,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else if (validImdbRating != null && showOverallRatings) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = if (layout.isTablet) Arrangement.Start else Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ImdbRatingSourceLabel(
+                    storeTextStyle = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.sp,
+                    ),
+                    storeTextColor = ImdbYellow,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = validImdbRating,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.sp,
+                    ),
+                    color = ImdbYellow,
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -882,6 +1006,9 @@ private fun HeroContentBlock(
 private fun DesktopHeroContentBlock(
     item: MetaPreview,
     layout: HomeHeroLayout,
+    ratings: List<MetaExternalRating> = emptyList(),
+    isMdbListActive: Boolean = false,
+    showOverallRatings: Boolean = true,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -936,6 +1063,37 @@ private fun DesktopHeroContentBlock(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+
+        val validImdbRating = item.imdbRating
+            ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+
+        if (isMdbListActive && ratings.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
+            DetailRatingsRow(
+                ratings = ratings,
+                modifier = Modifier.widthIn(max = 520.dp),
+            )
+        } else if (validImdbRating != null && showOverallRatings) {
+            Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
+            val imdbTextStyle = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ImdbRatingSourceLabel(
+                    storeTextStyle = imdbTextStyle,
+                    storeTextColor = ImdbYellow,
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = validImdbRating,
+                    style = imdbTextStyle,
+                    color = ImdbYellow,
+                )
+            }
         }
 
         val genreText = desktopHeroGenreText(item)
@@ -1317,3 +1475,26 @@ private fun resolveHeroTargetPage(
         else -> currentPage
     }
 }
+
+@Composable
+private fun ImdbRatingSourceLabel(
+    storeTextStyle: TextStyle,
+    storeTextColor: Color,
+) {
+    if (AppFeaturePolicy.imdbRatingLogoEnabled) {
+        Image(
+            painter = painterResource(Res.drawable.rating_imdb),
+            contentDescription = stringResource(Res.string.source_imdb),
+            modifier = Modifier.size(width = 30.dp, height = 16.dp),
+        )
+    } else {
+        Text(
+            text = stringResource(Res.string.source_imdb),
+            style = storeTextStyle,
+            color = storeTextColor,
+            maxLines = 1,
+        )
+    }
+}
+
+private val ImdbYellow = Color(0xFFF5C518)

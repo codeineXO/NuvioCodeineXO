@@ -211,6 +211,7 @@ data class PlayerControlsState(
     val nextEpisodeHeaderLabel: String = "Next episode",
     val nextEpisodeTitle: String = "",
     val nextEpisodeThumbnail: String = "",
+    val nextEpisodeThumbnailBlurred: Boolean = false,
     val nextEpisodeStatus: String = "",
     val nextEpisodeActionLabel: String = "Play",
     val nextEpisodePlayable: Boolean = false,
@@ -261,6 +262,8 @@ data class PlayerControlsState(
     val submitIntroSuccessToken: Long = 0L,
     val notificationMessage: String = "",
     val notificationToken: Long = 0L,
+    val animeUpscalerEnabled: Boolean = false,
+    val animeUpscalerModeIndex: Int = 0,
 )
 
 data class PlayerControlFilterItem(
@@ -308,6 +311,7 @@ data class PlayerControlEpisodeItem(
     val overview: String = "",
     val thumbnail: String = "",
     val released: String = "",
+    val rating: String = "",
     val season: Int = 0,
     val episode: Int = 0,
     val isCurrent: Boolean = false,

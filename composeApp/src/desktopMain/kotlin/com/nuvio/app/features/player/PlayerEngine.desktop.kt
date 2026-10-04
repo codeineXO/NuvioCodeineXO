@@ -134,6 +134,8 @@ private fun NativePlayerSurface(
     val playerSettings by PlayerSettingsRepository.uiState.collectAsState()
     val decoderPriority = playerSettings.decoderPriority
     val nvidiaRtxSuperResolutionEnabled = playerSettings.nvidiaRtxSuperResolutionEnabled
+    val animeUpscalerEnabled = playerSettings.animeUpscalerEnabled
+    val animeUpscalerMode = playerSettings.animeUpscalerMode
 
     SideEffect {
         onControllerReady(controller)
@@ -229,6 +231,10 @@ private fun NativePlayerSurface(
 
     LaunchedEffect(controller, resizeMode) {
         controller.setResizeMode(resizeMode)
+    }
+
+    LaunchedEffect(controller, animeUpscalerEnabled, animeUpscalerMode) {
+        controller.setAnimeUpscaler(animeUpscalerEnabled, animeUpscalerMode)
     }
 
     LaunchedEffect(controller, playerControlsState) {

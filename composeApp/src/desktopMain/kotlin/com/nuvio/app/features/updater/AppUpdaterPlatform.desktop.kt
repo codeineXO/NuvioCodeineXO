@@ -318,7 +318,7 @@ private enum class DesktopUpdaterOs {
         val archFragments = desktopArchitectureFragments()
         return when (this) {
             WINDOWS -> AppUpdateAssetSelector(
-                fileExtensions = listOf(".msi", ".exe"),
+                fileExtensions = listOf(".exe", ".msi"),
                 preferredNameFragments = listOf("nuviocodeinexo") + archFragments + listOf("windows", "win"),
                 fallbackNameFragments = listOf("universal", "all"),
             )
@@ -365,6 +365,17 @@ private fun desktopArchitectureFragments(): List<String> {
 // retried, already-current or partially-applied update lands in. /L*v records
 // the run so a refusal that still happens can be read back afterwards.
 internal fun windowsInstallerCommand(updateFile: File, logFile: File? = null): List<String> {
+    if (updateFile.extension.equals("exe", ignoreCase = true)) {
+        return buildList {
+            add(updateFile.absolutePath)
+            add("/SILENT")
+            add("/NORESTART")
+            add("/SUPPRESSMSGBOXES")
+            logFile?.let {
+                add("/LOG=${it.absolutePath}")
+            }
+        }
+    }
     if (!updateFile.extension.equals("msi", ignoreCase = true)) {
         return listOf(updateFile.absolutePath)
     }

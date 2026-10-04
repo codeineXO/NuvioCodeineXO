@@ -616,9 +616,9 @@ constexpr MpvCacheWindow kStreamingCacheWindow{
 };
 
 constexpr MpvCacheWindow kResumeCacheWindow{
-    32ll * 1024 * 1024,
-    8ll * 1024 * 1024,
-    5.0,
+    64ll * 1024 * 1024,
+    16ll * 1024 * 1024,
+    30.0,
 };
 
 class WindowsMpvWebPlayer;
@@ -1056,6 +1056,7 @@ public:
     }
 
     void seekToMilliseconds(long long positionMs) {
+        promoteResumeCache();
         // doubleProperty acquires mpvMutex itself, so read the current position
         // before taking the lock used to submit the seek command.
         long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
@@ -1069,6 +1070,7 @@ public:
     }
 
     void seekByMilliseconds(long long offsetMs) {
+        promoteResumeCache();
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         std::string seconds = std::to_string((double)offsetMs / 1000.0);
@@ -1179,6 +1181,12 @@ public:
         }
         int64_t id = trackId;
         mpvApi().setProperty(mpv, "sid", MPV_FORMAT_INT64, &id);
+    }
+
+    void setGlslShaders(const std::string &shaders) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        mpvApi().setPropertyString(mpv, "glsl-shaders", shaders.c_str());
     }
 
     void addSubtitleUrl(const std::string &url) {
@@ -1705,7 +1713,9 @@ private:
             // the network cache so cache-secs and the seekbar's buffered range
             // work for both HTTP and torrent-backed streams.
             setMpvOptionStringLocked("cache", "yes");
-            setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
+            setMpvOptionStringLocked("demuxer-seekable-cache", "auto");
+            setMpvOptionStringLocked("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
+            setMpvOptionStringLocked("network-timeout", "30");
             setMpvOptionStringLocked("hr-seek", "default");
             if (initialPositionMs > 0) {
                 // mpv starts prefetching into the demuxer cache from the start of
@@ -2013,7 +2023,8 @@ private:
     void setCacheWindowLocked(const MpvCacheWindow &window) {
         setMpvOptionStringLocked("demuxer-max-bytes", std::to_string(window.maxBytes).c_str());
         setMpvOptionStringLocked("demuxer-max-back-bytes", std::to_string(window.maxBackBytes).c_str());
-        setMpvOptionStringLocked("cache-secs", std::to_string(window.seconds).c_str());
+        setMpvOptionStringLocked("cache-secs", std::to_string((int64_t)window.seconds).c_str());
+        setMpvOptionStringLocked("demuxer-readahead-secs", std::to_string((int64_t)window.seconds).c_str());
     }
 
     // Widens the demuxer cache from the resume window to the streaming window
@@ -2029,9 +2040,17 @@ private:
         int64_t maxBytes = kStreamingCacheWindow.maxBytes;
         int64_t maxBackBytes = kStreamingCacheWindow.maxBackBytes;
         double seconds = kStreamingCacheWindow.seconds;
+        std::string maxBytesStr = std::to_string(maxBytes);
+        std::string maxBackBytesStr = std::to_string(maxBackBytes);
+        std::string secondsStr = std::to_string((int64_t)seconds);
+        (void)mpvApi().setPropertyString(mpv, "demuxer-max-bytes", maxBytesStr.c_str());
+        (void)mpvApi().setPropertyString(mpv, "demuxer-max-back-bytes", maxBackBytesStr.c_str());
+        (void)mpvApi().setPropertyString(mpv, "cache-secs", secondsStr.c_str());
+        (void)mpvApi().setPropertyString(mpv, "demuxer-readahead-secs", secondsStr.c_str());
         (void)mpvApi().setProperty(mpv, "demuxer-max-bytes", MPV_FORMAT_INT64, &maxBytes);
         (void)mpvApi().setProperty(mpv, "demuxer-max-back-bytes", MPV_FORMAT_INT64, &maxBackBytes);
         (void)mpvApi().setProperty(mpv, "cache-secs", MPV_FORMAT_DOUBLE, &seconds);
+        (void)mpvApi().setProperty(mpv, "demuxer-readahead-secs", MPV_FORMAT_DOUBLE, &seconds);
     }
 
     double doubleProperty(const char *name, double fallback) {
@@ -2101,6 +2120,9 @@ private:
 
     double rawPositionSeconds() {
         double position = doubleProperty("time-pos", 0.0);
+        if (resumeCachePending.load() && position > 0.0) {
+            promoteResumeCache();
+        }
         return std::isfinite(position) ? std::max(position, 0.0) : 0.0;
     }
 
@@ -2584,6 +2606,15 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectSubtitleTrack(JNIEnv *, jobject, jlong handle, jint trackId) {
     auto player = playerFromHandle(handle);
     if (player) player->selectSubtitleTrackId(trackId);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setGlslShaders(JNIEnv *env, jobject, jlong handle, jstring shaders) {
+    auto player = playerFromHandle(handle);
+    if (player) {
+        std::string shadersText = jstringToUtf8(env, shaders);
+        player->setGlslShaders(shadersText);
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL

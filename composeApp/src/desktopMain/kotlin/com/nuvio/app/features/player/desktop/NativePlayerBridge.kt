@@ -74,6 +74,7 @@ internal object NativePlayerBridge {
     external fun subtitleTracksJson(handle: Long): String
     external fun selectAudioTrack(handle: Long, trackId: Int)
     external fun selectSubtitleTrack(handle: Long, trackId: Int)
+    external fun setGlslShaders(handle: Long, shaders: String)
     external fun addSubtitleUrl(handle: Long, url: String)
     external fun clearExternalSubtitles(handle: Long)
     external fun clearExternalSubtitlesAndSelect(handle: Long, trackId: Int)

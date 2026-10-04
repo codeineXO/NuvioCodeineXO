@@ -60,6 +60,7 @@ const codeinePipButton = document.getElementById("codeinePipButton");
 const codeineSourcesButton = document.getElementById("codeineSourcesButton");
 const codeineSubtitlesButton = document.getElementById("codeineSubtitlesButton");
 const codeineAudioButton = document.getElementById("codeineAudioButton");
+const codeineShadersButton = document.getElementById("codeineShadersButton");
 const codeineSpeedButton = document.getElementById("codeineSpeedButton");
 const codeineSpeedText = document.getElementById("codeineSpeedText");
 const codeineResizeButton = document.getElementById("codeineResizeButton");
@@ -99,6 +100,9 @@ const subtitleModal = document.getElementById("subtitleModal");
 const speedModal = document.getElementById("speedModal");
 const speedOptionList = document.getElementById("speedOptionList");
 const speedPanelTitle = document.getElementById("speedPanelTitle");
+const shaderModal = document.getElementById("shaderModal");
+const shaderOptionList = document.getElementById("shaderOptionList");
+const shaderPanelTitle = document.getElementById("shaderPanelTitle");
 const audioPanelTitle = document.getElementById("audioPanelTitle");
 const audioTrackList = document.getElementById("audioTrackList");
 const subtitleTrackList = document.getElementById("subtitleTrackList");
@@ -247,6 +251,8 @@ let state = {
   pauseOverlayDescription: "",
   resizeModeLabel: "Fit",
   playbackSpeedLabel: "1x",
+  animeUpscalerEnabled: false,
+  animeUpscalerModeIndex: 0,
   isFullscreen: false,
   volumeLevel: null,
   subtitlesLabel: "Subs",
@@ -360,6 +366,7 @@ let state = {
   nextEpisodeHeaderLabel: "Next episode",
   nextEpisodeTitle: "",
   nextEpisodeThumbnail: "",
+  nextEpisodeThumbnailBlurred: false,
   nextEpisodeStatus: "",
   nextEpisodeActionLabel: "Play",
   nextEpisodePlayable: false,
@@ -679,8 +686,8 @@ const syncVolumeControl = () => {
 };
 
 const seekToastLabel = command => {
-  if (command === "seekBack" || command === "keyboardSeekBack") return "-5s";
-  if (command === "seekForward" || command === "keyboardSeekForward") return "+5s";
+  if (command === "seekBack" || command === "keyboardSeekBack") return "-3s";
+  if (command === "seekForward" || command === "keyboardSeekForward") return "+3s";
   if (command === "pictureInPicture" || command === "pip") return state.pipLabel || "";
   return "";
 };
@@ -885,6 +892,14 @@ const stopStatsClockTick = () => {
 
 const syncTorrentStatsOverlay = suppressed => {
   if (!torrentStatsOverlay) return;
+  const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
+  if (!isCodeineXo) {
+    torrentStatsOverlay.hidden = true;
+    if (torrentStatsTimeRow) torrentStatsTimeRow.hidden = true;
+    if (torrentStatsText) torrentStatsText.hidden = true;
+    stopStatsClockTick();
+    return;
+  }
   const showClock = Boolean(state.showPlaybackTimeOverlay && !suppressed);
   const showStats = Boolean(state.showTorrentStatsOverlay && String(state.torrentStatsText || "").trim() && !suppressed);
   torrentStatsOverlay.hidden = !showClock && !showStats;
@@ -1141,6 +1156,7 @@ const modalByName = {
   audio: audioModal,
   subtitles: subtitleModal,
   speed: speedModal,
+  shaders: shaderModal,
   sources: sourceModal,
   episodes: episodesModal,
   submitIntro: submitIntroModal,
@@ -1201,6 +1217,15 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
   });
   if (notifyDismiss && closingModal === "p2pConsent") {
     send("cancelP2pForPlayerControls", 0);
+  }
+  if (closingModal === "episodes") {
+    state.episodeStreamsVisible = false;
+    episodeStreamFilterId = "";
+    if (episodeListView && episodeStreamsView) {
+      episodeListView.hidden = false;
+      episodeStreamsView.hidden = true;
+    }
+    send("backToEpisodes", 0);
   }
   renderChrome();
 };
@@ -1298,6 +1323,71 @@ const renderSpeedOptionList = () => {
   });
   lastRenderedModal = "speed";
   lastRenderedModalSignature = getSpeedModalSignature();
+};
+
+const shaderOptions = [
+  { enabled: false, modeIndex: 0, label: "Off", description: "Disabled" },
+  { enabled: true, modeIndex: 0, label: "Fast", description: "Low-end PCs & laptops" },
+  { enabled: true, modeIndex: 1, label: "Soft & Clear", description: "Smooth lines & balanced detail" },
+  { enabled: true, modeIndex: 2, label: "Sharp & Detailed", description: "Maximum clarity & fine lines" },
+];
+
+const getShaderModalSignature = () => [
+  Boolean(state.animeUpscalerEnabled),
+  Number(state.animeUpscalerModeIndex) || 0,
+].join("##");
+
+const renderShaderOptionList = () => {
+  if (!shaderOptionList) return;
+  shaderOptionList.textContent = "";
+  if (shaderPanelTitle) {
+    shaderPanelTitle.textContent = "Anime Upscaler";
+  }
+
+  const isEnabled = Boolean(state.animeUpscalerEnabled);
+  const currentModeIndex = Number(state.animeUpscalerModeIndex) || 0;
+
+  shaderOptions.forEach(opt => {
+    const isSelected = opt.enabled ? (isEnabled && currentModeIndex === opt.modeIndex) : !isEnabled;
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `track-row${isSelected ? " selected" : ""}`;
+    row.addEventListener("click", event => {
+      event.stopPropagation();
+      if (!opt.enabled) {
+        state.animeUpscalerEnabled = false;
+        send("toggleAnimeUpscaler", 0);
+      } else {
+        state.animeUpscalerEnabled = true;
+        state.animeUpscalerModeIndex = opt.modeIndex;
+        send("setAnimeUpscalerMode", opt.modeIndex);
+        send("toggleAnimeUpscaler", 1);
+      }
+      renderShaderOptionList();
+      renderChrome();
+      window.setTimeout(closePlayerModal, 120);
+    });
+
+    const copy = document.createElement("span");
+    copy.className = "audio-track-copy";
+    const name = document.createElement("span");
+    name.className = "audio-track-name";
+    name.textContent = opt.label;
+    copy.appendChild(name);
+
+    if (opt.description) {
+      const desc = document.createElement("span");
+      desc.className = "audio-track-language";
+      desc.textContent = opt.description;
+      copy.appendChild(desc);
+    }
+
+    row.appendChild(copy);
+    row.appendChild(buildCheckIcon());
+    shaderOptionList.appendChild(row);
+  });
+  lastRenderedModal = "shaders";
+  lastRenderedModalSignature = getShaderModalSignature();
 };
 
 const renderAudioTrackList = () => {
@@ -2203,11 +2293,35 @@ const appendEpisodeRow = (container, item) => {
   name.className = "episode-name";
   name.textContent = item.title || item.code || "Episode";
   copy.appendChild(name);
-  if (item.released) {
-    const released = document.createElement("span");
-    released.className = "episode-release";
-    released.textContent = item.released;
-    copy.appendChild(released);
+  if (item.released || item.rating) {
+    const metaRow = document.createElement("span");
+    metaRow.className = "episode-meta-row";
+    if (item.released) {
+      const released = document.createElement("span");
+      released.className = "episode-release";
+      released.textContent = item.released;
+      metaRow.appendChild(released);
+    }
+    if (item.released && item.rating) {
+      const dot = document.createElement("span");
+      dot.className = "episode-meta-dot";
+      dot.textContent = "•";
+      metaRow.appendChild(dot);
+    }
+    if (item.rating) {
+      const ratingBadge = document.createElement("span");
+      ratingBadge.className = "episode-rating-badge";
+      const imdbLabel = document.createElement("span");
+      imdbLabel.className = "episode-rating-source";
+      imdbLabel.textContent = "IMDb";
+      const ratingVal = document.createElement("span");
+      ratingVal.className = "episode-rating-val";
+      ratingVal.textContent = item.rating;
+      ratingBadge.appendChild(imdbLabel);
+      ratingBadge.appendChild(ratingVal);
+      metaRow.appendChild(ratingBadge);
+    }
+    copy.appendChild(metaRow);
   }
   if (item.overview) {
     const overview = document.createElement("span");
@@ -2478,7 +2592,7 @@ const getEpisodesModalSignature = () => {
     selectedEpisodeSeason == null ? "" : selectedEpisodeSeason,
     episodeStreamFilterId || "",
     (state.episodeSeasons || []).map(sea => `${sea.season}:${sea.label || ""}:${sea.isSelected ? 1 : 0}`).join(";"),
-    (state.episodeItems || []).map(ep => `${ep.index}:${ep.season}:${ep.episode}:${ep.code || ""}:${ep.title || ""}:${ep.thumbnail || ""}:${ep.isCurrent ? 1 : 0}:${ep.isWatched ? 1 : 0}:${ep.released || ""}:${ep.overview || ""}`).join(";"),
+    (state.episodeItems || []).map(ep => `${ep.index}:${ep.season}:${ep.episode}:${ep.code || ""}:${ep.title || ""}:${ep.thumbnail || ""}:${ep.isCurrent ? 1 : 0}:${ep.isWatched ? 1 : 0}:${ep.released || ""}:${ep.rating || ""}:${ep.overview || ""}`).join(";"),
     (state.episodeStreamFilters || []).map(f => `${f.id || ""}:${f.label || ""}:${f.isLoading ? 1 : 0}:${f.hasError ? 1 : 0}`).join(";"),
     (state.episodeStreamItems || []).map(i => `${i.index}:${i.filterId || ""}:${i.title || ""}:${i.details || ""}:${i.quality || ""}:${i.addonName || ""}:${i.isSelected ? 1 : 0}:${i.isCached ? 1 : 0}:${i.badgeText || ""}:${i.isDebrid ? 1 : 0}:${i.showAddonLogo ? 1 : 0}:${i.addonLogo || ""}`).join(";"),
   ].join("##");
@@ -2516,6 +2630,7 @@ const getActiveModalSignature = modal => {
   if (modal === "audio") return getAudioModalSignature();
   if (modal === "subtitles") return getSubtitlesModalSignature();
   if (modal === "speed") return getSpeedModalSignature();
+  if (modal === "shaders") return getShaderModalSignature();
   if (modal === "sources") return getSourcesModalSignature();
   if (modal === "episodes") return getEpisodesModalSignature();
   if (modal === "submitIntro") return getSubmitIntroModalSignature();
@@ -2536,6 +2651,7 @@ const renderActiveModal = (force = false) => {
   if (activeModal === "audio") renderAudioTrackList();
   else if (activeModal === "subtitles") renderSubtitleModal();
   else if (activeModal === "speed") renderSpeedOptionList();
+  else if (activeModal === "shaders") renderShaderOptionList();
   else if (activeModal === "sources") renderSourceModal();
   else if (activeModal === "episodes") renderEpisodesModal();
   else if (activeModal === "submitIntro") renderSubmitIntroModal();
@@ -2699,6 +2815,7 @@ const renderNativePlaybackPrompts = () => {
 
   const showNextEpisode = Boolean(state.nextEpisodeVisible);
   const nextThumbUrl = setImageSource(nextEpisodeThumb, state.nextEpisodeThumbnail);
+  const blurNextThumb = Boolean(nextThumbUrl) && Boolean(state.nextEpisodeThumbnailBlurred);
   nextEpisodeHeader.textContent = state.nextEpisodeHeaderLabel || "Next episode";
   nextEpisodeTitle.textContent = state.nextEpisodeTitle || "";
   nextEpisodeStatus.textContent = state.nextEpisodeStatus || "";
@@ -2708,6 +2825,7 @@ const renderNativePlaybackPrompts = () => {
   nextEpisodeCard.classList.toggle("visible", showNextEpisode);
   nextEpisodeCard.classList.toggle("playable", Boolean(state.nextEpisodePlayable));
   nextEpisodeCard.classList.toggle("has-thumb", Boolean(nextThumbUrl));
+  nextEpisodeCard.classList.toggle("blur-thumb", blurNextThumb);
 };
 
 const isOpeningOverlayActive = () =>
@@ -2951,6 +3069,12 @@ const renderChrome = () => {
     if (codeineSpeedButton) codeineSpeedButton.setAttribute("title", state.playbackSpeedLabel || "1x");
     if (codeineSubtitlesButton) codeineSubtitlesButton.setAttribute("title", state.subtitlesLabel || "Subs");
     if (codeineAudioButton) codeineAudioButton.setAttribute("title", state.audioLabel || "Audio");
+    if (codeineShadersButton) {
+      codeineShadersButton.classList.toggle("active", Boolean(state.animeUpscalerEnabled));
+      const upscalerTitle = state.animeUpscalerEnabled ? "Anime Upscaler (Enabled)" : "Anime Upscaler";
+      codeineShadersButton.setAttribute("title", upscalerTitle);
+      codeineShadersButton.setAttribute("aria-label", upscalerTitle);
+    }
     if (codeineSourcesButton) codeineSourcesButton.setAttribute("title", state.sourcesLabel || "Sources");
     if (codeineEpisodesButton) codeineEpisodesButton.setAttribute("title", state.episodesLabel || "Episodes");
   }
@@ -3319,6 +3443,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
       openPlayerModal("speed");
       return;
     }
+    if (command === "shaders") {
+      openPlayerModal("shaders");
+      return;
+    }
     if (command === "sources") {
       sourceFilterId = "";
       openPlayerModal("sources");
@@ -3326,6 +3454,19 @@ document.querySelectorAll("[data-command]").forEach(button => {
       return;
     }
     if (command === "episodes") {
+      if (activeModal === "episodes") {
+        closePlayerModal(true);
+        return;
+      }
+      if (state.episodeStreamsVisible) {
+        state.episodeStreamsVisible = false;
+        episodeStreamFilterId = "";
+        if (episodeListView && episodeStreamsView) {
+          episodeListView.hidden = false;
+          episodeStreamsView.hidden = true;
+        }
+        send("backToEpisodes", 0);
+      }
       episodeStreamFilterId = "";
       openPlayerModal("episodes");
       send("episodes", 0);
@@ -3612,6 +3753,12 @@ episodeStreamsCloseButton.addEventListener("click", event => {
 episodeBackButton.addEventListener("click", event => {
   event.stopPropagation();
   episodeStreamFilterId = "";
+  state.episodeStreamsVisible = false;
+  if (episodeListView && episodeStreamsView) {
+    episodeListView.hidden = false;
+    episodeStreamsView.hidden = true;
+  }
+  renderEpisodeList();
   send("backToEpisodes", 0);
 });
 episodeReloadButton.addEventListener("click", event => {
@@ -4094,9 +4241,128 @@ root.addEventListener("click", event => {
   }, 220);
 });
 
+let isPipResizing = false;
+let pipResizeDir = null;
+let pipResizeStartX = 0;
+let pipResizeStartY = 0;
+let pipResizeStartWidth = 0;
+let pipResizeStartHeight = 0;
+
+const getPipResizeDir = (event, threshold = 12) => {
+  if (!state.isInPip) return null;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const x = event.clientX;
+  const y = event.clientY;
+  const onLeft = x <= threshold;
+  const onRight = x >= w - threshold;
+  const onTop = y <= threshold;
+  const onBottom = y >= h - threshold;
+  if (onTop && onLeft) return "nw";
+  if (onTop && onRight) return "ne";
+  if (onBottom && onLeft) return "sw";
+  if (onBottom && onRight) return "se";
+  if (onLeft) return "w";
+  if (onRight) return "e";
+  if (onTop) return "n";
+  if (onBottom) return "s";
+  return null;
+};
+
+const pipResizeCursorMap = {
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  w: "ew-resize",
+  e: "ew-resize",
+  n: "ns-resize",
+  s: "ns-resize",
+};
+
+root.addEventListener("pointermove", event => {
+  if (!state.isInPip) return;
+  if (isPipResizing) {
+    event.preventDefault();
+    const dx = event.screenX - pipResizeStartX;
+    const dy = event.screenY - pipResizeStartY;
+    let newW = pipResizeStartWidth;
+    let anchor = 0; // 0: Top-Left, 1: Bottom-Right, 2: Bottom-Left, 3: Top-Right
+    const aspect = pipResizeStartWidth / Math.max(1, pipResizeStartHeight);
+
+    switch (pipResizeDir) {
+      case "se":
+      case "e":
+        newW = pipResizeStartWidth + dx;
+        anchor = 0;
+        break;
+      case "s":
+        newW = pipResizeStartWidth + dy * aspect;
+        anchor = 0;
+        break;
+      case "nw":
+      case "w":
+        newW = pipResizeStartWidth - dx;
+        anchor = 1;
+        break;
+      case "n":
+        newW = pipResizeStartWidth - dy * aspect;
+        anchor = 1;
+        break;
+      case "ne":
+        newW = pipResizeStartWidth + dx;
+        anchor = 2;
+        break;
+      case "sw":
+        newW = pipResizeStartWidth - dx;
+        anchor = 3;
+        break;
+      default:
+        break;
+    }
+    newW = Math.max(320, Math.min(1920, Math.round(newW)));
+    send("resizePip", newW + anchor * 100000);
+    return;
+  }
+  const dir = getPipResizeDir(event);
+  if (dir) {
+    root.style.cursor = pipResizeCursorMap[dir] || "";
+  } else if (root.style.cursor && root.style.cursor.includes("resize")) {
+    root.style.cursor = "";
+  }
+});
+
+const stopPipResizing = event => {
+  if (!isPipResizing) return;
+  isPipResizing = false;
+  pipResizeDir = null;
+  root.style.cursor = "";
+  if (root.releasePointerCapture && event && event.pointerId !== undefined) {
+    try { root.releasePointerCapture(event.pointerId); } catch (_) {}
+  }
+};
+
+root.addEventListener("pointerup", stopPipResizing);
+root.addEventListener("pointercancel", stopPipResizing);
+
 root.addEventListener("pointerdown", event => {
   if (!state.isInPip || event.button !== 0) return;
   if (event.target.closest("button, input, select, textarea, [data-command], a, #seek, .volume-control, .pip-lock-badge")) return;
+  const dir = getPipResizeDir(event);
+  if (dir) {
+    event.preventDefault();
+    event.stopPropagation();
+    isPipResizing = true;
+    pipResizeDir = dir;
+    pipResizeStartX = event.screenX;
+    pipResizeStartY = event.screenY;
+    pipResizeStartWidth = window.innerWidth;
+    pipResizeStartHeight = window.innerHeight;
+    if (root.setPointerCapture) {
+      try { root.setPointerCapture(event.pointerId); } catch (_) {}
+    }
+    return;
+  }
   event.preventDefault();
   if (event.target && event.target.releasePointerCapture) {
     try { event.target.releasePointerCapture(event.pointerId); } catch (_) {}
@@ -4117,10 +4383,9 @@ if (pipLockBadge) {
   });
 }
 
-
 root.addEventListener("dblclick", event => {
   if (event.button !== 0) return;
-  if (isPipLocked) return;
+  if (isPipLocked || isPipResizing) return;
   if (playbackErrorText() || isControlsSurfaceEvent(event)) return;
   event.preventDefault();
   window.clearTimeout(tapTimer);
@@ -4329,6 +4594,15 @@ document.addEventListener("keydown", event => {
     if (activeModal === "episodes") {
       closePlayerModal(true);
     } else {
+      if (state.episodeStreamsVisible) {
+        state.episodeStreamsVisible = false;
+        episodeStreamFilterId = "";
+        if (episodeListView && episodeStreamsView) {
+          episodeListView.hidden = false;
+          episodeStreamsView.hidden = true;
+        }
+        send("backToEpisodes", 0);
+      }
       episodeStreamFilterId = "";
       openPlayerModal("episodes");
       send("episodes", 0);
