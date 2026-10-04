@@ -22,6 +22,7 @@ internal actual object PlayerSettingsStorage {
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
     private const val playerUiModeKey = "player_ui_mode"
     private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
+    private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val autoSkipPostCreditsKey = "auto_skip_post_credits"
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val showPlayerLoadingStatusKey = "show_player_loading_status"
@@ -150,6 +151,7 @@ internal actual object PlayerSettingsStorage {
         streamAutoPlayTimeoutSecondsKey,
         skipIntroEnabledKey,
         autoSkipSegmentTypesKey,
+        preloadNextEpisodeSourcesKey,
         autoSkipMovieCreditsKey,
         autoSkipPostCreditsKey,
         animeSkipEnabledKey,
@@ -189,6 +191,8 @@ internal actual object PlayerSettingsStorage {
     actual fun saveUseLegacyPlayerLayout(enabled: Boolean) = saveBoolean(useLegacyPlayerLayoutKey, enabled)
     actual fun loadPlayerUiMode(): String? = loadString(playerUiModeKey)
     actual fun savePlayerUiMode(mode: String) = saveString(playerUiModeKey, mode)
+    actual fun loadPreloadNextEpisodeSources(): Boolean? = loadBoolean(preloadNextEpisodeSourcesKey)
+    actual fun savePreloadNextEpisodeSources(enabled: Boolean) = saveBoolean(preloadNextEpisodeSourcesKey, enabled)
     actual fun loadAutoSkipMovieCredits(): Boolean? = loadBoolean(autoSkipMovieCreditsKey)
     actual fun saveAutoSkipMovieCredits(enabled: Boolean) = saveBoolean(autoSkipMovieCreditsKey, enabled)
     actual fun loadAutoSkipPostCredits(): Boolean? = loadBoolean(autoSkipPostCreditsKey)
@@ -417,6 +421,7 @@ internal actual object PlayerSettingsStorage {
         loadStreamAutoPlayRegex()?.let { put(streamAutoPlayRegexKey, encodeSyncString(it)) }
         loadStreamAutoPlayTimeoutSeconds()?.let { put(streamAutoPlayTimeoutSecondsKey, encodeSyncInt(it)) }
         loadSkipIntroEnabled()?.let { put(skipIntroEnabledKey, encodeSyncBoolean(it)) }
+        loadPreloadNextEpisodeSources()?.let { put(preloadNextEpisodeSourcesKey, encodeSyncBoolean(it)) }
         loadAutoSkipMovieCredits()?.let { put(autoSkipMovieCreditsKey, encodeSyncBoolean(it)) }
         loadAutoSkipPostCredits()?.let { put(autoSkipPostCreditsKey, encodeSyncBoolean(it)) }
         loadAutoSkipSegmentTypes()?.let { put(autoSkipSegmentTypesKey, encodeSyncStringSet(it)) }
@@ -501,6 +506,7 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncString(streamAutoPlayRegexKey)?.let(::saveStreamAutoPlayRegex)
         payload.decodeSyncInt(streamAutoPlayTimeoutSecondsKey)?.let(::saveStreamAutoPlayTimeoutSeconds)
         payload.decodeSyncBoolean(skipIntroEnabledKey)?.let(::saveSkipIntroEnabled)
+        payload.decodeSyncBoolean(preloadNextEpisodeSourcesKey)?.let(::savePreloadNextEpisodeSources)
         payload.decodeSyncBoolean(autoSkipMovieCreditsKey)?.let(::saveAutoSkipMovieCredits)
         payload.decodeSyncBoolean(autoSkipPostCreditsKey)?.let(::saveAutoSkipPostCredits)
         payload.decodeSyncStringSet(autoSkipSegmentTypesKey)?.let(::saveAutoSkipSegmentTypes)
