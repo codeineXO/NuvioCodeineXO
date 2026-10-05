@@ -25,6 +25,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **CodeineXO Player UI:** Alternate modern player layout with natural text shadows, faint buffer progress bar, soft-blurred panels with black tint, and episode rating badges.
 * **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly (left-click opens selection panels), toggle between elapsed and remaining time, and a redesigned centered pause overlay.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
+* **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
 * **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
 
 ### 🎨 Subtitle Customizations
@@ -33,7 +34,6 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### ⚡ P2P Engine & Core Performance
 * **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of the native NuvioEngine backend with configurable persistent torrent caching and faster mid-file resume on Windows.
-* **OpenGL Hardware Acceleration:** OpenGL renderer enabled by default on desktop for smoother animations and reduced rendering overhead.
 
 ### ✨ Visuals, UX & Settings
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing and mirrored playback controls.
