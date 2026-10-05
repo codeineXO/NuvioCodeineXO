@@ -112,6 +112,7 @@ internal class NativePlayerController(
     private var pendingUseLibass: Boolean = false
     private var rememberedAnimeUpscalerEnabled: Boolean = false
     private var rememberedAnimeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST
+    private var rememberedAudioNightModeEnabled: Boolean = false
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
@@ -355,6 +356,7 @@ internal class NativePlayerController(
                         }
                         applyPendingSubtitleSettings()
                         applyAnimeUpscaler(created, rememberedAnimeUpscalerEnabled, rememberedAnimeUpscalerMode)
+                        applyAudioNightMode(created, rememberedAudioNightModeEnabled)
                     }
                 }.onFailure { error ->
                     log.w(error) { "attach failed source=${pending.sourceUrl.toPlaybackLogKey()}" }
@@ -540,6 +542,26 @@ internal class NativePlayerController(
             NativePlayerBridge.setGlslShaders(targetHandle, shaderPath)
         }.onFailure { error ->
             log.w(error) { "Failed to set GLSL shaders handle=$targetHandle enabled=$enabled mode=$mode" }
+        }
+    }
+
+    fun setAudioNightMode(enabled: Boolean) {
+        rememberedAudioNightModeEnabled = enabled
+        handle.takeIf { it != 0L }?.let { current ->
+            applyAudioNightMode(current, enabled)
+        }
+    }
+
+    private fun applyAudioNightMode(targetHandle: Long, enabled: Boolean) {
+        val filter = if (enabled) {
+            "dynaudnorm=f=75:g=25:p=0.55:m=2.0"
+        } else {
+            ""
+        }
+        runCatching {
+            NativePlayerBridge.setAudioFilter(targetHandle, filter)
+        }.onFailure { error ->
+            log.w(error) { "Failed to set audio filter handle=$targetHandle enabled=$enabled" }
         }
     }
 
@@ -1352,6 +1374,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         appendJsonField("animeUpscalerEnabled", animeUpscalerEnabled)
         append(',')
         appendJsonField("animeUpscalerModeIndex", animeUpscalerModeIndex)
+        append(',')
+        appendJsonField("audioNightModeEnabled", audioNightModeEnabled)
         append(',')
         appendJsonField("title", title)
         append(',')

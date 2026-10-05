@@ -19,6 +19,19 @@ class DesktopRendererSettingsTest {
     }
 
     @Test
+    fun `disabled OpenGL preference does not apply on Windows x64`() {
+        assertFalse(
+            shouldApplyStoredOpenGlRenderer(
+                osName = "Windows 11",
+                osArchitecture = "amd64",
+                environmentRenderer = null,
+                systemPropertyRenderer = null,
+                storedOpenGlEnabled = false,
+            ),
+        )
+    }
+
+    @Test
     fun `renderer overrides take precedence over stored preference`() {
         assertFalse(
             shouldApplyStoredOpenGlRenderer(

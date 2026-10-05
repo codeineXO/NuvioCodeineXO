@@ -1091,6 +1091,21 @@ private fun PlaybackSettingsSection(
                     }
                 }
             }
+
+            SettingsSection(
+                title = "Audio Processing",
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_playback_audio_night_mode),
+                        description = stringResource(Res.string.settings_playback_audio_night_mode_desc),
+                        checked = autoPlayPlayerSettings.audioNightModeEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setAudioNightModeEnabled,
+                    )
+                }
+            }
         }
 
         if (isIos) {

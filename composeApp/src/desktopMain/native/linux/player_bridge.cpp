@@ -1906,6 +1906,13 @@ JNIEXPORT void JNICALL NP(setGlslShaders)(JNIEnv *env, jobject, jlong handle, js
     mpv_set_property_string(p->mpv, "glsl-shaders", s.c_str());
 }
 
+JNIEXPORT void JNICALL NP(setAudioFilter)(JNIEnv *env, jobject, jlong handle, jstring filter) {
+    Player *p = asPlayer(handle);
+    if (!p) return;
+    std::string s = jstringToUtf8(env, filter);
+    mpv_set_property_string(p->mpv, "af", s.c_str());
+}
+
 JNIEXPORT void JNICALL NP(addSubtitleUrl)(JNIEnv *env, jobject, jlong handle, jstring url) {
     Player *p = asPlayer(handle);
     if (!p) return;

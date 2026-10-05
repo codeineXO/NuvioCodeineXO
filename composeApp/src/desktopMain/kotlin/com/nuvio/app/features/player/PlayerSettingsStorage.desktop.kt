@@ -102,6 +102,7 @@ internal actual object PlayerSettingsStorage {
     private const val nvidiaRtxSuperResolutionEnabledKey = "nvidia_rtx_super_resolution_enabled"
     private const val animeUpscalerEnabledKey = "anime_upscaler_enabled"
     private const val animeUpscalerModeKey = "anime_upscaler_mode"
+    private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -113,6 +114,7 @@ internal actual object PlayerSettingsStorage {
         nvidiaRtxSuperResolutionEnabledKey,
         animeUpscalerEnabledKey,
         animeUpscalerModeKey,
+        audioNightModeEnabledKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -360,6 +362,9 @@ internal actual object PlayerSettingsStorage {
     actual fun loadAnimeUpscalerMode(): String? = loadString(animeUpscalerModeKey)
     actual fun saveAnimeUpscalerMode(mode: String) = saveString(animeUpscalerModeKey, mode)
 
+    actual fun loadAudioNightModeEnabled(): Boolean? = loadBoolean(audioNightModeEnabledKey)
+    actual fun saveAudioNightModeEnabled(enabled: Boolean) = saveBoolean(audioNightModeEnabledKey, enabled)
+
     private fun scoped(key: String): String = ProfileScopedKey.of(key)
     private fun loadString(key: String): String? = store.getString(scoped(key))
     private fun saveString(key: String, value: String) = store.putString(scoped(key), value)
@@ -456,6 +461,7 @@ internal actual object PlayerSettingsStorage {
         loadNvidiaRtxSuperResolutionEnabled()?.let { put(nvidiaRtxSuperResolutionEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerEnabled()?.let { put(animeUpscalerEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
+        loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -542,5 +548,6 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(nvidiaRtxSuperResolutionEnabledKey)?.let(::saveNvidiaRtxSuperResolutionEnabled)
         payload.decodeSyncBoolean(animeUpscalerEnabledKey)?.let(::saveAnimeUpscalerEnabled)
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
+        payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
     }
 }

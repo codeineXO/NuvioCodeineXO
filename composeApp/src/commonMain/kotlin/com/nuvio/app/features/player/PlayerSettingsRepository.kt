@@ -101,6 +101,7 @@ data class PlayerSettingsUiState(
     val nvidiaRtxSuperResolutionEnabled: Boolean = false,
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
+    val audioNightModeEnabled: Boolean = false,
 )
 
 object PlayerSettingsRepository {
@@ -176,6 +177,7 @@ object PlayerSettingsRepository {
     private var nvidiaRtxSuperResolutionEnabled = false
     private var animeUpscalerEnabled = false
     private var animeUpscalerMode = AnimeUpscalerMode.FAST
+    private var audioNightModeEnabled = false
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -256,6 +258,7 @@ object PlayerSettingsRepository {
         nvidiaRtxSuperResolutionEnabled = false
         animeUpscalerEnabled = false
         animeUpscalerMode = AnimeUpscalerMode.FAST
+        audioNightModeEnabled = false
         publish()
     }
 
@@ -413,6 +416,7 @@ object PlayerSettingsRepository {
         nvidiaRtxSuperResolutionEnabled = PlayerSettingsStorage.loadNvidiaRtxSuperResolutionEnabled() ?: false
         animeUpscalerEnabled = PlayerSettingsStorage.loadAnimeUpscalerEnabled() ?: false
         animeUpscalerMode = AnimeUpscalerMode.fromStorageKey(PlayerSettingsStorage.loadAnimeUpscalerMode())
+        audioNightModeEnabled = PlayerSettingsStorage.loadAudioNightModeEnabled() ?: false
         publish()
     }
 
@@ -883,6 +887,14 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveAnimeUpscalerMode(mode.storageKey)
     }
 
+    fun setAudioNightModeEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (audioNightModeEnabled == enabled) return
+        audioNightModeEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveAudioNightModeEnabled(enabled)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1126,6 +1138,7 @@ object PlayerSettingsRepository {
             nvidiaRtxSuperResolutionEnabled = nvidiaRtxSuperResolutionEnabled,
             animeUpscalerEnabled = animeUpscalerEnabled,
             animeUpscalerMode = animeUpscalerMode,
+            audioNightModeEnabled = audioNightModeEnabled,
         )
     }
 

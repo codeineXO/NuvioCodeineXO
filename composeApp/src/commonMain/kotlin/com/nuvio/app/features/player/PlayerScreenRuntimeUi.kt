@@ -333,11 +333,12 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             ""
         },
         pauseOverlayEpisodeTitle = activeEpisodeTitle.orEmpty(),
-        pauseOverlayDescription = (activePauseDescription ?: activeStreamSubtitle).orEmpty(),
+        pauseOverlayDescription = activePauseDescription?.takeUnless { it.isBlank() }.orEmpty(),
         resizeModeLabel = stringResource(resizeMode.labelRes),
         playbackSpeedLabel = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
         animeUpscalerEnabled = playerSettingsUiState.animeUpscalerEnabled,
         animeUpscalerModeIndex = playerSettingsUiState.animeUpscalerMode.index,
+        audioNightModeEnabled = playerSettingsUiState.audioNightModeEnabled,
         subtitlesLabel = stringResource(Res.string.compose_player_subs),
         audioLabel = stringResource(Res.string.compose_player_audio),
         sourcesLabel = stringResource(Res.string.compose_player_sources),
@@ -651,7 +652,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 seasonNumber = activeSeasonNumber,
                 episodeNumber = activeEpisodeNumber,
                 episodeTitle = activeEpisodeTitle,
-                pauseDescription = activePauseDescription ?: activeStreamSubtitle,
+                pauseDescription = activePauseDescription?.takeUnless { it.isBlank() },
                 providerName = activeProviderName,
                 metrics = metrics,
                 horizontalSafePadding = horizontalSafePadding,
@@ -1058,6 +1059,10 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         }
         "toggleAnimeUpscaler" -> {
             PlayerSettingsRepository.setAnimeUpscalerEnabled(value >= 0.5)
+            true
+        }
+        "toggleAudioNightMode" -> {
+            PlayerSettingsRepository.setAudioNightModeEnabled(value >= 0.5)
             true
         }
         "skipInterval" -> {

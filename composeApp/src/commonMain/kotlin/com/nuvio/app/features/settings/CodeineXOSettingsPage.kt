@@ -28,6 +28,7 @@ import nuvio.composeapp.generated.resources.settings_playback_section_player
 import nuvio.composeapp.generated.resources.settings_playback_section_subtitle_rendering
 import nuvio.composeapp.generated.resources.settings_playback_subtitle_outline_color
 import nuvio.composeapp.generated.resources.settings_playback_subtitle_text_color
+import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.codeineXOSettingsContent(
@@ -95,6 +96,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
                             onClick = { showAnimeUpscalerDialog = true },
                         )
                     }
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_playback_audio_night_mode),
+                        description = stringResource(Res.string.settings_playback_audio_night_mode_desc),
+                        checked = playerSettings.audioNightModeEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setAudioNightModeEnabled,
+                    )
                 }
             }
         }

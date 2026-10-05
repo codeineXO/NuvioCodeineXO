@@ -1566,6 +1566,8 @@ static void setMpvOptionString(mpv_handle *mpv, const char *name, const char *va
     setMpvOptionString(_mpv, "dither-depth", "auto");
     setMpvOptionString(_mpv, "demuxer-max-bytes", "150MiB");
     setMpvOptionString(_mpv, "cache-secs", "120");
+    setMpvOptionString(_mpv, "demuxer-seekable-cache", "yes");
+    setMpvOptionString(_mpv, "force-seekable", "yes");
     setMpvOptionString(_mpv, "hr-seek", "default");
 
     if (headerLines.count > 0) {
@@ -1665,10 +1667,12 @@ static void setMpvOptionString(mpv_handle *mpv, const char *name, const char *va
                                        position:position
                                          paused:paused
                                           speed:speed];
+                long long bufferedMs = [self bufferedPositionMs];
                 NSString *script = [NSString stringWithFormat:
-                    @"window.playerUpdate({duration:%0.3f,position:%0.3f,volumeLevel:%0.3f,paused:%@,loading:%@,audioTracks:%@,subtitleTracks:%@})",
+                    @"window.playerUpdate({duration:%0.3f,position:%0.3f,bufferedMs:%lld,volumeLevel:%0.3f,paused:%@,loading:%@,audioTracks:%@,subtitleTracks:%@})",
                     duration,
                     position,
+                    bufferedMs,
                     volumeLevel,
                     paused ? @"true" : @"false",
                     loading ? @"true" : @"false",
@@ -2163,17 +2167,17 @@ static void nuvioMpvWakeup(void *ctx) {
     if (_initialStartSeconds > 0.0 && safePosition + 5.0 < _initialStartSeconds) {
         effectivePosition = _initialStartSeconds;
     }
-    double cacheTime = [self doubleProperty:"demuxer-cache-time" fallback:0.0];
-    if (std::isfinite(cacheTime) && cacheTime > 0.0) {
-        if (cacheTime >= effectivePosition - 5.0) {
-            return fmax(cacheTime - effectivePosition, 0.0);
-        }
-        return cacheTime;
-    }
-
     double cacheDuration = [self doubleProperty:"demuxer-cache-duration" fallback:0.0];
     if (std::isfinite(cacheDuration) && cacheDuration > 0.0) {
         return cacheDuration;
+    }
+
+    double cacheTime = [self doubleProperty:"demuxer-cache-time" fallback:0.0];
+    if (std::isfinite(cacheTime) && cacheTime > 0.0) {
+        if (cacheTime >= effectivePosition) {
+            return fmax(cacheTime - effectivePosition, 0.0);
+        }
+        return 0.0;
     }
 
     return 0.0;
@@ -3385,6 +3389,21 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setGlslShaders(
     MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
     runOnMainAsync(^{
         [player setStringProperty:"glsl-shaders" value:[NSString stringWithUTF8String:s.c_str()]];
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setAudioFilter(
+    JNIEnv *env,
+    jobject /* bridge */,
+    jlong handle,
+    jstring filter
+) {
+    if (handle == 0) return;
+    std::string s = jstringToString(env, filter);
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    runOnMainAsync(^{
+        [player setStringProperty:"af" value:[NSString stringWithUTF8String:s.c_str()]];
     });
 }
 

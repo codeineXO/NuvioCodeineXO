@@ -264,6 +264,7 @@ data class PlayerControlsState(
     val notificationToken: Long = 0L,
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerModeIndex: Int = 0,
+    val audioNightModeEnabled: Boolean = false,
 )
 
 data class PlayerControlFilterItem(

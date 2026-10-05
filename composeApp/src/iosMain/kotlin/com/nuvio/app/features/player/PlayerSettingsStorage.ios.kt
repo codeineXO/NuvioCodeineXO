@@ -101,6 +101,7 @@ actual object PlayerSettingsStorage {
     private const val nvidiaRtxSuperResolutionEnabledKey = "nvidia_rtx_super_resolution_enabled"
     private const val animeUpscalerEnabledKey = "anime_upscaler_enabled"
     private const val animeUpscalerModeKey = "anime_upscaler_mode"
+    private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -112,6 +113,7 @@ actual object PlayerSettingsStorage {
         nvidiaRtxSuperResolutionEnabledKey,
         animeUpscalerEnabledKey,
         animeUpscalerModeKey,
+        audioNightModeEnabledKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -1079,6 +1081,20 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setObject(mode, forKey = ProfileScopedKey.of(animeUpscalerModeKey))
     }
 
+    actual fun loadAudioNightModeEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(audioNightModeEnabledKey)
+        return if (defaults.objectForKey(key) != null) {
+            defaults.boolForKey(key)
+        } else {
+            null
+        }
+    }
+
+    actual fun saveAudioNightModeEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(audioNightModeEnabledKey))
+    }
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadShowPlayerLoadingStatus()?.let { put(showPlayerLoadingStatusKey, encodeSyncBoolean(it)) }
@@ -1157,6 +1173,7 @@ actual object PlayerSettingsStorage {
         loadNvidiaRtxSuperResolutionEnabled()?.let { put(nvidiaRtxSuperResolutionEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerEnabled()?.let { put(animeUpscalerEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
+        loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -1241,5 +1258,6 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(nvidiaRtxSuperResolutionEnabledKey)?.let(::saveNvidiaRtxSuperResolutionEnabled)
         payload.decodeSyncBoolean(animeUpscalerEnabledKey)?.let(::saveAnimeUpscalerEnabled)
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
+        payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
     }
 }

@@ -107,6 +107,7 @@ const shaderOptionList = document.getElementById("shaderOptionList");
 const shaderPanelTitle = document.getElementById("shaderPanelTitle");
 const audioPanelTitle = document.getElementById("audioPanelTitle");
 const audioTrackList = document.getElementById("audioTrackList");
+const audioNightModeToggle = document.getElementById("audioNightModeToggle");
 const subtitleTrackList = document.getElementById("subtitleTrackList");
 const subtitlePanelTitle = document.getElementById("subtitlePanelTitle");
 const subtitleLanguageRailTitle = document.getElementById("subtitleLanguageRailTitle");
@@ -255,6 +256,7 @@ let state = {
   playbackSpeedLabel: "1x",
   animeUpscalerEnabled: false,
   animeUpscalerModeIndex: 0,
+  audioNightModeEnabled: false,
   isFullscreen: false,
   volumeLevel: null,
   subtitlesLabel: "Subs",
@@ -1460,6 +1462,21 @@ const renderAudioTrackList = () => {
     row.appendChild(buildCheckIcon());
     audioTrackList.appendChild(row);
   });
+
+  if (audioNightModeToggle) {
+    const nightModeOn = Boolean(state.audioNightModeEnabled);
+    audioNightModeToggle.textContent = nightModeOn ? (state.onLabel || "On") : (state.offLabel || "Off");
+    audioNightModeToggle.classList.toggle("primary", nightModeOn);
+    audioNightModeToggle.setAttribute("aria-pressed", nightModeOn ? "true" : "false");
+    audioNightModeToggle.onclick = event => {
+      event.stopPropagation();
+      const next = !Boolean(state.audioNightModeEnabled);
+      state.audioNightModeEnabled = next;
+      send("toggleAudioNightMode", next ? 1 : 0);
+      renderAudioTrackList();
+    };
+  }
+
   lastRenderedModal = "audio";
   lastRenderedModalSignature = getAudioModalSignature();
 };
@@ -2614,6 +2631,7 @@ let lastRenderedModalSignature = "";
 const getAudioModalSignature = () => [
   state.audioTracksPanelTitle || "",
   state.noAudioTracksLabel || "",
+  Boolean(state.audioNightModeEnabled),
   trackListSignature(state.audioTracks),
 ].join("##");
 

@@ -2682,6 +2682,43 @@ button:disabled {
   gap: 6px;
 }
 
+.audio-panel-extras {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 4px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+}
+
+.audio-extra-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+}
+
+.audio-extra-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.audio-extra-title {
+  color: rgba(255, 255, 255, .92);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.audio-extra-desc {
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
 
 .audio-rail-panel .track-list,
 .subtitle-rail-panel .track-list,
@@ -3769,8 +3806,8 @@ svg {
 
 .player.ui-codeinexo .progress {
   bottom: 8px;
-  left: 20px;
-  right: 20px;
+  left: calc(20px + env(safe-area-inset-left));
+  right: calc(20px + env(safe-area-inset-right));
 }
 
 .player.ui-codeinexo .top-gradient,
@@ -3783,9 +3820,9 @@ svg {
 }
 
 .player.ui-codeinexo .header {
-  top: calc(28px + env(safe-area-inset-top));
-  left: clamp(16px, 2.5vw, 32px);
-  right: clamp(16px, 2.5vw, 32px);
+  top: calc(22px + env(safe-area-inset-top));
+  left: calc(20px + env(safe-area-inset-left));
+  right: calc(20px + env(safe-area-inset-right));
   min-height: 40px;
   justify-content: space-between;
   align-items: flex-start;
@@ -3798,8 +3835,7 @@ svg {
 .player.ui-codeinexo .center-controls,
 .player.ui-codeinexo .progress,
 .player.ui-codeinexo .torrent-stats-overlay,
-.player.ui-codeinexo .parental-guide,
-.player.ui-codeinexo .skip-prompt {
+.player.ui-codeinexo .parental-guide {
   transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity;
 }
@@ -3810,8 +3846,7 @@ svg {
 .player.ui-codeinexo.chrome-hidden .center-controls,
 .player.ui-codeinexo.chrome-hidden .progress,
 .player.ui-codeinexo.chrome-hidden .torrent-stats-overlay,
-.player.ui-codeinexo.chrome-hidden .parental-guide,
-.player.ui-codeinexo.chrome-hidden .skip-prompt {
+.player.ui-codeinexo.chrome-hidden .parental-guide {
   opacity: 0;
   pointer-events: none;
   transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -3827,8 +3862,8 @@ svg {
 }
 
 .player.ui-codeinexo .parental-guide {
-  top: calc(92px + env(safe-area-inset-top));
-  left: clamp(16px, 2.5vw, 32px);
+  top: calc(86px + env(safe-area-inset-top));
+  left: calc(20px + env(safe-area-inset-left));
 }
 
 .player.ui-codeinexo .parental-guide-label,
@@ -3842,7 +3877,7 @@ svg {
 
 .player.ui-codeinexo .torrent-stats-overlay {
   top: calc(28px + env(safe-area-inset-top));
-  right: clamp(16px, 2.5vw, 32px);
+  right: calc(20px + env(safe-area-inset-right));
   height: auto;
   min-height: 40px;
   box-sizing: border-box;
@@ -3875,7 +3910,7 @@ svg {
   align-items: baseline;
   justify-content: flex-end;
   margin: 0;
-  padding: 2px 0 0 0;
+  padding: 0;
   line-height: 1.25;
 }
 
@@ -3908,7 +3943,7 @@ svg {
   place-items: center;
   cursor: pointer;
   padding: 0;
-  margin: -6px 0 0 0;
+  margin: 0;
   box-shadow: none;
   transform: translateZ(0);
   transition:

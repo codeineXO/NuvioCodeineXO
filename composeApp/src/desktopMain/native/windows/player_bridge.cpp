@@ -1123,7 +1123,7 @@ public:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         long long deltaMs = std::abs(positionMs - currentPosMs);
-        const char *mode = (deltaMs <= 3000) ? "absolute+exact" : "absolute+keyframes";
+        const char *mode = (deltaMs <= 30000) ? "absolute+exact" : "absolute+keyframes";
         std::string seconds = std::to_string((double)positionMs / 1000.0);
         const char *command[] = {"seek", seconds.c_str(), mode, nullptr};
         mpvApi().command(mpv, command);
@@ -1134,7 +1134,7 @@ public:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         std::string seconds = std::to_string((double)offsetMs / 1000.0);
-        const char *mode = (std::abs(offsetMs) <= 3000) ? "relative+exact" : "relative+keyframes";
+        const char *mode = (std::abs(offsetMs) <= 30000) ? "relative+exact" : "relative+keyframes";
         const char *command[] = {"seek", seconds.c_str(), mode, nullptr};
         mpvApi().command(mpv, command);
     }
@@ -1247,6 +1247,12 @@ public:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         mpvApi().setPropertyString(mpv, "glsl-shaders", shaders.c_str());
+    }
+
+    void setAudioFilter(const std::string &filter) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        mpvApi().setPropertyString(mpv, "af", filter.c_str());
     }
 
     void addSubtitleUrl(const std::string &url) {
@@ -1774,7 +1780,8 @@ private:
             // the network cache so cache-secs and the seekbar's buffered range
             // work for both HTTP and torrent-backed streams.
             setMpvOptionStringLocked("cache", "yes");
-            setMpvOptionStringLocked("demuxer-seekable-cache", "auto");
+            setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
+            setMpvOptionStringLocked("force-seekable", "yes");
             setMpvOptionStringLocked("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
             setMpvOptionStringLocked("network-timeout", "30");
             setMpvOptionStringLocked("hr-seek", "default");
@@ -1905,6 +1912,7 @@ private:
         if (!webView) return;
         double duration = doubleProperty("duration", 0.0);
         double position = doubleProperty("time-pos", 0.0);
+        long long bufferedMs = bufferedPositionMs();
         double volumeLevel = volume();
         bool paused = isPaused();
         bool loading = isLoading();
@@ -1914,6 +1922,7 @@ private:
         std::ostringstream script;
         script << "window.playerUpdate({duration:" << duration
                << ",position:" << position
+               << ",bufferedMs:" << bufferedMs
                << ",volumeLevel:" << volumeLevel
                << ",paused:" << (paused ? "true" : "false")
                << ",loading:" << (loading ? "true" : "false")
@@ -2101,6 +2110,8 @@ private:
         setMpvOptionStringLocked("demuxer-max-back-bytes", std::to_string(window.maxBackBytes).c_str());
         setMpvOptionStringLocked("cache-secs", std::to_string((int64_t)window.seconds).c_str());
         setMpvOptionStringLocked("demuxer-readahead-secs", std::to_string((int64_t)window.seconds).c_str());
+        setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
+        setMpvOptionStringLocked("force-seekable", "yes");
     }
 
     // Widens the demuxer cache from the resume window to the streaming window
@@ -2212,18 +2223,19 @@ private:
 
     double cacheAheadSeconds() {
         double effectivePosition = effectiveCachePositionSeconds();
-        double cacheTime = doubleProperty("demuxer-cache-time", 0.0);
-        if (std::isfinite(cacheTime) && cacheTime > 0.0) {
-            if (cacheTime >= effectivePosition - 5.0) {
-                return std::max(cacheTime - effectivePosition, 0.0);
-            }
-            return cacheTime;
-        }
-
         double cacheDuration = doubleProperty("demuxer-cache-duration", 0.0);
         if (std::isfinite(cacheDuration) && cacheDuration > 0.0) {
             return cacheDuration;
         }
+
+        double cacheTime = doubleProperty("demuxer-cache-time", 0.0);
+        if (std::isfinite(cacheTime) && cacheTime > 0.0) {
+            if (cacheTime >= effectivePosition) {
+                return cacheTime - effectivePosition;
+            }
+            return 0.0;
+        }
+
         return 0.0;
     }
 
@@ -2964,6 +2976,15 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setGlslShaders(JNI
     if (player) {
         std::string shadersText = jstringToUtf8(env, shaders);
         player->setGlslShaders(shadersText);
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setAudioFilter(JNIEnv *env, jobject, jlong handle, jstring filter) {
+    auto player = playerFromHandle(handle);
+    if (player) {
+        std::string filterText = jstringToUtf8(env, filter);
+        player->setAudioFilter(filterText);
     }
 }
 

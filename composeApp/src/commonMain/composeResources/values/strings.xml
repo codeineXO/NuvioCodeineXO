@@ -2104,6 +2104,8 @@
     <string name="settings_playback_ios_display_color_hint_desc">Let mpv target the active display color space by default.</string>
     <string name="settings_playback_ios_target_primaries">Target primaries</string>
     <string name="settings_playback_ios_target_transfer">Target transfer</string>
+    <string name="settings_playback_audio_night_mode">Dynamic Range Compression (Night Mode)</string>
+    <string name="settings_playback_audio_night_mode_desc">Normalize audio loudness to soften loud explosions and boost quiet dialogue.</string>
     <!-- Playback settings iOS audio output -->
     <string name="settings_playback_ios_audio_output_section">iOS AUDIO OUTPUT</string>
     <string name="settings_playback_ios_audio_output">Audio output</string>

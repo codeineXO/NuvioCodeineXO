@@ -172,6 +172,8 @@ internal expect object PlayerSettingsStorage {
     fun saveAnimeUpscalerEnabled(enabled: Boolean)
     fun loadAnimeUpscalerMode(): String?
     fun saveAnimeUpscalerMode(mode: String)
+    fun loadAudioNightModeEnabled(): Boolean?
+    fun saveAudioNightModeEnabled(enabled: Boolean)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }
