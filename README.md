@@ -22,9 +22,10 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🎬 Player & Playback
 * **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
-* **CodeineXO Player UI:** Alternate modern player layout with natural text shadows, faint buffer progress bar, soft-blurred panels with black tint, episode rating badges.
+* **CodeineXO Player UI:** Alternate modern player layout with natural text shadows, faint buffer progress bar, soft-blurred panels with black tint, and episode rating badges.
+* **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly (left-click opens selection panels), toggle between elapsed and remaining time, and a redesigned centered pause overlay.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
-* **Precision Seeking & Stutter Fixes:** 5-second default seek, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips and seeking to eliminate audio desyncs / buffer stalls, and custom MPV streaming cache tuning.
+* **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
 
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
