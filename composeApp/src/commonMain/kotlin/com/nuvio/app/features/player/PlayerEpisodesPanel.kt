@@ -93,7 +93,7 @@ fun PlayerEpisodesPanel(
     watchedKeys: Set<String>,
     blurUnwatchedEpisodes: Boolean,
     episodeStreamsState: EpisodeStreamsPanelState,
-    onSeasonSelected: (Int) -> Unit,
+    onSeasonSelected: (Int) -> Unit = {},
     onEpisodeSelected: (MetaVideo) -> Unit,
     onEpisodeStreamFilterSelected: (String?) -> Unit,
     onEpisodeStreamSelected: (StreamItem, MetaVideo) -> Unit,
@@ -103,11 +103,31 @@ fun PlayerEpisodesPanel(
     modifier: Modifier = Modifier,
     episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
+    val groupedEpisodes = remember(episodes) {
+        episodes
+            .filter { it.season != null || it.episode != null }
+            .groupBy { it.season?.coerceAtLeast(0) ?: 0 }
+    }
+    val availableSeasons = remember(groupedEpisodes) {
+        groupedEpisodes.keys.filter { it > 0 }.sorted() + groupedEpisodes.keys.filter { it == 0 }
+    }
+    var userSelectedSeason by remember(parentMetaId, currentSeason) {
+        mutableStateOf<Int?>(null)
+    }
+
     LaunchedEffect(visible) {
-        if (!visible && episodeStreamsState.showStreams) {
-            onBackToEpisodes()
+        if (!visible) {
+            userSelectedSeason = null
+            if (episodeStreamsState.showStreams) {
+                onBackToEpisodes()
+            }
         }
     }
+
+    val selectedSeason = userSelectedSeason?.takeIf { it in availableSeasons }
+        ?: currentSeason?.takeIf { it in availableSeasons }
+        ?: availableSeasons.firstOrNull()
+        ?: 1
 
     PlayerSidePanel(
         visible = visible,
@@ -146,6 +166,9 @@ fun PlayerEpisodesPanel(
             } else {
                 EpisodesListPanelContent(
                     episodes = episodes,
+                    groupedEpisodes = groupedEpisodes,
+                    availableSeasons = availableSeasons,
+                    selectedSeason = selectedSeason,
                     parentMetaType = parentMetaType,
                     parentMetaId = parentMetaId,
                     currentSeason = currentSeason,
@@ -153,7 +176,10 @@ fun PlayerEpisodesPanel(
                     progressByVideoId = progressByVideoId,
                     watchedKeys = watchedKeys,
                     blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                    onSeasonSelected = onSeasonSelected,
+                    onSeasonSelected = { season ->
+                        userSelectedSeason = season
+                        onSeasonSelected(season)
+                    },
                     onEpisodeSelected = onEpisodeSelected,
                     initialEpisodeRatings = episodeRatings,
                     modifier = Modifier.weight(1f),
@@ -172,6 +198,9 @@ data class EpisodeStreamsPanelState(
 @Composable
 private fun EpisodesListPanelContent(
     episodes: List<MetaVideo>,
+    groupedEpisodes: Map<Int, List<MetaVideo>>,
+    availableSeasons: List<Int>,
+    selectedSeason: Int,
     parentMetaType: String,
     parentMetaId: String,
     currentSeason: Int?,
@@ -225,29 +254,12 @@ private fun EpisodesListPanelContent(
         )
     }
 
-    val groupedEpisodes = remember(episodes) {
-        episodes
-            .filter { it.season != null || it.episode != null }
-            .groupBy { it.season?.coerceAtLeast(0) ?: 0 }
-    }
-    val availableSeasons = remember(groupedEpisodes) {
-        groupedEpisodes.keys.filter { it > 0 }.sorted() + groupedEpisodes.keys.filter { it == 0 }
-    }
-    var selectedSeason by remember(currentSeason, availableSeasons) {
-        mutableIntStateOf(
-            when {
-                currentSeason != null && currentSeason in availableSeasons -> currentSeason
-                availableSeasons.isNotEmpty() -> availableSeasons.first()
-                else -> 1
-            },
-        )
-    }
     val seasonEpisodes = remember(groupedEpisodes, selectedSeason) {
         (groupedEpisodes[selectedSeason] ?: emptyList()).sortedBy { it.episode ?: 0 }
     }
     val seasonListState = rememberLazyListState()
     val episodeListState = rememberLazyListState()
-    var positionedSeasonRow by remember(availableSeasons) { mutableStateOf(false) }
+    var positionedSeasonRow by remember { mutableStateOf(false) }
     var positionedEpisodeList by remember(selectedSeason) { mutableStateOf(false) }
 
     LaunchedEffect(selectedSeason, availableSeasons) {
@@ -293,7 +305,6 @@ private fun EpisodesListPanelContent(
                         },
                         isSelected = selectedSeason == season,
                         onClick = {
-                            selectedSeason = season
                             onSeasonSelected(season)
                         },
                     )

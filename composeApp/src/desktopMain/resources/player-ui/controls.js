@@ -466,7 +466,6 @@ let sourceVirtualTotalHeight = 0;
 let sourceVirtualSpacer = null;
 let sourceVirtualRenderRaf = 0;
 let appliedRememberedVolume = false;
-let rememberedEpisodeSeason = null;
 let selectedEpisodeSeason = null;
 let episodeStreamFilterId = "";
 let activeSubtitleLanguageKey = "";
@@ -1259,6 +1258,7 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
       episodeListView.hidden = false;
       episodeStreamsView.hidden = true;
     }
+    selectedEpisodeSeason = null;
     send("backToEpisodes", 0);
   }
   renderChrome();
@@ -2434,11 +2434,10 @@ const appendEpisodeRow = (container, item) => {
   container.appendChild(row);
 };
 
-const ensureEpisodeSeason = (modalOpened) => {
+const ensureEpisodeSeason = () => {
   const seasons = normalizeItems(state.episodeSeasons);
   if (seasons.length === 0) {
     selectedEpisodeSeason = null;
-    rememberedEpisodeSeason = null;
     return null;
   }
   if (
@@ -2447,16 +2446,15 @@ const ensureEpisodeSeason = (modalOpened) => {
   ) {
     const preferred = seasons.find(season => Boolean(season.isSelected)) || seasons[0];
     selectedEpisodeSeason = Number(preferred.season) || 0;
-    rememberedEpisodeSeason = selectedEpisodeSeason;
   }
-  return modalOpened ? selectedEpisodeSeason : rememberedEpisodeSeason;
+  return selectedEpisodeSeason;
 };
 
 const renderEpisodeList = (modalOpened = false) => {
   episodesPanelTitle.textContent = state.episodesPanelTitle || "Episodes";
   episodesCloseButton.textContent = state.panelCloseLabel || "Close";
 
-  const selectedSeason = ensureEpisodeSeason(modalOpened);
+  const selectedSeason = ensureEpisodeSeason();
   const seasons = normalizeItems(state.episodeSeasons);
   renderFilterRow(
     seasonFilterList,
