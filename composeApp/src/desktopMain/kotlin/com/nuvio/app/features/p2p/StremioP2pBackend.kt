@@ -82,23 +82,6 @@ internal object StremioP2pBackend : DesktopP2pBackend {
         }
     }
 
-    private val DEFAULT_TRACKERS: List<String> = listOf(
-        "udp://tracker.opentrackr.org:1337/announce",
-        "udp://open.stealth.si:80/announce",
-        "udp://open.demonii.com:1337/announce",
-        "udp://exodus.desync.com:6969/announce",
-        "udp://tracker.torrent.eu.org:451/announce",
-        "udp://explodie.org:6969/announce",
-        "udp://tracker-udp.gbitt.info:80/announce",
-        "udp://tracker.theoks.net:6969/announce",
-        "udp://tracker.qu.ax:6969/announce",
-        "udp://opentracker.io:6969/announce",
-        "udp://p4p.arenabg.com:1337/announce",
-        "udp://tracker.dler.org:6969/announce",
-        "udp://wepzone.net:6969/announce",
-        "udp://bt.bontal.net:6969/announce"
-    )
-
     private suspend fun startStreamLocked(request: P2pStreamRequest): String {
         val canonicalHash = canonicalP2pInfoHash(request.infoHash)
         val fileIdx = request.fileIdx ?: 0
@@ -115,19 +98,17 @@ internal object StremioP2pBackend : DesktopP2pBackend {
             currentFileIdx = fileIdx
         }
 
-        // Include DHT and prefix trackers with "tracker:" so Stremio's PeerSearch activates both DHT and trackers
-        val customTrackers = request.trackers.filter(String::isNotBlank).distinct()
-        val sources = mutableListOf<String>()
-        sources.add("dht:$canonicalHash")
-        sources.addAll((DEFAULT_TRACKERS + customTrackers).map { tracker ->
-            if (tracker.startsWith("tracker:")) tracker else "tracker:$tracker"
-        })
+        // Format trackers cleanly as tr query parameters (without synthetic dht: or tracker: prefixes)
+        val validTrackers = request.trackers.filter(String::isNotBlank).map { tracker ->
+            tracker.removePrefix("tracker:").trim()
+        }.filter(String::isNotBlank).distinct()
 
-        val trackerQuery = "?" + sources.distinct().joinToString("&") { "tr=${it.encodeP2pQueryValue()}" }
+        val trackerQuery = if (validTrackers.isNotEmpty()) {
+            "?" + validTrackers.joinToString("&") { "tr=${it.encodeP2pQueryValue()}" }
+        } else {
+            ""
+        }
         val streamUrl = "$STREMIO_BASE_URL/$canonicalHash/$fileIdx$trackerQuery"
-
-        // Prewarm metadata and peer swarm via Stremio's /:infoHash/create endpoint
-        warmTorrentSwarm(canonicalHash, fileIdx)
 
         startStatsPolling(canonicalHash, fileIdx, streamUrl)
         _state.value = P2pStreamingState.Streaming(
@@ -145,20 +126,6 @@ internal object StremioP2pBackend : DesktopP2pBackend {
         measureDiskCache()
 
         return streamUrl
-    }
-
-    private fun warmTorrentSwarm(infoHash: String, fileIdx: Int) {
-        runCatching {
-            val conn = URL("$STREMIO_BASE_URL/$infoHash/create").openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.connectTimeout = 1000
-            conn.readTimeout = 1000
-            conn.doOutput = true
-            OutputStreamWriter(conn.outputStream).use { it.write("{}") }
-            conn.responseCode
-            conn.disconnect()
-        }
     }
 
     override suspend fun clearCache(): P2pCacheClearResult = withContext(Dispatchers.IO) {
