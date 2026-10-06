@@ -201,23 +201,28 @@ internal object StremioP2pBackend : DesktopP2pBackend {
             return
         }
 
-        val binary = StremioEngineBinary.resolve()
-            ?: throw P2pStreamingException("Stremio engine binary (stremio-server.exe) not found")
+        val engine = StremioEngineBinary.resolve()
+            ?: throw P2pStreamingException("Official Stremio engine (stremio-runtime.exe / server.js) not found")
+
+        killOrphanEngines(engine.runtime)
+        killEngineProcess()
 
         val cacheDir = getStremioCacheDirectory()
         cacheDir.mkdirs()
 
-        val pb = ProcessBuilder(binary.absolutePath)
+        val pb = ProcessBuilder(engine.runtime.absolutePath, engine.script.absolutePath)
+        engine.workingDir?.let { pb.directory(it) }
         pb.environment()["BIND_ADDRESS"] = "127.0.0.1"
         pb.environment()["HTTPS_PORT"] = "0"
         pb.environment()["APP_PATH"] = cacheDir.absolutePath
         pb.redirectErrorStream(true)
+        pb.redirectOutput(ProcessBuilder.Redirect.to(File(cacheDir, "engine.log")))
 
         val proc = pb.start()
         engineProcess = proc
 
         // Wait for port 11470 to become available
-        val deadline = System.currentTimeMillis() + 8000L
+        val deadline = System.currentTimeMillis() + 10000L
         var running = false
         while (System.currentTimeMillis() < deadline) {
             if (!proc.isAlive) {
@@ -236,7 +241,7 @@ internal object StremioP2pBackend : DesktopP2pBackend {
             throw P2pStreamingException("Stremio engine timed out waiting for port $STREMIO_HTTP_PORT")
         }
 
-        log.i { "Stremio engine started successfully (PID=${proc.pid()})" }
+        log.i { "Official Stremio engine started successfully (PID=${proc.pid()})" }
     }
 
     private fun applyEngineSettings() {
@@ -245,13 +250,13 @@ internal object StremioP2pBackend : DesktopP2pBackend {
             val profile = settings.stremioProfile
             val maxConn = when (profile) {
                 StremioTorrentProfile.SOFT -> 80
-                StremioTorrentProfile.DEFAULT -> 200
+                StremioTorrentProfile.DEFAULT -> 400
                 StremioTorrentProfile.FAST -> 350
                 StremioTorrentProfile.ULTRA_FAST -> 500
             }
             val minPeers = when (profile) {
                 StremioTorrentProfile.SOFT -> 3
-                StremioTorrentProfile.DEFAULT -> 5
+                StremioTorrentProfile.DEFAULT -> 10
                 StremioTorrentProfile.FAST -> 10
                 StremioTorrentProfile.ULTRA_FAST -> 15
             }
@@ -292,6 +297,24 @@ internal object StremioP2pBackend : DesktopP2pBackend {
             OutputStreamWriter(conn.outputStream).use { it.write(jsonPayload) }
             conn.responseCode
             conn.disconnect()
+        }
+    }
+
+    private fun killOrphanEngines(binary: File) {
+        val target = runCatching { binary.canonicalPath }.getOrDefault(binary.absolutePath)
+        val ownPid = engineProcess?.pid()
+        runCatching {
+            ProcessHandle.allProcesses()
+                .filter { handle ->
+                    handle.pid() != ownPid && handle.info().command().map { cmd ->
+                        runCatching { File(cmd).canonicalPath }.getOrDefault(cmd).equals(target, ignoreCase = true)
+                    }.orElse(false)
+                }
+                .forEach { handle ->
+                    log.w { "Killing orphaned Stremio engine (PID=${handle.pid()})" }
+                    handle.destroyForcibly()
+                    runCatching { handle.onExit().get(2, TimeUnit.SECONDS) }
+                }
         }
     }
 
@@ -414,14 +437,8 @@ internal object StremioP2pBackend : DesktopP2pBackend {
     }
 
     private fun getStremioCacheDirectory(): File {
-        val userHome = System.getProperty("user.home")
-        if (!userHome.isNullOrBlank()) {
-            val stremioDir = File(userHome, ".stremio-server")
-            if (stremioDir.exists() || !DesktopStorage.rootDir.toFile().exists()) {
-                return stremioDir
-            }
-        }
-        return DesktopStorage.rootDir.resolve("stremio-engine").toFile()
+        // Private app-owned directory: must never share the official Stremio app's data/settings.
+        return DesktopStorage.rootDir.resolve("stremio-engine").toFile().apply { mkdirs() }
     }
 
     private fun isPortOpen(port: Int): Boolean {
