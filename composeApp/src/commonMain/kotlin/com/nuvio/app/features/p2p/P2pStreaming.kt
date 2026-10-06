@@ -13,7 +13,7 @@ data class P2pSettingsUiState(
     val torrentProfile: P2pTorrentProfile = P2pTorrentProfile.FAST,
     val stremioProfile: StremioTorrentProfile = StremioTorrentProfile.ULTRA_FAST,
     val cacheSize: P2pCacheSize = P2pCacheSize.GB_2,
-    val engineBackend: P2pEngineBackend = P2pEngineBackend.STREMIO_ENGINE,
+    val engineBackend: P2pEngineBackend = P2pEngineBackend.NUVIO_ENGINE,
 )
 
 enum class P2pEngineBackend {
@@ -71,7 +71,7 @@ object P2pSettingsRepository {
     private var torrentProfile = P2pTorrentProfile.FAST
     private var stremioProfile = StremioTorrentProfile.ULTRA_FAST
     private var cacheSize = P2pCacheSize.GB_2
-    private var engineBackend = P2pEngineBackend.STREMIO_ENGINE
+    private var engineBackend = P2pEngineBackend.NUVIO_ENGINE
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -91,7 +91,7 @@ object P2pSettingsRepository {
         torrentProfile = P2pTorrentProfile.FAST
         stremioProfile = StremioTorrentProfile.ULTRA_FAST
         cacheSize = P2pCacheSize.GB_2
-        engineBackend = P2pEngineBackend.STREMIO_ENGINE
+        engineBackend = P2pEngineBackend.NUVIO_ENGINE
         publish()
     }
 
@@ -176,7 +176,7 @@ object P2pSettingsRepository {
             ?: P2pCacheSize.GB_2
         engineBackend = P2pSettingsStorage.loadEngineBackend()
             ?.let { stored -> P2pEngineBackend.entries.firstOrNull { it.name == stored } }
-            ?: P2pEngineBackend.STREMIO_ENGINE
+            ?: P2pEngineBackend.NUVIO_ENGINE
         publish()
     }
 
