@@ -11,18 +11,27 @@ data class P2pSettingsUiState(
     val hideTorrentStats: Boolean = false,
     val showTorrentStatsOverlay: Boolean = true,
     val torrentProfile: P2pTorrentProfile = P2pTorrentProfile.FAST,
+    val stremioProfile: StremioTorrentProfile = StremioTorrentProfile.ULTRA_FAST,
     val cacheSize: P2pCacheSize = P2pCacheSize.GB_2,
-    val engineBackend: P2pEngineBackend = P2pEngineBackend.NUVIO_ENGINE,
+    val engineBackend: P2pEngineBackend = P2pEngineBackend.STREMIO_ENGINE,
 )
 
 enum class P2pEngineBackend {
     NUVIO_ENGINE,
+    STREMIO_ENGINE,
 }
 
 enum class P2pTorrentProfile {
     SOFT,
     BALANCED,
     FAST,
+}
+
+enum class StremioTorrentProfile(val id: String) {
+    DEFAULT("default"),
+    SOFT("soft"),
+    FAST("fast"),
+    ULTRA_FAST("ultra-fast"),
 }
 
 enum class P2pCacheSize(val bytes: Long) {
@@ -60,8 +69,9 @@ object P2pSettingsRepository {
     private var hideTorrentStats = false
     private var showTorrentStatsOverlay = true
     private var torrentProfile = P2pTorrentProfile.FAST
+    private var stremioProfile = StremioTorrentProfile.ULTRA_FAST
     private var cacheSize = P2pCacheSize.GB_2
-    private var engineBackend = P2pEngineBackend.NUVIO_ENGINE
+    private var engineBackend = P2pEngineBackend.STREMIO_ENGINE
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -79,8 +89,9 @@ object P2pSettingsRepository {
         hideTorrentStats = false
         showTorrentStatsOverlay = true
         torrentProfile = P2pTorrentProfile.FAST
+        stremioProfile = StremioTorrentProfile.ULTRA_FAST
         cacheSize = P2pCacheSize.GB_2
-        engineBackend = P2pEngineBackend.NUVIO_ENGINE
+        engineBackend = P2pEngineBackend.STREMIO_ENGINE
         publish()
     }
 
@@ -124,6 +135,14 @@ object P2pSettingsRepository {
         publish()
     }
 
+    fun setStremioProfile(profile: StremioTorrentProfile) {
+        ensureLoaded()
+        if (stremioProfile == profile) return
+        stremioProfile = profile
+        P2pSettingsStorage.saveStremioProfile(profile.name)
+        publish()
+    }
+
     fun setCacheSize(size: P2pCacheSize) {
         ensureLoaded()
         if (cacheSize == size) return
@@ -149,12 +168,15 @@ object P2pSettingsRepository {
         torrentProfile = P2pSettingsStorage.loadTorrentProfile()
             ?.let { stored -> P2pTorrentProfile.entries.firstOrNull { it.name == stored } }
             ?: P2pTorrentProfile.FAST
+        stremioProfile = P2pSettingsStorage.loadStremioProfile()
+            ?.let { stored -> StremioTorrentProfile.entries.firstOrNull { it.name == stored } }
+            ?: StremioTorrentProfile.ULTRA_FAST
         cacheSize = P2pSettingsStorage.loadCacheSize()
             ?.let { stored -> P2pCacheSize.entries.firstOrNull { it.name == stored } }
             ?: P2pCacheSize.GB_2
         engineBackend = P2pSettingsStorage.loadEngineBackend()
             ?.let { stored -> P2pEngineBackend.entries.firstOrNull { it.name == stored } }
-            ?: P2pEngineBackend.NUVIO_ENGINE
+            ?: P2pEngineBackend.STREMIO_ENGINE
         publish()
     }
 
@@ -165,6 +187,7 @@ object P2pSettingsRepository {
             hideTorrentStats = hideTorrentStats,
             showTorrentStatsOverlay = showTorrentStatsOverlay,
             torrentProfile = torrentProfile,
+            stremioProfile = stremioProfile,
             cacheSize = cacheSize,
             engineBackend = engineBackend,
         )
@@ -182,6 +205,8 @@ internal expect object P2pSettingsStorage {
     fun saveShowTorrentStatsOverlay(enabled: Boolean)
     fun loadTorrentProfile(): String?
     fun saveTorrentProfile(profile: String)
+    fun loadStremioProfile(): String?
+    fun saveStremioProfile(profile: String)
     fun loadCacheSize(): String?
     fun saveCacheSize(size: String)
     fun loadEngineBackend(): String?
@@ -217,7 +242,7 @@ internal fun buildP2pMagnetUri(infoHash: String, trackers: List<String>): String
     return "magnet:?xt=$topic$trackerParameters"
 }
 
-private fun String.encodeP2pQueryValue(): String = buildString {
+internal fun String.encodeP2pQueryValue(): String = buildString {
     for (byte in this@encodeP2pQueryValue.encodeToByteArray()) {
         val value = byte.toInt() and 0xff
         if ((value in 'a'.code..'z'.code) ||

@@ -2402,6 +2402,14 @@
     <string name="settings_p2p_profile_soft_description">Uses fewer peer connections to reduce battery and network load</string>
     <string name="settings_p2p_profile_balanced_description">Recommended balance of startup speed and connection stability</string>
     <string name="settings_p2p_profile_fast_description">Uses more peer connections for difficult or high-bitrate torrents</string>
+    <string name="settings_stremio_profile_default">Default</string>
+    <string name="settings_stremio_profile_default_description">Balanced swarm discovery and connections</string>
+    <string name="settings_stremio_profile_soft">Soft</string>
+    <string name="settings_stremio_profile_soft_description">Lower connection limits and capped download speed</string>
+    <string name="settings_stremio_profile_fast">Fast</string>
+    <string name="settings_stremio_profile_fast_description">Aggressive peer discovery with up to 200 connections</string>
+    <string name="settings_stremio_profile_ultra_fast">Ultra Fast</string>
+    <string name="settings_stremio_profile_ultra_fast_description">Maximum peer connections (up to 400) and no speed limits for highest throughput</string>
     <string name="settings_p2p_cache_size_title">Torrent cache size</string>
     <string name="settings_p2p_cache_none">No persistent cache</string>
     <string name="settings_p2p_cache_2_gb">2 GB</string>
@@ -2412,6 +2420,8 @@
     <string name="settings_p2p_backend_title">Torrent engine</string>
     <string name="settings_p2p_backend_nuvio">Nuvio Engine (Native)</string>
     <string name="settings_p2p_backend_nuvio_description">Built-in high-performance native libtorrent engine</string>
+    <string name="settings_p2p_backend_stremio">Stremio Engine</string>
+    <string name="settings_p2p_backend_stremio_description">Built-in Stremio streaming engine with exact Stremio caching and swarm logic</string>
     <string name="settings_p2p_clear_cache_title">Clear torrent cache</string>
     <string name="settings_p2p_clear_cache_usage">%1$s currently used</string>
     <string name="settings_p2p_clear_cache_usage_pending">Usage is measured after P2P starts; tap to clear cached torrent data</string>

@@ -93,10 +93,12 @@ import nuvio.composeapp.generated.resources.action_done
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
 import com.nuvio.app.features.p2p.P2pCacheSize
+import com.nuvio.app.features.p2p.P2pEngineBackend
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.P2pTorrentProfile
+import com.nuvio.app.features.p2p.StremioTorrentProfile
 import com.nuvio.app.features.plugins.PluginsUiState
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.streams.StreamAutoPlayMode
@@ -175,6 +177,14 @@ private fun p2pProfileLabel(profile: P2pTorrentProfile): String = when (profile)
 }
 
 @Composable
+private fun stremioProfileLabel(profile: StremioTorrentProfile): String = when (profile) {
+    StremioTorrentProfile.DEFAULT -> stringResource(Res.string.settings_stremio_profile_default)
+    StremioTorrentProfile.SOFT -> stringResource(Res.string.settings_stremio_profile_soft)
+    StremioTorrentProfile.FAST -> stringResource(Res.string.settings_stremio_profile_fast)
+    StremioTorrentProfile.ULTRA_FAST -> stringResource(Res.string.settings_stremio_profile_ultra_fast)
+}
+
+@Composable
 private fun p2pCacheSizeLabel(size: P2pCacheSize): String = when (size) {
     P2pCacheSize.NONE -> stringResource(Res.string.settings_p2p_cache_none)
     P2pCacheSize.GB_2 -> stringResource(Res.string.settings_p2p_cache_2_gb)
@@ -182,6 +192,12 @@ private fun p2pCacheSizeLabel(size: P2pCacheSize): String = when (size) {
     P2pCacheSize.GB_10 -> stringResource(Res.string.settings_p2p_cache_10_gb)
     P2pCacheSize.GB_20 -> stringResource(Res.string.settings_p2p_cache_20_gb)
     P2pCacheSize.GB_50 -> stringResource(Res.string.settings_p2p_cache_50_gb)
+}
+
+@Composable
+private fun p2pEngineBackendLabel(backend: P2pEngineBackend): String = when (backend) {
+    P2pEngineBackend.NUVIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_nuvio)
+    P2pEngineBackend.STREMIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_stremio)
 }
 
 private fun formatP2pCacheBytes(bytes: Long): String {
@@ -341,7 +357,9 @@ private fun PlaybackSettingsSection(
     var showAnimeUpscalerDialog by remember { mutableStateOf(false) }
     var showP2pConsentDialog by remember { mutableStateOf(false) }
     var showP2pProfileDialog by remember { mutableStateOf(false) }
+    var showStremioProfileDialog by remember { mutableStateOf(false) }
     var showP2pCacheSizeDialog by remember { mutableStateOf(false) }
+    var showP2pEngineBackendDialog by remember { mutableStateOf(false) }
     var p2pCacheClearResult by remember { mutableStateOf<P2pCacheClearResult?>(null) }
     var p2pCacheClearFailed by remember { mutableStateOf(false) }
     val pluginsEnabled = AppFeaturePolicy.pluginsEnabled
@@ -769,11 +787,27 @@ private fun PlaybackSettingsSection(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_p2p_profile_title),
-                        description = p2pProfileLabel(p2pSettings.torrentProfile),
+                        title = stringResource(Res.string.settings_p2p_backend_title),
+                        description = p2pEngineBackendLabel(p2pSettings.engineBackend),
                         isTablet = isTablet,
-                        onClick = { showP2pProfileDialog = true },
+                        onClick = { showP2pEngineBackendDialog = true },
                     )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    if (p2pSettings.engineBackend == P2pEngineBackend.STREMIO_ENGINE) {
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.settings_p2p_profile_title),
+                            description = stremioProfileLabel(p2pSettings.stremioProfile),
+                            isTablet = isTablet,
+                            onClick = { showStremioProfileDialog = true },
+                        )
+                    } else {
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.settings_p2p_profile_title),
+                            description = p2pProfileLabel(p2pSettings.torrentProfile),
+                            isTablet = isTablet,
+                            onClick = { showP2pProfileDialog = true },
+                        )
+                    }
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_p2p_cache_size_title),
@@ -1475,6 +1509,32 @@ private fun PlaybackSettingsSection(
         )
     }
 
+    if (showStremioProfileDialog) {
+        IosEnumSelectionDialog(
+            title = stringResource(Res.string.settings_p2p_profile_title),
+            options = StremioTorrentProfile.entries,
+            selected = p2pSettings.stremioProfile,
+            label = { stremioProfileLabel(it) },
+            description = { profile ->
+                when (profile) {
+                    StremioTorrentProfile.DEFAULT ->
+                        stringResource(Res.string.settings_stremio_profile_default_description)
+                    StremioTorrentProfile.SOFT ->
+                        stringResource(Res.string.settings_stremio_profile_soft_description)
+                    StremioTorrentProfile.FAST ->
+                        stringResource(Res.string.settings_stremio_profile_fast_description)
+                    StremioTorrentProfile.ULTRA_FAST ->
+                        stringResource(Res.string.settings_stremio_profile_ultra_fast_description)
+                }
+            },
+            onSelect = { profile ->
+                P2pSettingsRepository.setStremioProfile(profile)
+                showStremioProfileDialog = false
+            },
+            onDismiss = { showStremioProfileDialog = false },
+        )
+    }
+
     if (showP2pCacheSizeDialog) {
         IosEnumSelectionDialog(
             title = stringResource(Res.string.settings_p2p_cache_size_title),
@@ -1487,6 +1547,28 @@ private fun PlaybackSettingsSection(
                 showP2pCacheSizeDialog = false
             },
             onDismiss = { showP2pCacheSizeDialog = false },
+        )
+    }
+
+    if (showP2pEngineBackendDialog) {
+        IosEnumSelectionDialog(
+            title = stringResource(Res.string.settings_p2p_backend_title),
+            options = P2pEngineBackend.entries,
+            selected = p2pSettings.engineBackend,
+            label = { p2pEngineBackendLabel(it) },
+            description = { backend ->
+                when (backend) {
+                    P2pEngineBackend.NUVIO_ENGINE ->
+                        stringResource(Res.string.settings_p2p_backend_nuvio_description)
+                    P2pEngineBackend.STREMIO_ENGINE ->
+                        stringResource(Res.string.settings_p2p_backend_stremio_description)
+                }
+            },
+            onSelect = { backend ->
+                P2pSettingsRepository.setEngineBackend(backend)
+                showP2pEngineBackendDialog = false
+            },
+            onDismiss = { showP2pEngineBackendDialog = false },
         )
     }
 

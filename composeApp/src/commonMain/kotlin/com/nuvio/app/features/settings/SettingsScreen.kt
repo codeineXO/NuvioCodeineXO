@@ -101,7 +101,10 @@ import com.nuvio.app.features.tmdb.TmdbSettings
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesUiState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_settings_page_codeine_xo
 import nuvio.composeapp.generated.resources.compose_settings_page_root
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -1012,7 +1015,7 @@ private fun TabletSettingsScreen(
                     SettingsSidebarItem(
                         label = stringResource(category.labelRes),
                         icon = category.icon,
-                        selected = category == activeCategory,
+                        selected = category == activeCategory && page != SettingsPage.CodeineXO,
                         onClick = {
                             if (category != activeCategory || page != SettingsPage.Root) {
                                 selectedCategory = category.name
@@ -1023,6 +1026,16 @@ private fun TabletSettingsScreen(
                             }
                         },
                     )
+                    if (category == SettingsCategory.Advanced) {
+                        SettingsSidebarItem(
+                            label = stringResource(Res.string.compose_settings_page_codeine_xo),
+                            icon = Icons.Rounded.AutoAwesome,
+                            selected = page == SettingsPage.CodeineXO,
+                            onClick = {
+                                openInlinePage(SettingsPage.CodeineXO)
+                            },
+                        )
+                    }
                 }
             }
         }
