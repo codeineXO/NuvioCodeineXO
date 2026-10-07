@@ -1563,23 +1563,37 @@ static void setMpvOptionString(mpv_handle *mpv, const char *name, const char *va
     setMpvOptionString(_mpv, "target-colorspace-hint-strict", "no");
     setMpvOptionString(_mpv, "tone-mapping", "auto");
     setMpvOptionString(_mpv, "hdr-compute-peak", "no");
-    setMpvOptionString(_mpv, "dither-depth", "auto");
-    setMpvOptionString(_mpv, "demuxer-max-bytes", "150MiB");
-    setMpvOptionString(_mpv, "cache-secs", "120");
+    setMpvOptionString(_mpv, "cache", "yes");
+    setMpvOptionString(_mpv, "demuxer-max-bytes", "1024MiB");
+    setMpvOptionString(_mpv, "demuxer-readahead-secs", "36000");
     setMpvOptionString(_mpv, "demuxer-seekable-cache", "yes");
     setMpvOptionString(_mpv, "force-seekable", "yes");
+    setMpvOptionString(_mpv, "stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5,multiple_requests=1");
+    setMpvOptionString(_mpv, "demuxer-lavf-buffersize", "4194304");
+    setMpvOptionString(_mpv, "stream-buffer-size", "8388608");
     setMpvOptionString(_mpv, "hr-seek", "default");
 
+    NSString *userAgent = @"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     if (headerLines.count > 0) {
         NSMutableArray *escaped = [NSMutableArray arrayWithCapacity:headerLines.count];
         for (NSString *line in headerLines) {
+            if ([line.lowercaseString hasPrefix:@"user-agent:"]) {
+                NSString *val = [[line substringFromIndex:11] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+                if (val.length > 0) {
+                    userAgent = val;
+                }
+                continue;
+            }
             NSString *esc = [[line stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"]
                              stringByReplacingOccurrencesOfString:@"," withString:@"\\,"];
             [escaped addObject:esc];
         }
-        NSString *headers = [escaped componentsJoinedByString:@","];
-        setMpvOptionString(_mpv, "http-header-fields", headers.UTF8String);
+        if (escaped.count > 0) {
+            NSString *headers = [escaped componentsJoinedByString:@","];
+            setMpvOptionString(_mpv, "http-header-fields", headers.UTF8String);
+        }
     }
+    setMpvOptionString(_mpv, "user-agent", userAgent.UTF8String);
 
     int initResult = mpv_initialize(_mpv);
     if (initResult < 0) {

@@ -613,7 +613,7 @@ struct MpvCacheWindow {
 };
 
 constexpr MpvCacheWindow kStreamingCacheWindow{
-    512ll * 1024 * 1024,
+    1024ll * 1024 * 1024,
     256ll * 1024 * 1024,
     36000.0,
 };
@@ -1782,10 +1782,18 @@ private:
             setMpvOptionStringLocked("cache", "yes");
             setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
             setMpvOptionStringLocked("force-seekable", "yes");
-            setMpvOptionStringLocked("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5");
+            setMpvOptionStringLocked("stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5,multiple_requests=1");
             setMpvOptionStringLocked("network-timeout", "30");
             setMpvOptionStringLocked("hr-seek", "default");
-            if (initialPositionMs > 0) {
+
+            // Expand the network and demuxer buffers from mpv defaults (32KB lavf, 128KB stream)
+            // to allow full bandwidth saturation on high-speed internet connections (matching VLC).
+            setMpvOptionStringLocked("demuxer-lavf-buffersize", "4194304"); // 4 MiB (default: 32 KiB)
+            setMpvOptionStringLocked("stream-buffer-size", "8388608");       // 8 MiB (default: 128 KiB)
+
+            bool isLoopback = sourceUrl.find("127.0.0.1") != std::string::npos ||
+                              sourceUrl.find("localhost") != std::string::npos;
+            if (initialPositionMs > 0 && isLoopback) {
                 // mpv starts prefetching into the demuxer cache from the start of
                 // the file as soon as the file opens, but a `loadfile ... start=`
                 // resume only issues its seek after that open. With the full
@@ -1807,16 +1815,30 @@ private:
                 throw std::runtime_error(std::string("mpv wid option failed: ") + api.errorText(widResult));
             }
 
-            if (!headerLines.empty()) {
-                std::string headers;
-                for (size_t index = 0; index < headerLines.size(); index++) {
-                    if (index > 0) headers.push_back(',');
-                    // Escape backslashes and commas in header values
-                    for (char c : headerLines[index]) {
-                        if (c == '\\' || c == ',') headers.push_back('\\');
-                        headers.push_back(c);
+            std::string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+            std::string headers;
+            for (size_t index = 0; index < headerLines.size(); index++) {
+                const std::string &line = headerLines[index];
+                if (line.size() >= 11) {
+                    std::string prefix = line.substr(0, 11);
+                    std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+                    if (prefix == "user-agent:") {
+                        size_t valStart = line.find_first_not_of(" \t", 11);
+                        if (valStart != std::string::npos) {
+                            userAgent = line.substr(valStart);
+                        }
+                        continue;
                     }
                 }
+                if (!headers.empty()) headers.push_back(',');
+                // Escape backslashes and commas in header values
+                for (char c : line) {
+                    if (c == '\\' || c == ',') headers.push_back('\\');
+                    headers.push_back(c);
+                }
+            }
+            setMpvOptionStringLocked("user-agent", userAgent.c_str());
+            if (!headers.empty()) {
                 setMpvOptionStringLocked("http-header-fields", headers.c_str());
             }
 

@@ -1553,14 +1553,27 @@ JNIEXPORT jlong JNICALL NP(create)(
 
     // Forward addon/debrid HTTP headers verbatim.
     std::string headerFields;
+    std::string userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     if (headerLines != nullptr) {
         jsize count = env->GetArrayLength(headerLines);
         std::vector<std::string> headers;
         headers.reserve(count);
         for (jsize i = 0; i < count; ++i) {
             auto line = static_cast<jstring>(env->GetObjectArrayElement(headerLines, i));
-            headers.push_back(jstringToUtf8(env, line));
+            std::string headerStr = jstringToUtf8(env, line);
             if (line) env->DeleteLocalRef(line);
+            if (headerStr.size() >= 11) {
+                std::string prefix = headerStr.substr(0, 11);
+                std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+                if (prefix == "user-agent:") {
+                    size_t valStart = headerStr.find_first_not_of(" \t", 11);
+                    if (valStart != std::string::npos) {
+                        userAgent = headerStr.substr(valStart);
+                    }
+                    continue;
+                }
+            }
+            headers.push_back(headerStr);
         }
         if (!headers.empty()) headerFields = joinHeaderFields(headers);
     }
@@ -1622,6 +1635,15 @@ JNIEXPORT jlong JNICALL NP(create)(
         mpv_set_option_string(m, "vd-lavc-threads", "0");
         mpv_set_option_string(m, "target-colorspace-hint", "yes");
         mpv_set_option_string(m, "target-colorspace-hint-mode", "source");
+
+        mpv_set_option_string(m, "cache", "yes");
+        mpv_set_option_string(m, "demuxer-seekable-cache", "yes");
+        mpv_set_option_string(m, "demuxer-lavf-buffersize", "4194304");
+        mpv_set_option_string(m, "stream-buffer-size", "8388608");
+        mpv_set_option_string(m, "stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5,multiple_requests=1");
+        mpv_set_option_string(m, "demuxer-max-bytes", "1073741824");
+        mpv_set_option_string(m, "demuxer-readahead-secs", "36000");
+        mpv_set_option_string(m, "user-agent", userAgent.c_str());
 
         if (!headerFields.empty()) {
             mpv_set_option_string(m, "http-header-fields", headerFields.c_str());
