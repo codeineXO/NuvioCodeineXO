@@ -357,7 +357,6 @@ abstract class NotarizeMacosDmgWithKeychainTask @Inject constructor(
     }
 }
 
-
 fun readXcconfigValue(file: File, key: String): String? {
     if (!file.exists()) return null
     return file.readLines()
@@ -954,10 +953,12 @@ val prepareMacosPlayerAppResources = tasks.register<Sync>("prepareMacosPlayerApp
     from(macosPlayerRuntimeOutput) {
         include("*.dylib")
     }
+    from(layout.projectDirectory.file("src/desktopMain/native/macos/engine/libnuvio_engine.dylib"))
     into(macosPlayerAppResourcesRoot.map { it.dir("macos/native/macos") })
 }
 
 tasks.withType<Jar>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     if (isWindowsHost && name == "desktopJar") {
         dependsOn(buildWindowsPlayerBridge, prepareWindowsPlayerRuntime, generateWindowsPlayerRuntimeIndex)
         from(windowsPlayerBridgeOutput) {
@@ -966,10 +967,16 @@ tasks.withType<Jar>().configureEach {
         from(windowsPlayerRuntimeOutput) {
             into("native/windows")
         }
+        from(layout.projectDirectory.file("src/desktopMain/native/windows/engine/nuvio_engine.dll")) {
+            into("native/windows")
+        }
     }
     if (isLinuxHost && name == "desktopJar") {
         dependsOn(buildLinuxPlayerBridge)
         from(linuxPlayerBridgeOutput) {
+            into("native/linux")
+        }
+        from(layout.projectDirectory.file("src/desktopMain/native/linux/engine/libnuvio_engine.so")) {
             into("native/linux")
         }
     }
@@ -1173,6 +1180,8 @@ kotlin {
                 implementation(libs.quickjs.kt)
                 implementation(libs.ksoup)
                 implementation(libs.sentry.jvm)
+                implementation(libs.jna)
+                implementation(files("libs/nuvio-engine-jvm-0.1.4.jar"))
             }
         }
         val androidHostTest by getting {

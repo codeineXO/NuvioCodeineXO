@@ -1,6 +1,5 @@
 package com.nuvio.app.features.p2p
 
-import com.nuvio.engine.internal.NuvioEngineLibrary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,7 +12,7 @@ actual object P2pStreamingEngine {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val nuvioEngineAvailable: Boolean
-        get() = NuvioEngineLibrary.isAvailable
+        get() = runCatching { DesktopEngineLibrary.resolve() }.isSuccess
 
     val stremioEngineAvailable: Boolean
         get() = StremioEngineBinary.isAvailable

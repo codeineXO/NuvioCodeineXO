@@ -5,6 +5,7 @@ import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.features.player.DesktopBufferPreset
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.engine.NuvioEngine
+import com.nuvio.engine.NuvioEngineRuntime
 import com.nuvio.engine.NuvioEngineException
 import com.nuvio.engine.NuvioEventType
 import com.nuvio.engine.NuvioStream
@@ -35,6 +36,10 @@ import java.util.concurrent.atomic.AtomicReference
 
 internal object NuvioEngineP2pBackend : DesktopP2pBackend {
     private val log = Logger.withTag("NuvioEngineP2pBackend")
+
+    private val runtime: NuvioEngineRuntime by lazy {
+        NuvioEngineRuntime.load(DesktopEngineLibrary.resolve())
+    }
 
     private val _state = MutableStateFlow<P2pStreamingState>(P2pStreamingState.Idle)
     override val state: StateFlow<P2pStreamingState> = _state.asStateFlow()
@@ -107,9 +112,8 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
             }
             _cacheState.value = _cacheState.value.copy(isClearing = true)
             try {
-                val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
-                val cacheDirectory = File(root, "payload")
-                val stateDirectory = File(root, "state")
+                val stateDirectory = DesktopStorage.rootDir.resolve("nuvio-engine/state").toFile()
+                val cacheDirectory = DesktopStorage.cacheDir.resolve("nuvio-engine").toFile()
                 val diskBefore = if (cacheDirectory.exists()) {
                     measureAllocatedDiskBytes(cacheDirectory)
                 } else 0L
@@ -588,17 +592,17 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         closeEngine(engine)
         currentCoroutineContext().ensureActive()
 
-        val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
-        val stateDirectory = File(root, "state")
-        val cacheDirectory = File(root, "payload")
+        val stateDirectory = DesktopStorage.rootDir.resolve("nuvio-engine/state").toFile()
+        val cacheDirectory = DesktopStorage.cacheDir.resolve("nuvio-engine").toFile()
         check(stateDirectory.mkdirs() || stateDirectory.isDirectory) {
             "Could not create the Nuvio Engine state directory"
         }
         check(cacheDirectory.mkdirs() || cacheDirectory.isDirectory) {
             "Could not create the Nuvio Engine cache directory"
         }
+        migrateNestedPayloadDirectory(cacheDirectory)
 
-        val created = NuvioEngine.create(
+        val created = runtime.create(
             buildNuvioEngineConfig(
                 stateDirectory = stateDirectory,
                 cacheDirectory = cacheDirectory,
@@ -612,7 +616,7 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
             engineConfigurationKey = configurationKey
             observeEngineEvents(it)
             log.i {
-                "Using Nuvio Engine ${NuvioEngine.version} (${NuvioEngine.protocolBackendVersion}) after ${elapsedMillis(startedAt)}ms"
+                "Using Nuvio Engine ${runtime.version} (${runtime.protocolBackendVersion}) after ${elapsedMillis(startedAt)}ms"
             }
         }
         return created

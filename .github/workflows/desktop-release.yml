@@ -520,7 +520,8 @@ jobs:
             "native/windows/WebView2Loader.dll",
             "native/windows/vcruntime140.dll",
             "native/windows/msvcp140.dll",
-            "native/windows/runtime-files.txt"
+            "native/windows/runtime-files.txt",
+            "native/windows/nuvio_engine.dll"
           )
           foreach ($entry in $requiredEntries) {
             if ($jarEntries -notcontains $entry) {

@@ -26,58 +26,6 @@ fun nuvioEngineWindowBytes(preset: DesktopBufferPreset = DesktopBufferPreset.Bal
     DesktopBufferPreset.Resilient -> 512L * 1024L * 1024L
 }
 
-fun buildNuvioEngineConfig(
-    stateDirectory: File,
-    cacheDirectory: File,
-    uploadEnabled: Boolean,
-    torrentProfile: P2pTorrentProfile,
-    diskCacheCapacityBytes: Long,
-    windowBytes: Long = nuvioEngineWindowBytes(DesktopBufferPreset.Balanced),
-): NuvioEngineConfig {
-    val nativeProfile = when (torrentProfile) {
-        P2pTorrentProfile.SOFT -> NuvioTorrentProfile.Soft
-        P2pTorrentProfile.BALANCED -> NuvioTorrentProfile.Balanced
-        P2pTorrentProfile.FAST -> NuvioTorrentProfile.Fast
-    }
-    return NuvioEngineConfig(
-        dataDirectory = stateDirectory,
-        cacheDirectory = cacheDirectory,
-        memoryCacheCapacityBytes = windowBytes,
-        diskCacheCapacityBytes = diskCacheCapacityBytes,
-        torrentProfile = nativeProfile,
-        uploadMode = if (uploadEnabled) NuvioUploadMode.Unlimited else NuvioUploadMode.Disabled,
-        streamInactivityTimeoutMilliseconds = 0,
-    )
-}
-
-fun unexpectedStreamStopError(
-    requestId: Long,
-    eventStreamId: String?,
-    currentStreamId: String?,
-    message: String?,
-    fallbackMessage: String,
-): P2pStreamingState.Error? {
-    if (requestId != 0L || currentStreamId == null || eventStreamId != currentStreamId) {
-        return null
-    }
-    val resolvedMessage = message?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackMessage
-    return P2pStreamingState.Error(resolvedMessage)
-}
-
-fun unexpectedTorrentError(
-    requestId: Long,
-    eventTorrentId: String?,
-    currentTorrentId: String?,
-    message: String?,
-    fallbackMessage: String,
-): P2pStreamingState.Error? {
-    if (requestId != 0L || eventTorrentId == null || currentTorrentId == null || eventTorrentId != currentTorrentId) {
-        return null
-    }
-    val resolvedMessage = message?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackMessage
-    return P2pStreamingState.Error(resolvedMessage)
-}
-
 fun metadataWaitVerdict(waitedMs: Long, stalledForMs: Long, knownPeers: Long): String? {
     return when {
         waitedMs >= METADATA_DEADLINE_MS ->
