@@ -9,9 +9,7 @@ internal actual object P2pSettingsStorage {
     private const val hideTorrentStatsKey = "hide_torrent_stats"
     private const val showTorrentStatsOverlayKey = "show_torrent_stats_overlay"
     private const val torrentProfileKey = "torrent_profile"
-    private const val stremioProfileKey = "stremio_torrent_profile"
     private const val cacheSizeKey = "cache_size"
-    private const val engineBackendKey = "engine_backend"
 
     actual fun loadP2pEnabled(): Boolean? =
         loadBoolean(p2pEnabledKey)
@@ -47,22 +45,10 @@ internal actual object P2pSettingsStorage {
         saveString(torrentProfileKey, profile)
     }
 
-    actual fun loadStremioProfile(): String? = loadString(stremioProfileKey)
-
-    actual fun saveStremioProfile(profile: String) {
-        saveString(stremioProfileKey, profile)
-    }
-
     actual fun loadCacheSize(): String? = loadString(cacheSizeKey)
 
     actual fun saveCacheSize(size: String) {
         saveString(cacheSizeKey, size)
-    }
-
-    actual fun loadEngineBackend(): String? = loadString(engineBackendKey)
-
-    actual fun saveEngineBackend(backend: String) {
-        saveString(engineBackendKey, backend)
     }
 
     private fun loadBoolean(keyBase: String): Boolean? {

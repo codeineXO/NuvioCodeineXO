@@ -12,12 +12,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
 import com.nuvio.app.features.p2p.P2pCacheSize
-import com.nuvio.app.features.p2p.P2pEngineBackend
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.P2pTorrentProfile
-import com.nuvio.app.features.p2p.StremioTorrentProfile
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
@@ -372,9 +370,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
 
             var showP2pConsentDialog by remember { mutableStateOf(false) }
             var showP2pProfileDialog by remember { mutableStateOf(false) }
-            var showStremioProfileDialog by remember { mutableStateOf(false) }
             var showP2pCacheSizeDialog by remember { mutableStateOf(false) }
-            var showP2pEngineBackendDialog by remember { mutableStateOf(false) }
             var p2pCacheClearResult by remember { mutableStateOf<P2pCacheClearResult?>(null) }
             var p2pCacheClearFailed by remember { mutableStateOf(false) }
 
@@ -414,39 +410,15 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_p2p_backend_title),
-                        description = when (p2pSettings.engineBackend) {
-                            P2pEngineBackend.NUVIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_nuvio)
-                            P2pEngineBackend.STREMIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_stremio)
+                        title = stringResource(Res.string.settings_p2p_profile_title),
+                        description = when (p2pSettings.torrentProfile) {
+                            P2pTorrentProfile.SOFT -> stringResource(Res.string.settings_p2p_profile_soft)
+                            P2pTorrentProfile.BALANCED -> stringResource(Res.string.settings_p2p_profile_balanced)
+                            P2pTorrentProfile.FAST -> stringResource(Res.string.settings_p2p_profile_fast)
                         },
                         isTablet = isTablet,
-                        onClick = { showP2pEngineBackendDialog = true },
+                        onClick = { showP2pProfileDialog = true },
                     )
-                    SettingsGroupDivider(isTablet = isTablet)
-                    if (p2pSettings.engineBackend == P2pEngineBackend.STREMIO_ENGINE) {
-                        SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_p2p_profile_title),
-                            description = when (p2pSettings.stremioProfile) {
-                                StremioTorrentProfile.DEFAULT -> stringResource(Res.string.settings_stremio_profile_default)
-                                StremioTorrentProfile.SOFT -> stringResource(Res.string.settings_stremio_profile_soft)
-                                StremioTorrentProfile.FAST -> stringResource(Res.string.settings_stremio_profile_fast)
-                                StremioTorrentProfile.ULTRA_FAST -> stringResource(Res.string.settings_stremio_profile_ultra_fast)
-                            },
-                            isTablet = isTablet,
-                            onClick = { showStremioProfileDialog = true },
-                        )
-                    } else {
-                        SettingsNavigationRow(
-                            title = stringResource(Res.string.settings_p2p_profile_title),
-                            description = when (p2pSettings.torrentProfile) {
-                                P2pTorrentProfile.SOFT -> stringResource(Res.string.settings_p2p_profile_soft)
-                                P2pTorrentProfile.BALANCED -> stringResource(Res.string.settings_p2p_profile_balanced)
-                                P2pTorrentProfile.FAST -> stringResource(Res.string.settings_p2p_profile_fast)
-                            },
-                            isTablet = isTablet,
-                            onClick = { showP2pProfileDialog = true },
-                        )
-                    }
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_p2p_cache_size_title),
@@ -550,39 +522,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 )
             }
 
-            if (showStremioProfileDialog) {
-                IosEnumSelectionDialog(
-                    title = stringResource(Res.string.settings_p2p_profile_title),
-                    options = StremioTorrentProfile.entries,
-                    selected = p2pSettings.stremioProfile,
-                    label = { profile ->
-                        when (profile) {
-                            StremioTorrentProfile.DEFAULT -> stringResource(Res.string.settings_stremio_profile_default)
-                            StremioTorrentProfile.SOFT -> stringResource(Res.string.settings_stremio_profile_soft)
-                            StremioTorrentProfile.FAST -> stringResource(Res.string.settings_stremio_profile_fast)
-                            StremioTorrentProfile.ULTRA_FAST -> stringResource(Res.string.settings_stremio_profile_ultra_fast)
-                        }
-                    },
-                    description = { profile ->
-                        when (profile) {
-                            StremioTorrentProfile.DEFAULT ->
-                                stringResource(Res.string.settings_stremio_profile_default_description)
-                            StremioTorrentProfile.SOFT ->
-                                stringResource(Res.string.settings_stremio_profile_soft_description)
-                            StremioTorrentProfile.FAST ->
-                                stringResource(Res.string.settings_stremio_profile_fast_description)
-                            StremioTorrentProfile.ULTRA_FAST ->
-                                stringResource(Res.string.settings_stremio_profile_ultra_fast_description)
-                        }
-                    },
-                    onSelect = { profile ->
-                        P2pSettingsRepository.setStremioProfile(profile)
-                        showStremioProfileDialog = false
-                    },
-                    onDismiss = { showStremioProfileDialog = false },
-                )
-            }
-
             if (showP2pCacheSizeDialog) {
                 IosEnumSelectionDialog(
                     title = stringResource(Res.string.settings_p2p_cache_size_title),
@@ -604,33 +543,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         showP2pCacheSizeDialog = false
                     },
                     onDismiss = { showP2pCacheSizeDialog = false },
-                )
-            }
-
-            if (showP2pEngineBackendDialog) {
-                IosEnumSelectionDialog(
-                    title = stringResource(Res.string.settings_p2p_backend_title),
-                    options = P2pEngineBackend.entries,
-                    selected = p2pSettings.engineBackend,
-                    label = { backend ->
-                        when (backend) {
-                            P2pEngineBackend.NUVIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_nuvio)
-                            P2pEngineBackend.STREMIO_ENGINE -> stringResource(Res.string.settings_p2p_backend_stremio)
-                        }
-                    },
-                    description = { backend ->
-                        when (backend) {
-                            P2pEngineBackend.NUVIO_ENGINE ->
-                                stringResource(Res.string.settings_p2p_backend_nuvio_description)
-                            P2pEngineBackend.STREMIO_ENGINE ->
-                                stringResource(Res.string.settings_p2p_backend_stremio_description)
-                        }
-                    },
-                    onSelect = { backend ->
-                        P2pSettingsRepository.setEngineBackend(backend)
-                        showP2pEngineBackendDialog = false
-                    },
-                    onDismiss = { showP2pEngineBackendDialog = false },
                 )
             }
         }

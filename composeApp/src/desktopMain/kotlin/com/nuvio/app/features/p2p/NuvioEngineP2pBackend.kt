@@ -34,7 +34,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-internal object NuvioEngineP2pBackend : DesktopP2pBackend {
+internal object NuvioEngineP2pBackend {
     private val log = Logger.withTag("NuvioEngineP2pBackend")
 
     private val runtime: NuvioEngineRuntime by lazy {
@@ -42,10 +42,10 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
     }
 
     private val _state = MutableStateFlow<P2pStreamingState>(P2pStreamingState.Idle)
-    override val state: StateFlow<P2pStreamingState> = _state.asStateFlow()
+    val state: StateFlow<P2pStreamingState> = _state.asStateFlow()
 
     private val _cacheState = MutableStateFlow(P2pCacheUiState())
-    override val cacheState: StateFlow<P2pCacheUiState> = _cacheState.asStateFlow()
+    val cacheState: StateFlow<P2pCacheUiState> = _cacheState.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lifecycleLock = Any()
@@ -99,13 +99,13 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         }
     }
 
-    override suspend fun startStream(request: P2pStreamRequest): String = withContext(Dispatchers.IO) {
+    suspend fun startStream(request: P2pStreamRequest): String = withContext(Dispatchers.IO) {
         startMutex.withLock {
             startStreamLocked(request)
         }
     }
 
-    override suspend fun clearCache(): P2pCacheClearResult = withContext(Dispatchers.IO) {
+    suspend fun clearCache(): P2pCacheClearResult = withContext(Dispatchers.IO) {
         startMutex.withLock {
             check(_state.value !is P2pStreamingState.Streaming && _state.value !is P2pStreamingState.Connecting) {
                 "Torrent cache cannot be cleared during active playback"
@@ -445,11 +445,11 @@ internal object NuvioEngineP2pBackend : DesktopP2pBackend {
         }
     }
 
-    override fun stopStream() {
+    fun stopStream() {
         scheduleStop(shutdownEngine = false)
     }
 
-    override fun shutdown() {
+    fun shutdown() {
         scheduleStop(shutdownEngine = true)
     }
 
