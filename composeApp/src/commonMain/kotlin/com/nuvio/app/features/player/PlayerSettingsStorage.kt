@@ -174,6 +174,8 @@ internal expect object PlayerSettingsStorage {
     fun saveAnimeUpscalerMode(mode: String)
     fun loadAudioNightModeEnabled(): Boolean?
     fun saveAudioNightModeEnabled(enabled: Boolean)
+    fun loadShowSeekbarWhileSeeking(): Boolean?
+    fun saveShowSeekbarWhileSeeking(enabled: Boolean)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

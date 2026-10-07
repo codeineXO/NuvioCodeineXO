@@ -53,6 +53,7 @@ const codeineVolumeButton = document.getElementById("codeineVolumeButton");
 const codeineVolumeIcon = document.getElementById("codeineVolumeIcon");
 const codeineVolumeSlider = document.getElementById("codeineVolumeSlider");
 const codeineTimeLabel = document.getElementById("codeineTimeLabel");
+const codeineSeekContainer = document.getElementById("codeineSeekContainer");
 const codeinePosition = document.getElementById("codeinePosition");
 const codeineDuration = document.getElementById("codeineDuration");
 const codeineNextEpisodeButton = document.getElementById("codeineNextEpisodeButton");
@@ -260,6 +261,7 @@ let state = {
   animeUpscalerEnabled: false,
   animeUpscalerModeIndex: 0,
   audioNightModeEnabled: false,
+  showSeekbarWhileSeeking: true,
   isFullscreen: false,
   volumeLevel: null,
   subtitlesLabel: "Subs",
@@ -613,6 +615,7 @@ const hidePlayerToast = token => {
   }
   playerToast.classList.remove("visible");
   playerToast.setAttribute("aria-hidden", "true");
+  hideSeekbarOnly();
 };
 
 const showPlayerToast = (message, { durationMs = playerToastDurationMs, icon = null, persistent = false } = {}) => {
@@ -705,10 +708,52 @@ const seekToastLabel = command => {
   return "";
 };
 
+let seekbarHidingTimer = 0;
+
+const clearSeekbarOnly = () => {
+  if (seekbarHidingTimer) {
+    window.clearTimeout(seekbarHidingTimer);
+    seekbarHidingTimer = 0;
+  }
+  root.classList.remove("codeine-seeking-seekbar-only", "codeine-seeking-seekbar-hiding");
+};
+
+const hideSeekbarOnly = () => {
+  if (!root.classList.contains("codeine-seeking-seekbar-only")) return;
+  if (isScrubbing) return;
+  root.classList.remove("codeine-seeking-seekbar-only");
+  root.classList.add("codeine-seeking-seekbar-hiding");
+  if (seekbarHidingTimer) {
+    window.clearTimeout(seekbarHidingTimer);
+  }
+  seekbarHidingTimer = window.setTimeout(() => {
+    seekbarHidingTimer = 0;
+    root.classList.remove("codeine-seeking-seekbar-hiding");
+  }, 240);
+};
+
+const triggerSeekbarOnlyOnSeek = () => {
+  if (state.showSeekbarWhileSeeking === false) return;
+  const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
+  if (!isCodeineXo) return;
+  const isHidden = !state.controlsVisible || root.classList.contains("chrome-hidden");
+  if (!isHidden) return;
+
+  if (seekbarHidingTimer) {
+    window.clearTimeout(seekbarHidingTimer);
+    seekbarHidingTimer = 0;
+  }
+  root.classList.remove("codeine-seeking-seekbar-hiding");
+  root.classList.add("codeine-seeking-seekbar-only");
+};
+
+window.playerSeekActivity = triggerSeekbarOnlyOnSeek;
+
 const showCommandToast = command => {
   queueSettingToast(command);
   const seekLabel = seekToastLabel(command);
   if (seekLabel) {
+    triggerSeekbarOnlyOnSeek();
     showPlayerToast(seekLabel);
   }
 };
@@ -1044,6 +1089,10 @@ const setProgress = (positionMs, durationMs) => {
   const bufferedMs = Math.max(positionMs, Number(state.bufferedPositionMs) || 0);
   const bufferedPercent = durationMs > 0 ? Math.max(0, Math.min(100, (bufferedMs / durationMs) * 100)) : 0;
   seek.style.setProperty("--buffered", `${bufferedPercent}%`);
+  if (codeineSeekContainer) {
+    codeineSeekContainer.style.setProperty("--progress", `${percent}%`);
+    codeineSeekContainer.style.setProperty("--buffered", `${bufferedPercent}%`);
+  }
   positionLabel.textContent = formatTime(positionMs);
   durationLabel.textContent = formatTime(durationMs);
   if (timeLabel) {
@@ -3158,7 +3207,11 @@ const renderChrome = () => {
   if (!state.isInPip && isPipLocked) setPipLocked(false);
   const modalActive = hasOpenModal();
   root.classList.toggle("modal-active", modalActive);
-  root.classList.toggle("chrome-hidden", Boolean(showError || !state.controlsVisible));
+  const chromeHidden = Boolean(showError || !state.controlsVisible);
+  root.classList.toggle("chrome-hidden", chromeHidden);
+  if (!chromeHidden || state.showSeekbarWhileSeeking === false) {
+    clearSeekbarOnly();
+  }
   root.classList.toggle("source-visible", Boolean(!showError && !isPlaying && !state.isLoading && (state.streamTitle || state.providerName)));
   syncHiddenCursor();
   const showOpening = renderOpeningOverlay(showError);
@@ -3429,6 +3482,7 @@ let fineSeekDirection = null;
 let fineSeekBasePosMs = null;
 
 const fineSeek = isForward => {
+  triggerSeekbarOnlyOnSeek();
   const direction = isForward ? "forward" : "backward";
   const stepMs = isForward ? 1000 : -1000;
 
@@ -4142,6 +4196,7 @@ nextEpisodeCard.addEventListener("click", event => {
 
 seek.addEventListener("input", () => {
   noteChromeActivity();
+  triggerSeekbarOnlyOnSeek();
   isScrubbing = true;
   scrubPositionMs = rangePositionMs();
   setProgress(scrubPositionMs, state.durationMs);
@@ -4150,11 +4205,15 @@ seek.addEventListener("input", () => {
 
 seek.addEventListener("change", () => {
   noteChromeActivity();
+  triggerSeekbarOnlyOnSeek();
   scrubPositionMs = rangePositionMs();
   isScrubbing = false;
   send("scrubFinish", scrubPositionMs);
   state.positionMs = scrubPositionMs;
   render();
+  if (!playerToast || !playerToast.classList.contains("visible")) {
+    hideSeekbarOnly();
+  }
 });
 
 volumeSlider.addEventListener("input", event => {
@@ -5228,6 +5287,15 @@ document.addEventListener("keydown", event => {
   if (command === "keyboardFineSeekBack") {
     fineSeek(false);
     return;
+  }
+  if (command === "keyboardSeekForward" || command === "keyboardSeekBack") {
+    triggerSeekbarOnlyOnSeek();
+    const isForward = command === "keyboardSeekForward";
+    const deltaMs = isForward ? 3000 : -3000;
+    const durationMs = Math.max(0, Number(state.durationMs) || 0);
+    const nextPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, (Number(state.positionMs) || 0) + deltaMs) : (Number(state.positionMs) || 0) + deltaMs);
+    state.positionMs = nextPosMs;
+    setProgress(nextPosMs, durationMs);
   }
   showCommandToast(command);
   send(command, 0);

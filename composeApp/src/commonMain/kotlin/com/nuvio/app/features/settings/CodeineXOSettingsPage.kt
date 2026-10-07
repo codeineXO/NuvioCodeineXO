@@ -76,7 +76,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }.collectAsStateWithLifecycle()
 
         var showPlayerUiDialog by rememberSaveable { mutableStateOf(false) }
-        var showAnimeUpscalerDialog by rememberSaveable { mutableStateOf(false) }
 
         SettingsSection(
             title = stringResource(Res.string.settings_playback_section_player),
@@ -89,10 +88,43 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onClick = { showPlayerUiDialog = true },
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
+                    description = stringResource(Res.string.settings_playback_show_seekbar_while_seeking_description),
+                    checked = playerSettings.showSeekbarWhileSeeking,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setShowSeekbarWhileSeeking,
+                )
             }
         }
 
-        if (isDesktop) {
+        if (showPlayerUiDialog) {
+            IosEnumSelectionDialog(
+                title = stringResource(Res.string.settings_playback_player_ui),
+                options = PlayerUiMode.entries,
+                selected = playerSettings.playerUiMode,
+                label = { stringResource(it.labelRes) },
+                description = { stringResource(it.descriptionRes) },
+                onSelect = { mode ->
+                    PlayerSettingsRepository.setPlayerUiMode(mode)
+                    showPlayerUiDialog = false
+                },
+                onDismiss = { showPlayerUiDialog = false },
+            )
+        }
+    }
+
+    // ─── Anime Upscaling ───
+    if (isDesktop) {
+        item {
+            val playerSettings by remember {
+                PlayerSettingsRepository.ensureLoaded()
+                PlayerSettingsRepository.uiState
+            }.collectAsStateWithLifecycle()
+
+            var showAnimeUpscalerDialog by rememberSaveable { mutableStateOf(false) }
+
             SettingsSection(
                 title = "ANIME UPSCALING",
                 isTablet = isTablet,
@@ -117,6 +149,25 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 }
             }
 
+            if (showAnimeUpscalerDialog) {
+                AnimeUpscalerModeDialog(
+                    selectedMode = playerSettings.animeUpscalerMode,
+                    onModeSelected = { mode ->
+                        PlayerSettingsRepository.setAnimeUpscalerMode(mode)
+                        showAnimeUpscalerDialog = false
+                    },
+                    onDismiss = { showAnimeUpscalerDialog = false },
+                )
+            }
+        }
+
+        // ─── Audio Enhancement ───
+        item {
+            val playerSettings by remember {
+                PlayerSettingsRepository.ensureLoaded()
+                PlayerSettingsRepository.uiState
+            }.collectAsStateWithLifecycle()
+
             SettingsSection(
                 title = "AUDIO ENHANCEMENT",
                 isTablet = isTablet,
@@ -131,32 +182,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     )
                 }
             }
-        }
-
-        if (showPlayerUiDialog) {
-            IosEnumSelectionDialog(
-                title = stringResource(Res.string.settings_playback_player_ui),
-                options = PlayerUiMode.entries,
-                selected = playerSettings.playerUiMode,
-                label = { stringResource(it.labelRes) },
-                description = { stringResource(it.descriptionRes) },
-                onSelect = { mode ->
-                    PlayerSettingsRepository.setPlayerUiMode(mode)
-                    showPlayerUiDialog = false
-                },
-                onDismiss = { showPlayerUiDialog = false },
-            )
-        }
-
-        if (showAnimeUpscalerDialog) {
-            AnimeUpscalerModeDialog(
-                selectedMode = playerSettings.animeUpscalerMode,
-                onModeSelected = { mode ->
-                    PlayerSettingsRepository.setAnimeUpscalerMode(mode)
-                    showAnimeUpscalerDialog = false
-                },
-                onDismiss = { showAnimeUpscalerDialog = false },
-            )
         }
     }
 

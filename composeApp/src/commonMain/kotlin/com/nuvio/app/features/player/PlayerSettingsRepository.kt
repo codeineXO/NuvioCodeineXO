@@ -102,6 +102,7 @@ data class PlayerSettingsUiState(
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
     val audioNightModeEnabled: Boolean = false,
+    val showSeekbarWhileSeeking: Boolean = true,
 )
 
 object PlayerSettingsRepository {
@@ -178,6 +179,7 @@ object PlayerSettingsRepository {
     private var animeUpscalerEnabled = false
     private var animeUpscalerMode = AnimeUpscalerMode.FAST
     private var audioNightModeEnabled = false
+    private var showSeekbarWhileSeeking = true
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -259,6 +261,7 @@ object PlayerSettingsRepository {
         animeUpscalerEnabled = false
         animeUpscalerMode = AnimeUpscalerMode.FAST
         audioNightModeEnabled = false
+        showSeekbarWhileSeeking = true
         publish()
     }
 
@@ -417,6 +420,7 @@ object PlayerSettingsRepository {
         animeUpscalerEnabled = PlayerSettingsStorage.loadAnimeUpscalerEnabled() ?: false
         animeUpscalerMode = AnimeUpscalerMode.fromStorageKey(PlayerSettingsStorage.loadAnimeUpscalerMode())
         audioNightModeEnabled = PlayerSettingsStorage.loadAudioNightModeEnabled() ?: false
+        showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
         publish()
     }
 
@@ -895,6 +899,14 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveAudioNightModeEnabled(enabled)
     }
 
+    fun setShowSeekbarWhileSeeking(enabled: Boolean) {
+        ensureLoaded()
+        if (showSeekbarWhileSeeking == enabled) return
+        showSeekbarWhileSeeking = enabled
+        publish()
+        PlayerSettingsStorage.saveShowSeekbarWhileSeeking(enabled)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1139,6 +1151,7 @@ object PlayerSettingsRepository {
             animeUpscalerEnabled = animeUpscalerEnabled,
             animeUpscalerMode = animeUpscalerMode,
             audioNightModeEnabled = audioNightModeEnabled,
+            showSeekbarWhileSeeking = showSeekbarWhileSeeking,
         )
     }
 

@@ -1231,6 +1231,8 @@
     <string name="settings_playback_player_ui_official_description">Original player interface.</string>
     <string name="settings_playback_player_ui_codeinexo">CodeineXO UI</string>
     <string name="settings_playback_player_ui_codeinexo_description">Sleek player interface with bottom seekbar and quick controls.</string>
+    <string name="settings_playback_show_seekbar_while_seeking">Show Seekbar While Seeking</string>
+    <string name="settings_playback_show_seekbar_while_seeking_description">Display only the seekbar when seeking while player controls are hidden.</string>
     <string name="settings_playback_section_skip_segments">SKIP SEGMENTS</string>
     <string name="settings_playback_section_stream_auto_play">STREAM AUTO-PLAY</string>
     <string name="settings_playback_section_stream_selection">STREAM SELECTION</string>

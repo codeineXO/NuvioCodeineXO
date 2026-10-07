@@ -21,6 +21,7 @@ internal actual object PlayerSettingsStorage {
     private const val playbackBrightnessKey = "playback_brightness"
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
     private const val playerUiModeKey = "player_ui_mode"
+    private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
     private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val autoSkipPostCreditsKey = "auto_skip_post_credits"
@@ -115,6 +116,7 @@ internal actual object PlayerSettingsStorage {
         animeUpscalerEnabledKey,
         animeUpscalerModeKey,
         audioNightModeEnabledKey,
+        showSeekbarWhileSeekingKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -365,6 +367,9 @@ internal actual object PlayerSettingsStorage {
     actual fun loadAudioNightModeEnabled(): Boolean? = loadBoolean(audioNightModeEnabledKey)
     actual fun saveAudioNightModeEnabled(enabled: Boolean) = saveBoolean(audioNightModeEnabledKey, enabled)
 
+    actual fun loadShowSeekbarWhileSeeking(): Boolean? = loadBoolean(showSeekbarWhileSeekingKey)
+    actual fun saveShowSeekbarWhileSeeking(enabled: Boolean) = saveBoolean(showSeekbarWhileSeekingKey, enabled)
+
     private fun scoped(key: String): String = ProfileScopedKey.of(key)
     private fun loadString(key: String): String? = store.getString(scoped(key))
     private fun saveString(key: String, value: String) = store.putString(scoped(key), value)
@@ -462,6 +467,7 @@ internal actual object PlayerSettingsStorage {
         loadAnimeUpscalerEnabled()?.let { put(animeUpscalerEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
         loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
+        loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -549,5 +555,6 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(animeUpscalerEnabledKey)?.let(::saveAnimeUpscalerEnabled)
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
         payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
+        payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
     }
 }

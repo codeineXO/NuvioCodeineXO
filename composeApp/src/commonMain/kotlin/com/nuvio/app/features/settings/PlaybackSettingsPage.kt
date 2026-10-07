@@ -405,6 +405,14 @@ private fun PlaybackSettingsSection(
                     onClick = { showPlayerUiDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
+                    description = stringResource(Res.string.settings_playback_show_seekbar_while_seeking_description),
+                    checked = autoPlayPlayerSettings.showSeekbarWhileSeeking,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setShowSeekbarWhileSeeking,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 if (!isDesktop) {
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_playback_legacy_layout),

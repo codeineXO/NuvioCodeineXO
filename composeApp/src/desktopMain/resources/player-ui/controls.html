@@ -242,7 +242,12 @@
         </section>
         <div class="codeine-seek-row">
           <span class="codeine-time-pill codeine-time-current" id="codeinePosition">00:00</span>
-          <input id="seek" class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
+          <div class="codeine-seek-container" id="codeineSeekContainer">
+            <div class="codeine-seek-track-bg"></div>
+            <div class="codeine-seek-track-buffer"></div>
+            <div class="codeine-seek-track-progress"></div>
+            <input id="seek" class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
+          </div>
           <span class="codeine-time-pill codeine-time-duration" id="codeineDuration">00:00</span>
         </div>
         <div class="time-row">

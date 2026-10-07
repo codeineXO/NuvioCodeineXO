@@ -1364,6 +1364,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         append(',')
         appendJsonField("audioNightModeEnabled", audioNightModeEnabled)
         append(',')
+        appendJsonField("showSeekbarWhileSeeking", showSeekbarWhileSeeking)
+        append(',')
         appendJsonField("title", title)
         append(',')
         appendJsonField("episodeText", episodeText)

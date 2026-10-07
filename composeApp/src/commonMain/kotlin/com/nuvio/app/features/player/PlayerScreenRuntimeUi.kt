@@ -322,6 +322,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
+        showSeekbarWhileSeeking = playerSettingsUiState.showSeekbarWhileSeeking,
         showPlaybackTimeOverlay = isCodeineUi &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,

@@ -3816,8 +3816,19 @@ svg {
 }
 
 .player:not(.ui-codeinexo) .codeine-seek-row,
-.player.ui-official .codeine-seek-row {
+.player.ui-official .codeine-seek-row,
+.player:not(.ui-codeinexo) .codeine-seek-container,
+.player.ui-official .codeine-seek-container {
   display: contents;
+}
+
+.player:not(.ui-codeinexo) .codeine-seek-track-bg,
+.player:not(.ui-codeinexo) .codeine-seek-track-buffer,
+.player:not(.ui-codeinexo) .codeine-seek-track-progress,
+.player.ui-official .codeine-seek-track-bg,
+.player.ui-official .codeine-seek-track-buffer,
+.player.ui-official .codeine-seek-track-progress {
+  display: none !important;
 }
 
 /* CodeineXO UI mode */
@@ -3912,6 +3923,52 @@ svg {
   transform: translateY(28px);
   pointer-events: none;
   transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Seeking while player UI is hidden: reveal only the seekbar (dismisses with toast) */
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-only .progress {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+  bottom: 14px !important;
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-only .codeine-seek-row {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-only .codeine-action-row {
+  display: none !important;
+}
+
+.player.ui-codeinexo.pip-mode.chrome-hidden.codeine-seeking-seekbar-only .progress {
+  bottom: 6px !important;
+}
+
+/* Exiting state: smoothly fade out seekbar only, keeping action-row completely hidden */
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-hiding .progress {
+  opacity: 0 !important;
+  transform: translateY(18px) !important;
+  pointer-events: none !important;
+  bottom: 14px !important;
+  transition: opacity 220ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 220ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-hiding .codeine-seek-row {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-hiding .codeine-action-row {
+  display: none !important;
+}
+
+.player.ui-codeinexo.pip-mode.chrome-hidden.codeine-seeking-seekbar-hiding .progress {
+  bottom: 6px !important;
 }
 
 .player.ui-codeinexo.native-resizing .header-left,
@@ -4089,6 +4146,86 @@ svg {
   width: 100%;
 }
 
+.player.ui-codeinexo .codeine-seek-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+
+.player.ui-codeinexo .codeine-seek-track-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.20);
+  pointer-events: none;
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-track-buffer {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--buffered, 0%);
+  max-width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(47, 111, 237, 0.35);
+  background: color-mix(in srgb, var(--theme-accent, #2f6fed) 35%, transparent);
+  pointer-events: none;
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-track-progress {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--progress, 0%);
+  max-width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--theme-accent-gradient, linear-gradient(var(--theme-accent, #2f6fed), var(--theme-accent, #2f6fed)));
+  pointer-events: none;
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-bg,
+.player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-bg,
+.player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-buffer,
+.player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-buffer,
+.player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-progress,
+.player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-progress {
+  height: 6px;
+}
+
+.player.ui-codeinexo .codeine-seek-container .scrub {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: block;
+  cursor: pointer;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  z-index: 2;
+  border: none;
+  outline: none;
+  filter: none;
+}
+
 .player.ui-codeinexo .codeine-seek-row .scrub,
 .player.ui-codeinexo .scrub {
   flex: 1 1 auto;
@@ -4140,24 +4277,31 @@ svg {
   text-align: left;
 }
 
+.player.ui-codeinexo .codeine-seek-container .scrub::-webkit-slider-runnable-track {
+  background: transparent !important;
+}
+
 .player.ui-codeinexo .scrub::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
   background:
     var(--theme-accent-gradient, linear-gradient(var(--theme-accent, #2f6fed), var(--theme-accent, #2f6fed)))
       left center / var(--progress, 0%) 100% no-repeat,
-    linear-gradient(to right, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.35))
+    linear-gradient(to right, color-mix(in srgb, var(--theme-accent, #2f6fed) 35%, transparent), color-mix(in srgb, var(--theme-accent, #2f6fed) 35%, transparent))
       left center / var(--buffered, 0%) 100% no-repeat,
     rgba(255, 255, 255, 0.20);
   transition: height 140ms ease;
 }
 
+.player.ui-codeinexo .codeine-seek-container:hover .scrub::-webkit-slider-runnable-track,
+.player.ui-codeinexo .codeine-seek-container:active .scrub::-webkit-slider-runnable-track,
 .player.ui-codeinexo .scrub:hover::-webkit-slider-runnable-track {
   height: 6px;
 }
 
 .player.ui-codeinexo .scrub::-webkit-slider-thumb {
   appearance: none;
+  -webkit-appearance: none;
   width: 14px;
   height: 14px;
   margin-top: -5px;
@@ -4168,11 +4312,14 @@ svg {
   transition: opacity 140ms ease, transform 140ms ease;
 }
 
+.player.ui-codeinexo .codeine-seek-container:hover .scrub::-webkit-slider-thumb,
+.player.ui-codeinexo .codeine-seek-container:active .scrub::-webkit-slider-thumb,
 .player.ui-codeinexo .scrub:hover::-webkit-slider-thumb,
 .player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
   opacity: 1;
 }
 
+.player.ui-codeinexo .codeine-seek-container .scrub:active::-webkit-slider-thumb,
 .player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
   transform: scale(1.2);
 }
