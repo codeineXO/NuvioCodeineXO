@@ -1299,6 +1299,21 @@ button:disabled {
   transition-duration: 220ms;
 }
 
+.pause-clock {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  font-size: 58px;
+  line-height: 1;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .pause-metadata-content {
   height: 100%;
   display: flex;
@@ -1375,6 +1390,12 @@ button:disabled {
 }
 
 @media (max-height: 419px) {
+  .pause-clock {
+    top: 24px;
+    right: 24px;
+    font-size: 38px;
+  }
+
   .pause-metadata-content {
     padding-top: 24px;
     padding-bottom: 24px;
@@ -1415,6 +1436,12 @@ button:disabled {
 }
 
 @media (max-height: 339px) {
+  .pause-clock {
+    top: 24px;
+    right: 24px;
+    font-size: 29px;
+  }
+
   .pause-metadata-content {
     padding-bottom: 24px;
   }

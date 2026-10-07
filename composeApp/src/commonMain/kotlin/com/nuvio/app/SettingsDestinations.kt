@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.features.collection.CollectionEditorPage
 import com.nuvio.app.features.collection.CollectionEditorScreen
 import com.nuvio.app.features.collection.CollectionManagementScreen
@@ -31,6 +32,7 @@ internal fun SettingsDestination(
     content: @Composable (onBack: () -> Unit) -> Unit,
 ) {
     val onBack = rememberGuardedPopBackStack(navController, route)
+    PlatformBackHandler(enabled = true, onBack = onBack)
     content(onBack)
 }
 

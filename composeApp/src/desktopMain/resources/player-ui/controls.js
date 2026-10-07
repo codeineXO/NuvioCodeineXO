@@ -14,6 +14,7 @@ const playbackErrorMessage = document.getElementById("playbackErrorMessage");
 const playbackErrorAction = document.getElementById("playbackErrorAction");
 const playbackErrorActionLabel = document.getElementById("playbackErrorActionLabel");
 const pauseMetadataOverlay = document.getElementById("pauseMetadataOverlay");
+const pauseClock = document.getElementById("pauseClock");
 const pauseWatchingLabel = document.getElementById("pauseWatchingLabel");
 const pauseLogo = document.getElementById("pauseLogo");
 const pauseTitle = document.getElementById("pauseTitle");
@@ -853,13 +854,24 @@ const syncParentalGuide = showOpening => {
 };
 
 // ── Clock & "Ends at" overlay helpers ─────────────────────────────────────
+let wallClockFormatter = null;
 const formatWallClock = () => {
-  const now = new Date();
-  let h = now.getHours();
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${m} ${ampm}`;
+  try {
+    if (!wallClockFormatter) {
+      wallClockFormatter = new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+    return wallClockFormatter.format(new Date());
+  } catch (_) {
+    const now = new Date();
+    let h = now.getHours();
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  }
 };
 
 const computeEndsAt = () => {
@@ -897,6 +909,21 @@ const stopStatsClockTick = () => {
   if (statsClockIntervalId === null) return;
   window.clearInterval(statsClockIntervalId);
   statsClockIntervalId = null;
+};
+
+let pauseClockIntervalId = null;
+const startPauseClockTick = () => {
+  if (pauseClockIntervalId !== null) return;
+  pauseClockIntervalId = window.setInterval(() => {
+    if (pauseClock) {
+      pauseClock.textContent = formatWallClock();
+    }
+  }, 1000);
+};
+const stopPauseClockTick = () => {
+  if (pauseClockIntervalId === null) return;
+  window.clearInterval(pauseClockIntervalId);
+  pauseClockIntervalId = null;
 };
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -1173,6 +1200,14 @@ const renderPauseMetadataOverlay = showOpening => {
   pauseDescription.hidden = !descriptionText;
   pauseMetadataOverlay.classList.toggle("visible", showOverlay);
   pauseMetadataOverlay.setAttribute("aria-hidden", showOverlay ? "false" : "true");
+  if (pauseClock) {
+    if (showOverlay) {
+      pauseClock.textContent = formatWallClock();
+      startPauseClockTick();
+    } else {
+      stopPauseClockTick();
+    }
+  }
 };
 
 const normalizedOpeningProgress = () => {

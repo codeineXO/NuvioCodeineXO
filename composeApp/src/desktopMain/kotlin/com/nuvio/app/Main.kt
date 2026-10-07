@@ -207,10 +207,12 @@ fun main(args: Array<String>) {
                     },
                 )
                 val uninstallFullscreenShortcuts = installDesktopAppFullscreenShortcuts(window)
+                val uninstallGlobalBackNavigation = installDesktopGlobalBackNavigation(window)
                 val untrackMaximizedBounds = window.trackMaximizedBoundsForCurrentScreen()
                 onDispose {
                     fullscreenController.dispose(window)
                     uninstallFullscreenShortcuts()
+                    uninstallGlobalBackNavigation()
                     untrackMaximizedBounds()
                     unregisterFullscreenToggle()
                 }
