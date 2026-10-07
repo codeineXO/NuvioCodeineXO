@@ -1001,6 +1001,8 @@ button:disabled {
 .player.pip-mode .metadata,
 .player.pip-mode [data-command="resize"],
 .player.pip-mode [data-command="speed"],
+.player.pip-mode [data-command="subtitles"],
+.player.pip-mode [data-command="audio"],
 .player.pip-mode [data-command="sources"],
 .player.pip-mode [data-command="episodes"],
 .player.pip-mode [data-command="playNextEpisode"],
@@ -1303,7 +1305,7 @@ button:disabled {
   position: absolute;
   top: 40px;
   right: 40px;
-  font-size: 58px;
+  font-size: 49px;
   line-height: 1;
   font-weight: 700;
   color: #fff;
@@ -1327,8 +1329,8 @@ button:disabled {
 }
 
 .pause-logo {
-  width: min(432px, 62vw);
-  height: 115px;
+  width: min(648px, 72vw);
+  height: 172px;
   object-fit: contain;
   object-position: left center;
 }
@@ -1393,7 +1395,7 @@ button:disabled {
   .pause-clock {
     top: 24px;
     right: 24px;
-    font-size: 38px;
+    font-size: 32px;
   }
 
   .pause-metadata-content {
@@ -1406,7 +1408,7 @@ button:disabled {
   }
 
   .pause-logo {
-    height: 77px;
+    height: 115px;
   }
 
   .pause-title {
@@ -1439,7 +1441,7 @@ button:disabled {
   .pause-clock {
     top: 24px;
     right: 24px;
-    font-size: 29px;
+    font-size: 25px;
   }
 
   .pause-metadata-content {
@@ -1447,7 +1449,7 @@ button:disabled {
   }
 
   .pause-logo {
-    height: 58px;
+    height: 87px;
   }
 }
 
@@ -3855,28 +3857,61 @@ svg {
   align-items: flex-start;
 }
 
-/* Smooth and soft UI hide/unhide transitions for CodeineXO */
+/* Smooth and soft UI hide/unhide transitions for CodeineXO with slide animations */
 .player.ui-codeinexo .header-left,
-.player.ui-codeinexo .header-center,
 .player.ui-codeinexo .header-actions,
-.player.ui-codeinexo .center-controls,
-.player.ui-codeinexo .progress,
 .player.ui-codeinexo .torrent-stats-overlay,
 .player.ui-codeinexo .parental-guide {
+  transform: translateY(0);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.player.ui-codeinexo .header-center {
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.player.ui-codeinexo .center-controls {
   transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity;
 }
 
+.player.ui-codeinexo .progress {
+  transform: translateY(0);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
 .player.ui-codeinexo.chrome-hidden .header-left,
-.player.ui-codeinexo.chrome-hidden .header-center,
 .player.ui-codeinexo.chrome-hidden .header-actions,
-.player.ui-codeinexo.chrome-hidden .center-controls,
-.player.ui-codeinexo.chrome-hidden .progress,
 .player.ui-codeinexo.chrome-hidden .torrent-stats-overlay,
 .player.ui-codeinexo.chrome-hidden .parental-guide {
   opacity: 0;
+  transform: translateY(-24px);
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.chrome-hidden .header-center {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-24px);
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.chrome-hidden .center-controls {
+  opacity: 0;
   pointer-events: none;
   transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.chrome-hidden .progress {
+  opacity: 0;
+  transform: translateY(28px);
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .player.ui-codeinexo.native-resizing .header-left,
@@ -3884,7 +3919,8 @@ svg {
 .player.ui-codeinexo.native-resizing .header-actions,
 .player.ui-codeinexo.native-resizing .center-controls,
 .player.ui-codeinexo.native-resizing .progress,
-.player.ui-codeinexo.native-resizing .torrent-stats-overlay {
+.player.ui-codeinexo.native-resizing .torrent-stats-overlay,
+.player.ui-codeinexo.native-resizing .parental-guide {
   transition-duration: 1ms !important;
 }
 
@@ -4251,6 +4287,10 @@ svg {
     0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
+.player.ui-codeinexo .codeine-volume-btn {
+  margin: 0;
+}
+
 .player.ui-codeinexo .codeine-volume-control {
   display: flex;
   align-items: center;
@@ -4307,6 +4347,61 @@ svg {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
+/* CodeineXO Quick Drawer (Upscaler, Speed, PiP, Fit) */
+.player.ui-codeinexo .codeine-quick-drawer {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+
+.player.ui-codeinexo .codeine-drawer-items {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  margin-left: 0;
+  transition:
+    max-width 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms ease,
+    margin-left 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: max-width, opacity;
+}
+
+.player.ui-codeinexo .codeine-drawer-btn svg {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-items,
+.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
+.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items {
+  max-width: 220px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-left: 6px;
+}
+
+.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-btn svg,
+.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-btn svg,
+.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-btn svg {
+  transform: rotate(180deg);
+}
+
+.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-items {
+  max-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  margin-left: 0 !important;
+}
+
+.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-btn svg {
+  transform: rotate(0deg) !important;
+}
+
 .player.ui-codeinexo .codeine-time-label {
   display: none !important;
 }
@@ -4330,9 +4425,23 @@ svg {
 .player.ui-codeinexo.pip-mode #codeineShadersButton,
 .player.ui-codeinexo.pip-mode #codeineSourcesButton,
 .player.ui-codeinexo.pip-mode #codeineEpisodesButton,
+.player.ui-codeinexo.pip-mode #codeineSubtitlesButton,
+.player.ui-codeinexo.pip-mode #codeineAudioButton,
 .player.ui-codeinexo.pip-mode .header-center,
 .player.ui-codeinexo.pip-mode .header-left {
   display: none !important;
+}
+.player.ui-codeinexo.pip-mode #codeineDrawerButton {
+  display: none !important;
+}
+.player.ui-codeinexo.pip-mode .codeine-drawer-items {
+  max-width: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  margin-left: 0 !important;
+}
+.player.ui-codeinexo.pip-mode #codeinePipButton {
+  display: grid !important;
 }
 .player.ui-codeinexo.pip-mode .codeine-volume-slider {
   display: none !important;
@@ -4387,6 +4496,15 @@ svg {
     width: 64px;
     max-width: 64px;
     margin-left: 4px;
+  }
+  .player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-items,
+  .player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
+  .player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items {
+    max-width: 180px;
+    margin-left: 4px;
+  }
+  .player.ui-codeinexo .codeine-drawer-items {
+    gap: 4px;
   }
   .player.ui-codeinexo .header-center {
     max-width: calc(100% - 120px);

@@ -1,11 +1,15 @@
 package com.nuvio.app.features.details.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -15,6 +19,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,22 +43,33 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -86,6 +104,7 @@ import com.nuvio.app.features.details.seasonSortKey
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
@@ -498,6 +517,7 @@ private fun SeasonTextChipScrollRow(
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -512,53 +532,115 @@ private fun SeasonTextChipScrollRow(
         }
     }
 
-    LazyRow(
-        state = seasonListState,
+    val canScrollBack by remember { derivedStateOf { seasonListState.firstVisibleItemIndex > 0 || seasonListState.firstVisibleItemScrollOffset > 0 } }
+    val canScrollFwd by remember {
+        derivedStateOf {
+            val layoutInfo = seasonListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            if (total == 0) false
+            else {
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                lastVisible != null && (lastVisible.index < total - 1 || lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset)
+            }
+        }
+    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isRowHovered by interactionSource.collectIsHoveredAsState()
+    val showNavButtons = !isDesktop || isRowHovered
+
+    Box(
         modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
-            .nuvioDesktopDragScroll(seasonListState)
-            .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
-        contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
-        horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+            .hoverable(interactionSource),
     ) {
-        items(seasons, key = { season -> season }) { season ->
-            val isSelected = season == currentSeason
-            val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(sizing.seasonChipRadius))
-                    .background(
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        LazyRow(
+            state = seasonListState,
+            modifier = Modifier
+                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                .fillMaxWidth()
+                .nuvioDesktopDragScroll(seasonListState)
+                .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
+            contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
+            horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+        ) {
+            items(seasons, key = { season -> season }) { season ->
+                val isSelected = season == currentSeason
+                val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(sizing.seasonChipRadius))
+                        .background(
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                            } else {
+                                Color.Transparent
+                            },
+                        )
+                        .combinedClickable(
+                            onClick = { onSelect(season) },
+                            onLongClick = onSecondaryClick,
+                        )
+                        .secondaryClick(onSecondaryClick)
+                        .padding(
+                            horizontal = sizing.seasonChipHorizontalPadding,
+                            vertical = sizing.seasonChipVerticalPadding,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = season.label(),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = sizing.seasonChipTextSize,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                        ),
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onBackground
                         } else {
-                            Color.Transparent
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
                     )
-                    .combinedClickable(
-                        onClick = { onSelect(season) },
-                        onLongClick = onSecondaryClick,
-                    )
-                    .secondaryClick(onSecondaryClick)
-                    .padding(
-                        horizontal = sizing.seasonChipHorizontalPadding,
-                        vertical = sizing.seasonChipVerticalPadding,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = season.label(),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = sizing.seasonChipTextSize,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                    ),
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onBackground
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
+                }
             }
+        }
+
+        AnimatedVisibility(
+            visible = showNavButtons && canScrollBack,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.CenterStart),
+        ) {
+            RowScrollNavButton(
+                direction = ScrollNavDirection.Left,
+                horizontalScrollPadding = horizontalScrollPadding,
+                onClick = {
+                    coroutineScope.launch {
+                        val firstVisible = seasonListState.firstVisibleItemIndex
+                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                        val target = (firstVisible - count).coerceAtLeast(0)
+                        seasonListState.animateScrollToItem(target)
+                    }
+                },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showNavButtons && canScrollFwd,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.CenterEnd),
+        ) {
+            RowScrollNavButton(
+                direction = ScrollNavDirection.Right,
+                horizontalScrollPadding = horizontalScrollPadding,
+                onClick = {
+                    coroutineScope.launch {
+                        val firstVisible = seasonListState.firstVisibleItemIndex
+                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                        val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
+                        seasonListState.animateScrollToItem(target)
+                    }
+                },
+            )
         }
     }
 }
@@ -575,6 +657,7 @@ private fun SeasonPosterScrollRow(
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -589,32 +672,162 @@ private fun SeasonPosterScrollRow(
         }
     }
 
-    LazyRow(
-        state = seasonListState,
+    val canScrollBack by remember { derivedStateOf { seasonListState.firstVisibleItemIndex > 0 || seasonListState.firstVisibleItemScrollOffset > 0 } }
+    val canScrollFwd by remember {
+        derivedStateOf {
+            val layoutInfo = seasonListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            if (total == 0) false
+            else {
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                lastVisible != null && (lastVisible.index < total - 1 || lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset)
+            }
+        }
+    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isRowHovered by interactionSource.collectIsHoveredAsState()
+    val showNavButtons = !isDesktop || isRowHovered
+
+    Box(
         modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
-            .nuvioDesktopDragScroll(seasonListState)
-            .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
-        contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
-        horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+            .hoverable(interactionSource),
     ) {
-        items(seasons, key = { season -> season }) { season ->
-            SeasonPosterButton(
-                label = season.label(),
-                imageUrl = resolveSeasonPoster(
-                    season = season,
-                    groupedEpisodes = groupedEpisodes,
-                    meta = meta,
+        LazyRow(
+            state = seasonListState,
+            modifier = Modifier
+                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                .fillMaxWidth()
+                .nuvioDesktopDragScroll(seasonListState)
+                .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
+            contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
+            horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+        ) {
+            items(seasons, key = { season -> season }) { season ->
+                SeasonPosterButton(
+                    label = season.label(),
+                    imageUrl = resolveSeasonPoster(
+                        season = season,
+                        groupedEpisodes = groupedEpisodes,
+                        meta = meta,
+                    )
+                        ?: meta.poster
+                        ?: meta.background,
+                    isSelected = season == currentSeason,
+                    sizing = sizing,
+                    onClick = { onSelect(season) },
+                    onLongClick = onLongPress?.let { handler -> { handler(season) } },
                 )
-                    ?: meta.poster
-                    ?: meta.background,
-                isSelected = season == currentSeason,
-                sizing = sizing,
-                onClick = { onSelect(season) },
-                onLongClick = onLongPress?.let { handler -> { handler(season) } },
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showNavButtons && canScrollBack,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.CenterStart),
+        ) {
+            RowScrollNavButton(
+                direction = ScrollNavDirection.Left,
+                horizontalScrollPadding = horizontalScrollPadding,
+                onClick = {
+                    coroutineScope.launch {
+                        val firstVisible = seasonListState.firstVisibleItemIndex
+                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                        val target = (firstVisible - count).coerceAtLeast(0)
+                        seasonListState.animateScrollToItem(target)
+                    }
+                },
             )
         }
+
+        AnimatedVisibility(
+            visible = showNavButtons && canScrollFwd,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.CenterEnd),
+        ) {
+            RowScrollNavButton(
+                direction = ScrollNavDirection.Right,
+                horizontalScrollPadding = horizontalScrollPadding,
+                onClick = {
+                    coroutineScope.launch {
+                        val firstVisible = seasonListState.firstVisibleItemIndex
+                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                        val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
+                        seasonListState.animateScrollToItem(target)
+                    }
+                },
+            )
+        }
+    }
+}
+
+private enum class ScrollNavDirection { Left, Right }
+
+@Composable
+private fun RowScrollNavButton(
+    direction: ScrollNavDirection,
+    horizontalScrollPadding: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isLeft = direction == ScrollNavDirection.Left
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered) 1.12f else 1.0f,
+        animationSpec = tween(180),
+    )
+
+    Box(
+        modifier = modifier
+            .padding(
+                start = if (isLeft) horizontalScrollPadding.coerceAtLeast(8.dp) else 0.dp,
+                end = if (!isLeft) horizontalScrollPadding.coerceAtLeast(8.dp) else 0.dp,
+            )
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .shadow(elevation = 12.dp, shape = CircleShape)
+            .clip(CircleShape)
+            .background(
+                if (isHovered) {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
+                },
+            )
+            .border(
+                width = 1.dp,
+                color = if (isHovered) {
+                    Color.White.copy(alpha = 0.35f)
+                } else {
+                    Color.White.copy(alpha = 0.15f)
+                },
+                shape = CircleShape,
+            )
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .size(42.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = if (isLeft) {
+                Icons.AutoMirrored.Rounded.KeyboardArrowLeft
+            } else {
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight
+            },
+            contentDescription = null,
+            tint = if (isHovered) MaterialTheme.colorScheme.primary else Color.White,
+            modifier = Modifier
+                .size(26.dp),
+        )
     }
 }
 
@@ -724,6 +937,7 @@ private fun EpisodeHorizontalRow(
 ) {
     val rowMetrics = rememberEpisodeHorizontalCardMetrics(maxWidthDp)
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     var hasPositioned by remember(episodes) { mutableStateOf(false) }
 
     LaunchedEffect(episodes, preferredEpisodeNumber) {
@@ -742,45 +956,107 @@ private fun EpisodeHorizontalRow(
         }
     }
 
-    LazyRow(
-        state = listState,
+    val canScrollBack by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
+    val canScrollFwd by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            if (total == 0) false
+            else {
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                lastVisible != null && (lastVisible.index < total - 1 || lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset)
+            }
+        }
+    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isRowHovered by interactionSource.collectIsHoveredAsState()
+    val showNavButtons = !isDesktop || isRowHovered
+
+    Box(
         modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
-            .nuvioDesktopDragScroll(listState),
-        contentPadding = PaddingValues(
-            horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
-            vertical = rowMetrics.rowVerticalPadding,
-        ),
-        horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
+            .hoverable(interactionSource),
     ) {
-        itemsIndexed(
-            items = episodes,
-            key = { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" },
-        ) { _, episode ->
-            val episodeVideoId = buildPlaybackVideoId(
-                parentMetaId = parentMetaId,
-                seasonNumber = episode.season,
-                episodeNumber = episode.episode,
-                fallbackVideoId = episode.id,
+        LazyRow(
+            state = listState,
+            modifier = Modifier
+                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+                .fillMaxWidth()
+                .nuvioDesktopDragScroll(listState),
+            contentPadding = PaddingValues(
+                horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
+                vertical = rowMetrics.rowVerticalPadding,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
+        ) {
+            itemsIndexed(
+                items = episodes,
+                key = { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" },
+            ) { _, episode ->
+                val episodeVideoId = buildPlaybackVideoId(
+                    parentMetaId = parentMetaId,
+                    seasonNumber = episode.season,
+                    episodeNumber = episode.episode,
+                    fallbackVideoId = episode.id,
+                )
+                EpisodeHorizontalCard(
+                    video = episode,
+                    fallbackImage = fallbackImage,
+                    progressEntry = progressByVideoId[episodeVideoId],
+                    imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
+                    isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+                        WatchingState.isEpisodeWatched(
+                            watchedKeys = watchedKeys,
+                            metaType = metaType,
+                            metaId = parentMetaId,
+                            episode = episode,
+                        ),
+                    episodeRatingsVisibility = episodeRatingsVisibility,
+                    blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+                    metrics = rowMetrics,
+                    onClick = { onEpisodeClick?.invoke(episode) },
+                    onLongPress = { onEpisodeLongPress?.invoke(episode) },
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showNavButtons && canScrollBack,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.CenterStart),
+        ) {
+            RowScrollNavButton(
+                direction = ScrollNavDirection.Left,
+                horizontalScrollPadding = horizontalScrollPadding,
+                onClick = {
+                    coroutineScope.launch {
+                        val firstVisible = listState.firstVisibleItemIndex
+                        val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                        val target = (firstVisible - count).coerceAtLeast(0)
+                        listState.animateScrollToItem(target)
+                    }
+                },
             )
-            EpisodeHorizontalCard(
-                video = episode,
-                fallbackImage = fallbackImage,
-                progressEntry = progressByVideoId[episodeVideoId],
-                imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
-                isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
-                    WatchingState.isEpisodeWatched(
-                        watchedKeys = watchedKeys,
-                        metaType = metaType,
-                        metaId = parentMetaId,
-                        episode = episode,
-                    ),
-                episodeRatingsVisibility = episodeRatingsVisibility,
-                blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                metrics = rowMetrics,
-                onClick = { onEpisodeClick?.invoke(episode) },
-                onLongPress = { onEpisodeLongPress?.invoke(episode) },
+        }
+
+        AnimatedVisibility(
+            visible = showNavButtons && canScrollFwd,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150)),
+            modifier = Modifier.align(Alignment.CenterEnd),
+        ) {
+            RowScrollNavButton(
+                direction = ScrollNavDirection.Right,
+                horizontalScrollPadding = horizontalScrollPadding,
+                onClick = {
+                    coroutineScope.launch {
+                        val firstVisible = listState.firstVisibleItemIndex
+                        val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                        val target = (firstVisible + count).coerceAtMost(episodes.size - 1)
+                        listState.animateScrollToItem(target)
+                    }
+                },
             )
         }
     }

@@ -56,6 +56,8 @@ const codeineTimeLabel = document.getElementById("codeineTimeLabel");
 const codeinePosition = document.getElementById("codeinePosition");
 const codeineDuration = document.getElementById("codeineDuration");
 const codeineNextEpisodeButton = document.getElementById("codeineNextEpisodeButton");
+const codeineQuickDrawer = document.getElementById("codeineQuickDrawer");
+const codeineDrawerButton = document.getElementById("codeineDrawerButton");
 const codeineEpisodesButton = document.getElementById("codeineEpisodesButton");
 const codeinePipButton = document.getElementById("codeinePipButton");
 const codeineSourcesButton = document.getElementById("codeineSourcesButton");
@@ -4216,6 +4218,32 @@ if (codeineVolumeButton) {
     }
     syncVolumeControl();
     send("volumeChangeTemporary", state.volumeLevel);
+  });
+}
+
+if (codeineDrawerButton && codeineQuickDrawer) {
+  codeineDrawerButton.addEventListener("click", event => {
+    event.stopPropagation();
+    noteChromeActivity();
+    if (codeineQuickDrawer.classList.contains("is-collapsed")) {
+      codeineQuickDrawer.classList.remove("is-collapsed");
+      codeineQuickDrawer.classList.add("is-active");
+    } else if (codeineQuickDrawer.classList.contains("is-active") || codeineQuickDrawer.matches(":hover")) {
+      codeineQuickDrawer.classList.add("is-collapsed");
+      codeineQuickDrawer.classList.remove("is-active");
+    } else {
+      codeineQuickDrawer.classList.add("is-active");
+    }
+  });
+  codeineQuickDrawer.addEventListener("mouseleave", () => {
+    codeineQuickDrawer.classList.remove("is-collapsed");
+    codeineQuickDrawer.classList.remove("is-active");
+  });
+  window.addEventListener("pointerdown", event => {
+    if (!codeineQuickDrawer.contains(event.target)) {
+      codeineQuickDrawer.classList.remove("is-active");
+      codeineQuickDrawer.classList.remove("is-collapsed");
+    }
   });
 }
 

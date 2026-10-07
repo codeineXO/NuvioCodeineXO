@@ -106,6 +106,9 @@
       <path d="M19 15L20 18L23 19L20 20L19 23L18 20L15 19L18 18L19 15Z" fill="currentColor"/>
       <path d="M5 16L5.75 18.25L8 19L5.75 19.75L5 22L4.25 19.75L2 19L4.25 18.25L5 16Z" fill="currentColor"/>
     </symbol>
+    <symbol id="icon-arrow-left" viewBox="0 0 24 24">
+      <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" fill="currentColor"/>
+    </symbol>
   </svg>
 
   <div class="player" id="playerRoot" tabindex="-1">
@@ -290,6 +293,26 @@
             <div class="codeine-time-label" id="codeineTimeLabel">0:00 / 0:00</div>
           </div>
           <div class="codeine-controls-right">
+            <div class="codeine-quick-drawer" id="codeineQuickDrawer">
+              <button class="codeine-control-btn codeine-action-btn codeine-drawer-btn" id="codeineDrawerButton" type="button" aria-label="More playback controls" title="More playback controls">
+                <svg><use href="#icon-arrow-left"></use></svg>
+              </button>
+              <div class="codeine-drawer-items" id="codeineDrawerItems">
+                <button class="codeine-control-btn codeine-action-btn" id="codeineShadersButton" data-command="shaders" aria-label="Anime Upscaler" title="Anime Upscaler">
+                  <svg><use href="#icon-sparkles"></use></svg>
+                </button>
+                <button class="codeine-control-btn codeine-action-btn codeine-speed-btn" id="codeineSpeedButton" data-command="speed" aria-label="Playback speed">
+                  <svg><use href="#icon-speed"></use></svg>
+                  <span class="codeine-speed-text" id="codeineSpeedText">1x</span>
+                </button>
+                <button class="codeine-control-btn codeine-action-btn" id="codeinePipButton" data-command="pictureInPicture" aria-label="Picture in Picture">
+                  <svg><use href="#icon-pip"></use></svg>
+                </button>
+                <button class="codeine-control-btn codeine-action-btn" id="codeineResizeButton" data-command="resize" aria-label="Aspect ratio">
+                  <svg><use href="#icon-aspect"></use></svg>
+                </button>
+              </div>
+            </div>
             <button class="codeine-control-btn codeine-action-btn optional" id="codeineEpisodesButton" data-command="episodes" aria-label="Episodes">
               <svg><use href="#icon-episodes"></use></svg>
             </button>
@@ -301,19 +324,6 @@
             </button>
             <button class="codeine-control-btn codeine-action-btn" id="codeineAudioButton" data-command="audio" aria-label="Audio">
               <svg><use href="#icon-audio"></use></svg>
-            </button>
-            <button class="codeine-control-btn codeine-action-btn" id="codeineShadersButton" data-command="shaders" aria-label="Anime Upscaler" title="Anime Upscaler">
-              <svg><use href="#icon-sparkles"></use></svg>
-            </button>
-            <button class="codeine-control-btn codeine-action-btn codeine-speed-btn" id="codeineSpeedButton" data-command="speed" aria-label="Playback speed">
-              <svg><use href="#icon-speed"></use></svg>
-              <span class="codeine-speed-text" id="codeineSpeedText">1x</span>
-            </button>
-            <button class="codeine-control-btn codeine-action-btn" id="codeinePipButton" data-command="pictureInPicture" aria-label="Picture in Picture">
-              <svg><use href="#icon-pip"></use></svg>
-            </button>
-            <button class="codeine-control-btn codeine-action-btn" id="codeineResizeButton" data-command="resize" aria-label="Aspect ratio">
-              <svg><use href="#icon-aspect"></use></svg>
             </button>
             <button class="codeine-control-btn codeine-action-btn" id="codeineFullscreenButton" data-command="toggleFullscreen" aria-label="Toggle fullscreen">
               <svg><use id="codeineFullscreenIcon" href="#icon-fullscreen"></use></svg>
