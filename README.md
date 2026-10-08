@@ -22,8 +22,9 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🎬 Player & Playback
 * **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
-* **CodeineXO Player UI:** Alternate modern player layout with natural text shadows, faint buffer progress bar, soft-blurred panels with black tint, and episode rating badges.
-* **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly (left-click opens selection panels), toggle between elapsed and remaining time, and a redesigned centered pause overlay.
+* **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
+* **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
+* **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly, toggle between elapsed and remaining time, "show seekbar while seeking" toggle, rounded track styling, and refined Picture-in-Picture (PiP) controls.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
 * **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
 * **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
@@ -33,12 +34,12 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Typography & Effects:** 10 curated clean fonts, outline thickness stepper, soft blur glow, and shadow effects that update live without player reload.
 
 ### ⚡ P2P Engine & Core Performance
-* **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of the native NuvioEngine backend with configurable persistent torrent caching and faster mid-file resume on Windows.
+* **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of native NuvioEngine backend (v0.1.4) with configurable persistent torrent caching, optimized HTTP stream buffering, audio channel routing fixes, and fast mid-file resume.
 
 ### ✨ Visuals, UX & Settings
-* **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing and mirrored playback controls.
+* **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
-* **UX Enhancements:** Drag-to-scroll on season/filter tabs, hero ratings with fallback support, sidebar exit button, copy addon manifest link shortcut etc.
+* **UX Enhancements:** Scroll navigation arrow buttons and drag-to-scroll on season/episode carousels, hero ratings with fallback support, sidebar exit button, copy addon manifest link shortcut, etc.
 * **Enhanced Discord Rich Presence:** Richer Discord RPC displaying movie/series posters, episode thumbnails, and granular presence status.
 
 ### 🪟 Windows Desktop Isolation & Installer
