@@ -320,6 +320,7 @@ private fun PlaybackSettingsSection(
     var showSubtitleFontDialog by remember { mutableStateOf(false) }
     var showSubtitleOutlineEffectDialog by remember { mutableStateOf(false) }
     var showPlayerUiDialog by remember { mutableStateOf(false) }
+    var showSeekrApiKeyDialog by remember { mutableStateOf(false) }
     var showExternalPlayerDialog by remember { mutableStateOf(false) }
     var showExternalPlayerAppDialog by remember { mutableStateOf(false) }
     var showReuseCacheDurationDialog by remember { mutableStateOf(false) }
@@ -394,6 +395,25 @@ private fun PlaybackSettingsSection(
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setShowSeekbarWhileSeeking,
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_seek_previews),
+                    description = stringResource(Res.string.settings_playback_seek_previews_description),
+                    checked = autoPlayPlayerSettings.seekPreviewEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setSeekPreviewEnabled,
+                )
+                if (autoPlayPlayerSettings.seekPreviewEnabled) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_playback_seekr_api_key),
+                        description = autoPlayPlayerSettings.seekrApiKey.ifBlank {
+                            stringResource(Res.string.settings_playback_seekr_key_not_set)
+                        },
+                        isTablet = isTablet,
+                        onClick = { showSeekrApiKeyDialog = true },
+                    )
+                }
                 SettingsGroupDivider(isTablet = isTablet)
                 if (!isDesktop) {
                     SettingsSwitchRow(
@@ -1628,6 +1648,17 @@ private fun PlaybackSettingsSection(
                 showPlayerUiDialog = false
             },
             onDismiss = { showPlayerUiDialog = false },
+        )
+    }
+
+    if (showSeekrApiKeyDialog) {
+        SeekrApiKeyDialog(
+            initialValue = autoPlayPlayerSettings.seekrApiKey,
+            onSave = { key ->
+                PlayerSettingsRepository.setSeekrApiKey(key)
+                showSeekrApiKeyDialog = false
+            },
+            onDismiss = { showSeekrApiKeyDialog = false },
         )
     }
 

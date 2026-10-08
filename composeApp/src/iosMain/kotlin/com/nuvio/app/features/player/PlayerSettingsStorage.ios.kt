@@ -103,6 +103,8 @@ actual object PlayerSettingsStorage {
     private const val animeUpscalerModeKey = "anime_upscaler_mode"
     private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
     private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
+    private const val seekPreviewEnabledKey = "seek_preview_enabled"
+    private const val seekrApiKeyKey = "seekr_api_key"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -116,6 +118,8 @@ actual object PlayerSettingsStorage {
         animeUpscalerModeKey,
         audioNightModeEnabledKey,
         showSeekbarWhileSeekingKey,
+        seekPreviewEnabledKey,
+        seekrApiKeyKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -1111,6 +1115,30 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(showSeekbarWhileSeekingKey))
     }
 
+    actual fun loadSeekPreviewEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(seekPreviewEnabledKey)
+        return if (defaults.objectForKey(key) != null) {
+            defaults.boolForKey(key)
+        } else {
+            null
+        }
+    }
+
+    actual fun saveSeekPreviewEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(seekPreviewEnabledKey))
+    }
+
+    actual fun loadSeekrApiKey(): String? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(seekrApiKeyKey)
+        return defaults.stringForKey(key)
+    }
+
+    actual fun saveSeekrApiKey(apiKey: String) {
+        NSUserDefaults.standardUserDefaults.setObject(apiKey, forKey = ProfileScopedKey.of(seekrApiKeyKey))
+    }
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadShowPlayerLoadingStatus()?.let { put(showPlayerLoadingStatusKey, encodeSyncBoolean(it)) }
@@ -1191,6 +1219,8 @@ actual object PlayerSettingsStorage {
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
         loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
+        loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
+        loadSeekrApiKey()?.let { put(seekrApiKeyKey, encodeSyncString(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -1277,5 +1307,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
         payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
+        payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)
+        payload.decodeSyncString(seekrApiKeyKey)?.let(::saveSeekrApiKey)
     }
 }

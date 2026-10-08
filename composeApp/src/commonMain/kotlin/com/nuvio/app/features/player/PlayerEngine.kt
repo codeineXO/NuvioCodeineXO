@@ -78,6 +78,13 @@ enum class PlayerControlsAction {
 data class PlayerControlsState(
     val title: String = "",
     val playerUiMode: String = "codeine_xo",
+    val seekPreviewEnabled: Boolean = false,
+    val seekPreviewVttUrl: String = "",
+    val seekrApiKey: String = "",
+    val seekrImdbId: String = "",
+    val seekrTmdbId: Int = 0,
+    val seekrSeason: Int = 0,
+    val seekrEpisode: Int = 0,
     val showSeekbarWhileSeeking: Boolean = true,
     val showPlaybackTimeOverlay: Boolean = false,
     val showTorrentStatsOverlay: Boolean = true,

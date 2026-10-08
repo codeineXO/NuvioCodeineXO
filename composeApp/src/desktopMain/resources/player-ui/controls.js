@@ -56,6 +56,16 @@ const codeineTimeLabel = document.getElementById("codeineTimeLabel");
 const codeineSeekContainer = document.getElementById("codeineSeekContainer");
 const codeinePosition = document.getElementById("codeinePosition");
 const codeineDuration = document.getElementById("codeineDuration");
+const codeineSeekPreview = document.getElementById("codeineSeekPreview");
+const seekFilmstripCarousel = document.getElementById("seekFilmstripCarousel");
+const previewTiles = [
+  document.getElementById("previewTile0"),
+  document.getElementById("previewTile1"),
+  document.getElementById("previewTile2"),
+  document.getElementById("previewTile3"),
+  document.getElementById("previewTile4")
+];
+const seekPreviewPill = document.getElementById("seekPreviewPill");
 const codeineNextEpisodeButton = document.getElementById("codeineNextEpisodeButton");
 const codeineQuickDrawer = document.getElementById("codeineQuickDrawer");
 const codeineDrawerButton = document.getElementById("codeineDrawerButton");
@@ -384,6 +394,13 @@ let state = {
   showSources: false,
   showEpisodes: false,
   showExternalPlayer: false,
+  seekPreviewEnabled: false,
+  seekPreviewVttUrl: "",
+  seekrApiKey: "",
+  seekrImdbId: "",
+  seekrTmdbId: 0,
+  seekrSeason: 0,
+  seekrEpisode: 0,
   durationMs: 0,
   positionMs: 0,
   audioTracks: [],
@@ -4194,6 +4211,207 @@ nextEpisodeCard.addEventListener("click", event => {
   }
 });
 
+let seekrCues = [];
+let seekrLoadedVttUrl = "";
+let seekrLastQueryKey = "";
+let seekrContentKey = "";
+
+function parseSeekrVtt(vttText, baseUrl) {
+  const cues = [];
+  const lines = vttText.split(/\r?\n/);
+  let i = 0;
+  const timeRegex = /(?:(\d{1,2}):)?(\d{2}):(\d{2})(?:\.(\d{3}))?\s*-->\s*(?:(\d{1,2}):)?(\d{2}):(\d{2})(?:\.(\d{3}))?/;
+  const xywhRegex = /#xywh=(\d+),(\d+),(\d+),(\d+)/;
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    const timeMatch = line.match(timeRegex);
+    if (timeMatch) {
+      const parseMs = (h, m, s, ms) => {
+        const hours = h ? parseInt(h, 10) : 0;
+        const mins = parseInt(m, 10);
+        const secs = parseInt(s, 10);
+        const millis = ms ? parseInt(ms, 10) : 0;
+        return (hours * 3600 + mins * 60 + secs) * 1000 + millis;
+      };
+      const startMs = parseMs(timeMatch[1], timeMatch[2], timeMatch[3], timeMatch[4]);
+      const endMs = parseMs(timeMatch[5], timeMatch[6], timeMatch[7], timeMatch[8]);
+      i++;
+      while (i < lines.length && lines[i].trim() === "") i++;
+      if (i < lines.length) {
+        const urlLine = lines[i].trim();
+        const xywhMatch = urlLine.match(xywhRegex);
+        if (xywhMatch) {
+          let sheetUrl = urlLine.substring(0, xywhMatch.index);
+          if (baseUrl && sheetUrl && !sheetUrl.startsWith("http://") && !sheetUrl.startsWith("https://")) {
+            try {
+              sheetUrl = new URL(sheetUrl, baseUrl).href;
+            } catch (_) {}
+          }
+          cues.push({
+            startMs,
+            endMs,
+            sheetUrl,
+            x: parseInt(xywhMatch[1], 10),
+            y: parseInt(xywhMatch[2], 10),
+            w: parseInt(xywhMatch[3], 10),
+            h: parseInt(xywhMatch[4], 10)
+          });
+        }
+      }
+    }
+    i++;
+  }
+  return cues;
+}
+
+function findSeekrCueIndex(cues, positionMs) {
+  if (!cues || cues.length === 0) return -1;
+  let low = 0;
+  let high = cues.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >>> 1;
+    const cue = cues[mid];
+    if (positionMs < cue.startMs) {
+      high = mid - 1;
+    } else if (positionMs >= cue.endMs) {
+      low = mid + 1;
+    } else {
+      return mid;
+    }
+  }
+  return Math.min(Math.max(0, low), cues.length - 1);
+}
+
+function syncSeekrPreviews() {
+  if (!state.seekPreviewEnabled) {
+    seekrCues = [];
+    seekrLoadedVttUrl = "";
+    hideSeekrPreview();
+    return;
+  }
+
+  const newContentKey = `${state.seekrImdbId || ''}:${state.seekrTmdbId || 0}:${state.seekrSeason || 0}:${state.seekrEpisode || 0}`;
+  if (newContentKey !== seekrContentKey) {
+    seekrContentKey = newContentKey;
+    seekrCues = [];
+    seekrLoadedVttUrl = "";
+    seekrLastQueryKey = "";
+  }
+
+  if (state.seekPreviewVttUrl && state.seekPreviewVttUrl !== seekrLoadedVttUrl) {
+    const vttUrl = state.seekPreviewVttUrl;
+    seekrLoadedVttUrl = vttUrl;
+    fetch(vttUrl)
+      .then(res => res.text())
+      .then(text => {
+        seekrCues = parseSeekrVtt(text, vttUrl);
+      })
+      .catch(() => {});
+    return;
+  }
+
+  const queryKey = `${newContentKey}:${state.seekrApiKey || ''}`;
+  if (!state.seekPreviewVttUrl && !seekrLoadedVttUrl && queryKey !== seekrLastQueryKey && (state.seekrImdbId || state.seekrTmdbId > 0)) {
+    seekrLastQueryKey = queryKey;
+    const params = new URLSearchParams();
+    if (state.durationMs > 0) params.set("duration_ms", state.durationMs);
+    if (state.seekrSeason > 0 && state.seekrEpisode > 0) {
+      if (state.seekrImdbId) params.set("show_imdb_id", state.seekrImdbId);
+      if (state.seekrTmdbId > 0) params.set("show_tmdb_id", state.seekrTmdbId);
+      params.set("season", state.seekrSeason);
+      params.set("episode", state.seekrEpisode);
+    } else {
+      if (state.seekrImdbId) params.set("imdb_id", state.seekrImdbId);
+      if (state.seekrTmdbId > 0) params.set("tmdb_id", state.seekrTmdbId);
+    }
+
+    const headers = {};
+    if (state.seekrApiKey) headers["X-API-Key"] = state.seekrApiKey.trim();
+
+    fetch(`https://api.seekr.tv/sprites?${params.toString()}`, { headers })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data || !data.vttUrl) return;
+        const vtt = data.vttUrl.includes("?") ? `${data.vttUrl}&st=1` : `${data.vttUrl}?st=1`;
+        seekrLoadedVttUrl = vtt;
+        return fetch(vtt).then(res => res.text());
+      })
+      .then(text => {
+        if (text) seekrCues = parseSeekrVtt(text, seekrLoadedVttUrl);
+      })
+      .catch(() => {});
+  }
+}
+
+function updateSeekrPreview(positionMs, clientX) {
+  if (!codeineSeekPreview || !seekrCues || seekrCues.length === 0) {
+    hideSeekrPreview();
+    return;
+  }
+
+  const centerIdx = findSeekrCueIndex(seekrCues, positionMs);
+  if (centerIdx < 0) {
+    hideSeekrPreview();
+    return;
+  }
+
+  const centerCue = seekrCues[centerIdx];
+  const tileWidth = (centerCue && centerCue.w) || 144;
+  const tileHeight = (centerCue && centerCue.h) || 81;
+
+  for (let offset = -2; offset <= 2; offset++) {
+    const tileIdx = offset + 2;
+    const tileEl = previewTiles[tileIdx];
+    if (!tileEl) continue;
+    const cueIdx = centerIdx + offset;
+    const cue = seekrCues[cueIdx];
+    if (cue) {
+      tileEl.style.display = "block";
+      tileEl.style.width = `${tileWidth}px`;
+      tileEl.style.height = `${tileHeight}px`;
+      tileEl.style.backgroundImage = `url("${cue.sheetUrl}")`;
+      tileEl.style.backgroundPosition = `-${cue.x}px -${cue.y}px`;
+    } else {
+      tileEl.style.display = "none";
+    }
+  }
+
+  if (seekPreviewPill) {
+    seekPreviewPill.textContent = formatTime(centerCue ? centerCue.startMs : positionMs);
+  }
+
+  if (codeineSeekContainer) {
+    const parentRect = codeineSeekPreview.parentElement ? codeineSeekPreview.parentElement.getBoundingClientRect() : { left: 0, width: window.innerWidth };
+    const containerRect = codeineSeekContainer.getBoundingClientRect();
+    const windowWidth = window.innerWidth || document.documentElement.clientWidth;
+    const filmstripWidth = 5 * tileWidth + 4 * 8;
+    let targetX;
+    if (clientX != null) {
+      targetX = clientX;
+    } else if (state.durationMs > 0) {
+      const frac = Math.max(0, Math.min(1, positionMs / state.durationMs));
+      targetX = containerRect.left + frac * containerRect.width;
+    } else {
+      targetX = windowWidth / 2;
+    }
+
+    const minCenter = filmstripWidth / 2 + 16;
+    const maxCenter = windowWidth - filmstripWidth / 2 - 16;
+    const clampedCenter = Math.max(minCenter, Math.min(maxCenter, targetX));
+    const localX = clampedCenter - parentRect.left;
+    codeineSeekPreview.style.left = `${localX}px`;
+  }
+
+  codeineSeekPreview.classList.add("visible");
+}
+
+function hideSeekrPreview() {
+  if (codeineSeekPreview) {
+    codeineSeekPreview.classList.remove("visible");
+  }
+}
+
 seek.addEventListener("input", () => {
   noteChromeActivity();
   triggerSeekbarOnlyOnSeek();
@@ -4201,6 +4419,7 @@ seek.addEventListener("input", () => {
   scrubPositionMs = rangePositionMs();
   setProgress(scrubPositionMs, state.durationMs);
   send("scrubChange", scrubPositionMs);
+  updateSeekrPreview(scrubPositionMs, null);
 });
 
 seek.addEventListener("change", () => {
@@ -4210,11 +4429,28 @@ seek.addEventListener("change", () => {
   isScrubbing = false;
   send("scrubFinish", scrubPositionMs);
   state.positionMs = scrubPositionMs;
+  hideSeekrPreview();
   render();
   if (!playerToast || !playerToast.classList.contains("visible")) {
     hideSeekbarOnly();
   }
 });
+
+if (codeineSeekContainer) {
+  codeineSeekContainer.addEventListener("mousemove", event => {
+    if (!state.seekPreviewEnabled || !state.durationMs) return;
+    const rect = codeineSeekContainer.getBoundingClientRect();
+    if (!rect.width) return;
+    const frac = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const hoveredMs = Math.round(frac * state.durationMs);
+    updateSeekrPreview(isScrubbing ? scrubPositionMs : hoveredMs, event.clientX);
+  });
+  codeineSeekContainer.addEventListener("mouseleave", () => {
+    if (!isScrubbing) {
+      hideSeekrPreview();
+    }
+  });
+}
 
 volumeSlider.addEventListener("input", event => {
   if (event && !event.isTrusted) return;
@@ -4378,6 +4614,9 @@ window.playerUpdate = update => {
     }
   }
   renderChrome();
+  if (state.seekPreviewEnabled && (!seekrCues || seekrCues.length === 0)) {
+    syncSeekrPreviews();
+  }
   if ((audioTracksChanged && activeModal === "audio") ||
       (subtitleTracksChanged && activeModal === "subtitles")) {
     renderActiveModal(true);
@@ -4438,6 +4677,7 @@ window.playerControls = nextState => {
     resetSubtitleSelectionState();
   }
   render();
+  syncSeekrPreviews();
   if (pendingSettingToastCommand === "resize" && (state.resizeModeLabel || "") !== previousResizeLabel) {
     pendingSettingToastCommand = "";
     showPlayerToast(settingToastLabel("resize"), { icon: "icon-aspect" });
@@ -5296,6 +5536,13 @@ document.addEventListener("keydown", event => {
     const nextPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, (Number(state.positionMs) || 0) + deltaMs) : (Number(state.positionMs) || 0) + deltaMs);
     state.positionMs = nextPosMs;
     setProgress(nextPosMs, durationMs);
+    if (state.seekPreviewEnabled) {
+      updateSeekrPreview(nextPosMs, null);
+      clearTimeout(window.keyboardSeekPreviewTimeout);
+      window.keyboardSeekPreviewTimeout = setTimeout(() => {
+        if (!isScrubbing) hideSeekrPreview();
+      }, 1500);
+    }
   }
   showCommandToast(command);
   send(command, 0);
@@ -5304,4 +5551,5 @@ document.addEventListener("keydown", event => {
 setProgress(0, 0);
 focusShortcutRoot();
 render();
+syncSeekrPreviews();
 send("controlsReady", 0);

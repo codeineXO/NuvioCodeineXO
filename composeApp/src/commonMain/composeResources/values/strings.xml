@@ -2510,4 +2510,17 @@
     <string name="movie_status_rumored">Rumored</string>
     <string name="movie_status_in_production">In Production</string>
     <string name="movie_status_post_production">Post Production</string>
+
+    <!-- Seek Previews / Seekr -->
+    <string name="settings_playback_seek_previews">Seek Previews</string>
+    <string name="settings_playback_seek_previews_description">Show thumbnail filmstrip while scrubbing the seekbar.</string>
+    <string name="settings_playback_seekr_api_key">Seekr API Key</string>
+    <string name="settings_playback_seekr_api_key_description">Enter your Seekr API key for thumbnail previews. A free key is available at seekr.tv.</string>
+    <string name="settings_playback_seekr_invalid_api_key">Invalid API Key or connection failed</string>
+    <string name="settings_playback_seekr_key_not_set">Not configured</string>
+    <string name="settings_playback_seekr_key_configured">Configured</string>
+    <string name="settings_playback_seekr_key_dialog_title">Seekr API Key</string>
+    <string name="settings_playback_seekr_get_api_key">Get Free API Key</string>
+    <string name="settings_playback_seekr_get_api_key_description">Open seekr.tv in your browser to get a free API key</string>
+    <string name="settings_playback_seekr_open_website">Get Key (seekr.tv)</string>
 </resources>

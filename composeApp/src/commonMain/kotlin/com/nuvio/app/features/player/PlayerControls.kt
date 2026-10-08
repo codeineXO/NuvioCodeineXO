@@ -114,6 +114,7 @@ internal fun PlayerControlsShell(
     parentalWarnings: List<ParentalWarning> = emptyList(),
     showParentalGuide: Boolean = false,
     onParentalGuideAnimationComplete: () -> Unit = {},
+    seekPreviewContent: (@Composable () -> Unit)? = null,
     onScrubChange: (Long) -> Unit,
     onScrubFinished: (Long) -> Unit,
     horizontalSafePadding: androidx.compose.ui.unit.Dp,
@@ -244,6 +245,7 @@ internal fun PlayerControlsShell(
                     displayedPositionMs = displayedPositionMs,
                     metrics = metrics,
                     resizeMode = resizeMode,
+                    seekPreviewContent = seekPreviewContent,
                     onScrubChange = onScrubChange,
                     onScrubFinished = onScrubFinished,
                     onResizeModeClick = onResizeModeClick,
@@ -281,15 +283,30 @@ internal fun PlayerControlsShell(
                             metrics = metrics,
                         )
                     }
-                    PlayerTimeline(
-                        snapshot = playbackSnapshot,
-                        displayedPositionMs = displayedPositionMs,
-                        onScrubChange = onScrubChange,
-                        onScrubFinished = {
-                            onInteraction()
-                            onScrubFinished(it)
-                        },
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.BottomCenter,
+                    ) {
+                        PlayerTimeline(
+                            snapshot = playbackSnapshot,
+                            displayedPositionMs = displayedPositionMs,
+                            onScrubChange = onScrubChange,
+                            onScrubFinished = {
+                                onInteraction()
+                                onScrubFinished(it)
+                            },
+                        )
+                        seekPreviewContent?.let { preview ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 36.dp),
+                                contentAlignment = Alignment.BottomCenter,
+                            ) {
+                                preview()
+                            }
+                        }
+                    }
                     PlayerControlActions(
                         playbackSnapshot = playbackSnapshot,
                         displayedPositionMs = displayedPositionMs,
@@ -601,6 +618,7 @@ private fun ProgressControls(
     displayedPositionMs: Long,
     metrics: PlayerLayoutMetrics,
     resizeMode: PlayerResizeMode,
+    seekPreviewContent: (@Composable () -> Unit)? = null,
     onScrubChange: (Long) -> Unit,
     onScrubFinished: (Long) -> Unit,
     onResizeModeClick: () -> Unit,
@@ -618,13 +636,28 @@ private fun ProgressControls(
     val episodesPainter = appIconPainter(AppIconResource.PlayerEpisodes)
 
     Column(modifier = modifier) {
-        PlayerSeekBar(
-            durationMs = playbackSnapshot.durationMs,
-            displayedPositionMs = displayedPositionMs,
-            metrics = metrics,
-            onScrubChange = onScrubChange,
-            onScrubFinished = onScrubFinished,
-        )
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            PlayerSeekBar(
+                durationMs = playbackSnapshot.durationMs,
+                displayedPositionMs = displayedPositionMs,
+                metrics = metrics,
+                onScrubChange = onScrubChange,
+                onScrubFinished = onScrubFinished,
+            )
+            seekPreviewContent?.let { preview ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 36.dp),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    preview()
+                }
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,

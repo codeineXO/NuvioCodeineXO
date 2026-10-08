@@ -179,6 +179,8 @@ internal class PlayerScreenRuntime(
     var errorMessage by mutableStateOf<String?>(null)
     var isScrubbingTimeline by mutableStateOf(false)
     var scrubbingPositionMs by mutableStateOf<Long?>(null)
+    var seekPreviewTrack by mutableStateOf<com.nuvio.app.features.player.seekpreview.SeekrPreviewTrack?>(null)
+    var pausedForTimelineScrub by mutableStateOf(false)
     var pausedOverlayVisible by mutableStateOf(false)
     var gestureFeedback by mutableStateOf<GestureFeedbackState?>(null)
     var liveGestureFeedback by mutableStateOf<GestureFeedbackState?>(null)

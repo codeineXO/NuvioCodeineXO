@@ -20,6 +20,10 @@ internal fun PlayerScreenRuntime.finishTimelineScrub(positionMs: Long) {
     lastManualSkipSeekPositions = playbackSnapshot.positionMs to positionMs
     isScrubbingTimeline = false
     scrubbingPositionMs = positionMs.takeIf { playbackSnapshot.isLoading }
+    if (pausedForTimelineScrub) {
+        pausedForTimelineScrub = false
+        playerController?.play()
+    }
 }
 
 internal fun PlayerScreenRuntime.updatePlaybackSnapshot(

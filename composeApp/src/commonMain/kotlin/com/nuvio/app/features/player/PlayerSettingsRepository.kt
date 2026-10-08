@@ -103,6 +103,8 @@ data class PlayerSettingsUiState(
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
     val audioNightModeEnabled: Boolean = false,
     val showSeekbarWhileSeeking: Boolean = true,
+    val seekPreviewEnabled: Boolean = true,
+    val seekrApiKey: String = "",
 )
 
 object PlayerSettingsRepository {
@@ -180,6 +182,8 @@ object PlayerSettingsRepository {
     private var animeUpscalerMode = AnimeUpscalerMode.FAST
     private var audioNightModeEnabled = false
     private var showSeekbarWhileSeeking = true
+    private var seekPreviewEnabled = true
+    private var seekrApiKey = ""
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -262,6 +266,8 @@ object PlayerSettingsRepository {
         animeUpscalerMode = AnimeUpscalerMode.FAST
         audioNightModeEnabled = false
         showSeekbarWhileSeeking = true
+        seekPreviewEnabled = true
+        seekrApiKey = ""
         publish()
     }
 
@@ -421,6 +427,8 @@ object PlayerSettingsRepository {
         animeUpscalerMode = AnimeUpscalerMode.fromStorageKey(PlayerSettingsStorage.loadAnimeUpscalerMode())
         audioNightModeEnabled = PlayerSettingsStorage.loadAudioNightModeEnabled() ?: false
         showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
+        seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
+        seekrApiKey = PlayerSettingsStorage.loadSeekrApiKey() ?: ""
         publish()
     }
 
@@ -907,6 +915,23 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveShowSeekbarWhileSeeking(enabled)
     }
 
+    fun setSeekPreviewEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (seekPreviewEnabled == enabled) return
+        seekPreviewEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveSeekPreviewEnabled(enabled)
+    }
+
+    fun setSeekrApiKey(apiKey: String) {
+        ensureLoaded()
+        val trimmed = apiKey.trim()
+        if (seekrApiKey == trimmed) return
+        seekrApiKey = trimmed
+        publish()
+        PlayerSettingsStorage.saveSeekrApiKey(trimmed)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1152,6 +1177,8 @@ object PlayerSettingsRepository {
             animeUpscalerMode = animeUpscalerMode,
             audioNightModeEnabled = audioNightModeEnabled,
             showSeekbarWhileSeeking = showSeekbarWhileSeeking,
+            seekPreviewEnabled = seekPreviewEnabled,
+            seekrApiKey = seekrApiKey,
         )
     }
 

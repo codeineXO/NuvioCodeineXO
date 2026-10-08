@@ -37,6 +37,7 @@ import com.nuvio.app.features.streams.isSelectableForPlayback
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.isDesktop
+import com.nuvio.app.features.player.seekpreview.SeekPreviewFilmstripOverlay
 import com.nuvio.app.features.player.skip.internalSkipAction
 import com.nuvio.app.isIos
 import kotlinx.coroutines.launch
@@ -319,9 +320,23 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         showSubmitIntroModal ||
         (pendingP2pSwitch != null)
     val isCodeineUi = playerSettingsUiState.playerUiMode == PlayerUiMode.CODEINE_XO
+    val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+    val resolvedImdbId = extractImdbId(parentMetaId)
+        ?: extractImdbId(targetMeta?.imdbId)
+        ?: extractImdbId(targetMeta?.id)
+        ?: playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
+    val resolvedTmdbId = extractTmdbId(parentMetaId)
+        ?: extractTmdbId(targetMeta?.id)
     val playerControlsState = PlayerControlsState(
         title = title,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
+        seekPreviewEnabled = playerSettingsUiState.seekPreviewEnabled,
+        seekPreviewVttUrl = seekPreviewTrack?.vttUrl.orEmpty(),
+        seekrApiKey = playerSettingsUiState.seekrApiKey,
+        seekrImdbId = resolvedImdbId.orEmpty(),
+        seekrTmdbId = resolvedTmdbId ?: 0,
+        seekrSeason = activeSeasonNumber ?: 0,
+        seekrEpisode = activeEpisodeNumber ?: 0,
         showSeekbarWhileSeeking = playerSettingsUiState.showSeekbarWhileSeeking,
         showPlaybackTimeOverlay = isCodeineUi &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
@@ -809,13 +824,26 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             parentalWarnings = parentalWarnings,
             showParentalGuide = showParentalGuide,
             onParentalGuideAnimationComplete = { showParentalGuide = false },
+            seekPreviewContent = if (playerSettingsUiState.seekPreviewEnabled) {
+                {
+                    SeekPreviewFilmstripOverlay(
+                        track = seekPreviewTrack,
+                        scrubPositionMs = scrubbingPositionMs,
+                        isVisible = isScrubbingTimeline,
+                    )
+                }
+            } else null,
             onScrubChange = { positionMs ->
+                if (!isScrubbingTimeline && playbackSnapshot.isPlaying) {
+                    pausedForTimelineScrub = true
+                    playerController?.pause()
+                }
                 isScrubbingTimeline = true
                 scrubbingPositionMs = positionMs
             },
             onScrubFinished = { positionMs ->
-                finishTimelineScrub(positionMs)
                 playerController?.seekTo(positionMs)
+                finishTimelineScrub(positionMs)
                 scheduleProgressSyncAfterSeek()
             },
             horizontalSafePadding = horizontalSafePadding,
@@ -1420,14 +1448,18 @@ private fun formatPlayerControlsSeconds(seconds: Double): String {
 
 private fun PlayerScreenRuntime.handlePlayerControlsScrubChange(positionMs: Long) {
     playerControlsLog.d { "scrubChange positionMs=$positionMs ${playerControlLogContext()}" }
+    if (!isScrubbingTimeline && playbackSnapshot.isPlaying) {
+        pausedForTimelineScrub = true
+        playerController?.pause()
+    }
     isScrubbingTimeline = true
     scrubbingPositionMs = positionMs
 }
 
 private fun PlayerScreenRuntime.handlePlayerControlsScrubFinished(positionMs: Long) {
     playerControlsLog.d { "scrubFinished positionMs=$positionMs controller=${playerController != null} ${playerControlLogContext()}" }
-    finishTimelineScrub(positionMs)
     playerController?.seekTo(positionMs)
+    finishTimelineScrub(positionMs)
     scheduleProgressSyncAfterSeek()
 }
 

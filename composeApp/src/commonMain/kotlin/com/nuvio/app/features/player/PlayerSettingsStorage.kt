@@ -176,6 +176,10 @@ internal expect object PlayerSettingsStorage {
     fun saveAudioNightModeEnabled(enabled: Boolean)
     fun loadShowSeekbarWhileSeeking(): Boolean?
     fun saveShowSeekbarWhileSeeking(enabled: Boolean)
+    fun loadSeekPreviewEnabled(): Boolean?
+    fun saveSeekPreviewEnabled(enabled: Boolean)
+    fun loadSeekrApiKey(): String?
+    fun saveSeekrApiKey(apiKey: String)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

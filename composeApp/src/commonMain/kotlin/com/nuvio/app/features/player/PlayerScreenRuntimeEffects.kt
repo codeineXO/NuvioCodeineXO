@@ -44,6 +44,9 @@ import com.nuvio.app.features.watching.application.WatchingState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.nuvio.app.features.player.seekpreview.SeekrContentMapping
+import com.nuvio.app.features.player.seekpreview.SeekrLookupClient
+import com.nuvio.app.features.player.seekpreview.SeekrPreviewTrack
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
@@ -125,6 +128,8 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         cancelNextEpisodeAutoPlay()
         isScrubbingTimeline = false
         scrubbingPositionMs = null
+        seekPreviewTrack = null
+        pausedForTimelineScrub = false
         liveGestureFeedback = null
         renderedGestureFeedback = null
         lockedOverlayVisible = false
@@ -157,6 +162,73 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         SubtitleRepository.clear()
         autoFetchedAddonSubtitlesForKey = null
         WatchProgressRepository.ensureLoaded()
+    }
+
+    val seekPreviewEnabled = playerSettingsUiState.seekPreviewEnabled
+    val seekrApiKey = playerSettingsUiState.seekrApiKey
+    val currentDurationMs = playbackSnapshot.durationMs
+
+    LaunchedEffect(
+        seekPreviewEnabled,
+        seekrApiKey,
+        parentMetaId,
+        parentMetaType,
+        activeVideoId,
+        activeSeasonNumber,
+        activeEpisodeNumber,
+        playerMeta?.id,
+        playerMeta?.imdbId,
+        currentDurationMs > 0L,
+    ) {
+        if (!seekPreviewEnabled) {
+            val oldTrack = seekPreviewTrack
+            seekPreviewTrack = null
+            oldTrack?.clear()
+            return@LaunchedEffect
+        }
+
+        val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+        val resolvedImdbId = extractImdbId(parentMetaId)
+            ?: extractImdbId(targetMeta?.imdbId)
+            ?: extractImdbId(targetMeta?.id)
+            ?: playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
+        val resolvedTmdbId = extractTmdbId(parentMetaId)
+            ?: extractTmdbId(targetMeta?.id)
+            ?: TmdbService.ensureTmdbId(targetMeta?.id ?: parentMetaId, parentMetaType, fallbackImdbId = resolvedImdbId)?.toIntOrNull()
+            ?: TmdbService.ensureTmdbId(resolvedImdbId ?: parentMetaId, parentMetaType, fallbackImdbId = targetMeta?.imdbId)?.toIntOrNull()
+
+        val content = SeekrContentMapping.from(
+            parentMetaId = parentMetaId,
+            videoId = activeVideoId,
+            contentType = contentType ?: parentMetaType,
+            seasonNumber = activeSeasonNumber,
+            episodeNumber = activeEpisodeNumber,
+            explicitImdbId = resolvedImdbId,
+            explicitTmdbId = resolvedTmdbId,
+        )
+
+        if (content == null) {
+            val oldTrack = seekPreviewTrack
+            seekPreviewTrack = null
+            oldTrack?.clear()
+            return@LaunchedEffect
+        }
+
+        val trackResult = SeekrLookupClient.loadTrackResult(
+            content = content,
+            durationMs = currentDurationMs,
+            apiKey = seekrApiKey,
+        )
+
+        if (trackResult != null && trackResult.cues.isNotEmpty()) {
+            val oldTrack = seekPreviewTrack
+            seekPreviewTrack = SeekrPreviewTrack(cues = trackResult.cues, vttUrl = trackResult.vttUrl)
+            oldTrack?.clear()
+        } else {
+            val oldTrack = seekPreviewTrack
+            seekPreviewTrack = null
+            oldTrack?.clear()
+        }
     }
 
     LaunchedEffect(
@@ -422,6 +494,9 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
             cancelNextEpisodePreload()
+            val currentSeekTrack = seekPreviewTrack
+            seekPreviewTrack = null
+            scope.launch { currentSeekTrack?.clear() }
             PlayerStreamsRepository.clearAll()
         }
     }
