@@ -83,7 +83,7 @@ internal fun FullscreenActionButton(
 }
 
 @Composable
-private fun PlayerFullscreenIcon(
+internal fun PlayerFullscreenIcon(
     isExit: Boolean,
     tint: Color,
     modifier: Modifier = Modifier,

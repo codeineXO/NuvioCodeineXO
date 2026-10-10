@@ -10,7 +10,23 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import com.nuvio.app.features.player.InAppPlayerManager
+import kotlin.math.roundToInt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -26,6 +42,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,12 +53,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
@@ -322,9 +341,21 @@ internal fun MainAppContent(
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val activePlayerLaunch by InAppPlayerManager.activeLaunch.collectAsStateWithLifecycle()
+    val isMiniPlayer by InAppPlayerManager.isMiniPlayer.collectAsStateWithLifecycle()
+    val activeLaunchId by InAppPlayerManager.activeLaunchId.collectAsStateWithLifecycle()
+    val miniPlayerOffsetX by InAppPlayerManager.offsetX.collectAsStateWithLifecycle()
+    val miniPlayerOffsetY by InAppPlayerManager.offsetY.collectAsStateWithLifecycle()
+
+    LaunchedEffect(isMiniPlayer) {
+        if (!isMiniPlayer) {
+            InAppPlayerManager.resetOffset()
+        }
+    }
+
     var visiblePlayerEntries by remember { mutableIntStateOf(0) }
     var streamLandscapeLoadingVisible by remember(currentRoute) { mutableStateOf(false) }
-    if (currentRoute is PlayerRoute || visiblePlayerEntries > 0 || streamLandscapeLoadingVisible) {
+    if (!isMiniPlayer && (currentRoute is PlayerRoute || visiblePlayerEntries > 0 || streamLandscapeLoadingVisible)) {
         LockPlayerToLandscape()
         HidePlayerSystemBars()
     }
@@ -747,6 +778,12 @@ internal fun MainAppContent(
         val inPlaybackFlow = currentRoute is StreamRoute || currentRoute is PlayerRoute
         if (inPlaybackFlow) {
             resumePromptItem = null
+        }
+        if (currentRoute is PlayerRoute) {
+            val launch = PlayerLaunchStore.get(currentRoute.launchId)
+            if (launch != null) {
+                InAppPlayerManager.play(currentRoute.launchId, launch)
+            }
         }
     }
 
@@ -1608,24 +1645,10 @@ internal fun MainAppContent(
                             onDispose { visiblePlayerEntries -= 1 }
                         }
                     }
-                    PlayerDestination(
-                        route = route,
-                        navController = navController,
-                        externalPlayerId = playerSettingsUiState.externalPlayerId,
-                        externalPlayerNotConfiguredText = externalPlayerNotConfiguredText,
-                        externalPlayerFailedText = externalPlayerFailedText,
-                        onExternalPlayerLaunch = { launch -> lastExternalPlayerLaunch = launch },
-                        launchExternalPlayer = launchExternalPlayer,
-                        openExternalStreamUrl = ::openExternalStreamUrl,
-                        onSystemBackHandlerChanged = { playerRoute, handler ->
-                            if (handler == null) {
-                                if (registeredPlayerSystemBack?.first == playerRoute) {
-                                    registeredPlayerSystemBack = null
-                                }
-                            } else {
-                                registeredPlayerSystemBack = playerRoute to handler
-                            }
-                        },
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
                     )
                 }
                 entry<CatalogRoute> { route ->
@@ -2133,10 +2156,123 @@ internal fun MainAppContent(
                     .zIndex(15f),
             )
 
+            val currentActiveLaunch = activePlayerLaunch
+            val currentActiveLaunchId = activeLaunchId
+            if (currentActiveLaunch != null && currentActiveLaunchId != null) {
+                val playerRoute = remember(currentActiveLaunchId) {
+                    PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title)
+                }
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    val density = LocalDensity.current
+                    val windowWidthPx = with(density) { maxWidth.toPx() }
+                    val windowHeightPx = with(density) { maxHeight.toPx() }
+                    val padEndPx = with(density) { 24.dp.toPx() }
+                    val padBottomPx = with(density) { 24.dp.toPx() }
+                    val playerWidthPx = with(density) { 340.dp.toPx() }
+                    val playerHeightPx = with(density) { 238.dp.toPx() }
+                    val minOffsetX = -(windowWidthPx - padEndPx - playerWidthPx).coerceAtLeast(0f)
+                    val maxOffsetX = padEndPx
+                    val minOffsetY = -(windowHeightPx - padBottomPx - playerHeightPx).coerceAtLeast(0f)
+                    val maxOffsetY = padBottomPx
+
+                    LaunchedEffect(miniPlayerOffsetX, miniPlayerOffsetY, minOffsetX, maxOffsetX, minOffsetY, maxOffsetY) {
+                        val clampedX = miniPlayerOffsetX.coerceIn(minOffsetX, maxOffsetX)
+                        val clampedY = miniPlayerOffsetY.coerceIn(minOffsetY, maxOffsetY)
+                        if (clampedX != miniPlayerOffsetX || clampedY != miniPlayerOffsetY) {
+                            InAppPlayerManager.setOffset(clampedX, clampedY)
+                        }
+                    }
+
+                    val miniModifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 24.dp, bottom = 24.dp)
+                        .offset {
+                            IntOffset(
+                                miniPlayerOffsetX.coerceIn(minOffsetX, maxOffsetX).roundToInt(),
+                                miniPlayerOffsetY.coerceIn(minOffsetY, maxOffsetY).roundToInt(),
+                            )
+                        }
+                        .pointerInput(minOffsetX, maxOffsetX, minOffsetY, maxOffsetY) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                InAppPlayerManager.dragBy(dragAmount.x, dragAmount.y)
+                            }
+                        }
+                        .size(width = 340.dp, height = 238.dp)
+                        .shadow(elevation = 16.dp, shape = RoundedCornerShape(12.dp))
+                        .border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.nuvio.colors.surfaceElevated)
+                        .zIndex(25f)
+
+                    val fullModifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .zIndex(15f)
+
+                    Box(
+                        modifier = if (isMiniPlayer) miniModifier else fullModifier,
+                    ) {
+                        PlayerDestination(
+                            route = playerRoute,
+                            navController = navController,
+                            externalPlayerId = playerSettingsUiState.externalPlayerId,
+                            externalPlayerNotConfiguredText = externalPlayerNotConfiguredText,
+                            externalPlayerFailedText = externalPlayerFailedText,
+                            onExternalPlayerLaunch = { launch -> lastExternalPlayerLaunch = launch },
+                            launchExternalPlayer = launchExternalPlayer,
+                            openExternalStreamUrl = ::openExternalStreamUrl,
+                            onSystemBackHandlerChanged = { pRoute, handler ->
+                                if (handler == null) {
+                                    if (registeredPlayerSystemBack?.first == pRoute) {
+                                        registeredPlayerSystemBack = null
+                                    }
+                                } else {
+                                    registeredPlayerSystemBack = pRoute to handler
+                                }
+                            },
+                            isMiniPlayer = isMiniPlayer,
+                            onMinimize = {
+                                InAppPlayerManager.minimize()
+                                if (currentRoute is PlayerRoute) {
+                                    navController.popBackStack()
+                                }
+                            },
+                            onExpand = {
+                                InAppPlayerManager.expand()
+                                if (currentRoute !is PlayerRoute) {
+                                    navController.navigate(
+                                        PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title),
+                                    )
+                                }
+                            },
+                            onClose = {
+                                InAppPlayerManager.close()
+                                if (currentRoute is PlayerRoute) {
+                                    navController.popBackStack()
+                                }
+                            },
+                            onBack = {
+                                InAppPlayerManager.close()
+                                if (currentRoute is PlayerRoute) {
+                                    navController.popBackStack()
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
             NuvioToastHost(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .zIndex(20f),
+                    .zIndex(30f),
             )
 
             }

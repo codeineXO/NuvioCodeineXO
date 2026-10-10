@@ -1,6 +1,8 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -249,6 +251,13 @@ private fun NativePlayerSurface(
         DesktopPlayerPictureInPicture.setWindowTitle(playerControlsState.pipWindowTitle)
     }
 
+    LaunchedEffect(host, playerControlsState.isMiniPlayer, platformDensity) {
+        host.setMiniPlayerMode(
+            isMini = playerControlsState.isMiniPlayer,
+            radiusPx = (12f * platformDensity.density + 0.5f).toInt(),
+        )
+    }
+
     LaunchedEffect(controller) {
         DesktopPlayerPictureInPicture.changes.drop(1).collect {
             controller.updateControls(latestPlayerControlsState.value)
@@ -278,10 +287,20 @@ private fun NativePlayerSurface(
     val pipChanges by DesktopPlayerPictureInPicture.changes.collectAsState()
     val isInPip = pipChanges >= 0 && DesktopPlayerPictureInPicture.isEnabled
 
+    val isMiniPlayer = playerControlsState.isMiniPlayer
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .then(
+                if (isMiniPlayer) {
+                    Modifier
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .background(Color.Transparent)
+                } else {
+                    Modifier.background(Color.Black)
+                }
+            ),
         contentAlignment = Alignment.Center,
     ) {
         // SwingPanel keeps the stable AWT host. PiP moves only the native player
@@ -294,13 +313,19 @@ private fun NativePlayerSurface(
                         .align(Alignment.BottomEnd)
                         .requiredSize(1.dp)
                 } else if (hostFirstPaintComplete.value) {
-                    Modifier.fillMaxSize()
+                    Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (isMiniPlayer) {
+                                Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                            } else Modifier
+                        )
                 } else {
                     Modifier
                         .align(Alignment.BottomEnd)
                         .requiredSize(1.dp)
                 },
-                background = Color.Black,
+                background = if (isMiniPlayer) Color.Transparent else Color.Black,
             )
         }
 

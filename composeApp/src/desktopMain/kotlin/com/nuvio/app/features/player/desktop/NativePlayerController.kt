@@ -14,6 +14,7 @@ import com.nuvio.app.features.player.PlayerControlSubtitleLanguageItem
 import com.nuvio.app.features.player.PlayerControlSubtitleOptionItem
 import com.nuvio.app.features.player.AudioTrack
 import com.nuvio.app.features.player.findPreferredAudioTrackIndex
+import com.nuvio.app.features.player.InAppPlayerManager
 import com.nuvio.app.features.player.ParentalWarning
 import com.nuvio.app.features.player.PlayerControlsAction
 import com.nuvio.app.features.player.PlayerControlsState
@@ -604,6 +605,8 @@ internal class NativePlayerController(
                 }
             }
             "dragWindow" -> NativePlayerBridge.beginWindowDrag(handle)
+            "miniPlayerDragX" -> InAppPlayerManager.dragBy(value.toFloat(), 0f)
+            "miniPlayerDragY" -> InAppPlayerManager.dragBy(0f, value.toFloat())
             "resizePip" -> DesktopPlayerPictureInPicture.resizeWindow(value)
             "volumeChange" -> setFallbackVolume(value.toFloat())
             "volumeChangeTemporary" -> setTemporaryVolume(value.toFloat())
@@ -1345,6 +1348,8 @@ private fun String.toPlayerControlsAction(): PlayerControlsAction? =
         "external" -> PlayerControlsAction.OpenExternalPlayer
         "submitIntro" -> PlayerControlsAction.SubmitIntro
         "videoSettings" -> PlayerControlsAction.VideoSettings
+        "minimize" -> PlayerControlsAction.Minimize
+        "expand" -> PlayerControlsAction.Expand
         else -> null
     }
 
@@ -1357,6 +1362,8 @@ private data class NativeControlsStructureKey(
 private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
     buildString {
         append('{')
+        appendJsonField("isMiniPlayer", isMiniPlayer)
+        append(',')
         appendJsonField("playerUiMode", playerUiMode)
         append(',')
         appendJsonField("seekPreviewEnabled", seekPreviewEnabled)
@@ -1380,6 +1387,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         appendJsonField("audioNightModeEnabled", audioNightModeEnabled)
         append(',')
         appendJsonField("showSeekbarWhileSeeking", showSeekbarWhileSeeking)
+        append(',')
+        appendJsonField("showRemainingTime", showRemainingTime)
         append(',')
         appendJsonField("title", title)
         append(',')
@@ -1601,6 +1610,8 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
                 ""
             },
         )
+        append(',')
+        appendJsonField("minimizeLabel", minimizeLabel)
         append(',')
         appendJsonField("lockLabel", lockLabel)
         append(',')

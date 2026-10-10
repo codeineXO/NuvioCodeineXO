@@ -27,6 +27,11 @@ internal fun PlayerDestination(
     launchExternalPlayer: (ExternalPlayerIntentResult.Success) -> Boolean,
     openExternalStreamUrl: (String) -> Boolean,
     onSystemBackHandlerChanged: (PlayerRoute, (() -> Unit)?) -> Unit,
+    isMiniPlayer: Boolean = false,
+    onMinimize: (() -> Unit)? = null,
+    onExpand: (() -> Unit)? = null,
+    onClose: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     val popBack = rememberGuardedPopBackStack(
         navController = navController,
@@ -41,13 +46,27 @@ internal fun PlayerDestination(
         Box(modifier = Modifier.fillMaxSize())
         return
     }
-    val onBack = rememberGuardedPlayerPopBackStack(
+    val defaultOnBack = rememberGuardedPlayerPopBackStack(
         navController = navController,
         route = route,
         beforePop = ResumePromptRepository::markPlayerExitedNormally,
     )
-    val registerSystemBack = remember(route, onSystemBackHandlerChanged) {
-        { handler: (() -> Unit)? -> onSystemBackHandlerChanged(route, handler) }
+    val effectiveOnBack: com.nuvio.app.features.player.PlayerBackRequest = remember(onBack, defaultOnBack) {
+        if (onBack != null) {
+            { releaseBeforeBack ->
+                releaseBeforeBack(
+                    { onBack() },
+                    { onBack() },
+                )
+            }
+        } else {
+            defaultOnBack
+        }
+    }
+    val registerSystemBack = remember(route, onSystemBackHandlerChanged, onMinimize) {
+        { handler: (() -> Unit)? ->
+            onSystemBackHandlerChanged(route, if (onMinimize != null) onMinimize else handler)
+        }
     }
     LaunchedEffect(launch.videoId) {
         launch.videoId?.let { ResumePromptRepository.markPlayerEntered(it) }
@@ -87,7 +106,11 @@ internal fun PlayerDestination(
         contentLanguage = launch.contentLanguage,
         launchId = route.launchId,
         streamLaunchId = launch.streamLaunchId,
-        onBack = onBack,
+        isMiniPlayer = isMiniPlayer,
+        onMinimize = onMinimize,
+        onExpand = onExpand,
+        onClose = onClose ?: { popBack() },
+        onBack = effectiveOnBack,
         onSystemBackHandlerChanged = registerSystemBack,
         onOpenInExternalPlayer = if (externalPlayerSupported) { { request ->
             val playerLaunch = PlayerLaunch(

@@ -4,9 +4,16 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -329,6 +336,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         ?: extractTmdbId(targetMeta?.id)
     val playerControlsState = PlayerControlsState(
         title = title,
+        isMiniPlayer = args.isMiniPlayer,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
         seekPreviewEnabled = playerSettingsUiState.seekPreviewEnabled,
         seekPreviewVttUrl = seekPreviewTrack?.vttUrl.orEmpty(),
@@ -338,6 +346,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         seekrSeason = activeSeasonNumber ?: 0,
         seekrEpisode = activeEpisodeNumber ?: 0,
         showSeekbarWhileSeeking = playerSettingsUiState.showSeekbarWhileSeeking,
+        showRemainingTime = playerSettingsUiState.showRemainingTime,
         showPlaybackTimeOverlay = isCodeineUi &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
@@ -383,6 +392,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         pipPlaceholderTitle = stringResource(Res.string.compose_player_pip_placeholder_title),
         pipRestoreLabel = stringResource(Res.string.compose_player_pip_restore),
         pipWindowTitle = stringResource(Res.string.compose_player_pip_window_title),
+        minimizeLabel = stringResource(Res.string.compose_player_minimize),
         playbackErrorTitle = stringResource(Res.string.compose_player_playback_error),
         playbackErrorMessage = errorMessage.orEmpty(),
         playbackErrorActionLabel = stringResource(Res.string.compose_player_go_back),
@@ -467,7 +477,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         isLoading = playbackSnapshot.isLoading,
         isLocked = playerControlsLocked,
         lockedOverlayVisible = lockedOverlayVisible,
-        controlsVisible = controlsVisible && !playerControlsLocked,
+        controlsVisible = !args.isMiniPlayer && controlsVisible && !playerControlsLocked,
         parentalWarnings = parentalWarnings,
         showParentalGuide = showParentalGuide,
         showSubmitIntro = isSeries &&
@@ -562,14 +572,36 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         nextEpisodePlayable = nextEpisodeInfo?.hasAired == true,
     )
     val gestureCallbacks = rememberSurfaceGestureCallbacks()
-    val playbackGesturesEnabled = !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
-    val enableSurfaceGestures = !isDesktop && !isInPip
+    val playbackGesturesEnabled = !args.isMiniPlayer && !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
+    val enableSurfaceGestures = !args.isMiniPlayer && !isDesktop && !isInPip
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { layoutSize = it }
             .then(
+                if (args.isMiniPlayer) {
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.nuvio.colors.surfaceElevated)
+                } else {
+                    Modifier.background(Color.Black)
+                }
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (args.isMiniPlayer) {
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    } else {
+                        Modifier.fillMaxHeight()
+                    }
+                )
+                .onSizeChanged { layoutSize = it }
+                .then(
                 if (enableSurfaceGestures) {
                     Modifier
                         .playerSurfaceTapGestures(
@@ -665,41 +697,65 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         }
 
-        AnimatedVisibility(
-            visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !controlsVisible && !playerControlsLocked && !isInPip,
-            enter = fadeIn(animationSpec = tween(durationMillis = 220)),
-            exit = fadeOut(animationSpec = tween(durationMillis = 180)),
-        ) {
-            PauseMetadataOverlay(
-                title = title,
-                logo = logo,
-                isEpisode = isEpisode,
-                seasonNumber = activeSeasonNumber,
-                episodeNumber = activeEpisodeNumber,
-                episodeTitle = activeEpisodeTitle,
-                pauseDescription = activePauseDescription?.takeUnless { it.isBlank() },
-                providerName = activeProviderName,
-                metrics = metrics,
-                horizontalSafePadding = horizontalSafePadding,
-                modifier = Modifier.fillMaxSize(),
+        if (!args.isMiniPlayer) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !controlsVisible && !playerControlsLocked && !isInPip,
+                enter = fadeIn(animationSpec = tween(durationMillis = 220)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 180)),
+            ) {
+                PauseMetadataOverlay(
+                    title = title,
+                    logo = logo,
+                    isEpisode = isEpisode,
+                    seasonNumber = activeSeasonNumber,
+                    episodeNumber = activeEpisodeNumber,
+                    episodeTitle = activeEpisodeTitle,
+                    pauseDescription = activePauseDescription?.takeUnless { it.isBlank() },
+                    providerName = activeProviderName,
+                    metrics = metrics,
+                    horizontalSafePadding = horizontalSafePadding,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            if (!isDesktop) {
+                RenderPlayerControls(displayedPositionMs = displayedPositionMs, isEpisode = isEpisode)
+            }
+            RenderPlaybackOverlays(
+                runtime = runtime,
+                displayedPositionMs = displayedPositionMs,
+                currentGestureFeedback = currentGestureFeedback,
+                initialLoadingMessage = initialLoadingMessage,
+                initialLoadingProgress = initialLoadingProgress,
+                showP2pRebufferStats = showP2pRebufferStats,
+                p2pRebufferMessage = p2pRebufferMessage,
+                p2pRebufferProgress = p2pRebufferProgress,
+                suppressOpeningOverlay = isDesktop && playerSurfaceSourceUrl != null,
             )
+            RenderPlayerModals(displayedPositionMs = displayedPositionMs)
+        }
+    }
+
+    if (args.isMiniPlayer) {
+        val miniSubtitle = if (isEpisode) {
+            val base = "S${seasonNumber}E${episodeNumber}"
+            if (!episodeTitle.isNullOrBlank()) "$base • $episodeTitle" else base
+        } else {
+            activeStreamTitle.ifBlank { activeProviderName }
         }
 
-        if (!isDesktop) {
-            RenderPlayerControls(displayedPositionMs = displayedPositionMs, isEpisode = isEpisode)
-        }
-        RenderPlaybackOverlays(
-            runtime = runtime,
-            displayedPositionMs = displayedPositionMs,
-            currentGestureFeedback = currentGestureFeedback,
-            initialLoadingMessage = initialLoadingMessage,
-            initialLoadingProgress = initialLoadingProgress,
-            showP2pRebufferStats = showP2pRebufferStats,
-            p2pRebufferMessage = p2pRebufferMessage,
-            p2pRebufferProgress = p2pRebufferProgress,
-            suppressOpeningOverlay = isDesktop && playerSurfaceSourceUrl != null,
+        InAppMiniPlayerControls(
+            title = title,
+            subtitle = miniSubtitle,
+            isPlaying = playbackSnapshot.isPlaying,
+            progressFraction = if (playbackSnapshot.durationMs > 0L) {
+                (displayedPositionMs.toFloat() / playbackSnapshot.durationMs.toFloat()).coerceIn(0f, 1f)
+            } else 0f,
+            onTogglePlayback = { togglePlayback() },
+            onExpand = { args.onExpand?.invoke() },
+            onClose = { args.onClose?.invoke() },
         )
-        RenderPlayerModals(displayedPositionMs = displayedPositionMs)
+    }
     }
 }
 
@@ -742,8 +798,8 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             resizeMode = resizeMode,
             isLocked = playerControlsLocked,
             useLegacyLayout = playerSettingsUiState.useLegacyPlayerLayout,
-            showRemainingTime = showRemainingTime,
-            onRuntimeClick = { showRemainingTime = !showRemainingTime },
+            showRemainingTime = playerSettingsUiState.showRemainingTime,
+            onRuntimeClick = { PlayerSettingsRepository.setShowRemainingTime(!playerSettingsUiState.showRemainingTime) },
             releaseInfo = metaUiState.meta?.takeIf { it.id == parentMetaId }?.releaseInfo,
             hideDetails = activeSkipInterval != null && !skipIntervalDismissed,
             onNextEpisodeClick = if (nextEpisodeInfo?.hasAired == true && !nextEpisodeAutoPlaySearching && nextEpisodeAutoPlayCountdown == null) {
@@ -847,6 +903,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 scheduleProgressSyncAfterSeek()
             },
             horizontalSafePadding = horizontalSafePadding,
+            onMinimize = args.onMinimize,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -989,6 +1046,12 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
         }
         PlayerControlsAction.PictureInPicture -> {
             togglePlayerPictureInPicture()
+        }
+        PlayerControlsAction.Minimize -> {
+            args.onMinimize?.invoke()
+        }
+        PlayerControlsAction.Expand -> {
+            args.onExpand?.invoke()
         }
         PlayerControlsAction.DoubleTapSeekBack -> {
             prepareDoubleTapSeekForNativeFallback(PlayerSeekDirection.Backward)
@@ -1179,6 +1242,9 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         "subtitleAutoSyncCue" -> {
             val cue = playerControlsNearestSubtitleCues().getOrNull(value.toInt()) ?: return true
             applySubtitleAutoSyncCue(cue)
+        }
+        "setShowRemainingTime" -> {
+            PlayerSettingsRepository.setShowRemainingTime(value.toInt() == 1)
         }
         "subtitleCustomStyleToggle" -> {
             PlayerSettingsRepository.setUseLibass(!playerSettingsUiState.useLibass)
@@ -1865,7 +1931,7 @@ private fun BoxScope.RenderPlaybackOverlays(
             playerControlsLocked = playerControlsLocked,
             useLegacyLayout = isDesktop || playerSettingsUiState.useLegacyPlayerLayout,
             lockedOverlayVisible = lockedOverlayVisible,
-            showRemainingTime = showRemainingTime,
+            showRemainingTime = playerSettingsUiState.showRemainingTime,
             playbackSnapshot = playbackSnapshot,
             displayedPositionMs = displayedPositionMs,
             metrics = metrics,

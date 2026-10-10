@@ -10,6 +10,7 @@ import com.nuvio.app.features.collection.disposeCollectionEditorPage
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.player.ExternalPlayerPlaybackRequest
+import com.nuvio.app.features.player.InAppPlayerManager
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.player.PlayerLaunchStore
 import com.nuvio.app.features.player.externalPlaybackSession
@@ -60,8 +61,10 @@ internal fun disposeRouteResources(route: AppRoute) {
         }
 
         is PlayerRoute -> {
-            ResumePromptRepository.markPlayerExitedNormally()
-            PlayerLaunchStore.remove(route.launchId)
+            if (!InAppPlayerManager.isMinimized(route.launchId)) {
+                ResumePromptRepository.markPlayerExitedNormally()
+                PlayerLaunchStore.remove(route.launchId)
+            }
         }
 
         is CatalogRoute -> {

@@ -4636,6 +4636,7 @@ svg {
 .player.ui-codeinexo.pip-mode #codeineResizeButton,
 .player.ui-codeinexo.pip-mode #codeineSpeedButton,
 .player.ui-codeinexo.pip-mode #codeineShadersButton,
+.player.ui-codeinexo.pip-mode #codeineMiniPlayerButton,
 .player.ui-codeinexo.pip-mode #codeineSourcesButton,
 .player.ui-codeinexo.pip-mode #codeineEpisodesButton,
 .player.ui-codeinexo.pip-mode #codeineSubtitlesButton,
@@ -4658,6 +4659,35 @@ svg {
 }
 .player.ui-codeinexo.pip-mode .codeine-volume-slider {
   display: none !important;
+}
+
+.player.mini-player-mode #codeineHeader,
+.player.mini-player-mode #codeineCenterControls,
+.player.mini-player-mode #codeineBottomBar,
+.player.mini-player-mode #codeineControls,
+.player.mini-player-mode .codeine-center-controls,
+.player.mini-player-mode .codeine-bottom-bar,
+.player.mini-player-mode .codeine-top-header,
+.player.mini-player-mode .codeine-quick-drawer,
+.player.mini-player-mode .header,
+.player.mini-player-mode .footer,
+.player.mini-player-mode .center-controls,
+.player.mini-player-mode .modal,
+.player.mini-player-mode #playbackError,
+.player.mini-player-mode #openingOverlay,
+.player.mini-player-mode .action-pill,
+.player.mini-player-mode .toast,
+.player.mini-player-mode #toast,
+.player.mini-player-mode #skipPrompt,
+.player.mini-player-mode #nextEpisodeCard,
+.player.mini-player-mode #timeOverlay,
+.player.mini-player-mode #p2pStatsOverlay,
+.player.mini-player-mode #parentalGuide {
+  display: none !important;
+}
+
+.player.mini-player-mode {
+  cursor: pointer !important;
 }
 
 @media (max-width: 1024px) {

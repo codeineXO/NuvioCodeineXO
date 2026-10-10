@@ -10,6 +10,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerButton
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -84,7 +89,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
     BoxWithConstraints(
         modifier = args.modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(if (args.isMiniPlayer) Color.Transparent else Color.Black)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -165,14 +170,16 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         val keepScreenAwake = runtime.errorMessage == null &&
             (runtime.playbackSnapshot.isPlaying ||
                 (runtime.shouldPlay && runtime.playbackSnapshot.isLoading))
-        EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
-        ManagePlayerPictureInPicture(
-            isPlaying = runtime.playbackSnapshot.isPlaying,
-            videoSize = IntSize(
-                runtime.playbackSnapshot.videoWidth,
-                runtime.playbackSnapshot.videoHeight,
-            ),
-        )
+        if (!args.isMiniPlayer) {
+            EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
+            ManagePlayerPictureInPicture(
+                isPlaying = runtime.playbackSnapshot.isPlaying,
+                videoSize = IntSize(
+                    runtime.playbackSnapshot.videoWidth,
+                    runtime.playbackSnapshot.videoHeight,
+                ),
+            )
+        }
         runtime.BindPlayerRuntimeEffects()
         runtime.RenderPlayerRuntimeUi()
     }

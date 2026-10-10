@@ -107,6 +107,7 @@ actual object PlayerSettingsStorage {
     private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val seekrApiKeyKey = "seekr_api_key"
+    private const val showRemainingTimeKey = "show_remaining_time"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -122,6 +123,7 @@ actual object PlayerSettingsStorage {
         showSeekbarWhileSeekingKey,
         seekPreviewEnabledKey,
         seekrApiKeyKey,
+        showRemainingTimeKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -1391,6 +1393,23 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadShowRemainingTime(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(showRemainingTimeKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getBoolean(key, false)
+            } else {
+                null
+            }
+        }
+
+    actual fun saveShowRemainingTime(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(showRemainingTimeKey), enabled)
+            ?.apply()
+    }
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadShowPlayerLoadingStatus()?.let { put(showPlayerLoadingStatusKey, encodeSyncBoolean(it)) }
@@ -1474,6 +1493,7 @@ actual object PlayerSettingsStorage {
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
         loadSeekrApiKey()?.let { put(seekrApiKeyKey, encodeSyncString(it)) }
+        loadShowRemainingTime()?.let { put(showRemainingTimeKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -1564,5 +1584,6 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)
         payload.decodeSyncString(seekrApiKeyKey)?.let(::saveSeekrApiKey)
+        payload.decodeSyncBoolean(showRemainingTimeKey)?.let(::saveShowRemainingTime)
     }
 }

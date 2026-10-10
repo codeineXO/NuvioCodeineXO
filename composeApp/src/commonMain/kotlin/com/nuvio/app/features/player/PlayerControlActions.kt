@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.NuvioBackButton
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import com.nuvio.app.core.ui.appIconPainter
 import com.nuvio.app.core.ui.nuvioTypeScale
 import nuvio.composeapp.generated.resources.*
@@ -56,6 +57,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun PlayerToolbar(
     isLocked: Boolean,
     onLockToggle: () -> Unit,
+    onMinimize: (() -> Unit)? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -68,6 +70,13 @@ internal fun PlayerToolbar(
             icon = if (isLocked) Icons.Rounded.LockOpen else Icons.Rounded.Lock,
             onClick = onLockToggle,
         )
+        if (onMinimize != null && !isLocked) {
+            PlayerAction(
+                description = stringResource(Res.string.compose_player_minimize),
+                icon = Icons.Rounded.KeyboardArrowDown,
+                onClick = onMinimize,
+            )
+        }
         NuvioBackButton(
             onClick = onBack,
             containerColor = Color.Transparent,

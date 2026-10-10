@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Replay10
@@ -98,6 +99,7 @@ internal fun PlayerControlsShell(
     onInteraction: () -> Unit = {},
     showPlaybackControls: Boolean = true,
     onLockToggle: () -> Unit,
+    onMinimize: (() -> Unit)? = null,
     onBack: () -> Unit,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
@@ -179,6 +181,7 @@ internal fun PlayerControlsShell(
                     showParentalGuide = showParentalGuide,
                     onParentalGuideAnimationComplete = onParentalGuideAnimationComplete,
                     onLockToggle = onLockToggle,
+                    onMinimize = onMinimize,
                     onVideoSettingsClick = onVideoSettingsClick,
                     onOpenInExternalPlayer = onOpenInExternalPlayer,
                     onBack = onBack,
@@ -197,6 +200,7 @@ internal fun PlayerControlsShell(
                     PlayerToolbar(
                         isLocked = isLocked,
                         onLockToggle = onLockToggle,
+                        onMinimize = onMinimize,
                         onBack = onBack,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -348,6 +352,7 @@ private fun PlayerHeader(
     showParentalGuide: Boolean,
     onParentalGuideAnimationComplete: () -> Unit,
     onLockToggle: () -> Unit,
+    onMinimize: (() -> Unit)? = null,
     onVideoSettingsClick: (() -> Unit)?,
     onOpenInExternalPlayer: (() -> Unit)?,
     onBack: () -> Unit,
@@ -476,6 +481,15 @@ private fun PlayerHeader(
                             buttonSize = metrics.headerIconSize + 16.dp,
                             iconSize = metrics.headerIconSize,
                             onClick = onVideoSettingsClick,
+                        )
+                    }
+                    if (onMinimize != null && !isLocked) {
+                        PlayerHeaderIconButton(
+                            icon = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(Res.string.compose_player_minimize),
+                            buttonSize = metrics.headerIconSize + 16.dp,
+                            iconSize = metrics.headerIconSize,
+                            onClick = onMinimize,
                         )
                     }
                     NuvioBackButton(

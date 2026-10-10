@@ -44,6 +44,10 @@ internal fun PlayerScreen(
     contentLanguage: String? = null,
     launchId: Long? = null,
     streamLaunchId: Long? = null,
+    isMiniPlayer: Boolean = false,
+    onMinimize: (() -> Unit)? = null,
+    onExpand: (() -> Unit)? = null,
+    onClose: (() -> Unit)? = null,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -86,6 +90,10 @@ internal fun PlayerScreen(
             contentLanguage = contentLanguage,
             launchId = launchId,
             streamLaunchId = streamLaunchId,
+            isMiniPlayer = isMiniPlayer,
+            onMinimize = onMinimize,
+            onExpand = onExpand,
+            onClose = onClose,
         )
     )
 }

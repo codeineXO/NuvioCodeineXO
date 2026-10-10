@@ -105,6 +105,7 @@ data class PlayerSettingsUiState(
     val showSeekbarWhileSeeking: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
     val seekrApiKey: String = "",
+    val showRemainingTime: Boolean = false,
 )
 
 object PlayerSettingsRepository {
@@ -184,6 +185,7 @@ object PlayerSettingsRepository {
     private var showSeekbarWhileSeeking = true
     private var seekPreviewEnabled = true
     private var seekrApiKey = ""
+    private var showRemainingTime = false
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -268,6 +270,7 @@ object PlayerSettingsRepository {
         showSeekbarWhileSeeking = true
         seekPreviewEnabled = true
         seekrApiKey = ""
+        showRemainingTime = false
         publish()
     }
 
@@ -429,6 +432,7 @@ object PlayerSettingsRepository {
         showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
         seekrApiKey = PlayerSettingsStorage.loadSeekrApiKey() ?: ""
+        showRemainingTime = PlayerSettingsStorage.loadShowRemainingTime() ?: false
         publish()
     }
 
@@ -932,6 +936,14 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSeekrApiKey(trimmed)
     }
 
+    fun setShowRemainingTime(enabled: Boolean) {
+        ensureLoaded()
+        if (showRemainingTime == enabled) return
+        showRemainingTime = enabled
+        publish()
+        PlayerSettingsStorage.saveShowRemainingTime(enabled)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1179,6 +1191,7 @@ object PlayerSettingsRepository {
             showSeekbarWhileSeeking = showSeekbarWhileSeeking,
             seekPreviewEnabled = seekPreviewEnabled,
             seekrApiKey = seekrApiKey,
+            showRemainingTime = showRemainingTime,
         )
     }
 

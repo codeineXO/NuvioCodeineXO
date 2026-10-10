@@ -73,10 +73,13 @@ enum class PlayerControlsAction {
     VideoSettings,
     DoubleTapSeekBack,
     DoubleTapSeekForward,
+    Minimize,
+    Expand,
 }
 
 data class PlayerControlsState(
     val title: String = "",
+    val isMiniPlayer: Boolean = false,
     val playerUiMode: String = "codeine_xo",
     val seekPreviewEnabled: Boolean = false,
     val seekPreviewVttUrl: String = "",
@@ -86,6 +89,7 @@ data class PlayerControlsState(
     val seekrSeason: Int = 0,
     val seekrEpisode: Int = 0,
     val showSeekbarWhileSeeking: Boolean = true,
+    val showRemainingTime: Boolean = false,
     val showPlaybackTimeOverlay: Boolean = false,
     val showTorrentStatsOverlay: Boolean = true,
     val torrentStatsText: String = "",
@@ -120,6 +124,7 @@ data class PlayerControlsState(
     val pipPlaceholderTitle: String = "",
     val pipRestoreLabel: String = "",
     val pipWindowTitle: String = "",
+    val minimizeLabel: String = "Mini player",
     val playbackErrorTitle: String = "Playback error",
     val playbackErrorMessage: String = "",
     val playbackErrorActionLabel: String = "Go back",

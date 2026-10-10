@@ -24,6 +24,7 @@ internal actual object PlayerSettingsStorage {
     private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val seekrApiKeyKey = "seekr_api_key"
+    private const val showRemainingTimeKey = "show_remaining_time"
     private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val autoSkipPostCreditsKey = "auto_skip_post_credits"
@@ -121,6 +122,7 @@ internal actual object PlayerSettingsStorage {
         showSeekbarWhileSeekingKey,
         seekPreviewEnabledKey,
         seekrApiKeyKey,
+        showRemainingTimeKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -380,6 +382,9 @@ internal actual object PlayerSettingsStorage {
     actual fun loadSeekrApiKey(): String? = loadString(seekrApiKeyKey)
     actual fun saveSeekrApiKey(apiKey: String) = saveString(seekrApiKeyKey, apiKey)
 
+    actual fun loadShowRemainingTime(): Boolean? = loadBoolean(showRemainingTimeKey)
+    actual fun saveShowRemainingTime(enabled: Boolean) = saveBoolean(showRemainingTimeKey, enabled)
+
     private fun scoped(key: String): String = ProfileScopedKey.of(key)
     private fun loadString(key: String): String? = store.getString(scoped(key))
     private fun saveString(key: String, value: String) = store.putString(scoped(key), value)
@@ -480,6 +485,7 @@ internal actual object PlayerSettingsStorage {
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
         loadSeekrApiKey()?.let { put(seekrApiKeyKey, encodeSyncString(it)) }
+        loadShowRemainingTime()?.let { put(showRemainingTimeKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -570,5 +576,6 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)
         payload.decodeSyncString(seekrApiKeyKey)?.let(::saveSeekrApiKey)
+        payload.decodeSyncBoolean(showRemainingTimeKey)?.let(::saveShowRemainingTime)
     }
 }

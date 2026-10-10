@@ -180,6 +180,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSeekPreviewEnabled(enabled: Boolean)
     fun loadSeekrApiKey(): String?
     fun saveSeekrApiKey(apiKey: String)
+    fun loadShowRemainingTime(): Boolean?
+    fun saveShowRemainingTime(enabled: Boolean)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

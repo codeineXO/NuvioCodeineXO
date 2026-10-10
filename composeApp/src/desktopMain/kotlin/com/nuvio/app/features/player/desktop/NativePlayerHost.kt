@@ -23,6 +23,9 @@ internal class NativePlayerHost : Canvas() {
     private var controlsVisible = true
     private var cursorVisible = true
 
+    private var isMiniPlayerMode = false
+    private var cornerRadiusPx = 0
+
     private companion object {
         val hiddenCursor: Cursor by lazy {
             val image = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
@@ -42,24 +45,29 @@ internal class NativePlayerHost : Canvas() {
                 noteCursorActivity()
             }
         })
-        // On Linux/XWayland a heavyweight Canvas embedded in a Compose SwingPanel is not
-        // guaranteed an expose-driven paint() when it is first laid out, so the paint()-based
-        // first-full-size-paint signal (which unlocks the native attach) can never fire and
-        // playback silently never starts. componentResized fires reliably on layout, so use it
-        // to drive the same signal. Linux-only to keep macOS/Windows behaviour byte-identical.
-        if (DesktopHostOs.current == DesktopHostOs.LINUX) {
-            addComponentListener(object : ComponentAdapter() {
-                override fun componentResized(event: ComponentEvent) {
-                    repaint()
-                    notifyFirstPaints()
-                }
-
-                override fun componentShown(event: ComponentEvent) {
-                    repaint()
-                    notifyFirstPaints()
-                }
-            })
+        addHierarchyListener {
+            syncAncestorBackgrounds()
+            updateWindowRegion()
         }
+        addComponentListener(object : ComponentAdapter() {
+            override fun componentResized(event: ComponentEvent) {
+                if (DesktopHostOs.current == DesktopHostOs.LINUX) {
+                    repaint()
+                    notifyFirstPaints()
+                }
+                updateWindowRegion()
+                syncAncestorBackgrounds()
+            }
+
+            override fun componentShown(event: ComponentEvent) {
+                if (DesktopHostOs.current == DesktopHostOs.LINUX) {
+                    repaint()
+                    notifyFirstPaints()
+                }
+                updateWindowRegion()
+                syncAncestorBackgrounds()
+            }
+        })
     }
 
     private fun notifyFirstPaints() {
@@ -98,9 +106,60 @@ internal class NativePlayerHost : Canvas() {
     }
 
     override fun paint(graphics: Graphics) {
-        graphics.color = Color.BLACK
-        graphics.fillRect(0, 0, width, height)
+        if (!isMiniPlayerMode) {
+            graphics.color = Color.BLACK
+            graphics.fillRect(0, 0, width, height)
+        }
         notifyFirstPaints()
+    }
+
+    fun syncAncestorBackgrounds() {
+        if (isMiniPlayerMode) {
+            background = Color(0, 0, 0, 0)
+        } else {
+            background = Color.BLACK
+        }
+        var current: java.awt.Component? = parent
+        while (current != null) {
+            if (current is javax.swing.JComponent) {
+                if (isMiniPlayerMode) {
+                    current.isOpaque = false
+                    current.background = java.awt.Color(0, 0, 0, 0)
+                    current.border = null
+                } else {
+                    current.isOpaque = true
+                    current.background = java.awt.Color.BLACK
+                }
+            }
+            if (current is javax.swing.JRootPane) break
+            current = current.parent
+        }
+    }
+
+    fun setMiniPlayerMode(isMini: Boolean, radiusPx: Int) {
+        if (this.isMiniPlayerMode == isMini && this.cornerRadiusPx == radiusPx) return
+        this.isMiniPlayerMode = isMini
+        this.cornerRadiusPx = radiusPx
+        updateWindowRegion()
+        syncAncestorBackgrounds()
+        if (isMini) {
+            javax.swing.Timer(50) { updateWindowRegion(); syncAncestorBackgrounds() }.apply { isRepeats = false; start() }
+            javax.swing.Timer(150) { updateWindowRegion(); syncAncestorBackgrounds() }.apply { isRepeats = false; start() }
+        }
+    }
+
+    fun updateWindowRegion() {
+        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return
+        val hwnd = runCatching { AwtNativeViewResolver.resolveNativeViewPointer(this) }.getOrNull() ?: 0L
+        if (hwnd == 0L) return
+        if (isMiniPlayerMode && width > 1 && height > 1 && cornerRadiusPx > 0) {
+            WindowsWindowRegionHelper.applyRoundedTopCorners(hwnd, width, height, cornerRadiusPx)
+            java.awt.EventQueue.invokeLater {
+                WindowsWindowRegionHelper.applyRoundedTopCorners(hwnd, width, height, cornerRadiusPx)
+            }
+        } else {
+            WindowsWindowRegionHelper.clearWindowRegion(hwnd)
+        }
     }
 
     override fun addNotify() {
@@ -108,9 +167,15 @@ internal class NativePlayerHost : Canvas() {
         onDisplayableChanged?.invoke(true)
         repaint()
         onPeerReady?.invoke()
+        updateWindowRegion()
+        syncAncestorBackgrounds()
     }
 
     override fun removeNotify() {
+        val hwnd = runCatching { AwtNativeViewResolver.resolveNativeViewPointer(this) }.getOrNull() ?: 0L
+        if (hwnd != 0L) {
+            WindowsWindowRegionHelper.clearWindowRegion(hwnd)
+        }
         onDisplayableChanged?.invoke(false)
         firstPaintNotified = false
         firstFullSizePaintNotified = false
