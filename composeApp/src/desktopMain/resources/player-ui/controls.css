@@ -1003,6 +1003,7 @@ button:disabled {
 .player.pip-mode [data-command="speed"],
 .player.pip-mode [data-command="subtitles"],
 .player.pip-mode [data-command="audio"],
+.player.pip-mode [data-command="shaders"],
 .player.pip-mode [data-command="sources"],
 .player.pip-mode [data-command="episodes"],
 .player.pip-mode [data-command="playNextEpisode"],

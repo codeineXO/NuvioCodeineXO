@@ -31,6 +31,8 @@ import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.resolveContentLanguage
 import com.nuvio.app.features.player.sanitizePlaybackHeaders
 import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
+import com.nuvio.app.features.servers.ServerPlayback
+import com.nuvio.app.features.servers.serverPlaybackMessage
 import com.nuvio.app.features.streams.StreamBehaviorHints
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLaunchStore
@@ -40,7 +42,10 @@ import com.nuvio.app.features.streams.StreamsScreen
 import com.nuvio.app.features.streams.shouldShowAutoPlayLoading
 import com.nuvio.app.features.streams.shouldUseLandscapeAutoPlayLoading
 import com.nuvio.app.features.streams.StreamsUiState
+import com.nuvio.app.features.streams.YouTubeStreamResolver
+import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.navigation.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -76,6 +81,8 @@ internal fun StreamDestination(
     val streamRouteScope = rememberCoroutineScope()
     var autoPlayNavigationStarted by remember(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
     var resolvingDebridStream by rememberSaveable(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
+    var resolvingYouTubeStream by rememberSaveable(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
+    var preparingServerStream by remember(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }
     var pendingP2pStreamOpen by remember(launch.seasonNumber, launch.episodeNumber) { mutableStateOf<PendingP2pStreamOpen?>(null) }
     val shouldResolveEpisodeVideoId =
         launch.parentMetaId != null &&
@@ -144,6 +151,17 @@ internal fun StreamDestination(
             language = meta?.language?.takeIf { it.isNotBlank() } ?: fallbackLanguage,
             country = meta?.country,
         )
+    }
+
+    suspend fun serverResumePositionMs(stream: StreamItem): Long? {
+        if (stream.serverTarget == null || launch.startFromBeginning) return null
+        val saved = WatchProgressRepository.progressForVideo(
+            videoId = effectiveVideoId,
+            parentMetaId = launch.parentMetaId,
+            seasonNumber = launch.seasonNumber,
+            episodeNumber = launch.episodeNumber,
+        )
+        return ServerPlayback.newerResumePositionMs(stream.playableDirectUrl, saved?.lastUpdatedEpochMs)
     }
 
     fun openP2pStream(
@@ -357,7 +375,7 @@ internal fun StreamDestination(
         episode = launch.episodeNumber,
         manualSelection = launch.manualSelection,
     )
-    val showLoadingScreen = autoPlayNavigationStarted || resolvingDebridStream || streamsUiState.shouldShowAutoPlayLoading(
+    val showLoadingScreen = autoPlayNavigationStarted || resolvingDebridStream || resolvingYouTubeStream || preparingServerStream || streamsUiState.shouldShowAutoPlayLoading(
         expectedRequestToken = expectedStreamsRequestToken,
         settings = playerSettings,
         manualSelection = launch.manualSelection,
@@ -382,7 +400,17 @@ internal fun StreamDestination(
         if (autoPlayHandled) return@LaunchedEffect
         if (streamsUiState.requestToken != expectedStreamsRequestToken) return@LaunchedEffect
         val selectedStream = streamsUiState.autoPlayStream ?: return@LaunchedEffect
-        val stream = if (DirectDebridPlaybackResolver.shouldResolveToPlayableStream(selectedStream)) {
+        val stream = if (selectedStream.needsServerPreparation) {
+            StreamsRepository.setOverlayVisible(true, getString(Res.string.player_loading_preparing))
+            runCatching { ServerPlayback.prepare(selectedStream) }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrElse { error ->
+                    if (!StreamsRepository.skipAutoPlayStream(selectedStream)) {
+                        NuvioToastController.show(error.serverPlaybackMessage())
+                    }
+                    return@LaunchedEffect
+                }
+        } else if (DirectDebridPlaybackResolver.shouldResolveToPlayableStream(selectedStream)) {
             StreamsRepository.setOverlayVisible(true, getString(Res.string.debrid_resolving_stream))
             when (
                 val resolved = DirectDebridPlaybackResolver.resolveToPlayableStream(
@@ -432,7 +460,8 @@ internal fun StreamDestination(
             return@LaunchedEffect
         }
         autoPlayHandled = true
-        if (playerSettings.streamReuseLastLinkEnabled) {
+        val serverResumeMs = serverResumePositionMs(stream)
+        if (playerSettings.streamReuseLastLinkEnabled && stream.serverTarget == null) {
             val cacheKey = StreamLinkCacheRepository.contentKey(
                 type = launch.type,
                 videoId = effectiveVideoId,
@@ -480,12 +509,12 @@ internal fun StreamDestination(
             videoId = effectiveVideoId,
             parentMetaId = launch.parentMetaId ?: effectiveVideoId,
             parentMetaType = launch.parentMetaType ?: launch.type,
-            initialPositionMs = launch.resumePositionMs ?: 0L,
-            initialProgressFraction = launch.resumeProgressFraction,
+            initialPositionMs = serverResumeMs ?: launch.resumePositionMs ?: 0L,
+            initialProgressFraction = launch.resumeProgressFraction.takeIf { serverResumeMs == null },
             contentLanguage = resolveLaunchContentLanguage(),
             streamLaunchId = route.launchId,
         )
-        if (externalPlayerSupported && playerSettings.externalPlayerEnabled) {
+        if (externalPlayerSupported && playerSettings.externalPlayerEnabled && stream.serverTarget == null) {
             openExternalPlayback(playerLaunch)
             StreamsRepository.consumeAutoPlay()
             StreamsRepository.cancelLoading()
@@ -526,7 +555,31 @@ internal fun StreamDestination(
         resolvedResumeProgressFraction: Float?,
         forceExternal: Boolean,
         forceInternal: Boolean,
+        saveForReuse: Boolean = true,
     ) {
+        if (stream.needsServerPreparation) {
+            if (preparingServerStream) return
+            streamRouteScope.launch {
+                preparingServerStream = true
+                val prepared = runCatching { ServerPlayback.prepare(stream) }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrElse { error ->
+                        preparingServerStream = false
+                        NuvioToastController.show(error.serverPlaybackMessage())
+                        return@launch
+                    }
+                val serverResumeMs = serverResumePositionMs(prepared)
+                preparingServerStream = false
+                openSelectedStream(
+                    stream = prepared,
+                    resolvedResumePositionMs = serverResumeMs ?: resolvedResumePositionMs,
+                    resolvedResumeProgressFraction = resolvedResumeProgressFraction.takeIf { serverResumeMs == null },
+                    forceExternal = false,
+                    forceInternal = true,
+                )
+            }
+            return
+        }
         if (DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream)) {
             if (resolvingDebridStream) return
             streamRouteScope.launch {
@@ -573,6 +626,28 @@ internal fun StreamDestination(
             )
             return
         }
+        if (stream.youTubeIdToResolve != null) {
+            if (resolvingYouTubeStream) return
+            streamRouteScope.launch {
+                resolvingYouTubeStream = true
+                val resolved = YouTubeStreamResolver.Default.resolve(stream)
+                resolvingYouTubeStream = false
+                if (resolved == null) {
+                    NuvioToastController.show(getString(Res.string.youtube_resolution_failed))
+                    return@launch
+                }
+                openSelectedStream(
+                    stream = resolved,
+                    resolvedResumePositionMs = resolvedResumePositionMs,
+                    resolvedResumeProgressFraction = resolvedResumeProgressFraction,
+                    forceExternal = forceExternal,
+                    forceInternal = forceInternal,
+                    // The resolved URL expires after a few hours, so it isn't kept for reuse.
+                    saveForReuse = false,
+                )
+            }
+            return
+        }
         if (stream.shouldOpenExternally) {
             val opened = stream.externalOpenUrl?.let { url -> openExternalStreamUrl(url) } == true
             if (opened) {
@@ -581,7 +656,7 @@ internal fun StreamDestination(
             return
         }
         val sourceUrl = stream.playableDirectUrl ?: return
-        if (playerSettings.streamReuseLastLinkEnabled) {
+        if (saveForReuse && playerSettings.streamReuseLastLinkEnabled && stream.serverTarget == null) {
             val cacheKey = StreamLinkCacheRepository.contentKey(
                 type = launch.type,
                 videoId = effectiveVideoId,
@@ -723,7 +798,9 @@ internal fun StreamDestination(
                 state = streamsUiState.takeIf { it.requestToken == expectedStreamsRequestToken } ?: StreamsUiState(),
                 showStatus = playerSettings.showPlayerLoadingStatus,
                 resolvingDebridStream = resolvingDebridStream,
+                resolvingYouTubeStream = resolvingYouTubeStream,
                 onBack = onBack,
+                preparingPlayback = preparingServerStream,
             )
         }
     }

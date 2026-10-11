@@ -58,14 +58,7 @@ internal fun rememberOpenMeta(navController: NuvioNavigator): (MetaPreview) -> U
             } else {
                 preview.id
             }
-            navController.navigate(
-                DetailRoute(
-                    type = preview.type,
-                    id = resolvedId,
-                    title = preview.name,
-                    posterUrl = preview.poster,
-                ),
-            )
+            navController.openPreview(preview.copy(id = resolvedId))
         }
     }
 }

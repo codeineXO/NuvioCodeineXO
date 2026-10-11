@@ -251,7 +251,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     SettingsSliderRow(
                         title = "Outline Thickness",
                         value = subtitleStyle.outlineWidth,
-                        valueText = "${subtitleStyle.outlineWidth} px",
+                        valueText = { "$it px" },
                         valueRange = 1..8,
                         step = 1,
                         isTablet = isTablet,
