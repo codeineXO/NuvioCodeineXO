@@ -1739,13 +1739,17 @@ static void setMpvOptionString(mpv_handle *mpv, const char *name, const char *va
     setMpvOptionString(_mpv, "target-colorspace-hint-mode", "source");
     setMpvOptionString(_mpv, "target-colorspace-hint-strict", "no");
     setMpvOptionString(_mpv, "tone-mapping", "auto");
-    setMpvOptionString(_mpv, "hdr-compute-peak", "no");
+    setMpvOptionString(_mpv, "dither-depth", "auto");
     setMpvOptionString(_mpv, "cache", "yes");
     setMpvOptionString(_mpv, "demuxer-max-bytes", "1024MiB");
     setMpvOptionString(_mpv, "demuxer-readahead-secs", "36000");
     setMpvOptionString(_mpv, "demuxer-seekable-cache", "yes");
     setMpvOptionString(_mpv, "force-seekable", "yes");
-    setMpvOptionString(_mpv, "stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5,multiple_requests=1");
+    setMpvOptionString(
+        _mpv,
+        "stream-lavf-o",
+        "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=%23%408,429,500,502,503,504,reconnect_delay_max=15,multiple_requests=1"
+    );
     setMpvOptionString(_mpv, "demuxer-lavf-buffersize", "4194304");
     setMpvOptionString(_mpv, "stream-buffer-size", "8388608");
     setMpvOptionString(_mpv, "hr-seek", "default");
