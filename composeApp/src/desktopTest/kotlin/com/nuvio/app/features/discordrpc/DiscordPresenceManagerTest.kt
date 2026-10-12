@@ -55,6 +55,9 @@ class DiscordPresenceManagerTest {
             positionMs = 15_000L,
             durationMs = 60_000L,
             imdbId = "tt0903747",
+            episodeImdbId = "tt0959621",
+            seasonNumber = 1,
+            episodeNumber = 1,
             isSeries = true,
         )
 
@@ -72,12 +75,32 @@ class DiscordPresenceManagerTest {
         assertEquals("https://www.imdb.com/title/tt0903747/", activity.assets?.largeUrl)
         assertEquals("https://example.com/episode_thumb.jpg", activity.assets?.smallImage)
         assertEquals("S01, E01: Pilot", activity.assets?.smallText)
-        assertEquals("https://www.imdb.com/title/tt0903747/", activity.assets?.smallUrl)
+        assertEquals("https://www.imdb.com/title/tt0959621/", activity.assets?.smallUrl)
 
         assertNotNull(activity.buttons)
         assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
         assertEquals("https://github.com/codeineXO/NuvioCodeineXO", activity.buttons?.first()?.url)
+    }
+
+    @Test
+    fun playerSnapshot_forSeries_withoutEpisodeImdbId_fallsBackToSeasonEpisodesUrlInSmallUrl() {
+        val snapshot = PresenceSnapshot.Player(
+            title = "Breaking Bad",
+            episodeLabel = "S01E01 - Pilot",
+            posterUrl = "https://example.com/series_poster.jpg",
+            episodeThumbnailUrl = "https://example.com/episode_thumb.jpg",
+            isPlaying = true,
+            positionMs = 15_000L,
+            durationMs = 60_000L,
+            imdbId = "tt0903747",
+            isSeries = true,
+        )
+
+        val activity = snapshot.toDiscordActivity()
+
+        assertEquals("https://www.imdb.com/title/tt0903747/", activity.assets?.largeUrl)
+        assertEquals("https://www.imdb.com/title/tt0903747/episodes/?season=1", activity.assets?.smallUrl)
     }
 
     @Test

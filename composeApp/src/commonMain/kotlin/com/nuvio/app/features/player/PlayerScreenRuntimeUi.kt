@@ -86,6 +86,26 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         ?: extractImdbId(targetMetaForPresence?.id)
         ?: runtime.playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
 
+    val resolvedEpisodeImdbIdForPresence = androidx.compose.runtime.produceState<String?>(
+        initialValue = null,
+        isEpisode,
+        runtime.parentMetaId,
+        resolvedImdbIdForPresence,
+        seasonNumber,
+        episodeNumber,
+    ) {
+        value = if (isEpisode && seasonNumber != null && episodeNumber != null) {
+            com.nuvio.app.features.tmdb.TmdbService.episodeImdbId(
+                seriesId = runtime.parentMetaId.ifBlank { resolvedImdbIdForPresence.orEmpty() },
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
+                fallbackImdbId = resolvedImdbIdForPresence,
+            )
+        } else {
+            null
+        }
+    }.value
+
     LaunchedEffect(
         runtime.title,
         runtime.poster,
@@ -95,6 +115,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         episodeThumbnail,
         playbackSnapshot.isPlaying,
         resolvedImdbIdForPresence,
+        resolvedEpisodeImdbIdForPresence,
     ) {
         val episodeLabel = if (isEpisode) {
             val base = "S${seasonNumber}E${episodeNumber}"
@@ -112,6 +133,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 positionMs = playbackSnapshot.positionMs,
                 durationMs = playbackSnapshot.durationMs,
                 imdbId = resolvedImdbIdForPresence,
+                episodeImdbId = resolvedEpisodeImdbIdForPresence,
+                seasonNumber = seasonNumber,
+                episodeNumber = episodeNumber,
                 isSeries = runtime.isSeries,
             ),
         )

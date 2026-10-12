@@ -57,6 +57,9 @@ internal sealed interface PresenceSnapshot {
         val positionMs: Long,
         val durationMs: Long,
         val imdbId: String? = null,
+        val episodeImdbId: String? = null,
+        val seasonNumber: Int? = null,
+        val episodeNumber: Int? = null,
         val isSeries: Boolean = false,
     ) : PresenceSnapshot
 }

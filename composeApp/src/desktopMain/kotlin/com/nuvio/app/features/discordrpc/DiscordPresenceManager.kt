@@ -116,6 +116,31 @@ internal fun buildImdbUrl(imdbId: String?, title: String? = null): String? {
     return null
 }
 
+internal fun buildEpisodeImdbUrl(
+    episodeImdbId: String?,
+    seriesImdbId: String?,
+    seasonNumber: Int? = null,
+    episodeLabel: String? = null,
+    title: String? = null,
+): String? {
+    if (!episodeImdbId.isNullOrBlank()) {
+        val cleanEpisodeId = Regex("tt\\d+").find(episodeImdbId)?.value ?: episodeImdbId.trim()
+        if (cleanEpisodeId.startsWith("tt", ignoreCase = true)) {
+            return "https://www.imdb.com/title/$cleanEpisodeId/"
+        }
+    }
+    val resolvedSeason = seasonNumber ?: episodeLabel?.let { label ->
+        Regex("""S(\d+)E\d+""").find(label.trim())?.groupValues?.getOrNull(1)?.toIntOrNull()
+    }
+    if (!seriesImdbId.isNullOrBlank() && resolvedSeason != null && resolvedSeason > 0) {
+        val cleanSeriesId = Regex("tt\\d+").find(seriesImdbId)?.value ?: seriesImdbId.trim()
+        if (cleanSeriesId.startsWith("tt", ignoreCase = true)) {
+            return "https://www.imdb.com/title/$cleanSeriesId/episodes/?season=$resolvedSeason"
+        }
+    }
+    return buildImdbUrl(seriesImdbId, title)
+}
+
 private val DownloadButton = DiscordActivityButton(
     label = "Download NuvioCodeineXO",
     url = ForkDownloadUrl,
@@ -245,6 +270,17 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
             if (isPlaying) "Watching" else "Paused"
         }
         val imdbUrl = buildImdbUrl(imdbId, title)
+        val episodeImdbUrl = if (isSeriesContent) {
+            buildEpisodeImdbUrl(
+                episodeImdbId = episodeImdbId,
+                seriesImdbId = imdbId,
+                seasonNumber = seasonNumber,
+                episodeLabel = episodeLabel,
+                title = title,
+            )
+        } else {
+            imdbUrl
+        }
         // Discord expects Unix timestamps in seconds, not milliseconds.
         val startSecs = (System.currentTimeMillis() - positionMs) / 1_000L
         val episodeThumb = episodeThumbnailUrl?.takeIf { it.isNotBlank() }
@@ -274,7 +310,7 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
                     largeUrl = imdbUrl,
                     smallImage = if (hasSmallImage) episodeThumb else null,
                     smallText = if (hasSmallImage) (episode ?: title) else null,
-                    smallUrl = imdbUrl,
+                    smallUrl = if (hasSmallImage) episodeImdbUrl else null,
                 )
             } else {
                 DiscordActivityAssets(

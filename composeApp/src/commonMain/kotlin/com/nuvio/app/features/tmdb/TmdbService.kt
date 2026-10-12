@@ -13,7 +13,39 @@ object TmdbService {
     private val json = Json { ignoreUnknownKeys = true }
     private val imdbToTmdbCache = linkedMapOf<String, String>()
     private val tmdbToImdbCache = linkedMapOf<String, String>()
+    private val episodeImdbCache = linkedMapOf<String, String>()
     private val cacheMutex = Mutex()
+
+    suspend fun episodeImdbId(
+        seriesId: String,
+        seasonNumber: Int,
+        episodeNumber: Int,
+        fallbackImdbId: String? = null,
+    ): String? {
+        if (seasonNumber <= 0 || episodeNumber <= 0) return null
+        val tmdbId = ensureTmdbId(
+            videoId = seriesId,
+            mediaType = "tv",
+            fallbackImdbId = fallbackImdbId,
+        ) ?: return null
+
+        val cacheKey = "$tmdbId:s$seasonNumber:e$episodeNumber"
+        cacheMutex.withLock {
+            episodeImdbCache[cacheKey]?.let { return it }
+        }
+
+        val apiKey = TmdbSettingsRepository.effectiveApiKey()
+        val body = fetch<TmdbExternalIdsResponse>(
+            endpoint = "tv/$tmdbId/season/$seasonNumber/episode/$episodeNumber/external_ids",
+            apiKey = apiKey,
+        ) ?: return null
+        val imdbId = body.imdbId?.trim()?.takeIf { it.startsWith("tt", ignoreCase = true) } ?: return null
+
+        cacheMutex.withLock {
+            episodeImdbCache[cacheKey] = imdbId
+        }
+        return imdbId
+    }
 
     suspend fun ensureTmdbId(videoId: String, mediaType: String, fallbackImdbId: String? = null): String? {
         val apiKey = TmdbSettingsRepository.effectiveApiKey()
