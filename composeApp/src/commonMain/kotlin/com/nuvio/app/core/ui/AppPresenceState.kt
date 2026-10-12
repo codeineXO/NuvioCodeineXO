@@ -20,12 +20,14 @@ internal sealed interface PresenceSnapshot {
     data class Details(
         val title: String,
         val posterUrl: String? = null,
+        val imdbId: String? = null,
     ) : PresenceSnapshot
 
     data class StreamSelection(
         val title: String,
         val posterUrl: String? = null,
         val episodeLabel: String? = null,
+        val imdbId: String? = null,
     ) : PresenceSnapshot
 
     data class Player(
@@ -36,5 +38,7 @@ internal sealed interface PresenceSnapshot {
         val isPlaying: Boolean,
         val positionMs: Long,
         val durationMs: Long,
+        val imdbId: String? = null,
+        val isSeries: Boolean = false,
     ) : PresenceSnapshot
 }

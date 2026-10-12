@@ -100,6 +100,27 @@ private const val MaxPosterUrlLength = 400
 private const val ProxyContainWidth = 512
 private const val ProxyContainHeight = 512
 
+internal fun buildImdbUrl(imdbId: String?, title: String? = null): String? {
+    if (!imdbId.isNullOrBlank()) {
+        val cleanId = Regex("tt\\d+").find(imdbId)?.value ?: imdbId.trim()
+        if (cleanId.startsWith("tt", ignoreCase = true)) {
+            return "https://www.imdb.com/title/$cleanId/"
+        }
+    }
+    if (!title.isNullOrBlank()) {
+        val encoded = runCatching { java.net.URLEncoder.encode(title.trim(), "UTF-8") }.getOrNull()
+        if (!encoded.isNullOrBlank()) {
+            return "https://www.imdb.com/find/?q=$encoded"
+        }
+    }
+    return null
+}
+
+private val DownloadButton = DiscordActivityButton(
+    label = "Download NuvioCodeineXO",
+    url = ForkDownloadUrl,
+)
+
 internal fun formatDiscordPosterAsset(url: String?, fullPosterEnabled: Boolean): String {
     if (url.isNullOrBlank()) return DefaultAppIconUrl
     if (!fullPosterEnabled) return url
@@ -115,11 +136,6 @@ internal fun formatDiscordPosterAsset(url: String?, fullPosterEnabled: Boolean):
 }
 
 internal val sessionStartSecs = System.currentTimeMillis() / 1_000L
-
-private val DownloadButton = DiscordActivityButton(
-    label = "Download NuvioCodeineXO",
-    url = ForkDownloadUrl,
-)
 
 // Shown when nothing has been published yet, so the profile reads "Playing NuvioCodeineXO".
 internal val IdleActivity = DiscordActivity(
@@ -183,38 +199,52 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
         )
     }
     is PresenceSnapshot.Details -> {
+        val imdbUrl = buildImdbUrl(imdbId, title)
         DiscordActivity(
             type = ActivityTypeGame,
             name = AppActivityName,
             details = title,
+            detailsUrl = imdbUrl,
             state = "Overview",
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
             assets = DiscordActivityAssets(
                 largeImage = formatDiscordPosterAsset(posterUrl, fullPosterEnabled),
                 largeText = title,
+                largeUrl = imdbUrl,
             ),
             buttons = listOf(DownloadButton),
         )
     }
     is PresenceSnapshot.StreamSelection -> {
         val episode = episodeLabel?.toDiscordEpisodeLabel()
+        val imdbUrl = buildImdbUrl(imdbId, title)
         DiscordActivity(
             type = ActivityTypeGame,
             name = AppActivityName,
             details = title,
+            detailsUrl = imdbUrl,
             state = if (!episode.isNullOrBlank()) episode else "Selecting Stream",
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
             assets = DiscordActivityAssets(
                 largeImage = formatDiscordPosterAsset(posterUrl, fullPosterEnabled),
                 largeText = title,
+                largeUrl = imdbUrl,
             ),
             buttons = listOf(DownloadButton),
         )
     }
     is PresenceSnapshot.Player -> {
+        val isSeriesContent = isSeries || !episodeLabel.isNullOrBlank()
         val episode = episodeLabel?.toDiscordEpisodeLabel()
+        val playerState = if (isSeriesContent) {
+            val epName = episode ?: "Episode"
+            if (isPlaying) epName else "$epName • Paused"
+        } else {
+            if (isPlaying) "Watching" else "Paused"
+        }
+        val imdbUrl = buildImdbUrl(imdbId, title)
         // Discord expects Unix timestamps in seconds, not milliseconds.
         val startSecs = (System.currentTimeMillis() - positionMs) / 1_000L
         val episodeThumb = episodeThumbnailUrl?.takeIf { it.isNotBlank() }
@@ -224,7 +254,8 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
             type = ActivityTypeGame,
             name = AppActivityName,
             details = title,
-            state = if (isPlaying) episode ?: "Watching" else episode?.let { "$it • Paused" } ?: "Paused",
+            detailsUrl = imdbUrl,
+            state = playerState,
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = if (isPlaying) {
                 // start + end -> Discord renders a live progress bar with time remaining.
@@ -240,13 +271,16 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
                 DiscordActivityAssets(
                     largeImage = formattedPoster ?: episodeThumb,
                     largeText = title,
+                    largeUrl = imdbUrl,
                     smallImage = if (hasSmallImage) episodeThumb else null,
                     smallText = if (hasSmallImage) (episode ?: title) else null,
+                    smallUrl = imdbUrl,
                 )
             } else {
                 DiscordActivityAssets(
                     largeImage = DefaultAppIconUrl,
                     largeText = title,
+                    largeUrl = imdbUrl,
                 )
             },
             buttons = listOf(DownloadButton),

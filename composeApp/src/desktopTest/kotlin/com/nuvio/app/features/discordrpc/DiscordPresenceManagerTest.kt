@@ -53,24 +53,51 @@ class DiscordPresenceManagerTest {
             isPlaying = true,
             positionMs = 15_000L,
             durationMs = 60_000L,
+            imdbId = "tt0903747",
+            isSeries = true,
         )
 
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
         assertEquals("Breaking Bad", activity.details)
+        assertEquals("https://www.imdb.com/title/tt0903747/", activity.detailsUrl)
         assertEquals("S01, E01: Pilot", activity.state)
         assertEquals(2, activity.statusDisplayType)
 
         assertNotNull(activity.assets)
         assertEquals("https://example.com/series_poster.jpg", activity.assets?.largeImage)
         assertEquals("Breaking Bad", activity.assets?.largeText)
+        assertEquals("https://www.imdb.com/title/tt0903747/", activity.assets?.largeUrl)
         assertEquals("https://example.com/episode_thumb.jpg", activity.assets?.smallImage)
         assertEquals("S01, E01: Pilot", activity.assets?.smallText)
+        assertEquals("https://www.imdb.com/title/tt0903747/", activity.assets?.smallUrl)
 
         assertNotNull(activity.buttons)
+        assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
         assertEquals("https://github.com/codeineXO/NuvioCodeineXO", activity.buttons?.first()?.url)
+    }
+
+    @Test
+    fun playerSnapshot_forSeries_whenPaused_appendsPausedToEpisodeName() {
+        val snapshot = PresenceSnapshot.Player(
+            title = "Breaking Bad",
+            episodeLabel = "S01E01 - Pilot",
+            posterUrl = "https://example.com/series_poster.jpg",
+            episodeThumbnailUrl = null,
+            isPlaying = false,
+            positionMs = 15_000L,
+            durationMs = 60_000L,
+            imdbId = "tt0903747",
+            isSeries = true,
+        )
+
+        val activity = snapshot.toDiscordActivity()
+
+        assertEquals("S01, E01: Pilot • Paused", activity.state)
+        assertEquals(2, activity.statusDisplayType)
+        assertNull(activity.timestamps)
     }
 
     @Test
@@ -83,40 +110,70 @@ class DiscordPresenceManagerTest {
             isPlaying = true,
             positionMs = 30_000L,
             durationMs = 120_000L,
+            imdbId = "tt1375666",
+            isSeries = false,
         )
 
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
         assertEquals("Inception", activity.details)
+        assertEquals("https://www.imdb.com/title/tt1375666/", activity.detailsUrl)
         assertEquals("Watching", activity.state)
         assertEquals(2, activity.statusDisplayType)
 
         assertNotNull(activity.assets)
         assertEquals("https://example.com/inception_poster.jpg", activity.assets?.largeImage)
         assertEquals("Inception", activity.assets?.largeText)
+        assertEquals("https://www.imdb.com/title/tt1375666/", activity.assets?.largeUrl)
         assertNull(activity.assets?.smallImage)
         assertNull(activity.assets?.smallText)
 
         assertNotNull(activity.buttons)
+        assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
+        assertEquals("https://github.com/codeineXO/NuvioCodeineXO", activity.buttons?.first()?.url)
+    }
+
+    @Test
+    fun playerSnapshot_forMovie_whenPaused_showsPausedState() {
+        val snapshot = PresenceSnapshot.Player(
+            title = "Inception",
+            episodeLabel = null,
+            posterUrl = "https://example.com/inception_poster.jpg",
+            isPlaying = false,
+            positionMs = 30_000L,
+            durationMs = 120_000L,
+            isSeries = false,
+        )
+
+        val activity = snapshot.toDiscordActivity()
+        assertEquals("Paused", activity.state)
+        assertEquals(2, activity.statusDisplayType)
+        assertNull(activity.timestamps)
     }
 
     @Test
     fun discordActivitySerialization_includesAllCustomFields() {
         val activity = DiscordActivity(
-            type = 3,
+            type = 0,
             name = "NuvioCodeineXO",
             details = "Inception",
+            detailsUrl = "https://www.imdb.com/title/tt1375666/",
             state = "Watching",
             statusDisplayType = 2,
             assets = DiscordActivityAssets(
                 largeImage = "https://example.com/poster.jpg",
                 largeText = "Inception",
+                largeUrl = "https://www.imdb.com/title/tt1375666/",
                 smallImage = "https://example.com/thumb.jpg",
                 smallText = "Thumbnail",
             ),
             buttons = listOf(
+                DiscordActivityButton(
+                    label = "View on IMDb",
+                    url = "https://www.imdb.com/title/tt1375666/",
+                ),
                 DiscordActivityButton(
                     label = "Download NuvioCodeineXO",
                     url = "https://github.com/codeineXO/NuvioCodeineXO",
@@ -129,9 +186,11 @@ class DiscordPresenceManagerTest {
         assertTrue(encoded.contains(""""name":"NuvioCodeineXO""""))
         assertTrue(encoded.contains(""""details":"Inception""""))
         assertTrue(encoded.contains(""""status_display_type":2"""))
+        assertTrue(encoded.contains(""""details_url":"https://www.imdb.com/title/tt1375666/""""))
         assertTrue(encoded.contains(""""large_image":"https://example.com/poster.jpg""""))
+        assertTrue(encoded.contains(""""large_url":"https://www.imdb.com/title/tt1375666/""""))
         assertTrue(encoded.contains(""""small_image":"https://example.com/thumb.jpg""""))
-        assertTrue(encoded.contains(""""label":"Download NuvioCodeineXO""""))
+        assertTrue(encoded.contains(""""label":"View on IMDb""""))
         assertTrue(encoded.contains(""""url":"https://github.com/codeineXO/NuvioCodeineXO""""))
         assertTrue(encoded.contains("\"instance\":false"))
     }
@@ -143,6 +202,7 @@ class DiscordPresenceManagerTest {
         assertTrue(idleEncoded.contains("\"details\":\"Exploring NuvioCodeineXO\""))
         assertTrue(idleEncoded.contains("\"state\":\"In Menus\""))
         assertTrue(idleEncoded.contains("\"type\":0"))
+        assertTrue(idleEncoded.contains("\"status_display_type\":2"))
         assertTrue(idleEncoded.contains("\"instance\":false"))
         assertTrue(idleEncoded.contains("\"assets\""))
         assertTrue(idleEncoded.contains("\"timestamps\""))
@@ -151,7 +211,7 @@ class DiscordPresenceManagerTest {
         assertTrue(!idleEncoded.contains("\"state\":null"))
 
         val partial = DiscordActivity(
-            type = 3,
+            type = 0,
             name = "NuvioCodeineXO",
             details = "Minimal",
         )
@@ -162,6 +222,7 @@ class DiscordPresenceManagerTest {
         assertTrue(!partialEncoded.contains("\"timestamps\""))
         assertTrue(!partialEncoded.contains("\"state\""))
         assertTrue(!partialEncoded.contains("\"buttons\""))
+        assertTrue(!partialEncoded.contains("status_display_type"))
     }
 
     @Test
@@ -169,18 +230,22 @@ class DiscordPresenceManagerTest {
         val snapshot = PresenceSnapshot.Details(
             title = "Dune: Part Two",
             posterUrl = "https://example.com/dune_poster.jpg",
+            imdbId = "tt15239678",
         )
 
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
         assertEquals("Dune: Part Two", activity.details)
+        assertEquals("https://www.imdb.com/title/tt15239678/", activity.detailsUrl)
         assertEquals("Overview", activity.state)
         assertEquals(2, activity.statusDisplayType)
         assertNotNull(activity.assets)
         assertEquals("https://example.com/dune_poster.jpg", activity.assets?.largeImage)
         assertEquals("Dune: Part Two", activity.assets?.largeText)
+        assertEquals("https://www.imdb.com/title/tt15239678/", activity.assets?.largeUrl)
         assertNotNull(activity.buttons)
+        assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
     }
 
@@ -190,19 +255,33 @@ class DiscordPresenceManagerTest {
             title = "Fallout",
             posterUrl = "https://example.com/fallout_poster.jpg",
             episodeLabel = "S01E01 - The End",
+            imdbId = "tt12637874",
         )
 
         val activity = snapshot.toDiscordActivity()
 
         assertEquals("NuvioCodeineXO", activity.name)
         assertEquals("Fallout", activity.details)
+        assertEquals("https://www.imdb.com/title/tt12637874/", activity.detailsUrl)
         assertEquals("S01, E01: The End", activity.state)
         assertEquals(2, activity.statusDisplayType)
         assertNotNull(activity.assets)
         assertEquals("https://example.com/fallout_poster.jpg", activity.assets?.largeImage)
         assertEquals("Fallout", activity.assets?.largeText)
+        assertEquals("https://www.imdb.com/title/tt12637874/", activity.assets?.largeUrl)
         assertNotNull(activity.buttons)
+        assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
+    }
+
+    @Test
+    fun buildImdbUrl_formatsDirectTitleAndFallbackSearch() {
+        assertEquals("https://www.imdb.com/title/tt1375666/", buildImdbUrl("tt1375666", "Inception"))
+        assertEquals("https://www.imdb.com/title/tt1375666/", buildImdbUrl("tt1375666:1:1", "Inception"))
+        assertEquals("https://www.imdb.com/find/?q=Inception", buildImdbUrl(null, "Inception"))
+        assertEquals("https://www.imdb.com/find/?q=Dune%3A+Part+Two", buildImdbUrl(null, "Dune: Part Two"))
+        assertNull(buildImdbUrl(null, null))
+        assertNull(buildImdbUrl("", ""))
     }
 
     @Test

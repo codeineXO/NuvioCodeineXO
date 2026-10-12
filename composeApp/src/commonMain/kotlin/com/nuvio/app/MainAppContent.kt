@@ -216,6 +216,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
+import com.nuvio.app.features.player.extractImdbId
 import androidx.compose.ui.ExperimentalComposeUiApi
 import com.nuvio.app.features.player.dispatchNavigationBack
 
@@ -529,8 +530,9 @@ internal fun MainAppContent(
         when (topRoute) {
             is DetailRoute -> {
                 val detailTitle = topRoute.title
+                val imdbId = extractImdbId(topRoute.id)
                 if (!detailTitle.isNullOrBlank()) {
-                    AppPresenceState.publish(PresenceSnapshot.Details(detailTitle, topRoute.posterUrl))
+                    AppPresenceState.publish(PresenceSnapshot.Details(detailTitle, topRoute.posterUrl, imdbId))
                 } else {
                     AppPresenceState.publish(PresenceSnapshot.Tab(selectedTab))
                 }
@@ -539,6 +541,7 @@ internal fun MainAppContent(
                 val launch = StreamLaunchStore.get(topRoute.launchId)
                 val title = launch?.title?.ifBlank { topRoute.title } ?: topRoute.title.ifBlank { "Choosing Stream" }
                 val poster = launch?.poster
+                val imdbId = extractImdbId(launch?.parentMetaId) ?: extractImdbId(launch?.videoId)
                 val episodeLabel = if (launch?.seasonNumber != null && launch.episodeNumber != null) {
                     val epTitle = launch.episodeTitle?.takeIf { it.isNotBlank() }
                     "S${launch.seasonNumber}E${launch.episodeNumber}${epTitle?.let { " - $it" }.orEmpty()}"
@@ -548,6 +551,7 @@ internal fun MainAppContent(
                         title = title,
                         posterUrl = poster,
                         episodeLabel = episodeLabel,
+                        imdbId = imdbId,
                     ),
                 )
             }

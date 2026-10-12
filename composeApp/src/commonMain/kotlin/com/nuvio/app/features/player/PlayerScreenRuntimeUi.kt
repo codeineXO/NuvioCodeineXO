@@ -79,6 +79,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         null
     }
 
+    val targetMetaForPresence = runtime.playerMeta ?: MetaDetailsRepository.peek(runtime.parentMetaType, runtime.parentMetaId)
+    val resolvedImdbIdForPresence = extractImdbId(runtime.parentMetaId)
+        ?: extractImdbId(runtime.videoId)
+        ?: extractImdbId(targetMetaForPresence?.imdbId)
+        ?: extractImdbId(targetMetaForPresence?.id)
+        ?: runtime.playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
+
     LaunchedEffect(
         runtime.title,
         runtime.poster,
@@ -87,6 +94,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         episodeTitle,
         episodeThumbnail,
         playbackSnapshot.isPlaying,
+        resolvedImdbIdForPresence,
     ) {
         val episodeLabel = if (isEpisode) {
             val base = "S${seasonNumber}E${episodeNumber}"
@@ -103,6 +111,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 isPlaying = playbackSnapshot.isPlaying,
                 positionMs = playbackSnapshot.positionMs,
                 durationMs = playbackSnapshot.durationMs,
+                imdbId = resolvedImdbIdForPresence,
+                isSeries = runtime.isSeries,
             ),
         )
     }

@@ -14,7 +14,9 @@ internal data class DiscordActivity(
     // it and fall back to the app name (that is why the title is also kept in `details`).
     val name: String? = null,
     val details: String? = null,
+    @SerialName("details_url") val detailsUrl: String? = null,
     val state: String? = null,
+    @SerialName("state_url") val stateUrl: String? = null,
     @SerialName("status_display_type") val statusDisplayType: Int? = null,
     val timestamps: DiscordActivityTimestamps? = null,
     val assets: DiscordActivityAssets? = null,
@@ -33,8 +35,10 @@ internal data class DiscordActivityTimestamps(
 internal data class DiscordActivityAssets(
     @SerialName("large_image") val largeImage: String? = null,
     @SerialName("large_text") val largeText: String? = null,
+    @SerialName("large_url") val largeUrl: String? = null,
     @SerialName("small_image") val smallImage: String? = null,
     @SerialName("small_text") val smallText: String? = null,
+    @SerialName("small_url") val smallUrl: String? = null,
 )
 
 @Serializable

@@ -229,14 +229,18 @@ fun MetaDetailsScreen(
     val displayedMeta = uiState.meta?.takeIf { it.type == type && it.id == id }
         ?: MetaDetailsRepository.peek(type, id)
 
-    LaunchedEffect(displayedMeta?.name, displayedMeta?.poster) {
+    LaunchedEffect(displayedMeta?.name, displayedMeta?.poster, displayedMeta?.imdbId, displayedMeta?.id, id) {
         val metaName = displayedMeta?.name
         val metaPoster = displayedMeta?.poster
+        val metaImdbId = extractImdbId(id)
+            ?: extractImdbId(displayedMeta?.id)
+            ?: extractImdbId(displayedMeta?.imdbId)
         if (!metaName.isNullOrBlank()) {
             AppPresenceState.publish(
                 PresenceSnapshot.Details(
                     title = metaName,
                     posterUrl = metaPoster,
+                    imdbId = metaImdbId,
                 ),
             )
         }
