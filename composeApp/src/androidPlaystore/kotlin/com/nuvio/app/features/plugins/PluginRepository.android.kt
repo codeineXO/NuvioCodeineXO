@@ -29,6 +29,8 @@ actual object PluginRepository {
 
     actual fun refreshRepository(manifestUrl: String, pushAfterRefresh: Boolean) = Unit
 
+    actual fun toggleRepository(manifestUrl: String, enabled: Boolean) = Unit
+
     actual fun toggleScraper(scraperId: String, enabled: Boolean) = Unit
 
     actual fun setPluginsEnabled(enabled: Boolean) = Unit

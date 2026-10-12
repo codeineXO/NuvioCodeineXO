@@ -21,6 +21,8 @@ expect object PluginRepository {
 
     fun refreshRepository(manifestUrl: String, pushAfterRefresh: Boolean = false)
 
+    fun toggleRepository(manifestUrl: String, enabled: Boolean)
+
     fun toggleScraper(scraperId: String, enabled: Boolean)
 
     fun setPluginsEnabled(enabled: Boolean)

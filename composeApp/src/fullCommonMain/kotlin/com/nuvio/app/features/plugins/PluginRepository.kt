@@ -129,16 +129,20 @@ actual object PluginRepository {
                 }
                 .decodeList<PluginRow>()
 
+            val rowsByUrl = rows.associateBy { dedupeManifestUrls(listOf(it.url)).firstOrNull() ?: it.url }
             val urls = dedupeManifestUrls(rows.map { it.url })
             val existingState = _uiState.value
             val existingReposByUrl = existingState.repositories.associateBy { it.manifestUrl }
             val nowEpochMs = currentEpochMillis()
             val nextRepos = urls.map { url ->
                 val existing = existingReposByUrl[url]
+                val row = rowsByUrl[url]
+                val enabled = row?.enabled ?: existing?.enabled ?: true
                 if (existing == null) {
                     PluginRepositoryItem(
                         manifestUrl = url,
                         name = url.substringBefore("?").substringAfterLast('/'),
+                        enabled = enabled,
                         isRefreshing = true,
                     )
                 } else {
@@ -148,6 +152,7 @@ actual object PluginRepository {
                         nowEpochMs = nowEpochMs,
                     )
                     existing.copy(
+                        enabled = enabled,
                         isRefreshing = shouldRefresh,
                         errorMessage = if (shouldRefresh) null else existing.errorMessage,
                     )
@@ -255,7 +260,7 @@ actual object PluginRepository {
                     result.fold(
                         onSuccess = { (repo, scrapers) ->
                             val updatedRepos = state.repositories.map { existing ->
-                                if (existing.manifestUrl == manifestUrl) repo else existing
+                                if (existing.manifestUrl == manifestUrl) repo.copy(enabled = existing.enabled) else existing
                             }
                             state.copy(
                                 repositories = updatedRepos,
@@ -289,6 +294,23 @@ actual object PluginRepository {
             }
         }
         activeRefreshJobs[manifestUrl] = refreshJob
+    }
+
+    actual fun toggleRepository(manifestUrl: String, enabled: Boolean) {
+        initialize()
+        _uiState.update { state ->
+            state.copy(
+                repositories = state.repositories.map { repo ->
+                    if (repo.manifestUrl == manifestUrl) {
+                        repo.copy(enabled = enabled)
+                    } else {
+                        repo
+                    }
+                },
+            )
+        }
+        persist()
+        pushToServer()
     }
 
     actual fun toggleScraper(scraperId: String, enabled: Boolean) {
@@ -326,8 +348,12 @@ actual object PluginRepository {
     actual fun getEnabledScrapersForType(type: String): List<PluginScraper> {
         initialize()
         if (!_uiState.value.pluginsEnabled) return emptyList()
+        val enabledRepoUrls = _uiState.value.repositories
+            .filter { it.enabled }
+            .map { it.manifestUrl }
+            .toSet()
         return _uiState.value.scrapers.filter { scraper ->
-            scraper.enabled && scraper.supportsType(type)
+            scraper.repositoryUrl in enabledRepoUrls && scraper.enabled && scraper.supportsType(type)
         }
     }
 
@@ -510,7 +536,7 @@ actual object PluginRepository {
                     PluginPushItem(
                         url = repo.manifestUrl,
                         name = repo.name,
-                        enabled = true,
+                        enabled = repo.enabled,
                         sortOrder = index,
                     )
                 }
@@ -624,6 +650,7 @@ actual object PluginRepository {
                             version = it.version,
                             scraperCount = it.scraperCount,
                             lastUpdated = it.lastUpdated,
+                            enabled = it.enabled,
                             isRefreshing = false,
                             errorMessage = null,
                         )

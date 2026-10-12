@@ -33,6 +33,7 @@
     <string name="action_reset">Reset to Default</string>
     <string name="action_resume">Resume</string>
     <string name="action_retry">Retry</string>
+    <string name="action_refresh_all">Refresh All</string>
     <string name="action_save">Save</string>
     <string name="action_saving">Saving…</string>
     <string name="action_switch">Switch</string>
@@ -588,6 +589,8 @@
     <string name="settings_advanced_discord_activity_mode_only_watching">Only watching</string>
     <string name="settings_advanced_discord_activity_mode_only_watching_desc">Only show activity when playing a movie or series</string>
     <string name="settings_advanced_discord_activity_mode_sheet_title">Discord Activity Display</string>
+    <string name="settings_advanced_discord_full_poster">Full Portrait Poster</string>
+    <string name="settings_advanced_discord_full_poster_description">Fit complete vertical poster on Discord without square cropping</string>
     <string name="sentry_enable_dialog_title">Turn on crash reports?</string>
     <string name="sentry_enable_dialog_subtitle">Crash reports help identify device-specific failures without asking you to reproduce the issue with ADB logs.</string>
     <string name="sentry_enable_dialog_subtitle_desktop">Crash reports help identify Windows and macOS failures without asking you to collect logs manually.</string>

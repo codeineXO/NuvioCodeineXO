@@ -76,6 +76,41 @@ class PluginPersistenceTest {
         assertTrue(restored?.requiresMigration == true)
     }
 
+    @Test
+    fun pluginRepositoryItemDefaultsToEnabled() {
+        val repo = PluginRepositoryItem(
+            manifestUrl = "https://example.com/manifest.json",
+            name = "Test Repo",
+        )
+        assertTrue(repo.enabled)
+    }
+
+    @Test
+    fun storedPluginRepositorySerializesAndDeserializesEnabledFlag() {
+        val state = PluginsUiState(
+            repositories = listOf(
+                PluginRepositoryItem(
+                    manifestUrl = "https://example.com/manifest.json",
+                    name = "Test Repo",
+                    enabled = false,
+                ),
+            ),
+        )
+        val stored = state.toStoredPluginsState()
+        assertFalse(stored.repositories.single().enabled)
+
+        val encoded = json.encodeToString(stored)
+        val decoded = json.decodeFromString<StoredPluginsState>(encoded)
+        assertFalse(decoded.repositories.single().enabled)
+    }
+
+    @Test
+    fun legacyStoredPluginRepositoryWithoutEnabledDeserializesAsEnabled() {
+        val legacyJson = """{"pluginsEnabled":true,"repositories":[{"manifestUrl":"https://example.com/manifest.json","name":"Legacy Repo"}],"scrapers":[]}"""
+        val decoded = json.decodeFromString<StoredPluginsState>(legacyJson)
+        assertTrue(decoded.repositories.single().enabled)
+    }
+
     private fun pluginScraper(code: String): PluginScraper = PluginScraper(
         id = "https://plugins.example/manifest.json:scraper",
         repositoryUrl = "https://plugins.example/manifest.json",

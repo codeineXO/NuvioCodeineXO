@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioIconActionButton
 import com.nuvio.app.core.ui.NuvioInfoBadge
@@ -69,12 +70,22 @@ fun AddonsScreen(
     title: String? = null,
     onBack: (() -> Unit)? = null,
 ) {
+    val uiState by AddonRepository.uiState.collectAsStateWithLifecycle()
+
     NuvioScreen(modifier = modifier) {
         stickyHeader {
             NuvioScreenHeader(
                 title = title ?: stringResource(Res.string.addon_title),
                 onBack = onBack,
             ) {
+                if (uiState.addons.isNotEmpty()) {
+                    NuvioIconActionButton(
+                        icon = Icons.Rounded.Refresh,
+                        contentDescription = stringResource(Res.string.action_refresh_all),
+                        tint = MaterialTheme.colorScheme.primary,
+                        onClick = { AddonRepository.refreshAll() },
+                    )
+                }
             }
         }
         item {
@@ -146,7 +157,19 @@ internal fun AddonsSettingsPageContent(
             },
         )
 
-        SectionHeader(stringResource(Res.string.addons_section_installed))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionHeader(stringResource(Res.string.addons_section_installed))
+            if (uiState.addons.isNotEmpty()) {
+                NuvioActionLabel(
+                    text = stringResource(Res.string.action_refresh_all),
+                    onClick = { AddonRepository.refreshAll() },
+                )
+            }
+        }
         if (uiState.addons.isEmpty()) {
             EmptyStateCard(usePersonalMediaCopy = usePersonalMediaCopy)
         } else {

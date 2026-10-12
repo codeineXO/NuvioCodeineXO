@@ -14,6 +14,9 @@ internal object DiscordRichPresenceRepository {
     private val _activityMode = MutableStateFlow(DiscordActivityMode.ALL)
     val activityMode: StateFlow<DiscordActivityMode> = _activityMode.asStateFlow()
 
+    private val _fullPosterEnabled = MutableStateFlow(false)
+    val fullPosterEnabled: StateFlow<Boolean> = _fullPosterEnabled.asStateFlow()
+
     private var hasLoaded = false
 
     fun ensureLoaded() {
@@ -21,6 +24,7 @@ internal object DiscordRichPresenceRepository {
         hasLoaded = true
         _enabled.value = DiscordRichPresenceStorage.loadEnabled() ?: isSupported
         _activityMode.value = DiscordRichPresenceStorage.loadActivityMode() ?: DiscordActivityMode.ALL
+        _fullPosterEnabled.value = DiscordRichPresenceStorage.loadFullPosterEnabled() ?: false
     }
 
     fun setEnabled(enabled: Boolean) {
@@ -35,5 +39,12 @@ internal object DiscordRichPresenceRepository {
         if (_activityMode.value == mode) return
         _activityMode.value = mode
         DiscordRichPresenceStorage.saveActivityMode(mode)
+    }
+
+    fun setFullPosterEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (_fullPosterEnabled.value == enabled) return
+        _fullPosterEnabled.value = enabled
+        DiscordRichPresenceStorage.saveFullPosterEnabled(enabled)
     }
 }

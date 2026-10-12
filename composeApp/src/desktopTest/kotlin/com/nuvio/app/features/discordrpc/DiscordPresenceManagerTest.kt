@@ -236,4 +236,41 @@ class DiscordPresenceManagerTest {
         assertNotNull(resolveDiscordActivity(streamSnapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
         assertEquals(IdleActivity, resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
     }
+
+    @Test
+    fun formatDiscordPosterAsset_whenDisabled_returnsRawUrl() {
+        val raw = "https://image.tmdb.org/t/p/w500/poster.jpg"
+        assertEquals(raw, formatDiscordPosterAsset(raw, fullPosterEnabled = false))
+    }
+
+    @Test
+    fun formatDiscordPosterAsset_whenEnabled_formatsProxyUrlWithContain() {
+        val raw = "https://image.tmdb.org/t/p/w500/poster.jpg"
+        val formatted = formatDiscordPosterAsset(raw, fullPosterEnabled = true)
+        assertTrue(formatted.startsWith("https://wsrv.nl/?url="))
+        assertTrue(formatted.contains("fit=contain"))
+        assertTrue(formatted.contains("cbg=transparent"))
+        assertTrue(formatted.contains("output=png"))
+    }
+
+    @Test
+    fun formatDiscordPosterAsset_whenUrlExceedsLimit_fallsBackToRawUrl() {
+        val longUrl = "https://example.com/" + "a".repeat(450) + ".jpg"
+        assertEquals(longUrl, formatDiscordPosterAsset(longUrl, fullPosterEnabled = true))
+    }
+
+    @Test
+    fun formatDiscordPosterAsset_whenBlankOrNull_returnsDefaultAppIcon() {
+        val defaultIcon = formatDiscordPosterAsset(null, fullPosterEnabled = true)
+        assertTrue(defaultIcon.contains("app_icon_original_transparent.png"))
+        assertEquals(defaultIcon, formatDiscordPosterAsset("", fullPosterEnabled = true))
+    }
+
+    @Test
+    fun resolveDiscordActivity_withFullPosterEnabled_appliesProxyFormatting() {
+        val snapshot = PresenceSnapshot.Details("Dune", "https://example.com/dune.jpg")
+        val activity = resolveDiscordActivity(snapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL, fullPosterEnabled = true)
+        assertNotNull(activity)
+        assertTrue(activity.assets?.largeImage?.startsWith("https://wsrv.nl/?url=") == true)
+    }
 }

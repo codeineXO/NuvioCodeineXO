@@ -47,6 +47,7 @@ data class PluginRepositoryItem(
     val version: String? = null,
     val scraperCount: Int = 0,
     val lastUpdated: Long = 0L,
+    val enabled: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -125,6 +126,7 @@ internal data class StoredPluginRepository(
     val version: String? = null,
     val scraperCount: Int = 0,
     val lastUpdated: Long = 0L,
+    val enabled: Boolean = true,
 )
 
 @Serializable
@@ -162,6 +164,7 @@ internal fun PluginsUiState.toStoredPluginsState(): StoredPluginsState =
                 version = repository.version,
                 scraperCount = repository.scraperCount,
                 lastUpdated = repository.lastUpdated,
+                enabled = repository.enabled,
             )
         },
         scrapers = scrapers.map(PluginScraper::toStoredPluginScraper),

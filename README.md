@@ -40,7 +40,8 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
 * **UX Enhancements:** Scroll navigation arrow buttons and drag-to-scroll on season/episode carousels, hero ratings with fallback support, sidebar exit button, copy addon manifest link shortcut, etc.
-* **Enhanced Discord Rich Presence:** Richer Discord RPC displaying movie/series posters, episode thumbnails, and granular presence status.
+* **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
+* **Enhanced Discord Rich Presence:** Richer Discord RPC displaying movie/series posters (with uncropped full portrait options), episode thumbnails, and granular presence status.
 
 ### 🪟 Windows Desktop Isolation & Installer
 * **Isolated Environment:** Runs entirely out of dedicated `NuvioCodeineXO` data directories without conflicting with or overwriting official Nuvio settings or shortcuts.

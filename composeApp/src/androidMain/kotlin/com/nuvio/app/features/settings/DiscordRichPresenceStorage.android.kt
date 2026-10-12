@@ -9,4 +9,6 @@ internal actual object DiscordRichPresenceStorage {
     actual fun saveEnabled(enabled: Boolean) = Unit
     actual fun loadActivityMode(): DiscordActivityMode? = null
     actual fun saveActivityMode(mode: DiscordActivityMode) = Unit
+    actual fun loadFullPosterEnabled(): Boolean? = null
+    actual fun saveFullPosterEnabled(enabled: Boolean) = Unit
 }

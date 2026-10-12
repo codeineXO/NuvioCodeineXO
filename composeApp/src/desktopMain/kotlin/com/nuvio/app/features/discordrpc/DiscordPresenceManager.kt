@@ -60,10 +60,11 @@ internal object DiscordPresenceManager {
                         combine(
                             AppPresenceState.current,
                             DiscordRichPresenceRepository.activityMode,
-                        ) { snapshot, mode ->
-                            snapshot to mode
-                        }.collect { (snapshot, mode) ->
-                            val activity = resolveDiscordActivity(snapshot, mode)
+                            DiscordRichPresenceRepository.fullPosterEnabled,
+                        ) { snapshot, mode, fullPoster ->
+                            Triple(snapshot, mode, fullPoster)
+                        }.collect { (snapshot, mode, fullPoster) ->
+                            val activity = resolveDiscordActivity(snapshot, mode, fullPoster)
                             if (activity == lastActivity) return@collect
                             if (client.setActivity(activity)) {
                                 lastActivity = activity
@@ -95,6 +96,23 @@ private const val StatusDisplayTypeDetails = 2
 private const val ForkDownloadUrl = "https://github.com/codeineXO/NuvioCodeineXO"
 private const val DefaultAppIconUrl =
     "https://raw.githubusercontent.com/codeineXO/NuvioCodeineXO/NuvioCodeineXO/composeApp/src/commonMain/composeResources/drawable/app_icon_original_transparent.png"
+private const val MaxPosterUrlLength = 400
+private const val ProxyContainWidth = 512
+private const val ProxyContainHeight = 512
+
+internal fun formatDiscordPosterAsset(url: String?, fullPosterEnabled: Boolean): String {
+    if (url.isNullOrBlank()) return DefaultAppIconUrl
+    if (!fullPosterEnabled) return url
+    val trimmed = url.trim()
+    if (trimmed.length > MaxPosterUrlLength) return trimmed
+    if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
+        return trimmed
+    }
+    return runCatching {
+        val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
+        "https://wsrv.nl/?url=$encoded&w=$ProxyContainWidth&h=$ProxyContainHeight&fit=contain&cbg=transparent&output=png"
+    }.getOrDefault(trimmed)
+}
 
 internal val sessionStartSecs = System.currentTimeMillis() / 1_000L
 
@@ -121,16 +139,17 @@ internal val IdleActivity = DiscordActivity(
 internal fun resolveDiscordActivity(
     snapshot: PresenceSnapshot?,
     mode: DiscordActivityMode,
+    fullPosterEnabled: Boolean = false,
 ): DiscordActivity? {
     return when {
         mode == DiscordActivityMode.ONLY_WATCHING -> {
             if (snapshot is PresenceSnapshot.Player) {
-                snapshot.toDiscordActivity()
+                snapshot.toDiscordActivity(fullPosterEnabled)
             } else {
                 null
             }
         }
-        else -> snapshot?.toDiscordActivity() ?: IdleActivity
+        else -> snapshot?.toDiscordActivity(fullPosterEnabled) ?: IdleActivity
     }
 }
 
@@ -143,7 +162,7 @@ internal fun String.toDiscordEpisodeLabel(): String {
     return if (title.isBlank()) "S$season, E$episode" else "S$season, E$episode: $title"
 }
 
-internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this) {
+internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = false): DiscordActivity = when (this) {
     is PresenceSnapshot.Tab -> {
         val (tabDetails, tabState) = when (tab) {
             com.nuvio.app.AppScreenTab.Settings -> "Tweaking NuvioCodeineXO" to "In Settings"
@@ -172,7 +191,7 @@ internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this)
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
             assets = DiscordActivityAssets(
-                largeImage = posterUrl?.takeIf { it.isNotBlank() } ?: DefaultAppIconUrl,
+                largeImage = formatDiscordPosterAsset(posterUrl, fullPosterEnabled),
                 largeText = title,
             ),
             buttons = listOf(DownloadButton),
@@ -188,7 +207,7 @@ internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this)
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
             assets = DiscordActivityAssets(
-                largeImage = posterUrl?.takeIf { it.isNotBlank() } ?: DefaultAppIconUrl,
+                largeImage = formatDiscordPosterAsset(posterUrl, fullPosterEnabled),
                 largeText = title,
             ),
             buttons = listOf(DownloadButton),
@@ -199,6 +218,8 @@ internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this)
         // Discord expects Unix timestamps in seconds, not milliseconds.
         val startSecs = (System.currentTimeMillis() - positionMs) / 1_000L
         val episodeThumb = episodeThumbnailUrl?.takeIf { it.isNotBlank() }
+        val poster = posterUrl?.takeIf { it.isNotBlank() }
+        val formattedPoster = poster?.let { formatDiscordPosterAsset(it, fullPosterEnabled) }
         DiscordActivity(
             type = ActivityTypeGame,
             name = AppActivityName,
@@ -214,10 +235,10 @@ internal fun PresenceSnapshot.toDiscordActivity(): DiscordActivity = when (this)
             } else {
                 null
             },
-            assets = if (posterUrl != null || episodeThumb != null) {
-                val hasSmallImage = episodeThumb != null && posterUrl != null
+            assets = if (formattedPoster != null || episodeThumb != null) {
+                val hasSmallImage = episodeThumb != null && formattedPoster != null
                 DiscordActivityAssets(
-                    largeImage = posterUrl ?: episodeThumb,
+                    largeImage = formattedPoster ?: episodeThumb,
                     largeText = title,
                     smallImage = if (hasSmallImage) episodeThumb else null,
                     smallText = if (hasSmallImage) (episode ?: title) else null,

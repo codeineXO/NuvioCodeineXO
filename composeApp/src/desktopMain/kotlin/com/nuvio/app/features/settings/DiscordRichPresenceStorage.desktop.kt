@@ -9,6 +9,7 @@ internal actual object DiscordRichPresencePlatform {
 internal actual object DiscordRichPresenceStorage {
     private const val enabledKey = "enabled"
     private const val activityModeKey = "activity_mode"
+    private const val fullPosterKey = "full_poster_enabled"
     private val store = DesktopStorage.store("nuvio_discord_rich_presence")
 
     actual fun loadEnabled(): Boolean? =
@@ -25,5 +26,12 @@ internal actual object DiscordRichPresenceStorage {
 
     actual fun saveActivityMode(mode: DiscordActivityMode) {
         store.putString(activityModeKey, mode.name)
+    }
+
+    actual fun loadFullPosterEnabled(): Boolean? =
+        if (store.contains(fullPosterKey)) store.getBoolean(fullPosterKey) else null
+
+    actual fun saveFullPosterEnabled(enabled: Boolean) {
+        store.putBoolean(fullPosterKey, enabled)
     }
 }

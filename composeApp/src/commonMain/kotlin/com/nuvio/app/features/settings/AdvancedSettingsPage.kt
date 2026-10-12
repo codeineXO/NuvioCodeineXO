@@ -56,6 +56,8 @@ import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_m
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching_desc
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_sheet_title
+import nuvio.composeapp.generated.resources.settings_advanced_discord_full_poster
+import nuvio.composeapp.generated.resources.settings_advanced_discord_full_poster_description
 import nuvio.composeapp.generated.resources.settings_advanced_discord_rich_presence
 import nuvio.composeapp.generated.resources.settings_advanced_discord_rich_presence_description
 import nuvio.composeapp.generated.resources.settings_advanced_opengl_renderer
@@ -195,6 +197,10 @@ internal fun LazyListScope.advancedSettingsContent(
                 DiscordRichPresenceRepository.activityMode
             }
             val activityMode by activityModeFlow.collectAsStateWithLifecycle()
+            val fullPosterEnabledFlow = remember {
+                DiscordRichPresenceRepository.fullPosterEnabled
+            }
+            val fullPosterEnabled by fullPosterEnabledFlow.collectAsStateWithLifecycle()
             var showActivityModeSheet by rememberSaveable { mutableStateOf(false) }
 
             SettingsSection(
@@ -222,6 +228,14 @@ internal fun LazyListScope.advancedSettingsContent(
                             ),
                             isTablet = isTablet,
                             onClick = { showActivityModeSheet = true },
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.settings_advanced_discord_full_poster),
+                            description = stringResource(Res.string.settings_advanced_discord_full_poster_description),
+                            checked = fullPosterEnabled,
+                            isTablet = isTablet,
+                            onCheckedChange = DiscordRichPresenceRepository::setFullPosterEnabled,
                         )
                     }
                 }
