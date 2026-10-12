@@ -1,6 +1,7 @@
 package com.nuvio.app.features.discordrpc
 
 import com.nuvio.app.AppScreenTab
+import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -351,5 +352,90 @@ class DiscordPresenceManagerTest {
         val activity = resolveDiscordActivity(snapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL, fullPosterEnabled = true)
         assertNotNull(activity)
         assertTrue(activity.assets?.largeImage?.startsWith("https://wsrv.nl/?url=") == true)
+    }
+
+    @Test
+    fun appPresenceState_navigationSnapshot_updatesCurrentWhenNoPlayerActive() {
+        AppPresenceState.reset()
+        val homeTab = PresenceSnapshot.Tab(AppScreenTab.Home)
+        AppPresenceState.publish(homeTab)
+        assertEquals(homeTab, AppPresenceState.current.value)
+
+        val details = PresenceSnapshot.Details("Inception", "https://example.com/inception.jpg")
+        AppPresenceState.publish(details)
+        assertEquals(details, AppPresenceState.current.value)
+    }
+
+    @Test
+    fun appPresenceState_whenPlayerActive_navigationUpdatesDoNotChangeCurrent() {
+        AppPresenceState.reset()
+        val homeTab = PresenceSnapshot.Tab(AppScreenTab.Home)
+        AppPresenceState.publish(homeTab)
+
+        val playerSnapshot = PresenceSnapshot.Player(
+            title = "Inception",
+            episodeLabel = null,
+            posterUrl = "https://example.com/inception.jpg",
+            isPlaying = true,
+            positionMs = 12_000L,
+            durationMs = 120_000L,
+        )
+        AppPresenceState.publish(playerSnapshot)
+        assertEquals(playerSnapshot, AppPresenceState.current.value)
+
+        // User goes to mini player and navigates across tabs and detail pages
+        val searchTab = PresenceSnapshot.Tab(AppScreenTab.Search)
+        AppPresenceState.publish(searchTab)
+        assertEquals(playerSnapshot, AppPresenceState.current.value)
+
+        val details = PresenceSnapshot.Details("Interstellar", "https://example.com/interstellar.jpg")
+        AppPresenceState.publish(details)
+        assertEquals(playerSnapshot, AppPresenceState.current.value)
+
+        val stream = PresenceSnapshot.StreamSelection("Interstellar", "https://example.com/interstellar.jpg")
+        AppPresenceState.publish(stream)
+        assertEquals(playerSnapshot, AppPresenceState.current.value)
+
+        // Discord RPC activity resolved while in mini player continues to show Inception
+        val activity = resolveDiscordActivity(
+            AppPresenceState.current.value,
+            com.nuvio.app.features.settings.DiscordActivityMode.ALL,
+        )
+        assertNotNull(activity)
+        assertEquals("Inception", activity.details)
+    }
+
+    @Test
+    fun appPresenceState_clearPlayer_fallsBackToLatestNavigationSnapshot() {
+        AppPresenceState.reset()
+        val homeTab = PresenceSnapshot.Tab(AppScreenTab.Home)
+        AppPresenceState.publish(homeTab)
+
+        val playerSnapshot = PresenceSnapshot.Player(
+            title = "Inception",
+            episodeLabel = null,
+            posterUrl = "https://example.com/inception.jpg",
+            isPlaying = true,
+            positionMs = 12_000L,
+            durationMs = 120_000L,
+        )
+        AppPresenceState.publish(playerSnapshot)
+
+        // Browse to Settings while video plays in mini player
+        val settingsTab = PresenceSnapshot.Tab(AppScreenTab.Settings)
+        AppPresenceState.publish(settingsTab)
+        assertEquals(playerSnapshot, AppPresenceState.current.value)
+
+        // Close mini player
+        AppPresenceState.clearPlayer()
+        assertEquals(settingsTab, AppPresenceState.current.value)
+
+        val activity = resolveDiscordActivity(
+            AppPresenceState.current.value,
+            com.nuvio.app.features.settings.DiscordActivityMode.ALL,
+        )
+        assertNotNull(activity)
+        assertEquals("Tweaking NuvioCodeineXO", activity.details)
+        assertEquals("In Settings", activity.state)
     }
 }

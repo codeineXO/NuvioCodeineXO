@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.AppPresenceState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -75,6 +76,7 @@ internal object InAppPlayerManager {
         _activeLaunch.value = null
         _isMiniPlayer.value = false
         resetOffset()
+        AppPresenceState.clearPlayer()
     }
 
     fun getActiveLaunchId(): Long? = _activeLaunchId.value

@@ -6,11 +6,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal object AppPresenceState {
+    private val _playerSnapshot = MutableStateFlow<PresenceSnapshot.Player?>(null)
+    private val _navigationSnapshot = MutableStateFlow<PresenceSnapshot?>(null)
     private val _current = MutableStateFlow<PresenceSnapshot?>(null)
     val current: StateFlow<PresenceSnapshot?> = _current.asStateFlow()
 
     fun publish(snapshot: PresenceSnapshot?) {
-        _current.value = snapshot
+        if (snapshot is PresenceSnapshot.Player) {
+            _playerSnapshot.value = snapshot
+        } else {
+            _navigationSnapshot.value = snapshot
+        }
+        _current.value = _playerSnapshot.value ?: _navigationSnapshot.value
+    }
+
+    fun clearPlayer() {
+        _playerSnapshot.value = null
+        _current.value = _navigationSnapshot.value
+    }
+
+    fun reset() {
+        _playerSnapshot.value = null
+        _navigationSnapshot.value = null
+        _current.value = null
     }
 }
 
