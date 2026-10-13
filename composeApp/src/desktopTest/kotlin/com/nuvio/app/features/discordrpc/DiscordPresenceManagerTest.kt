@@ -3,6 +3,7 @@ package com.nuvio.app.features.discordrpc
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
+import com.nuvio.app.features.settings.DiscordActivityType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -26,20 +27,30 @@ class DiscordPresenceManagerTest {
         assertEquals(1, IdleActivity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", IdleActivity.buttons?.first()?.label)
         assertEquals("https://github.com/codeineXO/NuvioCodeineXO", IdleActivity.buttons?.first()?.url)
+
+        val watchingIdle = createIdleActivity(DiscordActivityType.WATCHING)
+        assertEquals("NuvioCodeineXO", watchingIdle.name)
+        assertEquals(3, watchingIdle.type)
     }
 
     @Test
     fun tabSnapshot_hasNuvioCodeineXONameAndDownloadButton() {
         val activity = PresenceSnapshot.Tab(AppScreenTab.Home).toDiscordActivity()
         assertEquals("NuvioCodeineXO", activity.name)
+        assertEquals(3, activity.type)
         assertEquals("Exploring NuvioCodeineXO", activity.details)
         assertEquals("Exploring Content", activity.state)
         assertNotNull(activity.assets)
         assertNotNull(activity.timestamps)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
 
+        val playingTab = PresenceSnapshot.Tab(AppScreenTab.Home).toDiscordActivity(DiscordActivityType.PLAYING)
+        assertEquals("NuvioCodeineXO", playingTab.name)
+        assertEquals(0, playingTab.type)
+
         val settingsActivity = PresenceSnapshot.Tab(AppScreenTab.Settings).toDiscordActivity()
         assertEquals("NuvioCodeineXO", settingsActivity.name)
+        assertEquals(3, settingsActivity.type)
         assertEquals("Tweaking NuvioCodeineXO", settingsActivity.details)
         assertEquals("In Settings", settingsActivity.state)
     }
@@ -63,7 +74,8 @@ class DiscordPresenceManagerTest {
 
         val activity = snapshot.toDiscordActivity()
 
-        assertEquals("NuvioCodeineXO", activity.name)
+        assertEquals("Breaking Bad", activity.name)
+        assertEquals(3, activity.type)
         assertEquals("Breaking Bad", activity.details)
         assertEquals("https://www.imdb.com/title/tt0903747/", activity.detailsUrl)
         assertEquals("S01, E01: Pilot", activity.state)
@@ -81,6 +93,11 @@ class DiscordPresenceManagerTest {
         assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
         assertEquals("https://github.com/codeineXO/NuvioCodeineXO", activity.buttons?.first()?.url)
+
+        val playingActivity = snapshot.toDiscordActivity(DiscordActivityType.PLAYING)
+        assertEquals("NuvioCodeineXO", playingActivity.name)
+        assertEquals(0, playingActivity.type)
+        assertEquals("Breaking Bad", playingActivity.details)
     }
 
     @Test
@@ -140,7 +157,8 @@ class DiscordPresenceManagerTest {
 
         val activity = snapshot.toDiscordActivity()
 
-        assertEquals("NuvioCodeineXO", activity.name)
+        assertEquals("Inception", activity.name)
+        assertEquals(3, activity.type)
         assertEquals("Inception", activity.details)
         assertEquals("https://www.imdb.com/title/tt1375666/", activity.detailsUrl)
         assertEquals("Watching", activity.state)
@@ -157,6 +175,11 @@ class DiscordPresenceManagerTest {
         assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
         assertEquals("https://github.com/codeineXO/NuvioCodeineXO", activity.buttons?.first()?.url)
+
+        val playingActivity = snapshot.toDiscordActivity(DiscordActivityType.PLAYING)
+        assertEquals("NuvioCodeineXO", playingActivity.name)
+        assertEquals(0, playingActivity.type)
+        assertEquals("Inception", playingActivity.details)
     }
 
     @Test
@@ -172,9 +195,28 @@ class DiscordPresenceManagerTest {
         )
 
         val activity = snapshot.toDiscordActivity()
+        assertEquals("Inception", activity.name)
+        assertEquals(3, activity.type)
         assertEquals("Paused", activity.state)
         assertEquals(2, activity.statusDisplayType)
         assertNull(activity.timestamps)
+    }
+
+    @Test
+    fun playerSnapshot_withBlankTitle_fallsBackToAppActivityName() {
+        val snapshot = PresenceSnapshot.Player(
+            title = "",
+            episodeLabel = null,
+            posterUrl = null,
+            isPlaying = true,
+            positionMs = 0L,
+            durationMs = 0L,
+            isSeries = false,
+        )
+
+        val activity = snapshot.toDiscordActivity()
+        assertEquals("NuvioCodeineXO", activity.name)
+        assertEquals(3, activity.type)
     }
 
     @Test
@@ -259,7 +301,8 @@ class DiscordPresenceManagerTest {
 
         val activity = snapshot.toDiscordActivity()
 
-        assertEquals("NuvioCodeineXO", activity.name)
+        assertEquals("Dune: Part Two", activity.name)
+        assertEquals(3, activity.type)
         assertEquals("Dune: Part Two", activity.details)
         assertEquals("https://www.imdb.com/title/tt15239678/", activity.detailsUrl)
         assertEquals("Overview", activity.state)
@@ -271,6 +314,11 @@ class DiscordPresenceManagerTest {
         assertNotNull(activity.buttons)
         assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
+
+        val playingActivity = snapshot.toDiscordActivity(DiscordActivityType.PLAYING)
+        assertEquals("NuvioCodeineXO", playingActivity.name)
+        assertEquals(0, playingActivity.type)
+        assertEquals("Dune: Part Two", playingActivity.details)
     }
 
     @Test
@@ -284,7 +332,8 @@ class DiscordPresenceManagerTest {
 
         val activity = snapshot.toDiscordActivity()
 
-        assertEquals("NuvioCodeineXO", activity.name)
+        assertEquals("Fallout", activity.name)
+        assertEquals(3, activity.type)
         assertEquals("Fallout", activity.details)
         assertEquals("https://www.imdb.com/title/tt12637874/", activity.detailsUrl)
         assertEquals("S01, E01: The End", activity.state)
@@ -296,6 +345,11 @@ class DiscordPresenceManagerTest {
         assertNotNull(activity.buttons)
         assertEquals(1, activity.buttons?.size)
         assertEquals("Download NuvioCodeineXO", activity.buttons?.first()?.label)
+
+        val playingActivity = snapshot.toDiscordActivity(DiscordActivityType.PLAYING)
+        assertEquals("NuvioCodeineXO", playingActivity.name)
+        assertEquals(0, playingActivity.type)
+        assertEquals("Fallout", playingActivity.details)
     }
 
     @Test
@@ -337,7 +391,8 @@ class DiscordPresenceManagerTest {
 
         assertNotNull(resolveDiscordActivity(detailsSnapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
         assertNotNull(resolveDiscordActivity(streamSnapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
-        assertEquals(IdleActivity, resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
+        assertEquals(createIdleActivity(DiscordActivityType.WATCHING), resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
+        assertEquals(IdleActivity, resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL, DiscordActivityType.PLAYING))
     }
 
     @Test

@@ -589,6 +589,13 @@
     <string name="settings_advanced_discord_activity_mode_only_watching">Only watching</string>
     <string name="settings_advanced_discord_activity_mode_only_watching_desc">Only show activity when playing a movie or series</string>
     <string name="settings_advanced_discord_activity_mode_sheet_title">Discord Activity Display</string>
+    <string name="settings_advanced_discord_activity_type">Presence Style</string>
+    <string name="settings_advanced_discord_activity_type_description">Choose whether to show as Watching or Playing with full game card.</string>
+    <string name="settings_advanced_discord_activity_type_watching">Watching</string>
+    <string name="settings_advanced_discord_activity_type_watching_desc">Show as Watching with media title and watch icon</string>
+    <string name="settings_advanced_discord_activity_type_playing">Playing (Game Card)</string>
+    <string name="settings_advanced_discord_activity_type_playing_desc">Show as Playing with full expanded game card in Active Now</string>
+    <string name="settings_advanced_discord_activity_type_sheet_title">Presence Style</string>
     <string name="settings_advanced_discord_full_poster">Full Portrait Poster</string>
     <string name="settings_advanced_discord_full_poster_description">Fit complete vertical poster on Discord without square cropping</string>
     <string name="sentry_enable_dialog_title">Turn on crash reports?</string>

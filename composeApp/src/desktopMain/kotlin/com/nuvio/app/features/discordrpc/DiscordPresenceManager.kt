@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.features.settings.DiscordActivityMode
+import com.nuvio.app.features.settings.DiscordActivityType
 import com.nuvio.app.features.settings.DiscordRichPresenceRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,12 +22,19 @@ private class DiscordDisconnected : Exception()
 
 private const val ReconnectDelayMs = 15_000L
 
+private data class SyncConfig(
+    val snapshot: PresenceSnapshot?,
+    val mode: DiscordActivityMode,
+    val activityType: DiscordActivityType,
+    val fullPoster: Boolean,
+)
+
 // Discord activity type: 0 = Playing, 2 = Listening, 3 = Watching, 5 = Competing.
 // Using 0 (Playing/Game) enables Discord to render the full rich presence game card
-// (square art, title, state, and elapsed timer) in Discord's "Active Now" panel.
-// Activity type 3 (Watching) collapses the Active Now presence into a single stream line
-// with a play icon and suppresses the expanded sub-card.
+// in menus and tabs. Activity type 3 (Watching) renders media playback as a watching
+// presence with the TV/watch badge and media title.
 private const val ActivityTypeGame = 0
+private const val ActivityTypeWatching = 3
 
 internal object DiscordPresenceManager {
     private val log = Logger.withTag("DiscordPresenceManager")
@@ -60,11 +68,17 @@ internal object DiscordPresenceManager {
                         combine(
                             AppPresenceState.current,
                             DiscordRichPresenceRepository.activityMode,
+                            DiscordRichPresenceRepository.activityType,
                             DiscordRichPresenceRepository.fullPosterEnabled,
-                        ) { snapshot, mode, fullPoster ->
-                            Triple(snapshot, mode, fullPoster)
-                        }.collect { (snapshot, mode, fullPoster) ->
-                            val activity = resolveDiscordActivity(snapshot, mode, fullPoster)
+                        ) { snapshot, mode, type, fullPoster ->
+                            SyncConfig(snapshot, mode, type, fullPoster)
+                        }.collect { config ->
+                            val activity = resolveDiscordActivity(
+                                config.snapshot,
+                                config.mode,
+                                config.activityType,
+                                config.fullPoster,
+                            )
                             if (activity == lastActivity) return@collect
                             if (client.setActivity(activity)) {
                                 lastActivity = activity
@@ -162,35 +176,41 @@ internal fun formatDiscordPosterAsset(url: String?, fullPosterEnabled: Boolean):
 
 internal val sessionStartSecs = System.currentTimeMillis() / 1_000L
 
-// Shown when nothing has been published yet, so the profile reads "Playing NuvioCodeineXO".
-internal val IdleActivity = DiscordActivity(
-    type = ActivityTypeGame,
-    name = AppActivityName,
-    details = "Exploring NuvioCodeineXO",
-    state = "In Menus",
-    statusDisplayType = StatusDisplayTypeDetails,
-    timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
-    assets = DiscordActivityAssets(
-        largeImage = DefaultAppIconUrl,
-        largeText = AppActivityName,
-    ),
-    buttons = listOf(DownloadButton),
-)
+// Shown when nothing has been published yet.
+internal fun createIdleActivity(activityType: DiscordActivityType = DiscordActivityType.PLAYING): DiscordActivity {
+    val isWatching = activityType == DiscordActivityType.WATCHING
+    return DiscordActivity(
+        type = if (isWatching) ActivityTypeWatching else ActivityTypeGame,
+        name = AppActivityName,
+        details = "Exploring NuvioCodeineXO",
+        state = "In Menus",
+        statusDisplayType = StatusDisplayTypeDetails,
+        timestamps = DiscordActivityTimestamps(start = sessionStartSecs),
+        assets = DiscordActivityAssets(
+            largeImage = DefaultAppIconUrl,
+            largeText = AppActivityName,
+        ),
+        buttons = listOf(DownloadButton),
+    )
+}
+
+internal val IdleActivity: DiscordActivity get() = createIdleActivity(DiscordActivityType.PLAYING)
 
 internal fun resolveDiscordActivity(
     snapshot: PresenceSnapshot?,
     mode: DiscordActivityMode,
+    activityType: DiscordActivityType = DiscordActivityType.WATCHING,
     fullPosterEnabled: Boolean = false,
 ): DiscordActivity? {
     return when {
         mode == DiscordActivityMode.ONLY_WATCHING -> {
             if (snapshot is PresenceSnapshot.Player) {
-                snapshot.toDiscordActivity(fullPosterEnabled)
+                snapshot.toDiscordActivity(activityType, fullPosterEnabled)
             } else {
                 null
             }
         }
-        else -> snapshot?.toDiscordActivity(fullPosterEnabled) ?: IdleActivity
+        else -> snapshot?.toDiscordActivity(activityType, fullPosterEnabled) ?: createIdleActivity(activityType)
     }
 }
 
@@ -203,14 +223,18 @@ internal fun String.toDiscordEpisodeLabel(): String {
     return if (title.isBlank()) "S$season, E$episode" else "S$season, E$episode: $title"
 }
 
-internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = false): DiscordActivity = when (this) {
+internal fun PresenceSnapshot.toDiscordActivity(
+    activityType: DiscordActivityType = DiscordActivityType.WATCHING,
+    fullPosterEnabled: Boolean = false,
+): DiscordActivity = when (this) {
     is PresenceSnapshot.Tab -> {
         val (tabDetails, tabState) = when (tab) {
             com.nuvio.app.AppScreenTab.Settings -> "Tweaking NuvioCodeineXO" to "In Settings"
             else -> "Exploring NuvioCodeineXO" to "Exploring Content"
         }
+        val isWatching = activityType == DiscordActivityType.WATCHING
         DiscordActivity(
-            type = ActivityTypeGame,
+            type = if (isWatching) ActivityTypeWatching else ActivityTypeGame,
             name = AppActivityName,
             details = tabDetails,
             state = tabState,
@@ -225,9 +249,10 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
     }
     is PresenceSnapshot.Details -> {
         val imdbUrl = buildImdbUrl(imdbId, title)
+        val isWatching = activityType == DiscordActivityType.WATCHING
         DiscordActivity(
-            type = ActivityTypeGame,
-            name = AppActivityName,
+            type = if (isWatching) ActivityTypeWatching else ActivityTypeGame,
+            name = if (isWatching) title.takeIf { it.isNotBlank() } ?: AppActivityName else AppActivityName,
             details = title,
             detailsUrl = imdbUrl,
             state = "Overview",
@@ -244,9 +269,10 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
     is PresenceSnapshot.StreamSelection -> {
         val episode = episodeLabel?.toDiscordEpisodeLabel()
         val imdbUrl = buildImdbUrl(imdbId, title)
+        val isWatching = activityType == DiscordActivityType.WATCHING
         DiscordActivity(
-            type = ActivityTypeGame,
-            name = AppActivityName,
+            type = if (isWatching) ActivityTypeWatching else ActivityTypeGame,
+            name = if (isWatching) title.takeIf { it.isNotBlank() } ?: AppActivityName else AppActivityName,
             details = title,
             detailsUrl = imdbUrl,
             state = if (!episode.isNullOrBlank()) episode else "Selecting Stream",
@@ -286,9 +312,10 @@ internal fun PresenceSnapshot.toDiscordActivity(fullPosterEnabled: Boolean = fal
         val episodeThumb = episodeThumbnailUrl?.takeIf { it.isNotBlank() }
         val poster = posterUrl?.takeIf { it.isNotBlank() }
         val formattedPoster = poster?.let { formatDiscordPosterAsset(it, fullPosterEnabled) }
+        val isWatching = activityType == DiscordActivityType.WATCHING
         DiscordActivity(
-            type = ActivityTypeGame,
-            name = AppActivityName,
+            type = if (isWatching) ActivityTypeWatching else ActivityTypeGame,
+            name = if (isWatching) title.takeIf { it.isNotBlank() } ?: AppActivityName else AppActivityName,
             details = title,
             detailsUrl = imdbUrl,
             state = playerState,

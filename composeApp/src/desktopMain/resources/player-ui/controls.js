@@ -479,6 +479,25 @@ const SubtitleOutlineEffects = [
 ];
 let isScrubbing = false;
 let scrubPositionMs = 0;
+let seekSuppressBufferingUntil = 0;
+let seekSeenLoading = false;
+let bufferingDebounceTimer = 0;
+let isBufferingVisible = false;
+
+const markSeek = targetPosMs => {
+  const currentPos = Math.max(0, Number(state.positionMs) || 0);
+  const bufferedPos = Math.max(Number(state.bufferedPositionMs) || 0, currentPos);
+  const target = typeof targetPosMs === "number" ? targetPosMs : currentPos;
+  const isBackward = target <= currentPos + 500;
+  const isWithinBuffer = target <= bufferedPos + 1000;
+  if (isBackward || isWithinBuffer) {
+    seekSuppressBufferingUntil = Date.now() + 800;
+    seekSeenLoading = false;
+  } else {
+    seekSuppressBufferingUntil = 0;
+    seekSeenLoading = false;
+  }
+};
 let tapTimer = 0;
 let activeModal = "";
 let pressedButton = null;
@@ -775,6 +794,11 @@ const showCommandToast = command => {
   queueSettingToast(command);
   const seekLabel = seekToastLabel(command);
   if (seekLabel) {
+    if (command === "seekBack" || command === "keyboardSeekBack") {
+      markSeek((Number(state.positionMs) || 0) - 3000);
+    } else if (command === "seekForward" || command === "keyboardSeekForward") {
+      markSeek((Number(state.positionMs) || 0) + 3000);
+    }
     triggerSeekbarOnlyOnSeek();
     showPlayerToast(seekLabel);
   }
@@ -3289,10 +3313,32 @@ const renderChrome = () => {
     pipButton.hidden = !pipLabel;
   }
   syncPipLockLabels();
-  const showBuffering = Boolean(!showError && state.isLoading && !activeModal && !showOpening);
-  bufferingStatus.classList.toggle("visible", showBuffering);
-  bufferingStatus.setAttribute("aria-hidden", showBuffering ? "false" : "true");
-  bufferingLoadingIndicator.setActive(showBuffering);
+  const isSeekingBuffered = isScrubbing || (seekSuppressBufferingUntil > Date.now());
+  const wantsBuffering = Boolean(!showError && state.isLoading && !isSeekingBuffered && !activeModal && !showOpening);
+  if (wantsBuffering) {
+    if (!bufferingDebounceTimer && !isBufferingVisible) {
+      bufferingDebounceTimer = window.setTimeout(() => {
+        bufferingDebounceTimer = 0;
+        renderChrome();
+      }, 200);
+    } else if (!bufferingDebounceTimer) {
+      isBufferingVisible = true;
+      bufferingStatus.classList.toggle("visible", true);
+      bufferingStatus.setAttribute("aria-hidden", "false");
+      bufferingLoadingIndicator.setActive(true);
+    }
+  } else {
+    if (bufferingDebounceTimer) {
+      window.clearTimeout(bufferingDebounceTimer);
+      bufferingDebounceTimer = 0;
+    }
+    if (isBufferingVisible) {
+      isBufferingVisible = false;
+      bufferingStatus.classList.toggle("visible", false);
+      bufferingStatus.setAttribute("aria-hidden", "true");
+      bufferingLoadingIndicator.setActive(false);
+    }
+  }
 
   setVisible(submitIntroButton, Boolean(state.showSubmitIntro));
   setVisible(videoSettingsButton, Boolean(state.showVideoSettings));
@@ -3550,6 +3596,7 @@ const fineSeek = isForward => {
   const targetPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, fineSeekBasePosMs + fineSeekAccumulatedMs) : fineSeekBasePosMs + fineSeekAccumulatedMs);
 
   state.positionMs = targetPosMs;
+  markSeek(targetPosMs);
   setProgress(targetPosMs, durationMs);
 
   const deltaSec = Math.round(fineSeekAccumulatedMs / 1000);
@@ -4239,6 +4286,7 @@ p2pConsentEnableButton.addEventListener("click", event => {
 
 skipPrompt.addEventListener("click", event => {
   event.stopPropagation();
+  markSeek(state.skipPromptEndMs);
   send("skipInterval", 0);
 });
 
@@ -4455,6 +4503,7 @@ seek.addEventListener("input", () => {
   triggerSeekbarOnlyOnSeek();
   isScrubbing = true;
   scrubPositionMs = rangePositionMs();
+  markSeek(scrubPositionMs);
   setProgress(scrubPositionMs, state.durationMs);
   send("scrubChange", scrubPositionMs);
   updateSeekrPreview(scrubPositionMs, null);
@@ -4465,6 +4514,7 @@ seek.addEventListener("change", () => {
   triggerSeekbarOnlyOnSeek();
   scrubPositionMs = rangePositionMs();
   isScrubbing = false;
+  markSeek(scrubPositionMs);
   send("scrubFinish", scrubPositionMs);
   state.positionMs = scrubPositionMs;
   hideSeekrPreview();
@@ -4630,13 +4680,29 @@ window.playerUpdate = update => {
     window.clearTimeout(pendingPlaybackTimer);
     pendingPlaybackTimer = 0;
   }
+  const updateIsLoading = Boolean(update.loading || update.isLoading);
+  const positionJumped = state.positionMs > 0 && Math.abs(positionMs - state.positionMs) > 1500;
+  if (positionJumped && (positionMs <= bufferedPositionMs + 1000 || positionMs <= state.positionMs + 500)) {
+    seekSuppressBufferingUntil = Date.now() + 800;
+    seekSeenLoading = updateIsLoading;
+  } else if (seekSuppressBufferingUntil > 0) {
+    if (updateIsLoading) {
+      seekSeenLoading = true;
+    } else if (seekSeenLoading) {
+      seekSuppressBufferingUntil = 0;
+      seekSeenLoading = false;
+    } else if (Date.now() > seekSuppressBufferingUntil) {
+      seekSuppressBufferingUntil = 0;
+      seekSeenLoading = false;
+    }
+  }
   state = {
     ...state,
     durationMs,
     positionMs: fineSeekBasePosMs !== null ? state.positionMs : positionMs,
     bufferedPositionMs,
     isPlaying: pendingIsPlaying === null ? nativeIsPlaying : pendingIsPlaying,
-    isLoading: Boolean(update.loading || update.isLoading),
+    isLoading: updateIsLoading,
     volumeLevel,
     audioTracks,
     subtitleTracks,
@@ -5652,6 +5718,7 @@ document.addEventListener("keydown", event => {
     const durationMs = Math.max(0, Number(state.durationMs) || 0);
     const nextPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, (Number(state.positionMs) || 0) + deltaMs) : (Number(state.positionMs) || 0) + deltaMs);
     state.positionMs = nextPosMs;
+    markSeek(nextPosMs);
     setProgress(nextPosMs, durationMs);
     if (state.seekPreviewEnabled) {
       updateSeekrPreview(nextPosMs, null);

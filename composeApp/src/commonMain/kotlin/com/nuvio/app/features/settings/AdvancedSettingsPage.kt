@@ -56,6 +56,13 @@ import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_m
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching_desc
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_sheet_title
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_description
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_playing
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_playing_desc
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_sheet_title
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_watching
+import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_watching_desc
 import nuvio.composeapp.generated.resources.settings_advanced_discord_full_poster
 import nuvio.composeapp.generated.resources.settings_advanced_discord_full_poster_description
 import nuvio.composeapp.generated.resources.settings_advanced_discord_rich_presence
@@ -197,11 +204,16 @@ internal fun LazyListScope.advancedSettingsContent(
                 DiscordRichPresenceRepository.activityMode
             }
             val activityMode by activityModeFlow.collectAsStateWithLifecycle()
+            val activityTypeFlow = remember {
+                DiscordRichPresenceRepository.activityType
+            }
+            val activityType by activityTypeFlow.collectAsStateWithLifecycle()
             val fullPosterEnabledFlow = remember {
                 DiscordRichPresenceRepository.fullPosterEnabled
             }
             val fullPosterEnabled by fullPosterEnabledFlow.collectAsStateWithLifecycle()
             var showActivityModeSheet by rememberSaveable { mutableStateOf(false) }
+            var showActivityTypeSheet by rememberSaveable { mutableStateOf(false) }
 
             SettingsSection(
                 title = stringResource(Res.string.settings_advanced_section_discord),
@@ -216,6 +228,19 @@ internal fun LazyListScope.advancedSettingsContent(
                         onCheckedChange = DiscordRichPresenceRepository::setEnabled,
                     )
                     if (discordEnabled) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.settings_advanced_discord_activity_type),
+                            description = stringResource(
+                                if (activityType == DiscordActivityType.WATCHING) {
+                                    Res.string.settings_advanced_discord_activity_type_watching
+                                } else {
+                                    Res.string.settings_advanced_discord_activity_type_playing
+                                }
+                            ),
+                            isTablet = isTablet,
+                            onClick = { showActivityTypeSheet = true },
+                        )
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsNavigationRow(
                             title = stringResource(Res.string.settings_advanced_discord_activity_mode),
@@ -239,6 +264,17 @@ internal fun LazyListScope.advancedSettingsContent(
                         )
                     }
                 }
+            }
+
+            if (showActivityTypeSheet) {
+                DiscordActivityTypeBottomSheet(
+                    selectedType = activityType,
+                    onTypeSelected = { type ->
+                        DiscordRichPresenceRepository.setActivityType(type)
+                        showActivityTypeSheet = false
+                    },
+                    onDismiss = { showActivityTypeSheet = false },
+                )
             }
 
             if (showActivityModeSheet) {
@@ -478,6 +514,96 @@ internal fun DiscordActivityModeBottomSheet(
                         )
                     }
                     if (mode == selectedMode) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(Res.string.cd_selected),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun DiscordActivityTypeBottomSheet(
+    selectedType: DiscordActivityType,
+    onTypeSelected: (DiscordActivityType) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
+    val types = listOf(
+        DiscordActivityType.WATCHING to (
+            Res.string.settings_advanced_discord_activity_type_watching to
+                Res.string.settings_advanced_discord_activity_type_watching_desc
+        ),
+        DiscordActivityType.PLAYING to (
+            Res.string.settings_advanced_discord_activity_type_playing to
+                Res.string.settings_advanced_discord_activity_type_playing_desc
+        ),
+    )
+
+    NuvioModalBottomSheet(
+        onDismissRequest = {
+            coroutineScope.launch {
+                dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+            }
+        },
+        sheetState = sheetState,
+    ) {
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+        ) {
+            item {
+                Text(
+                    text = stringResource(Res.string.settings_advanced_discord_activity_type_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                )
+            }
+
+            itemsIndexed(types) { index, (type, stringRes) ->
+                if (index > 0) {
+                    NuvioBottomSheetDivider()
+                }
+                val (titleRes, descRes) = stringRes
+                val tokens = MaterialTheme.nuvio
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onTypeSelected(type)
+                            coroutineScope.launch {
+                                dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                            }
+                        }
+                        .padding(horizontal = tokens.spacing.screenHorizontal, vertical = tokens.spacing.screenHorizontal),
+                    horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s14),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = stringResource(titleRes),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = tokens.colors.textPrimary,
+                        )
+                        Text(
+                            text = stringResource(descRes),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.colors.textMuted,
+                        )
+                    }
+                    if (type == selectedType) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = stringResource(Res.string.cd_selected),

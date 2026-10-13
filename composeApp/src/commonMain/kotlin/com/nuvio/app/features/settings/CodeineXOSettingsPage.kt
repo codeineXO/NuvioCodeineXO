@@ -343,11 +343,16 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 DiscordRichPresenceRepository.activityMode
             }
             val activityMode by activityModeFlow.collectAsStateWithLifecycle()
+            val activityTypeFlow = remember {
+                DiscordRichPresenceRepository.activityType
+            }
+            val activityType by activityTypeFlow.collectAsStateWithLifecycle()
             val fullPosterEnabledFlow = remember {
                 DiscordRichPresenceRepository.fullPosterEnabled
             }
             val fullPosterEnabled by fullPosterEnabledFlow.collectAsStateWithLifecycle()
             var showActivityModeSheet by rememberSaveable { mutableStateOf(false) }
+            var showActivityTypeSheet by rememberSaveable { mutableStateOf(false) }
 
             SettingsSection(
                 title = stringResource(Res.string.settings_advanced_section_discord),
@@ -362,6 +367,19 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         onCheckedChange = DiscordRichPresenceRepository::setEnabled,
                     )
                     if (discordEnabled) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.settings_advanced_discord_activity_type),
+                            description = stringResource(
+                                if (activityType == DiscordActivityType.WATCHING) {
+                                    Res.string.settings_advanced_discord_activity_type_watching
+                                } else {
+                                    Res.string.settings_advanced_discord_activity_type_playing
+                                }
+                            ),
+                            isTablet = isTablet,
+                            onClick = { showActivityTypeSheet = true },
+                        )
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsNavigationRow(
                             title = stringResource(Res.string.settings_advanced_discord_activity_mode),
@@ -385,6 +403,17 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         )
                     }
                 }
+            }
+
+            if (showActivityTypeSheet) {
+                DiscordActivityTypeBottomSheet(
+                    selectedType = activityType,
+                    onTypeSelected = { type ->
+                        DiscordRichPresenceRepository.setActivityType(type)
+                        showActivityTypeSheet = false
+                    },
+                    onDismiss = { showActivityTypeSheet = false },
+                )
             }
 
             if (showActivityModeSheet) {
