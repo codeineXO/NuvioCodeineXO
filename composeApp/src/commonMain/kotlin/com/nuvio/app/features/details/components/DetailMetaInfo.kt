@@ -355,7 +355,7 @@ private val ratingVisuals = listOf(
         source = PROVIDER_TMDB,
         displayName = "TMDB",
         logo = Res.drawable.rating_tmdb,
-        logoWidth = 16.dp,
+        logoWidth = 22.dp,
         valueColor = Color(0xFF01B4E4),
         format = ::formatWhole,
     ),
