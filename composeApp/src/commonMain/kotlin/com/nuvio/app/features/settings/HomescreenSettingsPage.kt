@@ -70,11 +70,16 @@ import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
+import com.nuvio.app.isDesktop
+import nuvio.composeapp.generated.resources.settings_homescreen_scroll_posters_layout
+import nuvio.composeapp.generated.resources.settings_homescreen_scroll_posters_layout_description
+
 internal fun LazyListScope.homescreenSettingsContent(
     isTablet: Boolean,
     heroEnabled: Boolean,
     showCatalogType: Boolean,
     hideUnreleasedContent: Boolean,
+    scrollPostersLayoutEnabled: Boolean = false,
     items: List<HomeCatalogSettingsItem>,
     isCatalogLoading: Boolean,
     catalogErrorMessage: String?,
@@ -118,6 +123,16 @@ internal fun LazyListScope.homescreenSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setHideUnreleasedContent,
                 )
+                if (isDesktop) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
+                        description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
+                        checked = scrollPostersLayoutEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
+                    )
+                }
             }
         }
     }

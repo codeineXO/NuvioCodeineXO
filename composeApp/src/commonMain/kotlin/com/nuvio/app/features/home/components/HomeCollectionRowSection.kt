@@ -41,6 +41,7 @@ fun HomeCollectionRowSection(
     collection: Collection,
     modifier: Modifier = Modifier,
     sectionPadding: Dp? = null,
+    useGutterLayout: Boolean = false,
     animateGifs: Boolean = true,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
 ) {
@@ -51,6 +52,7 @@ fun HomeCollectionRowSection(
             collection = collection,
             modifier = modifier.fillMaxWidth(),
             sectionPadding = sectionPadding,
+            useGutterLayout = useGutterLayout,
             animateGifs = animateGifs,
             onFolderClick = onFolderClick,
         )
@@ -60,6 +62,7 @@ fun HomeCollectionRowSection(
                 collection = collection,
                 modifier = Modifier.fillMaxWidth(),
                 sectionPadding = homeSectionHorizontalPaddingForWidth(maxWidth.value),
+                useGutterLayout = useGutterLayout,
                 animateGifs = animateGifs,
                 onFolderClick = onFolderClick,
             )
@@ -72,6 +75,7 @@ private fun HomeCollectionRowSectionContent(
     collection: Collection,
     modifier: Modifier,
     sectionPadding: Dp,
+    useGutterLayout: Boolean,
     animateGifs: Boolean,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)?,
 ) {
@@ -81,6 +85,7 @@ private fun HomeCollectionRowSectionContent(
         modifier = modifier,
         headerHorizontalPadding = sectionPadding,
         rowContentPadding = PaddingValues(horizontal = sectionPadding),
+        useGutterLayout = useGutterLayout,
         key = { folder -> "collection_${collection.id}_folder_${folder.id}" },
     ) { folder ->
         CollectionFolderCard(

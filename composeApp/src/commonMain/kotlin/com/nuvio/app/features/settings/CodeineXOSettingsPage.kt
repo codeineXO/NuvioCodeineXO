@@ -22,6 +22,7 @@ import com.nuvio.app.features.player.PlayerUiMode
 import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
@@ -49,6 +50,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
             ThemeSettingsRepository.ensureLoaded()
             ThemeSettingsRepository.auraBackgroundEnabled
         }.collectAsStateWithLifecycle()
+        val homeCatalogSettings by remember {
+            HomeCatalogSettingsRepository.snapshot()
+            HomeCatalogSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
 
         SettingsSection(
             title = stringResource(Res.string.settings_appearance_section_display),
@@ -62,6 +67,16 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = ThemeSettingsRepository::setAuraBackgroundEnabled,
                 )
+                if (isDesktop) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
+                        description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
+                        checked = homeCatalogSettings.scrollPostersLayoutEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
+                    )
+                }
             }
         }
     }

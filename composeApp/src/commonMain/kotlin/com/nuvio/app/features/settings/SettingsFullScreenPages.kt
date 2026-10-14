@@ -87,6 +87,7 @@ fun HomescreenSettingsScreen(
                 heroEnabled = homescreenSettingsUiState.heroEnabled,
                 showCatalogType = homescreenSettingsUiState.showCatalogType,
                 hideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
+                scrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
                 items = homescreenSettingsUiState.items,
                 isCatalogLoading = addonManifestsLoading,
                 catalogErrorMessage = addonManifestErrorMessage,

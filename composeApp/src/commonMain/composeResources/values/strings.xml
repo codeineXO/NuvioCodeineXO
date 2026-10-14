@@ -2587,4 +2587,6 @@
     <string name="stream_info_subtitle_source_embedded">Embedded</string>
     <string name="stream_info_player_engine">Player Engine</string>
     <string name="stream_info_server">Server</string>
+    <string name="settings_homescreen_scroll_posters_layout">Scroll Posters Layout</string>
+    <string name="settings_homescreen_scroll_posters_layout_description">Scroll posters with scroll wheel when cursor is hovering over poster</string>
 </resources>

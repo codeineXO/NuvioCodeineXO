@@ -109,7 +109,7 @@ private const val AppActivityName = "NuvioCodeineXO"
 private const val StatusDisplayTypeDetails = 2
 private const val ForkDownloadUrl = "https://github.com/codeineXO/NuvioCodeineXO"
 private const val DefaultAppIconUrl =
-    "https://raw.githubusercontent.com/codeineXO/NuvioCodeineXO/main/composeApp/src/commonMain/composeResources/drawable/app_icon_original_transparent.png"
+    "https://raw.githubusercontent.com/codeineXO/NuvioCodeineXO/main/composeApp/src/commonMain/composeResources/drawable/app_icon_original_transparent.png?v=2"
 private const val MaxPosterUrlLength = 400
 private const val ProxyContainWidth = 512
 private const val ProxyContainHeight = 512

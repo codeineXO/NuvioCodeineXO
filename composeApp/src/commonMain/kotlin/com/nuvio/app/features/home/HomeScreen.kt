@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.stopScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -118,8 +119,11 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
+import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.features.home.components.continueWatchingHeroViewportReserveHeight
 import com.nuvio.app.features.home.components.homeCatalogPreviewLimitForWidth
+import com.nuvio.app.features.home.components.homePosterGutterPaddingForWidth
 import com.nuvio.app.features.home.components.homeSectionHorizontalPaddingForWidth
 import com.nuvio.app.features.home.components.rememberContinueWatchingLayout
 import kotlinx.coroutines.CancellationException
@@ -949,10 +953,23 @@ fun HomeScreen(
 
         val homeSectionPadding = homeSectionHorizontalPaddingForWidth(maxWidth.value)
         val posterCardStyle = rememberPosterCardStyleUiState()
+        val useGutterLayout = homeSettingsUiState.scrollPostersLayoutEnabled && isDesktop
+        val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
+        val effectivePosterWidth = if (posterCardStyle.catalogLandscapeModeEnabled) {
+            landscapePosterWidth(basePosterWidthDp)
+        } else {
+            basePosterWidthDp.dp
+        }
+        val effectivePosterSectionPadding = if (useGutterLayout) {
+            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+        } else {
+            homeSectionPadding
+        }
+        val sectionBottomPadding = if (useGutterLayout) 24.dp else 12.dp
         val homeCatalogPreviewLimit = if (isDesktop) {
             homeCatalogPreviewLimitForWidth(
                 maxWidthDp = maxWidth.value,
-                sectionPadding = homeSectionPadding,
+                sectionPadding = effectivePosterSectionPadding,
                 basePosterWidthDp = posterCardStyle.widthDp,
                 useLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled,
             )
@@ -1007,6 +1024,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize().then(heroStretchModifier),
             horizontalPadding = 0.dp,
             topPadding = effectiveTopPadding,
+            verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
             listState = homeListState,
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -1053,10 +1071,12 @@ fun HomeScreen(
                         continueWatchingItems = continueWatchingItems,
                         upcomingItems = upcomingItems,
                         dataSourceKey = effectiveWatchProgressSource,
-                        sectionPadding = homeSectionPadding,
+                        sectionPadding = effectivePosterSectionPadding,
                         layout = continueWatchingLayout,
                         continueWatchingListState = continueWatchingListState,
                         upcomingListState = upcomingListState,
+                        useGutterLayout = useGutterLayout,
+                        sectionBottomPadding = sectionBottomPadding,
                         onItemClick = onContinueWatchingClick,
                         onItemLongPress = onContinueWatchingLongPress,
                         disintegrationRequest = continueWatchingDisintegrationRequest,
@@ -1067,7 +1087,7 @@ fun HomeScreen(
                         contentType = { "skeleton" },
                     ) {
                         HomeSkeletonRow(
-                            horizontalPadding = if (isDesktop) homeSectionPadding else 16.dp,
+                            horizontalPadding = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                         )
                     }
                 }
@@ -1078,10 +1098,12 @@ fun HomeScreen(
                         continueWatchingItems = continueWatchingItems,
                         upcomingItems = upcomingItems,
                         dataSourceKey = effectiveWatchProgressSource,
-                        sectionPadding = homeSectionPadding,
+                        sectionPadding = effectivePosterSectionPadding,
                         layout = continueWatchingLayout,
                         continueWatchingListState = continueWatchingListState,
                         upcomingListState = upcomingListState,
+                        useGutterLayout = useGutterLayout,
+                        sectionBottomPadding = sectionBottomPadding,
                         onItemClick = onContinueWatchingClick,
                         onItemLongPress = onContinueWatchingLongPress,
                         disintegrationRequest = continueWatchingDisintegrationRequest,
@@ -1092,7 +1114,7 @@ fun HomeScreen(
                                 NuvioNetworkOfflineCard(
                                     condition = networkStatusUiState.condition,
                                     modifier = Modifier.padding(
-                                        horizontal = if (isDesktop) homeSectionPadding else 16.dp,
+                                        horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                     ),
                                     onRetry = {
                                         NetworkStatusRepository.requestRefresh(force = true)
@@ -1104,7 +1126,7 @@ fun HomeScreen(
                             addonManifestErrorMessage != null -> {
                                 HomeEmptyStateCard(
                                     modifier = Modifier.padding(
-                                        horizontal = if (isDesktop) homeSectionPadding else 16.dp,
+                                        horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                     ),
                                     title = stringResource(Res.string.home_load_failed_title),
                                     message = addonManifestErrorMessage,
@@ -1119,7 +1141,7 @@ fun HomeScreen(
                             else -> {
                                 HomeEmptyStateCard(
                                     modifier = Modifier.padding(
-                                        horizontal = if (isDesktop) homeSectionPadding else 16.dp,
+                                        horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                     ),
                                     title = stringResource(Res.string.home_empty_no_sources_title),
                                     message = stringResource(Res.string.home_empty_no_sources_message),
@@ -1138,7 +1160,7 @@ fun HomeScreen(
                             NuvioNetworkOfflineCard(
                                 condition = networkStatusUiState.condition,
                                 modifier = Modifier.padding(
-                                    horizontal = if (isDesktop) homeSectionPadding else 16.dp,
+                                    horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                 ),
                                 onRetry = {
                                     NetworkStatusRepository.requestRefresh(force = true)
@@ -1148,7 +1170,7 @@ fun HomeScreen(
                         } else {
                             HomeEmptyStateCard(
                                 modifier = Modifier.padding(
-                                    horizontal = if (isDesktop) homeSectionPadding else 16.dp,
+                                    horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                 ),
                                 title = stringResource(
                                     if (loadFailed) {
@@ -1179,10 +1201,12 @@ fun HomeScreen(
                         continueWatchingItems = continueWatchingItems,
                         upcomingItems = upcomingItems,
                         dataSourceKey = effectiveWatchProgressSource,
-                        sectionPadding = homeSectionPadding,
+                        sectionPadding = effectivePosterSectionPadding,
                         layout = continueWatchingLayout,
                         continueWatchingListState = continueWatchingListState,
                         upcomingListState = upcomingListState,
+                        useGutterLayout = useGutterLayout,
+                        sectionBottomPadding = sectionBottomPadding,
                         onItemClick = onContinueWatchingClick,
                         onItemLongPress = onContinueWatchingLongPress,
                         disintegrationRequest = continueWatchingDisintegrationRequest,
@@ -1196,8 +1220,9 @@ fun HomeScreen(
                                 item(key = keyedSettingsItem.lazyKey, contentType = "collection") {
                                     HomeCollectionRowSection(
                                         collection = collection,
-                                        modifier = Modifier.padding(bottom = 12.dp),
-                                        sectionPadding = homeSectionPadding,
+                                        modifier = Modifier.padding(bottom = sectionBottomPadding),
+                                        sectionPadding = effectivePosterSectionPadding,
+                                        useGutterLayout = useGutterLayout,
                                         animateGifs = animateCollectionGifs,
                                         onFolderClick = onFolderClick,
                                     )
@@ -1216,8 +1241,9 @@ fun HomeScreen(
                                         } else {
                                             section.items.take(homeCatalogPreviewLimit)
                                         },
-                                        modifier = Modifier.padding(bottom = 12.dp),
-                                        sectionPadding = homeSectionPadding,
+                                        modifier = Modifier.padding(bottom = sectionBottomPadding),
+                                        sectionPadding = effectivePosterSectionPadding,
+                                        useGutterLayout = useGutterLayout,
                                         onViewAllClick = if (section.canOpenCatalog(homeCatalogPreviewLimit)) {
                                             onCatalogClick?.let { { it(section) } }
                                         } else {
@@ -1266,6 +1292,8 @@ private fun LazyListScope.homeContinueWatchingSections(
     layout: ContinueWatchingLayout,
     continueWatchingListState: LazyListState,
     upcomingListState: LazyListState,
+    useGutterLayout: Boolean = false,
+    sectionBottomPadding: Dp = 12.dp,
     onItemClick: ((ContinueWatchingItem) -> Unit)?,
     onItemLongPress: ((ContinueWatchingItem) -> Unit)?,
     disintegrationRequest: DisintegrationRequest<String>?,
@@ -1280,8 +1308,9 @@ private fun LazyListScope.homeContinueWatchingSections(
                 style = preferences.style,
                 useEpisodeThumbnails = preferences.useEpisodeThumbnails,
                 blurNextUp = preferences.blurNextUp,
-                modifier = Modifier.padding(bottom = 12.dp),
+                modifier = Modifier.padding(bottom = sectionBottomPadding),
                 sectionPadding = sectionPadding,
+                useGutterLayout = useGutterLayout,
                 layout = layout,
                 listState = continueWatchingListState,
                 onItemClick = onItemClick,
@@ -1299,9 +1328,10 @@ private fun LazyListScope.homeContinueWatchingSections(
                 style = preferences.style,
                 useEpisodeThumbnails = preferences.useEpisodeThumbnails,
                 blurNextUp = preferences.blurNextUp,
-                modifier = Modifier.padding(bottom = 12.dp),
+                modifier = Modifier.padding(bottom = sectionBottomPadding),
                 title = stringResource(Res.string.upcoming_section_title),
                 sectionPadding = sectionPadding,
+                useGutterLayout = useGutterLayout,
                 layout = layout,
                 listState = upcomingListState,
                 onItemClick = onItemClick,

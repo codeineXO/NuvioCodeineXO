@@ -81,6 +81,7 @@ fun NuvioScreen(
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = MaterialTheme.nuvio.spacing.screenHorizontal,
     topPadding: Dp? = null,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
     listState: LazyListState = rememberLazyListState(),
     backgroundColor: Color = MaterialTheme.nuvio.colors.background,
     content: LazyListScope.() -> Unit,
@@ -107,7 +108,7 @@ fun NuvioScreen(
                 end = horizontalPadding,
                 bottom = nuvioSafeBottomPadding(tokens.spacing.screenBottom),
             ),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.listGap),
+            verticalArrangement = verticalArrangement,
             content = content,
         )
         NuvioDesktopVerticalScrollbar(

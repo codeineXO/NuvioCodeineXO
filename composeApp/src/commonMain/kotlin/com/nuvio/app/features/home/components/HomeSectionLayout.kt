@@ -14,6 +14,18 @@ private const val HomeCatalogItemSpacingDp = 10f
 internal fun homeSectionHorizontalPaddingForWidth(maxWidthDp: Float): Dp =
     desktopPageHorizontalPaddingForWidth(maxWidthDp)
 
+internal fun homePosterGutterPaddingForWidth(
+    maxWidthDp: Float,
+    posterWidthDp: Dp,
+    itemSpacing: Dp = 10.dp,
+): Dp {
+    val basePadding = desktopPageHorizontalPaddingForWidth(maxWidthDp)
+    val gutterPadding = (basePadding + posterWidthDp + itemSpacing) * 0.70f
+    val minContentWidth = posterWidthDp.value * 1.5f
+    val maxAllowedPadding = ((maxWidthDp - minContentWidth) / 2f).coerceAtLeast(basePadding.value).dp
+    return gutterPadding.coerceIn(basePadding, maxAllowedPadding)
+}
+
 internal fun homeCatalogPreviewLimitForWidth(
     maxWidthDp: Float,
     sectionPadding: Dp,

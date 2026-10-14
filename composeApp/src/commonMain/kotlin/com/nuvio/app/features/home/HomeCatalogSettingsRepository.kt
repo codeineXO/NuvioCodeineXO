@@ -44,6 +44,7 @@ data class HomeCatalogSettingsUiState(
     val heroEnabled: Boolean = true,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
+    val scrollPostersLayoutEnabled: Boolean = false,
     val items: List<HomeCatalogSettingsItem> = emptyList(),
 ) {
     val signature: String
@@ -53,6 +54,8 @@ data class HomeCatalogSettingsUiState(
             append(showCatalogType)
             append('|')
             append(hideUnreleasedContent)
+            append('|')
+            append(scrollPostersLayoutEnabled)
             append('|')
             append(
                 items.joinToString(separator = "|") { item ->
@@ -73,6 +76,7 @@ internal data class HomeCatalogSettingsSnapshot(
     val heroEnabled: Boolean,
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
+    val scrollPostersLayoutEnabled: Boolean = false,
     val preferences: Map<String, HomeCatalogPreference>,
 )
 
@@ -90,6 +94,7 @@ private data class StoredHomeCatalogSettingsPayload(
     val heroEnabled: Boolean = true,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
+    val scrollPostersLayoutEnabled: Boolean = false,
     val items: List<StoredHomeCatalogPreference> = emptyList(),
 )
 
@@ -108,6 +113,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true,
         showCatalogType = true,
         hideUnreleasedContent = false,
+        scrollPostersLayoutEnabled = false,
         preferences = emptyMap(),
     )
     private val snapshotRef = atomic(emptySnapshot)
@@ -127,6 +133,7 @@ object HomeCatalogSettingsRepository {
     private var heroEnabled = true
     private var showCatalogType = true
     private var hideUnreleasedContent = false
+    private var scrollPostersLayoutEnabled = false
 
     fun onProfileChanged() {
         hasLoaded = false
@@ -134,6 +141,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
+        scrollPostersLayoutEnabled = false
         definitions = emptyList()
         collectionDefinitions = emptyList()
         snapshotRef.value = emptySnapshot
@@ -153,6 +161,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
+        scrollPostersLayoutEnabled = false
         snapshotRef.value = emptySnapshot
         lastPersistedPayload = null
         _uiState.value = HomeCatalogSettingsUiState()
@@ -248,6 +257,15 @@ object HomeCatalogSettingsRepository {
         HomeCatalogSettingsSyncService.triggerPush()
     }
 
+    fun setScrollPostersLayoutEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (scrollPostersLayoutEnabled == enabled) return
+        scrollPostersLayoutEnabled = enabled
+        publish()
+        persist()
+        HomeRepository.applyCurrentSettings()
+    }
+
     fun setHeroSourceEnabled(key: String, enabled: Boolean) {
         updatePreference(key, pushRemote = false) { preference ->
             if (!enabled) {
@@ -329,6 +347,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = parsedPayload.heroEnabled
             showCatalogType = parsedPayload.showCatalogType
             hideUnreleasedContent = parsedPayload.hideUnreleasedContent
+            scrollPostersLayoutEnabled = parsedPayload.scrollPostersLayoutEnabled
             preferences = parsedPayload.items.associateBy { it.key }
             publish()
             return
@@ -395,6 +414,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = heroEnabled,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
+            scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
             preferences = preferences.mapValues { (_, value) ->
                 HomeCatalogPreference(
                     customTitle = value.customTitle,
@@ -441,6 +461,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = heroEnabled,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
+            scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
             items = items,
         )
         if (_uiState.value != nextState) _uiState.value = nextState
@@ -452,6 +473,7 @@ object HomeCatalogSettingsRepository {
                 heroEnabled = heroEnabled,
                 showCatalogType = showCatalogType,
                 hideUnreleasedContent = hideUnreleasedContent,
+                scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                 items = preferences.values.sortedBy { it.order },
             ),
         )

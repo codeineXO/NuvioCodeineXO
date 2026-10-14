@@ -38,12 +38,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -82,6 +87,7 @@ fun <T> NuvioShelfSection(
     rowModifier: Modifier = Modifier,
     headerHorizontalPadding: Dp = 0.dp,
     rowContentPadding: PaddingValues = PaddingValues(0.dp),
+    useGutterLayout: Boolean = false,
     itemSpacing: Dp = 10.dp,
     onViewAllClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
@@ -99,8 +105,35 @@ fun <T> NuvioShelfSection(
     ScreenActivityEffect(state) { active ->
         if (!active) state.stopScroll()
     }
+    val density = LocalDensity.current
+    val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
+
+    val effectiveRowModifier = if (useGutterLayout) {
+        rowModifier
+            .padding(horizontal = headerHorizontalPadding)
+            .clipToBounds()
+            .nuvioPosterRowMouseWheelScroll(state = state, scrollStepPx = scrollStepPx)
+            .nuvioDesktopDragScroll(state)
+    } else {
+        rowModifier.nuvioDesktopDragScroll(state)
+    }
+    val effectiveRowContentPadding = if (useGutterLayout) {
+        PaddingValues(0.dp)
+    } else {
+        rowContentPadding
+    }
+
+    val sectionModifier = if (useGutterLayout) {
+        Modifier
+            .fillMaxWidth()
+            .nuvioCenterScrollConsumer(headerHorizontalPadding, enabled = true)
+            .then(modifier)
+    } else {
+        modifier.fillMaxWidth()
+    }
+
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = sectionModifier,
         verticalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap + NuvioTokens.Space.s2),
     ) {
         if (title.isNotBlank()) {
@@ -114,8 +147,8 @@ fun <T> NuvioShelfSection(
         }
         LazyRow(
             state = state,
-            modifier = rowModifier.nuvioDesktopDragScroll(state),
-            contentPadding = rowContentPadding,
+            modifier = effectiveRowModifier,
+            contentPadding = effectiveRowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             if (duplicateSafeEntries != null) {
@@ -139,6 +172,51 @@ fun <T> NuvioShelfSection(
                         Box(modifier = Modifier.animateItem()) { itemContent(entry) }
                     } else {
                         itemContent(entry)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+internal fun Modifier.nuvioPosterRowMouseWheelScroll(
+    state: LazyListState,
+    scrollStepPx: Float,
+    enabled: Boolean = true,
+): Modifier {
+    if (!isDesktop || !enabled) return this
+
+    return onPointerEvent(PointerEventType.Scroll) { event ->
+        val totalDelta = event.changes.fold(0f) { acc, change ->
+            acc + change.scrollDelta.y + change.scrollDelta.x
+        }
+        if (totalDelta != 0f) {
+            state.dispatchRawDelta(totalDelta * scrollStepPx)
+            event.changes.forEach { it.consume() }
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+internal fun Modifier.nuvioCenterScrollConsumer(
+    headerHorizontalPadding: Dp,
+    enabled: Boolean = true,
+): Modifier {
+    if (!isDesktop || !enabled) return this
+
+    return pointerInput(enabled, headerHorizontalPadding) {
+        val headerPaddingPx = headerHorizontalPadding.toPx()
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                if (event.type == PointerEventType.Scroll) {
+                    val width = size.width.toFloat()
+                    event.changes.forEach { change ->
+                        val x = change.position.x
+                        if (x >= headerPaddingPx && x <= width - headerPaddingPx) {
+                            change.consume()
+                        }
                     }
                 }
             }
