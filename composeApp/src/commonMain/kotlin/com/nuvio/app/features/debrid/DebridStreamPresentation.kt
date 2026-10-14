@@ -408,9 +408,7 @@ internal object DebridStreamMetadata {
     }
 
     private fun streamSize(stream: StreamItem): Long? =
-        stream.clientResolve?.stream?.raw?.size
-            ?: stream.behaviorHints.videoSize
-            ?: stream.debridCacheStatus?.cachedSize
+        stream.resolvedVideoSize
 
     private fun streamSearchText(stream: StreamItem): String {
         val resolve = stream.clientResolve

@@ -116,13 +116,19 @@ internal fun PluginRuntimeResult.toStreamItem(
         addonName = addonName,
         addonId = addonId,
         streamType = normalizeStreamType(type),
-        behaviorHints = if (requestHeaders.isEmpty()) {
-            StreamBehaviorHints()
-        } else {
-            StreamBehaviorHints(
-                notWebReady = true,
-                proxyHeaders = StreamProxyHeaders(request = requestHeaders),
-            )
+        behaviorHints = run {
+            val parsedVideoSize = parseStreamSize(size)
+                ?: parseStreamSize(title)
+                ?: parseStreamSize(name)
+            if (requestHeaders.isEmpty()) {
+                StreamBehaviorHints(videoSize = parsedVideoSize)
+            } else {
+                StreamBehaviorHints(
+                    notWebReady = true,
+                    videoSize = parsedVideoSize,
+                    proxyHeaders = StreamProxyHeaders(request = requestHeaders),
+                )
+            }
         },
         externalSubtitles = subtitles?.map {
             StreamSubtitle(

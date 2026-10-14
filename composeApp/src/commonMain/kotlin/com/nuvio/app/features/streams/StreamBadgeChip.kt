@@ -138,7 +138,8 @@ internal fun StreamBadgeImage(badge: StreamBadge) {
 @Composable
 internal fun StreamFileSizeBadge(stream: StreamItem) {
     val tokens = MaterialTheme.nuvio
-    val bytes = stream.behaviorHints.videoSize ?: return
+    val bytes = stream.resolvedVideoSize ?: return
+    if (bytes <= 0L) return
     val gib = bytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
     val sizeLabel = if (gib >= 1.0) {
         val roundedGiB = round(gib * 10.0) / 10.0

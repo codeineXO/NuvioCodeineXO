@@ -180,8 +180,7 @@ internal object NuvioEngineP2pBackend {
             )
         }
         val activeProtected = engine?.stats?.value?.diskCacheProtectedBytes ?: 0L
-        val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
-        val cacheDirectory = File(root, "payload")
+        val cacheDirectory = DesktopStorage.cacheDir.resolve("nuvio-engine/payload").toFile()
         val diskUsed = if (cacheDirectory.exists()) {
             measureAllocatedDiskBytes(cacheDirectory)
         } else 0L
@@ -193,9 +192,8 @@ internal object NuvioEngineP2pBackend {
         capacityBytes: Long,
         activeTorrentId: String? = null
     ) {
-        val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
-        val cacheDirectory = File(root, "payload")
-        val stateDirectory = File(root, "state")
+        val cacheDirectory = DesktopStorage.cacheDir.resolve("nuvio-engine/payload").toFile()
+        val stateDirectory = DesktopStorage.rootDir.resolve("nuvio-engine/state").toFile()
         val resumeDirectory = File(stateDirectory, "nuvio-engine-state/resume")
         if (!cacheDirectory.exists()) return
 
@@ -218,15 +216,7 @@ internal object NuvioEngineP2pBackend {
         )
 
         for (entry in toPrune) {
-            if (activeEngine != null) {
-                runCatching { activeEngine.removeTorrent(entry.torrentId) }
-            }
-            synchronized(lifecycleLock) {
-                knownTorrentIds.remove(entry.torrentId)
-            }
-            runCatching {
-                File(resumeDirectory, "${entry.torrentId}.resume").delete()
-            }
+            purgeTorrentState(activeEngine, entry.torrentId)
             val freed = entry.sizeBytes
             if (entry.directory.deleteRecursively()) {
                 totalDiskBytes -= freed
@@ -272,14 +262,15 @@ internal object NuvioEngineP2pBackend {
 
             phase.set("add_magnet")
             val canonicalHash = canonicalP2pInfoHash(request.infoHash)
-            val isKnown = synchronized(lifecycleLock) { knownTorrentIds.contains(canonicalHash) }
-            var reusedExistingTorrent = isKnown
-            var torrentId = if (isKnown) {
-                canonicalHash
-            } else {
-                addMagnetWithWatchdog(resolvedEngine, magnetUri, canonicalHash, sequence, startedAt).also {
-                    synchronized(lifecycleLock) { knownTorrentIds.add(it) }
-                }
+            purgeTorrentState(resolvedEngine, canonicalHash)
+            var torrentId = addMagnetWithWatchdog(
+                activeEngine = resolvedEngine,
+                magnetUri = magnetUri,
+                canonicalHash = canonicalHash,
+                sequence = sequence,
+                startedAt = startedAt,
+            ).also {
+                synchronized(lifecycleLock) { knownTorrentIds.add(it) }
             }
 
             ensureCurrentGeneration(generation)
@@ -296,13 +287,12 @@ internal object NuvioEngineP2pBackend {
                 if (!shouldRestartEngineForMetadataRecovery(error)) throw error
 
                 log.w(error) {
-                    "Torrent metadata was not ready; restarting the native engine before retry: request=$sequence hash=${diagnosticId(canonicalHash)} known=$isKnown"
+                    "Torrent metadata was not ready; restarting the native engine before retry: request=$sequence hash=${diagnosticId(canonicalHash)}"
                 }
                 phase.set("restart_engine_for_metadata")
                 startupStatsJob.cancel()
                 startupStatsJob = null
-                runCatching { resolvedEngine.removeTorrent(torrentId) }
-                synchronized(lifecycleLock) { knownTorrentIds.remove(canonicalHash) }
+                purgeTorrentState(resolvedEngine, torrentId)
                 closeEngine(resolvedEngine)
                 resolvedEngine = ensureEngine()
                 activeEngine = resolvedEngine
@@ -316,7 +306,6 @@ internal object NuvioEngineP2pBackend {
                 ).also { refreshedTorrentId ->
                     synchronized(lifecycleLock) { knownTorrentIds.add(refreshedTorrentId) }
                 }
-                reusedExistingTorrent = false
                 metadataElapsed = elapsedMillis(startedAt)
                 ensureCurrentGeneration(generation)
                 phase.set("prepare_stream_retry")
@@ -340,7 +329,7 @@ internal object NuvioEngineP2pBackend {
 
             val totalElapsed = elapsedMillis(startedAt)
             log.i {
-                "P2P startup ready: request=$sequence hash=${diagnosticId(torrentId)} file=${stream.fileIndex} fileBytes=${stream.fileSize} total=${totalElapsed}ms engine=${engineReadyElapsed}ms metadata=${metadataElapsed - engineReadyElapsed}ms${if (reusedExistingTorrent) " (warm)" else ""} prepare=${totalElapsed - metadataElapsed}ms"
+                "P2P startup ready: request=$sequence hash=${diagnosticId(torrentId)} file=${stream.fileIndex} fileBytes=${stream.fileSize} total=${totalElapsed}ms engine=${engineReadyElapsed}ms metadata=${metadataElapsed - engineReadyElapsed}ms prepare=${totalElapsed - metadataElapsed}ms"
             }
 
             startStatsPolling(resolvedEngine, stream, generation, sequence, startedAt, payloadDownloadBaseline)
@@ -504,23 +493,44 @@ internal object NuvioEngineP2pBackend {
         return detached?.first
     }
 
+    private suspend fun purgeTorrentState(targetEngine: NuvioEngine?, torrentId: String) {
+        val canonicalHash = runCatching { canonicalP2pInfoHash(torrentId) }.getOrNull()
+            ?: torrentId.trim().lowercase()
+        val eng = targetEngine ?: engine
+        if (eng != null) {
+            runCatching { eng.removeTorrent(canonicalHash) }
+            if (canonicalHash != torrentId) {
+                runCatching { eng.removeTorrent(torrentId) }
+            }
+        }
+        synchronized(lifecycleLock) {
+            knownTorrentIds.remove(canonicalHash)
+            knownTorrentIds.remove(torrentId)
+        }
+        val resumeFile = DesktopStorage.rootDir
+            .resolve("nuvio-engine/state/nuvio-engine-state/resume/$canonicalHash.resume")
+            .toFile()
+        runCatching { resumeFile.delete() }
+        if (canonicalHash != torrentId) {
+            val altResumeFile = DesktopStorage.rootDir
+                .resolve("nuvio-engine/state/nuvio-engine-state/resume/$torrentId.resume")
+                .toFile()
+            runCatching { altResumeFile.delete() }
+        }
+    }
+
     private suspend fun cleanupDetachedStream(detached: DetachedStream, shutdownEngine: Boolean) {
         detached.streamId?.let { streamId ->
             stopPreparedStream(detached.engine, streamId)
+        }
+        detached.torrentId?.let { torrentId ->
+            purgeTorrentState(detached.engine, torrentId)
         }
         P2pSettingsRepository.ensureLoaded()
         val settings = P2pSettingsRepository.uiState.value
         val capacityBytes = settings.cacheSize.bytes
 
         if (settings.cacheSize == P2pCacheSize.NONE) {
-            detached.torrentId?.let { torrentId ->
-                detached.engine?.let { eng ->
-                    runCatching { eng.removeTorrent(torrentId) }
-                }
-                synchronized(lifecycleLock) {
-                    knownTorrentIds.remove(torrentId)
-                }
-            }
             enforceDiskCacheBudget(
                 activeEngine = detached.engine,
                 capacityBytes = 0L,
@@ -742,8 +752,7 @@ internal object NuvioEngineP2pBackend {
                         nextCacheEnforceAtMs = nowMs + 4000L
                         val capacity = engineConfigurationKey?.diskCacheCapacityBytes
                             ?: P2pSettingsRepository.uiState.value.cacheSize.bytes
-                        val root = DesktopStorage.rootDir.resolve("nuvio-engine").toFile()
-                        val cacheDirectory = File(root, "payload")
+                        val cacheDirectory = DesktopStorage.cacheDir.resolve("nuvio-engine/payload").toFile()
                         val currentUsed = if (cacheDirectory.exists()) measureAllocatedDiskBytes(cacheDirectory) else 0L
                         updateCacheState(currentUsed, aggregate.diskCacheProtectedBytes)
                         if (capacity > 0L && currentUsed > capacity) {

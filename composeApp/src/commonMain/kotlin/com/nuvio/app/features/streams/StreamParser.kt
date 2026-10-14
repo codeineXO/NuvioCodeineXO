@@ -39,10 +39,23 @@ object StreamParser {
             val proxyHeaders = hintsObj
                 ?.objectValue("proxyHeaders")
                 ?.toProxyHeaders()
+            val parsedTitle = obj.string("title")
+            val parsedDescription = obj.string("description") ?: parsedTitle
+            val parsedName = obj.string("name")
+            val parsedVideoSize = hintsObj?.fileSizeBytes("videoSize")
+                ?: hintsObj?.fileSizeBytes("fileSize")
+                ?: hintsObj?.fileSizeBytes("size")
+                ?: obj.fileSizeBytes("size")
+                ?: obj.fileSizeBytes("fileSize")
+                ?: obj.fileSizeBytes("videoSize")
+                ?: parseStreamSize(parsedDescription)
+                ?: parseStreamSize(parsedTitle)
+                ?: parseStreamSize(parsedName)
+
             StreamItem(
-                name = obj.string("name"),
-                title = obj.string("title"),
-                description = obj.string("description") ?: obj.string("title"),
+                name = parsedName,
+                title = parsedTitle,
+                description = parsedDescription,
                 url = url,
                 infoHash = infoHash,
                 fileIdx = obj.int("fileIdx"),
@@ -58,7 +71,7 @@ object StreamParser {
                     bingeGroup = hintsObj?.string("bingeGroup"),
                     notWebReady = (hintsObj?.boolean("notWebReady") ?: false) || proxyHeaders != null,
                     videoHash = hintsObj?.string("videoHash"),
-                    videoSize = hintsObj?.long("videoSize"),
+                    videoSize = parsedVideoSize,
                     filename = hintsObj?.string("filename"),
                     proxyHeaders = proxyHeaders,
                 ),
@@ -77,6 +90,13 @@ object StreamParser {
     private fun JsonObject.long(name: String): Long? =
         this[name]?.jsonPrimitive?.let { primitive ->
             primitive.longOrNull ?: primitive.contentOrNull?.toLongOrNull()
+        }
+
+    private fun JsonObject.fileSizeBytes(name: String): Long? =
+        this[name]?.jsonPrimitive?.let { primitive ->
+            primitive.longOrNull
+                ?: primitive.contentOrNull?.toLongOrNull()
+                ?: parseStreamSize(primitive.contentOrNull)
         }
 
     private fun JsonObject.boolean(name: String): Boolean? =

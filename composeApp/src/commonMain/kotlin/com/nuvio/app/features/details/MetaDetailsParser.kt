@@ -4,6 +4,7 @@ import com.nuvio.app.features.streams.StreamBehaviorHints
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamProxyHeaders
 import com.nuvio.app.features.streams.normalizeStreamType
+import com.nuvio.app.features.streams.parseStreamSize
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -340,9 +341,23 @@ internal object MetaDetailsParser {
             val addonName = streamData?.string("addon")
                 ?: obj.string("name")
                 ?: runBlocking { getString(Res.string.source_embedded) }
+            val parsedTitle = obj.string("title")
+            val parsedDescription = obj.string("description") ?: parsedTitle
+            val parsedName = obj.string("name")
+            val parsedVideoSize = hintsObj?.fileSizeBytes("videoSize")
+                ?: hintsObj?.fileSizeBytes("fileSize")
+                ?: hintsObj?.fileSizeBytes("size")
+                ?: obj.fileSizeBytes("size")
+                ?: obj.fileSizeBytes("fileSize")
+                ?: obj.fileSizeBytes("videoSize")
+                ?: parseStreamSize(parsedDescription)
+                ?: parseStreamSize(parsedTitle)
+                ?: parseStreamSize(parsedName)
+
             StreamItem(
-                name = obj.string("name"),
-                description = obj.string("description") ?: obj.string("title"),
+                name = parsedName,
+                title = parsedTitle,
+                description = parsedDescription,
                 url = url,
                 infoHash = infoHash,
                 fileIdx = obj.int("fileIdx"),
@@ -353,7 +368,7 @@ internal object MetaDetailsParser {
                 behaviorHints = StreamBehaviorHints(
                     bingeGroup = hintsObj?.string("bingeGroup"),
                     notWebReady = (hintsObj?.boolean("notWebReady") ?: false) || proxyHeaders != null,
-                    videoSize = hintsObj?.long("videoSize"),
+                    videoSize = parsedVideoSize,
                     filename = hintsObj?.string("filename"),
                     proxyHeaders = proxyHeaders,
                 ),
@@ -385,6 +400,13 @@ internal object MetaDetailsParser {
 
     private fun JsonObject.long(name: String): Long? =
         this[name]?.jsonPrimitive?.longOrNull
+
+    private fun JsonObject.fileSizeBytes(name: String): Long? =
+        this[name]?.jsonPrimitive?.let { primitive ->
+            primitive.longOrNull
+                ?: primitive.contentOrNull?.toLongOrNull()
+                ?: parseStreamSize(primitive.contentOrNull)
+        }
 }
 
 private fun JsonElement?.asJsonObjectOrNull(): JsonObject? = this as? JsonObject

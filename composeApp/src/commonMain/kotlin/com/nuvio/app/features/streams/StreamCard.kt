@@ -74,7 +74,8 @@ internal fun StreamCard(
     val playerHazeState = LocalPlayerHazeState.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
-    val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && stream.behaviorHints.videoSize != null)
+    val streamSize = stream.resolvedVideoSize
+    val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && streamSize != null && streamSize > 0L)
     var cardPositionInRoot by remember { mutableStateOf(Offset.Zero) }
     Row(
         modifier = modifier
@@ -296,7 +297,7 @@ private fun StreamCardBadgeRow(
         badgeImages.forEach { badge ->
             StreamBadgeImage(badge = badge)
         }
-        if (showFileSizeBadges) {
+        if (showFileSizeBadges && (stream.resolvedVideoSize ?: 0L) > 0L) {
             StreamFileSizeBadge(stream = stream)
         }
     }

@@ -40,6 +40,19 @@ data class StreamItem(
     val streamSubtitle: String?
         get() = description
 
+    val resolvedVideoSize: Long?
+        get() = behaviorHints.videoSize?.takeIf { it > 0L }
+            ?: clientResolve?.stream?.raw?.size?.takeIf { it > 0L }
+            ?: clientResolve?.stream?.raw?.folderSize?.takeIf { it > 0L }
+            ?: debridCacheStatus?.cachedSize?.takeIf { it > 0L }
+            ?: parseStreamSize(description)
+            ?: parseStreamSize(title)
+            ?: parseStreamSize(name)
+            ?: parseStreamSize(behaviorHints.filename)
+            ?: parseStreamSize(clientResolve?.filename)
+            ?: parseStreamSize(clientResolve?.stream?.raw?.filename)
+            ?: parseStreamSize(debridCacheStatus?.cachedName)
+
     val directPlaybackUrl: String?
         get() = url?.trim()?.takeIf { it.isNotEmpty() }
 
@@ -349,4 +362,67 @@ data class StreamsUiState(
 
     val hasAnyStreams: Boolean
         get() = groups.any { it.streams.isNotEmpty() }
+}
+
+private val STREAM_SIZE_WITH_PREFIX_REGEX = Regex(
+    """(?:💾|📦|📁|\b(?:size|file\s*size)\s*[:=]?)\s*(\d+(?:[.,]\d+)?)\s*(TB|TiB|GB|GiB|MB|MiB|KB|KiB|B)\b""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val STREAM_SIZE_BRACKETED_REGEX = Regex(
+    """[\[(]\s*(\d+(?:[.,]\d+)?)\s*(TB|TiB|GB|GiB|MB|MiB|KB|KiB)\s*[\])]""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val STREAM_SIZE_DELIMITED_REGEX = Regex(
+    """(?:^|[\s|/•·\n,;–—-])(\d+(?:[.,]\d+)?)\s*(TB|TiB|GB|GiB|MB|MiB|KB|KiB)(?:$|[\s|/•·\n,;–—-])""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val STREAM_SIZE_GENERAL_REGEX = Regex(
+    """\b(\d+(?:[.,]\d+)?)\s*(TB|TiB|GB|GiB|MB|MiB)\b""",
+    RegexOption.IGNORE_CASE,
+)
+
+fun parseStreamSize(text: String?): Long? {
+    if (text.isNullOrBlank()) return null
+
+    STREAM_SIZE_WITH_PREFIX_REGEX.find(text)?.let { match ->
+        val size = parseMatchedStreamSize(match.groupValues[1], match.groupValues[2])
+        if (size != null) return size
+    }
+
+    STREAM_SIZE_BRACKETED_REGEX.find(text)?.let { match ->
+        val size = parseMatchedStreamSize(match.groupValues[1], match.groupValues[2])
+        if (size != null) return size
+    }
+
+    STREAM_SIZE_DELIMITED_REGEX.find(text)?.let { match ->
+        val size = parseMatchedStreamSize(match.groupValues[1], match.groupValues[2])
+        if (size != null) return size
+    }
+
+    STREAM_SIZE_GENERAL_REGEX.find(text)?.let { match ->
+        val size = parseMatchedStreamSize(match.groupValues[1], match.groupValues[2])
+        if (size != null) return size
+    }
+
+    return null
+}
+
+private fun parseMatchedStreamSize(rawNumber: String, rawUnit: String): Long? {
+    val normalizedNumber = rawNumber.replace(',', '.').trim()
+    val value = normalizedNumber.toDoubleOrNull() ?: return null
+    if (value <= 0.0) return null
+
+    val multiplier = when (rawUnit.trim().uppercase()) {
+        "TB", "TIB" -> 1024L * 1024L * 1024L * 1024L
+        "GB", "GIB" -> 1024L * 1024L * 1024L
+        "MB", "MIB" -> 1024L * 1024L
+        "KB", "KIB" -> 1024L
+        "B" -> 1L
+        else -> return null
+    }
+
+    return (value * multiplier.toDouble()).toLong()
 }

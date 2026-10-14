@@ -284,4 +284,54 @@ class StreamParserTest {
         assertEquals(null, stream.youTubeIdToResolve)
         assertEquals("https://example.com/video.mp4", stream.playableDirectUrl)
     }
+
+    @Test
+    fun `parse extracts videoSize from title or description or hints`() {
+        val gib = 1024L * 1024L * 1024L
+        val streams = StreamParser.parse(
+            payload = """
+                {
+                  "streams": [
+                    {
+                      "url": "https://example.com/video1.mp4",
+                      "name": "[RD+] Torrentio\n1080p",
+                      "title": "Movie.2024.1080p.BluRay.x264\n💾 8.45 GB ⚙️ 24\nTorrentio"
+                    },
+                    {
+                      "url": "https://example.com/video2.mp4",
+                      "name": "Comet",
+                      "description": "Episode 1 [1080p] [2.5 GB]"
+                    },
+                    {
+                      "url": "https://example.com/video3.mp4",
+                      "name": "Jackett",
+                      "size": 3221225472
+                    },
+                    {
+                      "url": "https://example.com/video4.mp4",
+                      "name": "Direct",
+                      "behaviorHints": {
+                        "videoSize": 1073741824
+                      }
+                    }
+                  ]
+                }
+            """.trimIndent(),
+            addonName = "Addon",
+            addonId = "addon.id",
+        )
+
+        assertEquals(4, streams.size)
+        assertEquals((8.45 * gib).toLong(), streams[0].behaviorHints.videoSize)
+        assertEquals((8.45 * gib).toLong(), streams[0].resolvedVideoSize)
+
+        assertEquals((2.5 * gib).toLong(), streams[1].behaviorHints.videoSize)
+        assertEquals((2.5 * gib).toLong(), streams[1].resolvedVideoSize)
+
+        assertEquals(3221225472L, streams[2].behaviorHints.videoSize)
+        assertEquals(3221225472L, streams[2].resolvedVideoSize)
+
+        assertEquals(1073741824L, streams[3].behaviorHints.videoSize)
+        assertEquals(1073741824L, streams[3].resolvedVideoSize)
+    }
 }

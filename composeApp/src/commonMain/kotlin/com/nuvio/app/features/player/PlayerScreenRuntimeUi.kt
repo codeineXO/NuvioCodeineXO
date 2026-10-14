@@ -1686,7 +1686,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerCont
                     borderColor = it.borderColor,
                 )
             },
-            formattedSize = if (showFileSizeBadges) formatStreamVideoSize(stream.behaviorHints.videoSize) else "",
+            formattedSize = if (showFileSizeBadges) formatStreamVideoSize(stream.resolvedVideoSize) else "",
             badgePlacement = badgePlacement,
         )
     }
@@ -1721,7 +1721,7 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeStreamItems(): List<Pla
                     borderColor = it.borderColor,
                 )
             },
-            formattedSize = if (showFileSizeBadges) formatStreamVideoSize(stream.behaviorHints.videoSize) else "",
+            formattedSize = if (showFileSizeBadges) formatStreamVideoSize(stream.resolvedVideoSize) else "",
             badgePlacement = badgePlacement,
         )
     }
