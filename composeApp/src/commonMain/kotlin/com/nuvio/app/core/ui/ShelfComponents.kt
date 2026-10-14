@@ -42,7 +42,8 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -111,7 +112,7 @@ fun <T> NuvioShelfSection(
     val effectiveRowModifier = if (useGutterLayout) {
         rowModifier
             .padding(horizontal = headerHorizontalPadding)
-            .clipToBounds()
+            .nuvioPosterRowGutterClip()
             .nuvioPosterRowMouseWheelScroll(state = state, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(state)
     } else {
@@ -176,6 +177,22 @@ fun <T> NuvioShelfSection(
                 }
             }
         }
+    }
+}
+
+internal fun Modifier.nuvioPosterRowGutterClip(
+    verticalOverflow: Dp = 48.dp,
+    horizontalOverflow: Dp = 10.dp,
+): Modifier = drawWithContent {
+    val extraY = verticalOverflow.toPx()
+    val extraX = horizontalOverflow.toPx()
+    clipRect(
+        left = -extraX,
+        top = -extraY,
+        right = size.width + extraX,
+        bottom = size.height + extraY,
+    ) {
+        this@drawWithContent.drawContent()
     }
 }
 
