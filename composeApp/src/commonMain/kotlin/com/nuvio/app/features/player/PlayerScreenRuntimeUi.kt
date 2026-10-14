@@ -1934,6 +1934,7 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
                 isCurrent = video.season == activeSeasonNumber && video.episode == activeEpisodeNumber,
                 isWatched = isWatched,
                 isFiller = video.isFiller && isFillerEnabled,
+                isMixed = video.isMixed && isFillerEnabled,
             ),
         )
     }

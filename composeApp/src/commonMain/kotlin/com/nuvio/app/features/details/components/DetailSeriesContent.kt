@@ -16,6 +16,7 @@ import androidx.compose.animation.togetherWith
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.anime.FillerBadge
+import com.nuvio.app.features.anime.MixedBadge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1301,8 +1302,12 @@ private fun EpisodeHorizontalCard(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (video.isFiller && isFillerEnabled) {
-                FillerBadge()
+            if (isFillerEnabled) {
+                if (video.isFiller) {
+                    FillerBadge()
+                } else if (video.isMixed) {
+                    MixedBadge()
+                }
             }
             NuvioAnimatedWatchedBadge(
                 isVisible = isWatched,
@@ -1735,7 +1740,9 @@ private fun EpisodeListCard(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                if (formattedDate != null || ratingLabel != null || (video.isFiller && isFillerEnabled)) {
+                val showFiller = video.isFiller && isFillerEnabled
+                val showMixed = video.isMixed && isFillerEnabled
+                if (formattedDate != null || ratingLabel != null || showFiller || showMixed) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1760,8 +1767,10 @@ private fun EpisodeListCard(
                                 textSize = sizing.metaTextSize,
                             )
                         }
-                        if (video.isFiller && isFillerEnabled) {
+                        if (showFiller) {
                             FillerBadge()
+                        } else if (showMixed) {
+                            MixedBadge()
                         }
                     }
                 }

@@ -2551,7 +2551,7 @@ const appendEpisodeRow = (container, item) => {
   name.className = "episode-name";
   name.textContent = item.title || item.code || "Episode";
   copy.appendChild(name);
-  if (item.released || item.rating || item.isFiller) {
+  if (item.released || item.rating || item.isFiller || item.isMixed) {
     const metaRow = document.createElement("span");
     metaRow.className = "episode-meta-row";
     if (item.released) {
@@ -2560,7 +2560,7 @@ const appendEpisodeRow = (container, item) => {
       released.textContent = item.released;
       metaRow.appendChild(released);
     }
-    if (item.released && (item.rating || item.isFiller)) {
+    if (item.released && (item.rating || item.isFiller || item.isMixed)) {
       const dot = document.createElement("span");
       dot.className = "episode-meta-dot";
       dot.textContent = "•";
@@ -2590,6 +2590,17 @@ const appendEpisodeRow = (container, item) => {
       fillerBadge.appendChild(fillerDot);
       fillerBadge.appendChild(fillerText);
       metaRow.appendChild(fillerBadge);
+    } else if (item.isMixed) {
+      const mixedBadge = document.createElement("span");
+      mixedBadge.className = "episode-mixed-badge";
+      const mixedDot = document.createElement("span");
+      mixedDot.className = "episode-mixed-dot";
+      const mixedText = document.createElement("span");
+      mixedText.className = "episode-mixed-text";
+      mixedText.textContent = "MIXED";
+      mixedBadge.appendChild(mixedDot);
+      mixedBadge.appendChild(mixedText);
+      metaRow.appendChild(mixedBadge);
     }
     copy.appendChild(metaRow);
   }

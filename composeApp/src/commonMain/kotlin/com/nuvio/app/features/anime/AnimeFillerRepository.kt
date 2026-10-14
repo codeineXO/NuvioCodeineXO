@@ -15,12 +15,20 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+data class AnimeFillerEpisodes(
+    val fillers: Set<Int> = emptySet(),
+    val mixed: Set<Int> = emptySet(),
+) {
+    val isEmpty: Boolean get() = fillers.isEmpty() && mixed.isEmpty()
+    val isNotEmpty: Boolean get() = !isEmpty
+}
+
 object AnimeFillerRepository {
     private val log = Logger.withTag("AnimeFillerRepo")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    // In-memory cache: cacheKey -> Set of filler episode numbers
-    private val memoryCache = mutableMapOf<String, Set<Int>>()
+    // In-memory cache: cacheKey -> AnimeFillerEpisodes
+    private val memoryCache = mutableMapOf<String, AnimeFillerEpisodes>()
     // AnimeFillerList shows directory cache: normalized title -> slug
     private var aflShowsCache: Map<String, String>? = null
 
@@ -33,9 +41,9 @@ object AnimeFillerRepository {
         "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     )
 
-    private val CONDENSED_FILLER_REGEX = Regex("""(?s)<div class="filler"[^>]*>.*?<span class="Episodes">(.*?)</span>""")
+    private val CONDENSED_DIV_REGEX = Regex("""(?s)<div class="([^"]*(?:filler|mixed)[^"]*)"[^>]*>.*?<span class="Episodes">(.*?)</span>""")
     private val EPISODE_RANGE_REGEX = Regex("""(\d+)(?:\s*-\s*(\d+))?""")
-    private val ROW_FILLER_REGEX = Regex("""<tr class="[^"]*filler[^"]*"[^>]*>\s*<td class="Number">(\d+)</td>""")
+    private val ROW_REGEX = Regex("""<tr class="([^"]+)"[^>]*>\s*<td class="Number">(\d+)</td>""")
     private val SHOW_LINK_REGEX = Regex("""<a href="/shows/([^"]+)">([^<]+)</a>""")
 
     /**
@@ -57,7 +65,7 @@ object AnimeFillerRepository {
         }
 
         // Fast path: if already marked, return
-        if (meta.videos.any { it.isFiller }) {
+        if (meta.videos.any { it.isFiller || it.isMixed }) {
             return@withContext meta
         }
 
@@ -83,17 +91,17 @@ object AnimeFillerRepository {
         }
 
         val cacheKey = buildCacheKey(meta, resolved)
-        val cachedFillers = getCachedFillerEpisodes(cacheKey)
+        val cachedEpisodeData = getCachedFillerEpisodes(cacheKey)
 
-        val fillerEpisodes: Set<Int> = if (cachedFillers != null) {
-            cachedFillers
+        val episodeData: AnimeFillerEpisodes = if (cachedEpisodeData != null) {
+            cachedEpisodeData
         } else {
-            val resolvedFillers = fetchFillerEpisodes(meta, resolved)
-            saveCachedFillerEpisodes(cacheKey, resolvedFillers)
-            resolvedFillers
+            val resolvedData = fetchFillerEpisodes(meta, resolved)
+            saveCachedFillerEpisodes(cacheKey, resolvedData)
+            resolvedData
         }
 
-        if (fillerEpisodes.isEmpty()) {
+        if (episodeData.isEmpty) {
             return@withContext meta
         }
 
@@ -106,7 +114,7 @@ object AnimeFillerRepository {
             emptyList()
         }
 
-        // Tag filler episodes
+        // Tag filler and mixed episodes
         val updatedVideos = meta.videos.map { video ->
             val animeEpisodeNumber = if (mapping.isNotEmpty() && video.season != null && video.episode != null) {
                 mapping.firstOrNull { it.tvdbSeason == video.season && it.tvdbEpisode == video.episode }?.animeEpisode
@@ -115,18 +123,26 @@ object AnimeFillerRepository {
                 video.episode
             }
 
-            val isFiller = animeEpisodeNumber != null && animeEpisodeNumber in fillerEpisodes
-            if (video.isFiller != isFiller) video.copy(isFiller = isFiller) else video
+            val isFiller = animeEpisodeNumber != null && animeEpisodeNumber in episodeData.fillers
+            val isMixed = animeEpisodeNumber != null && animeEpisodeNumber in episodeData.mixed
+            if (video.isFiller != isFiller || video.isMixed != isMixed) {
+                video.copy(isFiller = isFiller, isMixed = isMixed)
+            } else {
+                video
+            }
         }
 
-        log.d { "Tagged ${updatedVideos.count { it.isFiller }} filler episodes for ${meta.name} (id=${meta.id})" }
+        log.d {
+            "Tagged ${updatedVideos.count { it.isFiller }} filler and " +
+                "${updatedVideos.count { it.isMixed }} mixed episodes for ${meta.name} (id=${meta.id})"
+        }
         meta.copy(videos = updatedVideos)
     }
 
     private suspend fun fetchFillerEpisodes(
         meta: MetaDetails,
         resolved: SimklIdResolver.ResolvedIds?,
-    ): Set<Int> {
+    ): AnimeFillerEpisodes {
         // Source 1: AnimeFillerList
         val aflResult = fetchFromAnimeFillerList(meta, resolved)
         if (aflResult != null) {
@@ -138,17 +154,17 @@ object AnimeFillerRepository {
         if (!malId.isNullOrBlank()) {
             val jikanResult = fetchFromJikan(malId)
             if (jikanResult != null) {
-                return jikanResult
+                return AnimeFillerEpisodes(fillers = jikanResult, mixed = emptySet())
             }
         }
 
-        return emptySet()
+        return AnimeFillerEpisodes()
     }
 
     private suspend fun fetchFromAnimeFillerList(
         meta: MetaDetails,
         resolved: SimklIdResolver.ResolvedIds?,
-    ): Set<Int>? {
+    ): AnimeFillerEpisodes? {
         val candidates = buildCandidateSlugs(meta, resolved)
         for (slug in candidates) {
             val fillers = tryFetchAflSlug(slug)
@@ -169,7 +185,7 @@ object AnimeFillerRepository {
         return null
     }
 
-    private suspend fun tryFetchAflSlug(slug: String): Set<Int>? = withTimeoutOrNull(HTTP_TIMEOUT_MS) {
+    private suspend fun tryFetchAflSlug(slug: String): AnimeFillerEpisodes? = withTimeoutOrNull(HTTP_TIMEOUT_MS) {
         runCatching {
             val url = "$AFL_BASE_URL/shows/$slug"
             val html = httpGetTextWithHeaders(url, USER_AGENT_HEADERS)
@@ -179,28 +195,45 @@ object AnimeFillerRepository {
         }.getOrNull()
     }
 
-    internal fun parseAflHtml(html: String): Set<Int> {
+    internal fun parseAflHtml(html: String): AnimeFillerEpisodes {
         val fillers = mutableSetOf<Int>()
+        val mixed = mutableSetOf<Int>()
 
-        // 1. Parse condensed list: <div class="filler">...<span class="Episodes">26, 101-106...</span></div>
-        val condensedMatch = CONDENSED_FILLER_REGEX.find(html)
-        if (condensedMatch != null) {
-            val episodesHtml = condensedMatch.groupValues[1]
-            EPISODE_RANGE_REGEX.findAll(episodesHtml).forEach { match ->
-                val start = match.groupValues[1].toIntOrNull() ?: return@forEach
-                val end = match.groupValues[2].takeIf { it.isNotBlank() }?.toIntOrNull() ?: start
+        // 1. Parse condensed list: <div class="mixed_canon/filler"> and <div class="filler">
+        CONDENSED_DIV_REGEX.findAll(html).forEach { match ->
+            val classAttr = match.groupValues[1]
+            val episodesHtml = match.groupValues[2]
+            val target = when {
+                classAttr.contains("mixed", ignoreCase = true) -> mixed
+                classAttr.contains("filler", ignoreCase = true) -> fillers
+                else -> null
+            } ?: return@forEach
+
+            val textOnly = episodesHtml.replace(Regex("""<[^>]+>"""), " ")
+            EPISODE_RANGE_REGEX.findAll(textOnly).forEach { rangeMatch ->
+                val start = rangeMatch.groupValues[1].toIntOrNull() ?: return@forEach
+                val end = rangeMatch.groupValues[2].takeIf { it.isNotBlank() }?.toIntOrNull() ?: start
                 for (ep in start..end) {
-                    fillers.add(ep)
+                    target.add(ep)
                 }
             }
         }
 
-        // 2. Parse episode rows: <tr class="filler...">...<td class="Number">X</td>
-        ROW_FILLER_REGEX.findAll(html).forEach { match ->
-            match.groupValues[1].toIntOrNull()?.let { fillers.add(it) }
+        // 2. Parse episode rows: <tr class="...">...<td class="Number">X</td>
+        ROW_REGEX.findAll(html).forEach { match ->
+            val classAttr = match.groupValues[1]
+            val ep = match.groupValues[2].toIntOrNull() ?: return@forEach
+            if (classAttr.contains("mixed", ignoreCase = true)) {
+                mixed.add(ep)
+            } else if (classAttr.contains("filler", ignoreCase = true)) {
+                fillers.add(ep)
+            }
         }
 
-        return fillers
+        // Ensure mixed episodes are never categorized as pure filler
+        fillers.removeAll(mixed)
+
+        return AnimeFillerEpisodes(fillers = fillers, mixed = mixed)
     }
 
     private suspend fun fetchFromJikan(malId: String): Set<Int>? = withTimeoutOrNull(HTTP_TIMEOUT_MS) {
@@ -282,27 +315,49 @@ object AnimeFillerRepository {
         else -> "title:${slugify(meta.name)}"
     }
 
-    private fun getCachedFillerEpisodes(key: String): Set<Int>? {
+    private fun getCachedFillerEpisodes(key: String): AnimeFillerEpisodes? {
         memoryCache[key]?.let { return it }
 
         val diskPayload = AnimeFillerStorage.getCachedFillers(key) ?: return null
-        if (diskPayload == "none" || diskPayload.isBlank()) {
-            val empty = emptySet<Int>()
-            memoryCache[key] = empty
-            return empty
+        if (diskPayload.startsWith("v2|")) {
+            val content = diskPayload.removePrefix("v2|")
+            if (content == "none" || content.isBlank()) {
+                val empty = AnimeFillerEpisodes()
+                memoryCache[key] = empty
+                return empty
+            }
+            var fSet = emptySet<Int>()
+            var mSet = emptySet<Int>()
+            content.split("|").forEach { part ->
+                if (part.startsWith("f=")) {
+                    fSet = part.removePrefix("f=")
+                        .split(",")
+                        .mapNotNull { it.trim().toIntOrNull() }
+                        .toSet()
+                } else if (part.startsWith("m=")) {
+                    mSet = part.removePrefix("m=")
+                        .split(",")
+                        .mapNotNull { it.trim().toIntOrNull() }
+                        .toSet()
+                }
+            }
+            val result = AnimeFillerEpisodes(fillers = fSet, mixed = mSet)
+            memoryCache[key] = result
+            return result
         }
 
-        val parsed = diskPayload.split(",")
-            .mapNotNull { it.trim().toIntOrNull() }
-            .toSet()
-
-        memoryCache[key] = parsed
-        return parsed
+        // Previous cache format (v1) stored mixed episodes as fillers due to AFL row regex.
+        // Invalidate legacy cache so we fetch fresh data with mixed canon separated.
+        return null
     }
 
-    private fun saveCachedFillerEpisodes(key: String, fillers: Set<Int>) {
-        memoryCache[key] = fillers
-        val payload = if (fillers.isEmpty()) "none" else fillers.sorted().joinToString(",")
+    private fun saveCachedFillerEpisodes(key: String, episodeData: AnimeFillerEpisodes) {
+        memoryCache[key] = episodeData
+        val payload = if (episodeData.isEmpty) {
+            "v2|none"
+        } else {
+            "v2|f=${episodeData.fillers.sorted().joinToString(",")}|m=${episodeData.mixed.sorted().joinToString(",")}"
+        }
         AnimeFillerStorage.saveCachedFillers(key, payload)
     }
 

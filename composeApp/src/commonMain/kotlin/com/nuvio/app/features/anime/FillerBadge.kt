@@ -23,6 +23,44 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun FillerBadge(
     modifier: Modifier = Modifier,
+    isMixed: Boolean = false,
+) {
+    if (isMixed) {
+        MixedBadge(modifier = modifier)
+    } else {
+        AnimeEpisodeBadge(
+            text = "FILLER",
+            dotColor = Color(0xFFF59E0B),
+            dotBorderColor = Color(0xFFFBBF24),
+            badgeBorderColor = Color(0xFFF59E0B).copy(alpha = 0.55f),
+            textColor = Color(0xFFFDE68A),
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+fun MixedBadge(
+    modifier: Modifier = Modifier,
+) {
+    AnimeEpisodeBadge(
+        text = "MIXED",
+        dotColor = Color(0xFF0EA5E9),
+        dotBorderColor = Color(0xFF38BDF8),
+        badgeBorderColor = Color(0xFF0EA5E9).copy(alpha = 0.55f),
+        textColor = Color(0xFFBAE6FD),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun AnimeEpisodeBadge(
+    text: String,
+    dotColor: Color,
+    dotBorderColor: Color,
+    badgeBorderColor: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
@@ -30,7 +68,7 @@ fun FillerBadge(
             .background(Color.Black.copy(alpha = 0.78f))
             .border(
                 width = 1.dp,
-                color = Color(0xFFF59E0B).copy(alpha = 0.55f),
+                color = badgeBorderColor,
                 shape = RoundedCornerShape(6.dp),
             )
             .padding(horizontal = 7.dp, vertical = 3.dp),
@@ -41,17 +79,17 @@ fun FillerBadge(
             modifier = Modifier
                 .size(6.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF59E0B))
-                .border(width = 0.75.dp, color = Color(0xFFFBBF24), shape = CircleShape),
+                .background(dotColor)
+                .border(width = 0.75.dp, color = dotBorderColor, shape = CircleShape),
         )
         Text(
-            text = "FILLER",
+            text = text,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 0.7.sp,
             ),
-            color = Color(0xFFFDE68A),
+            color = textColor,
             maxLines = 1,
         )
     }

@@ -2184,6 +2184,8 @@ private fun StringBuilder.appendEpisodeItemJson(item: PlayerControlEpisodeItem) 
     appendJsonField("isWatched", item.isWatched)
     append(',')
     appendJsonField("isFiller", item.isFiller)
+    append(',')
+    appendJsonField("isMixed", item.isMixed)
     append('}')
 }
 

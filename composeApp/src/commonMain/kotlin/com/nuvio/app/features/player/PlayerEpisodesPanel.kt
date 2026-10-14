@@ -60,6 +60,7 @@ import com.nuvio.app.core.build.AppFeaturePolicy
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.anime.FillerBadge
+import com.nuvio.app.features.anime.MixedBadge
 import com.nuvio.app.features.details.EpisodeRatingsVisibility
 import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -434,6 +435,7 @@ private fun EpisodeRow(
     }.collectAsStateWithLifecycle()
     val fillerEnabled = isFillerEnabled ?: fallbackFillerEnabled
     val showFillerBadge = episode.isFiller && fillerEnabled
+    val showMixedBadge = episode.isMixed && fillerEnabled
     val tokens = MaterialTheme.nuvio
     val hazeState = LocalPlayerHazeState.current
     val cardShape = RoundedCornerShape(16.dp)
@@ -541,7 +543,7 @@ private fun EpisodeRow(
                 rawRating?.takeIf { it > 0.0 && episodeRatingsVisibility.showRating(isWatched) }
                     ?.let(::formatEpisodeRating)
             }
-            if (formattedReleaseDate != null || ratingLabel != null || showFillerBadge) {
+            if (formattedReleaseDate != null || ratingLabel != null || showFillerBadge || showMixedBadge) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -557,7 +559,7 @@ private fun EpisodeRow(
                             modifier = Modifier.weight(1f, fill = false),
                         )
                     }
-                    if (formattedReleaseDate != null && (ratingLabel != null || showFillerBadge)) {
+                    if (formattedReleaseDate != null && (ratingLabel != null || showFillerBadge || showMixedBadge)) {
                         Text(
                             text = "•",
                             color = tokens.colors.textMuted,
@@ -569,6 +571,8 @@ private fun EpisodeRow(
                     }
                     if (showFillerBadge) {
                         FillerBadge()
+                    } else if (showMixedBadge) {
+                        MixedBadge()
                     }
                 }
             }

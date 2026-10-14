@@ -101,6 +101,7 @@ data class MetaVideo(
     val rating: Double? = null,
     val streams: List<StreamItem> = emptyList(),
     val isFiller: Boolean = false,
+    val isMixed: Boolean = false,
 )
 
 data class MetaDetailsUiState(
