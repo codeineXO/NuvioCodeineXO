@@ -413,6 +413,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         animeUpscalerEnabled = playerSettingsUiState.animeUpscalerEnabled,
         animeUpscalerModeIndex = playerSettingsUiState.animeUpscalerMode.index,
         audioNightModeEnabled = playerSettingsUiState.audioNightModeEnabled,
+        holdToSpeedEnabled = playerSettingsUiState.holdToSpeedEnabled,
+        holdToSpeedValue = playerSettingsUiState.holdToSpeedValue,
         subtitlesLabel = stringResource(Res.string.compose_player_subs),
         audioLabel = stringResource(Res.string.compose_player_audio),
         sourcesLabel = stringResource(Res.string.compose_player_sources),
@@ -614,6 +616,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val gestureCallbacks = rememberSurfaceGestureCallbacks()
     val playbackGesturesEnabled = !args.isMiniPlayer && !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
     val enableSurfaceGestures = !args.isMiniPlayer && !isDesktop && !isInPip
+
+    BindAutoSyncRuntimeEffects() // AutoSync hook
 
     Column(
         modifier = Modifier
@@ -2123,7 +2127,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
             useCustomSubtitles = true
             preferredSubtitleSelectionApplied = true
             persistAddonSubtitlePreference(addon)
-            playerController?.setSubtitleUri(addon.url)
+            attachSelectedAddonSubtitleWithAutoSync(addon.url) // AutoSync hook
             if (hasBurnedInServerSubtitle) clearServerSubtitleTrack()
         },
         onFetchAddonSubtitles = { fetchAddonSubtitlesForActiveItem() },
