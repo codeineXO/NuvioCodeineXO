@@ -13,6 +13,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1138,12 +1140,25 @@ private fun EpisodeHorizontalCard(
                 ),
         )
 
-        NuvioAnimatedWatchedBadge(
-            isVisible = isWatched,
+        val isFillerEnabled by remember {
+            AnimeFillerSettingsRepository.ensureLoaded()
+            AnimeFillerSettingsRepository.enabled
+        }.collectAsStateWithLifecycle()
+
+        Row(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(metrics.contentPadding),
-        )
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (video.isFiller && isFillerEnabled) {
+                FillerBadge()
+            }
+            NuvioAnimatedWatchedBadge(
+                isVisible = isWatched,
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -1448,6 +1463,43 @@ private fun ImdbEpisodeRatingBadge(
     }
 }
 
+@Composable
+private fun FillerBadge(
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.Black.copy(alpha = 0.78f))
+            .border(
+                width = 1.dp,
+                color = Color(0xFFF59E0B).copy(alpha = 0.55f),
+                shape = RoundedCornerShape(6.dp),
+            )
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFF59E0B))
+                .border(width = 0.75.dp, color = Color(0xFFFBBF24), shape = CircleShape),
+        )
+        Text(
+            text = "FILLER",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 0.7.sp,
+            ),
+            color = Color(0xFFFDE68A),
+            maxLines = 1,
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EpisodeListCard(
@@ -1470,6 +1522,10 @@ private fun EpisodeListCard(
             ?.let(::formatEpisodeRating)
     }
     val formattedDate = remember(video.released) { video.released?.let { formatReleaseDateForDisplay(it) } }
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -1562,7 +1618,7 @@ private fun EpisodeListCard(
                     overflow = TextOverflow.Ellipsis,
                 )
 
-                if (formattedDate != null || ratingLabel != null) {
+                if (formattedDate != null || ratingLabel != null || (video.isFiller && isFillerEnabled)) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1586,6 +1642,9 @@ private fun EpisodeListCard(
                                 logoHeight = 12.dp,
                                 textSize = sizing.metaTextSize,
                             )
+                        }
+                        if (video.isFiller && isFillerEnabled) {
+                            FillerBadge()
                         }
                     }
                 }

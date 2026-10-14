@@ -23,7 +23,9 @@ internal object SimklIdResolver {
         val anilist: String? = null,
         val kitsu: String? = null,
         val imdb: String? = null,
-        val tvdbSeason: Int? = null
+        val tvdbSeason: Int? = null,
+        val slug: String? = null,
+        val tvdbslug: String? = null,
     )
 
     data class EpisodeMapping(
@@ -48,7 +50,21 @@ internal object SimklIdResolver {
         if (SimklConfig.CLIENT_ID.isBlank()) return null
 
         return try {
-            val searchText = httpGetText("$SIMKL_API_BASE_URL/search/id?$source=$id&${commonParams()}")
+            val typeParam = when (contentTypeHint?.lowercase()) {
+                "anime" -> "&type=anime"
+                "series", "tv", "show", "tvshow" -> "&type=shows"
+                "movie", "film" -> "&type=movies"
+                else -> ""
+            }
+            val searchText = try {
+                if (typeParam.isNotEmpty()) {
+                    httpGetText("$SIMKL_API_BASE_URL/search/id?$source=$id$typeParam&${commonParams()}")
+                } else {
+                    httpGetText("$SIMKL_API_BASE_URL/search/id?$source=$id&${commonParams()}")
+                }
+            } catch (_: Exception) {
+                httpGetText("$SIMKL_API_BASE_URL/search/id?$source=$id&${commonParams()}")
+            }
             val results = json.parseToJsonElement(searchText).jsonArray
             if (results.isEmpty()) return null
 
@@ -87,7 +103,10 @@ internal object SimklIdResolver {
                 anilist = ids?.get("anilist")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
                 kitsu = ids?.get("kitsu")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
                 imdb = ids?.get("imdb")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
-                tvdbSeason = details["season"]?.jsonPrimitive?.int?.takeIf { it > 0 }
+                tvdbSeason = details["season"]?.jsonPrimitive?.int?.takeIf { it > 0 },
+                slug = ids?.get("slug")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                    ?: matchedResult.jsonObject["ids"]?.jsonObject?.get("slug")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
+                tvdbslug = ids?.get("tvdbslug")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
             ).also { idsCache[cacheKey] = it }
         } catch (_: Exception) {
             null
@@ -193,7 +212,9 @@ internal object SimklIdResolver {
                 anilist = ids?.get("anilist")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
                 kitsu = ids?.get("kitsu")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
                 imdb = ids?.get("imdb")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
-                tvdbSeason = details["season"]?.jsonPrimitive?.int?.takeIf { it > 0 }
+                tvdbSeason = details["season"]?.jsonPrimitive?.int?.takeIf { it > 0 },
+                slug = ids?.get("slug")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
+                tvdbslug = ids?.get("tvdbslug")?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
             ).also { idsCache[cacheKey] = it }
         } catch (_: Exception) {
             null

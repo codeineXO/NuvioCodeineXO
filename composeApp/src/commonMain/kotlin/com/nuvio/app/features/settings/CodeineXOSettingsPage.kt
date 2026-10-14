@@ -16,6 +16,7 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.P2pTorrentProfile
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
@@ -159,21 +160,26 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }
     }
 
-    // ─── Anime Upscaling ───
-    if (isDesktop) {
-        item {
-            val playerSettings by remember {
-                PlayerSettingsRepository.ensureLoaded()
-                PlayerSettingsRepository.uiState
-            }.collectAsStateWithLifecycle()
+    // ─── Anime ───
+    item {
+        val animeFillerEnabled by remember {
+            AnimeFillerSettingsRepository.ensureLoaded()
+            AnimeFillerSettingsRepository.enabled
+        }.collectAsStateWithLifecycle()
 
-            var showAnimeUpscalerDialog by rememberSaveable { mutableStateOf(false) }
+        val playerSettings by remember {
+            PlayerSettingsRepository.ensureLoaded()
+            PlayerSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
 
-            SettingsSection(
-                title = "ANIME UPSCALING",
-                isTablet = isTablet,
-            ) {
-                SettingsGroup(isTablet = isTablet) {
+        var showAnimeUpscalerDialog by rememberSaveable { mutableStateOf(false) }
+
+        SettingsSection(
+            title = if (isDesktop) "ANIME UPSCALING" else "ANIME",
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                if (isDesktop) {
                     SettingsSwitchRow(
                         title = "Enable Anime Upscaler",
                         description = "Enhance anime and cartoons using real-time Anime4K shaders",
@@ -190,21 +196,31 @@ internal fun LazyListScope.codeineXOSettingsContent(
                             onClick = { showAnimeUpscalerDialog = true },
                         )
                     }
+                    SettingsGroupDivider(isTablet = isTablet)
                 }
-            }
-
-            if (showAnimeUpscalerDialog) {
-                AnimeUpscalerModeDialog(
-                    selectedMode = playerSettings.animeUpscalerMode,
-                    onModeSelected = { mode ->
-                        PlayerSettingsRepository.setAnimeUpscalerMode(mode)
-                        showAnimeUpscalerDialog = false
-                    },
-                    onDismiss = { showAnimeUpscalerDialog = false },
+                SettingsSwitchRow(
+                    title = "Anime Filler Detection",
+                    description = "Identify and mark filler episodes across catalog and metadata addons",
+                    checked = animeFillerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = AnimeFillerSettingsRepository::setEnabled,
                 )
             }
         }
 
+        if (isDesktop && showAnimeUpscalerDialog) {
+            AnimeUpscalerModeDialog(
+                selectedMode = playerSettings.animeUpscalerMode,
+                onModeSelected = { mode ->
+                    PlayerSettingsRepository.setAnimeUpscalerMode(mode)
+                    showAnimeUpscalerDialog = false
+                },
+                onDismiss = { showAnimeUpscalerDialog = false },
+            )
+        }
+    }
+
+    if (isDesktop) {
         // ─── Audio Enhancement ───
         item {
             val playerSettings by remember {

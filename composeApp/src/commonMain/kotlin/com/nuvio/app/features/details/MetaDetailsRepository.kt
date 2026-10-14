@@ -10,6 +10,8 @@ import com.nuvio.app.core.poster.withCustomPosterUrls
 import com.nuvio.app.features.addons.supportsResource
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.filterReleasedItems
+import com.nuvio.app.features.anime.AnimeFillerRepository
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.servers.ServerCatalog
@@ -224,17 +226,28 @@ object MetaDetailsRepository {
                 tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false)
             }
             if (result != null) {
+                val enriched = AnimeFillerRepository.enrichFillerStatus(
+                    meta = result,
+                    fallbackItemId = metaLookupId,
+                    fallbackItemType = type,
+                )
                 if (cacheResult) {
-                    cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = result)
+                    cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = enriched)
                 }
-                return result
+                return enriched
             }
         }
 
-        return tryFetchTmdbFallbackMeta(type = type, id = id)?.also { result ->
+        return tryFetchTmdbFallbackMeta(type = type, id = id)?.let { result ->
+            val enriched = AnimeFillerRepository.enrichFillerStatus(
+                meta = result,
+                fallbackItemId = id,
+                fallbackItemType = type,
+            )
             if (cacheResult) {
-                cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = result)
+                cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = enriched)
             }
+            enriched
         }
     }
 
@@ -431,8 +444,13 @@ object MetaDetailsRepository {
                 settings = settings,
             )
         } ?: meta
-        val enrichedMeta = applyMoreLikeThisSource(
+        val moreLikeEnrichedMeta = applyMoreLikeThisSource(
             meta = mdbListEnrichedMeta,
+            fallbackItemId = fallbackItemId,
+            fallbackItemType = fallbackItemType,
+        )
+        val enrichedMeta = AnimeFillerRepository.enrichFillerStatus(
+            meta = moreLikeEnrichedMeta,
             fallbackItemId = fallbackItemId,
             fallbackItemType = fallbackItemType,
         )
@@ -531,6 +549,8 @@ object MetaDetailsRepository {
         fallbackItemId: String,
         settings: com.nuvio.app.features.mdblist.MdbListSettings,
     ): Boolean {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        if (AnimeFillerSettingsRepository.snapshot() && meta.videos.isNotEmpty()) return true
         if (shouldFetchMdbListOnMetaScreen(meta, fallbackItemId, settings)) return true
         return shouldApplyMoreLikeThisSource(meta)
     }
@@ -555,15 +575,18 @@ object MetaDetailsRepository {
         TrackingSettingsRepository.ensureLoaded()
         TraktAuthRepository.ensureLoaded()
         TmdbSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.ensureLoaded()
         val providers = settings.enabledProvidersInPriorityOrder().joinToString(",")
         val trackingSettings = TrackingSettingsRepository.uiState.value
         val traktAuthMode = TraktAuthRepository.uiState.value.mode
         val tmdbSettings = TmdbSettingsRepository.snapshot()
+        val fillerEnabled = AnimeFillerSettingsRepository.snapshot()
         return buildString {
             append("${settings.enabled}:${settings.apiKey.trim()}:$providers")
             append("|mdblist_account=${settings.accountScope.takeUnless { settings.hasApiKey }}")
             append("|more_like=${trackingSettings.moreLikeThisSource}:$traktAuthMode")
             append("|tmdb=${tmdbSettings.enabled}:${tmdbSettings.useMoreLikeThis}:${tmdbSettings.language}")
+            append("|filler=$fillerEnabled")
         }
     }
 

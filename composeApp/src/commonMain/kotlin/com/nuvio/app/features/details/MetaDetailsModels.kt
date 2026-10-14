@@ -100,6 +100,7 @@ data class MetaVideo(
     val runtime: Int? = null,
     val rating: Double? = null,
     val streams: List<StreamItem> = emptyList(),
+    val isFiller: Boolean = false,
 )
 
 data class MetaDetailsUiState(
