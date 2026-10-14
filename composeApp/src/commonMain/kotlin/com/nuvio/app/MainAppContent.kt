@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
@@ -2204,13 +2204,13 @@ internal fun MainAppContent(
                             }
                         }
                         .size(width = 340.dp, height = 238.dp)
-                        .shadow(elevation = 16.dp, shape = RoundedCornerShape(12.dp))
+                        .shadow(elevation = 16.dp, shape = RectangleShape)
                         .border(
                             width = 1.dp,
                             color = Color.White.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RectangleShape,
                         )
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RectangleShape)
                         .background(MaterialTheme.nuvio.colors.surfaceElevated)
                         .zIndex(25f)
 

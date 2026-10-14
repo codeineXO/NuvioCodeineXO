@@ -23,6 +23,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ### 🎬 Player & Playback
 * **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
 * **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
+* **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
 * **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly, toggle between elapsed and remaining time, "show seekbar while seeking" toggle, rounded track styling, and refined Picture-in-Picture (PiP) controls.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
@@ -38,10 +39,11 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### ✨ Visuals, UX & Settings
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
+* **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
 * **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
-* **UX Enhancements:** Scroll navigation arrow buttons and drag-to-scroll on season/episode carousels, hero ratings with fallback support, sidebar exit button, copy addon manifest link shortcut, etc.
+* **UX Enhancements & Sharp Vector Badges:** Crisp vector SVG rating badges across titles for high-DPI displays, scroll navigation arrow buttons, drag-to-scroll on carousels, hero ratings with fallback support, sidebar exit button, copy addon manifest link shortcut, etc.
 * **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
-* **Enhanced Discord Rich Presence:** Richer Discord RPC displaying movie/series posters (with uncropped full portrait options), episode thumbnails, and granular presence status.
+* **Enhanced Discord Rich Presence:** Richer Discord RPC with customizable activity types ("Watching" vs. "Playing"), uncropped full portrait posters, small badge display for episode thumbnails, active mini-player tracking, and interactive artwork linking directly to IMDb.
 
 ### 🪟 Windows Desktop Isolation & Installer
 * **Isolated Environment:** Runs entirely out of dedicated `NuvioCodeineXO` data directories without conflicting with or overwriting official Nuvio settings or shortcuts.

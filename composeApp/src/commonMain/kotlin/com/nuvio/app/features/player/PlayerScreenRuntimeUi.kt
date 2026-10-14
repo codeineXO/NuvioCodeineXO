@@ -5,7 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
@@ -617,7 +617,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             .then(
                 if (args.isMiniPlayer) {
                     Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RectangleShape)
                         .background(MaterialTheme.nuvio.colors.surfaceElevated)
                 } else {
                     Modifier.background(Color.Black)
@@ -631,7 +631,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     if (args.isMiniPlayer) {
                         Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                            .clip(RectangleShape)
                     } else {
                         Modifier.fillMaxHeight()
                     }

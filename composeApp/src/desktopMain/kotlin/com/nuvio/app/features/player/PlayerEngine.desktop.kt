@@ -255,7 +255,7 @@ private fun NativePlayerSurface(
     LaunchedEffect(host, playerControlsState.isMiniPlayer, platformDensity) {
         host.setMiniPlayerMode(
             isMini = playerControlsState.isMiniPlayer,
-            radiusPx = (12f * platformDensity.density + 0.5f).toInt(),
+            radiusPx = 0,
         )
     }
 
