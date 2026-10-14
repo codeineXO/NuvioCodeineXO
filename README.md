@@ -28,6 +28,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly, toggle between elapsed and remaining time, "show seekbar while seeking" toggle, rounded track styling, and refined Picture-in-Picture (PiP) controls.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
 * **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
+* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
 * **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
 
 ### 🎨 Subtitle Customizations
@@ -48,6 +49,29 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ### 🪟 Windows Desktop Isolation & Installer
 * **Isolated Environment:** Runs entirely out of dedicated `NuvioCodeineXO` data directories without conflicting with or overwriting official Nuvio settings or shortcuts.
 * **Custom Installer & In-App Updater:** Dedicated Windows MSI installer, an interactive uninstall prompt asking whether to retain or wipe data, and a silent background updater tracking the fork’s GitHub releases.
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+| :--- | :--- |
+| `Space` | Play / Pause *(hold to boost speed)* |
+| `F` / `F11` | Toggle Fullscreen |
+| `←` / `→` | Seek backward / forward |
+| `Shift` + `←` / `→` | 1-second micro-seek |
+| `↑` / `↓` | Volume up / down |
+| `M` | Mute / Unmute audio |
+| `P` | Toggle Picture-in-Picture |
+| `B` | Quick cycle audio track |
+| `V` | Toggle subtitles on / off |
+| `G` / `H` | Adjust subtitle delay (-100ms / +100ms) |
+| `Shift` + `<` / `>` | Adjust playback speed (`/` to reset to 1x) |
+| `Shift` + `N` | Play next episode |
+| `E` | Open episode selector drawer |
+| `Q` | Open stream sources drawer |
+| `A` / `S` | Open audio / subtitle selection panels |
+| `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
 
 ---
 
