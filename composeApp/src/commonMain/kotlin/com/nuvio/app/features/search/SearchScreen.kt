@@ -55,6 +55,8 @@ import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.nuvioConsumePointerEvents
+import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
+import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.core.ui.ScreenActivityEffect
@@ -66,6 +68,7 @@ import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
+import com.nuvio.app.features.home.components.homePosterGutterPaddingForWidth
 import com.nuvio.app.features.home.components.homeSectionHorizontalPaddingForWidth
 import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.core.ui.posterGridColumnCountForCatalogWidth
@@ -124,6 +127,7 @@ fun SearchScreen(
     }
 
     LaunchedEffect(Unit) {
+        HomeCatalogSettingsRepository.snapshot()
         AddonRepository.initialize()
         WatchedRepository.ensureLoaded()
         SearchHistoryRepository.ensureLoaded()
@@ -132,10 +136,7 @@ fun SearchScreen(
     val addonsUiState by AddonRepository.uiState.collectAsStateWithLifecycle()
     val uiState by SearchRepository.uiState.collectAsStateWithLifecycle()
     val discoverUiState by SearchRepository.discoverUiState.collectAsStateWithLifecycle()
-    val homeCatalogSettingsUiState by remember {
-        HomeCatalogSettingsRepository.snapshot()
-        HomeCatalogSettingsRepository.uiState
-    }.collectAsStateWithLifecycle()
+    val homeCatalogSettings by HomeCatalogSettingsRepository.uiState.collectAsStateWithLifecycle()
     val recentSearches by SearchHistoryRepository.uiState.collectAsStateWithLifecycle()
     val watchedUiState by WatchedRepository.uiState.collectAsStateWithLifecycle()
     val fullyWatchedSeriesKeys by WatchedRepository.fullyWatchedSeriesKeys.collectAsStateWithLifecycle()
@@ -161,12 +162,12 @@ fun SearchScreen(
     }
     val addonManifestsLoading = addonsUiState.addons.hasPendingEnabledManifests()
 
-    ScreenActivityEffect(addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) { screenActive ->
+    ScreenActivityEffect(addonRefreshKey, homeCatalogSettings.hideUnreleasedContent) { screenActive ->
         if (!screenActive) return@ScreenActivityEffect
         SearchRepository.refreshDiscover(addonsUiState.addons)
     }
 
-    ScreenActivityEffect(query, addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) { screenActive ->
+    ScreenActivityEffect(query, addonRefreshKey, homeCatalogSettings.hideUnreleasedContent) { screenActive ->
         if (!screenActive) return@ScreenActivityEffect
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
@@ -253,6 +254,22 @@ fun SearchScreen(
         }
 
         val posterCardStyle = rememberPosterCardStyleUiState()
+        val useGutterLayout = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+        val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
+        val effectivePosterWidth = if (posterCardStyle.catalogLandscapeModeEnabled) {
+            landscapePosterWidth(basePosterWidthDp)
+        } else {
+            basePosterWidthDp.dp
+        }
+        val homeSectionPadding = remember(maxWidth) {
+            homeSectionHorizontalPaddingForWidth(maxWidth.value)
+        }
+        val effectivePosterSectionPadding = if (useGutterLayout) {
+            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+        } else {
+            homeSectionPadding
+        }
+        val sectionBottomPadding = if (useGutterLayout) 24.dp else 12.dp
         val discoverColumns = remember(maxWidth, maxHeight, posterCardStyle.widthDp, isDesktop) {
             if (isDesktop) {
                 posterGridColumnCountForCatalogWidth(
@@ -262,9 +279,6 @@ fun SearchScreen(
             } else {
                 posterGridColumnCountForWidth(maxWidth)
             }
-        }
-        val homeSectionPadding = remember(maxWidth) {
-            homeSectionHorizontalPaddingForWidth(maxWidth.value)
         }
         val headerTitle = when {
             query.isNotBlank() -> stringResource(Res.string.compose_nav_search)
@@ -381,7 +395,7 @@ fun SearchScreen(
                     isWaitingForSearch -> {
                         items(2) {
                             HomeSkeletonRow(
-                                horizontalPadding = homeSectionPadding,
+                                horizontalPadding = effectivePosterSectionPadding,
                             )
                         }
                     }
@@ -389,7 +403,7 @@ fun SearchScreen(
                     (uiState.isLoading || addonManifestsLoading) && uiState.sections.isEmpty() -> {
                         items(2) {
                             HomeSkeletonRow(
-                                horizontalPadding = homeSectionPadding,
+                                horizontalPadding = effectivePosterSectionPadding,
                             )
                         }
                     }
@@ -414,7 +428,7 @@ fun SearchScreen(
                                         }
                                     }
                                 },
-                                modifier = Modifier.padding(horizontal = homeSectionPadding),
+                                modifier = Modifier.padding(horizontal = effectivePosterSectionPadding),
                             )
                         }
                     }
@@ -427,7 +441,9 @@ fun SearchScreen(
                             val section = keyedSection.value
                             HomeCatalogRowSection(
                                 section = section,
-                                modifier = Modifier.padding(bottom = 12.dp),
+                                modifier = Modifier.padding(bottom = sectionBottomPadding),
+                                sectionPadding = effectivePosterSectionPadding,
+                                useGutterLayout = useGutterLayout,
                                 watchedKeys = watchedUiState.watchedKeys,
                                 fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                 onPosterClick = onPosterClick,
@@ -437,7 +453,7 @@ fun SearchScreen(
                         if (uiState.isLoading) {
                             item(key = "search_loading_more") {
                                 HomeSkeletonRow(
-                                    horizontalPadding = homeSectionPadding,
+                                    horizontalPadding = effectivePosterSectionPadding,
                                 )
                             }
                         }

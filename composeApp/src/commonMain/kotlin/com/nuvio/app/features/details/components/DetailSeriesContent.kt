@@ -77,6 +77,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,12 +89,17 @@ import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioAnimatedWatchedBadge
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.NuvioProgressBar
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.nuvioCardDepth
+import com.nuvio.app.core.ui.nuvioCenterScrollConsumer
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
+import com.nuvio.app.core.ui.nuvioPosterRowGutterClip
+import com.nuvio.app.core.ui.nuvioPosterRowMouseWheelScroll
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.secondaryClick
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
 import com.nuvio.app.features.details.EpisodeRatingsVisibility
 import com.nuvio.app.features.details.MetaEpisodeCardStyle
@@ -117,6 +123,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
 private val log = Logger.withTag("SeriesContent")
+private val SeriesScrollPostersExtraGutter = 20.dp
 
 @Composable
 fun DetailSeriesContent(
@@ -195,8 +202,17 @@ fun DetailSeriesContent(
         ?.takeIf { it in groupedEpisodes }
         ?: defaultSeason
 
+    val homeCatalogSettings by remember {
+        HomeCatalogSettingsRepository.snapshot()
+        HomeCatalogSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val scrollPostersLayoutEnabled = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val sizing = seriesContentSizing(maxWidth.value)
+        val sizing = seriesContentSizing(
+            maxWidthDp = maxWidth.value,
+            reduceSeasonSize = scrollPostersLayoutEnabled,
+        )
         val containerWidthDp = maxWidth.value
 
         Column(
@@ -209,6 +225,7 @@ fun DetailSeriesContent(
                 currentSeason = currentSeason,
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
+                scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                 onSelect = { selectedSeasonOverride = it },
                 onLongPress = onSeasonLongPress,
             )
@@ -257,6 +274,7 @@ fun DetailSeriesContent(
                                 preferredSeasonNumber = preferredSeasonNumber,
                                 preferredEpisodeNumber = preferredEpisodeNumber,
                             ),
+                            scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                             onEpisodeClick = onEpisodeClick,
                             onEpisodeLongPress = onEpisodeLongPress,
                         )
@@ -309,8 +327,17 @@ internal fun DetailSeriesListHeader(
     onSeasonLongPress: ((Int) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val homeCatalogSettings by remember {
+        HomeCatalogSettingsRepository.snapshot()
+        HomeCatalogSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val scrollPostersLayoutEnabled = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val sizing = seriesContentSizing(maxWidth.value)
+        val sizing = seriesContentSizing(
+            maxWidthDp = maxWidth.value,
+            reduceSeasonSize = scrollPostersLayoutEnabled,
+        )
         Column(verticalArrangement = Arrangement.spacedBy(if (isDesktop) 12.dp else 16.dp)) {
             SeriesSeasonSelector(
                 meta = meta,
@@ -319,6 +346,7 @@ internal fun DetailSeriesListHeader(
                 currentSeason = currentSeason,
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
+                scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                 onSelect = onSeasonSelect,
                 onLongPress = onSeasonLongPress,
             )
@@ -385,6 +413,7 @@ private fun SeriesSeasonSelector(
     currentSeason: Int,
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
+    scrollPostersLayoutEnabled: Boolean = false,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
 ) {
@@ -448,6 +477,7 @@ private fun SeriesSeasonSelector(
                         currentSeason = currentSeason,
                         sizing = sizing,
                         horizontalScrollPadding = horizontalScrollPadding,
+                        scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                         onSelect = onSelect,
                         onLongPress = onLongPress,
                     )
@@ -456,6 +486,7 @@ private fun SeriesSeasonSelector(
                         currentSeason = currentSeason,
                         sizing = sizing,
                         horizontalScrollPadding = horizontalScrollPadding,
+                        scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                         onSelect = onSelect,
                         onLongPress = onLongPress,
                     )
@@ -467,6 +498,7 @@ private fun SeriesSeasonSelector(
                 currentSeason = currentSeason,
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
+                scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
                 onSelect = onSelect,
                 onLongPress = onLongPress,
             )
@@ -516,11 +548,20 @@ private fun SeasonTextChipScrollRow(
     currentSeason: Int,
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
+    scrollPostersLayoutEnabled: Boolean = false,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
+    val bleedPadding = if (horizontalScrollPadding > 0.dp) {
+        horizontalScrollPadding
+    } else {
+        if (isDesktop) 28.dp else 16.dp
+    }
+    val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -551,19 +592,47 @@ private fun SeasonTextChipScrollRow(
     val isRowHovered by interactionSource.collectIsHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
 
-    Box(
-        modifier = Modifier
+    val containerModifier = if (scrollPostersLayoutEnabled) {
+        Modifier
+            .nuvioHorizontalScrollBleed(bleedPadding)
             .fillMaxWidth()
-            .hoverable(interactionSource),
+            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = true)
+            .hoverable(interactionSource)
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .hoverable(interactionSource)
+    }
+
+    val rowModifier = if (scrollPostersLayoutEnabled) {
+        Modifier
+            .padding(horizontal = effectiveGutterPadding)
+            .fillMaxWidth()
+            .nuvioPosterRowGutterClip()
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
+            .nuvioDesktopDragScroll(seasonListState)
+            .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
+    } else {
+        Modifier
+            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+            .fillMaxWidth()
+            .nuvioDesktopDragScroll(seasonListState)
+            .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
+    }
+
+    val rowContentPadding = if (scrollPostersLayoutEnabled) {
+        PaddingValues(0.dp)
+    } else {
+        PaddingValues(horizontal = horizontalScrollPadding)
+    }
+
+    Box(
+        modifier = containerModifier,
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = Modifier
-                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-                .fillMaxWidth()
-                .nuvioDesktopDragScroll(seasonListState)
-                .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
-            contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
+            modifier = rowModifier,
+            contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
             items(seasons, key = { season -> season }) { season ->
@@ -614,7 +683,7 @@ private fun SeasonTextChipScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Left,
-                horizontalScrollPadding = horizontalScrollPadding,
+                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
                         val firstVisible = seasonListState.firstVisibleItemIndex
@@ -634,7 +703,7 @@ private fun SeasonTextChipScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Right,
-                horizontalScrollPadding = horizontalScrollPadding,
+                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
                         val firstVisible = seasonListState.firstVisibleItemIndex
@@ -656,11 +725,20 @@ private fun SeasonPosterScrollRow(
     currentSeason: Int,
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
+    scrollPostersLayoutEnabled: Boolean = false,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
+    val bleedPadding = if (horizontalScrollPadding > 0.dp) {
+        horizontalScrollPadding
+    } else {
+        if (isDesktop) 28.dp else 16.dp
+    }
+    val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -691,19 +769,47 @@ private fun SeasonPosterScrollRow(
     val isRowHovered by interactionSource.collectIsHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
 
-    Box(
-        modifier = Modifier
+    val containerModifier = if (scrollPostersLayoutEnabled) {
+        Modifier
+            .nuvioHorizontalScrollBleed(bleedPadding)
             .fillMaxWidth()
-            .hoverable(interactionSource),
+            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = true)
+            .hoverable(interactionSource)
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .hoverable(interactionSource)
+    }
+
+    val rowModifier = if (scrollPostersLayoutEnabled) {
+        Modifier
+            .padding(horizontal = effectiveGutterPadding)
+            .fillMaxWidth()
+            .nuvioPosterRowGutterClip()
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
+            .nuvioDesktopDragScroll(seasonListState)
+            .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
+    } else {
+        Modifier
+            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+            .fillMaxWidth()
+            .nuvioDesktopDragScroll(seasonListState)
+            .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
+    }
+
+    val rowContentPadding = if (scrollPostersLayoutEnabled) {
+        PaddingValues(0.dp)
+    } else {
+        PaddingValues(horizontal = horizontalScrollPadding)
+    }
+
+    Box(
+        modifier = containerModifier,
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = Modifier
-                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-                .fillMaxWidth()
-                .nuvioDesktopDragScroll(seasonListState)
-                .let { if (isDesktop) it.padding(bottom = 4.dp) else it },
-            contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
+            modifier = rowModifier,
+            contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
             items(seasons, key = { season -> season }) { season ->
@@ -732,7 +838,7 @@ private fun SeasonPosterScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Left,
-                horizontalScrollPadding = horizontalScrollPadding,
+                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
                         val firstVisible = seasonListState.firstVisibleItemIndex
@@ -752,7 +858,7 @@ private fun SeasonPosterScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Right,
-                horizontalScrollPadding = horizontalScrollPadding,
+                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
                         val firstVisible = seasonListState.firstVisibleItemIndex
@@ -935,12 +1041,24 @@ private fun EpisodeHorizontalRow(
     episodeRatingsVisibility: EpisodeRatingsVisibility,
     blurUnwatchedEpisodes: Boolean,
     preferredEpisodeNumber: Int? = null,
+    scrollPostersLayoutEnabled: Boolean = false,
     onEpisodeClick: ((MetaVideo) -> Unit)?,
     onEpisodeLongPress: ((MetaVideo) -> Unit)?,
 ) {
-    val rowMetrics = rememberEpisodeHorizontalCardMetrics(maxWidthDp)
+    val rowMetrics = rememberEpisodeHorizontalCardMetrics(
+        maxWidthDp = maxWidthDp,
+        reduceSize = scrollPostersLayoutEnabled,
+    )
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
+    val bleedPadding = if (horizontalScrollPadding > 0.dp) {
+        horizontalScrollPadding
+    } else {
+        desktopPageHorizontalPaddingForWidth(maxWidthDp)
+    }
+    val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
     var hasPositioned by remember(episodes) { mutableStateOf(false) }
 
     LaunchedEffect(episodes, preferredEpisodeNumber) {
@@ -975,21 +1093,51 @@ private fun EpisodeHorizontalRow(
     val isRowHovered by interactionSource.collectIsHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
 
-    Box(
-        modifier = Modifier
+    val containerModifier = if (scrollPostersLayoutEnabled) {
+        Modifier
+            .nuvioHorizontalScrollBleed(bleedPadding)
             .fillMaxWidth()
-            .hoverable(interactionSource),
+            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = true)
+            .hoverable(interactionSource)
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .hoverable(interactionSource)
+    }
+
+    val rowModifier = if (scrollPostersLayoutEnabled) {
+        Modifier
+            .padding(horizontal = effectiveGutterPadding)
+            .fillMaxWidth()
+            .nuvioPosterRowGutterClip()
+            .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx)
+            .nuvioDesktopDragScroll(listState)
+    } else {
+        Modifier
+            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+            .fillMaxWidth()
+            .nuvioDesktopDragScroll(listState)
+    }
+
+    val rowContentPadding = if (scrollPostersLayoutEnabled) {
+        PaddingValues(
+            horizontal = rowMetrics.rowHorizontalPadding,
+            vertical = rowMetrics.rowVerticalPadding,
+        )
+    } else {
+        PaddingValues(
+            horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
+            vertical = rowMetrics.rowVerticalPadding,
+        )
+    }
+
+    Box(
+        modifier = containerModifier,
     ) {
         LazyRow(
             state = listState,
-            modifier = Modifier
-                .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-                .fillMaxWidth()
-                .nuvioDesktopDragScroll(listState),
-            contentPadding = PaddingValues(
-                horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
-                vertical = rowMetrics.rowVerticalPadding,
-            ),
+            modifier = rowModifier,
+            contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
         ) {
             itemsIndexed(
@@ -1031,7 +1179,7 @@ private fun EpisodeHorizontalRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Left,
-                horizontalScrollPadding = horizontalScrollPadding,
+                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
                         val firstVisible = listState.firstVisibleItemIndex
@@ -1051,7 +1199,7 @@ private fun EpisodeHorizontalRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Right,
-                horizontalScrollPadding = horizontalScrollPadding,
+                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
                         val firstVisible = listState.firstVisibleItemIndex
@@ -1287,17 +1435,21 @@ private data class EpisodeHorizontalCardMetrics(
 )
 
 @Composable
-private fun rememberEpisodeHorizontalCardMetrics(maxWidthDp: Float): EpisodeHorizontalCardMetrics {
+private fun rememberEpisodeHorizontalCardMetrics(
+    maxWidthDp: Float,
+    reduceSize: Boolean = false,
+): EpisodeHorizontalCardMetrics {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val userCornerRadius = posterCardStyle.cornerRadiusDp.dp
-    return remember(maxWidthDp, userCornerRadius) {
+    val scale = if (reduceSize) 0.9f else 1f
+    return remember(maxWidthDp, userCornerRadius, reduceSize) {
         when {
             maxWidthDp >= 1300f -> EpisodeHorizontalCardMetrics(
                 rowHorizontalPadding = 0.dp,
                 rowVerticalPadding = 0.dp,
                 itemSpacing = 18.dp,
-                cardWidth = 420.dp,
-                cardHeight = 256.dp,
+                cardWidth = 420.dp * scale,
+                cardHeight = 256.dp * scale,
                 cornerRadius = userCornerRadius,
                 contentPadding = 16.dp,
                 contentBottomPadding = 18.dp,
@@ -1319,8 +1471,8 @@ private fun rememberEpisodeHorizontalCardMetrics(maxWidthDp: Float): EpisodeHori
                 rowHorizontalPadding = 0.dp,
                 rowVerticalPadding = 0.dp,
                 itemSpacing = 16.dp,
-                cardWidth = 384.dp,
-                cardHeight = 236.dp,
+                cardWidth = 384.dp * scale,
+                cardHeight = 236.dp * scale,
                 cornerRadius = userCornerRadius,
                 contentPadding = 14.dp,
                 contentBottomPadding = 16.dp,
@@ -1342,8 +1494,8 @@ private fun rememberEpisodeHorizontalCardMetrics(maxWidthDp: Float): EpisodeHori
                 rowHorizontalPadding = 0.dp,
                 rowVerticalPadding = 0.dp,
                 itemSpacing = 14.dp,
-                cardWidth = 340.dp,
-                cardHeight = 212.dp,
+                cardWidth = 340.dp * scale,
+                cardHeight = 212.dp * scale,
                 cornerRadius = userCornerRadius,
                 contentPadding = 12.dp,
                 contentBottomPadding = 14.dp,
@@ -1365,8 +1517,8 @@ private fun rememberEpisodeHorizontalCardMetrics(maxWidthDp: Float): EpisodeHori
                 rowHorizontalPadding = 0.dp,
                 rowVerticalPadding = 0.dp,
                 itemSpacing = 12.dp,
-                cardWidth = 296.dp,
-                cardHeight = 184.dp,
+                cardWidth = 296.dp * scale,
+                cardHeight = 184.dp * scale,
                 cornerRadius = userCornerRadius,
                 contentPadding = 10.dp,
                 contentBottomPadding = 12.dp,
@@ -1676,18 +1828,22 @@ private data class SeriesContentSizing(
     val badgeVerticalPadding: Dp,
 )
 
-private fun seriesContentSizing(maxWidthDp: Float): SeriesContentSizing =
-    when {
+private fun seriesContentSizing(
+    maxWidthDp: Float,
+    reduceSeasonSize: Boolean = false,
+): SeriesContentSizing {
+    val seasonScale = if (reduceSeasonSize) 0.9f else 1f
+    return when {
         maxWidthDp >= 1440f -> SeriesContentSizing(
             seasonHeaderSize = 28.sp,
             seasonToggleTextSize = 16.sp,
             seasonChipGap = 20.dp,
             seasonChipRadius = 16.dp,
-            seasonChipHorizontalPadding = 20.dp,
-            seasonChipVerticalPadding = 16.dp,
+            seasonChipHorizontalPadding = 20.dp * seasonScale,
+            seasonChipVerticalPadding = 16.dp * seasonScale,
             seasonChipTextSize = 16.sp,
-            seasonPosterWidth = 140.dp,
-            seasonPosterHeight = 210.dp,
+            seasonPosterWidth = 140.dp * seasonScale,
+            seasonPosterHeight = 210.dp * seasonScale,
             seasonPosterRadius = 16.dp,
             cardHeight = 200.dp,
             imageWidth = 200.dp,
@@ -1712,11 +1868,11 @@ private fun seriesContentSizing(maxWidthDp: Float): SeriesContentSizing =
             seasonToggleTextSize = 15.sp,
             seasonChipGap = 18.dp,
             seasonChipRadius = 14.dp,
-            seasonChipHorizontalPadding = 18.dp,
-            seasonChipVerticalPadding = 14.dp,
+            seasonChipHorizontalPadding = 18.dp * seasonScale,
+            seasonChipVerticalPadding = 14.dp * seasonScale,
             seasonChipTextSize = 15.sp,
-            seasonPosterWidth = 130.dp,
-            seasonPosterHeight = 195.dp,
+            seasonPosterWidth = 130.dp * seasonScale,
+            seasonPosterHeight = 195.dp * seasonScale,
             seasonPosterRadius = 14.dp,
             cardHeight = 180.dp,
             imageWidth = 180.dp,
@@ -1741,11 +1897,11 @@ private fun seriesContentSizing(maxWidthDp: Float): SeriesContentSizing =
             seasonToggleTextSize = 14.sp,
             seasonChipGap = 16.dp,
             seasonChipRadius = 12.dp,
-            seasonChipHorizontalPadding = 16.dp,
-            seasonChipVerticalPadding = 12.dp,
+            seasonChipHorizontalPadding = 16.dp * seasonScale,
+            seasonChipVerticalPadding = 12.dp * seasonScale,
             seasonChipTextSize = 17.sp,
-            seasonPosterWidth = 120.dp,
-            seasonPosterHeight = 180.dp,
+            seasonPosterWidth = 120.dp * seasonScale,
+            seasonPosterHeight = 180.dp * seasonScale,
             seasonPosterRadius = 12.dp,
             cardHeight = 160.dp,
             imageWidth = 160.dp,
@@ -1770,11 +1926,11 @@ private fun seriesContentSizing(maxWidthDp: Float): SeriesContentSizing =
             seasonToggleTextSize = 12.sp,
             seasonChipGap = 16.dp,
             seasonChipRadius = 12.dp,
-            seasonChipHorizontalPadding = 16.dp,
-            seasonChipVerticalPadding = 12.dp,
+            seasonChipHorizontalPadding = 16.dp * seasonScale,
+            seasonChipVerticalPadding = 12.dp * seasonScale,
             seasonChipTextSize = 15.sp,
-            seasonPosterWidth = 100.dp,
-            seasonPosterHeight = 150.dp,
+            seasonPosterWidth = 100.dp * seasonScale,
+            seasonPosterHeight = 150.dp * seasonScale,
             seasonPosterRadius = 8.dp,
             cardHeight = 120.dp,
             imageWidth = 120.dp,
@@ -1795,6 +1951,7 @@ private fun seriesContentSizing(maxWidthDp: Float): SeriesContentSizing =
             badgeVerticalPadding = 2.dp,
         )
     }
+}
 
 private fun Int.label(): String =
     if (this <= 0) {
