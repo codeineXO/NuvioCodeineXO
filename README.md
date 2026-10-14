@@ -20,6 +20,10 @@
 
 Here is the breakdown of features and improvements on **NuvioCodeineXO** that are not present in official Nuvio Desktop:
 
+### 🌸 Anime Features
+* **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
+* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
+
 ### 🎬 Player & Playback
 * **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
@@ -28,10 +32,6 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
 * **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
 * **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
-
-### 🌸 Anime Features
-* **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
-* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
 
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
