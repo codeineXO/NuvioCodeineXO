@@ -2724,8 +2724,8 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 42px;
+  gap: 14px;
+  min-height: 48px;
 }
 
 .audio-extra-info {
@@ -2747,6 +2747,20 @@ button:disabled {
   color: var(--theme-text-muted);
   font-size: 12px;
   line-height: 16px;
+}
+
+#audioNightModeToggle {
+  min-width: 68px;
+  min-height: 38px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 0 0 auto;
 }
 
 
@@ -3513,6 +3527,29 @@ button.action:focus-visible {
   .audio-rail-panel .track-row {
     min-height: 58px;
     padding: 13px 16px;
+  }
+
+  .audio-extra-row {
+    min-height: 56px;
+    gap: 16px;
+  }
+
+  .audio-extra-title {
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  .audio-extra-desc {
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  #audioNightModeToggle {
+    min-width: 76px;
+    min-height: 44px;
+    padding: 10px 22px;
+    font-size: 15px;
+    border-radius: 14px;
   }
 
   .subtitle-language-row {
