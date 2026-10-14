@@ -21,30 +21,33 @@
 Here is the breakdown of features and improvements on **NuvioCodeineXO** that are not present in official Nuvio Desktop:
 
 ### 🎬 Player & Playback
-* **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
 * **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
 * **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly, toggle between elapsed and remaining time, "show seekbar while seeking" toggle, rounded track styling, and refined Picture-in-Picture (PiP) controls.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
 * **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
-* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
 * **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
+
+### 🌸 Anime Features
+* **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
+* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
 
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
-* **Typography & Effects:** 10 curated clean fonts, outline thickness stepper, soft blur glow, and shadow effects that update live without player reload.
+* **Typography & Outline Styles:** 10 curated clean fonts, outline thickness stepper, and selectable outline effects (`Classic Outline`, `Glow`, `Halo`, `Background Box`, and `None`) that update live without player reload.
+
+### ✨ Visuals, UX & Settings
+* **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
+* **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
+* **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
+* **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
+* **Catalog Navigation & Polish:** Drag-to-scroll and directional arrow buttons on carousels, sidebar quick exit button, and copy addon manifest link shortcuts.
+* **Enhanced Discord Rich Presence:** Richer Discord RPC with customizable activity types ("Watching" vs. "Playing"), uncropped full portrait posters, small badge display for episode thumbnails, active mini-player tracking, and interactive artwork linking directly to IMDb.
+* **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
 
 ### ⚡ P2P Engine & Core Performance
 * **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of native NuvioEngine backend (v0.1.4) with configurable persistent torrent caching, optimized HTTP stream buffering, audio channel routing fixes, and fast mid-file resume.
-
-### ✨ Visuals, UX & Settings
-* **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
-* **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
-* **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
-* **UX Enhancements & Sharp Vector Badges:** Crisp vector SVG rating badges across titles for high-DPI displays, scroll navigation arrow buttons, drag-to-scroll on carousels, hero ratings with fallback support, sidebar exit button, copy addon manifest link shortcut, etc.
-* **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
-* **Enhanced Discord Rich Presence:** Richer Discord RPC with customizable activity types ("Watching" vs. "Playing"), uncropped full portrait posters, small badge display for episode thumbnails, active mini-player tracking, and interactive artwork linking directly to IMDb.
 
 ### 🪟 Windows Desktop Isolation & Installer
 * **Isolated Environment:** Runs entirely out of dedicated `NuvioCodeineXO` data directories without conflicting with or overwriting official Nuvio settings or shortcuts.
