@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
+import com.nuvio.app.features.anime.FillerBadge
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1463,42 +1464,6 @@ private fun ImdbEpisodeRatingBadge(
     }
 }
 
-@Composable
-private fun FillerBadge(
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color.Black.copy(alpha = 0.78f))
-            .border(
-                width = 1.dp,
-                color = Color(0xFFF59E0B).copy(alpha = 0.55f),
-                shape = RoundedCornerShape(6.dp),
-            )
-            .padding(horizontal = 7.dp, vertical = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFF59E0B))
-                .border(width = 0.75.dp, color = Color(0xFFFBBF24), shape = CircleShape),
-        )
-        Text(
-            text = "FILLER",
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.5.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.7.sp,
-            ),
-            color = Color(0xFFFDE68A),
-            maxLines = 1,
-        )
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

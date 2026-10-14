@@ -1920,6 +1920,8 @@ private fun StringBuilder.appendEpisodeItemJson(item: PlayerControlEpisodeItem) 
     appendJsonField("isCurrent", item.isCurrent)
     append(',')
     appendJsonField("isWatched", item.isWatched)
+    append(',')
+    appendJsonField("isFiller", item.isFiller)
     append('}')
 }
 

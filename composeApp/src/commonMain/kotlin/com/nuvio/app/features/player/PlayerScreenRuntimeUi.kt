@@ -18,6 +18,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -28,6 +30,8 @@ import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.themePalette
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -1883,6 +1887,10 @@ private fun formatPlayerControlsCueTimestamp(timeMs: Long): String {
 
 @Composable
 private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerControlEpisodeItem> {
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
     val items = mutableListOf<PlayerControlEpisodeItem>()
     for ((index, video) in playerMetaVideos.withIndex()) {
         if (video.season == null && video.episode == null) continue
@@ -1921,6 +1929,7 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
                 episode = video.episode ?: 0,
                 isCurrent = video.season == activeSeasonNumber && video.episode == activeEpisodeNumber,
                 isWatched = isWatched,
+                isFiller = video.isFiller && isFillerEnabled,
             ),
         )
     }

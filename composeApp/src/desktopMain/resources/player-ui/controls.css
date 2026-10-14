@@ -3341,6 +3341,36 @@ button:disabled {
   line-height: 1;
 }
 
+.episode-filler-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  border-radius: 6px;
+  padding: 2px 7px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.episode-filler-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  border: 0.75px solid #fbbf24;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.episode-filler-text {
+  color: #fde68a;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  line-height: 1;
+}
+
 .episode-overview {
   display: -webkit-box !important;
   overflow: hidden !important;

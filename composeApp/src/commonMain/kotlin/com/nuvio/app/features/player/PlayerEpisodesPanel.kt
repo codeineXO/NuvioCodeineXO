@@ -57,6 +57,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.build.AppFeaturePolicy
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
+import com.nuvio.app.features.anime.FillerBadge
 import com.nuvio.app.features.details.EpisodeRatingsVisibility
 import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -214,6 +217,10 @@ private fun EpisodesListPanelContent(
 ) {
     val tokens = MaterialTheme.nuvio
     val metaScreenSettings by MetaScreenSettingsRepository.uiState.collectAsState()
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
     var episodeImdbRatings by remember(parentMetaId, initialEpisodeRatings) {
         mutableStateOf(initialEpisodeRatings)
     }
@@ -357,6 +364,7 @@ private fun EpisodesListPanelContent(
                         blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                         episodeRatings = episodeImdbRatings,
                         episodeRatingsVisibility = metaScreenSettings.episodeRatingsVisibility,
+                        isFillerEnabled = isFillerEnabled,
                         onClick = { onEpisodeSelected(episode) },
                     )
                 }
@@ -417,8 +425,15 @@ private fun EpisodeRow(
     blurUnwatchedEpisodes: Boolean,
     episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
     episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+    isFillerEnabled: Boolean? = null,
     onClick: () -> Unit,
 ) {
+    val fallbackFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
+    val fillerEnabled = isFillerEnabled ?: fallbackFillerEnabled
+    val showFillerBadge = episode.isFiller && fillerEnabled
     val tokens = MaterialTheme.nuvio
     val hazeState = LocalPlayerHazeState.current
     val cardShape = RoundedCornerShape(16.dp)
@@ -526,8 +541,9 @@ private fun EpisodeRow(
                 rawRating?.takeIf { it > 0.0 && episodeRatingsVisibility.showRating(isWatched) }
                     ?.let(::formatEpisodeRating)
             }
-            if (formattedReleaseDate != null || ratingLabel != null) {
+            if (formattedReleaseDate != null || ratingLabel != null || showFillerBadge) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -536,9 +552,12 @@ private fun EpisodeRow(
                             text = formattedReleaseDate,
                             color = tokens.colors.textMuted,
                             style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
                     }
-                    if (formattedReleaseDate != null && ratingLabel != null) {
+                    if (formattedReleaseDate != null && (ratingLabel != null || showFillerBadge)) {
                         Text(
                             text = "•",
                             color = tokens.colors.textMuted,
@@ -547,6 +566,9 @@ private fun EpisodeRow(
                     }
                     if (ratingLabel != null) {
                         PlayerEpisodeRatingBadge(rating = ratingLabel)
+                    }
+                    if (showFillerBadge) {
+                        FillerBadge()
                     }
                 }
             }

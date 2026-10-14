@@ -2548,7 +2548,7 @@ const appendEpisodeRow = (container, item) => {
   name.className = "episode-name";
   name.textContent = item.title || item.code || "Episode";
   copy.appendChild(name);
-  if (item.released || item.rating) {
+  if (item.released || item.rating || item.isFiller) {
     const metaRow = document.createElement("span");
     metaRow.className = "episode-meta-row";
     if (item.released) {
@@ -2557,7 +2557,7 @@ const appendEpisodeRow = (container, item) => {
       released.textContent = item.released;
       metaRow.appendChild(released);
     }
-    if (item.released && item.rating) {
+    if (item.released && (item.rating || item.isFiller)) {
       const dot = document.createElement("span");
       dot.className = "episode-meta-dot";
       dot.textContent = "•";
@@ -2575,6 +2575,18 @@ const appendEpisodeRow = (container, item) => {
       ratingBadge.appendChild(imdbLabel);
       ratingBadge.appendChild(ratingVal);
       metaRow.appendChild(ratingBadge);
+    }
+    if (item.isFiller) {
+      const fillerBadge = document.createElement("span");
+      fillerBadge.className = "episode-filler-badge";
+      const fillerDot = document.createElement("span");
+      fillerDot.className = "episode-filler-dot";
+      const fillerText = document.createElement("span");
+      fillerText.className = "episode-filler-text";
+      fillerText.textContent = "FILLER";
+      fillerBadge.appendChild(fillerDot);
+      fillerBadge.appendChild(fillerText);
+      metaRow.appendChild(fillerBadge);
     }
     copy.appendChild(metaRow);
   }

@@ -333,6 +333,7 @@ data class PlayerControlEpisodeItem(
     val episode: Int = 0,
     val isCurrent: Boolean = false,
     val isWatched: Boolean = false,
+    val isFiller: Boolean = false,
 )
 
 data class PlayerControlAddonSubtitleItem(
