@@ -1,5 +1,11 @@
 package com.nuvio.app.core.storage
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
@@ -8,11 +14,19 @@ import java.nio.file.Paths
 import java.util.Comparator
 import java.util.Locale
 import java.util.Properties
+import javax.swing.SwingUtilities
 import kotlin.io.path.exists
 
 internal object DesktopStorage {
     private val json = Json { ignoreUnknownKeys = true }
     private val stores = mutableMapOf<String, Store>()
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        Runtime.getRuntime().addShutdownHook(Thread {
+            flushAll()
+        })
+    }
 
     val rootDir: Path by lazy {
         resolveAppDataDir().also { Files.createDirectories(it) }
@@ -24,6 +38,12 @@ internal object DesktopStorage {
 
     fun store(name: String): Store = synchronized(stores) {
         stores.getOrPut(name) { Store(rootDir.resolve("$name.properties")) }
+    }
+
+    fun flushAll() {
+        synchronized(stores) {
+            stores.values.forEach(Store::flushSync)
+        }
     }
 
     fun wipe() {
@@ -80,6 +100,8 @@ internal object DesktopStorage {
         private val lock = Any()
         private val properties = Properties()
         private var loaded = false
+        private var isDirty = false
+        private var persistJob: Job? = null
 
         fun contains(key: String): Boolean = synchronized(lock) {
             ensureLoaded()
@@ -98,7 +120,7 @@ internal object DesktopStorage {
             } else {
                 properties.setProperty(key, value) != value
             }
-            if (changed) persist()
+            if (changed) schedulePersist()
         }
 
         fun getBoolean(key: String): Boolean? =
@@ -133,7 +155,7 @@ internal object DesktopStorage {
 
         fun remove(key: String) = synchronized(lock) {
             ensureLoaded()
-            if (properties.remove(key) != null) persist()
+            if (properties.remove(key) != null) schedulePersist()
         }
 
         fun removeAll(keys: Iterable<String>) = synchronized(lock) {
@@ -142,12 +164,66 @@ internal object DesktopStorage {
             keys.forEach { key ->
                 if (properties.remove(key) != null) changed = true
             }
-            if (changed) persist()
+            if (changed) schedulePersist()
         }
 
         fun clearInMemory() = synchronized(lock) {
+            persistJob?.cancel()
+            persistJob = null
+            isDirty = false
             properties.clear()
             loaded = false
+        }
+
+        fun flushSync() {
+            synchronized(lock) {
+                persistJob?.cancel()
+                persistJob = null
+                if (!isDirty) return
+                isDirty = false
+                val snapshot = Properties().apply { putAll(properties) }
+                runCatching {
+                    writeSnapshotToDisk(snapshot)
+                }
+            }
+        }
+
+        private fun schedulePersist() {
+            if (SwingUtilities.isEventDispatchThread()) {
+                isDirty = true
+                if (persistJob?.isActive == true) return
+                persistJob = persistScope.launch {
+                    while (true) {
+                        delay(50)
+                        val snapshot = synchronized(lock) {
+                            if (!isDirty) {
+                                persistJob = null
+                                return@launch
+                            }
+                            isDirty = false
+                            Properties().apply { putAll(properties) }
+                        }
+                        runCatching {
+                            writeSnapshotToDisk(snapshot)
+                        }
+                    }
+                }
+            } else {
+                persistJob?.cancel()
+                persistJob = null
+                isDirty = false
+                val snapshot = Properties().apply { putAll(properties) }
+                runCatching {
+                    writeSnapshotToDisk(snapshot)
+                }
+            }
+        }
+
+        private fun writeSnapshotToDisk(snapshot: Properties) {
+            Files.createDirectories(file.parent)
+            Files.newOutputStream(file).use { output ->
+                snapshot.store(output, "Nuvio desktop preferences")
+            }
         }
 
         private fun ensureLoaded() {
@@ -159,13 +235,6 @@ internal object DesktopStorage {
                 Files.newInputStream(file).use { input ->
                     properties.load(input)
                 }
-            }
-        }
-
-        private fun persist() {
-            Files.createDirectories(file.parent)
-            Files.newOutputStream(file).use { output ->
-                properties.store(output, "Nuvio desktop preferences")
             }
         }
     }

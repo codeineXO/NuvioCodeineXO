@@ -646,8 +646,8 @@ const syncFullscreenButtons = () => {
   if (codeineFullscreenButton) codeineFullscreenButton.setAttribute("aria-label", label);
 };
 
-const togglePlayerFullscreen = (fromEscape = false) => {
-  send("toggleFullscreen", fromEscape ? 1 : 0);
+const togglePlayerFullscreen = () => {
+  send("toggleFullscreen", 0);
 };
 
 const hidePlayerToast = token => {
@@ -5383,8 +5383,6 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     if (state.isInPip) {
       send("pictureInPicture", 0);
-    } else if (state.isFullscreen) {
-      togglePlayerFullscreen(true);
     } else {
       send("back", 0);
     }

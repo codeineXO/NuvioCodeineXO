@@ -27,17 +27,37 @@ import com.nuvio.app.features.player.SUBTITLE_DELAY_MIN_MS
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineEffect
+import com.nuvio.app.core.storage.DesktopStorage
+import com.nuvio.app.features.addons.encodeUnsafeHttpUrlCharacters
 import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.SubtitleTrack
 import com.nuvio.app.features.player.inferForcedSubtitleTrack
 import com.nuvio.app.features.player.toStorageHexString
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.awt.Component
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.swing.SwingUtilities
 import kotlin.concurrent.Volatile
 
@@ -78,6 +98,15 @@ internal class NativePlayerController(
 
         @Volatile
         var rememberedResizeMode: PlayerResizeMode = PlayerResizeMode.Fit
+
+        val subtitleDownloadClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .build()
+        }
     }
 
     private data class ReleaseCallback(
@@ -86,6 +115,31 @@ internal class NativePlayerController(
     )
 
     private val lifecycleLock = Any()
+    private val playerCommandDispatcher = Dispatchers.IO.limitedParallelism(1)
+    private val playerScope = CoroutineScope(SupervisorJob() + playerCommandDispatcher)
+    private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var inFlightSubtitleDownloadJob: Job? = null
+    @Volatile
+    private var cachedSubtitleTracks: List<NativeMpvTrack> = emptyList()
+    @Volatile
+    private var cachedAudioTracks: List<NativeMpvTrack> = emptyList()
+    @Volatile
+    private var pendingSubtitleUri: String? = null
+
+    private fun cancelInFlightSubtitleDownload() {
+        inFlightSubtitleDownloadJob?.cancel()
+        inFlightSubtitleDownloadJob = null
+    }
+
+    private fun executePlayerCommand(action: (Long) -> Unit) {
+        val current = handle.takeIf { it != 0L } ?: return
+        playerScope.launch {
+            val activeHandle = handle.takeIf { it != 0L } ?: return@launch
+            action(activeHandle)
+        }
+    }
+
     private var currentNowPlayingTitle: String = ""
     private var currentNowPlayingSubtitle: String = ""
     private var currentArtworkUrl: String = ""
@@ -357,7 +411,8 @@ internal class NativePlayerController(
                         if (currentNowPlayingTitle.isNotEmpty() || currentArtworkUrl.isNotEmpty()) {
                             setNowPlayingMetadata(currentNowPlayingTitle, currentNowPlayingSubtitle, currentArtworkUrl)
                         }
-                        applyPendingSubtitleSettings()
+                        applyPendingSubtitleSettings(created)
+                        pendingSubtitleUri?.let { setSubtitleUri(it) }
                         applyAnimeUpscaler(created, rememberedAnimeUpscalerEnabled, rememberedAnimeUpscalerMode)
                         applyAudioNightMode(created, rememberedAudioNightModeEnabled)
                     }
@@ -888,6 +943,9 @@ internal class NativePlayerController(
         }
         if (!accepted) return
         host.onPeerReady = null
+        cancelInFlightSubtitleDownload()
+        playerScope.cancel()
+        downloadScope.cancel()
         disposePlayerHandle()
     }
 
@@ -900,6 +958,7 @@ internal class NativePlayerController(
 
     private fun invalidateForRelease() {
         cancelPendingAttachment()
+        cancelInFlightSubtitleDownload()
         host.onCursorActivity = null
         onAction = { false }
         onEvent = { _, _ -> false }
@@ -955,6 +1014,10 @@ internal class NativePlayerController(
     private fun detachPlayerHandle(): Long = synchronized(lifecycleLock) {
         val current = handle
         handle = 0L
+        cancelInFlightSubtitleDownload()
+        cachedSubtitleTracks = emptyList()
+        cachedAudioTracks = emptyList()
+        pendingSubtitleUri = null
         lastSentControlsStructureKey = null
         current
     }
@@ -973,7 +1036,7 @@ internal class NativePlayerController(
             {
                 awaitThreadCompletion(prior, "prior native teardown")
                 runCatching { nativeDispose(current) }
-                    .onFailure { error -> recordTerminalDisposeFailure(error, "native", current) }
+                .onFailure { error -> recordTerminalDisposeFailure(error, "native", current) }
             },
             "nuvio-player-dispose",
         ).apply {
@@ -988,6 +1051,10 @@ internal class NativePlayerController(
             val current = handle
             if (current == 0L) return
             handle = 0L
+            cancelInFlightSubtitleDownload()
+            cachedSubtitleTracks = emptyList()
+            cachedAudioTracks = emptyList()
+            pendingSubtitleUri = null
             lastSentControlsStructureKey = null
             // Register and start teardown atomically so terminal release cannot sample an empty
             // worker slot between detaching the handle and starting native disposal.
@@ -1057,8 +1124,10 @@ internal class NativePlayerController(
         handle.takeIf { it != 0L }?.let { NativePlayerBridge.setSpeed(it, speed) }
     }
 
-    override fun getAudioTracks(): List<AudioTrack> =
-        decodeTracks { NativePlayerBridge.audioTracksJson(it) }.map { track ->
+    override fun getAudioTracks(): List<AudioTrack> {
+        val tracks = decodeTracks { NativePlayerBridge.audioTracksJson(it) }
+        cachedAudioTracks = tracks
+        return tracks.map { track ->
             AudioTrack(
                 index = track.index,
                 id = track.id,
@@ -1067,9 +1136,12 @@ internal class NativePlayerController(
                 isSelected = track.selected,
             )
         }
+    }
 
-    override fun getSubtitleTracks(): List<SubtitleTrack> =
-        decodeTracks { NativePlayerBridge.subtitleTracksJson(it) }.map { track ->
+    override fun getSubtitleTracks(): List<SubtitleTrack> {
+        val tracks = decodeTracks { NativePlayerBridge.subtitleTracksJson(it) }
+        cachedSubtitleTracks = tracks
+        return tracks.map { track ->
             SubtitleTrack(
                 index = track.index,
                 id = track.id,
@@ -1083,6 +1155,7 @@ internal class NativePlayerController(
                 ),
             )
         }
+    }
 
     override fun applyAudioLanguagePreferences(languages: List<String>) {
         val trackIndex = findPreferredAudioTrackIndex(getAudioTracks(), languages)
@@ -1091,84 +1164,153 @@ internal class NativePlayerController(
 
     override fun selectAudioTrack(index: Int) {
         val current = handle.takeIf { it != 0L } ?: return
-        val tracks = decodeTracks { NativePlayerBridge.audioTracksJson(it) }
-        val trackId = resolveTrackId(index, tracks) ?: run {
-            log.w { "selectAudioTrack missing track index=$index count=${tracks.size} handle=$current" }
-            return
+        val cachedTrackId = resolveTrackId(index, cachedAudioTracks)
+        executePlayerCommand { activeHandle ->
+            val trackId = cachedTrackId ?: run {
+                val tracks = decodeTracks(activeHandle) { NativePlayerBridge.audioTracksJson(it) }
+                cachedAudioTracks = tracks
+                resolveTrackId(index, tracks)
+            }
+            if (trackId == null) {
+                log.w { "selectAudioTrack missing track index=$index count=${cachedAudioTracks.size} handle=$activeHandle" }
+                return@executePlayerCommand
+            }
+            log.d { "selectAudioTrack index=$index trackId=$trackId count=${cachedAudioTracks.size} handle=$activeHandle" }
+            NativePlayerBridge.selectAudioTrack(activeHandle, trackId)
         }
-        log.d { "selectAudioTrack index=$index trackId=$trackId count=${tracks.size} handle=$current" }
-        NativePlayerBridge.selectAudioTrack(current, trackId)
     }
 
     override fun selectSubtitleTrack(index: Int) {
+        cancelInFlightSubtitleDownload()
+        pendingSubtitleUri = null
         val current = handle.takeIf { it != 0L } ?: return
         if (index < 0) {
             log.d { "selectSubtitleTrack off handle=$current" }
-            NativePlayerBridge.selectSubtitleTrack(current, -1)
+            executePlayerCommand { activeHandle ->
+                NativePlayerBridge.selectSubtitleTrack(activeHandle, -1)
+            }
             return
         }
-        val tracks = decodeTracks { NativePlayerBridge.subtitleTracksJson(it) }
-        val trackId = resolveTrackId(index, tracks) ?: run {
-            log.w { "selectSubtitleTrack missing track index=$index count=${tracks.size} handle=$current" }
-            return
+        val cachedTrackId = resolveTrackId(index, cachedSubtitleTracks)
+        executePlayerCommand { activeHandle ->
+            val trackId = cachedTrackId ?: run {
+                val tracks = decodeTracks(activeHandle) { NativePlayerBridge.subtitleTracksJson(it) }
+                cachedSubtitleTracks = tracks
+                resolveTrackId(index, tracks)
+            }
+            if (trackId == null) {
+                log.w { "selectSubtitleTrack missing track index=$index count=${cachedSubtitleTracks.size} handle=$activeHandle" }
+                return@executePlayerCommand
+            }
+            log.d { "selectSubtitleTrack index=$index trackId=$trackId count=${cachedSubtitleTracks.size} handle=$activeHandle" }
+            NativePlayerBridge.selectSubtitleTrack(activeHandle, trackId)
+            applyPendingSubtitleSettingsDirect(activeHandle)
         }
-        log.d { "selectSubtitleTrack index=$index trackId=$trackId count=${tracks.size} handle=$current" }
-        NativePlayerBridge.selectSubtitleTrack(current, trackId)
-        applyPendingSubtitleSettings()
     }
 
     override fun setSubtitleUri(url: String) {
         log.d { "setSubtitleUri ${url.toPlaybackLogKey()} handle=$handle" }
-        handle.takeIf { it != 0L }?.let { current ->
-            NativePlayerBridge.clearExternalSubtitles(current)
-            NativePlayerBridge.addSubtitleUrl(current, url)
+        cancelInFlightSubtitleDownload()
+        pendingSubtitleUri = url
+        val current = handle.takeIf { it != 0L } ?: return
+
+        val isRemote = url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
+        if (!isRemote) {
+            executePlayerCommand { activeHandle ->
+                NativePlayerBridge.clearExternalSubtitles(activeHandle)
+                NativePlayerBridge.addSubtitleUrl(activeHandle, url)
+            }
+            return
+        }
+
+        val cachedPath = resolveCachedSubtitlePath(url)
+        if (cachedPath != null) {
+            log.d { "setSubtitleUri using cached file=$cachedPath handle=$current" }
+            executePlayerCommand { activeHandle ->
+                NativePlayerBridge.clearExternalSubtitles(activeHandle)
+                NativePlayerBridge.addSubtitleUrl(activeHandle, cachedPath)
+            }
+            return
+        }
+
+        inFlightSubtitleDownloadJob = downloadScope.launch {
+            log.d { "setSubtitleUri downloading asynchronously url=${url.toPlaybackLogKey()}" }
+            val downloadedPath = downloadSubtitleToCache(url)
+            if (!isActive) return@launch
+            if (downloadedPath != null) {
+                log.d { "setSubtitleUri download complete file=$downloadedPath handle=$handle" }
+                executePlayerCommand { activeHandle ->
+                    NativePlayerBridge.clearExternalSubtitles(activeHandle)
+                    NativePlayerBridge.addSubtitleUrl(activeHandle, downloadedPath)
+                }
+            } else {
+                log.w { "setSubtitleUri download failed for ${url.toPlaybackLogKey()}" }
+            }
         }
     }
 
     override fun clearExternalSubtitle() {
+        cancelInFlightSubtitleDownload()
+        pendingSubtitleUri = null
         log.d { "clearExternalSubtitle handle=$handle" }
-        handle.takeIf { it != 0L }?.let(NativePlayerBridge::clearExternalSubtitles)
+        executePlayerCommand { activeHandle ->
+            NativePlayerBridge.clearExternalSubtitles(activeHandle)
+        }
     }
 
     override fun clearExternalSubtitleAndSelect(trackIndex: Int) {
+        cancelInFlightSubtitleDownload()
+        pendingSubtitleUri = null
         val current = handle.takeIf { it != 0L } ?: return
-        val trackId = if (trackIndex < 0) {
-            -1
-        } else {
-            val tracks = decodeTracks { NativePlayerBridge.subtitleTracksJson(it) }
-            resolveTrackId(trackIndex, tracks) ?: run {
-                log.w { "clearExternalSubtitleAndSelect missing track index=$trackIndex count=${tracks.size} handle=$current" }
-                return
+        val cachedTrackId = if (trackIndex < 0) -1 else resolveTrackId(trackIndex, cachedSubtitleTracks)
+        executePlayerCommand { activeHandle ->
+            val trackId = if (trackIndex < 0) {
+                -1
+            } else {
+                cachedTrackId ?: run {
+                    val tracks = decodeTracks(activeHandle) { NativePlayerBridge.subtitleTracksJson(it) }
+                    cachedSubtitleTracks = tracks
+                    resolveTrackId(trackIndex, tracks)
+                } ?: run {
+                    log.w { "clearExternalSubtitleAndSelect missing track index=$trackIndex count=${cachedSubtitleTracks.size} handle=$activeHandle" }
+                    return@executePlayerCommand
+                }
             }
+            log.d { "clearExternalSubtitleAndSelect trackIndex=$trackIndex trackId=$trackId handle=$activeHandle" }
+            NativePlayerBridge.clearExternalSubtitlesAndSelect(activeHandle, trackId)
+            applyPendingSubtitleSettingsDirect(activeHandle)
         }
-        log.d { "clearExternalSubtitleAndSelect trackIndex=$trackIndex trackId=$trackId handle=$current" }
-        NativePlayerBridge.clearExternalSubtitlesAndSelect(current, trackId)
-        applyPendingSubtitleSettings()
     }
 
     override fun setSubtitleDelayMs(delayMs: Int) {
         val clamped = delayMs.coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
         pendingSubtitleDelayMs = clamped
-        handle.takeIf { it != 0L }?.let { current ->
-            NativePlayerBridge.setSubtitleDelayMs(current, clamped)
+        executePlayerCommand { activeHandle ->
+            NativePlayerBridge.setSubtitleDelayMs(activeHandle, clamped)
         }
     }
 
     override fun applySubtitleStyle(style: SubtitleStyleState, useLibass: Boolean) {
         pendingSubtitleStyle = style
         pendingUseLibass = useLibass
-        handle.takeIf { it != 0L }?.let { current ->
-            applySubtitleStyle(current, style, useLibass)
+        executePlayerCommand { activeHandle ->
+            applySubtitleStyle(activeHandle, style, useLibass)
         }
     }
 
-    private fun applyPendingSubtitleSettings() {
-        val current = handle.takeIf { it != 0L } ?: return
+    private fun applyPendingSubtitleSettings(targetHandle: Long = handle) {
+        executePlayerCommand { activeHandle ->
+            applyPendingSubtitleSettingsDirect(activeHandle)
+        }
+    }
+
+    private fun applyPendingSubtitleSettingsDirect(handle: Long) {
+        if (handle == 0L) return
         pendingSubtitleDelayMs?.let { delayMs ->
-            NativePlayerBridge.setSubtitleDelayMs(current, delayMs)
+            NativePlayerBridge.setSubtitleDelayMs(handle, delayMs)
         }
         pendingSubtitleStyle?.let { style ->
-            applySubtitleStyle(current, style, pendingUseLibass)
+            applySubtitleStyle(handle, style, pendingUseLibass)
         }
     }
 
@@ -1223,11 +1365,123 @@ internal class NativePlayerController(
         )
     }
 
-    private fun decodeTracks(readJson: (Long) -> String): List<NativeMpvTrack> {
+    private fun decodeTracks(readJson: (Long) -> String): List<NativeMpvTrack> =
+        decodeTracks(handle, readJson)
+
+    private fun decodeTracks(handle: Long, readJson: (Long) -> String): List<NativeMpvTrack> {
         val current = handle.takeIf { it != 0L } ?: return emptyList()
         return runCatching {
             json.decodeFromString<List<NativeMpvTrack>>(readJson(current))
         }.getOrDefault(emptyList())
+    }
+
+    private fun resolveCachedSubtitlePath(url: String): String? {
+        val subtitlesDir = DesktopStorage.cacheDir.resolve("subtitles")
+        if (!Files.exists(subtitlesDir)) return null
+        val hash = hashUrl(url)
+        val extensions = listOf(resolveSubtitleExtension(url), "srt", "vtt", "ass", "ssa", "sub").distinct()
+        for (ext in extensions) {
+            val file = subtitlesDir.resolve("$hash.$ext")
+            if (Files.exists(file) && Files.isRegularFile(file) && Files.size(file) > 0L) {
+                return file.toAbsolutePath().toString()
+            }
+        }
+        return null
+    }
+
+    private suspend fun downloadSubtitleToCache(url: String): String? = withContext(Dispatchers.IO) {
+        val subtitlesDir = DesktopStorage.cacheDir.resolve("subtitles")
+        runCatching { Files.createDirectories(subtitlesDir) }
+        val hash = hashUrl(url)
+        val initialExt = resolveSubtitleExtension(url)
+        val tempFile = subtitlesDir.resolve("$hash-${System.nanoTime()}.tmp")
+
+        try {
+            val encodedUrl = url.encodeUnsafeHttpUrlCharacters()
+            val request = Request.Builder()
+                .url(encodedUrl)
+                .header("User-Agent", "Mozilla/5.0")
+                .build()
+            val call = subtitleDownloadClient.newCall(request)
+
+            val response = suspendCancellableCoroutine { continuation ->
+                continuation.invokeOnCancellation {
+                    call.cancel()
+                }
+                call.enqueue(object : okhttp3.Callback {
+                    override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                        continuation.resumeWith(Result.success(response))
+                    }
+                    override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                        continuation.resumeWith(Result.failure(e))
+                    }
+                })
+            }
+
+            response.use { resp ->
+                if (!resp.isSuccessful) {
+                    log.w { "downloadSubtitleToCache HTTP ${resp.code} for ${url.toPlaybackLogKey()}" }
+                    return@withContext null
+                }
+                val body = resp.body ?: return@withContext null
+                body.byteStream().use { input ->
+                    Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING)
+                }
+            }
+
+            if (!Files.exists(tempFile) || Files.size(tempFile) == 0L) {
+                Files.deleteIfExists(tempFile)
+                return@withContext null
+            }
+
+            val headerBytes = ByteArray(128)
+            val readCount = Files.newInputStream(tempFile).use { it.read(headerBytes) }
+            val finalExt = if (readCount > 0) {
+                detectSubtitleExtension(headerBytes.copyOf(readCount), initialExt)
+            } else {
+                initialExt
+            }
+            val finalTargetFile = subtitlesDir.resolve("$hash.$finalExt")
+            try {
+                Files.move(tempFile, finalTargetFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            } catch (_: Exception) {
+                Files.move(tempFile, finalTargetFile, StandardCopyOption.REPLACE_EXISTING)
+            }
+            finalTargetFile.toAbsolutePath().toString()
+        } catch (e: Exception) {
+            if (e is CancellationException) {
+                log.d { "downloadSubtitleToCache cancelled for ${url.toPlaybackLogKey()}" }
+            } else {
+                log.w(e) { "downloadSubtitleToCache error for ${url.toPlaybackLogKey()}" }
+            }
+            null
+        } finally {
+            runCatching { Files.deleteIfExists(tempFile) }
+        }
+    }
+}
+
+private fun hashUrl(url: String): String {
+    val md = MessageDigest.getInstance("SHA-256")
+    val digest = md.digest(url.toByteArray(Charsets.UTF_8))
+    return digest.joinToString("") { "%02x".format(it) }
+}
+
+private fun resolveSubtitleExtension(url: String): String {
+    val cleanUrl = url.substringBefore('?').substringBefore('#')
+    val ext = cleanUrl.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    return when (ext) {
+        "srt", "vtt", "ass", "ssa", "sub" -> ext
+        else -> "srt"
+    }
+}
+
+private fun detectSubtitleExtension(firstBytes: ByteArray, fallbackExt: String): String {
+    val header = String(firstBytes, 0, minOf(firstBytes.size, 128), Charsets.UTF_8).trimStart()
+    return when {
+        header.startsWith("WEBVTT", ignoreCase = true) -> "vtt"
+        header.startsWith("[Script Info]", ignoreCase = true) -> "ass"
+        else -> fallbackExt
     }
 }
 
