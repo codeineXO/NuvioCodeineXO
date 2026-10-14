@@ -19,7 +19,7 @@ class DiscordPresenceManagerTest {
     @Test
     fun idleActivity_hasNuvioCodeineXONameAndDownloadButton() {
         assertEquals("NuvioCodeineXO", IdleActivity.name)
-        assertEquals(0, IdleActivity.type)
+        assertEquals(3, IdleActivity.type)
         assertEquals("Exploring NuvioCodeineXO", IdleActivity.details)
         assertEquals("In Menus", IdleActivity.state)
         assertNotNull(IdleActivity.assets)
@@ -31,6 +31,10 @@ class DiscordPresenceManagerTest {
         val watchingIdle = createIdleActivity(DiscordActivityType.WATCHING)
         assertEquals("NuvioCodeineXO", watchingIdle.name)
         assertEquals(3, watchingIdle.type)
+
+        val playingIdle = createIdleActivity(DiscordActivityType.PLAYING)
+        assertEquals("NuvioCodeineXO", playingIdle.name)
+        assertEquals(0, playingIdle.type)
     }
 
     @Test
@@ -267,7 +271,7 @@ class DiscordPresenceManagerTest {
         assertTrue(idleEncoded.contains("\"name\":\"NuvioCodeineXO\""))
         assertTrue(idleEncoded.contains("\"details\":\"Exploring NuvioCodeineXO\""))
         assertTrue(idleEncoded.contains("\"state\":\"In Menus\""))
-        assertTrue(idleEncoded.contains("\"type\":0"))
+        assertTrue(idleEncoded.contains("\"type\":3"))
         assertTrue(idleEncoded.contains("\"status_display_type\":2"))
         assertTrue(idleEncoded.contains("\"instance\":false"))
         assertTrue(idleEncoded.contains("\"assets\""))
@@ -391,8 +395,8 @@ class DiscordPresenceManagerTest {
 
         assertNotNull(resolveDiscordActivity(detailsSnapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
         assertNotNull(resolveDiscordActivity(streamSnapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
-        assertEquals(createIdleActivity(DiscordActivityType.WATCHING), resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
-        assertEquals(IdleActivity, resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL, DiscordActivityType.PLAYING))
+        assertEquals(IdleActivity, resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL))
+        assertEquals(createIdleActivity(DiscordActivityType.PLAYING), resolveDiscordActivity(null, com.nuvio.app.features.settings.DiscordActivityMode.ALL, DiscordActivityType.PLAYING))
     }
 
     @Test

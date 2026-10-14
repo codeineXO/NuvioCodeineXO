@@ -177,7 +177,7 @@ internal fun formatDiscordPosterAsset(url: String?, fullPosterEnabled: Boolean):
 internal val sessionStartSecs = System.currentTimeMillis() / 1_000L
 
 // Shown when nothing has been published yet.
-internal fun createIdleActivity(activityType: DiscordActivityType = DiscordActivityType.PLAYING): DiscordActivity {
+internal fun createIdleActivity(activityType: DiscordActivityType = DiscordActivityType.WATCHING): DiscordActivity {
     val isWatching = activityType == DiscordActivityType.WATCHING
     return DiscordActivity(
         type = if (isWatching) ActivityTypeWatching else ActivityTypeGame,
@@ -194,7 +194,7 @@ internal fun createIdleActivity(activityType: DiscordActivityType = DiscordActiv
     )
 }
 
-internal val IdleActivity: DiscordActivity get() = createIdleActivity(DiscordActivityType.PLAYING)
+internal val IdleActivity: DiscordActivity get() = createIdleActivity(DiscordActivityType.WATCHING)
 
 internal fun resolveDiscordActivity(
     snapshot: PresenceSnapshot?,

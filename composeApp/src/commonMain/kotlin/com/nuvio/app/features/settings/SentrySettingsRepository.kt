@@ -8,7 +8,7 @@ internal object SentrySettingsRepository {
     val isSupported: Boolean
         get() = SentrySettingsPlatform.crashReportsSupported
 
-    private val _enabled = MutableStateFlow(true)
+    private val _enabled = MutableStateFlow(false)
     val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
 
     private var hasLoaded = false
@@ -20,7 +20,7 @@ internal object SentrySettingsRepository {
 
     private fun loadFromDisk() {
         hasLoaded = true
-        _enabled.value = SentrySettingsStorage.loadEnabled() ?: true
+        _enabled.value = SentrySettingsStorage.loadEnabled() ?: false
     }
 
     fun setEnabled(enabled: Boolean) {

@@ -578,8 +578,8 @@
     <string name="settings_advanced_opengl_renderer_description">May fix interface stutter or flicker with NVIDIA G-SYNC and some high-refresh-rate displays. Restart Nuvio to apply.</string>
     <string name="settings_advanced_opengl_renderer_external_description">The interface renderer is controlled by SKIKO_RENDER_API or skiko.renderApi. Remove that override to change it here.</string>
     <string name="settings_advanced_sentry_reports">Sentry Crash Reports</string>
-    <string name="settings_advanced_sentry_reports_subtitle">Send crash and ANR reports with safe context. On by default.</string>
-    <string name="settings_advanced_sentry_reports_subtitle_desktop">Send crash reports with safe diagnostic context. On by default.</string>
+    <string name="settings_advanced_sentry_reports_subtitle">Send crash and ANR reports with safe context. Off by default.</string>
+    <string name="settings_advanced_sentry_reports_subtitle_desktop">Send crash reports with safe diagnostic context. Off by default.</string>
     <string name="settings_advanced_discord_rich_presence">Discord Rich Presence</string>
     <string name="settings_advanced_discord_rich_presence_description">Show what you're browsing or watching on your Discord profile. Off by default.</string>
     <string name="settings_advanced_discord_activity_mode">Discord Activity</string>
