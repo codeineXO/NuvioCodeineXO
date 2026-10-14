@@ -1,6 +1,7 @@
 package com.nuvio.app.core.ui
 
 import com.nuvio.app.core.diagnostics.SentryInitializer
+import com.nuvio.app.core.instance.DesktopSingleInstanceController
 import com.nuvio.app.features.discordrpc.DiscordPresenceManager
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.player.desktop.DesktopHostOs
@@ -38,6 +39,9 @@ object DesktopAppShutdown {
         if (!markRequested()) {
             return
         }
+        // Release instance lock fast so subsequent launches don't block
+        runCatching { DesktopSingleInstanceController.release() }
+
         // 1. Close the window fast so WM_CLOSE succeeds.
         runCatching { exitApplication() }
 
@@ -46,6 +50,7 @@ object DesktopAppShutdown {
             runCatching {
                 runBlocking {
                     withTimeoutOrNull(GRACEFUL_TIMEOUT_MS) {
+                        runCatching { DesktopSingleInstanceController.release() }
                         runCatching { P2pStreamingEngine.shutdown() }
                         runCatching { DiscordPresenceManager.shutdown() }
                         runCatching { SentryInitializer.close() }

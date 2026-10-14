@@ -20,6 +20,7 @@ import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.deeplink.handleAppUrl
 import com.nuvio.app.core.diagnostics.SentryInitializer
+import com.nuvio.app.core.instance.DesktopSingleInstanceController
 import com.nuvio.app.core.ui.DesktopAppShutdown
 import com.nuvio.app.core.ui.NuvioTheme
 import com.nuvio.app.core.ui.ProvideDesktopWindowInsets
@@ -51,6 +52,10 @@ private const val MacosDarkAquaAppearance = "NSAppearanceNameDarkAqua"
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main(args: Array<String>) {
+    if (!DesktopSingleInstanceController.startOrForward(args)) {
+        return
+    }
+
     // On Linux, initialize GTK BEFORE AWT/Compose/Skia to prevent GdkDisplayManager
     // type registration conflict (Skiko partially loads GDK without full GTK init).
     if (System.getProperty("os.name", "").lowercase().contains("linux")) {
@@ -192,6 +197,7 @@ fun main(args: Array<String>) {
                     }
             }
             DisposableEffect(window, windowState) {
+                DesktopSingleInstanceController.attachWindow(window, windowState)
                 val unregisterFullscreenToggle = registerDesktopAppFullscreenToggle(
                     handler = { targetWindow ->
                         if (targetWindow == null || targetWindow === window) {
@@ -210,6 +216,7 @@ fun main(args: Array<String>) {
                 val uninstallGlobalBackNavigation = installDesktopGlobalBackNavigation(window)
                 val untrackMaximizedBounds = window.trackMaximizedBoundsForCurrentScreen()
                 onDispose {
+                    DesktopSingleInstanceController.detachWindow()
                     fullscreenController.dispose(window)
                     uninstallFullscreenShortcuts()
                     uninstallGlobalBackNavigation()
@@ -271,8 +278,8 @@ private fun installDesktopOpenUriHandler() {
         desktop.setOpenURIHandler { event ->
             event.uri
                 ?.toString()
-                ?.trim()
-                ?.takeIf(::isDesktopAppUrl)
+                ?.let(DesktopSingleInstanceController::cleanArgument)
+                ?.takeIf(DesktopSingleInstanceController::isDesktopAppUrl)
                 ?.let(::handleAppUrl)
         }
     }
@@ -280,11 +287,10 @@ private fun installDesktopOpenUriHandler() {
 
 private fun handleDesktopLaunchArgs(args: Array<String>) {
     args.asSequence()
-        .map(String::trim)
-        .filter(::isDesktopAppUrl)
+        .map(DesktopSingleInstanceController::cleanArgument)
+        .filter(DesktopSingleInstanceController::isDesktopAppUrl)
         .forEach(::handleAppUrl)
 }
 
 private fun isDesktopAppUrl(value: String): Boolean =
-    value.startsWith("nuvio://", ignoreCase = true) ||
-        value.startsWith("stremio://", ignoreCase = true)
+    DesktopSingleInstanceController.isDesktopAppUrl(value)
