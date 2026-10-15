@@ -4658,7 +4658,7 @@ svg {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* CodeineXO Quick Drawer (Upscaler, Speed, PiP, Fit) */
+/* CodeineXO Quick Drawer (Speed, PiP, Mini Player, Aspect Ratio) */
 .player.ui-codeinexo .codeine-quick-drawer {
   display: flex;
   align-items: center;
@@ -4682,24 +4682,49 @@ svg {
   will-change: max-width, opacity;
 }
 
-.player.ui-codeinexo .codeine-drawer-btn svg {
-  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+.player.ui-codeinexo .codeine-drawer-btn .codeine-drawer-icon-pin {
+  display: none;
+  width: 16px;
+  height: 16px;
+}
+
+.player.ui-codeinexo .codeine-drawer-btn .codeine-drawer-icon-arrow {
+  display: block;
 }
 
 .player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-items,
 .player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
-.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items {
-  max-width: 220px;
+.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items,
+.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-items {
+  max-width: 178px;
   opacity: 1;
   pointer-events: auto;
   margin-left: 6px;
 }
 
-.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-btn svg,
-.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-btn svg,
-.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-btn svg {
-  transform: rotate(180deg);
+.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-btn .codeine-drawer-icon-arrow,
+.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-btn .codeine-drawer-icon-arrow,
+.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-btn .codeine-drawer-icon-arrow,
+.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn .codeine-drawer-icon-arrow {
+  display: none;
+}
+
+.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-btn .codeine-drawer-icon-pin,
+.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-btn .codeine-drawer-icon-pin,
+.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-btn .codeine-drawer-icon-pin,
+.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn .codeine-drawer-icon-pin {
+  display: block;
+}
+
+.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn,
+.player.ui-codeinexo .codeine-drawer-btn.is-pinned {
+  color: var(--theme-accent);
+}
+
+.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn svg,
+.player.ui-codeinexo .codeine-drawer-btn.is-pinned svg {
+  color: var(--theme-accent);
+  filter: drop-shadow(0 0 6px var(--theme-accent)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
 }
 
 .player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-items {
@@ -4709,8 +4734,12 @@ svg {
   margin-left: 0 !important;
 }
 
-.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-btn svg {
-  transform: rotate(0deg) !important;
+.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-btn .codeine-drawer-icon-arrow {
+  display: block !important;
+}
+
+.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-btn .codeine-drawer-icon-pin {
+  display: none !important;
 }
 
 .player.ui-codeinexo .codeine-time-label {
@@ -4831,6 +4860,10 @@ svg {
     width: 18px;
     height: 18px;
   }
+  .player.ui-codeinexo .codeine-drawer-btn .codeine-drawer-icon-pin {
+    width: 14px;
+    height: 14px;
+  }
   .player.ui-codeinexo .codeine-volume-control:hover .codeine-volume-slider,
   .player.ui-codeinexo .codeine-volume-control:focus-within .codeine-volume-slider,
   .player.ui-codeinexo .codeine-volume-control.is-active .codeine-volume-slider {
@@ -4840,8 +4873,9 @@ svg {
   }
   .player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-items,
   .player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
-  .player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items {
-    max-width: 180px;
+  .player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items,
+  .player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-items {
+    max-width: 156px;
     margin-left: 4px;
   }
   .player.ui-codeinexo .codeine-drawer-items {

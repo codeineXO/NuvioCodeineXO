@@ -4697,24 +4697,44 @@ if (codeineVolumeButton) {
 }
 
 if (codeineDrawerButton && codeineQuickDrawer) {
+  const updateDrawerPinned = pinned => {
+    codeineQuickDrawer.classList.toggle("is-pinned", pinned);
+    codeineQuickDrawer.classList.toggle("is-active", pinned);
+    if (pinned) {
+      codeineQuickDrawer.classList.remove("is-collapsed");
+    }
+    codeineDrawerButton.classList.toggle("active", pinned);
+    codeineDrawerButton.classList.toggle("is-pinned", pinned);
+    codeineDrawerButton.setAttribute("aria-pressed", pinned ? "true" : "false");
+    const label = pinned ? "Unpin quick drawer" : "Pin quick drawer";
+    codeineDrawerButton.setAttribute("title", label);
+    codeineDrawerButton.setAttribute("aria-label", label);
+  };
+
   codeineDrawerButton.addEventListener("click", event => {
     event.stopPropagation();
     noteChromeActivity();
-    if (codeineQuickDrawer.classList.contains("is-collapsed")) {
-      codeineQuickDrawer.classList.remove("is-collapsed");
-      codeineQuickDrawer.classList.add("is-active");
-    } else if (codeineQuickDrawer.classList.contains("is-active") || codeineQuickDrawer.matches(":hover")) {
-      codeineQuickDrawer.classList.add("is-collapsed");
-      codeineQuickDrawer.classList.remove("is-active");
-    } else {
-      codeineQuickDrawer.classList.add("is-active");
-    }
+    codeineDrawerButton.blur();
+    const isCurrentlyPinned = codeineQuickDrawer.classList.contains("is-pinned");
+    updateDrawerPinned(!isCurrentlyPinned);
   });
+
+  codeineQuickDrawer.addEventListener("mouseenter", () => {
+    if (codeineQuickDrawer.classList.contains("is-pinned")) return;
+    codeineDrawerButton.setAttribute("title", "Pin quick drawer");
+    codeineDrawerButton.setAttribute("aria-label", "Pin quick drawer");
+  });
+
   codeineQuickDrawer.addEventListener("mouseleave", () => {
+    if (codeineQuickDrawer.classList.contains("is-pinned")) return;
     codeineQuickDrawer.classList.remove("is-collapsed");
     codeineQuickDrawer.classList.remove("is-active");
+    codeineDrawerButton.setAttribute("title", "More playback controls");
+    codeineDrawerButton.setAttribute("aria-label", "More playback controls");
   });
+
   window.addEventListener("pointerdown", event => {
+    if (codeineQuickDrawer.classList.contains("is-pinned")) return;
     if (!codeineQuickDrawer.contains(event.target)) {
       codeineQuickDrawer.classList.remove("is-active");
       codeineQuickDrawer.classList.remove("is-collapsed");
