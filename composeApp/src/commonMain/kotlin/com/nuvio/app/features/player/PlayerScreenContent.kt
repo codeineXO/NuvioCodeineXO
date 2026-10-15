@@ -85,7 +85,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
     val addonSubtitles by SubtitleRepository.addonSubtitles.collectAsStateWithLifecycle()
     val isLoadingAddonSubtitles by SubtitleRepository.isLoading.collectAsStateWithLifecycle()
 
-    val runtime = remember { PlayerScreenRuntime(args) }
+    val runtime = remember(args.launchId) { PlayerScreenRuntime(args) }
     runtime.args = args
 
     DisposableEffect(Unit) {

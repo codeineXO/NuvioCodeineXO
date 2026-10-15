@@ -2222,52 +2222,54 @@ internal fun MainAppContent(
                     Box(
                         modifier = if (isMiniPlayer) miniModifier else fullModifier,
                     ) {
-                        PlayerDestination(
-                            route = playerRoute,
-                            navController = navController,
-                            externalPlayerId = playerSettingsUiState.externalPlayerId,
-                            externalPlayerNotConfiguredText = externalPlayerNotConfiguredText,
-                            externalPlayerFailedText = externalPlayerFailedText,
-                            onExternalPlayerLaunch = { launch -> lastExternalPlayerLaunch = launch },
-                            launchExternalPlayer = launchExternalPlayer,
-                            openExternalStreamUrl = ::openExternalStreamUrl,
-                            onSystemBackHandlerChanged = { pRoute, handler ->
-                                if (handler == null) {
-                                    if (registeredPlayerSystemBack?.first == pRoute) {
-                                        registeredPlayerSystemBack = null
+                        key(currentActiveLaunchId) {
+                            PlayerDestination(
+                                route = playerRoute,
+                                navController = navController,
+                                externalPlayerId = playerSettingsUiState.externalPlayerId,
+                                externalPlayerNotConfiguredText = externalPlayerNotConfiguredText,
+                                externalPlayerFailedText = externalPlayerFailedText,
+                                onExternalPlayerLaunch = { launch -> lastExternalPlayerLaunch = launch },
+                                launchExternalPlayer = launchExternalPlayer,
+                                openExternalStreamUrl = ::openExternalStreamUrl,
+                                onSystemBackHandlerChanged = { pRoute, handler ->
+                                    if (handler == null) {
+                                        if (registeredPlayerSystemBack?.first == pRoute) {
+                                            registeredPlayerSystemBack = null
+                                        }
+                                    } else {
+                                        registeredPlayerSystemBack = pRoute to handler
                                     }
-                                } else {
-                                    registeredPlayerSystemBack = pRoute to handler
-                                }
-                            },
-                            isMiniPlayer = isMiniPlayer,
-                            onMinimize = {
-                                InAppPlayerManager.minimize()
-                                if (currentRoute is PlayerRoute) {
-                                    navController.popBackStack()
-                                }
-                            },
-                            onExpand = {
-                                InAppPlayerManager.expand()
-                                if (currentRoute !is PlayerRoute) {
-                                    navController.navigate(
-                                        PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title),
-                                    )
-                                }
-                            },
-                            onClose = {
-                                InAppPlayerManager.close()
-                                if (currentRoute is PlayerRoute) {
-                                    navController.popBackStack()
-                                }
-                            },
-                            onBack = {
-                                InAppPlayerManager.close()
-                                if (currentRoute is PlayerRoute) {
-                                    navController.popBackStack()
-                                }
-                            },
-                        )
+                                },
+                                isMiniPlayer = isMiniPlayer,
+                                onMinimize = {
+                                    InAppPlayerManager.minimize()
+                                    if (currentRoute is PlayerRoute) {
+                                        navController.popBackStack()
+                                    }
+                                },
+                                onExpand = {
+                                    InAppPlayerManager.expand()
+                                    if (currentRoute !is PlayerRoute) {
+                                        navController.navigate(
+                                            PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title),
+                                        )
+                                    }
+                                },
+                                onClose = {
+                                    InAppPlayerManager.close()
+                                    if (currentRoute is PlayerRoute) {
+                                        navController.popBackStack()
+                                    }
+                                },
+                                onBack = {
+                                    InAppPlayerManager.close()
+                                    if (currentRoute is PlayerRoute) {
+                                        navController.popBackStack()
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
