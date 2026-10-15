@@ -3,7 +3,7 @@
   <h1>NuvioCodeineXO Desktop</h1>
   
   <p>
-    An enhanced edition of Nuvio Desktop with Anime4K shaders, seek previews, deep subtitle styling, minimal player UI, better discord rpc, UI optimizations, faster and smoother playback.
+    An enhanced edition of Nuvio Desktop with Anime4K shaders, anime filler markers, seek preview, deep subtitle styling, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback.
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
