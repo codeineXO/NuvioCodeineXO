@@ -116,8 +116,10 @@ internal class NativePlayerController(
 
     private val lifecycleLock = Any()
     private val playerCommandDispatcher = Dispatchers.IO.limitedParallelism(1)
-    private val playerScope = CoroutineScope(SupervisorJob() + playerCommandDispatcher)
-    private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var playerScope = CoroutineScope(SupervisorJob() + playerCommandDispatcher)
+    @Volatile
+    private var downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile
     private var inFlightSubtitleDownloadJob: Job? = null
     @Volatile
@@ -127,6 +129,17 @@ internal class NativePlayerController(
     @Volatile
     private var pendingSubtitleUri: String? = null
 
+    private fun ensureScopesActive() {
+        synchronized(lifecycleLock) {
+            if (!playerScope.isActive) {
+                playerScope = CoroutineScope(SupervisorJob() + playerCommandDispatcher)
+            }
+            if (!downloadScope.isActive) {
+                downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            }
+        }
+    }
+
     private fun cancelInFlightSubtitleDownload() {
         inFlightSubtitleDownloadJob?.cancel()
         inFlightSubtitleDownloadJob = null
@@ -134,6 +147,7 @@ internal class NativePlayerController(
 
     private fun executePlayerCommand(action: (Long) -> Unit) {
         val current = handle.takeIf { it != 0L } ?: return
+        ensureScopesActive()
         playerScope.launch {
             val activeHandle = handle.takeIf { it != 0L } ?: return@launch
             action(activeHandle)
@@ -190,6 +204,7 @@ internal class NativePlayerController(
         nvidiaRtxSuperResolutionEnabled: Boolean,
         onError: (String?) -> Unit,
     ) {
+        ensureScopesActive()
         val pending = PendingSource(
             sourceUrl = sourceUrl,
             headerLines = sourceHeaders.toHeaderLines(),
@@ -1219,6 +1234,7 @@ internal class NativePlayerController(
             executePlayerCommand { activeHandle ->
                 NativePlayerBridge.clearExternalSubtitles(activeHandle)
                 NativePlayerBridge.addSubtitleUrl(activeHandle, url)
+                applyPendingSubtitleSettingsDirect(activeHandle)
             }
             return
         }
@@ -1229,10 +1245,12 @@ internal class NativePlayerController(
             executePlayerCommand { activeHandle ->
                 NativePlayerBridge.clearExternalSubtitles(activeHandle)
                 NativePlayerBridge.addSubtitleUrl(activeHandle, cachedPath)
+                applyPendingSubtitleSettingsDirect(activeHandle)
             }
             return
         }
 
+        ensureScopesActive()
         inFlightSubtitleDownloadJob = downloadScope.launch {
             log.d { "setSubtitleUri downloading asynchronously url=${url.toPlaybackLogKey()}" }
             val downloadedPath = downloadSubtitleToCache(url)
@@ -1242,6 +1260,7 @@ internal class NativePlayerController(
                 executePlayerCommand { activeHandle ->
                     NativePlayerBridge.clearExternalSubtitles(activeHandle)
                     NativePlayerBridge.addSubtitleUrl(activeHandle, downloadedPath)
+                    applyPendingSubtitleSettingsDirect(activeHandle)
                 }
             } else {
                 log.w { "setSubtitleUri download failed for ${url.toPlaybackLogKey()}" }
@@ -1299,7 +1318,12 @@ internal class NativePlayerController(
     }
 
     private fun applyPendingSubtitleSettings(targetHandle: Long = handle) {
-        executePlayerCommand { activeHandle ->
+        val target = targetHandle.takeIf { it != 0L } ?: handle.takeIf { it != 0L } ?: return
+        ensureScopesActive()
+        playerScope.launch {
+            val activeHandle = synchronized(lifecycleLock) {
+                if (handle == target) handle else target
+            }.takeIf { it != 0L } ?: return@launch
             applyPendingSubtitleSettingsDirect(activeHandle)
         }
     }

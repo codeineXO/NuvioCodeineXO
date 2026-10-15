@@ -179,7 +179,7 @@ private fun NativePlayerSurface(
         )
     }
 
-    DisposableEffect(controller, sourceAvailable, sourceUrl, playbackHeaders) {
+    DisposableEffect(controller) {
         onDispose { controller.dispose() }
     }
 
