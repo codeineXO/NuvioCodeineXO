@@ -10,7 +10,7 @@
     <img src="https://placehold.co/300x60/2ea44f/ffffff.png?text=DOWNLOAD" alt="DOWNLOAD" />
   </a>
 
-  <p><sub>Click the button above → find the <b>.msi</b> file under <b>Assets</b> and download it.</sub></p>
+  <p><sub>Click the button above → find the <b>.exe</b> file under <b>Assets</b> and download it.</sub></p>
 
 </div>
 
