@@ -113,11 +113,18 @@ const nextEpisodeAction = document.getElementById("nextEpisodeAction");
 const sourcesButton = document.getElementById("sourcesButton");
 const episodesButton = document.getElementById("episodesButton");
 const audioModal = document.getElementById("audioModal");
+const audioCloseButton = document.getElementById("audioCloseButton");
 const subtitleModal = document.getElementById("subtitleModal");
+const subtitleCloseButton = document.getElementById("subtitleCloseButton");
+const subtitleTabFilter = document.getElementById("subtitleTabFilter");
+const subtitleTabSubtitlesBtn = document.getElementById("subtitleTabSubtitlesBtn");
+const subtitleTabCustomizationBtn = document.getElementById("subtitleTabCustomizationBtn");
 const speedModal = document.getElementById("speedModal");
+const speedCloseButton = document.getElementById("speedCloseButton");
 const speedOptionList = document.getElementById("speedOptionList");
 const speedPanelTitle = document.getElementById("speedPanelTitle");
 const shaderModal = document.getElementById("shaderModal");
+const shaderCloseButton = document.getElementById("shaderCloseButton");
 const shaderOptionList = document.getElementById("shaderOptionList");
 const shaderPanelTitle = document.getElementById("shaderPanelTitle");
 const audioPanelTitle = document.getElementById("audioPanelTitle");
@@ -1414,6 +1421,9 @@ const openPlayerModal = modal => {
   }
   if (modal === "subtitles") {
     resetSubtitleSelectionState();
+    if (state.playerUiMode === "codeine_xo") {
+      setSubtitleTab("subtitles");
+    }
   }
   renderActiveModal(true);
   modalElements.forEach(modalElement => {
@@ -1779,9 +1789,16 @@ const renderSubtitleSelectionRails = () => {
   }
   const styleVisible = activeSubtitleLanguageKey !== "__off__" && activeOptions.some(option =>
     option.id === pendingSubtitleOptionId || (!pendingSubtitleOptionId && option.selected));
-  subtitleStyleRail.hidden = !styleVisible;
-  subtitleStyleRail.parentElement.classList.toggle("style-visible", styleVisible);
-  if (styleVisible) renderSubtitleStylePanel();
+  if (state.playerUiMode === "codeine_xo") {
+    subtitleStyleRail.hidden = codeineSubtitleActiveTab !== "customization";
+    if (codeineSubtitleActiveTab === "customization") {
+      renderSubtitleStylePanel();
+    }
+  } else {
+    subtitleStyleRail.hidden = !styleVisible;
+    subtitleStyleRail.parentElement.classList.toggle("style-visible", styleVisible);
+    if (styleVisible) renderSubtitleStylePanel();
+  }
 };
 
 const formatDelay = delayMs => {
@@ -2016,11 +2033,40 @@ const renderSubtitleStylePanel = () => {
   renderAutoSyncCues();
 };
 
+let codeineSubtitleActiveTab = "subtitles";
+
+const setSubtitleTab = tab => {
+  codeineSubtitleActiveTab = tab;
+  if (subtitleModal) {
+    subtitleModal.dataset.codeineTab = tab;
+  }
+  if (subtitleTabSubtitlesBtn) {
+    subtitleTabSubtitlesBtn.classList.toggle("selected", tab === "subtitles");
+  }
+  if (subtitleTabCustomizationBtn) {
+    subtitleTabCustomizationBtn.classList.toggle("selected", tab === "customization");
+  }
+  if (state.playerUiMode === "codeine_xo") {
+    if (tab === "customization") {
+      subtitleStyleRail.hidden = false;
+      renderSubtitleStylePanel();
+    } else {
+      subtitleStyleRail.hidden = true;
+    }
+  }
+};
+
 const renderSubtitleModal = () => {
   subtitlePanelTitle.textContent = state.subtitlesPanelTitle || "Subtitles";
   subtitleLanguageRailTitle.textContent = state.subtitleLanguagesLabel || "Languages";
   subtitleOptionsRailTitle.textContent = state.subtitlesPanelTitle || "Subtitles";
   subtitleStyleRailTitle.textContent = state.subtitleStyleTabLabel || "Style";
+  if (subtitleTabSubtitlesBtn) {
+    subtitleTabSubtitlesBtn.textContent = state.subtitlesPanelTitle || "Subtitles";
+  }
+  if (subtitleTabCustomizationBtn) {
+    subtitleTabCustomizationBtn.textContent = state.subtitleCustomizationTabLabel || "Customization";
+  }
   renderSubtitleSelectionRails();
   lastRenderedModal = "subtitles";
   lastRenderedModalSignature = getSubtitlesModalSignature();
@@ -4179,6 +4225,26 @@ sourceCloseButton.addEventListener("click", event => {
   event.stopPropagation();
   closePlayerModal();
 });
+[speedCloseButton, shaderCloseButton, audioCloseButton, subtitleCloseButton].forEach(btn => {
+  if (btn) {
+    btn.addEventListener("click", event => {
+      event.stopPropagation();
+      closePlayerModal();
+    });
+  }
+});
+if (subtitleTabSubtitlesBtn) {
+  subtitleTabSubtitlesBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    setSubtitleTab("subtitles");
+  });
+}
+if (subtitleTabCustomizationBtn) {
+  subtitleTabCustomizationBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    setSubtitleTab("customization");
+  });
+}
 sourceList.addEventListener("scroll", () => {
   if (activeModal === "sources") {
     requestSourceVirtualRender();
@@ -4210,7 +4276,7 @@ episodeReloadButton.addEventListener("click", event => {
   send("reloadEpisodeStreams", 0);
 });
 
-[seasonFilterList, sourceFilterList, episodeStreamFilterList].forEach(enableHorizontalDragScroll);
+[seasonFilterList, sourceFilterList, episodeStreamFilterList, subtitleTabFilter].filter(Boolean).forEach(enableHorizontalDragScroll);
 
 const updateSubmitSegment = segment => {
   submitIntroDraft.segmentType = segment;

@@ -4855,3 +4855,513 @@ svg {
   }
 }
 
+/* ==========================================================================
+   CodeineXO Redesigned Drawer Panels
+   (Playback Speed, Anime Upscaler, Audio Tracks, Subtitles, Episodes, Sources)
+   ========================================================================== */
+
+/* All 6 Right-Side Drawers Frosted Glass Base */
+.player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) .track-panel,
+.player.ui-codeinexo .player-rail-modal .track-panel,
+.player.ui-codeinexo .player-side-modal .player-side-panel {
+  background: rgba(12, 14, 20, 0.76) !important;
+  backdrop-filter: blur(48px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(190%) !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px 0 0 16px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), -24px 0 64px rgba(0, 0, 0, 0.65) !important;
+}
+
+.player.ui-codeinexo .player-rail-modal {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+  background: rgba(0, 0, 0, .34);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-panel {
+  width: min(520px, calc(100vw - 24px)) !important;
+  max-width: min(520px, calc(100vw - 24px)) !important;
+  height: 100% !important;
+  max-height: none !important;
+  padding: 24px;
+  transform: translateX(100%);
+  opacity: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal).modal-visible .track-panel {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal).modal-closing .track-panel {
+  transform: translateX(100%);
+  opacity: 1;
+}
+
+@media (max-width: 540px) {
+  .player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) .track-panel,
+  .player.ui-codeinexo .player-rail-modal .track-panel,
+  .player.ui-codeinexo .player-side-modal .player-side-panel {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 20px !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* Header Row */
+.player.ui-codeinexo .player-rail-modal .track-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .player-rail-modal .track-title {
+  color: var(--theme-text-primary, #fff);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+}
+
+.player.ui-codeinexo .player-rail-modal .panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .player-rail-modal .panel-button {
+  background: rgba(0, 0, 0, .65);
+  backdrop-filter: blur(120px) saturate(160%);
+  -webkit-backdrop-filter: blur(120px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .88);
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.player.ui-codeinexo .player-rail-modal .panel-button:hover:not(:disabled) {
+  background: rgba(35, 35, 35, .82);
+  border-color: rgba(255, 255, 255, .20);
+  color: #fff;
+}
+
+/* Theme Accent on Active Toggles (Night Mode, Custom Styling, Bold) */
+.player.ui-codeinexo #audioNightModeToggle:is(.primary, [aria-pressed="true"]),
+.player.ui-codeinexo #customSubtitleStyleToggle:is(.primary, [aria-pressed="true"]),
+.player.ui-codeinexo #boldToggle:is(.primary, [aria-pressed="true"]),
+.player.ui-codeinexo .player-rail-modal .panel-button:is(.primary, [aria-pressed="true"]) {
+  background: var(--theme-accent, #3b82f6) !important;
+  color: var(--theme-on-accent, #fff) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+}
+
+.player.ui-codeinexo #audioNightModeToggle:is(.primary, [aria-pressed="true"]):hover:not(:disabled),
+.player.ui-codeinexo #customSubtitleStyleToggle:is(.primary, [aria-pressed="true"]):hover:not(:disabled),
+.player.ui-codeinexo #boldToggle:is(.primary, [aria-pressed="true"]):hover:not(:disabled),
+.player.ui-codeinexo .player-rail-modal .panel-button:is(.primary, [aria-pressed="true"]):hover:not(:disabled) {
+  background: var(--theme-accent-strong, #2563eb) !important;
+  color: var(--theme-on-accent, #fff) !important;
+  border-color: rgba(255, 255, 255, 0.36) !important;
+}
+
+.player.ui-codeinexo #audioNightModeToggle:is(.primary, [aria-pressed="true"]):active:not(:disabled),
+.player.ui-codeinexo #customSubtitleStyleToggle:is(.primary, [aria-pressed="true"]):active:not(:disabled),
+.player.ui-codeinexo #boldToggle:is(.primary, [aria-pressed="true"]):active:not(:disabled),
+.player.ui-codeinexo .player-rail-modal .panel-button:is(.primary, [aria-pressed="true"]):active:not(:disabled) {
+  background: var(--theme-accent-strong, #2563eb) !important;
+  color: var(--theme-on-accent, #fff) !important;
+  transform: scale(0.97);
+}
+
+/* Track Lists & Elevated Card Rows (Speed, Upscaler, Audio, Subtitles) */
+.player.ui-codeinexo .player-rail-modal .track-list {
+  margin-top: 16px;
+  gap: 8px;
+  padding: 6px 4px 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row,
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row {
+  padding: 12px 14px;
+  border-radius: 14px;
+  min-height: 48px;
+  font-size: 15px;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(160px) saturate(160%);
+  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  box-sizing: border-box;
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row:hover:not(:disabled),
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:hover:not(:disabled) {
+  background: rgba(35, 35, 35, 0.85);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row:active:not(:disabled),
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row.selected,
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected {
+  background: var(--theme-accent, #3b82f6);
+  color: var(--theme-on-accent, #fff);
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row.selected:hover:not(:disabled),
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected:hover:not(:disabled) {
+  background: var(--theme-accent-strong, #2563eb);
+  color: var(--theme-on-accent, #fff);
+  border-color: transparent;
+}
+
+/* Audio Tracks Extras (Night Mode Card) */
+.player.ui-codeinexo #audioModal .audio-panel-extras,
+.player.ui-codeinexo #audioPanelExtras {
+  margin-top: auto;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(160px) saturate(160%);
+  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36);
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 44px;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-title {
+  color: rgba(255, 255, 255, .92);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-desc {
+  color: var(--theme-text-muted, rgba(255, 255, 255, .6));
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.player.ui-codeinexo #audioModal #audioNightModeToggle {
+  min-width: 68px;
+  min-height: 38px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+/* Subtitles Panel Tabs */
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  padding: 2px 0;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter .filter-chip {
+  padding: 8px 18px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .65);
+  backdrop-filter: blur(120px) saturate(160%);
+  -webkit-backdrop-filter: blur(120px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .88);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter .filter-chip:hover:not(:disabled):not(.selected) {
+  background: rgba(35, 35, 35, .82);
+  border-color: rgba(255, 255, 255, .22);
+  color: #fff;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter .filter-chip.selected {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+  font-weight: 700;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-rails {
+  display: grid;
+  grid-template-columns: 185px minmax(0, 1fr) !important;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+/* Subtitles View: Dual Column */
+.player.ui-codeinexo #subtitleModal:not([data-codeine-tab="customization"]) .subtitle-language-rail,
+.player.ui-codeinexo #subtitleModal:not([data-codeine-tab="customization"]) .subtitle-options-rail {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.player.ui-codeinexo #subtitleModal:not([data-codeine-tab="customization"]) .subtitle-style-rail {
+  display: none !important;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-rail-title {
+  color: var(--theme-text-muted, rgba(255, 255, 255, .6));
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-language-rail .track-list,
+.player.ui-codeinexo #subtitleModal .subtitle-options-rail .track-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 6px;
+  padding: 2px 2px 8px 0;
+  margin-top: 4px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-language-row {
+  padding: 10px 12px;
+  font-size: 14px;
+  min-height: 42px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row {
+  padding: 10px 12px !important;
+  min-height: 52px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-source-chip {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  color: rgba(255, 255, 255, .82);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-source-chip {
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-metadata {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--theme-text-muted, rgba(255, 255, 255, .6));
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-option-metadata {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Customization View: Full Width Scrollable */
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-rails {
+  display: flex !important;
+  flex-direction: column;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-language-rail,
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-options-rail {
+  display: none !important;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-style-rail {
+  display: flex !important;
+  flex-direction: column;
+  width: 100% !important;
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-style-rail .subtitle-rail-title {
+  display: none !important;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] #subtitleStylePanel {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px 16px 0;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .style-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.player.ui-codeinexo #subtitleModal .style-section {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(160px) saturate(160%);
+  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player.ui-codeinexo #subtitleModal .style-toggle-section {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.player.ui-codeinexo #subtitleModal .style-section:has(#subtitleStyleReset) {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  box-shadow: none;
+  padding: 8px 0 0;
+}
+
+.player.ui-codeinexo #subtitleModal #subtitleStyleReset {
+  width: 100%;
+}
+
+.player.ui-codeinexo #subtitleModal .stepper-value {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player.ui-codeinexo #subtitleModal .round-step {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.player.ui-codeinexo #subtitleModal .round-step:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: #fff;
+}
+
+.player.ui-codeinexo #subtitleModal .round-step:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Official UI Preservation */
+.player:not(.ui-codeinexo) .player-rail-modal .track-header-row,
+.player.ui-official .player-rail-modal .track-header-row {
+  display: block;
+  padding: 0;
+}
+
+.player:not(.ui-codeinexo) .player-rail-modal .track-header-row .panel-actions,
+.player.ui-official .player-rail-modal .track-header-row .panel-actions {
+  display: none !important;
+}
+
+.player:not(.ui-codeinexo) .subtitle-tab-filter,
+.player.ui-official .subtitle-tab-filter {
+  display: none !important;
+}
+
+.player:not(.ui-codeinexo) .player-rail-modal .track-title,
+.player.ui-official .player-rail-modal .track-title {
+  white-space: normal;
+}
+
+

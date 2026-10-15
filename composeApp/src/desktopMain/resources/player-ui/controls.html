@@ -358,19 +358,34 @@
       </section>
       <section class="modal-layer player-rail-modal" id="speedModal" aria-label="Playback speed" hidden>
         <div class="track-panel audio-rail-panel">
-          <div class="track-header" id="speedPanelTitle">Playback Speed</div>
+          <div class="track-header-row">
+            <div class="track-title track-header" id="speedPanelTitle">Playback Speed</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="speedCloseButton" type="button">Close</button>
+            </div>
+          </div>
           <div class="track-list" id="speedOptionList"></div>
         </div>
       </section>
       <section class="modal-layer player-rail-modal" id="shaderModal" aria-label="Anime Upscaler" hidden>
         <div class="track-panel audio-rail-panel">
-          <div class="track-header" id="shaderPanelTitle">Anime Upscaler</div>
+          <div class="track-header-row">
+            <div class="track-title track-header" id="shaderPanelTitle">Anime Upscaler</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="shaderCloseButton" type="button">Close</button>
+            </div>
+          </div>
           <div class="track-list" id="shaderOptionList"></div>
         </div>
       </section>
       <section class="modal-layer player-rail-modal" id="audioModal" aria-label="Audio tracks" hidden>
         <div class="track-panel audio-rail-panel">
-          <div class="track-header" id="audioPanelTitle">Audio tracks</div>
+          <div class="track-header-row">
+            <div class="track-title track-header" id="audioPanelTitle">Audio tracks</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="audioCloseButton" type="button">Close</button>
+            </div>
+          </div>
           <div class="track-list" id="audioTrackList"></div>
           <div class="audio-panel-extras" id="audioPanelExtras">
             <div class="audio-extra-row">
@@ -385,7 +400,16 @@
       </section>
       <section class="modal-layer player-rail-modal" id="subtitleModal" aria-label="Subtitles" hidden>
         <div class="track-panel subtitle-rail-panel">
-          <div class="track-header" id="subtitlePanelTitle">Subtitles</div>
+          <div class="track-header-row">
+            <div class="track-title track-header" id="subtitlePanelTitle">Subtitles</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="subtitleCloseButton" type="button">Close</button>
+            </div>
+          </div>
+          <div class="filter-row subtitle-tab-filter" id="subtitleTabFilter">
+            <button class="filter-chip selected" id="subtitleTabSubtitlesBtn" type="button">Subtitles</button>
+            <button class="filter-chip" id="subtitleTabCustomizationBtn" type="button">Customization</button>
+          </div>
           <div class="subtitle-rails">
             <section class="subtitle-rail subtitle-language-rail">
               <div class="subtitle-rail-title" id="subtitleLanguageRailTitle">Languages</div>
