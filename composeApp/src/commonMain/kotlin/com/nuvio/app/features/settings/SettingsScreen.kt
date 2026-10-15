@@ -1136,22 +1136,25 @@ private fun TabletSettingsScreen(
                         }
                     }
                 }
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .widthIn(max = if (isDesktop) 800.dp else Dp.Unspecified)
                         .fillMaxWidth()
                         .weight(1f),
                 ) {
+                    val horizontalPadding = if (isDesktop && maxWidth > 800.dp) {
+                        ((maxWidth - 800.dp) / 2) + 40.dp
+                    } else {
+                        40.dp
+                    }
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .nestedScroll(rootSearchRevealConnection),
                         contentPadding = PaddingValues(
-                            start = 40.dp,
+                            start = horizontalPadding,
                             top = effectiveTopOffset,
-                            end = 40.dp,
+                            end = horizontalPadding,
                             bottom = 40.dp + bottomOverlayPadding,
                         ),
                         verticalArrangement = Arrangement.spacedBy(18.dp),

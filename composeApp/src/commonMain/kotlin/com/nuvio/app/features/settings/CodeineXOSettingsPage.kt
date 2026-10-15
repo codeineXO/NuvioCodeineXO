@@ -57,7 +57,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }.collectAsStateWithLifecycle()
 
         SettingsSection(
-            title = stringResource(Res.string.settings_appearance_section_display),
+            title = "LAYOUT",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
@@ -175,7 +175,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
         var showAnimeUpscalerDialog by rememberSaveable { mutableStateOf(false) }
 
         SettingsSection(
-            title = if (isDesktop) "ANIME UPSCALING" else "ANIME",
+            title = if (isDesktop) "ANIME ENHANCEMENT" else "ANIME",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
