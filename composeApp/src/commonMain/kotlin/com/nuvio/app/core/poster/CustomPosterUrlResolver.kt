@@ -72,7 +72,7 @@ object CustomPosterUrlResolver {
     ): String? {
         if (pattern.isBlank() || ServerItemRef.isServerId(ids.id)) return null
         val prepared = preparedFor(pattern)
-        if (prepared.tokens.isEmpty()) return prepared.decoded
+        if (prepared.tokens.isEmpty()) return null
 
         return if (prepared.rpdb) {
             resolveRpdbWithFallback(prepared.decoded, prepared.tokens, ids, type, shape)

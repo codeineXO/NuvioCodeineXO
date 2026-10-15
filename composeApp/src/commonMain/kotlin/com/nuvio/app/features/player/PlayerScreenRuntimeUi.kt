@@ -26,6 +26,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.i18n.localizedByteUnit
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.core.ui.nuvio
@@ -265,11 +266,12 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         !initialLoadCompleted &&
         errorMessage == null
     val episodeText = if (seasonNumber != null && episodeNumber != null && !episodeTitle.isNullOrBlank()) {
+        val displayEpisodeTitle = localizedEpisodeTitle(episodeTitle, episodeNumber) ?: episodeTitle.orEmpty()
         stringResource(
             Res.string.compose_player_episode_title_format,
             seasonNumber,
             episodeNumber,
-            episodeTitle.orEmpty(),
+            displayEpisodeTitle,
         )
     } else {
         ""
@@ -406,7 +408,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         } else {
             ""
         },
-        pauseOverlayEpisodeTitle = activeEpisodeTitle.orEmpty(),
+        pauseOverlayEpisodeTitle = localizedEpisodeTitle(activeEpisodeTitle, activeEpisodeNumber) ?: activeEpisodeTitle.orEmpty(),
         pauseOverlayDescription = activePauseDescription?.takeUnless { it.isBlank() }.orEmpty(),
         resizeModeLabel = stringResource(resizeMode.labelRes),
         playbackSpeedLabel = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
@@ -784,7 +786,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     if (args.isMiniPlayer) {
         val miniSubtitle = if (isEpisode) {
             val base = "S${seasonNumber}E${episodeNumber}"
-            if (!episodeTitle.isNullOrBlank()) "$base • $episodeTitle" else base
+            val displayTitle = localizedEpisodeTitle(episodeTitle, episodeNumber)
+            if (!displayTitle.isNullOrBlank()) "$base • $displayTitle" else base
         } else {
             activeStreamTitle.ifBlank { activeProviderName }
         }
