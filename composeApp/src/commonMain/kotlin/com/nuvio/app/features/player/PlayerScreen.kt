@@ -48,6 +48,7 @@ internal fun PlayerScreen(
     onMinimize: (() -> Unit)? = null,
     onExpand: (() -> Unit)? = null,
     onClose: (() -> Unit)? = null,
+    mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -94,6 +95,7 @@ internal fun PlayerScreen(
             onMinimize = onMinimize,
             onExpand = onExpand,
             onClose = onClose,
+            mediaContentType = mediaContentType,
         )
     )
 }

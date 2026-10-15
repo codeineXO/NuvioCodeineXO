@@ -3617,6 +3617,59 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setAudioFilter(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setVideoFilter(
+    JNIEnv *env,
+    jobject /* bridge */,
+    jlong handle,
+    jstring filter
+) {
+    if (handle == 0) return;
+    std::string s = jstringToString(env, filter);
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    runOnMainAsync(^{
+        if (s.empty()) {
+            [player command:@[@"vf", @"clr"]];
+        } else {
+            [player command:@[@"vf", @"set", [NSString stringWithUTF8String:s.c_str()]]];
+        }
+    });
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isSvpAvailable(JNIEnv *, jobject) {
+    void *h = dlopen("libvsscript.dylib", RTLD_LAZY | RTLD_NOLOAD);
+    if (!h) h = dlopen("libvsscript.dylib", RTLD_LAZY);
+    if (!h) h = dlopen("libvapoursynth-script.dylib", RTLD_LAZY);
+    if (h) { dlclose(h); return JNI_TRUE; }
+    return JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSvpFilter(
+    JNIEnv *env,
+    jobject /* bridge */,
+    jlong handle,
+    jboolean enabled,
+    jstring vpyPath
+) {
+    if (handle == 0) return JNI_FALSE;
+    std::string path = jstringToString(env, vpyPath);
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    runOnMainAsync(^{
+        if (enabled && !path.empty()) {
+            [player setStringProperty:"hwdec" value:@"auto-copy"];
+            [player setStringProperty:"demuxer-max-bytes" value:@"1024MiB"];
+            NSString *filter = [NSString stringWithFormat:@"@SVP:vapoursynth=\"%s\":buffered-frames=8:concurrent-frames=16", path.c_str()];
+            [player command:@[@"vf", @"set", filter]];
+        } else {
+            [player setStringProperty:"hwdec" value:@"auto"];
+            [player command:@[@"vf", @"clr"]];
+        }
+    });
+    return JNI_TRUE;
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addSubtitleUrl(
     JNIEnv *env,
     jobject /* bridge */,

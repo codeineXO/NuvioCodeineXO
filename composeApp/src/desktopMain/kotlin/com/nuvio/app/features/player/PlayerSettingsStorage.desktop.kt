@@ -116,7 +116,9 @@ internal actual object PlayerSettingsStorage {
     private const val iosGammaKey = "ios_gamma"
     private const val nvidiaRtxSuperResolutionEnabledKey = "nvidia_rtx_super_resolution_enabled"
     private const val animeUpscalerEnabledKey = "anime_upscaler_enabled"
+    private const val animeUpscalerOptionKey = "anime_upscaler_option"
     private const val animeUpscalerModeKey = "anime_upscaler_mode"
+    private const val svpMotionOptionKey = "svp_motion_option"
     private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
@@ -128,7 +130,9 @@ internal actual object PlayerSettingsStorage {
         holdToSpeedValueKey,
         nvidiaRtxSuperResolutionEnabledKey,
         animeUpscalerEnabledKey,
+        animeUpscalerOptionKey,
         animeUpscalerModeKey,
+        svpMotionOptionKey,
         audioNightModeEnabledKey,
         showSeekbarWhileSeekingKey,
         seekPreviewEnabledKey,
@@ -411,8 +415,12 @@ internal actual object PlayerSettingsStorage {
 
     actual fun loadAnimeUpscalerEnabled(): Boolean? = loadBoolean(animeUpscalerEnabledKey)
     actual fun saveAnimeUpscalerEnabled(enabled: Boolean) = saveBoolean(animeUpscalerEnabledKey, enabled)
+    actual fun loadAnimeUpscalerOption(): String? = loadString(animeUpscalerOptionKey)
+    actual fun saveAnimeUpscalerOption(option: String) = saveString(animeUpscalerOptionKey, option)
     actual fun loadAnimeUpscalerMode(): String? = loadString(animeUpscalerModeKey)
     actual fun saveAnimeUpscalerMode(mode: String) = saveString(animeUpscalerModeKey, mode)
+    actual fun loadSvpMotionOption(): String? = loadString(svpMotionOptionKey)
+    actual fun saveSvpMotionOption(option: String) = saveString(svpMotionOptionKey, option)
 
     actual fun loadAudioNightModeEnabled(): Boolean? = loadBoolean(audioNightModeEnabledKey)
     actual fun saveAudioNightModeEnabled(enabled: Boolean) = saveBoolean(audioNightModeEnabledKey, enabled)
@@ -524,7 +532,9 @@ internal actual object PlayerSettingsStorage {
         loadIosGamma()?.let { put(iosGammaKey, encodeSyncInt(it)) }
         loadNvidiaRtxSuperResolutionEnabled()?.let { put(nvidiaRtxSuperResolutionEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerEnabled()?.let { put(animeUpscalerEnabledKey, encodeSyncBoolean(it)) }
+        loadAnimeUpscalerOption()?.let { put(animeUpscalerOptionKey, encodeSyncString(it)) }
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
+        loadSvpMotionOption()?.let { put(svpMotionOptionKey, encodeSyncString(it)) }
         loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
@@ -615,7 +625,9 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncInt(iosGammaKey)?.let(::saveIosGamma)
         payload.decodeSyncBoolean(nvidiaRtxSuperResolutionEnabledKey)?.let(::saveNvidiaRtxSuperResolutionEnabled)
         payload.decodeSyncBoolean(animeUpscalerEnabledKey)?.let(::saveAnimeUpscalerEnabled)
+        payload.decodeSyncString(animeUpscalerOptionKey)?.let(::saveAnimeUpscalerOption)
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
+        payload.decodeSyncString(svpMotionOptionKey)?.let(::saveSvpMotionOption)
         payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)

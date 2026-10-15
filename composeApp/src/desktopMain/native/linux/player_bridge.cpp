@@ -1949,6 +1949,47 @@ JNIEXPORT void JNICALL NP(setAudioFilter)(JNIEnv *env, jobject, jlong handle, js
     mpv_set_property_string(p->mpv, "af", s.c_str());
 }
 
+JNIEXPORT void JNICALL NP(setVideoFilter)(JNIEnv *env, jobject, jlong handle, jstring filter) {
+    Player *p = asPlayer(handle);
+    if (!p) return;
+    std::string s = jstringToUtf8(env, filter);
+    if (s.empty()) {
+        const char *cmd[] = {"vf", "clr", nullptr};
+        mpv_command(p->mpv, cmd);
+    } else {
+        const char *cmd[] = {"vf", "set", s.c_str(), nullptr};
+        mpv_command(p->mpv, cmd);
+    }
+}
+
+JNIEXPORT jboolean JNICALL NP(isSvpAvailable)(JNIEnv *, jobject) {
+    void *h = dlopen("libvsscript.so", RTLD_LAZY | RTLD_NOLOAD);
+    if (!h) h = dlopen("libvsscript.so", RTLD_LAZY);
+    if (!h) h = dlopen("libvapoursynth-script.so", RTLD_LAZY);
+    if (h) { dlclose(h); return JNI_TRUE; }
+    return JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL NP(setSvpFilter)(JNIEnv *env, jobject, jlong handle, jboolean enabled, jstring vpyPath) {
+    Player *p = asPlayer(handle);
+    if (!p) return JNI_FALSE;
+    if (enabled) {
+        std::string path = jstringToUtf8(env, vpyPath);
+        if (!path.empty()) {
+            mpv_set_property_string(p->mpv, "hwdec", "auto-copy");
+            mpv_set_property_string(p->mpv, "demuxer-max-bytes", "1024MiB");
+            std::string filter = "@SVP:vapoursynth=\"" + path + "\":buffered-frames=8:concurrent-frames=16";
+            const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
+            mpv_command(p->mpv, cmd);
+            return JNI_TRUE;
+        }
+    }
+    mpv_set_property_string(p->mpv, "hwdec", "auto");
+    const char *cmd[] = {"vf", "clr", nullptr};
+    mpv_command(p->mpv, cmd);
+    return JNI_TRUE;
+}
+
 JNIEXPORT void JNICALL NP(addSubtitleUrl)(JNIEnv *env, jobject, jlong handle, jstring url) {
     Player *p = asPlayer(handle);
     if (!p) return;

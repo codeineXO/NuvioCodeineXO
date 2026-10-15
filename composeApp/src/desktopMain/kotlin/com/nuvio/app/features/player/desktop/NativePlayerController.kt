@@ -4,6 +4,12 @@ import androidx.compose.ui.graphics.Color
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.player.AnimeShaderProvider
 import com.nuvio.app.features.player.AnimeUpscalerMode
+import com.nuvio.app.features.player.AnimeUpscalerOption
+import com.nuvio.app.features.player.MediaContentType
+import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.player.SvpMotionOption
+import com.nuvio.app.features.player.SvpProfile
+import com.nuvio.app.features.player.SvpScriptProvider
 import com.nuvio.app.features.player.PlayerControlAddonSubtitleItem
 import com.nuvio.app.features.player.PlayerControlEpisodeItem
 import com.nuvio.app.features.player.PlayerControlFilterItem
@@ -181,8 +187,20 @@ internal class NativePlayerController(
     private var pendingSubtitleDelayMs: Int? = null
     private var pendingSubtitleStyle: SubtitleStyleState? = null
     private var pendingUseLibass: Boolean = false
-    private var rememberedAnimeUpscalerEnabled: Boolean = false
-    private var rememberedAnimeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST
+    private var mediaContentType: MediaContentType = MediaContentType.UNKNOWN
+    private var animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.AUTO
+    private var animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST
+    private var svpMotionOption: SvpMotionOption = SvpMotionOption.AUTO
+    private var overrideAnimeUpscaler: Boolean? = null
+    private var overrideSvpProfile: String? = null
+    @Volatile
+    private var animeUpscalerActive: Boolean = false
+    @Volatile
+    private var isAutoBypassed: Boolean = false
+    @Volatile
+    private var svpActive: Boolean = false
+    @Volatile
+    private var currentSvpProfile: String = ""
     private var rememberedAudioNightModeEnabled: Boolean = false
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
@@ -428,7 +446,7 @@ internal class NativePlayerController(
                         }
                         applyPendingSubtitleSettings(created)
                         pendingSubtitleUri?.let { setSubtitleUri(it) }
-                        applyAnimeUpscaler(created, rememberedAnimeUpscalerEnabled, rememberedAnimeUpscalerMode)
+                        applyCoordinatedEnhancements(created)
                         applyAudioNightMode(created, rememberedAudioNightModeEnabled)
                     }
                 }.onFailure { error ->
@@ -514,23 +532,39 @@ internal class NativePlayerController(
                 rememberedLevel = rememberedVolumeLevel,
             ),
         )
-        currentVolumeLevel = stateWithVolume.volumeLevel ?: currentVolumeLevel
-        controlsState = stateWithVolume
+        val stateWithEnhancements = stateWithVolume.copy(
+            animeUpscalerActive = animeUpscalerActive,
+            animeUpscalerEnabled = animeUpscalerActive,
+            isAutoBypassed = isAutoBypassed,
+            animeUpscalerOption = animeUpscalerOption,
+            animeUpscalerModeIndex = animeUpscalerMode.index,
+            svpMode = overrideSvpProfile ?: when (svpMotionOption) {
+                SvpMotionOption.OFF -> "off"
+                SvpMotionOption.AUTO -> "auto"
+                SvpMotionOption.GLOBAL -> "cinema"
+            },
+            svpActive = svpActive,
+            svpProfile = currentSvpProfile,
+            svpAvailable = runCatching { NativePlayerBridge.isSvpAvailable() }.getOrDefault(false),
+            mediaContentType = mediaContentType,
+        )
+        currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
+        controlsState = stateWithEnhancements
         val isFullscreen = isDesktopAppFullscreen(SwingUtilities.getWindowAncestor(host))
         val structureKey = NativeControlsStructureKey(
-            state = stateWithVolume.nativeControlsStructureKey(),
+            state = stateWithEnhancements.nativeControlsStructureKey(),
             isFullscreen = isFullscreen,
             isInPip = DesktopPlayerPictureInPicture.isEnabled,
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
         log.d {
-            "updateControls handle=$current title=${stateWithVolume.title.take(40)} " +
-                "pos=${stateWithVolume.positionMs} duration=${stateWithVolume.durationMs} " +
-                "speed=${stateWithVolume.playbackSpeedLabel} audioLabel=${stateWithVolume.audioLabel} " +
-                "subsLabel=${stateWithVolume.subtitlesLabel} fullscreen=$isFullscreen"
+            "updateControls handle=$current title=${stateWithEnhancements.title.take(40)} " +
+                "pos=${stateWithEnhancements.positionMs} duration=${stateWithEnhancements.durationMs} " +
+                "speed=${stateWithEnhancements.playbackSpeedLabel} audioLabel=${stateWithEnhancements.audioLabel} " +
+                "subsLabel=${stateWithEnhancements.subtitlesLabel} fullscreen=$isFullscreen"
         }
-        NativePlayerBridge.updateControls(current, stateWithVolume.toControlsJson(isFullscreen))
+        NativePlayerBridge.updateControls(current, stateWithEnhancements.toControlsJson(isFullscreen))
     }
 
     fun onDesktopFullscreenChanged() {
@@ -598,24 +632,111 @@ internal class NativePlayerController(
     }
 
     fun setAnimeUpscaler(enabled: Boolean, mode: AnimeUpscalerMode) {
-        rememberedAnimeUpscalerEnabled = enabled
-        rememberedAnimeUpscalerMode = mode
+        animeUpscalerOption = if (enabled) AnimeUpscalerOption.ALWAYS_ON else AnimeUpscalerOption.OFF
+        animeUpscalerMode = mode
+        overrideAnimeUpscaler = enabled
         handle.takeIf { it != 0L }?.let { current ->
-            applyAnimeUpscaler(current, enabled, mode)
+            applyCoordinatedEnhancements(current)
         }
     }
 
-    private fun applyAnimeUpscaler(targetHandle: Long, enabled: Boolean, mode: AnimeUpscalerMode) {
-        val shaderPath = if (enabled) {
-            AnimeShaderProvider.getShaderPath(mode).orEmpty()
+    fun setVideoEnhancements(
+        mediaContentType: MediaContentType,
+        animeUpscalerOption: AnimeUpscalerOption,
+        animeUpscalerMode: AnimeUpscalerMode,
+        svpMotionOption: SvpMotionOption,
+    ) {
+        this.mediaContentType = mediaContentType
+        this.animeUpscalerOption = animeUpscalerOption
+        this.animeUpscalerMode = animeUpscalerMode
+        this.svpMotionOption = svpMotionOption
+        handle.takeIf { it != 0L }?.let { current ->
+            applyCoordinatedEnhancements(current)
+        }
+    }
+
+    private fun computeUpscalerState(): Pair<Boolean, Boolean> {
+        if (overrideAnimeUpscaler != null) {
+            val active = overrideAnimeUpscaler == true
+            return Pair(active, false)
+        }
+        return when (animeUpscalerOption) {
+            AnimeUpscalerOption.OFF -> Pair(false, false)
+            AnimeUpscalerOption.ALWAYS_ON -> Pair(true, false)
+            AnimeUpscalerOption.AUTO -> {
+                when (mediaContentType) {
+                    MediaContentType.ANIME, MediaContentType.CARTOON -> Pair(true, false)
+                    MediaContentType.LIVE_ACTION, MediaContentType.UNKNOWN -> Pair(false, true)
+                }
+            }
+        }
+    }
+
+    private fun computeSvpState(): Pair<Boolean, String> {
+        val resolvedMode = overrideSvpProfile ?: when (svpMotionOption) {
+            SvpMotionOption.OFF -> "off"
+            SvpMotionOption.AUTO -> "auto"
+            SvpMotionOption.GLOBAL -> "global"
+        }
+        return when (resolvedMode) {
+            "off" -> Pair(false, "")
+            "anime" -> Pair(true, "anime")
+            "cinema" -> Pair(true, "cinema")
+            "auto" -> {
+                if (mediaContentType == MediaContentType.ANIME) {
+                    Pair(true, "anime")
+                } else {
+                    Pair(false, "")
+                }
+            }
+            "global" -> {
+                if (mediaContentType == MediaContentType.ANIME) {
+                    Pair(true, "anime")
+                } else {
+                    Pair(true, "cinema")
+                }
+            }
+            else -> Pair(false, "")
+        }
+    }
+
+    private fun applyCoordinatedEnhancements(targetHandle: Long) {
+        val (upscalerActive, autoBypassed) = computeUpscalerState()
+        animeUpscalerActive = upscalerActive
+        isAutoBypassed = autoBypassed
+
+        val isSvpRuntimeAvailable = runCatching { NativePlayerBridge.isSvpAvailable() }.getOrDefault(false)
+        val (rawSvpIsActive, svpProf) = computeSvpState()
+        val svpIsActive = rawSvpIsActive && isSvpRuntimeAvailable
+        svpActive = svpIsActive
+        currentSvpProfile = if (isSvpRuntimeAvailable) svpProf else ""
+
+        val shaderPath = if (upscalerActive) {
+            AnimeShaderProvider.getShaderPath(animeUpscalerMode).orEmpty()
         } else {
             ""
         }
         runCatching {
             NativePlayerBridge.setGlslShaders(targetHandle, shaderPath)
         }.onFailure { error ->
-            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle enabled=$enabled mode=$mode" }
+            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle active=$upscalerActive mode=$animeUpscalerMode" }
         }
+
+        val scriptPath = if (svpIsActive && svpProf.isNotEmpty()) {
+            val prof = if (svpProf == "cinema") SvpProfile.CINEMA else SvpProfile.ANIME
+            SvpScriptProvider.getScriptPath(prof).orEmpty()
+        } else {
+            ""
+        }
+        val svpEnabled = svpIsActive && scriptPath.isNotEmpty()
+        runCatching {
+            NativePlayerBridge.setSvpFilter(targetHandle, svpEnabled, scriptPath)
+        }.onFailure { error ->
+            log.w(error) { "Failed to set SVP filter handle=$targetHandle enabled=$svpEnabled script=$scriptPath" }
+        }
+
+        lastSentControlsStructureKey = null
+        updateControls(controlsState)
     }
 
     fun setAudioNightMode(enabled: Boolean) {
@@ -643,6 +764,26 @@ internal class NativePlayerController(
             log.d { "event received handle=$handle type=$type value=$value" }
         }
         when (type) {
+            "svp_unavailable" -> {
+                log.w { "SVP unavailable: VapourSynth runtime is missing." }
+                controlsState = controlsState.copy(
+                    notificationMessage = "Motion Smoothing requires VapourSynth or SVP 4 to be installed.",
+                    notificationToken = System.currentTimeMillis()
+                )
+                overrideSvpProfile = "off"
+                lastSentControlsStructureKey = null
+                updateControls(controlsState)
+            }
+            "svp_error" -> {
+                log.w { "SVP error occurred during script execution." }
+                controlsState = controlsState.copy(
+                    notificationMessage = "Motion Smoothing error occurred. Disabled SVP.",
+                    notificationToken = System.currentTimeMillis()
+                )
+                overrideSvpProfile = "off"
+                lastSentControlsStructureKey = null
+                updateControls(controlsState)
+            }
             "cursorActivity" -> host.noteCursorActivity()
             "scrubChange" -> {
                 val handled = onScrubChange(value.toLong())
@@ -685,6 +826,73 @@ internal class NativePlayerController(
             "setPlaybackSpeed" -> {
                 val speed = value.toFloat()
                 setPlaybackSpeed(speed)
+            }
+            "setAnimeUpscalerOption" -> {
+                overrideAnimeUpscaler = null
+                val option = when (value.toInt()) {
+                    0 -> AnimeUpscalerOption.AUTO
+                    1 -> AnimeUpscalerOption.ALWAYS_ON
+                    else -> AnimeUpscalerOption.OFF
+                }
+                animeUpscalerOption = option
+                PlayerSettingsRepository.setAnimeUpscalerOption(option)
+                handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
+            }
+            "forceAnimeUpscalerOn" -> {
+                overrideAnimeUpscaler = true
+                animeUpscalerOption = AnimeUpscalerOption.ALWAYS_ON
+                PlayerSettingsRepository.setAnimeUpscalerOption(AnimeUpscalerOption.ALWAYS_ON)
+                handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
+            }
+            "setAnimeUpscalerMode" -> {
+                val mode = AnimeUpscalerMode.fromIndex(value.toInt())
+                animeUpscalerMode = mode
+                PlayerSettingsRepository.setAnimeUpscalerMode(mode)
+                handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
+            }
+            "setSvpMode" -> {
+                val mode = value.toInt()
+                if (mode != 0 && !runCatching { NativePlayerBridge.isSvpAvailable() }.getOrDefault(false)) {
+                    controlsState = controlsState.copy(
+                        notificationMessage = "Motion Smoothing requires VapourSynth or SVP 4 to be installed.",
+                        notificationToken = System.currentTimeMillis()
+                    )
+                    overrideSvpProfile = "off"
+                    svpMotionOption = SvpMotionOption.OFF
+                    PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.OFF)
+                    lastSentControlsStructureKey = null
+                    updateControls(controlsState)
+                } else {
+                    when (mode) {
+                        0 -> {
+                            overrideSvpProfile = "off"
+                            svpMotionOption = SvpMotionOption.OFF
+                            PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.OFF)
+                        }
+                        1 -> {
+                            overrideSvpProfile = "auto"
+                            svpMotionOption = SvpMotionOption.AUTO
+                            PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.AUTO)
+                        }
+                        2 -> {
+                            overrideSvpProfile = "anime"
+                        }
+                        3 -> {
+                            overrideSvpProfile = "cinema"
+                            svpMotionOption = SvpMotionOption.GLOBAL
+                            PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.GLOBAL)
+                        }
+                    }
+                    handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
+                }
+            }
+            "toggleAnimeUpscaler" -> {
+                val enabled = value >= 0.5
+                overrideAnimeUpscaler = enabled
+                val option = if (enabled) AnimeUpscalerOption.ALWAYS_ON else AnimeUpscalerOption.OFF
+                animeUpscalerOption = option
+                PlayerSettingsRepository.setAnimeUpscalerOption(option)
+                handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
             }
             else -> {
                 val eventHandled = onEvent(type, value)
@@ -1663,6 +1871,22 @@ private fun PlayerControlsState.toControlsJson(isFullscreen: Boolean): String =
         appendJsonField("animeUpscalerEnabled", animeUpscalerEnabled)
         append(',')
         appendJsonField("animeUpscalerModeIndex", animeUpscalerModeIndex)
+        append(',')
+        appendJsonField("animeUpscalerOption", animeUpscalerOption.name.lowercase())
+        append(',')
+        appendJsonField("animeUpscalerActive", animeUpscalerActive)
+        append(',')
+        appendJsonField("mediaContentType", mediaContentType.name.lowercase())
+        append(',')
+        appendJsonField("isAutoBypassed", isAutoBypassed)
+        append(',')
+        appendJsonField("svpMode", svpMode)
+        append(',')
+        appendJsonField("svpActive", svpActive)
+        append(',')
+        appendJsonField("svpProfile", svpProfile)
+        append(',')
+        appendJsonField("svpAvailable", svpAvailable)
         append(',')
         appendJsonField("audioNightModeEnabled", audioNightModeEnabled)
         append(',')

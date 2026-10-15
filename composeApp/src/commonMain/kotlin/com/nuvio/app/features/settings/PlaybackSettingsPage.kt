@@ -71,6 +71,8 @@ import com.nuvio.app.features.player.isExoNativeMemorySupported
 import com.nuvio.app.features.player.playbackCacheUsableSpaceBytes
 import com.nuvio.app.features.player.AndroidPlaybackEngine
 import com.nuvio.app.features.player.AnimeUpscalerMode
+import com.nuvio.app.features.player.AnimeUpscalerOption
+import com.nuvio.app.features.player.SvpMotionOption
 import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.ExternalPlayerApp
@@ -381,6 +383,8 @@ private fun PlaybackSettingsSection(
     var showAutoPlayRegexDialog by remember { mutableStateOf(false) }
     var showAutoSkipSegmentDialog by remember { mutableStateOf(false) }
     var showAnimeUpscalerDialog by remember { mutableStateOf(false) }
+    var showAnimeUpscalerOptionDialog by remember { mutableStateOf(false) }
+    var showSvpMotionOptionDialog by remember { mutableStateOf(false) }
     var showP2pConsentDialog by remember { mutableStateOf(false) }
     var showP2pProfileDialog by remember { mutableStateOf(false) }
     var showP2pCacheSizeDialog by remember { mutableStateOf(false) }
@@ -1363,18 +1367,17 @@ private fun PlaybackSettingsSection(
 
         if (isDesktop) {
             SettingsSection(
-                title = "Anime Upscaler",
+                title = "Video Enhancements",
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
-                    SettingsSwitchRow(
-                        title = "Enable Anime Upscaler",
-                        description = "Enhance anime and cartoons using real-time Anime4K shaders",
-                        checked = autoPlayPlayerSettings.animeUpscalerEnabled,
+                    SettingsNavigationRow(
+                        title = "Anime Upscaler",
+                        description = autoPlayPlayerSettings.animeUpscalerOption.label,
                         isTablet = isTablet,
-                        onCheckedChange = PlayerSettingsRepository::setAnimeUpscalerEnabled,
+                        onClick = { showAnimeUpscalerOptionDialog = true },
                     )
-                    if (autoPlayPlayerSettings.animeUpscalerEnabled) {
+                    if (autoPlayPlayerSettings.animeUpscalerOption != AnimeUpscalerOption.OFF) {
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsNavigationRow(
                             title = "Upscaler Mode",
@@ -1383,6 +1386,13 @@ private fun PlaybackSettingsSection(
                             onClick = { showAnimeUpscalerDialog = true },
                         )
                     }
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = "Motion Interpolation (SVP)",
+                        description = autoPlayPlayerSettings.svpMotionOption.label,
+                        isTablet = isTablet,
+                        onClick = { showSvpMotionOptionDialog = true },
+                    )
                 }
             }
 
@@ -2165,6 +2175,17 @@ private fun PlaybackSettingsSection(
         )
     }
 
+    if (showAnimeUpscalerOptionDialog) {
+        AnimeUpscalerOptionDialog(
+            selectedOption = autoPlayPlayerSettings.animeUpscalerOption,
+            onOptionSelected = { option ->
+                PlayerSettingsRepository.setAnimeUpscalerOption(option)
+                showAnimeUpscalerOptionDialog = false
+            },
+            onDismiss = { showAnimeUpscalerOptionDialog = false },
+        )
+    }
+
     if (showAnimeUpscalerDialog) {
         AnimeUpscalerModeDialog(
             selectedMode = autoPlayPlayerSettings.animeUpscalerMode,
@@ -2174,6 +2195,101 @@ private fun PlaybackSettingsSection(
             },
             onDismiss = { showAnimeUpscalerDialog = false },
         )
+    }
+
+    if (showSvpMotionOptionDialog) {
+        SvpMotionOptionDialog(
+            selectedOption = autoPlayPlayerSettings.svpMotionOption,
+            onOptionSelected = { option ->
+                PlayerSettingsRepository.setSvpMotionOption(option)
+                showSvpMotionOptionDialog = false
+            },
+            onDismiss = { showSvpMotionOptionDialog = false },
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun AnimeUpscalerOptionDialog(
+    selectedOption: AnimeUpscalerOption,
+    onOptionSelected: (AnimeUpscalerOption) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = "Anime Upscaler",
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            AnimeUpscalerOption.entries.forEach { option ->
+                val isSelected = option == selectedOption
+                DialogOption(
+                    text = option.label,
+                    description = when (option) {
+                        AnimeUpscalerOption.AUTO -> "Enhance detected anime and cartoons; bypass live action"
+                        AnimeUpscalerOption.ALWAYS_ON -> "Force Anime4K upscaler shaders on all content"
+                        AnimeUpscalerOption.OFF -> "Disable real-time upscaler shaders"
+                    },
+                    selected = isSelected,
+                    onClick = { onOptionSelected(option) },
+                )
+            }
+        }
+
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun SvpMotionOptionDialog(
+    selectedOption: SvpMotionOption,
+    onOptionSelected: (SvpMotionOption) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = "Motion Interpolation (SVP)",
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Requires VapourSynth or SVP 4 to be installed on your system.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            )
+            SvpMotionOption.entries.forEach { option ->
+                val isSelected = option == selectedOption
+                DialogOption(
+                    text = option.label,
+                    description = when (option) {
+                        SvpMotionOption.AUTO -> "Smooth motion on anime content; protect live action films"
+                        SvpMotionOption.GLOBAL -> "Smooth motion across all media using content-tuned profiles"
+                        SvpMotionOption.OFF -> "Disable VapourSynth and SVP frame interpolation"
+                    },
+                    selected = isSelected,
+                    onClick = { onOptionSelected(option) },
+                )
+            }
+        }
+
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+            )
+        }
     }
 }
 

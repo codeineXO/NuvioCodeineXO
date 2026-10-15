@@ -82,6 +82,7 @@ enum class PlayerControlsAction {
 
 data class PlayerControlsState(
     val title: String = "",
+    val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
     val isMiniPlayer: Boolean = false,
     val playerUiMode: String = "codeine_xo",
     val seekPreviewEnabled: Boolean = false,
@@ -282,6 +283,14 @@ data class PlayerControlsState(
     val notificationToken: Long = 0L,
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerModeIndex: Int = 0,
+    val animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.AUTO,
+    val svpMotionOption: SvpMotionOption = SvpMotionOption.AUTO,
+    val animeUpscalerActive: Boolean = false,
+    val isAutoBypassed: Boolean = false,
+    val svpMode: String = "auto",
+    val svpActive: Boolean = false,
+    val svpProfile: String = "",
+    val svpAvailable: Boolean = true,
     val audioNightModeEnabled: Boolean = false,
 )
 

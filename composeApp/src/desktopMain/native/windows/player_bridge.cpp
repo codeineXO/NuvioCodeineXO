@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#pragma comment(lib, "Advapi32.lib")
 #include <windowsx.h>
 #include <d3d11.h>
 #include <dwmapi.h>
@@ -628,6 +629,130 @@ MpvApi &mpvApi() {
     return api;
 }
 
+static bool executeMpvCommandSeh(mpv_handle *mpv, const char **cmd) {
+    if (!mpv || !cmd) return false;
+    __try {
+        int res = mpvApi().command(mpv, cmd);
+        return res >= 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+static bool ensureVapourSynthLoaded() {
+    static std::atomic<bool> sChecked(false);
+    static std::atomic<bool> sAvailable(false);
+    static HMODULE sVSScriptModule = nullptr;
+
+    if (sChecked.load()) {
+        return sAvailable.load();
+    }
+
+    // 1. Check if already loaded in the process
+    sVSScriptModule = GetModuleHandleW(L"VSScript.dll");
+    if (sVSScriptModule) {
+        sAvailable.store(true);
+        sChecked.store(true);
+        return true;
+    }
+
+    // 2. Try standard LoadLibrary (in case already in PATH or app directory)
+    sVSScriptModule = LoadLibraryW(L"VSScript.dll");
+    if (sVSScriptModule) {
+        sAvailable.store(true);
+        sChecked.store(true);
+        return true;
+    }
+
+    // 3. Search registry and candidate directories
+    std::vector<std::wstring> candidateDirs;
+
+    std::wstring modDir = moduleDirectory();
+    if (!modDir.empty()) {
+        candidateDirs.push_back(modDir);
+    }
+
+    auto queryRegString = [](HKEY root, const wchar_t *subKey, const wchar_t *valName) -> std::wstring {
+        HKEY hKey = nullptr;
+        if (RegOpenKeyExW(root, subKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            wchar_t buffer[1024] = {0};
+            DWORD bufSize = sizeof(buffer);
+            DWORD type = 0;
+            LONG res = RegQueryValueExW(hKey, valName, nullptr, &type, (LPBYTE)buffer, &bufSize);
+            RegCloseKey(hKey);
+            if (res == ERROR_SUCCESS && (type == REG_SZ || type == REG_EXPAND_SZ)) {
+                return std::wstring(buffer);
+            }
+        }
+        return L"";
+    };
+
+    const HKEY roots[] = {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER};
+    const wchar_t *subKeys[] = {
+        L"SOFTWARE\\VapourSynth",
+        L"SOFTWARE\\WOW6432Node\\VapourSynth",
+        L"SOFTWARE\\SVP 4",
+        L"SOFTWARE\\WOW6432Node\\SVP 4"
+    };
+
+    for (HKEY root : roots) {
+        for (const wchar_t *subKey : subKeys) {
+            std::wstring dllPath = queryRegString(root, subKey, L"VapourSynthDLL");
+            if (!dllPath.empty()) {
+                size_t slash = dllPath.find_last_of(L"\\/");
+                if (slash != std::wstring::npos) {
+                    candidateDirs.push_back(dllPath.substr(0, slash));
+                }
+            }
+            std::wstring installDir = queryRegString(root, subKey, L"InstallDir");
+            if (!installDir.empty()) {
+                candidateDirs.push_back(installDir);
+                candidateDirs.push_back(installDir + L"\\core");
+                candidateDirs.push_back(installDir + L"\\mpv64");
+            }
+            std::wstring appPath = queryRegString(root, subKey, L"app_path");
+            if (!appPath.empty()) {
+                candidateDirs.push_back(appPath);
+                candidateDirs.push_back(appPath + L"\\mpv64");
+            }
+        }
+    }
+
+    // Standard directories
+    candidateDirs.push_back(L"C:\\Program Files\\VapourSynth\\core");
+    candidateDirs.push_back(L"C:\\Program Files\\VapourSynth");
+    candidateDirs.push_back(L"C:\\Program Files (x86)\\VapourSynth\\core");
+    candidateDirs.push_back(L"C:\\Program Files (x86)\\VapourSynth");
+    candidateDirs.push_back(L"C:\\Program Files (x86)\\SVP 4\\mpv64");
+    candidateDirs.push_back(L"C:\\Program Files\\SVP 4\\mpv64");
+    candidateDirs.push_back(L"C:\\Program Files (x86)\\SVP 4");
+    candidateDirs.push_back(L"C:\\Program Files\\SVP 4");
+
+    wchar_t localAppPath[MAX_PATH] = {0};
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, localAppPath))) {
+        candidateDirs.push_back(std::wstring(localAppPath) + L"\\Programs\\VapourSynth\\core");
+        candidateDirs.push_back(std::wstring(localAppPath) + L"\\Programs\\VapourSynth");
+    }
+
+    for (const auto &dir : candidateDirs) {
+        std::wstring candidateDll = dir + L"\\VSScript.dll";
+        DWORD attrib = GetFileAttributesW(candidateDll.c_str());
+        if (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY)) {
+            SetDllDirectoryW(dir.c_str());
+            sVSScriptModule = LoadLibraryExW(candidateDll.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+            if (sVSScriptModule) {
+                sAvailable.store(true);
+                sChecked.store(true);
+                return true;
+            }
+        }
+    }
+
+    sAvailable.store(false);
+    sChecked.store(true);
+    return false;
+}
+
 // Demuxer cache sizing. The streaming window is large on purpose: the engine
 // serves a generous read-ahead of its own, and mpv's buffer absorbs jitter on
 // top of it. The resume window is a deliberately small cap used only while a
@@ -982,8 +1107,12 @@ public:
         stopping.store(true);
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
-            if (mpv && mpvApi().wakeup) {
-                mpvApi().wakeup(mpv);
+            if (mpv) {
+                const char *cmd[] = {"vf", "clr", nullptr};
+                executeMpvCommandSeh(mpv, cmd);
+                if (mpvApi().wakeup) {
+                    mpvApi().wakeup(mpv);
+                }
             }
         }
         // Bounded: if a thread will not finish we detach rather than block dispose forever.
@@ -991,6 +1120,8 @@ public:
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (mpv) {
+                const char *cmd[] = {"vf", "clr", nullptr};
+                executeMpvCommandSeh(mpv, cmd);
                 mpvApi().terminateDestroy(mpv);
                 mpv = nullptr;
             }
@@ -1280,6 +1411,58 @@ public:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         mpvApi().setPropertyString(mpv, "af", filter.c_str());
+    }
+
+    void setVideoFilter(const std::string &filter) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        if (filter.empty()) {
+            const char *cmd[] = {"vf", "clr", nullptr};
+            mpvApi().command(mpv, cmd);
+        } else {
+            const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
+            mpvApi().command(mpv, cmd);
+        }
+    }
+
+    bool setSvpFilter(bool enabled, const std::string &vpyPath) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return false;
+        if (enabled && !vpyPath.empty()) {
+            if (!ensureVapourSynthLoaded()) {
+                sendPlayerEvent("svp_unavailable", 0.0);
+                return false;
+            }
+            mpvApi().setPropertyString(mpv, "hwdec", "auto-copy");
+            mpvApi().setPropertyString(mpv, "demuxer-max-bytes", "1024MiB");
+
+            std::string escapedPath;
+            for (char c : vpyPath) {
+                if (c == ':') {
+                    escapedPath += "\\:";
+                } else if (c == '\\') {
+                    escapedPath += "/";
+                } else {
+                    escapedPath += c;
+                }
+            }
+            std::string filter = "@SVP:vapoursynth=\"" + escapedPath + "\":buffered-frames=8:concurrent-frames=16";
+            const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
+            bool success = executeMpvCommandSeh(mpv, cmd);
+            if (!success) {
+                const char *clrCmd[] = {"vf", "clr", nullptr};
+                executeMpvCommandSeh(mpv, clrCmd);
+                mpvApi().setPropertyString(mpv, "hwdec", "auto");
+                sendPlayerEvent("svp_error", 1.0);
+                return false;
+            }
+            return true;
+        } else {
+            mpvApi().setPropertyString(mpv, "hwdec", "auto");
+            const char *cmd[] = {"vf", "clr", nullptr};
+            executeMpvCommandSeh(mpv, cmd);
+            return true;
+        }
     }
 
     void addSubtitleUrl(const std::string &url) {
@@ -1825,6 +2008,9 @@ private:
             // to allow full bandwidth saturation on high-speed internet connections (matching VLC).
             setMpvOptionStringLocked("demuxer-lavf-buffersize", "4194304"); // 4 MiB (default: 32 KiB)
             setMpvOptionStringLocked("stream-buffer-size", "8388608");       // 8 MiB (default: 128 KiB)
+            setMpvOptionStringLocked("vd-queue-enable", "yes");
+            setMpvOptionStringLocked("vd-queue-max-samples", "120");
+            setMpvOptionStringLocked("vd-queue-max-secs", "60");
 
             std::string shaderCacheDirectory = mpvShaderCacheDirectory();
             if (!shaderCacheDirectory.empty()) {
@@ -3048,6 +3234,30 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setAudioFilter(JNI
         std::string filterText = jstringToUtf8(env, filter);
         player->setAudioFilter(filterText);
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setVideoFilter(JNIEnv *env, jobject, jlong handle, jstring filter) {
+    auto player = playerFromHandle(handle);
+    if (player) {
+        std::string filterText = jstringToUtf8(env, filter);
+        player->setVideoFilter(filterText);
+    }
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isSvpAvailable(JNIEnv *, jobject) {
+    return ensureVapourSynthLoaded() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSvpFilter(JNIEnv *env, jobject, jlong handle, jboolean enabled, jstring vpyPath) {
+    auto player = playerFromHandle(handle);
+    if (player) {
+        std::string pathText = jstringToUtf8(env, vpyPath);
+        return player->setSvpFilter((bool)enabled, pathText) ? JNI_TRUE : JNI_FALSE;
+    }
+    return JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL

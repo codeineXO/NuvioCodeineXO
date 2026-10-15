@@ -52,4 +52,5 @@ internal data class PlayerScreenArgs(
     val onMinimize: (() -> Unit)? = null,
     val onExpand: (() -> Unit)? = null,
     val onClose: (() -> Unit)? = null,
+    val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
 )

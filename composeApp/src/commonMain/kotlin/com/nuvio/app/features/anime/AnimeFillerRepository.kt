@@ -362,24 +362,7 @@ object AnimeFillerRepository {
     }
 
     private fun isAnimeContent(meta: MetaDetails, fallbackItemType: String?): Boolean {
-        if (meta.type.equals("anime", ignoreCase = true)) return true
-        if (fallbackItemType?.equals("anime", ignoreCase = true) == true) return true
-        if (meta.id.startsWith("kitsu:", ignoreCase = true) ||
-            meta.id.startsWith("mal:", ignoreCase = true) ||
-            meta.id.startsWith("anidb:", ignoreCase = true)
-        ) return true
-
-        if (meta.genres.any { it.equals("Anime", ignoreCase = true) || it.equals("Animation", ignoreCase = true) }) {
-            val isJapanese = meta.country?.equals("JP", ignoreCase = true) == true ||
-                meta.country?.contains("Japan", ignoreCase = true) == true ||
-                meta.language?.equals("ja", ignoreCase = true) == true ||
-                meta.language?.contains("Japanese", ignoreCase = true) == true
-            if (isJapanese || meta.genres.any { it.equals("Anime", ignoreCase = true) }) {
-                return true
-            }
-        }
-
-        return false
+        return com.nuvio.app.features.player.MediaClassifier.classify(meta, fallbackItemType).isAnime
     }
 
     private fun parseIdSource(id: String?): Pair<String, String>? {

@@ -30,8 +30,10 @@ import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.P2pTorrentProfile
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.player.AnimeUpscalerMode
+import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
+import com.nuvio.app.features.player.SvpMotionOption
 import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
@@ -197,6 +199,83 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }
     }
 
+    if (isDesktop) {
+        // ─── Video Enhancements ───
+        item {
+            val playerSettings by remember {
+                PlayerSettingsRepository.ensureLoaded()
+                PlayerSettingsRepository.uiState
+            }.collectAsStateWithLifecycle()
+
+            var showAnimeUpscalerOptionDialog by rememberSaveable { mutableStateOf(false) }
+            var showAnimeUpscalerModeDialog by rememberSaveable { mutableStateOf(false) }
+            var showSvpMotionOptionDialog by rememberSaveable { mutableStateOf(false) }
+
+            SettingsSection(
+                title = "VIDEO ENHANCEMENTS",
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsNavigationRow(
+                        title = "Anime Upscaler",
+                        description = playerSettings.animeUpscalerOption.label,
+                        isTablet = isTablet,
+                        onClick = { showAnimeUpscalerOptionDialog = true },
+                    )
+                    if (playerSettings.animeUpscalerOption != AnimeUpscalerOption.OFF) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsNavigationRow(
+                            title = "Upscaler Mode",
+                            description = playerSettings.animeUpscalerMode.label,
+                            isTablet = isTablet,
+                            onClick = { showAnimeUpscalerModeDialog = true },
+                        )
+                    }
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = "Motion Interpolation (SVP)",
+                        description = playerSettings.svpMotionOption.label,
+                        isTablet = isTablet,
+                        onClick = { showSvpMotionOptionDialog = true },
+                    )
+                }
+            }
+
+            if (showAnimeUpscalerOptionDialog) {
+                AnimeUpscalerOptionDialog(
+                    selectedOption = playerSettings.animeUpscalerOption,
+                    onOptionSelected = { option ->
+                        PlayerSettingsRepository.setAnimeUpscalerOption(option)
+                        showAnimeUpscalerOptionDialog = false
+                    },
+                    onDismiss = { showAnimeUpscalerOptionDialog = false },
+                )
+            }
+
+            if (showAnimeUpscalerModeDialog) {
+                AnimeUpscalerModeDialog(
+                    selectedMode = playerSettings.animeUpscalerMode,
+                    onModeSelected = { mode ->
+                        PlayerSettingsRepository.setAnimeUpscalerMode(mode)
+                        showAnimeUpscalerModeDialog = false
+                    },
+                    onDismiss = { showAnimeUpscalerModeDialog = false },
+                )
+            }
+
+            if (showSvpMotionOptionDialog) {
+                SvpMotionOptionDialog(
+                    selectedOption = playerSettings.svpMotionOption,
+                    onOptionSelected = { option ->
+                        PlayerSettingsRepository.setSvpMotionOption(option)
+                        showSvpMotionOptionDialog = false
+                    },
+                    onDismiss = { showSvpMotionOptionDialog = false },
+                )
+            }
+        }
+    }
+
     // ─── Anime ───
     item {
         val animeFillerEnabled by remember {
@@ -204,37 +283,11 @@ internal fun LazyListScope.codeineXOSettingsContent(
             AnimeFillerSettingsRepository.enabled
         }.collectAsStateWithLifecycle()
 
-        val playerSettings by remember {
-            PlayerSettingsRepository.ensureLoaded()
-            PlayerSettingsRepository.uiState
-        }.collectAsStateWithLifecycle()
-
-        var showAnimeUpscalerDialog by rememberSaveable { mutableStateOf(false) }
-
         SettingsSection(
-            title = if (isDesktop) "ANIME ENHANCEMENT" else "ANIME",
+            title = "ANIME",
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
-                if (isDesktop) {
-                    SettingsSwitchRow(
-                        title = "Enable Anime Upscaler",
-                        description = "Enhance anime and cartoons using real-time Anime4K shaders",
-                        checked = playerSettings.animeUpscalerEnabled,
-                        isTablet = isTablet,
-                        onCheckedChange = PlayerSettingsRepository::setAnimeUpscalerEnabled,
-                    )
-                    if (playerSettings.animeUpscalerEnabled) {
-                        SettingsGroupDivider(isTablet = isTablet)
-                        SettingsNavigationRow(
-                            title = "Upscaler Mode",
-                            description = playerSettings.animeUpscalerMode.label,
-                            isTablet = isTablet,
-                            onClick = { showAnimeUpscalerDialog = true },
-                        )
-                    }
-                    SettingsGroupDivider(isTablet = isTablet)
-                }
                 SettingsSwitchRow(
                     title = "Anime Filler Detection",
                     description = "Identify and mark filler episodes across catalog and metadata addons",
@@ -243,17 +296,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     onCheckedChange = AnimeFillerSettingsRepository::setEnabled,
                 )
             }
-        }
-
-        if (isDesktop && showAnimeUpscalerDialog) {
-            AnimeUpscalerModeDialog(
-                selectedMode = playerSettings.animeUpscalerMode,
-                onModeSelected = { mode ->
-                    PlayerSettingsRepository.setAnimeUpscalerMode(mode)
-                    showAnimeUpscalerDialog = false
-                },
-                onDismiss = { showAnimeUpscalerDialog = false },
-            )
         }
     }
 

@@ -110,8 +110,10 @@ data class PlayerSettingsUiState(
     val iosSaturation: Int = 0,
     val iosGamma: Int = 0,
     val nvidiaRtxSuperResolutionEnabled: Boolean = false,
+    val animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.OFF,
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
+    val svpMotionOption: SvpMotionOption = SvpMotionOption.OFF,
     val audioNightModeEnabled: Boolean = false,
     val showSeekbarWhileSeeking: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
@@ -201,8 +203,10 @@ object PlayerSettingsRepository {
     private var iosSaturation = 0
     private var iosGamma = 0
     private var nvidiaRtxSuperResolutionEnabled = false
+    private var animeUpscalerOption = AnimeUpscalerOption.OFF
     private var animeUpscalerEnabled = false
     private var animeUpscalerMode = AnimeUpscalerMode.FAST
+    private var svpMotionOption = SvpMotionOption.OFF
     private var audioNightModeEnabled = false
     private var showSeekbarWhileSeeking = true
     private var seekPreviewEnabled = true
@@ -298,8 +302,10 @@ object PlayerSettingsRepository {
         iosSaturation = 0
         iosGamma = 0
         nvidiaRtxSuperResolutionEnabled = false
+        animeUpscalerOption = AnimeUpscalerOption.OFF
         animeUpscalerEnabled = false
         animeUpscalerMode = AnimeUpscalerMode.FAST
+        svpMotionOption = SvpMotionOption.OFF
         audioNightModeEnabled = false
         showSeekbarWhileSeeking = true
         seekPreviewEnabled = true
@@ -481,8 +487,16 @@ object PlayerSettingsRepository {
         iosSaturation = PlayerSettingsStorage.loadIosSaturation() ?: 0
         iosGamma = PlayerSettingsStorage.loadIosGamma() ?: 0
         nvidiaRtxSuperResolutionEnabled = PlayerSettingsStorage.loadNvidiaRtxSuperResolutionEnabled() ?: false
-        animeUpscalerEnabled = PlayerSettingsStorage.loadAnimeUpscalerEnabled() ?: false
+        val storedUpscalerOption = PlayerSettingsStorage.loadAnimeUpscalerOption()
+        val legacyUpscalerEnabled = PlayerSettingsStorage.loadAnimeUpscalerEnabled()
+        animeUpscalerOption = when {
+            storedUpscalerOption != null -> AnimeUpscalerOption.fromStorageKey(storedUpscalerOption)
+            legacyUpscalerEnabled != null -> if (legacyUpscalerEnabled) AnimeUpscalerOption.ALWAYS_ON else AnimeUpscalerOption.OFF
+            else -> AnimeUpscalerOption.OFF
+        }
+        animeUpscalerEnabled = animeUpscalerOption.isEnabled
         animeUpscalerMode = AnimeUpscalerMode.fromStorageKey(PlayerSettingsStorage.loadAnimeUpscalerMode())
+        svpMotionOption = SvpMotionOption.fromStorageKey(PlayerSettingsStorage.loadSvpMotionOption())
         audioNightModeEnabled = PlayerSettingsStorage.loadAudioNightModeEnabled() ?: false
         showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
@@ -1065,12 +1079,18 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveNvidiaRtxSuperResolutionEnabled(enabled)
     }
 
-    fun setAnimeUpscalerEnabled(enabled: Boolean) {
+    fun setAnimeUpscalerOption(option: AnimeUpscalerOption) {
         ensureLoaded()
-        if (animeUpscalerEnabled == enabled) return
-        animeUpscalerEnabled = enabled
+        if (animeUpscalerOption == option) return
+        animeUpscalerOption = option
+        animeUpscalerEnabled = option.isEnabled
         publish()
-        PlayerSettingsStorage.saveAnimeUpscalerEnabled(enabled)
+        PlayerSettingsStorage.saveAnimeUpscalerOption(option.storageKey)
+        PlayerSettingsStorage.saveAnimeUpscalerEnabled(animeUpscalerEnabled)
+    }
+
+    fun setAnimeUpscalerEnabled(enabled: Boolean) {
+        setAnimeUpscalerOption(if (enabled) AnimeUpscalerOption.ALWAYS_ON else AnimeUpscalerOption.OFF)
     }
 
     fun setAnimeUpscalerMode(mode: AnimeUpscalerMode) {
@@ -1079,6 +1099,14 @@ object PlayerSettingsRepository {
         animeUpscalerMode = mode
         publish()
         PlayerSettingsStorage.saveAnimeUpscalerMode(mode.storageKey)
+    }
+
+    fun setSvpMotionOption(option: SvpMotionOption) {
+        ensureLoaded()
+        if (svpMotionOption == option) return
+        svpMotionOption = option
+        publish()
+        PlayerSettingsStorage.saveSvpMotionOption(option.storageKey)
     }
 
     fun setAudioNightModeEnabled(enabled: Boolean) {
@@ -1374,8 +1402,10 @@ object PlayerSettingsRepository {
             iosSaturation = iosSaturation,
             iosGamma = iosGamma,
             nvidiaRtxSuperResolutionEnabled = nvidiaRtxSuperResolutionEnabled,
+            animeUpscalerOption = animeUpscalerOption,
             animeUpscalerEnabled = animeUpscalerEnabled,
             animeUpscalerMode = animeUpscalerMode,
+            svpMotionOption = svpMotionOption,
             audioNightModeEnabled = audioNightModeEnabled,
             showSeekbarWhileSeeking = showSeekbarWhileSeeking,
             seekPreviewEnabled = seekPreviewEnabled,

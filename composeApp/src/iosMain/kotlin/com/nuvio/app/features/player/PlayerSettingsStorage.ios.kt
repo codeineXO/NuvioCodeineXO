@@ -111,7 +111,9 @@ actual object PlayerSettingsStorage {
     private const val iosGammaKey = "ios_gamma"
     private const val nvidiaRtxSuperResolutionEnabledKey = "nvidia_rtx_super_resolution_enabled"
     private const val animeUpscalerEnabledKey = "anime_upscaler_enabled"
+    private const val animeUpscalerOptionKey = "anime_upscaler_option"
     private const val animeUpscalerModeKey = "anime_upscaler_mode"
+    private const val svpMotionOptionKey = "svp_motion_option"
     private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
     private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
@@ -127,7 +129,9 @@ actual object PlayerSettingsStorage {
         holdToSpeedValueKey,
         nvidiaRtxSuperResolutionEnabledKey,
         animeUpscalerEnabledKey,
+        animeUpscalerOptionKey,
         animeUpscalerModeKey,
+        svpMotionOptionKey,
         audioNightModeEnabledKey,
         showSeekbarWhileSeekingKey,
         seekPreviewEnabledKey,
@@ -1148,11 +1152,25 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(animeUpscalerEnabledKey))
     }
 
+    actual fun loadAnimeUpscalerOption(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(animeUpscalerOptionKey))
+
+    actual fun saveAnimeUpscalerOption(option: String) {
+        NSUserDefaults.standardUserDefaults.setObject(option, forKey = ProfileScopedKey.of(animeUpscalerOptionKey))
+    }
+
     actual fun loadAnimeUpscalerMode(): String? =
         NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(animeUpscalerModeKey))
 
     actual fun saveAnimeUpscalerMode(mode: String) {
         NSUserDefaults.standardUserDefaults.setObject(mode, forKey = ProfileScopedKey.of(animeUpscalerModeKey))
+    }
+
+    actual fun loadSvpMotionOption(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(svpMotionOptionKey))
+
+    actual fun saveSvpMotionOption(option: String) {
+        NSUserDefaults.standardUserDefaults.setObject(option, forKey = ProfileScopedKey.of(svpMotionOptionKey))
     }
 
     actual fun loadAudioNightModeEnabled(): Boolean? {
@@ -1298,7 +1316,9 @@ actual object PlayerSettingsStorage {
         loadIosGamma()?.let { put(iosGammaKey, encodeSyncInt(it)) }
         loadNvidiaRtxSuperResolutionEnabled()?.let { put(nvidiaRtxSuperResolutionEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeUpscalerEnabled()?.let { put(animeUpscalerEnabledKey, encodeSyncBoolean(it)) }
+        loadAnimeUpscalerOption()?.let { put(animeUpscalerOptionKey, encodeSyncString(it)) }
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
+        loadSvpMotionOption()?.let { put(svpMotionOptionKey, encodeSyncString(it)) }
         loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
@@ -1387,7 +1407,9 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncInt(iosGammaKey)?.let(::saveIosGamma)
         payload.decodeSyncBoolean(nvidiaRtxSuperResolutionEnabledKey)?.let(::saveNvidiaRtxSuperResolutionEnabled)
         payload.decodeSyncBoolean(animeUpscalerEnabledKey)?.let(::saveAnimeUpscalerEnabled)
+        payload.decodeSyncString(animeUpscalerOptionKey)?.let(::saveAnimeUpscalerOption)
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
+        payload.decodeSyncString(svpMotionOptionKey)?.let(::saveSvpMotionOption)
         payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)

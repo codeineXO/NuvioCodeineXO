@@ -153,6 +153,20 @@ internal fun StreamDestination(
         )
     }
 
+    fun resolveLaunchContentType(fallbackFilename: String? = null, fallbackStreamTitle: String? = null): com.nuvio.app.features.player.MediaContentType {
+        val meta = MetaDetailsRepository.peek(
+            type = launch.parentMetaType ?: launch.type,
+            id = launch.parentMetaId ?: effectiveVideoId,
+        )
+        return com.nuvio.app.features.player.MediaClassifier.classify(
+            meta = meta,
+            fallbackItemType = launch.parentMetaType ?: launch.type,
+            fallbackItemId = launch.parentMetaId ?: effectiveVideoId,
+            torrentFilename = fallbackFilename,
+            streamTitle = fallbackStreamTitle ?: launch.title,
+        )
+    }
+
     suspend fun serverResumePositionMs(stream: StreamItem): Long? {
         if (stream.serverTarget == null || launch.startFromBeginning) return null
         val saved = WatchProgressRepository.progressForVideo(
@@ -229,6 +243,7 @@ internal fun StreamDestination(
             initialProgressFraction = resolvedResumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
             streamLaunchId = route.launchId,
+            mediaContentType = resolveLaunchContentType(fallbackFilename = stream.behaviorHints.filename, fallbackStreamTitle = stream.streamLabel),
         )
 
         autoPlayNavigationStarted = replaceStreamRoute
@@ -349,6 +364,7 @@ internal fun StreamDestination(
                 initialProgressFraction = launch.resumeProgressFraction,
                 contentLanguage = resolveLaunchContentLanguage(cached.contentLanguage),
                 streamLaunchId = route.launchId,
+                mediaContentType = resolveLaunchContentType(fallbackStreamTitle = cached.streamName),
             )
             if (externalPlayerSupported && playerSettings.externalPlayerEnabled) {
                 openExternalPlayback(playerLaunch)
@@ -513,6 +529,7 @@ internal fun StreamDestination(
             initialProgressFraction = launch.resumeProgressFraction.takeIf { serverResumeMs == null },
             contentLanguage = resolveLaunchContentLanguage(),
             streamLaunchId = route.launchId,
+            mediaContentType = resolveLaunchContentType(fallbackFilename = stream.behaviorHints.filename, fallbackStreamTitle = stream.streamLabel),
         )
         if (externalPlayerSupported && playerSettings.externalPlayerEnabled && stream.serverTarget == null) {
             openExternalPlayback(playerLaunch)
@@ -708,6 +725,7 @@ internal fun StreamDestination(
             initialProgressFraction = resolvedResumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
             streamLaunchId = route.launchId,
+            mediaContentType = resolveLaunchContentType(fallbackFilename = stream.behaviorHints.filename, fallbackStreamTitle = stream.streamLabel),
         )
 
         if (!forceInternal && externalPlayerSupported && (forceExternal || playerSettings.externalPlayerEnabled)) {

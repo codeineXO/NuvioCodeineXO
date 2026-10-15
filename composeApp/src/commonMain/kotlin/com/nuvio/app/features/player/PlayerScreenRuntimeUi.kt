@@ -378,6 +378,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         ?: extractTmdbId(targetMeta?.id)
     val playerControlsState = PlayerControlsState(
         title = title,
+        mediaContentType = args.mediaContentType,
         isMiniPlayer = args.isMiniPlayer,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
         seekPreviewEnabled = playerSettingsUiState.seekPreviewEnabled,
@@ -414,6 +415,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         playbackSpeedLabel = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
         animeUpscalerEnabled = playerSettingsUiState.animeUpscalerEnabled,
         animeUpscalerModeIndex = playerSettingsUiState.animeUpscalerMode.index,
+        animeUpscalerOption = playerSettingsUiState.animeUpscalerOption,
+        svpMotionOption = playerSettingsUiState.svpMotionOption,
         audioNightModeEnabled = playerSettingsUiState.audioNightModeEnabled,
         holdToSpeedEnabled = playerSettingsUiState.holdToSpeedEnabled,
         holdToSpeedValue = playerSettingsUiState.holdToSpeedValue,
@@ -1217,6 +1220,29 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         "submitIntroCommit" -> submitIntroFromPlayerControls()
         "setAnimeUpscalerMode" -> {
             PlayerSettingsRepository.setAnimeUpscalerMode(AnimeUpscalerMode.fromIndex(value.toInt()))
+            true
+        }
+        "setAnimeUpscalerOption" -> {
+            val option = when (value.toInt()) {
+                0 -> AnimeUpscalerOption.AUTO
+                1 -> AnimeUpscalerOption.ALWAYS_ON
+                else -> AnimeUpscalerOption.OFF
+            }
+            PlayerSettingsRepository.setAnimeUpscalerOption(option)
+            true
+        }
+        "forceAnimeUpscalerOn" -> {
+            PlayerSettingsRepository.setAnimeUpscalerOption(AnimeUpscalerOption.ALWAYS_ON)
+            true
+        }
+        "setSvpMode" -> {
+            val option = when (value.toInt()) {
+                0 -> SvpMotionOption.OFF
+                1 -> SvpMotionOption.AUTO
+                3 -> SvpMotionOption.GLOBAL
+                else -> SvpMotionOption.AUTO
+            }
+            PlayerSettingsRepository.setSvpMotionOption(option)
             true
         }
         "toggleAnimeUpscaler" -> {

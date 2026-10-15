@@ -106,6 +106,7 @@ internal fun PlayerDestination(
         contentLanguage = launch.contentLanguage,
         launchId = route.launchId,
         streamLaunchId = launch.streamLaunchId,
+        mediaContentType = launch.mediaContentType,
         isMiniPlayer = isMiniPlayer,
         onMinimize = onMinimize,
         onExpand = onExpand,

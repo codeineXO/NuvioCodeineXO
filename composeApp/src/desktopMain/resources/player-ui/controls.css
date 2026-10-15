@@ -2763,6 +2763,53 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.enhancement-section-title {
+  padding: 12px 14px 4px;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.enhancement-warning-note {
+  padding: 0 14px 6px;
+  color: #f59e0b;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.enhancement-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 10px 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 180, 0, 0.12);
+  border: 1px solid rgba(255, 180, 0, 0.28);
+  color: #ffca28;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.enhancement-force-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.enhancement-force-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
 
 .audio-rail-panel .track-list,
 .subtitle-rail-panel .track-list,

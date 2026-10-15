@@ -139,8 +139,9 @@ private fun NativePlayerSurface(
     val playerSettings by PlayerSettingsRepository.uiState.collectAsState()
     val decoderPriority = playerSettings.decoderPriority
     val nvidiaRtxSuperResolutionEnabled = playerSettings.nvidiaRtxSuperResolutionEnabled
-    val animeUpscalerEnabled = playerSettings.animeUpscalerEnabled
+    val animeUpscalerOption = playerSettings.animeUpscalerOption
     val animeUpscalerMode = playerSettings.animeUpscalerMode
+    val svpMotionOption = playerSettings.svpMotionOption
     val audioNightModeEnabled = playerSettings.audioNightModeEnabled
 
     SideEffect {
@@ -239,8 +240,13 @@ private fun NativePlayerSurface(
         controller.setResizeMode(resizeMode)
     }
 
-    LaunchedEffect(controller, animeUpscalerEnabled, animeUpscalerMode) {
-        controller.setAnimeUpscaler(animeUpscalerEnabled, animeUpscalerMode)
+    LaunchedEffect(controller, animeUpscalerOption, animeUpscalerMode, svpMotionOption, playerControlsState.mediaContentType) {
+        controller.setVideoEnhancements(
+            mediaContentType = playerControlsState.mediaContentType,
+            animeUpscalerOption = animeUpscalerOption,
+            animeUpscalerMode = animeUpscalerMode,
+            svpMotionOption = svpMotionOption,
+        )
     }
 
     LaunchedEffect(controller, audioNightModeEnabled) {

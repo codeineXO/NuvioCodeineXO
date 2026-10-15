@@ -81,6 +81,9 @@ internal object NativePlayerBridge {
     external fun selectSubtitleTrack(handle: Long, trackId: Int)
     external fun setGlslShaders(handle: Long, shaders: String)
     external fun setAudioFilter(handle: Long, filter: String)
+    external fun setVideoFilter(handle: Long, filter: String)
+    external fun isSvpAvailable(): Boolean
+    external fun setSvpFilter(handle: Long, enabled: Boolean, vpyPath: String): Boolean
     external fun addSubtitleUrl(handle: Long, url: String)
     external fun clearExternalSubtitles(handle: Long)
     external fun clearExternalSubtitlesAndSelect(handle: Long, trackId: Int)

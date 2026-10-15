@@ -47,6 +47,7 @@ data class PlayerLaunch(
     val initialProgressFraction: Float? = null,
     val contentLanguage: String? = null,
     val streamLaunchId: Long? = null,
+    val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
 )
 
 object PlayerLaunchStore {

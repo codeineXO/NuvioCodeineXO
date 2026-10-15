@@ -192,8 +192,12 @@ internal expect object PlayerSettingsStorage {
     fun saveNvidiaRtxSuperResolutionEnabled(enabled: Boolean)
     fun loadAnimeUpscalerEnabled(): Boolean?
     fun saveAnimeUpscalerEnabled(enabled: Boolean)
+    fun loadAnimeUpscalerOption(): String?
+    fun saveAnimeUpscalerOption(option: String)
     fun loadAnimeUpscalerMode(): String?
     fun saveAnimeUpscalerMode(mode: String)
+    fun loadSvpMotionOption(): String?
+    fun saveSvpMotionOption(option: String)
     fun loadAudioNightModeEnabled(): Boolean?
     fun saveAudioNightModeEnabled(enabled: Boolean)
     fun loadShowSeekbarWhileSeeking(): Boolean?

@@ -466,6 +466,16 @@ let state = {
   submitIntroContentKey: "",
   notificationMessage: "",
   notificationToken: 0,
+  animeUpscalerEnabled: false,
+  animeUpscalerModeIndex: 0,
+  animeUpscalerOption: "auto",
+  animeUpscalerActive: false,
+  isAutoBypassed: false,
+  svpMode: "auto",
+  svpActive: false,
+  svpProfile: "",
+  svpAvailable: true,
+  mediaContentType: "unknown",
 };
 const SubtitleFontOptions = [
   "Trebuchet MS",
@@ -1511,43 +1521,100 @@ const renderSpeedOptionList = () => {
   lastRenderedModalSignature = getSpeedModalSignature();
 };
 
-const shaderOptions = [
-  { enabled: false, modeIndex: 0, label: "Off", description: "Disabled" },
-  { enabled: true, modeIndex: 0, label: "Fast", description: "Low-end PCs & laptops" },
-  { enabled: true, modeIndex: 1, label: "Soft & Clear", description: "Smooth lines & balanced detail" },
-  { enabled: true, modeIndex: 2, label: "Sharp & Detailed", description: "Maximum clarity & fine lines" },
+const upscalerOptions = [
+  { mode: "off", label: "Off", description: "Disable upscaler shaders" },
+  { mode: "fast", modeIndex: 0, label: "Fast", description: "Low-end PCs & laptops" },
+  { mode: "soft", modeIndex: 1, label: "Soft & Clear", description: "Smooth lines & balanced detail" },
+  { mode: "sharp", modeIndex: 2, label: "Sharp & Detailed", description: "Maximum clarity & fine lines" },
+];
+
+const svpOptions = [
+  { mode: "off", modeValue: 0, label: "Off", description: "Disable motion interpolation" },
+  { mode: "auto", modeValue: 1, label: "Auto", description: "Auto-detect content (Anime Only)" },
+  { mode: "anime", modeValue: 2, label: "Anime (Smooth)", description: "Tuned for 2D animation (algo: 13, dithering)" },
+  { mode: "cinema", modeValue: 3, label: "Cinema (Smooth)", description: "Tuned for film grain & live action (algo: 21, subpixel)" },
 ];
 
 const getShaderModalSignature = () => [
-  Boolean(state.animeUpscalerEnabled),
+  state.animeUpscalerOption || "",
+  Boolean(state.animeUpscalerActive),
+  Boolean(state.isAutoBypassed),
   Number(state.animeUpscalerModeIndex) || 0,
+  state.svpMode || "",
+  Boolean(state.svpActive),
+  state.svpProfile || "",
+  Boolean(state.svpAvailable),
+  state.mediaContentType || "",
 ].join("##");
 
 const renderShaderOptionList = () => {
   if (!shaderOptionList) return;
   shaderOptionList.textContent = "";
   if (shaderPanelTitle) {
-    shaderPanelTitle.textContent = "Anime Upscaler";
+    shaderPanelTitle.textContent = "Enhancements";
   }
 
-  const isEnabled = Boolean(state.animeUpscalerEnabled);
+  // ─── Section 1: Spatial Upscaler (Anime4K) ───
+  const upscalerHeader = document.createElement("div");
+  upscalerHeader.className = "enhancement-section-title";
+  upscalerHeader.textContent = "Spatial Upscaler (Anime4K)";
+  shaderOptionList.appendChild(upscalerHeader);
+
+  const isBypassed = Boolean(state.isAutoBypassed);
+  const upscalerActive = Boolean(state.animeUpscalerActive);
   const currentModeIndex = Number(state.animeUpscalerModeIndex) || 0;
 
-  shaderOptions.forEach(opt => {
-    const isSelected = opt.enabled ? (isEnabled && currentModeIndex === opt.modeIndex) : !isEnabled;
+  if (isBypassed) {
+    const banner = document.createElement("div");
+    banner.className = "enhancement-status-banner";
+    const bannerText = document.createElement("span");
+    bannerText.textContent = "Auto: Bypassed (Live Action)";
+    banner.appendChild(bannerText);
+
+    const forceBtn = document.createElement("button");
+    forceBtn.type = "button";
+    forceBtn.className = "enhancement-force-btn";
+    forceBtn.textContent = "Force On";
+    forceBtn.addEventListener("click", event => {
+      event.stopPropagation();
+      state.isAutoBypassed = false;
+      state.animeUpscalerActive = true;
+      state.animeUpscalerOption = "always_on";
+      send("forceAnimeUpscalerOn", 1);
+      renderShaderOptionList();
+      renderChrome();
+    });
+    banner.appendChild(forceBtn);
+    shaderOptionList.appendChild(banner);
+  }
+
+  upscalerOptions.forEach(opt => {
+    let isSelected = false;
+    if (opt.mode === "off") {
+      isSelected = !upscalerActive && !isBypassed;
+    } else {
+      isSelected = upscalerActive && currentModeIndex === opt.modeIndex;
+    }
+
     const row = document.createElement("button");
     row.type = "button";
     row.className = `track-row${isSelected ? " selected" : ""}`;
     row.addEventListener("click", event => {
       event.stopPropagation();
-      if (!opt.enabled) {
-        state.animeUpscalerEnabled = false;
-        send("toggleAnimeUpscaler", 0);
+      if (opt.mode === "off") {
+        state.animeUpscalerActive = false;
+        state.isAutoBypassed = false;
+        state.animeUpscalerOption = "off";
+        send("setAnimeUpscalerOption", 2);
       } else {
-        state.animeUpscalerEnabled = true;
+        state.animeUpscalerActive = true;
+        state.isAutoBypassed = false;
         state.animeUpscalerModeIndex = opt.modeIndex;
         send("setAnimeUpscalerMode", opt.modeIndex);
-        send("toggleAnimeUpscaler", 1);
+        if (!upscalerActive || isBypassed) {
+          state.animeUpscalerOption = "always_on";
+          send("setAnimeUpscalerOption", 1);
+        }
       }
       renderShaderOptionList();
       renderChrome();
@@ -1572,6 +1639,83 @@ const renderShaderOptionList = () => {
     row.appendChild(buildCheckIcon());
     shaderOptionList.appendChild(row);
   });
+
+  // ─── Section 2: Motion Smoothing (SVP) ───
+  const svpHeader = document.createElement("div");
+  svpHeader.className = "enhancement-section-title";
+  svpHeader.textContent = "Motion Smoothing (SVP)";
+  shaderOptionList.appendChild(svpHeader);
+
+  const svpAvailable = state.svpAvailable !== false;
+  if (!svpAvailable) {
+    const svpWarn = document.createElement("div");
+    svpWarn.className = "enhancement-warning-note";
+    svpWarn.textContent = "Requires VapourSynth or SVP 4 to be installed.";
+    shaderOptionList.appendChild(svpWarn);
+  }
+
+  const svpMode = String(state.svpMode || "auto").toLowerCase();
+  const svpActive = Boolean(state.svpActive);
+  const svpProfile = String(state.svpProfile || "").toLowerCase();
+
+  svpOptions.forEach(opt => {
+    let isSelected = false;
+    if (opt.mode === "off") {
+      isSelected = svpMode === "off" || (!svpActive && svpMode !== "auto") || !svpAvailable;
+    } else if (opt.mode === "auto") {
+      isSelected = svpAvailable && svpMode === "auto";
+    } else if (opt.mode === "anime") {
+      isSelected = svpAvailable && svpMode === "anime";
+    } else if (opt.mode === "cinema") {
+      isSelected = svpAvailable && (svpMode === "cinema" || svpMode === "global");
+    }
+
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `track-row${isSelected ? " selected" : ""}`;
+    if (!svpAvailable && opt.mode !== "off") {
+      row.style.opacity = "0.5";
+    }
+    row.addEventListener("click", event => {
+      event.stopPropagation();
+      if (!svpAvailable && opt.mode !== "off") {
+        showPlayerToast("Motion Smoothing requires VapourSynth or SVP 4 installation.");
+        return;
+      }
+      state.svpMode = opt.mode;
+      send("setSvpMode", opt.modeValue);
+      renderShaderOptionList();
+      renderChrome();
+      window.setTimeout(closePlayerModal, 120);
+    });
+
+    const copy = document.createElement("span");
+    copy.className = "audio-track-copy";
+    const name = document.createElement("span");
+    name.className = "audio-track-name";
+    name.textContent = opt.label;
+    copy.appendChild(name);
+
+    if (opt.description) {
+      const desc = document.createElement("span");
+      desc.className = "audio-track-language";
+      let descText = opt.description;
+      if (!svpAvailable && opt.mode !== "off") {
+        descText = "Unavailable (VapourSynth runtime not detected)";
+      } else if (opt.mode === "auto" && svpActive && svpProfile) {
+        descText += ` — Active: ${svpProfile === "anime" ? "Anime" : "Cinema"}`;
+      } else if (opt.mode === "auto" && !svpActive && state.mediaContentType === "live_action") {
+        descText += " — Inactive: Live Action";
+      }
+      desc.textContent = descText;
+      copy.appendChild(desc);
+    }
+
+    row.appendChild(copy);
+    row.appendChild(buildCheckIcon());
+    shaderOptionList.appendChild(row);
+  });
+
   lastRenderedModal = "shaders";
   lastRenderedModalSignature = getShaderModalSignature();
 };
