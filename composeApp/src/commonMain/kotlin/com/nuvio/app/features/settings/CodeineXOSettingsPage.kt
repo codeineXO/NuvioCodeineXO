@@ -1,14 +1,26 @@
 package com.nuvio.app.features.settings
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Chat
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.NuvioToastController
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
 import com.nuvio.app.features.p2p.P2pCacheSize
@@ -45,6 +57,31 @@ import org.jetbrains.compose.resources.stringResource
 internal fun LazyListScope.codeineXOSettingsContent(
     isTablet: Boolean,
 ) {
+    // ─── Discord Support / Issue Reporting ───
+    item {
+        val tokens = MaterialTheme.nuvio
+        val clipboardManager = LocalClipboardManager.current
+        SettingsGroup(isTablet = isTablet) {
+            SettingsNavigationRow(
+                title = "DM me on Discord @ codeine_xo to report issues",
+                description = null,
+                icon = Icons.Rounded.Chat,
+                isTablet = isTablet,
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.Rounded.ContentCopy,
+                        contentDescription = "Copy Discord username",
+                        tint = tokens.colors.textMuted,
+                        modifier = Modifier.size(if (isTablet) 20.dp else 18.dp),
+                    )
+                },
+                onClick = {
+                    clipboardManager.setText(AnnotatedString("codeine_xo"))
+                    NuvioToastController.show("Copied @codeine_xo to clipboard")
+                },
+            )
+        }
+    }
     // ─── Display / Interface ───
     item {
         val auraBackgroundEnabled by remember {
