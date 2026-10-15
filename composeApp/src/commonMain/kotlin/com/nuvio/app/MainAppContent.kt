@@ -2263,15 +2263,9 @@ internal fun MainAppContent(
                                     }
                                 },
                                 onBack = {
-                                    if (isMiniPlayer) {
-                                        if (!PlatformBackDispatcher.dispatch()) {
-                                            navController.popBackStack()
-                                        }
-                                    } else {
-                                        InAppPlayerManager.close()
-                                        if (currentRoute is PlayerRoute) {
-                                            navController.popBackStack()
-                                        }
+                                    InAppPlayerManager.close()
+                                    if (currentRoute is PlayerRoute) {
+                                        navController.popBackStack()
                                     }
                                 },
                             )
