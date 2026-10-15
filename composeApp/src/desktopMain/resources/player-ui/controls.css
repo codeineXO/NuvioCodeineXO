@@ -4878,12 +4878,16 @@ svg {
     -24px 0 64px rgba(0, 0, 0, 0.75) !important;
 }
 
+.player.ui-codeinexo :is(.modal-layer, .player-rail-modal, .player-side-modal) {
+  background: transparent !important;
+}
+
 .player.ui-codeinexo .player-rail-modal {
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
   padding: 0;
-  background: rgba(0, 0, 0, .34);
+  background: transparent !important;
 }
 
 .player.ui-codeinexo .player-rail-modal .track-panel {
@@ -5109,6 +5113,25 @@ svg {
   border-radius: 12px;
 }
 
+/* Audio Track Rows & Text Wrapping */
+.player.ui-codeinexo #audioModal .audio-track-row {
+  align-items: flex-start;
+}
+
+.player.ui-codeinexo #audioModal .audio-track-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+}
+
+.player.ui-codeinexo #audioModal .audio-track-language {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+}
+
 /* Subtitles Panel Tabs */
 .player.ui-codeinexo #subtitleModal .subtitle-tab-filter {
   display: flex;
@@ -5198,6 +5221,7 @@ svg {
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-row {
+  align-items: flex-start;
   padding: 10px 12px !important;
   min-height: 52px;
 }
@@ -5231,17 +5255,19 @@ svg {
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
   font-size: 14px;
   line-height: 18px;
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-metadata {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
   font-size: 11px;
   line-height: 14px;
   color: var(--theme-text-muted, rgba(255, 255, 255, .6));
