@@ -3,7 +3,7 @@
   <h1>NuvioCodeineXO Desktop</h1>
   
   <p>
-    An enhanced edition of Nuvio Desktop with Anime4K shaders, anime filler markers, seek preview, deep subtitle styling, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback.
+    An enhanced edition of Nuvio Desktop with Anime4K shaders, smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback.
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
@@ -25,6 +25,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
 
 ### 🎬 Player & Playback
+* **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
 * **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
