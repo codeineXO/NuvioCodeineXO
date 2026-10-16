@@ -161,6 +161,8 @@ import com.nuvio.app.features.player.prepareExternalPlayerLaunch
 import com.nuvio.app.features.player.LockPlayerToLandscape
 import com.nuvio.app.features.player.HidePlayerSystemBars
 import com.nuvio.app.features.player.rememberExternalPlayerLauncher
+import com.nuvio.app.features.onboarding.OnboardingRepository
+import com.nuvio.app.features.onboarding.OnboardingScreen
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.settings.AccountSettingsScreen
 import com.nuvio.app.features.settings.AddonsSettingsScreen
@@ -171,6 +173,7 @@ import com.nuvio.app.features.settings.MetaScreenSettingsScreen
 import com.nuvio.app.features.settings.PluginsSettingsScreen
 import com.nuvio.app.features.settings.SupportersContributorsSettingsScreen
 import com.nuvio.app.features.settings.ThemeSettingsRepository
+import com.nuvio.app.navigation.OnboardingRoute
 import com.nuvio.app.features.streams.BingeGroupCacheRepository
 import com.nuvio.app.features.streams.StreamAutoPlayPolicy
 import com.nuvio.app.features.streams.StreamLaunch
@@ -1553,6 +1556,9 @@ internal fun MainAppContent(
                                 onRequestedSettingsPageConsumed = {
                                     requestedSettingsPageName = null
                                 },
+                                onOnboardingClick = {
+                                    navController.navigate(OnboardingRoute(isReviewMode = true))
+                                },
                                 onInitialHomeContentRendered = { initialHomeReady = true },
                             )
                         },
@@ -1735,6 +1741,23 @@ internal fun MainAppContent(
                     SettingsDestination(route, navController) { onBack ->
                         LicensesAttributionsSettingsScreen(onBack = onBack)
                     }
+                }
+                entry<OnboardingRoute> { route ->
+                    OnboardingScreen(
+                        isReviewMode = route.isReviewMode,
+                        onComplete = {
+                            if (route.isReviewMode) {
+                                navController.popBackStack()
+                            } else {
+                                OnboardingRepository.setOnboardingCompleted(true)
+                                navController.popBackStack()
+                            }
+                        },
+                        onBack = {
+                            navController.popBackStack()
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
                 entry<CollectionsRoute> { route ->
                     CollectionsDestination(

@@ -158,6 +158,7 @@ fun SettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    onOnboardingClick: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(
         modifier = modifier.fillMaxSize(),
@@ -432,6 +433,7 @@ fun SettingsScreen(
                 onCheckForUpdatesClick = onCheckForUpdatesClick,
                 onTestUpdateBannerClick = onTestUpdateBannerClick,
                 onCollectionsClick = onCollectionsClick,
+                onOnboardingClick = onOnboardingClick,
             )
         } else {
             MobileSettingsScreen(
@@ -508,6 +510,7 @@ fun SettingsScreen(
                 onCheckForUpdatesClick = onCheckForUpdatesClick,
                 onTestUpdateBannerClick = onTestUpdateBannerClick,
                 onCollectionsClick = onCollectionsClick,
+                onOnboardingClick = onOnboardingClick,
             )
         }
             }
@@ -590,6 +593,7 @@ private fun MobileSettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    onOnboardingClick: (() -> Unit)? = null,
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
     saveableStateHolder.SaveableStateProvider(page.name) {
@@ -718,6 +722,7 @@ private fun MobileSettingsScreen(
                             onTestUpdateBannerClick = onTestUpdateBannerClick,
                             onAccountClick = onAccountClick,
                             onSwitchProfileClick = onSwitchProfile,
+                            onOnboardingClick = onOnboardingClick,
                             showNotificationsEntry = AppFeaturePolicy.notificationsEnabled,
                             showSupportersContributorsPage = AppFeaturePolicy.supportersContributorsPageEnabled,
                         )
@@ -728,6 +733,7 @@ private fun MobileSettingsScreen(
                 )
                 SettingsPage.CodeineXO -> codeineXOSettingsContent(
                     isTablet = false,
+                    onOnboardingClick = onOnboardingClick,
                 )
                 SettingsPage.SupportersContributors -> {
                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
@@ -988,6 +994,7 @@ private fun TabletSettingsScreen(
     onCheckForUpdatesClick: (() -> Unit)? = null,
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onCollectionsClick: () -> Unit = {},
+    onOnboardingClick: (() -> Unit)? = null,
 ) {
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.General.name) }
     val activeCategory = SettingsCategory.valueOf(selectedCategory)
@@ -1204,6 +1211,7 @@ private fun TabletSettingsScreen(
                                         onTestUpdateBannerClick = onTestUpdateBannerClick,
                                         onAccountClick = { openInlinePage(SettingsPage.Account) },
                                         onSwitchProfileClick = onSwitchProfile,
+                                        onOnboardingClick = onOnboardingClick,
                                         showNotificationsEntry = AppFeaturePolicy.notificationsEnabled,
                                         showAccountSection = activeCategory == SettingsCategory.Account,
                                         showGeneralSection = activeCategory == SettingsCategory.General,
@@ -1219,6 +1227,7 @@ private fun TabletSettingsScreen(
                             )
                             SettingsPage.CodeineXO -> codeineXOSettingsContent(
                                 isTablet = true,
+                                onOnboardingClick = onOnboardingClick,
                             )
                             SettingsPage.SupportersContributors -> {
                                 if (AppFeaturePolicy.supportersContributorsPageEnabled) {

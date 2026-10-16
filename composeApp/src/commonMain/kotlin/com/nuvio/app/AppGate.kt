@@ -46,6 +46,8 @@ import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.membership.MemberAccessRepository
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepository
+import com.nuvio.app.features.onboarding.OnboardingRepository
+import com.nuvio.app.features.onboarding.OnboardingScreen
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.profiles.AvatarRepository
@@ -67,6 +69,7 @@ import kotlinx.coroutines.withContext
 
 internal suspend fun warmProfileBoundRepositories() {
     withContext(Dispatchers.Default) {
+        OnboardingRepository.ensureLoaded()
         AddonRepository.initialize()
         CollectionRepository.initialize()
         val enabledAddons = AddonRepository.uiState.value.addons.enabledAddons()
@@ -92,6 +95,7 @@ private enum class AppGateScreen {
     Auth,
     ProfileSelection,
     ProfileEdit,
+    Onboarding,
     Main,
 }
 
@@ -236,6 +240,7 @@ internal fun AppGate(
             }
             AppGateScreen.Loading.name,
             AppGateScreen.Auth.name,
+            AppGateScreen.Onboarding.name,
             -> {
                 mainContentStarted = false
                 appGateController?.reportMainContentReady(false)
@@ -313,6 +318,13 @@ internal fun AppGate(
             ?.takeUnless { it.pinEnabled }
     }
 
+    fun nextGateScreenAfterProfileInit(): AppGateScreen =
+        if (!OnboardingRepository.isOnboardingCompleted()) {
+            AppGateScreen.Onboarding
+        } else {
+            AppGateScreen.Main
+        }
+
     suspend fun enterProfileGate(profiles: List<NuvioProfile>, syncOnEnter: Boolean) {
         profileSelectionLoading = false
         profileSelectionTransitionActive = false
@@ -324,7 +336,7 @@ internal fun AppGate(
 
         rememberedStartupProfile(profiles)?.let { profile ->
             selectProfile(profile, sync = syncOnEnter)
-            gateScreen = AppGateScreen.Main.name
+            gateScreen = nextGateScreenAfterProfileInit().name
             autoSkipProfileSelection = false
             return
         }
@@ -337,7 +349,7 @@ internal fun AppGate(
                 return
             }
             selectProfile(onlyProfile, sync = syncOnEnter)
-            gateScreen = AppGateScreen.Main.name
+            gateScreen = nextGateScreenAfterProfileInit().name
             autoSkipProfileSelection = false
         } else {
             gateScreen = AppGateScreen.ProfileSelection.name
@@ -405,7 +417,7 @@ internal fun AppGate(
         ) {
             rememberedStartupProfile(profileState.profiles)?.let { profile ->
                 selectProfile(profile, sync = true)
-                gateScreen = AppGateScreen.Main.name
+                gateScreen = nextGateScreenAfterProfileInit().name
                 autoSkipProfileSelection = false
                 return@LaunchedEffect
             }
@@ -416,7 +428,7 @@ internal fun AppGate(
             if (onlyProfile.pinEnabled) return@LaunchedEffect
 
             selectProfile(onlyProfile, sync = true)
-            gateScreen = AppGateScreen.Main.name
+            gateScreen = nextGateScreenAfterProfileInit().name
             autoSkipProfileSelection = false
         }
     }
@@ -499,6 +511,19 @@ internal fun AppGate(
                         profile = editingProfile,
                         onBack = { gateScreen = AppGateScreen.ProfileSelection.name },
                         onSaved = { gateScreen = AppGateScreen.ProfileSelection.name },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                AppGateScreen.Onboarding.name -> {
+                    OnboardingScreen(
+                        isReviewMode = false,
+                        onComplete = {
+                            OnboardingRepository.setOnboardingCompleted(true)
+                            gateScreen = AppGateScreen.Main.name
+                            if (!renderMainContent) {
+                                onActivate?.invoke(AppScreenTab.Home)
+                            }
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -590,8 +615,13 @@ internal fun AppGate(
                                     profile = profile,
                                     sync = authState is AuthState.Authenticated,
                                 )
-                                gateScreen = AppGateScreen.Main.name
-                                if (!renderMainContent) {
+                                val nextGate = nextGateScreenAfterProfileInit()
+                                if (nextGate == AppGateScreen.Onboarding) {
+                                    profileSelectionLoading = false
+                                    profileSelectionTransitionActive = false
+                                }
+                                gateScreen = nextGate.name
+                                if (!renderMainContent && nextGate == AppGateScreen.Main) {
                                     onActivate?.invoke(AppScreenTab.Home)
                                 }
                             }

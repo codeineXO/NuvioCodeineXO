@@ -20,6 +20,7 @@ import com.nuvio.app.navigation.CollectionEditorRoute
 import com.nuvio.app.navigation.CollectionsRoute
 import com.nuvio.app.navigation.FolderDetailRoute
 import com.nuvio.app.navigation.NuvioNavigator
+import com.nuvio.app.navigation.OnboardingRoute
 import com.nuvio.app.navigation.SettingsPageRoute
 
 @Composable
@@ -53,6 +54,9 @@ internal fun SettingsRootDestination(
         },
         onCheckForUpdatesClick = onCheckForUpdates,
         onTestUpdateBannerClick = onTestUpdateBanner,
+        onOnboardingClick = {
+            navController.navigate(OnboardingRoute(isReviewMode = true))
+        },
     )
 }
 

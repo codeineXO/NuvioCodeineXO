@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.Extension
@@ -87,6 +88,7 @@ internal fun LazyListScope.settingsRootContent(
     onTestUpdateBannerClick: (() -> Unit)? = null,
     onAccountClick: () -> Unit,
     onSwitchProfileClick: (() -> Unit)? = null,
+    onOnboardingClick: (() -> Unit)? = null,
     showNotificationsEntry: Boolean = true,
     showAccountSection: Boolean = true,
     showGeneralSection: Boolean = true,
@@ -138,6 +140,16 @@ internal fun LazyListScope.settingsRootContent(
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
+                    if (onOnboardingClick != null) {
+                        SettingsNavigationRow(
+                            title = "Quick Setup & Onboarding",
+                            description = "Revisit setup walkthrough and recommended CodeineXO defaults",
+                            icon = Icons.Rounded.AutoAwesome,
+                            isTablet = isTablet,
+                            onClick = onOnboardingClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                    }
                     SettingsNavigationRow(
                         title = stringResource(Res.string.compose_settings_page_appearance),
                         description = stringResource(Res.string.compose_settings_root_appearance_description),

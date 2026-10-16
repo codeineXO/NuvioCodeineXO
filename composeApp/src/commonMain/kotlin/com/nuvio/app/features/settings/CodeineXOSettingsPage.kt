@@ -3,6 +3,7 @@ package com.nuvio.app.features.settings
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Chat
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,7 +62,28 @@ import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.codeineXOSettingsContent(
     isTablet: Boolean,
+    onOnboardingClick: (() -> Unit)? = null,
 ) {
+    // ─── Quick Setup & Onboarding ───
+    if (onOnboardingClick != null) {
+        item {
+            SettingsSection(
+                title = "QUICK SETUP",
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsNavigationRow(
+                        title = "Revisit CodeineXO Onboarding",
+                        description = "Re-run setup wizard or review and apply recommended presets",
+                        icon = Icons.Rounded.AutoAwesome,
+                        isTablet = isTablet,
+                        onClick = onOnboardingClick,
+                    )
+                }
+            }
+        }
+    }
+
     // ─── Discord Support / Issue Reporting ───
     item {
         val tokens = MaterialTheme.nuvio

@@ -151,3 +151,10 @@ data class PlayerRoute(
     override val hidesNavigationBar: Boolean
         get() = true
 }
+
+@Serializable
+data class OnboardingRoute(
+    val isReviewMode: Boolean = false,
+    override val title: String = "",
+) : AppRoute
+
