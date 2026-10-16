@@ -40,13 +40,6 @@ else:
         smooth = core.svp2.SmoothFps(clip, super_clip["clip"], super_clip["data"], vectors["clip"], vectors["data"], smooth_p, src=clip, fps=src_fps)
         smooth = core.std.AssumeFPS(smooth, fpsnum=target_fps, fpsden=1)
         smooth.set_output()
-        try:
-            import os
-            log_path = os.path.expandvars(r"%APPDATA%\NuvioCodeineXO\svp.log")
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(f"CINEMA INTERPOLATION ACTIVE: {w}x{h} @ {src_fps:.3f}fps -> {target_fps}fps\n")
-        except Exception:
-            pass
     except Exception as e:
         try:
             import os
