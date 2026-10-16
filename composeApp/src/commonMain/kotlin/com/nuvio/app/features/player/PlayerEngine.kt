@@ -283,7 +283,7 @@ data class PlayerControlsState(
     val notificationToken: Long = 0L,
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerModeIndex: Int = 0,
-    val animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.AUTO,
+    val animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.OFF,
     val svpMotionOption: SvpMotionOption = SvpMotionOption.AUTO,
     val animeUpscalerActive: Boolean = false,
     val isAutoBypassed: Boolean = false,

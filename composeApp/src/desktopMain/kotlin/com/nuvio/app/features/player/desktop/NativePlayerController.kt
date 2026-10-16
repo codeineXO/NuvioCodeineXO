@@ -188,7 +188,7 @@ internal class NativePlayerController(
     private var pendingSubtitleStyle: SubtitleStyleState? = null
     private var pendingUseLibass: Boolean = false
     private var mediaContentType: MediaContentType = MediaContentType.UNKNOWN
-    private var animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.AUTO
+    private var animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.OFF
     private var animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST
     private var svpMotionOption: SvpMotionOption = SvpMotionOption.AUTO
     private var overrideAnimeUpscaler: Boolean? = null
@@ -541,7 +541,7 @@ internal class NativePlayerController(
             svpMode = overrideSvpProfile ?: when (svpMotionOption) {
                 SvpMotionOption.OFF -> "off"
                 SvpMotionOption.AUTO -> "auto"
-                SvpMotionOption.GLOBAL -> "cinema"
+                SvpMotionOption.GLOBAL -> "global"
             },
             svpActive = svpActive,
             svpProfile = currentSvpProfile,
@@ -683,14 +683,14 @@ internal class NativePlayerController(
             "anime" -> Pair(true, "anime")
             "cinema" -> Pair(true, "cinema")
             "auto" -> {
-                if (mediaContentType == MediaContentType.ANIME) {
+                if (mediaContentType == MediaContentType.ANIME || mediaContentType == MediaContentType.CARTOON) {
                     Pair(true, "anime")
                 } else {
                     Pair(false, "")
                 }
             }
             "global" -> {
-                if (mediaContentType == MediaContentType.ANIME) {
+                if (mediaContentType == MediaContentType.ANIME || mediaContentType == MediaContentType.CARTOON) {
                     Pair(true, "anime")
                 } else {
                     Pair(true, "cinema")
@@ -830,8 +830,9 @@ internal class NativePlayerController(
             "setAnimeUpscalerOption" -> {
                 overrideAnimeUpscaler = null
                 val option = when (value.toInt()) {
-                    0 -> AnimeUpscalerOption.AUTO
-                    1 -> AnimeUpscalerOption.ALWAYS_ON
+                    0 -> AnimeUpscalerOption.OFF
+                    1 -> AnimeUpscalerOption.AUTO
+                    2 -> AnimeUpscalerOption.ALWAYS_ON
                     else -> AnimeUpscalerOption.OFF
                 }
                 animeUpscalerOption = option
@@ -863,22 +864,17 @@ internal class NativePlayerController(
                     lastSentControlsStructureKey = null
                     updateControls(controlsState)
                 } else {
+                    overrideSvpProfile = null
                     when (mode) {
                         0 -> {
-                            overrideSvpProfile = "off"
                             svpMotionOption = SvpMotionOption.OFF
                             PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.OFF)
                         }
                         1 -> {
-                            overrideSvpProfile = "auto"
                             svpMotionOption = SvpMotionOption.AUTO
                             PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.AUTO)
                         }
-                        2 -> {
-                            overrideSvpProfile = "anime"
-                        }
-                        3 -> {
-                            overrideSvpProfile = "cinema"
+                        2, 3 -> {
                             svpMotionOption = SvpMotionOption.GLOBAL
                             PlayerSettingsRepository.setSvpMotionOption(SvpMotionOption.GLOBAL)
                         }

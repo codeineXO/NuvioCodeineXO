@@ -4,17 +4,17 @@ enum class AnimeUpscalerOption(
     val storageKey: String,
     val label: String,
 ) {
-    AUTO("auto", "Auto (Anime & Cartoons)"),
-    ALWAYS_ON("always_on", "Always On"),
-    OFF("off", "Off");
+    OFF("off", "Off"),
+    AUTO("auto", "Anime Only"),
+    ALWAYS_ON("always_on", "All Media");
 
     val isEnabled: Boolean get() = this != OFF
 
     companion object {
         fun fromStorageKey(key: String?): AnimeUpscalerOption = when (key?.lowercase()) {
-            "auto" -> AUTO
-            "always_on", "true", "enabled", "on" -> ALWAYS_ON
             "off", "false", "disabled" -> OFF
+            "auto", "anime" -> AUTO
+            "always_on", "true", "enabled", "on", "all" -> ALWAYS_ON
             else -> OFF
         }
     }
@@ -23,18 +23,19 @@ enum class AnimeUpscalerOption(
 enum class SvpMotionOption(
     val storageKey: String,
     val label: String,
+    val description: String,
 ) {
-    AUTO("auto", "Auto (Anime Only)"),
-    GLOBAL("global", "Global (All Media)"),
-    OFF("off", "Off");
+    OFF("off", "Off", "Disable motion interpolation"),
+    AUTO("auto", "Anime Only", "Smooth motion interpolation for Anime and Cartoons"),
+    GLOBAL("global", "All Media", "Smooth motion across all media using content-tuned profiles");
 
     val isEnabled: Boolean get() = this != OFF
 
     companion object {
         fun fromStorageKey(key: String?): SvpMotionOption = when (key?.lowercase()) {
-            "auto" -> AUTO
-            "global", "all" -> GLOBAL
             "off", "disabled" -> OFF
+            "auto", "anime" -> AUTO
+            "global", "all", "cinema" -> GLOBAL
             else -> OFF
         }
     }

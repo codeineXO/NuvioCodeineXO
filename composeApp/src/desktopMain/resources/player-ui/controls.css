@@ -2765,11 +2765,16 @@ button:disabled {
 
 .enhancement-section-title {
   padding: 12px 14px 4px;
-  color: var(--theme-text-muted);
-  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.enhancement-section-title:not(:first-child) {
+  margin-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .enhancement-warning-note {
@@ -2778,6 +2783,29 @@ button:disabled {
   font-size: 11px;
   font-weight: 500;
   line-height: 1.4;
+}
+
+.enhancement-stepper-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  box-sizing: border-box;
+}
+
+.enhancement-stepper-card .stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.enhancement-stepper-card .stepper-value {
+  flex: 1 1 auto;
+  max-width: 180px;
+  user-select: none;
 }
 
 .enhancement-status-banner {
@@ -2924,8 +2952,11 @@ button:disabled {
   border-color: rgba(255, 255, 255, .20);
 }
 
+.track-row:disabled,
 .track-row.disabled {
-  opacity: .45;
+  opacity: 0.38;
+  pointer-events: none;
+  cursor: default;
 }
 
 .track-row:hover:not(:disabled) {
@@ -5462,25 +5493,43 @@ svg {
   width: 100%;
 }
 
-.player.ui-codeinexo #subtitleModal .stepper-value {
+.player.ui-codeinexo #shaderModal .enhancement-stepper-card {
+  background: rgba(0, 0, 0, 0.60);
+  backdrop-filter: blur(160px) saturate(160%);
+  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  min-height: 52px;
+  padding: 8px 14px;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .stepper-value {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.player.ui-codeinexo #subtitleModal .round-step {
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .round-step {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
-.player.ui-codeinexo #subtitleModal .round-step:hover:not(:disabled) {
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .round-step:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.16);
   border-color: rgba(255, 255, 255, 0.20);
   color: #fff;
 }
 
-.player.ui-codeinexo #subtitleModal .round-step:active:not(:disabled) {
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .round-step:active:not(:disabled) {
   transform: scale(0.96);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row:disabled,
+.player.ui-codeinexo .player-rail-modal .track-row.disabled {
+  opacity: 0.38 !important;
+  pointer-events: none !important;
+  cursor: default !important;
 }
 
 /* Official UI Preservation */

@@ -73,6 +73,8 @@ import com.nuvio.app.features.player.AndroidPlaybackEngine
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.SvpMotionOption
+import com.nuvio.app.features.player.SvpRuntimeInstaller
+import com.nuvio.app.features.player.SvpRuntimeDownloadState
 import com.nuvio.app.features.player.AudioLanguageOption
 import com.nuvio.app.features.player.AvailableLanguageOptions
 import com.nuvio.app.features.player.ExternalPlayerApp
@@ -1387,9 +1389,15 @@ private fun PlaybackSettingsSection(
                         )
                     }
                     SettingsGroupDivider(isTablet = isTablet)
+                    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+                    val svpDescription = when (val s = svpDownloadState) {
+                        is SvpRuntimeDownloadState.Downloading -> "Downloading runtime... ${(s.progress * 100).toInt()}%"
+                        is SvpRuntimeDownloadState.Extracting -> "Extracting runtime pack..."
+                        else -> autoPlayPlayerSettings.svpMotionOption.label
+                    }
                     SettingsNavigationRow(
                         title = "Motion Interpolation (SVP)",
-                        description = autoPlayPlayerSettings.svpMotionOption.label,
+                        description = svpDescription,
                         isTablet = isTablet,
                         onClick = { showSvpMotionOptionDialog = true },
                     )
@@ -2255,6 +2263,9 @@ internal fun SvpMotionOptionDialog(
     onOptionSelected: (SvpMotionOption) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+    val isInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
+
     DialogSurface(
         onDismissRequest = onDismiss,
         title = "Motion Interpolation (SVP)",
@@ -2263,21 +2274,107 @@ internal fun SvpMotionOptionDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = "Requires VapourSynth or SVP 4 to be installed on your system.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-            )
+            if (isInstalled) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = "Runtime Pack Installed — 60 FPS motion smoothing ready",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            } else if (SvpRuntimeInstaller.isSupported) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "VapourSynth & SVP runtime pack (~26 MB) is required for real-time 60 FPS interpolation without external software.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        when (val s = svpDownloadState) {
+                            is SvpRuntimeDownloadState.Downloading -> {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    androidx.compose.material3.LinearProgressIndicator(
+                                        progress = { s.progress },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text(
+                                        text = "Downloading runtime... ${(s.progress * 100).toInt()}%",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            is SvpRuntimeDownloadState.Extracting -> {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                    Text(
+                                        text = "Extracting and registering runtime...",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            is SvpRuntimeDownloadState.Error -> {
+                                Text(
+                                    text = "Error: ${s.message}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                androidx.compose.material3.Button(
+                                    onClick = { SvpRuntimeInstaller.startDownload() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Retry Download")
+                                }
+                            }
+                            else -> {
+                                androidx.compose.material3.Button(
+                                    onClick = { SvpRuntimeInstaller.startDownload() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Download Motion Smoothing Pack (~26 MB)")
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "Requires VapourSynth or SVP 4 to be installed on your system.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
             SvpMotionOption.entries.forEach { option ->
                 val isSelected = option == selectedOption
                 DialogOption(
                     text = option.label,
-                    description = when (option) {
-                        SvpMotionOption.AUTO -> "Smooth motion on anime content; protect live action films"
-                        SvpMotionOption.GLOBAL -> "Smooth motion across all media using content-tuned profiles"
-                        SvpMotionOption.OFF -> "Disable VapourSynth and SVP frame interpolation"
-                    },
+                    description = option.description,
                     selected = isSelected,
                     onClick = { onOptionSelected(option) },
                 )

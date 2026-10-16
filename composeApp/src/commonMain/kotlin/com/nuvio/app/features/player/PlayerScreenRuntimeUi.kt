@@ -1224,8 +1224,9 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         }
         "setAnimeUpscalerOption" -> {
             val option = when (value.toInt()) {
-                0 -> AnimeUpscalerOption.AUTO
-                1 -> AnimeUpscalerOption.ALWAYS_ON
+                0 -> AnimeUpscalerOption.OFF
+                1 -> AnimeUpscalerOption.AUTO
+                2 -> AnimeUpscalerOption.ALWAYS_ON
                 else -> AnimeUpscalerOption.OFF
             }
             PlayerSettingsRepository.setAnimeUpscalerOption(option)

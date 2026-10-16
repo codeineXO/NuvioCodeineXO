@@ -468,7 +468,7 @@ let state = {
   notificationToken: 0,
   animeUpscalerEnabled: false,
   animeUpscalerModeIndex: 0,
-  animeUpscalerOption: "auto",
+  animeUpscalerOption: "off",
   animeUpscalerActive: false,
   isAutoBypassed: false,
   svpMode: "auto",
@@ -1521,18 +1521,22 @@ const renderSpeedOptionList = () => {
   lastRenderedModalSignature = getSpeedModalSignature();
 };
 
-const upscalerOptions = [
-  { mode: "off", label: "Off", description: "Disable upscaler shaders" },
+const animeUpscalerProfiles = [
   { mode: "fast", modeIndex: 0, label: "Fast", description: "Low-end PCs & laptops" },
   { mode: "soft", modeIndex: 1, label: "Soft & Clear", description: "Smooth lines & balanced detail" },
   { mode: "sharp", modeIndex: 2, label: "Sharp & Detailed", description: "Maximum clarity & fine lines" },
 ];
 
+const animeUpscalerToggleOptions = [
+  { key: "off", label: "Off", value: 0 },
+  { key: "auto", label: "Anime Only", value: 1 },
+  { key: "always_on", label: "All Media", value: 2 },
+];
+
 const svpOptions = [
   { mode: "off", modeValue: 0, label: "Off", description: "Disable motion interpolation" },
-  { mode: "auto", modeValue: 1, label: "Auto", description: "Auto-detect content (Anime Only)" },
-  { mode: "anime", modeValue: 2, label: "Anime (Smooth)", description: "Tuned for 2D animation (algo: 13, dithering)" },
-  { mode: "cinema", modeValue: 3, label: "Cinema (Smooth)", description: "Tuned for film grain & live action (algo: 21, subpixel)" },
+  { mode: "auto", modeValue: 1, label: "Anime Only", description: "Smooth motion interpolation for Anime and Cartoons" },
+  { mode: "global", modeValue: 2, label: "All Media", description: "Smooth motion across all media using content-tuned profiles" },
 ];
 
 const getShaderModalSignature = () => [
@@ -1554,72 +1558,97 @@ const renderShaderOptionList = () => {
     shaderPanelTitle.textContent = "Enhancements";
   }
 
-  // ─── Section 1: Spatial Upscaler (Anime4K) ───
+  // ─── Section 1: Anime Upscaler ───
   const upscalerHeader = document.createElement("div");
   upscalerHeader.className = "enhancement-section-title";
-  upscalerHeader.textContent = "Spatial Upscaler (Anime4K)";
+  upscalerHeader.textContent = "Anime Upscaler";
   shaderOptionList.appendChild(upscalerHeader);
 
-  const isBypassed = Boolean(state.isAutoBypassed);
-  const upscalerActive = Boolean(state.animeUpscalerActive);
   const currentModeIndex = Number(state.animeUpscalerModeIndex) || 0;
-
-  if (isBypassed) {
-    const banner = document.createElement("div");
-    banner.className = "enhancement-status-banner";
-    const bannerText = document.createElement("span");
-    bannerText.textContent = "Auto: Bypassed (Live Action)";
-    banner.appendChild(bannerText);
-
-    const forceBtn = document.createElement("button");
-    forceBtn.type = "button";
-    forceBtn.className = "enhancement-force-btn";
-    forceBtn.textContent = "Force On";
-    forceBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      state.isAutoBypassed = false;
-      state.animeUpscalerActive = true;
-      state.animeUpscalerOption = "always_on";
-      send("forceAnimeUpscalerOn", 1);
-      renderShaderOptionList();
-      renderChrome();
-    });
-    banner.appendChild(forceBtn);
-    shaderOptionList.appendChild(banner);
+  const currentUpscalerOption = (state.animeUpscalerOption || "off").toLowerCase();
+  let currentToggleIndex = animeUpscalerToggleOptions.findIndex(opt => opt.key === currentUpscalerOption);
+  if (currentToggleIndex < 0) {
+    currentToggleIndex = 0;
   }
+  const isOff = animeUpscalerToggleOptions[currentToggleIndex].key === "off";
 
-  upscalerOptions.forEach(opt => {
-    let isSelected = false;
-    if (opt.mode === "off") {
-      isSelected = !upscalerActive && !isBypassed;
-    } else {
-      isSelected = upscalerActive && currentModeIndex === opt.modeIndex;
+  const applyUpscalerOptionByIndex = index => {
+    const nextOption = animeUpscalerToggleOptions[index];
+    state.animeUpscalerOption = nextOption.key;
+    if (nextOption.key === "off") {
+      state.animeUpscalerActive = false;
+      state.isAutoBypassed = false;
+    } else if (nextOption.key === "always_on") {
+      state.animeUpscalerActive = true;
+      state.isAutoBypassed = false;
+    } else if (nextOption.key === "auto") {
+      const isAnime = state.mediaContentType === "anime" || state.mediaContentType === "cartoon";
+      state.animeUpscalerActive = isAnime;
+      state.isAutoBypassed = !isAnime;
     }
+    send("setAnimeUpscalerOption", nextOption.value);
+    renderShaderOptionList();
+    renderChrome();
+  };
+
+  const stepperCard = document.createElement("div");
+  stepperCard.className = "enhancement-stepper-card";
+
+  const stepper = document.createElement("div");
+  stepper.className = "stepper";
+
+  const minusBtn = document.createElement("button");
+  minusBtn.className = "round-step";
+  minusBtn.type = "button";
+  minusBtn.textContent = "-";
+  minusBtn.setAttribute("aria-label", "Previous mode");
+  minusBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    const nextIndex = (currentToggleIndex - 1 + animeUpscalerToggleOptions.length) % animeUpscalerToggleOptions.length;
+    applyUpscalerOptionByIndex(nextIndex);
+  });
+
+  const valueSpan = document.createElement("span");
+  valueSpan.className = "stepper-value wide";
+  valueSpan.textContent = animeUpscalerToggleOptions[currentToggleIndex].label;
+
+  const plusBtn = document.createElement("button");
+  plusBtn.className = "round-step";
+  plusBtn.type = "button";
+  plusBtn.textContent = "+";
+  plusBtn.setAttribute("aria-label", "Next mode");
+  plusBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    const nextIndex = (currentToggleIndex + 1) % animeUpscalerToggleOptions.length;
+    applyUpscalerOptionByIndex(nextIndex);
+  });
+
+  stepper.appendChild(minusBtn);
+  stepper.appendChild(valueSpan);
+  stepper.appendChild(plusBtn);
+  stepperCard.appendChild(stepper);
+  shaderOptionList.appendChild(stepperCard);
+
+  animeUpscalerProfiles.forEach(opt => {
+    const isSelected = !isOff && currentModeIndex === opt.modeIndex;
 
     const row = document.createElement("button");
     row.type = "button";
-    row.className = `track-row${isSelected ? " selected" : ""}`;
-    row.addEventListener("click", event => {
-      event.stopPropagation();
-      if (opt.mode === "off") {
-        state.animeUpscalerActive = false;
-        state.isAutoBypassed = false;
-        state.animeUpscalerOption = "off";
-        send("setAnimeUpscalerOption", 2);
-      } else {
-        state.animeUpscalerActive = true;
-        state.isAutoBypassed = false;
+    row.className = `track-row${isSelected ? " selected" : ""}${isOff ? " disabled" : ""}`;
+    if (isOff) {
+      row.disabled = true;
+      row.setAttribute("disabled", "");
+      row.setAttribute("aria-disabled", "true");
+    } else {
+      row.addEventListener("click", event => {
+        event.stopPropagation();
         state.animeUpscalerModeIndex = opt.modeIndex;
         send("setAnimeUpscalerMode", opt.modeIndex);
-        if (!upscalerActive || isBypassed) {
-          state.animeUpscalerOption = "always_on";
-          send("setAnimeUpscalerOption", 1);
-        }
-      }
-      renderShaderOptionList();
-      renderChrome();
-      window.setTimeout(closePlayerModal, 120);
-    });
+        renderShaderOptionList();
+        renderChrome();
+        window.setTimeout(closePlayerModal, 120);
+      });
+    }
 
     const copy = document.createElement("span");
     copy.className = "audio-track-copy";
@@ -1660,14 +1689,14 @@ const renderShaderOptionList = () => {
 
   svpOptions.forEach(opt => {
     let isSelected = false;
-    if (opt.mode === "off") {
-      isSelected = svpMode === "off" || (!svpActive && svpMode !== "auto") || !svpAvailable;
+    if (!svpAvailable) {
+      isSelected = opt.mode === "off";
+    } else if (opt.mode === "off") {
+      isSelected = svpMode === "off";
     } else if (opt.mode === "auto") {
-      isSelected = svpAvailable && svpMode === "auto";
-    } else if (opt.mode === "anime") {
-      isSelected = svpAvailable && svpMode === "anime";
-    } else if (opt.mode === "cinema") {
-      isSelected = svpAvailable && (svpMode === "cinema" || svpMode === "global");
+      isSelected = svpMode === "auto" || svpMode === "anime";
+    } else if (opt.mode === "global") {
+      isSelected = svpMode === "global" || svpMode === "cinema";
     }
 
     const row = document.createElement("button");
@@ -1684,6 +1713,7 @@ const renderShaderOptionList = () => {
       }
       state.svpMode = opt.mode;
       send("setSvpMode", opt.modeValue);
+      showPlayerToast(opt.mode === "off" ? "Motion Smoothing: Off" : `Motion Smoothing: ${opt.label}`);
       renderShaderOptionList();
       renderChrome();
       window.setTimeout(closePlayerModal, 120);
@@ -1706,6 +1736,8 @@ const renderShaderOptionList = () => {
         descText += ` — Active: ${svpProfile === "anime" ? "Anime" : "Cinema"}`;
       } else if (opt.mode === "auto" && !svpActive && state.mediaContentType === "live_action") {
         descText += " — Inactive: Live Action";
+      } else if (opt.mode === "global" && svpActive && svpProfile) {
+        descText += ` — Active: ${svpProfile === "anime" ? "Anime" : "Live Action"}`;
       }
       desc.textContent = descText;
       copy.appendChild(desc);
@@ -3618,11 +3650,18 @@ const renderChrome = () => {
     if (codeineSpeedButton) codeineSpeedButton.setAttribute("title", state.playbackSpeedLabel || "1x");
     if (codeineSubtitlesButton) codeineSubtitlesButton.setAttribute("title", state.subtitlesLabel || "Subs");
     if (codeineAudioButton) codeineAudioButton.setAttribute("title", state.audioLabel || "Audio");
+    const isEnhancementActive = Boolean(state.animeUpscalerEnabled || (state.svpActive && state.svpAvailable !== false));
+    const enhancementsTitle = isEnhancementActive ? "Enhancements (Active)" : "Enhancements";
     if (codeineShadersButton) {
-      codeineShadersButton.classList.toggle("active", Boolean(state.animeUpscalerEnabled));
-      const upscalerTitle = state.animeUpscalerEnabled ? "Anime Upscaler (Enabled)" : "Anime Upscaler";
-      codeineShadersButton.setAttribute("title", upscalerTitle);
-      codeineShadersButton.setAttribute("aria-label", upscalerTitle);
+      codeineShadersButton.classList.toggle("active", isEnhancementActive);
+      codeineShadersButton.setAttribute("title", enhancementsTitle);
+      codeineShadersButton.setAttribute("aria-label", enhancementsTitle);
+    }
+    const classicShadersButton = document.querySelector('.action[data-command="shaders"]');
+    if (classicShadersButton) {
+      classicShadersButton.classList.toggle("active", isEnhancementActive);
+      classicShadersButton.setAttribute("title", enhancementsTitle);
+      classicShadersButton.setAttribute("aria-label", enhancementsTitle);
     }
     if (codeineSourcesButton) codeineSourcesButton.setAttribute("title", state.sourcesLabel || "Sources");
     if (codeineEpisodesButton) codeineEpisodesButton.setAttribute("title", state.episodesLabel || "Episodes");

@@ -34,6 +34,8 @@ import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
 import com.nuvio.app.features.player.SvpMotionOption
+import com.nuvio.app.features.player.SvpRuntimeInstaller
+import com.nuvio.app.features.player.SvpRuntimeDownloadState
 import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
@@ -232,9 +234,15 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         )
                     }
                     SettingsGroupDivider(isTablet = isTablet)
+                    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+                    val svpDescription = when (val s = svpDownloadState) {
+                        is SvpRuntimeDownloadState.Downloading -> "Downloading runtime... ${(s.progress * 100).toInt()}%"
+                        is SvpRuntimeDownloadState.Extracting -> "Extracting runtime pack..."
+                        else -> playerSettings.svpMotionOption.label
+                    }
                     SettingsNavigationRow(
                         title = "Motion Interpolation (SVP)",
-                        description = playerSettings.svpMotionOption.label,
+                        description = svpDescription,
                         isTablet = isTablet,
                         onClick = { showSvpMotionOptionDialog = true },
                     )

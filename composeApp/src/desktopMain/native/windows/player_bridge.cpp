@@ -728,8 +728,16 @@ static bool ensureVapourSynthLoaded() {
     candidateDirs.push_back(L"C:\\Program Files (x86)\\SVP 4");
     candidateDirs.push_back(L"C:\\Program Files\\SVP 4");
 
+    wchar_t roamingAppPath[MAX_PATH] = {0};
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, roamingAppPath))) {
+        candidateDirs.push_back(std::wstring(roamingAppPath) + L"\\NuvioCodeineXO\\vapoursynth");
+        candidateDirs.push_back(std::wstring(roamingAppPath) + L"\\NuvioCodeineXO\\vapoursynth\\core");
+    }
+
     wchar_t localAppPath[MAX_PATH] = {0};
     if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, localAppPath))) {
+        candidateDirs.push_back(std::wstring(localAppPath) + L"\\NuvioCodeineXO\\vapoursynth");
+        candidateDirs.push_back(std::wstring(localAppPath) + L"\\NuvioCodeineXO\\vapoursynth\\core");
         candidateDirs.push_back(std::wstring(localAppPath) + L"\\Programs\\VapourSynth\\core");
         candidateDirs.push_back(std::wstring(localAppPath) + L"\\Programs\\VapourSynth");
     }
@@ -738,12 +746,36 @@ static bool ensureVapourSynthLoaded() {
         std::wstring candidateDll = dir + L"\\VSScript.dll";
         DWORD attrib = GetFileAttributesW(candidateDll.c_str());
         if (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY)) {
+            // Ensure portable.vs marker exists so VapourSynth discovers its plugins locally
+            std::wstring portableMarker = dir + L"\\portable.vs";
+            HANDLE hMarker = CreateFileW(portableMarker.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (hMarker != INVALID_HANDLE_VALUE) {
+                CloseHandle(hMarker);
+            }
+
+            // Prepend dir to PATH so Python can load dependent runtime DLLs
+            wchar_t currentPath[32768] = {0};
+            DWORD pathLen = GetEnvironmentVariableW(L"PATH", currentPath, 32768);
+            if (pathLen > 0 && pathLen < 32768) {
+                std::wstring newPath = dir + L";" + currentPath;
+                SetEnvironmentVariableW(L"PATH", newPath.c_str());
+            } else {
+                SetEnvironmentVariableW(L"PATH", dir.c_str());
+            }
+
             SetDllDirectoryW(dir.c_str());
+            SetEnvironmentVariableW(L"VSSCRIPT_PATH", candidateDll.c_str());
             sVSScriptModule = LoadLibraryExW(candidateDll.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
             if (sVSScriptModule) {
-                sAvailable.store(true);
-                sChecked.store(true);
-                return true;
+                using getVSScriptAPI_fn = const void *(*)(int);
+                auto pGetVSScriptAPI = reinterpret_cast<getVSScriptAPI_fn>(GetProcAddress(sVSScriptModule, "getVSScriptAPI"));
+                if (pGetVSScriptAPI && pGetVSScriptAPI((4 << 16) | 0) != nullptr) {
+                    sAvailable.store(true);
+                    sChecked.store(true);
+                    return true;
+                }
+                FreeLibrary(sVSScriptModule);
+                sVSScriptModule = nullptr;
             }
         }
     }
@@ -751,6 +783,18 @@ static bool ensureVapourSynthLoaded() {
     sAvailable.store(false);
     sChecked.store(true);
     return false;
+}
+
+static void logSvpEvent(const char *msg) {
+    wchar_t appPath[MAX_PATH] = {0};
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, appPath))) {
+        std::wstring logFile = std::wstring(appPath) + L"\\NuvioCodeineXO\\svp.log";
+        FILE *f = _wfopen(logFile.c_str(), L"a, ccs=UTF-8");
+        if (f) {
+            fwprintf(f, L"%S\n", msg);
+            fclose(f);
+        }
+    }
 }
 
 // Demuxer cache sizing. The streaming window is large on purpose: the engine
@@ -1108,8 +1152,11 @@ public:
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (mpv) {
-                const char *cmd[] = {"vf", "clr", nullptr};
+                const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
+                executeMpvCommandSeh(mpv, remCmd);
+                const char *cmd[] = {"vf", "clr", "", nullptr};
                 executeMpvCommandSeh(mpv, cmd);
+                mpvApi().setPropertyString(mpv, "vf", "");
                 if (mpvApi().wakeup) {
                     mpvApi().wakeup(mpv);
                 }
@@ -1120,8 +1167,11 @@ public:
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (mpv) {
-                const char *cmd[] = {"vf", "clr", nullptr};
+                const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
+                executeMpvCommandSeh(mpv, remCmd);
+                const char *cmd[] = {"vf", "clr", "", nullptr};
                 executeMpvCommandSeh(mpv, cmd);
+                mpvApi().setPropertyString(mpv, "vf", "");
                 mpvApi().terminateDestroy(mpv);
                 mpv = nullptr;
             }
@@ -1417,11 +1467,14 @@ public:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         if (filter.empty()) {
-            const char *cmd[] = {"vf", "clr", nullptr};
-            mpvApi().command(mpv, cmd);
+            const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
+            executeMpvCommandSeh(mpv, remCmd);
+            const char *cmd[] = {"vf", "clr", "", nullptr};
+            executeMpvCommandSeh(mpv, cmd);
+            mpvApi().setPropertyString(mpv, "vf", "");
         } else {
             const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
-            mpvApi().command(mpv, cmd);
+            executeMpvCommandSeh(mpv, cmd);
         }
     }
 
@@ -1435,14 +1488,16 @@ public:
             }
             mpvApi().setPropertyString(mpv, "hwdec", "auto-copy");
             mpvApi().setPropertyString(mpv, "demuxer-max-bytes", "1024MiB");
+            mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "no");
+            mpvApi().setPropertyString(mpv, "vd-queue-enable", "yes");
+            mpvApi().setPropertyString(mpv, "vd-queue-max-bytes", "1024MiB");
+            mpvApi().setPropertyString(mpv, "vd-queue-max-samples", "120");
 
             std::string escapedPath;
             for (char c : vpyPath) {
-                if (c == ':') {
-                    escapedPath += "\\:";
-                } else if (c == '\\') {
+                if (c == '\\') {
                     escapedPath += "/";
-                } else {
+                } else if (c != '"') {
                     escapedPath += c;
                 }
             }
@@ -1450,17 +1505,40 @@ public:
             const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
             bool success = executeMpvCommandSeh(mpv, cmd);
             if (!success) {
-                const char *clrCmd[] = {"vf", "clr", nullptr};
-                executeMpvCommandSeh(mpv, clrCmd);
-                mpvApi().setPropertyString(mpv, "hwdec", "auto");
+                const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
+                executeMpvCommandSeh(mpv, remCmd);
+                if (nvidiaRtxSuperResolutionActive) {
+                    mpvApi().setPropertyString(mpv, "vf", "d3d11vpp=scale=2:scaling-mode=nvidia");
+                    mpvApi().setPropertyString(mpv, "hwdec", "d3d11va");
+                } else {
+                    const char *clrCmd[] = {"vf", "clr", "", nullptr};
+                    executeMpvCommandSeh(mpv, clrCmd);
+                    mpvApi().setPropertyString(mpv, "vf", "");
+                    mpvApi().setPropertyString(mpv, "hwdec", "auto");
+                }
+                mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
+                mpvApi().setPropertyString(mpv, "vd-queue-enable", "no");
+                logSvpEvent("SVP FILTER ATTACH FAILED (cleared from MPV pipeline)");
                 sendPlayerEvent("svp_error", 1.0);
                 return false;
             }
+            logSvpEvent("SVP FILTER ATTACHED to MPV pipeline");
             return true;
         } else {
-            mpvApi().setPropertyString(mpv, "hwdec", "auto");
-            const char *cmd[] = {"vf", "clr", nullptr};
-            executeMpvCommandSeh(mpv, cmd);
+            const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
+            executeMpvCommandSeh(mpv, remCmd);
+            if (nvidiaRtxSuperResolutionActive) {
+                mpvApi().setPropertyString(mpv, "vf", "d3d11vpp=scale=2:scaling-mode=nvidia");
+                mpvApi().setPropertyString(mpv, "hwdec", "d3d11va");
+            } else {
+                const char *clrCmd[] = {"vf", "clr", "", nullptr};
+                executeMpvCommandSeh(mpv, clrCmd);
+                mpvApi().setPropertyString(mpv, "vf", "");
+                mpvApi().setPropertyString(mpv, "hwdec", "auto");
+            }
+            mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
+            mpvApi().setPropertyString(mpv, "vd-queue-enable", "no");
+            logSvpEvent("SVP FILTER DETACHED from MPV pipeline");
             return true;
         }
     }
@@ -1621,6 +1699,7 @@ private:
     std::atomic_bool stopping = false;
     std::atomic_bool shuttingDown = false;
     std::atomic_bool hwdecLogged = false;  // one-shot log for hwdec-current
+    bool nvidiaRtxSuperResolutionActive = false;
 
     bool hasAppliedSubtitleStyle = false;
     bool appliedSubtitleUseLibass = false;
@@ -1950,6 +2029,7 @@ private:
                 throw std::runtime_error("mpv_create failed.");
             }
             initialStartSeconds = initialPositionMs > 0 ? (double)initialPositionMs / 1000.0 : 0.0;
+            nvidiaRtxSuperResolutionActive = nvidiaRtxSuperResolutionEnabled;
 
             setMpvOptionStringLocked("config", "no");
             setMpvOptionStringLocked("osc", "no");
