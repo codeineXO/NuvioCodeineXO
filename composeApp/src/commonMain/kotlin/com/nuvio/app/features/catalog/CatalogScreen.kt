@@ -25,7 +25,18 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.nuvio.app.core.ui.NuvioBackButton
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioConsumePointerEvents
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +44,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -41,8 +51,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -120,7 +130,6 @@ fun CatalogScreen(
         initialFirstVisibleItemIndex = initialScrollPosition.firstVisibleItemIndex,
         initialFirstVisibleItemScrollOffset = initialScrollPosition.firstVisibleItemScrollOffset,
     )
-    var headerHeightPx by remember { mutableIntStateOf(0) }
     var observedOfflineState by remember { mutableStateOf(false) }
 
     LaunchedEffect(target, homeCatalogSettingsUiState.hideUnreleasedContent) {
@@ -219,106 +228,110 @@ fun CatalogScreen(
                     gridState = gridState,
                 )
             }
-            LazyVerticalGrid(
-                columns = gridCells,
-                state = gridState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = pageHorizontalPadding,
-                    top = with(androidx.compose.ui.platform.LocalDensity.current) { headerHeightPx.toDp() } + 12.dp,
-                    end = pageHorizontalPadding,
-                    bottom = nuvioSafeBottomPadding(28.dp),
-                ),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
-            ) {
-                if (uiState.items.isEmpty() && uiState.isLoading) {
-                    items(columns * 3) {
-                        if (isDesktop) {
-                            CatalogSkeletonTile(
-                                cornerRadiusDp = posterCardStyle.cornerRadiusDp,
-                                aspectRatio = if (posterCardStyle.catalogLandscapeModeEnabled) {
-                                    PosterLandscapeAspectRatio
+            Column(modifier = Modifier.fillMaxSize()) {
+                CatalogHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    pageHorizontalPadding = pageHorizontalPadding,
+                    onBack = onBack,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) {
+                    LazyVerticalGrid(
+                        columns = gridCells,
+                        state = gridState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = pageHorizontalPadding,
+                            end = pageHorizontalPadding,
+                            bottom = nuvioSafeBottomPadding(28.dp),
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
+                        if (uiState.items.isEmpty() && uiState.isLoading) {
+                            items(columns * 3) {
+                                if (isDesktop) {
+                                    CatalogSkeletonTile(
+                                        cornerRadiusDp = posterCardStyle.cornerRadiusDp,
+                                        aspectRatio = if (posterCardStyle.catalogLandscapeModeEnabled) {
+                                            PosterLandscapeAspectRatio
+                                        } else {
+                                            0.68f
+                                        },
+                                    )
                                 } else {
-                                    0.68f
-                                },
-                            )
-                        } else {
-                            SkeletonPoster(
-                                modifier = Modifier.fillMaxWidth(),
-                                cornerRadius = posterCardStyle.cornerRadiusDp.dp,
-                                showLabels = !posterCardStyle.hideLabelsEnabled,
-                            )
-                        }
-                    }
-                } else if (uiState.items.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        CatalogEmptyState(
-                            errorMessage = uiState.errorMessage,
-                            networkCondition = networkStatusUiState.condition,
-                            onRetry = {
-                                NetworkStatusRepository.requestRefresh(force = true)
-                                CatalogRepository.load(
-                                    target = target,
-                                    force = true,
+                                    SkeletonPoster(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        cornerRadius = posterCardStyle.cornerRadiusDp.dp,
+                                        showLabels = !posterCardStyle.hideLabelsEnabled,
+                                    )
+                                }
+                            }
+                        } else if (uiState.items.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                CatalogEmptyState(
+                                    errorMessage = uiState.errorMessage,
+                                    networkCondition = networkStatusUiState.condition,
+                                    onRetry = {
+                                        NetworkStatusRepository.requestRefresh(force = true)
+                                        CatalogRepository.load(
+                                            target = target,
+                                            force = true,
+                                        )
+                                    },
                                 )
-                            },
-                        )
-                    }
-                } else {
-                    items(
-                        items = uiState.items.withDuplicateSafeLazyKeys { item -> item.stableKey() },
-                        key = { item -> item.lazyKey },
-                    ) { keyedItem ->
-                        val item = keyedItem.value
-                        val isWatched = WatchingState.isPosterWatched(
-                            watchedKeys = watchedUiState.watchedKeys,
-                            item = item,
-                            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                        )
-                        if (isDesktop) {
-                            HomePosterCard(
-                                item = item,
-                                useLandscapeBackdropMode = posterCardStyle.catalogLandscapeModeEnabled,
-                                isWatched = isWatched,
-                                fillMaxWidth = true,
-                                onClick = onPosterClick?.let { { it(item) } },
-                                onLongClick = onPosterLongClick?.let { { it(item) } },
-                            )
+                            }
                         } else {
-                            CatalogPosterTile(
-                                item = item,
-                                cornerRadiusDp = posterCardStyle.cornerRadiusDp,
-                                hideLabels = posterCardStyle.hideLabelsEnabled,
-                                isWatched = isWatched,
-                                onClick = onPosterClick?.let { { it(item) } },
-                                onLongClick = onPosterLongClick?.let { { it(item) } },
-                            )
+                            items(
+                                items = uiState.items.withDuplicateSafeLazyKeys { item -> item.stableKey() },
+                                key = { item -> item.lazyKey },
+                            ) { keyedItem ->
+                                val item = keyedItem.value
+                                val isWatched = WatchingState.isPosterWatched(
+                                    watchedKeys = watchedUiState.watchedKeys,
+                                    item = item,
+                                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                                )
+                                if (isDesktop) {
+                                    HomePosterCard(
+                                        item = item,
+                                        useLandscapeBackdropMode = posterCardStyle.catalogLandscapeModeEnabled,
+                                        isWatched = isWatched,
+                                        fillMaxWidth = true,
+                                        onClick = onPosterClick?.let { { it(item) } },
+                                        onLongClick = onPosterLongClick?.let { { it(item) } },
+                                    )
+                                } else {
+                                    CatalogPosterTile(
+                                        item = item,
+                                        cornerRadiusDp = posterCardStyle.cornerRadiusDp,
+                                        hideLabels = posterCardStyle.hideLabelsEnabled,
+                                        isWatched = isWatched,
+                                        onClick = onPosterClick?.let { { it(item) } },
+                                        onLongClick = onPosterLongClick?.let { { it(item) } },
+                                    )
+                                }
+                            }
+                            if (uiState.isLoading) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    CatalogLoadingFooter()
+                                }
+                            }
                         }
                     }
-                    if (uiState.isLoading) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            CatalogLoadingFooter()
-                        }
-                    }
+                    NuvioDesktopVerticalScrollbar(
+                        state = gridState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                    )
                 }
             }
-            NuvioDesktopVerticalScrollbar(
-                state = gridState,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-            )
-
-            CatalogHeader(
-                title = title,
-                subtitle = subtitle,
-                pageHorizontalPadding = pageHorizontalPadding,
-                auraBackgroundEnabled = auraBackgroundEnabled,
-                modifier = Modifier.onSizeChanged { headerHeightPx = it.height },
-                onBack = onBack,
-            )
         }
     }
 }
@@ -328,7 +341,6 @@ private fun CatalogHeader(
     title: String,
     subtitle: String,
     pageHorizontalPadding: Dp,
-    auraBackgroundEnabled: Boolean = false,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -342,56 +354,85 @@ private fun CatalogHeader(
         return
     }
 
+    val tokens = MaterialTheme.nuvio
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val effectiveTopPadding = statusBarTop + MaterialTheme.nuvio.spacing.screenTop
+    val effectiveTopPadding = statusBarTop + tokens.spacing.screenTop
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                if (auraBackgroundEnabled) {
-                    MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
-                } else {
-                    MaterialTheme.colorScheme.background
-                }
-            )
+            .background(Color.Transparent)
             .nuvioConsumePointerEvents()
             .padding(horizontal = pageHorizontalPadding)
-            .padding(top = effectiveTopPadding, bottom = 12.dp),
+            .padding(top = effectiveTopPadding, bottom = NuvioTokens.Space.s4),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        NuvioBackButton(
-            onClick = onBack,
-            modifier = Modifier.size(if (isDesktop) 44.dp else 40.dp),
-            buttonSize = if (isDesktop) 44.dp else 40.dp,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            iconSize = 24.dp,
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = stringResource(Res.string.action_back),
+                tint = tokens.colors.textPrimary,
             )
-            if (subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
+        }
+        var headerTitle by remember { mutableStateOf("") }
+        var headerSubtitle by remember { mutableStateOf("") }
+
+        LaunchedEffect(title, subtitle) {
+            headerTitle = title
+            headerSubtitle = subtitle
+        }
+
+        AnimatedContent(
+            targetState = headerTitle to headerSubtitle,
+            transitionSpec = {
+                (fadeIn(tween(NuvioTokens.Motion.normalMillis)) +
+                    expandHorizontally(
+                        animationSpec = tween(NuvioTokens.Motion.normalMillis),
+                        expandFrom = Alignment.Start,
+                    )) togetherWith
+                (fadeOut(tween(NuvioTokens.Motion.fastMillis)) +
+                    shrinkHorizontally(
+                        animationSpec = tween(NuvioTokens.Motion.fastMillis),
+                        shrinkTowards = Alignment.Start,
+                    ))
+            },
+            contentAlignment = Alignment.CenterStart,
+            label = "screen_header_title",
+            modifier = Modifier.weight(1f, fill = false),
+        ) { (currentTitle, currentSubtitle) ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
+            ) {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = currentTitle,
+                    style = MaterialTheme.typography.displayLarge,
+                    color = tokens.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                if (currentSubtitle.isNotBlank()) {
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = tokens.colors.textMuted,
+                    )
+                    Text(
+                        text = currentSubtitle,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
