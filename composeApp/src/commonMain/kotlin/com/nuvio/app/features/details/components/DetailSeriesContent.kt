@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -82,6 +83,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.delay
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.build.AppFeaturePolicy
@@ -227,6 +236,7 @@ fun DetailSeriesContent(
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
                 scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                episodeCardStyle = episodeCardStyle,
                 onSelect = { selectedSeasonOverride = it },
                 onLongPress = onSeasonLongPress,
             )
@@ -247,7 +257,7 @@ fun DetailSeriesContent(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    if (!isDesktop || seasons.size <= 1) {
+                    if ((!isDesktop || seasons.size <= 1) && episodeCardStyle != MetaEpisodeCardStyle.Enhanced) {
                         DetailSectionTitle(
                             title = if (meta.type != "series" && seasonForContent <= 0) {
                                 stringResource(Res.string.details_videos)
@@ -257,7 +267,7 @@ fun DetailSeriesContent(
                         )
                     }
                     val seasonEpisodes = groupedEpisodes.getValue(seasonForContent)
-                    if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal) {
+                    if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
                         EpisodeHorizontalRow(
                             episodes = seasonEpisodes,
                             maxWidthDp = containerWidthDp,
@@ -415,10 +425,13 @@ private fun SeriesSeasonSelector(
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
     scrollPostersLayoutEnabled: Boolean = false,
+    episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Horizontal,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
 ) {
     if (seasons.size <= 1) return
+
+    val isEnhanced = episodeCardStyle == MetaEpisodeCardStyle.Enhanced
 
     var seasonViewMode by remember {
         mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
@@ -451,7 +464,7 @@ private fun SeriesSeasonSelector(
                 ),
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            if (hasSeasonPosters) {
+            if (hasSeasonPosters && !isEnhanced) {
                 SeasonViewModeToggle(
                     mode = seasonViewMode,
                     sizing = sizing,
@@ -464,7 +477,25 @@ private fun SeriesSeasonSelector(
             }
         }
 
-        if (hasSeasonPosters) {
+        if (isEnhanced) {
+            SeasonTextChipScrollRow(
+                seasons = seasons,
+                currentSeason = currentSeason,
+                sizing = sizing,
+                horizontalScrollPadding = horizontalScrollPadding,
+                scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                showHoverPosterPreview = true,
+                seasonPosterForSeason = { season ->
+                    resolveSeasonPoster(
+                        season = season,
+                        groupedEpisodes = groupedEpisodes,
+                        meta = meta,
+                    ) ?: meta.poster ?: meta.background
+                },
+                onSelect = onSelect,
+                onLongPress = onLongPress,
+            )
+        } else if (hasSeasonPosters) {
             Crossfade(
                 targetState = seasonViewMode,
                 animationSpec = tween(280),
@@ -550,6 +581,8 @@ private fun SeasonTextChipScrollRow(
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
     scrollPostersLayoutEnabled: Boolean = false,
+    showHoverPosterPreview: Boolean = false,
+    seasonPosterForSeason: ((Int) -> String?)? = null,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
 ) {
@@ -617,6 +650,7 @@ private fun SeasonTextChipScrollRow(
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(seasonListState)
             .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
     }
@@ -639,39 +673,56 @@ private fun SeasonTextChipScrollRow(
             items(seasons, key = { season -> season }) { season ->
                 val isSelected = season == currentSeason
                 val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
+                val chipInteractionSource = remember { MutableInteractionSource() }
+                val isChipHovered by chipInteractionSource.collectIsHoveredAsState()
+                val posterUrl = remember(season) { seasonPosterForSeason?.invoke(season) }
+
                 Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(sizing.seasonChipRadius))
-                        .background(
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                            } else {
-                                Color.Transparent
-                            },
-                        )
-                        .combinedClickable(
-                            onClick = { onSelect(season) },
-                            onLongClick = onSecondaryClick,
-                        )
-                        .secondaryClick(onSecondaryClick)
-                        .padding(
-                            horizontal = sizing.seasonChipHorizontalPadding,
-                            vertical = sizing.seasonChipVerticalPadding,
-                        ),
+                    modifier = Modifier.wrapContentSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = season.label(),
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = sizing.seasonChipTextSize,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                        ),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.onBackground
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(sizing.seasonChipRadius))
+                            .background(
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                } else {
+                                    Color.Transparent
+                                },
+                            )
+                            .hoverable(chipInteractionSource)
+                            .combinedClickable(
+                                onClick = { onSelect(season) },
+                                onLongClick = onSecondaryClick,
+                            )
+                            .secondaryClick(onSecondaryClick)
+                            .padding(
+                                horizontal = sizing.seasonChipHorizontalPadding,
+                                vertical = sizing.seasonChipVerticalPadding,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = season.label(),
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = sizing.seasonChipTextSize,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                            ),
+                            color = if (isSelected) {
+                                MaterialTheme.colorScheme.onBackground
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+
+                    if (showHoverPosterPreview && !posterUrl.isNullOrBlank()) {
+                        SeasonPosterHoverPreviewOverlay(
+                            isHovered = isChipHovered,
+                            posterUrl = posterUrl,
+                        )
+                    }
                 }
             }
         }
@@ -714,6 +765,80 @@ private fun SeasonTextChipScrollRow(
                     }
                 },
             )
+        }
+    }
+}
+
+private class SeasonPosterHoverPositionProvider(
+    private val spacingPx: Int = 10,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val centeredX = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+        val maxX = (windowSize.width - popupContentSize.width - 8).coerceAtLeast(8)
+        val x = centeredX.coerceIn(8, maxX)
+        val preferredY = anchorBounds.top - popupContentSize.height - spacingPx
+        val y = preferredY.coerceAtLeast(8)
+        return IntOffset(x = x, y = y)
+    }
+}
+
+@Composable
+private fun SeasonPosterHoverPreviewOverlay(
+    isHovered: Boolean,
+    posterUrl: String,
+) {
+    var popupMounted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isHovered) {
+        if (isHovered) {
+            popupMounted = true
+        } else {
+            delay(130L)
+            popupMounted = false
+        }
+    }
+
+    if (popupMounted) {
+        Popup(
+            popupPositionProvider = remember { SeasonPosterHoverPositionProvider() },
+            properties = PopupProperties(focusable = false),
+        ) {
+            AnimatedVisibility(
+                visible = isHovered,
+                enter = fadeIn(animationSpec = tween(140)) + scaleIn(initialScale = 0.94f, animationSpec = tween(140)),
+                exit = fadeOut(animationSpec = tween(120)) + scaleOut(targetScale = 0.94f, animationSpec = tween(120)),
+            ) {
+                val posterCardStyle = rememberPosterCardStyleUiState()
+                val cornerRadius = posterCardStyle.cornerRadiusDp.dp
+                val cardShape = RoundedCornerShape(cornerRadius)
+
+                Box(
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(165.dp)
+                        .shadow(elevation = 8.dp, shape = cardShape)
+                        .nuvioCardDepth(shape = cardShape, surface = NuvioCardDepthSurface.Posters)
+                        .clip(cardShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = 0.12f),
+                            shape = cardShape,
+                        ),
+                ) {
+                    AsyncImage(
+                        model = posterUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            }
         }
     }
 }
@@ -794,6 +919,7 @@ private fun SeasonPosterScrollRow(
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(seasonListState)
             .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
     }
@@ -1117,6 +1243,7 @@ private fun EpisodeHorizontalRow(
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
+            .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(listState)
     }
 

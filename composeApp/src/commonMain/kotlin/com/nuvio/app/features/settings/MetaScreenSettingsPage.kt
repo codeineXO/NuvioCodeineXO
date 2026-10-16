@@ -89,6 +89,8 @@ import nuvio.composeapp.generated.resources.settings_meta_episode_style_horizont
 import nuvio.composeapp.generated.resources.settings_meta_episode_style_horizontal_description
 import nuvio.composeapp.generated.resources.settings_meta_episode_style_list
 import nuvio.composeapp.generated.resources.settings_meta_episode_style_list_description
+import nuvio.composeapp.generated.resources.settings_meta_episode_style_enhanced
+import nuvio.composeapp.generated.resources.settings_meta_episode_style_enhanced_description
 import nuvio.composeapp.generated.resources.settings_meta_episodes
 import nuvio.composeapp.generated.resources.settings_meta_episodes_description
 import nuvio.composeapp.generated.resources.settings_meta_blur_unwatched_episodes
@@ -550,12 +552,14 @@ private val MetaEpisodeCardStyle.labelRes: StringResource
     get() = when (this) {
         MetaEpisodeCardStyle.Horizontal -> Res.string.settings_meta_episode_style_horizontal
         MetaEpisodeCardStyle.List -> Res.string.settings_meta_episode_style_list
+        MetaEpisodeCardStyle.Enhanced -> Res.string.settings_meta_episode_style_enhanced
     }
 
 private val MetaEpisodeCardStyle.descriptionRes: StringResource
     get() = when (this) {
         MetaEpisodeCardStyle.Horizontal -> Res.string.settings_meta_episode_style_horizontal_description
         MetaEpisodeCardStyle.List -> Res.string.settings_meta_episode_style_list_description
+        MetaEpisodeCardStyle.Enhanced -> Res.string.settings_meta_episode_style_enhanced_description
     }
 
 private val MetaScreenSectionKey.titleRes: StringResource
@@ -677,6 +681,74 @@ private fun MetaEpisodeCardStylePreview(
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
                         )
                     }
+                }
+            }
+
+            MetaEpisodeCardStyle.Enhanced -> {
+                Column(
+                    modifier = Modifier
+                        .width(128.dp)
+                        .height(80.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+                        .padding(horizontal = 7.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(18.dp)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f)),
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(13.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.38f)),
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(16.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)),
+                    )
                 }
             }
         }

@@ -21,6 +21,11 @@ class MetaScreenSectionLayoutTest {
     }
 
     @Test
+    fun `enhanced episodes render outside a multi-section tab group`() {
+        assertNull(groupedEpisodes.tabGroupForRendering(MetaEpisodeCardStyle.Enhanced))
+    }
+
+    @Test
     fun `horizontal episodes retain their configured tab group`() {
         assertEquals(3, groupedEpisodes.tabGroupForRendering(MetaEpisodeCardStyle.Horizontal))
     }

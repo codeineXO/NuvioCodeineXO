@@ -1041,6 +1041,10 @@
     <string name="settings_meta_episode_style_horizontal_description">Backdrop-style row cards</string>
     <string name="settings_meta_episode_style_list">List</string>
     <string name="settings_meta_episode_style_list_description">Detail-first stacked cards</string>
+    <string name="settings_meta_episode_style_enhanced">Enhanced</string>
+    <string name="settings_meta_episode_style_enhanced_description">Enhanced horizontal cards</string>
+    <string name="details_see_more">See More</string>
+    <string name="details_back_to_top">Back to top</string>
     <string name="settings_meta_episodes">Episodes</string>
     <string name="settings_meta_episodes_description">Seasons and episode list for series.</string>
     <string name="settings_meta_blur_unwatched_episodes">Blur Unwatched Episodes</string>

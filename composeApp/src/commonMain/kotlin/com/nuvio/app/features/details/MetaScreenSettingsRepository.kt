@@ -91,18 +91,21 @@ data class MetaScreenSettingsUiState(
 enum class MetaEpisodeCardStyle {
     Horizontal,
     List,
+    Enhanced,
     ;
 
     companion object {
         fun parse(raw: String?): MetaEpisodeCardStyle? = when (raw?.lowercase()) {
             "horizontal" -> Horizontal
             "list" -> List
+            "enhanced" -> Enhanced
             else -> null
         }
 
         fun persist(style: MetaEpisodeCardStyle): String = when (style) {
             Horizontal -> "horizontal"
             List -> "list"
+            Enhanced -> "enhanced"
         }
     }
 }
@@ -110,7 +113,7 @@ enum class MetaEpisodeCardStyle {
 internal fun MetaScreenSectionItem.tabGroupForRendering(
     episodeCardStyle: MetaEpisodeCardStyle,
 ): Int? = if (
-    key == MetaScreenSectionKey.EPISODES && episodeCardStyle == MetaEpisodeCardStyle.List
+    key == MetaScreenSectionKey.EPISODES && (episodeCardStyle == MetaEpisodeCardStyle.List || episodeCardStyle == MetaEpisodeCardStyle.Enhanced)
 ) {
     null
 } else {

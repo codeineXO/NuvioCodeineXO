@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -217,6 +218,8 @@ fun DesktopDetailHero(
     onWatchedClick: () -> Unit,
     onSaveClick: () -> Unit,
     onSaveLongClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val space = NuvioTokens.Space
@@ -229,22 +232,24 @@ fun DesktopDetailHero(
     val logoUrl = meta.logo?.takeIf { it.isNotBlank() }
 
     BoxWithConstraints(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 660.dp)
+            .then(if (compact) Modifier.wrapContentHeight() else Modifier.heightIn(min = 660.dp))
             .onSizeChanged { onHeightChanged(it.height) },
     ) {
         val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
         val pageHorizontalPadding = desktopPageHorizontalPaddingForWidth(maxWidth.value)
+        val heroAlignment = if (compact) Alignment.TopStart else Alignment.CenterStart
 
         Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
+                .align(heroAlignment)
                 .widthIn(max = 760.dp)
                 .padding(
                     start = pageHorizontalPadding,
                     end = space.s32,
-                    bottom = space.s40,
+                    top = if (compact) 90.dp else 0.dp,
+                    bottom = if (compact) space.s8 else space.s40,
                 ),
         ) {
             if (logoUrl != null && !logoLoadError) {
@@ -272,17 +277,17 @@ fun DesktopDetailHero(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(modifier = Modifier.height(space.s20))
+            Spacer(modifier = Modifier.height(if (compact) space.s12 else space.s20))
             DesktopHeroMetaRow(meta = meta, showOverallRatings = showOverallRatings && !isMdbListActive)
             if (isMdbListActive && meta.externalRatings.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(space.s12))
+                Spacer(modifier = Modifier.height(if (compact) space.s8 else space.s12))
                 DetailRatingsRow(
                     ratings = meta.externalRatings,
                     modifier = Modifier.widthIn(max = 520.dp),
                 )
             }
             if (meta.genres.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(space.s12))
+                Spacer(modifier = Modifier.height(if (compact) space.s8 else space.s12))
                 Text(
                     text = meta.genres.take(4).joinToString(" \u2022 "),
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -296,10 +301,10 @@ fun DesktopDetailHero(
                 )
             }
             meta.description?.takeIf { it.isNotBlank() }?.let { synopsis ->
-                Spacer(modifier = Modifier.height(space.s16))
+                Spacer(modifier = Modifier.height(if (compact) space.s10 else space.s16))
                 ExpandableDescription(
                     text = synopsis,
-                    collapsedMaxLines = 4,
+                    collapsedMaxLines = if (compact) 3 else 4,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = NuvioTokens.Type.bodyLg,
                         lineHeight = NuvioTokens.LineHeight.bodyLg,
@@ -308,7 +313,7 @@ fun DesktopDetailHero(
                     color = colorScheme.onSurface,
                 )
             }
-            Spacer(modifier = Modifier.height(space.s28))
+            Spacer(modifier = Modifier.height(if (compact) space.s16 else space.s28))
             val shuffleAction = onShuffleClick?.let { onClick ->
                 DetailSecondaryAction(
                     label = stringResource(if (shuffleEnabled) Res.string.shuffle_stop else Res.string.random_episode_title),
@@ -368,7 +373,7 @@ fun DesktopDetailHero(
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(
-                        top = space.s32,
+                        top = if (compact) space.s16 else space.s32,
                         end = actionHorizontalInset + if (isFullscreenActionSupported) 60.dp else 0.dp,
                     )
                     .size(48.dp)
@@ -399,7 +404,7 @@ fun DesktopDetailHero(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = space.s32, end = actionHorizontalInset),
+                    .padding(top = if (compact) space.s16 else space.s32, end = actionHorizontalInset),
                 buttonSize = 48.dp,
                 iconSize = 24.dp,
                 containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
