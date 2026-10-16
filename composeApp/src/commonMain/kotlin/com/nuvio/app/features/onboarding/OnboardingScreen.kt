@@ -38,22 +38,20 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Done
-import androidx.compose.material.icons.rounded.Keyboard
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Subtitles
-import androidx.compose.material.icons.rounded.Tv
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -90,8 +88,11 @@ import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SvpMotionOption
+import com.nuvio.app.features.player.SvpRuntimeDownloadState
+import com.nuvio.app.features.player.SvpRuntimeInstaller
 import com.nuvio.app.features.settings.SettingsGroup
 import com.nuvio.app.features.settings.SettingsGroupDivider
 import com.nuvio.app.features.settings.SettingsSection
@@ -134,6 +135,8 @@ internal fun applyRecommendedPreset(state: RecommendedPresetState) {
             outlineEffect = state.subtitleOutlineEffect,
             outlineWidth = state.subtitleOutlineWidth,
             textColor = state.subtitleColor,
+            outlineColor = Color.Black,
+            outlineEnabled = state.subtitleOutlineEffect.needsOutline,
         ),
     )
 
@@ -155,7 +158,7 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
-    var currentStep by rememberSaveable { mutableIntStateOf(0) }
+    var currentStep by rememberSaveable { mutableIntStateOf(if (isReviewMode) 1 else 0) }
     var presetState by remember { mutableStateOf(RecommendedPresetState()) }
     var showReviewDialog by rememberSaveable { mutableStateOf(false) }
     var presetApplied by rememberSaveable { mutableStateOf(false) }
@@ -249,7 +252,19 @@ fun OnboardingScreen(
                         )
                     }
                 } else {
-                    Spacer(modifier = Modifier.size(36.dp))
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onComplete)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = Color.Transparent,
+                    ) {
+                        Text(
+                            text = "Skip",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = tokens.colors.textMuted,
+                        )
+                    }
                 }
             }
 
@@ -286,12 +301,15 @@ fun OnboardingScreen(
                             )
                             1 -> RecommendedSetupStepContent(
                                 isTablet = true,
+                                presetState = presetState,
                                 presetApplied = presetApplied,
                                 onOpenReviewDialog = { showReviewDialog = true },
                                 onApplyDirectly = {
-                                    applyRecommendedPreset(presetState)
+                                    val defaults = RecommendedPresetState()
+                                    presetState = defaults
+                                    applyRecommendedPreset(defaults)
                                     presetApplied = true
-                                    NuvioToastController.show("Recommended CodeineXO setup applied")
+                                    NuvioToastController.show("Recommended CodeineXO defaults applied")
                                 },
                                 onNext = { currentStep = 2 },
                                 onBack = { currentStep = 0 },
@@ -369,46 +387,12 @@ private fun WelcomeStepContent(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "An ultra-refined media experience loaded with custom player UI, anime upscaling shaders, dynamic aura lighting, and smart library tools.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = tokens.colors.textSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-
         Spacer(modifier = Modifier.height(32.dp))
-
-        // Feature Highlights
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            FeatureHighlightRow(
-                icon = Icons.Rounded.PlayArrow,
-                title = "CodeineXO Player UI",
-                subtitle = "Precision seekbar overlay, torrent stats HUD, and gesture scrubbing.",
-            )
-            FeatureHighlightRow(
-                icon = Icons.Rounded.Tune,
-                title = "Anime Upscaler & Filler Skip",
-                subtitle = "Hardware-accelerated anime shader upscaling and filler episode flags.",
-            )
-            FeatureHighlightRow(
-                icon = Icons.Rounded.Palette,
-                title = "Dynamic Ambient Aura",
-                subtitle = "Immersive multi-layered aurora ambient backlight tailored to your desktop.",
-            )
-        }
-
-        Spacer(modifier = Modifier.height(36.dp))
 
         Button(
             onClick = onNext,
             modifier = Modifier
-                .fillMaxWidth()
+                .widthIn(min = 220.dp, max = 320.dp)
                 .heightIn(min = 50.dp),
             shape = tokens.shapes.button,
             colors = ButtonDefaults.buttonColors(
@@ -489,6 +473,7 @@ private fun FeatureHighlightRow(
 @Composable
 private fun RecommendedSetupStepContent(
     isTablet: Boolean,
+    presetState: RecommendedPresetState,
     presetApplied: Boolean,
     onOpenReviewDialog: () -> Unit,
     onApplyDirectly: () -> Unit,
@@ -496,6 +481,8 @@ private fun RecommendedSetupStepContent(
     onBack: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+    val isSvpInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
 
     Column(
         modifier = Modifier
@@ -618,7 +605,7 @@ private fun RecommendedSetupStepContent(
                         "CodeineXO Player UI",
                         "Seekbar Scrubbing",
                         "Anime Upscaler (Fast)",
-                        "Motion (SVP) Off",
+                        if (presetState.svpMotionOption == SvpMotionOption.AUTO) "Motion (SVP) 60 FPS" else "Motion (SVP) Off",
                         "Anime Filler Skip",
                         "Halo Subtitles (#FFF6B3)",
                         "Enhanced Episode Cards",
@@ -671,7 +658,162 @@ private fun RecommendedSetupStepContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // SVP Runtime Setup Card on Preset Page
+        if (!isSvpInstalled && SvpRuntimeInstaller.isSupported) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = tokens.shapes.compactCard,
+                color = tokens.colors.surfaceElevated.copy(alpha = 0.7f),
+                border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(38.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = tokens.colors.accent.copy(alpha = 0.14f),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Download,
+                                    contentDescription = null,
+                                    tint = tokens.colors.accent,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Motion Interpolation (SVP) Setup",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = tokens.colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Download runtime pack (~26 MB) to unlock 60 FPS motion smoothing",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = tokens.colors.textMuted,
+                            )
+                        }
+                    }
+
+                    when (val s = svpDownloadState) {
+                        is SvpRuntimeDownloadState.Downloading -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                LinearProgressIndicator(
+                                    progress = { s.progress },
+                                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                                    color = tokens.colors.accent,
+                                )
+                                Text(
+                                    text = "Downloading runtime pack... ${(s.progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tokens.colors.textSecondary,
+                                )
+                            }
+                        }
+                        is SvpRuntimeDownloadState.Extracting -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                                    color = tokens.colors.accent,
+                                )
+                                Text(
+                                    text = "Extracting and registering runtime...",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tokens.colors.textSecondary,
+                                )
+                            }
+                        }
+                        is SvpRuntimeDownloadState.Error -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = "Download error: ${s.message}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                OutlinedButton(
+                                    onClick = { SvpRuntimeInstaller.startDownload() },
+                                    shape = tokens.shapes.button,
+                                ) {
+                                    Text("Retry", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                        else -> {
+                            OutlinedButton(
+                                onClick = { SvpRuntimeInstaller.startDownload() },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = tokens.shapes.button,
+                                border = BorderStroke(1.dp, tokens.colors.accent.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = tokens.colors.accent,
+                                ),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Download,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "Download & Setup SVP Runtime (~26 MB)",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (isSvpInstalled) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = tokens.shapes.compactCard,
+                color = tokens.colors.surfaceElevated.copy(alpha = 0.6f),
+                border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = tokens.colors.accent,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "SVP Runtime Pack Installed — 60 FPS motion smoothing ready",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = tokens.colors.accent,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
 
         // Navigation actions
         Row(
@@ -834,11 +976,6 @@ private fun ReadyStepContent(
                 title = "Settings Re-access",
                 subtitle = "Open Settings > CodeineXO or General anytime to launch this setup wizard again.",
             )
-            FeatureHighlightRow(
-                icon = Icons.Rounded.Keyboard,
-                title = "Shortcuts & Playback Controls",
-                subtitle = "Use Space to pause/resume, Left/Right arrows to seek, and scroll wheel for volume.",
-            )
         }
 
         Spacer(modifier = Modifier.height(36.dp))
@@ -933,20 +1070,44 @@ private fun RecommendedPresetReviewDialog(
                     )
                 }
 
-                Surface(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onDismissRequest),
-                    color = tokens.colors.surfaceElevated,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Close",
-                            tint = tokens.colors.textMuted,
-                            modifier = Modifier.size(18.dp),
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                onStateChange(RecommendedPresetState())
+                                NuvioToastController.show("Reset to recommended defaults")
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = tokens.colors.surfaceElevated,
+                        border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
+                    ) {
+                        Text(
+                            text = "Reset Defaults",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = tokens.colors.accent,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onDismissRequest),
+                        color = tokens.colors.surfaceElevated,
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Close",
+                                tint = tokens.colors.textMuted,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -1031,13 +1192,7 @@ private fun RecommendedPresetReviewDialog(
                             )
                         }
                         SettingsGroupDivider(isTablet = false)
-                        PresetSegmentRow<SvpMotionOption>(
-                            title = "Motion Interpolation (SVP)",
-                            description = "Smooth frame interpolation",
-                            options = listOf(
-                                SvpMotionOption.OFF to "Off",
-                                SvpMotionOption.AUTO to "Auto",
-                            ),
+                        SvpMotionPresetRow(
                             selected = state.svpMotionOption,
                             onSelect = { onStateChange(state.copy(svpMotionOption = it)) },
                         )
@@ -1104,7 +1259,7 @@ private fun RecommendedPresetReviewDialog(
                     style = DialogButtonStyle.Secondary,
                 )
                 DialogButton(
-                    text = "Confirm & Apply Preset",
+                    text = "Apply",
                     onClick = onConfirm,
                     style = DialogButtonStyle.Primary,
                 )
@@ -1176,6 +1331,244 @@ private fun <T> PresetSegmentRow(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SvpMotionPresetRow(
+    selected: SvpMotionOption,
+    onSelect: (SvpMotionOption) -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+    val isInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
+
+    LaunchedEffect(isInstalled) {
+        if (!isInstalled && selected != SvpMotionOption.OFF) {
+            onSelect(SvpMotionOption.OFF)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column {
+            Text(
+                text = "Motion Interpolation (SVP)",
+                style = MaterialTheme.typography.bodyLarge,
+                color = tokens.colors.textPrimary,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = if (isInstalled) "Smooth 60 FPS frame interpolation" else "Requires SVP runtime setup (~26 MB)",
+                style = MaterialTheme.typography.bodySmall,
+                color = tokens.colors.textMuted,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val isOffSelected = selected == SvpMotionOption.OFF
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onSelect(SvpMotionOption.OFF) },
+                shape = RoundedCornerShape(8.dp),
+                color = if (isOffSelected) tokens.colors.accent.copy(alpha = 0.2f) else tokens.colors.surfaceElevated,
+                border = BorderStroke(
+                    width = if (isOffSelected) 1.5.dp else tokens.borders.hairline,
+                    color = if (isOffSelected) tokens.colors.accent else tokens.colors.borderSubtle,
+                ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Off",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isOffSelected) tokens.colors.accent else tokens.colors.textSecondary,
+                        fontWeight = if (isOffSelected) FontWeight.Bold else FontWeight.Normal,
+                    )
+                }
+            }
+
+            val isAutoSelected = selected == SvpMotionOption.AUTO
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable {
+                        if (isInstalled) {
+                            onSelect(SvpMotionOption.AUTO)
+                        } else {
+                            NuvioToastController.show("Download and setup SVP runtime pack first")
+                            if (svpDownloadState is SvpRuntimeDownloadState.Idle || svpDownloadState is SvpRuntimeDownloadState.Error) {
+                                SvpRuntimeInstaller.startDownload()
+                            }
+                        }
+                    },
+                shape = RoundedCornerShape(8.dp),
+                color = when {
+                    isAutoSelected -> tokens.colors.accent.copy(alpha = 0.2f)
+                    !isInstalled -> tokens.colors.surfaceElevated.copy(alpha = 0.5f)
+                    else -> tokens.colors.surfaceElevated
+                },
+                border = BorderStroke(
+                    width = if (isAutoSelected) 1.5.dp else tokens.borders.hairline,
+                    color = if (isAutoSelected) tokens.colors.accent else tokens.colors.borderSubtle,
+                ),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (!isInstalled) {
+                        Icon(
+                            imageVector = Icons.Rounded.Lock,
+                            contentDescription = "Locked",
+                            tint = tokens.colors.textMuted,
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = if (!isInstalled) "Auto (Setup Required)" else "Auto",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = when {
+                            isAutoSelected -> tokens.colors.accent
+                            !isInstalled -> tokens.colors.textMuted
+                            else -> tokens.colors.textSecondary
+                        },
+                        fontWeight = if (isAutoSelected) FontWeight.Bold else FontWeight.Normal,
+                    )
+                }
+            }
+        }
+
+        if (!isInstalled) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = tokens.colors.surfaceElevated.copy(alpha = 0.7f),
+                border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "VapourSynth & SVP runtime (~26 MB) is required to enable real-time 60 FPS motion interpolation.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = tokens.colors.textMuted,
+                    )
+
+                    when (val s = svpDownloadState) {
+                        is SvpRuntimeDownloadState.Downloading -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                LinearProgressIndicator(
+                                    progress = { s.progress },
+                                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                                    color = tokens.colors.accent,
+                                )
+                                Text(
+                                    text = "Downloading runtime pack... ${(s.progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tokens.colors.textSecondary,
+                                )
+                            }
+                        }
+                        is SvpRuntimeDownloadState.Extracting -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                                    color = tokens.colors.accent,
+                                )
+                                Text(
+                                    text = "Extracting and registering runtime...",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = tokens.colors.textSecondary,
+                                )
+                            }
+                        }
+                        is SvpRuntimeDownloadState.Error -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Error: ${s.message}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                OutlinedButton(
+                                    onClick = { SvpRuntimeInstaller.startDownload() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = tokens.shapes.button,
+                                ) {
+                                    Text("Retry Download", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                        else -> {
+                            Button(
+                                onClick = { SvpRuntimeInstaller.startDownload() },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = tokens.shapes.button,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = tokens.colors.accent,
+                                    contentColor = tokens.colors.onAccent,
+                                ),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Download,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "Download & Setup SVP Runtime (~26 MB)",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = tokens.colors.accent,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = "Runtime pack installed — 60 FPS motion interpolation ready",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = tokens.colors.accent,
+                )
             }
         }
     }
