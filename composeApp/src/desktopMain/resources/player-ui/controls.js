@@ -28,6 +28,7 @@ const nextEpisodeButton = document.getElementById("nextEpisodeButton");
 const nextEpisodeButtonLabel = document.getElementById("nextEpisodeButtonLabel");
 const fullscreenButton = document.getElementById("fullscreenButton");
 const pipButton = document.getElementById("pipButton");
+const miniPlayerButton = document.getElementById("miniPlayerButton");
 const fullscreenIcon = document.getElementById("fullscreenIcon");
 const title = document.getElementById("title");
 const episode = document.getElementById("episode");
@@ -42,6 +43,7 @@ const sourcesLabel = document.getElementById("sourcesLabel");
 const episodesLabel = document.getElementById("episodesLabel");
 const submitIntroButton = document.getElementById("submitIntroButton");
 const videoSettingsButton = document.getElementById("videoSettingsButton");
+const shadersButton = document.getElementById("shadersButton");
 const backButton = document.getElementById("backButton");
 const codeineBackButton = document.getElementById("codeineBackButton");
 const codeineTitle = document.getElementById("codeineTitle");
@@ -765,6 +767,8 @@ const syncVolumeControl = () => {
 const seekToastLabel = command => {
   if (command === "seekBack" || command === "keyboardSeekBack") return "-3s";
   if (command === "seekForward" || command === "keyboardSeekForward") return "+3s";
+  if (command === "keyboardSeek10Back") return "-10s";
+  if (command === "keyboardSeek10Forward") return "+10s";
   if (command === "pictureInPicture" || command === "pip") return state.pipLabel || "";
   return "";
 };
@@ -818,6 +822,10 @@ const showCommandToast = command => {
       markSeek((Number(state.positionMs) || 0) - 3000);
     } else if (command === "seekForward" || command === "keyboardSeekForward") {
       markSeek((Number(state.positionMs) || 0) + 3000);
+    } else if (command === "keyboardSeek10Back") {
+      markSeek((Number(state.positionMs) || 0) - 10000);
+    } else if (command === "keyboardSeek10Forward") {
+      markSeek((Number(state.positionMs) || 0) + 10000);
     }
     triggerSeekbarOnlyOnSeek();
     showPlayerToast(seekLabel);
@@ -3560,6 +3568,19 @@ const renderChrome = () => {
     pipButton.setAttribute("title", pipLabel);
     pipButton.hidden = !pipLabel;
   }
+  const miniLabel = String(state.minimizeLabel || "Mini player").trim();
+  if (miniPlayerButton) {
+    miniPlayerButton.setAttribute("aria-label", miniLabel);
+    miniPlayerButton.setAttribute("title", miniLabel);
+  }
+  const isEnhancementActive = Boolean(state.animeUpscalerEnabled || (state.svpActive && state.svpAvailable !== false));
+  const enhancementsTitle = isEnhancementActive ? "Enhancements (Active)" : "Enhancements";
+  const classicShadersButton = shadersButton || document.querySelector('.action[data-command="shaders"]');
+  if (classicShadersButton) {
+    classicShadersButton.classList.toggle("active", isEnhancementActive);
+    classicShadersButton.setAttribute("title", enhancementsTitle);
+    classicShadersButton.setAttribute("aria-label", enhancementsTitle);
+  }
   syncPipLockLabels();
   const isSeekingBuffered = isScrubbing || (seekSuppressBufferingUntil > Date.now());
   const wantsBuffering = Boolean(!showError && state.isLoading && !isSeekingBuffered && !activeModal && !showOpening);
@@ -3637,7 +3658,6 @@ const renderChrome = () => {
       codeinePipButton.hidden = !pipLabel;
     }
     if (codeineMiniPlayerButton) {
-      const miniLabel = String(state.minimizeLabel || "Mini player").trim();
       codeineMiniPlayerButton.setAttribute("aria-label", miniLabel);
       codeineMiniPlayerButton.setAttribute("title", miniLabel);
     }
@@ -3650,18 +3670,10 @@ const renderChrome = () => {
     if (codeineSpeedButton) codeineSpeedButton.setAttribute("title", state.playbackSpeedLabel || "1x");
     if (codeineSubtitlesButton) codeineSubtitlesButton.setAttribute("title", state.subtitlesLabel || "Subs");
     if (codeineAudioButton) codeineAudioButton.setAttribute("title", state.audioLabel || "Audio");
-    const isEnhancementActive = Boolean(state.animeUpscalerEnabled || (state.svpActive && state.svpAvailable !== false));
-    const enhancementsTitle = isEnhancementActive ? "Enhancements (Active)" : "Enhancements";
     if (codeineShadersButton) {
       codeineShadersButton.classList.toggle("active", isEnhancementActive);
       codeineShadersButton.setAttribute("title", enhancementsTitle);
       codeineShadersButton.setAttribute("aria-label", enhancementsTitle);
-    }
-    const classicShadersButton = document.querySelector('.action[data-command="shaders"]');
-    if (classicShadersButton) {
-      classicShadersButton.classList.toggle("active", isEnhancementActive);
-      classicShadersButton.setAttribute("title", enhancementsTitle);
-      classicShadersButton.setAttribute("aria-label", enhancementsTitle);
     }
     if (codeineSourcesButton) codeineSourcesButton.setAttribute("title", state.sourcesLabel || "Sources");
     if (codeineEpisodesButton) codeineEpisodesButton.setAttribute("title", state.episodesLabel || "Episodes");
@@ -3733,11 +3745,13 @@ const shortcutCommandForEvent = event => {
     case "KeyK":
       return "keyboardToggle";
     case "ArrowLeft":
-    case "KeyJ":
       return isShift ? "keyboardFineSeekBack" : "keyboardSeekBack";
+    case "KeyJ":
+      return isShift ? "keyboardFineSeekBack" : "keyboardSeek10Back";
     case "ArrowRight":
-    case "KeyL":
       return isShift ? "keyboardFineSeekForward" : "keyboardSeekForward";
+    case "KeyL":
+      return isShift ? "keyboardFineSeekForward" : "keyboardSeek10Forward";
     case "ArrowUp":
       return "keyboardVolumeUp";
     case "ArrowDown":
@@ -6021,10 +6035,16 @@ document.addEventListener("keydown", event => {
     fineSeek(false);
     return;
   }
-  if (command === "keyboardSeekForward" || command === "keyboardSeekBack") {
+  if (
+    command === "keyboardSeekForward" ||
+    command === "keyboardSeekBack" ||
+    command === "keyboardSeek10Forward" ||
+    command === "keyboardSeek10Back"
+  ) {
     triggerSeekbarOnlyOnSeek();
-    const isForward = command === "keyboardSeekForward";
-    const deltaMs = isForward ? 3000 : -3000;
+    const isForward = command === "keyboardSeekForward" || command === "keyboardSeek10Forward";
+    const is10 = command === "keyboardSeek10Forward" || command === "keyboardSeek10Back";
+    const deltaMs = (is10 ? 10000 : 3000) * (isForward ? 1 : -1);
     const durationMs = Math.max(0, Number(state.durationMs) || 0);
     const nextPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, (Number(state.positionMs) || 0) + deltaMs) : (Number(state.positionMs) || 0) + deltaMs);
     state.positionMs = nextPosMs;

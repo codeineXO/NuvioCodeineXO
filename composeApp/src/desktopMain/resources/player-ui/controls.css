@@ -1898,6 +1898,21 @@ button:disabled {
   font-weight: 500;
 }
 
+.action.active,
+.action.active:hover,
+.action.active.focused,
+.action.active.focused:hover {
+  color: var(--theme-accent) !important;
+}
+
+.action.active svg,
+.action.active:hover svg,
+.action.active.focused svg,
+.action.active.focused:hover svg {
+  color: var(--theme-accent) !important;
+  filter: drop-shadow(0 0 6px var(--theme-accent)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) !important;
+}
+
 .action.playback-action {
   background: var(--theme-accent);
   color: var(--theme-on-accent);
@@ -2710,6 +2725,10 @@ button:disabled {
 .audio-rail-panel .track-list {
   max-height: min(620px, calc(100vh - clamp(120px, 18vh, 160px)));
   gap: 6px;
+}
+
+#shaderModal .track-list {
+  max-height: calc(100vh - clamp(120px, 18vh, 160px));
 }
 
 .audio-panel-extras {
@@ -4012,6 +4031,7 @@ svg {
 .player.ui-codeinexo .official-action-row,
 .player.ui-codeinexo .header-actions #backButton,
 .player.ui-codeinexo .header-actions #fullscreenButton,
+.player.ui-codeinexo .header-actions #miniPlayerButton,
 .player.ui-codeinexo .header-actions #pipButton {
   display: none !important;
 }

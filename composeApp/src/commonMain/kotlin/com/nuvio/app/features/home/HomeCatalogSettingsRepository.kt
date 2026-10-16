@@ -108,6 +108,7 @@ object HomeCatalogSettingsRepository {
 
     private val _uiState = MutableStateFlow(HomeCatalogSettingsUiState())
     val uiState: StateFlow<HomeCatalogSettingsUiState> = _uiState.asStateFlow()
+    val settings: StateFlow<HomeCatalogSettingsUiState> get() = uiState
 
     private val emptySnapshot = HomeCatalogSettingsSnapshot(
         heroEnabled = true,

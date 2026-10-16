@@ -1059,12 +1059,20 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
             prepareSeekByForNativeFallback(-3_000L, revealControls = false)
             return false
         }
+        PlayerControlsAction.KeyboardSeek10Back -> {
+            prepareSeekByForNativeFallback(-10_000L, revealControls = false)
+            return false
+        }
         PlayerControlsAction.SeekForward -> {
             prepareSeekByForNativeFallback(3_000L)
             return false
         }
         PlayerControlsAction.KeyboardSeekForward -> {
             prepareSeekByForNativeFallback(3_000L, revealControls = false)
+            return false
+        }
+        PlayerControlsAction.KeyboardSeek10Forward -> {
+            prepareSeekByForNativeFallback(10_000L, revealControls = false)
             return false
         }
         PlayerControlsAction.KeyboardFineSeekBack -> {

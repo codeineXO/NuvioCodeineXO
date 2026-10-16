@@ -61,12 +61,16 @@ import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
+import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.posterGridColumnCountForViewport
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
+import com.nuvio.app.features.home.HomeCatalogSettingsUiState
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.home.canOpenCatalog
@@ -74,6 +78,7 @@ import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import com.nuvio.app.features.home.components.HomePosterHoverPreview
 import com.nuvio.app.features.home.components.homeCatalogPreviewLimitForWidth
+import com.nuvio.app.features.home.components.homePosterGutterPaddingForWidth
 import com.nuvio.app.features.home.components.homeSectionHorizontalPaddingForWidth
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watching.application.WatchingState
@@ -101,6 +106,7 @@ fun FolderDetailScreen(
         WatchedRepository.ensureLoaded()
         WatchedRepository.uiState
     }.collectAsState()
+    val homeCatalogSettings by HomeCatalogSettingsRepository.settings.collectAsState()
     val folder = uiState.folder
     val useNativeNavigation = LocalUseNativeNavigation.current
     val coverImageUrl = folder?.coverImageUrl?.takeIf { it.isNotBlank() }
@@ -109,6 +115,7 @@ fun FolderDetailScreen(
         MobileFolderDetailContent(
             uiState = uiState,
             watchedKeys = watchedUiState.watchedKeys,
+            homeCatalogSettings = homeCatalogSettings,
             coverImageUrl = coverImageUrl,
             useNativeNavigation = useNativeNavigation,
             onBack = onBack,
@@ -190,6 +197,7 @@ fun FolderDetailScreen(
                     FolderViewMode.ROWS -> RowsContent(
                         uiState = uiState,
                         watchedKeys = watchedUiState.watchedKeys,
+                        homeCatalogSettings = homeCatalogSettings,
                         modifier = Modifier.weight(1f),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,
@@ -197,6 +205,7 @@ fun FolderDetailScreen(
                     FolderViewMode.FOLLOW_LAYOUT -> RowsContent(
                         uiState = uiState,
                         watchedKeys = watchedUiState.watchedKeys,
+                        homeCatalogSettings = homeCatalogSettings,
                         modifier = Modifier.weight(1f),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,
@@ -211,6 +220,7 @@ fun FolderDetailScreen(
 private fun MobileFolderDetailContent(
     uiState: FolderDetailUiState,
     watchedKeys: Set<String>,
+    homeCatalogSettings: HomeCatalogSettingsUiState,
     coverImageUrl: String?,
     useNativeNavigation: Boolean,
     onBack: () -> Unit,
@@ -307,6 +317,7 @@ private fun MobileFolderDetailContent(
             -> RowsContent(
                 uiState = uiState,
                 watchedKeys = watchedKeys,
+                homeCatalogSettings = homeCatalogSettings,
                 modifier = Modifier.weight(1f).then(contentModifier),
                 onCatalogClick = onCatalogClick,
                 onPosterClick = onPosterClick,
@@ -483,6 +494,7 @@ private fun RowsContent(
     uiState: FolderDetailUiState,
     watchedKeys: Set<String>,
     modifier: Modifier = Modifier,
+    homeCatalogSettings: HomeCatalogSettingsUiState = HomeCatalogSettingsRepository.settings.collectAsState().value,
     onCatalogClick: (HomeCatalogSection) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
 ) {
@@ -500,12 +512,25 @@ private fun RowsContent(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val sectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(maxWidth.value) else null
+        val homeSectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(maxWidth.value) else null
         val posterCardStyle = rememberPosterCardStyleUiState()
+        val useGutterLayout = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+        val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
+        val effectivePosterWidth = if (posterCardStyle.catalogLandscapeModeEnabled) {
+            landscapePosterWidth(basePosterWidthDp)
+        } else {
+            basePosterWidthDp.dp
+        }
+        val effectivePosterSectionPadding = if (useGutterLayout) {
+            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+        } else {
+            homeSectionPadding
+        }
+        val sectionBottomPadding = if (useGutterLayout) 24.dp else 12.dp
         val catalogPreviewLimit = if (isDesktop) {
             homeCatalogPreviewLimitForWidth(
                 maxWidthDp = maxWidth.value,
-                sectionPadding = sectionPadding ?: 0.dp,
+                sectionPadding = effectivePosterSectionPadding ?: 0.dp,
                 basePosterWidthDp = posterCardStyle.widthDp,
                 useLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled,
             )
@@ -518,7 +543,7 @@ private fun RowsContent(
             contentPadding = PaddingValues(
                 bottom = nuvioSafeBottomPadding(18.dp),
             ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(16.dp),
         ) {
             items(
                 items = sections.withDuplicateSafeLazyKeys { it.key },
@@ -534,7 +559,9 @@ private fun RowsContent(
                     } else {
                         section.items.take(catalogPreviewLimit)
                     },
-                    sectionPadding = sectionPadding,
+                    modifier = Modifier.padding(bottom = sectionBottomPadding),
+                    sectionPadding = effectivePosterSectionPadding,
+                    useGutterLayout = useGutterLayout,
                     onViewAllClick = if (section.canOpenCatalog(catalogPreviewLimit)) {
                         { onCatalogClick(section) }
                     } else {

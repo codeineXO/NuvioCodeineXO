@@ -931,8 +931,10 @@ internal class NativePlayerController(
             }
             PlayerControlsAction.SeekBack,
             PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-3_000L)
+            PlayerControlsAction.KeyboardSeek10Back -> fallbackSeekBy(-10_000L)
             PlayerControlsAction.SeekForward,
             PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(3_000L)
+            PlayerControlsAction.KeyboardSeek10Forward -> fallbackSeekBy(10_000L)
             PlayerControlsAction.KeyboardFineSeekBack -> fallbackSeekBy(-1_000L)
             PlayerControlsAction.KeyboardFineSeekForward -> fallbackSeekBy(1_000L)
             PlayerControlsAction.KeyboardVolumeDown -> adjustFallbackVolume(-10f)
@@ -1816,9 +1818,11 @@ private fun String.toPlayerControlsAction(): PlayerControlsAction? =
         "keyboardToggle" -> PlayerControlsAction.KeyboardTogglePlayback
         "seekBack" -> PlayerControlsAction.SeekBack
         "keyboardSeekBack" -> PlayerControlsAction.KeyboardSeekBack
+        "keyboardSeek10Back" -> PlayerControlsAction.KeyboardSeek10Back
         "keyboardFineSeekBack" -> PlayerControlsAction.KeyboardFineSeekBack
         "seekForward" -> PlayerControlsAction.SeekForward
         "keyboardSeekForward" -> PlayerControlsAction.KeyboardSeekForward
+        "keyboardSeek10Forward" -> PlayerControlsAction.KeyboardSeek10Forward
         "keyboardFineSeekForward" -> PlayerControlsAction.KeyboardFineSeekForward
         "keyboardVolumeDown" -> PlayerControlsAction.KeyboardVolumeDown
         "keyboardVolumeUp" -> PlayerControlsAction.KeyboardVolumeUp
