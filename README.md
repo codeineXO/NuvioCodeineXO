@@ -31,7 +31,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly, toggle between elapsed and remaining time, "show seekbar while seeking" toggle, rounded track styling, and refined Picture-in-Picture (PiP) controls.
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
 * **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
-* **Precision Seeking & Stutter Fixes:** Smooth precision seeking, `Shift` + `Arrow keys` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
+* **Precision Seeking & Stutter Fixes:** Smooth precision seeking, 10-second seek with `J` / `L`, `Shift` + `Arrow keys` or `J` / `L` for 1-second micro-seeking, keyframe-routed intro skips to prevent audio desyncs, and optimized streaming buffer cache.
 
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
@@ -59,10 +59,11 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 | Shortcut | Action |
 | :--- | :--- |
-| `Space` | Play / Pause *(hold to boost speed)* |
+| `Space` / `K` | Play / Pause *(hold Space to boost speed)* |
 | `F` / `F11` | Toggle Fullscreen |
-| `←` / `→` | Seek backward / forward |
-| `Shift` + `←` / `→` | 1-second micro-seek |
+| `←` / `→` | Seek backward / forward (3s) |
+| `J` / `L` | Seek backward / forward (10s) |
+| `Shift` + `←` / `→` or `J` / `L` | 1-second micro-seek |
 | `↑` / `↓` | Volume up / down |
 | `M` | Mute / Unmute audio |
 | `P` | Toggle Picture-in-Picture |
