@@ -452,7 +452,7 @@ private val MetaScreenBackgroundMode.descriptionRes: StringResource
     }
 
 @Composable
-private fun MetaEpisodeCardStyleSelector(
+internal fun MetaEpisodeCardStyleSelector(
     isTablet: Boolean,
     selectedStyle: MetaEpisodeCardStyle,
     onStyleSelected: (MetaEpisodeCardStyle) -> Unit,

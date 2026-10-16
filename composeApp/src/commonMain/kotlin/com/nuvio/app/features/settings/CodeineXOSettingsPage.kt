@@ -39,6 +39,7 @@ import com.nuvio.app.features.player.SvpRuntimeDownloadState
 import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
+import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.launch
@@ -96,6 +97,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
             HomeCatalogSettingsRepository.snapshot()
             HomeCatalogSettingsRepository.uiState
         }.collectAsStateWithLifecycle()
+        val metaScreenSettings by remember {
+            MetaScreenSettingsRepository.ensureLoaded()
+            MetaScreenSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
 
         SettingsSection(
             title = "LAYOUT",
@@ -119,6 +124,12 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
                     )
                 }
+                SettingsGroupDivider(isTablet = isTablet)
+                MetaEpisodeCardStyleSelector(
+                    isTablet = isTablet,
+                    selectedStyle = metaScreenSettings.episodeCardStyle,
+                    onStyleSelected = MetaScreenSettingsRepository::setEpisodeCardStyle,
+                )
             }
         }
     }
