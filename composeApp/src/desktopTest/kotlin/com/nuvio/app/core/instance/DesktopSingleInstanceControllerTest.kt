@@ -125,6 +125,10 @@ class DesktopSingleInstanceControllerTest {
         assertTrue(DesktopSingleInstanceController.isDesktopAppUrl("nuvio://meta?type=movie&id=tt123"))
         assertTrue(DesktopSingleInstanceController.isDesktopAppUrl("STREMIO://addon/install"))
         assertTrue(DesktopSingleInstanceController.isDesktopAppUrl("\"nuvio://watch\""))
+        assertTrue(DesktopSingleInstanceController.isDesktopAppUrl("https://nuvio.tv/party/K7M2QX"))
+        assertTrue(DesktopSingleInstanceController.isDesktopAppUrl("nuvio://party/K7M2QX"))
+        assertFalse(DesktopSingleInstanceController.isDesktopAppUrl("https://nuvio.tv/party/invalid"))
+        assertFalse(DesktopSingleInstanceController.isDesktopAppUrl("https://otherdomain.com/party/K7M2QX"))
         assertFalse(DesktopSingleInstanceController.isDesktopAppUrl("https://example.com"))
         assertFalse(DesktopSingleInstanceController.isDesktopAppUrl("--some-cli-flag"))
     }

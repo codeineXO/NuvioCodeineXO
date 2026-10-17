@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.party.PartyMedia
 
 internal typealias PlayerReleaseBeforeBack = (
     onReleased: () -> Unit,
@@ -53,4 +54,7 @@ internal data class PlayerScreenArgs(
     val onExpand: (() -> Unit)? = null,
     val onClose: (() -> Unit)? = null,
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
+    val sourceFilename: String? = null,
+    val onOpenPartyMedia: (PartyMedia) -> Unit = {},
+    val stream: com.nuvio.app.features.streams.StreamItem? = null,
 )

@@ -1,7 +1,9 @@
 package com.nuvio.app.core.instance
 
 import androidx.compose.ui.window.WindowState
+import com.nuvio.app.core.deeplink.AppDeepLink
 import com.nuvio.app.core.deeplink.handleAppUrl
+import com.nuvio.app.core.deeplink.parseAppDeepLink
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.features.player.desktop.DesktopHostOs
 import java.awt.Frame
@@ -392,7 +394,8 @@ object DesktopSingleInstanceController {
     fun isDesktopAppUrl(value: String): Boolean {
         val cleaned = cleanArgument(value)
         return cleaned.startsWith("nuvio://", ignoreCase = true) ||
-            cleaned.startsWith("stremio://", ignoreCase = true)
+            cleaned.startsWith("stremio://", ignoreCase = true) ||
+            parseAppDeepLink(cleaned) is AppDeepLink.Party
     }
 
     internal fun resetForTest() {

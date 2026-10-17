@@ -366,9 +366,9 @@ let state = {
   themeSelectedSurfaceHoverColor: "#2d4565",
   themeSelectedRingColor: "rgba(47, 111, 237, .35)",
   themeTimelineFillColor: "#fff",
-  themeTimelineTrackColor: "rgba(255, 255, 255, .28)",
+  themeTimelineTrackColor: "rgba(255, 255, 255, .3)",
   themeBufferingColor: "#fff",
-  themeBufferingTrackColor: "rgba(255, 255, 255, .28)",
+  themeBufferingTrackColor: "rgba(255, 255, 255, .35)",
   themeControlForegroundColor: "#fff",
   themeSurfaceElevatedColor: "#16171d",
   themeSurfaceCardColor: "rgba(255, 255, 255, .08)",
@@ -416,6 +416,7 @@ let state = {
   seekrEpisode: 0,
   durationMs: 0,
   positionMs: 0,
+  bufferedPositionMs: 0,
   audioTracks: [],
   subtitleTracks: [],
   sourceIsLoading: false,
@@ -1132,9 +1133,9 @@ const applyTheme = () => {
   setColor("--theme-selected-surface-hover", state.themeSelectedSurfaceHoverColor, "#2d4565");
   setColor("--theme-selected-ring", state.themeSelectedRingColor, "rgba(47, 111, 237, .35)");
   setColor("--theme-timeline-fill", state.themeTimelineFillColor, "#fff");
-  setColor("--theme-timeline-track", state.themeTimelineTrackColor, "rgba(255, 255, 255, .28)");
+  setColor("--theme-timeline-track", state.themeTimelineTrackColor, "rgba(255, 255, 255, .3)");
   setColor("--theme-buffering", state.themeBufferingColor, "#fff");
-  setColor("--theme-buffering-track", state.themeBufferingTrackColor, "rgba(255, 255, 255, .28)");
+  setColor("--theme-buffering-track", state.themeBufferingTrackColor, "rgba(255, 255, 255, .35)");
   setColor("--theme-control-foreground", state.themeControlForegroundColor, "#fff");
   setColor("--theme-surface-elevated", state.themeSurfaceElevatedColor, "#16171d");
   setColor("--theme-surface-card", state.themeSurfaceCardColor, "rgba(255, 255, 255, .08)");
@@ -1143,6 +1144,7 @@ const applyTheme = () => {
   setColor("--theme-text-secondary", state.themeTextSecondaryColor, "rgba(255, 255, 255, .72)");
   setColor("--theme-text-muted", state.themeTextMutedColor, "rgba(255, 255, 255, .6)");
   setColor("--theme-border-default", state.themeBorderDefaultColor, "rgba(255, 255, 255, .12)");
+  setColor("--theme-danger", state.themeDangerColor, "#e36a8a");
 };
 
 const formatTime = milliseconds => {
@@ -1156,17 +1158,18 @@ const formatTime = milliseconds => {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 
-const setProgress = (positionMs, durationMs) => {
+const setProgress = (positionMs, durationMs, bufferedPositionMs = state.bufferedPositionMs) => {
   const percent = durationMs > 0 ? Math.max(0, Math.min(100, positionMs / durationMs * 100)) : 0;
   seek.value = Math.round(percent * 10);
   seek.style.setProperty("--progress", `${percent}%`);
-  const bufferedMs = Math.max(positionMs, Number(state.bufferedPositionMs) || 0);
+  const bufferedMs = Math.max(positionMs, Number(bufferedPositionMs) || 0);
   const bufferedPercent = durationMs > 0 ? Math.max(0, Math.min(100, (bufferedMs / durationMs) * 100)) : 0;
   seek.style.setProperty("--buffered", `${bufferedPercent}%`);
   if (codeineSeekContainer) {
     codeineSeekContainer.style.setProperty("--progress", `${percent}%`);
     codeineSeekContainer.style.setProperty("--buffered", `${bufferedPercent}%`);
   }
+  seek.style.setProperty("--bufferProgress", `${bufferedPercent}%`);
   positionLabel.textContent = formatTime(positionMs);
   durationLabel.textContent = formatTime(durationMs);
   if (timeLabel) {
@@ -1356,6 +1359,7 @@ const modalByName = {
   episodes: episodesModal,
   submitIntro: submitIntroModal,
   p2pConsent: p2pConsentModal,
+  party: partyModal,
 };
 const modalElements = Object.values(modalByName);
 const hasOpenModal = () => Boolean(
@@ -1414,6 +1418,7 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
     send("cancelP2pForPlayerControls", 0);
   }
   if (closingModal === "episodes") onEpisodesModalClosed();
+  if (closingModal === "party") onPartyModalClosed();
   renderChrome();
 };
 
@@ -1424,6 +1429,7 @@ const openPlayerModal = modal => {
     closePlayerModal(false);
     return;
   }
+  if (activeModal === "party" && modal !== "party") onPartyModalClosed();
   activeModal = modal;
   if (modal === "submitIntro") {
     const contentKey = state.submitIntroContentKey || "";
@@ -3189,6 +3195,7 @@ const getActiveModalSignature = modal => {
   if (modal === "episodes") return getEpisodesModalSignature();
   if (modal === "submitIntro") return getSubmitIntroModalSignature();
   if (modal === "p2pConsent") return getP2pConsentModalSignature();
+  if (modal === "party") return JSON.stringify(currentParty());
   return "";
 };
 
@@ -3210,6 +3217,7 @@ const renderActiveModal = (modalOpened = false, force = false) => {
   else if (activeModal === "episodes") renderEpisodesModal(modalOpened);
   else if (activeModal === "submitIntro") renderSubmitIntroModal();
   else if (activeModal === "p2pConsent") renderP2pConsentModal();
+  else if (activeModal === "party") renderPartyModal();
 
   lastRenderedModal = activeModal;
   lastRenderedModalSignature = signature;
@@ -3220,9 +3228,17 @@ window.nuvioNativeViewportChanged = () => {
   window.clearTimeout(nativeViewportTimer);
   nativeViewportTimer = window.setTimeout(() => {
     root.classList.remove("native-resizing");
-  }, 180);
+  }, state.isInPip ? 5000 : 180);
   syncSkipPromptPlacement(skipPrompt.classList.contains("visible"));
   if (activeModal) renderActiveModal(true);
+};
+
+window.nuvioNativeResizeEnded = () => {
+  window.clearTimeout(nativeViewportTimer);
+  root.classList.remove("native-resizing");
+  noteChromeActivity(true);
+  syncSkipPromptPlacement(skipPrompt.classList.contains("visible"));
+  if (activeModal) renderActiveModal(false, true);
 };
 
 const renderOpeningOverlay = suppress => {
@@ -3525,6 +3541,7 @@ const finishChromePointerInteraction = event => {
 const renderChrome = () => {
   const durationMs = Math.max(0, Number(state.durationMs) || 0);
   const positionMs = isScrubbing ? scrubPositionMs : Math.max(0, Number(state.positionMs) || 0);
+  const bufferedPositionMs = Math.max(0, Number(state.bufferedPositionMs) || 0);
   const isPlaying = Boolean(state.isPlaying);
   const showError = renderPlaybackError();
   const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
@@ -3542,6 +3559,7 @@ const renderChrome = () => {
   if (!chromeHidden || state.showSeekbarWhileSeeking === false) {
     clearSeekbarOnly();
   }
+  root.classList.toggle("modal-open", Boolean(activeModal));
   root.classList.toggle("source-visible", Boolean(!showError && !isPlaying && !state.isLoading && (state.streamTitle || state.providerName)));
   syncHiddenCursor();
   const showOpening = renderOpeningOverlay(showError);
@@ -3686,7 +3704,7 @@ const renderChrome = () => {
   backButton.setAttribute("aria-label", state.closeLabel || "Close player");
   submitIntroButton.setAttribute("aria-label", state.submitIntroLabel || "Submit Intro");
   videoSettingsButton.setAttribute("aria-label", state.videoSettingsLabel || "Video settings");
-  setProgress(positionMs, durationMs);
+  setProgress(positionMs, durationMs, bufferedPositionMs);
   if (showError) {
     skipPrompt.classList.remove("visible", "show-progress");
     skipPrompt.setAttribute("aria-hidden", "true");
@@ -3695,6 +3713,7 @@ const renderChrome = () => {
   } else {
     renderNativePlaybackPrompts();
   }
+  renderPartyChrome();
   syncChromeAutoHideTimer(showOpening);
 };
 
@@ -3850,6 +3869,16 @@ let fineSeekTimer = 0;
 let fineSeekAccumulatedMs = 0;
 let fineSeekDirection = null;
 let fineSeekBasePosMs = null;
+let partySeekTimer = 0;
+const partySeekSettleMs = 300;
+
+const finishPartySeek = () => {
+  partySeekTimer = 0;
+  isScrubbing = false;
+  state.positionMs = scrubPositionMs;
+  send("scrubFinish", scrubPositionMs);
+  render();
+};
 
 const fineSeek = isForward => {
   triggerSeekbarOnlyOnSeek();
@@ -3864,6 +3893,7 @@ const fineSeek = isForward => {
     fineSeekBasePosMs = Math.max(0, Number(state.positionMs) || 0);
   }
 
+  const partySeek = Boolean(partySeekTimer || currentParty().synced);
   const durationMs = Math.max(0, Number(state.durationMs) || 0);
   const targetPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, fineSeekBasePosMs + fineSeekAccumulatedMs) : fineSeekBasePosMs + fineSeekAccumulatedMs);
 
@@ -3875,7 +3905,15 @@ const fineSeek = isForward => {
   const sign = deltaSec > 0 ? "+" : "";
   showPlayerToast(`${sign}${deltaSec}s`);
 
-  send(isForward ? "keyboardFineSeekForward" : "keyboardFineSeekBack", targetPosMs);
+  if (partySeek) {
+    isScrubbing = true;
+    scrubPositionMs = targetPosMs;
+    send("scrubChange", targetPosMs);
+    window.clearTimeout(partySeekTimer);
+    partySeekTimer = window.setTimeout(finishPartySeek, partySeekSettleMs);
+  } else {
+    send(isForward ? "keyboardFineSeekForward" : "keyboardFineSeekBack", targetPosMs);
+  }
 
   if (fineSeekTimer) {
     window.clearTimeout(fineSeekTimer);
@@ -4129,6 +4167,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
     }
     if (command === "speed") {
       openPlayerModal("speed");
+      return;
+    }
+    if (command === "party") {
+      openPlayerModal("party");
       return;
     }
     if (command === "shaders") {
@@ -4978,7 +5020,9 @@ window.playerUpdate = update => {
   const volumeLevel = Number.isFinite(reportedVolumeLevel)
     ? clampVolumeLevel(reportedVolumeLevel)
     : state.volumeLevel;
-  const reportedBufferedMs = Number(update.bufferedMs);
+  const reportedBufferedMs = update.bufferedMs != null
+    ? Number(update.bufferedMs)
+    : update.bufferedPosition != null ? Number(update.bufferedPosition) * 1000 : NaN;
   const bufferedPositionMs = Number.isFinite(reportedBufferedMs)
     ? Math.round(reportedBufferedMs)
     : state.bufferedPositionMs;
@@ -5056,6 +5100,8 @@ window.playerControls = nextState => {
   const previousTitle = state.title || "";
   const previousEpisodeText = state.episodeText || "";
   const previousStreamTitle = state.streamTitle || "";
+  const previousParty = state.party;
+  const replayingParty = !hasReceivedPlayerControls;
   const currentPlaybackState = pendingIsPlaying === null
     ? state.isPlaying
     : pendingIsPlaying;
@@ -5096,6 +5142,7 @@ window.playerControls = nextState => {
   if (notificationToken !== previousNotificationToken) {
     showPlayerToast(state.notificationMessage);
   }
+  if (!replayingParty) applyPartyControls(previousParty);
   if (state.showP2pConsent && activeModal !== "p2pConsent") {
     openPlayerModal("p2pConsent");
   } else if (!state.showP2pConsent && activeModal === "p2pConsent") {
@@ -5678,6 +5725,11 @@ document.addEventListener("keyup", event => {
 });
 
 document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && isPartyConfirmOpen()) {
+    event.preventDefault();
+    closePartyConfirm();
+    return;
+  }
   if (event.key === "Escape" && activeModal) {
     clearSpaceHoldTimerAndStopSpeedBoost();
     event.preventDefault();
@@ -5793,7 +5845,7 @@ document.addEventListener("keydown", event => {
   }
 
   if (activeModal && event.code.startsWith("Arrow") && document.activeElement && document.activeElement.tagName !== "BODY" && document.activeElement !== root) {
-    const modalEl = modalByName[activeModal];
+    const modalEl = isPartyConfirmOpen() ? partyConfirm : modalByName[activeModal];
     if (!modalEl) return;
     const focusable = Array.from(modalEl.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"])'))
       .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
@@ -6076,7 +6128,7 @@ document.addEventListener("keydown", event => {
   send(command, 0);
 });
 
-setProgress(0, 0);
+setProgress(0, 0, 0);
 focusShortcutRoot();
 render();
 syncSeekrPreviews();

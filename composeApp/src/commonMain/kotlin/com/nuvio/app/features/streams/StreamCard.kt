@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +56,15 @@ import com.nuvio.app.isDesktop
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
+internal val LocalStreamHighlight = staticCompositionLocalOf<(StreamItem) -> String?> { { null } }
+
+internal data class SharedStream(
+    val label: String,
+    val stream: StreamItem,
+)
+
+internal val LocalSharedStream = staticCompositionLocalOf<SharedStream?> { null }
+
 @Composable
 internal fun StreamCard(
     stream: StreamItem,
@@ -70,6 +80,9 @@ internal fun StreamCard(
     isCurrent: Boolean = false,
     currentLabel: String? = null,
 ) {
+    val highlightLabel = if (isCurrent) null else LocalStreamHighlight.current(stream)
+    val marked = isCurrent || highlightLabel != null
+    val markedLabel = if (isCurrent) currentLabel else highlightLabel
     val cardShape = RoundedCornerShape(12.dp)
     val playerHazeState = LocalPlayerHazeState.current
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -93,14 +106,14 @@ internal fun StreamCard(
                     Modifier.hazeEffect(state = playerHazeState) {
                         blurRadius = 160.dp
                         noiseFactor = 0f
-                        backgroundColor = if (isCurrent) {
+                        backgroundColor = if (marked) {
                             primaryColor.copy(alpha = 0.25f)
                         } else {
                             Color.Black.copy(alpha = 0.68f)
                         }
                         tints = listOf(
                             HazeTint(
-                                if (isCurrent) {
+                                if (marked) {
                                     primaryColor.copy(alpha = 0.25f)
                                 } else {
                                     Color.Black.copy(alpha = 0.68f)
@@ -108,7 +121,7 @@ internal fun StreamCard(
                             ),
                         )
                         fallbackTint = HazeTint(
-                            if (isCurrent) {
+                            if (marked) {
                                 primaryColor.copy(alpha = 0.35f)
                             } else {
                                 Color.Black.copy(alpha = 0.95f)
@@ -117,7 +130,7 @@ internal fun StreamCard(
                     }
                 } else {
                     Modifier.background(
-                        if (isCurrent) {
+                        if (marked) {
                             primaryColor.copy(alpha = 0.12f)
                         } else {
                             Color.White.copy(alpha = 0.05f)
@@ -126,7 +139,7 @@ internal fun StreamCard(
                 },
             )
             .then(
-                if (isCurrent) {
+                if (marked) {
                     Modifier.border(
                         width = 1.dp,
                         color = primaryColor.copy(alpha = 0.52f),
@@ -180,9 +193,9 @@ internal fun StreamCard(
                 stream = stream,
                 appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
             ) {
-                if (isCurrent && !currentLabel.isNullOrBlank()) {
+                if (marked && !markedLabel.isNullOrBlank()) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    CurrentStreamBadge(label = currentLabel)
+                    CurrentStreamBadge(label = markedLabel)
                 }
             }
 

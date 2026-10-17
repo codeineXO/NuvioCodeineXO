@@ -31,9 +31,9 @@
   --theme-selected-surface-hover: #2d4565;
   --theme-selected-ring: rgba(47, 111, 237, .35);
   --theme-timeline-fill: #fff;
-  --theme-timeline-track: rgba(255, 255, 255, .28);
+  --theme-timeline-track: rgba(255, 255, 255, .3);
   --theme-buffering: #fff;
-  --theme-buffering-track: rgba(255, 255, 255, .28);
+  --theme-buffering-track: rgba(255, 255, 255, .35);
   --theme-control-foreground: #fff;
   --theme-surface-elevated: #16171d;
   --theme-surface-card: rgba(255, 255, 255, .08);
@@ -189,6 +189,12 @@ button:disabled {
 .player.native-resizing .track-panel,
 .player.native-resizing .torrent-stats-overlay {
   transition-duration: 1ms !important;
+}
+
+/* The open panel's scrim covers these buttons: they would look active but every click lands on the scrim. */
+.player.modal-open .header-actions {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .player.chrome-hidden .top-gradient,
@@ -1710,6 +1716,7 @@ button:disabled {
   background:
     var(--theme-accent-gradient, linear-gradient(var(--theme-timeline-fill), var(--theme-timeline-fill)))
       left center / var(--progress, 0%) 100% no-repeat,
+    linear-gradient(var(--theme-buffering-track)) left center / var(--bufferProgress, 0%) 100% no-repeat,
     var(--theme-timeline-track);
 }
 
@@ -2095,10 +2102,13 @@ button:disabled {
 }
 
 .player-rail-modal {
+  /* Room for the bottom bar, which stays visible under the panel: the seek bar's top sits
+     --slider-bottom + 74px above the bottom (48px action row, 16px gap, 10px seek bar), plus a 16px gap. */
+  --rail-bottom-clearance: calc(var(--slider-bottom) + 90px);
   display: flex;
   align-items: flex-end;
   justify-content: flex-start;
-  padding: clamp(28px, 4vw, 52px) clamp(28px, 4vw, 52px) clamp(64px, 11vh, 124px);
+  padding: clamp(28px, 4vw, 52px) clamp(28px, 4vw, 52px) max(clamp(64px, 11vh, 124px), var(--rail-bottom-clearance));
   background:
     linear-gradient(90deg, rgba(0, 0, 0, .88) 0%, rgba(0, 0, 0, .66) 36%, transparent 82%),
     linear-gradient(180deg, rgba(0, 0, 0, .6) 0%, rgba(0, 0, 0, .34) 30%, rgba(0, 0, 0, .14) 60%, transparent 100%),
@@ -2108,7 +2118,8 @@ button:disabled {
 .player-rail-modal .track-panel {
   width: auto;
   max-width: calc(100vw - clamp(56px, 8vw, 104px));
-  max-height: calc(100vh - clamp(72px, 12vh, 128px));
+  /* Fit inside the layer's padding; a vh guess let tall rails push the title up against the top edge. */
+  max-height: 100%;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -2411,6 +2422,9 @@ button:disabled {
 .subtitle-rails {
   display: grid;
   grid-template-columns: 200px 300px;
+  grid-template-rows: minmax(0, 1fr);
+  flex: 0 1 auto;
+  min-height: 0;
   align-items: stretch;
   gap: 14px;
   max-width: 100%;
@@ -2440,6 +2454,7 @@ button:disabled {
 }
 
 .subtitle-rail-title {
+  flex-shrink: 0;
   overflow: hidden;
   color: var(--theme-text-muted);
   font-size: 14px;
@@ -3900,7 +3915,7 @@ button.action:focus-visible {
   }
 
   .player-rail-modal {
-    padding: 28px 24px 64px;
+    padding: 28px 24px var(--rail-bottom-clearance);
   }
 
   .subtitle-rails {
@@ -3924,7 +3939,7 @@ button.action:focus-visible {
 @media (max-height: 680px) {
   .player-rail-modal {
     padding-top: 24px;
-    padding-bottom: 48px;
+    padding-bottom: var(--rail-bottom-clearance);
   }
 
   .player-rail-modal .track-header {
@@ -4032,6 +4047,7 @@ svg {
 .player.ui-codeinexo .header-actions #backButton,
 .player.ui-codeinexo .header-actions #fullscreenButton,
 .player.ui-codeinexo .header-actions #miniPlayerButton,
+.player.ui-codeinexo .header-actions #partyButton,
 .player.ui-codeinexo .header-actions #pipButton {
   display: none !important;
 }
@@ -4068,7 +4084,8 @@ svg {
 .player.ui-codeinexo .header-left,
 .player.ui-codeinexo .header-actions,
 .player.ui-codeinexo .torrent-stats-overlay,
-.player.ui-codeinexo .parental-guide {
+.player.ui-codeinexo .parental-guide,
+.player.ui-codeinexo .party-pill {
   transform: translateY(0);
   transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, transform;
@@ -4094,7 +4111,8 @@ svg {
 .player.ui-codeinexo.chrome-hidden .header-left,
 .player.ui-codeinexo.chrome-hidden .header-actions,
 .player.ui-codeinexo.chrome-hidden .torrent-stats-overlay,
-.player.ui-codeinexo.chrome-hidden .parental-guide {
+.player.ui-codeinexo.chrome-hidden .parental-guide,
+.player.ui-codeinexo.chrome-hidden .party-pill:not(.pinned) {
   opacity: 0;
   transform: translateY(-24px);
   pointer-events: none;
@@ -4173,13 +4191,69 @@ svg {
 .player.ui-codeinexo.native-resizing .center-controls,
 .player.ui-codeinexo.native-resizing .progress,
 .player.ui-codeinexo.native-resizing .torrent-stats-overlay,
-.player.ui-codeinexo.native-resizing .parental-guide {
+.player.ui-codeinexo.native-resizing .parental-guide,
+.player.ui-codeinexo.native-resizing .party-pill {
   transition-duration: 1ms !important;
+}
+
+.player.ui-codeinexo .party-pill {
+  top: calc(70px + env(safe-area-inset-top));
+  left: calc(20px + env(safe-area-inset-left));
+  right: auto;
+  max-width: min(560px, calc(100% - 40px));
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-16px);
+  transition:
+    opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color var(--motion-standard) ease;
+  will-change: opacity, transform;
+  z-index: 20;
+}
+
+.player.ui-codeinexo .party-pill.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.player.ui-codeinexo .party-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.player.ui-codeinexo .party-pill:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.player.ui-codeinexo .party-pill .party-stack-slot {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.player.ui-codeinexo .party-pill-text {
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .player.ui-codeinexo .parental-guide {
   top: calc(86px + env(safe-area-inset-top));
   left: calc(20px + env(safe-area-inset-left));
+}
+
+.player.ui-codeinexo.party-pill-visible .parental-guide {
+  top: calc(120px + env(safe-area-inset-top));
+}
+
+.player.ui-codeinexo.party-pill-visible .player-toast {
+  top: calc(96px + env(safe-area-inset-top));
 }
 
 .player.ui-codeinexo .parental-guide-label,
@@ -4794,7 +4868,7 @@ svg {
 .player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
 .player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items,
 .player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-items {
-  max-width: 178px;
+  max-width: 228px;
   opacity: 1;
   pointer-events: auto;
   margin-left: 6px;
@@ -4907,7 +4981,9 @@ svg {
 .player.mini-player-mode #nextEpisodeCard,
 .player.mini-player-mode #timeOverlay,
 .player.mini-player-mode #p2pStatsOverlay,
-.player.mini-player-mode #parentalGuide {
+.player.mini-player-mode #parentalGuide,
+.player.mini-player-mode #partyPill,
+.player.mini-player-mode .party-pill {
   display: none !important;
 }
 
@@ -4944,6 +5020,10 @@ svg {
     min-height: 36px;
     max-height: 36px;
   }
+  .player.ui-codeinexo .party-pill {
+    top: calc(66px + env(safe-area-inset-top));
+    padding: 4px;
+  }
   .player.ui-codeinexo .codeine-speed-btn {
     width: 36px;
     min-width: 36px;
@@ -4973,7 +5053,7 @@ svg {
   .player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
   .player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items,
   .player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-items {
-    max-width: 156px;
+    max-width: 198px;
     margin-left: 4px;
   }
   .player.ui-codeinexo .codeine-drawer-items {
