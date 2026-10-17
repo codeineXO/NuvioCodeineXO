@@ -5655,3 +5655,21 @@ svg {
 }
 
 
+
+/* PiP chrome disappears immediately when the pointer leaves the window. */
+.player.pip-mode #partyButton,
+.player.pip-mode #codeinePartyButton,
+.player.pip-mode #partyPill,
+.player.pip-mode .party-pill {
+  display: none !important;
+}
+
+.player.pip-mode.pip-pointer-outside .content,
+.player.pip-mode.pip-pointer-outside .top-gradient,
+.player.pip-mode.pip-pointer-outside .bottom-gradient,
+.player.pip-mode.pip-pointer-outside .pip-lock-badge {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: none !important;
+}

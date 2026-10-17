@@ -26,8 +26,8 @@ enum class SvpMotionOption(
     val description: String,
 ) {
     OFF("off", "Off", "Disable motion interpolation"),
-    AUTO("auto", "Anime Only", "Smooth motion interpolation for Anime and Cartoons"),
-    GLOBAL("global", "All Media", "Smooth motion across all media using content-tuned profiles");
+    AUTO("auto", "Anime Only", "60 FPS for Anime and Cartoons only"),
+    GLOBAL("global", "All Media", "60 FPS for all contents");
 
     val isEnabled: Boolean get() = this != OFF
 

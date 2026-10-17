@@ -1548,10 +1548,12 @@ const animeUpscalerToggleOptions = [
 ];
 
 const svpOptions = [
-  { mode: "off", modeValue: 0, label: "Off", description: "Disable motion interpolation" },
-  { mode: "auto", modeValue: 1, label: "Anime Only", description: "Smooth motion interpolation for Anime and Cartoons" },
-  { mode: "global", modeValue: 2, label: "All Media", description: "Smooth motion across all media using content-tuned profiles" },
+  { mode: "auto", modeValue: 1, label: "Anime Only", description: "60 FPS for Anime and Cartoons only" },
+  { mode: "global", modeValue: 2, label: "All Media", description: "60 FPS for all contents" },
 ];
+
+let lastEnabledSvpMode = "auto";
+let isPipPointerOutside = false;
 
 const getShaderModalSignature = () => [
   state.animeUpscalerOption || "",
@@ -1689,6 +1691,12 @@ const renderShaderOptionList = () => {
   svpHeader.textContent = "Motion Smoothing (SVP)";
   shaderOptionList.appendChild(svpHeader);
 
+  const detectedContent = document.createElement("div");
+  detectedContent.className = "audio-track-language";
+  const contentLabels = { anime: "Anime", cartoon: "Cartoon", live_action: "Live Action" };
+  detectedContent.textContent = "Detected Content: " + (contentLabels[state.mediaContentType] || "Unknown");
+  shaderOptionList.appendChild(detectedContent);
+
   const svpAvailable = state.svpAvailable !== false;
   if (!svpAvailable) {
     const svpWarn = document.createElement("div");
@@ -1698,36 +1706,55 @@ const renderShaderOptionList = () => {
   }
 
   const svpMode = String(state.svpMode || "auto").toLowerCase();
-  const svpActive = Boolean(state.svpActive);
-  const svpProfile = String(state.svpProfile || "").toLowerCase();
+  const svpOff = svpMode === "off" || !svpAvailable;
+  if (!svpOff) lastEnabledSvpMode = svpMode === "global" || svpMode === "cinema" ? "global" : "auto";
+
+  const svpStepperCard = document.createElement("div");
+  svpStepperCard.className = "enhancement-stepper-card";
+  const svpStepper = document.createElement("div");
+  svpStepper.className = "stepper";
+  const toggleSvp = event => {
+    event.stopPropagation();
+    if (!svpAvailable) {
+      showPlayerToast("Motion Smoothing requires VapourSynth or SVP 4 installation.");
+      return;
+    }
+    const mode = svpOff ? lastEnabledSvpMode : "off";
+    state.svpMode = mode;
+    send("setSvpMode", mode === "off" ? 0 : mode === "global" ? 2 : 1);
+    renderShaderOptionList();
+    renderChrome();
+  };
+  const buildSvpStep = text => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "round-step";
+    button.textContent = text;
+    button.setAttribute("aria-label", "Toggle motion smoothing");
+    button.addEventListener("click", toggleSvp);
+    return button;
+  };
+  const svpValue = document.createElement("span");
+  svpValue.className = "stepper-value wide";
+  svpValue.textContent = svpOff ? "Off" : "On";
+  svpStepper.append(buildSvpStep("-"), svpValue, buildSvpStep("+"));
+  svpStepperCard.appendChild(svpStepper);
+  shaderOptionList.appendChild(svpStepperCard);
 
   svpOptions.forEach(opt => {
-    let isSelected = false;
-    if (!svpAvailable) {
-      isSelected = opt.mode === "off";
-    } else if (opt.mode === "off") {
-      isSelected = svpMode === "off";
-    } else if (opt.mode === "auto") {
-      isSelected = svpMode === "auto" || svpMode === "anime";
-    } else if (opt.mode === "global") {
-      isSelected = svpMode === "global" || svpMode === "cinema";
-    }
-
+    const isSelected = !svpOff && opt.mode === lastEnabledSvpMode;
     const row = document.createElement("button");
     row.type = "button";
-    row.className = `track-row${isSelected ? " selected" : ""}`;
-    if (!svpAvailable && opt.mode !== "off") {
-      row.style.opacity = "0.5";
-    }
+    row.className = "track-row" + (isSelected ? " selected" : "") + (svpOff ? " disabled" : "");
+    row.disabled = svpOff;
+    row.setAttribute("aria-disabled", String(svpOff));
     row.addEventListener("click", event => {
       event.stopPropagation();
-      if (!svpAvailable && opt.mode !== "off") {
-        showPlayerToast("Motion Smoothing requires VapourSynth or SVP 4 installation.");
-        return;
-      }
+      if (svpOff) return;
+      lastEnabledSvpMode = opt.mode;
       state.svpMode = opt.mode;
       send("setSvpMode", opt.modeValue);
-      showPlayerToast(opt.mode === "off" ? "Motion Smoothing: Off" : `Motion Smoothing: ${opt.label}`);
+      showPlayerToast("Motion Smoothing: " + opt.label);
       renderShaderOptionList();
       renderChrome();
       window.setTimeout(closePlayerModal, 120);
@@ -1743,17 +1770,7 @@ const renderShaderOptionList = () => {
     if (opt.description) {
       const desc = document.createElement("span");
       desc.className = "audio-track-language";
-      let descText = opt.description;
-      if (!svpAvailable && opt.mode !== "off") {
-        descText = "Unavailable (VapourSynth runtime not detected)";
-      } else if (opt.mode === "auto" && svpActive && svpProfile) {
-        descText += ` — Active: ${svpProfile === "anime" ? "Anime" : "Cinema"}`;
-      } else if (opt.mode === "auto" && !svpActive && state.mediaContentType === "live_action") {
-        descText += " — Inactive: Live Action";
-      } else if (opt.mode === "global" && svpActive && svpProfile) {
-        descText += ` — Active: ${svpProfile === "anime" ? "Anime" : "Live Action"}`;
-      }
-      desc.textContent = descText;
+      desc.textContent = opt.description;
       copy.appendChild(desc);
     }
 
@@ -3554,7 +3571,9 @@ const renderChrome = () => {
   if (state.isInPip && activeModal) closePlayerModal(false, false);
   const modalActive = hasOpenModal();
   root.classList.toggle("modal-active", modalActive);
-  const chromeHidden = Boolean(showError || !state.controlsVisible || state.isMiniPlayer);
+  const pipPointerOutside = Boolean(state.isInPip && isPipPointerOutside);
+  root.classList.toggle("pip-pointer-outside", pipPointerOutside);
+  const chromeHidden = Boolean(showError || !state.controlsVisible || state.isMiniPlayer || pipPointerOutside);
   root.classList.toggle("chrome-hidden", chromeHidden);
   if (!chromeHidden || state.showSeekbarWhileSeeking === false) {
     clearSeekbarOnly();
@@ -4029,9 +4048,22 @@ document.addEventListener("pointermove", event => {
 document.addEventListener("pointerup", finishChromePointerInteraction, true);
 document.addEventListener("pointercancel", finishChromePointerInteraction, true);
 document.addEventListener("dragend", clearPressedButton, true);
-document.addEventListener("pointerleave", () => {
+document.documentElement.addEventListener("pointerleave", () => {
   updateChromePointerInside(false);
-}, true);
+  if (!state.isInPip) return;
+  isPipPointerOutside = true;
+  clearChromeAutoHideTimer();
+  state = { ...state, controlsVisible: false };
+  renderChrome();
+  send("hideChrome", 0);
+});
+document.documentElement.addEventListener("pointerenter", () => {
+  isPipPointerOutside = false;
+  if (!state.isInPip) return;
+  state = { ...state, controlsVisible: true };
+  renderChrome();
+  noteChromeActivity(true);
+});
 document.addEventListener("focusin", event => {
   isChromeFocusInside = isChromeInteractionTarget(event.target);
   const actionButton = event.target.closest && event.target.closest(".action-pill .action");
