@@ -435,6 +435,7 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeInitialPositionMs = epResumePositionMs
     activeInitialProgressFraction = epResumeFraction
     controlsVisible = true
+    controlsActivityTick += 1
     syncStreamLaunch(
         seasonNumber = episode.season,
         episodeNumber = episode.episode,
@@ -459,6 +460,8 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
                 !nextEpisodeCardDismissed && isAtNextEpisodeThreshold()
             ))
     if (!isCurrentRequest()) return
+    controlsVisible = true
+    controlsActivityTick += 1
     playerMetaVideos.firstOrNull { it.id == nextVideoId }?.let { syncStreamLaunch(it) }
     nextEpisodeAutoPlayAutomatic = automatic
 
@@ -636,6 +639,7 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     activeInitialPositionMs = resume.positionMs
     activeInitialProgressFraction = resume.fraction
     controlsVisible = true
+    controlsActivityTick += 1
     syncStreamLaunch(episode, resume)
 }
 

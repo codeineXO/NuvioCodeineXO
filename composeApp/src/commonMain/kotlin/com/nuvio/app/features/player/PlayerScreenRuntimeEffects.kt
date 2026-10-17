@@ -519,6 +519,7 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
     LaunchedEffect(
         controlsVisible,
         controlsActivityTick,
+        activePlaybackKey,
         isScrubbingTimeline,
         playbackSnapshot.isPlaying,
         playbackSnapshot.isLoading,
@@ -526,6 +527,7 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
         errorMessage,
     ) {
         if (
+            isDesktop ||
             !controlsVisible ||
             isScrubbingTimeline ||
             !playbackSnapshot.isPlaying ||

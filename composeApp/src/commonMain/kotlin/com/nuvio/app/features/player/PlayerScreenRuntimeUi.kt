@@ -1273,6 +1273,8 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
         }
         "playNextEpisode" -> {
             if (nextEpisodeInfo?.hasAired == true && !nextEpisodeAutoPlaySearching && nextEpisodeAutoPlayCountdown == null) {
+                controlsVisible = true
+                controlsActivityTick += 1
                 playNextEpisode()
             }
         }

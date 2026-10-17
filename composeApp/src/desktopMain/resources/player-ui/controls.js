@@ -3394,7 +3394,8 @@ const isInteractingWithChrome = () =>
 
 const canAutoHideChrome = showOpening => Boolean(
   state.controlsVisible &&
-  (!state.isLoading || !state.isPlaying) &&
+  !state.isLoading &&
+  !state.nextEpisodeStatus &&
   !activeModal &&
   !isScrubbing &&
   !isInteractingWithChrome() &&
@@ -3406,6 +3407,8 @@ const currentChromeAutoHideKey = showOpening => {
   if (!canAutoHideChrome(showOpening)) return "";
   return [
     chromeAutoHideActivity,
+    state.title || "",
+    state.episodeText || "",
     state.controlsVisible ? "visible" : "hidden",
     state.isPlaying ? "playing" : "paused",
     !state.isPlaying ? "paused" : (state.isLoading ? "loading" : "ready"),
@@ -4582,6 +4585,7 @@ skipPrompt.addEventListener("click", event => {
 nextEpisodeCard.addEventListener("click", event => {
   event.stopPropagation();
   if (state.nextEpisodePlayable) {
+    noteChromeActivity(true);
     send("playNextEpisode", 0);
   }
 });
@@ -5049,6 +5053,9 @@ window.playerControls = nextState => {
   const previousEpisodeStreamsVisible = Boolean(state.episodeStreamsVisible);
   const previousSelectedSubtitleLanguageKey = state.selectedSubtitleLanguageKey || "__off__";
   const previousSelectedSubtitleOptionId = state.selectedSubtitleOptionId || "";
+  const previousTitle = state.title || "";
+  const previousEpisodeText = state.episodeText || "";
+  const previousStreamTitle = state.streamTitle || "";
   const currentPlaybackState = pendingIsPlaying === null
     ? state.isPlaying
     : pendingIsPlaying;
@@ -5060,6 +5067,12 @@ window.playerControls = nextState => {
     volumeLevel: currentVolumeLevel ?? nextState.volumeLevel,
     controlsVisible: nextState.isMiniPlayer ? false : (nextState.controlsVisible ?? true),
   };
+  const mediaMetadataChanged = (nextState.title !== undefined && nextState.title !== previousTitle) ||
+    (nextState.episodeText !== undefined && nextState.episodeText !== previousEpisodeText) ||
+    (nextState.streamTitle !== undefined && nextState.streamTitle !== previousStreamTitle);
+  if (mediaMetadataChanged && state.controlsVisible) {
+    noteChromeActivity(true);
+  }
   if (typeof nextState.showRemainingTime === "boolean") {
     timeLabelShowRemaining = nextState.showRemainingTime;
     codeineShowRemaining = nextState.showRemainingTime;
@@ -5868,6 +5881,7 @@ document.addEventListener("keydown", event => {
   }
   if (event.shiftKey && event.code === "KeyN") {
     event.preventDefault();
+    noteChromeActivity(true);
     send("playNextEpisode", 0);
     return;
   }
