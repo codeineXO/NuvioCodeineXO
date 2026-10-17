@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home.components
 
+import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.MutatePriority
@@ -77,7 +78,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.collectAsState
@@ -1483,7 +1483,7 @@ private fun ImdbRatingSourceLabel(
 ) {
     if (AppFeaturePolicy.imdbRatingLogoEnabled) {
         Image(
-            painter = painterResource(Res.drawable.rating_imdb),
+            painter = rememberImdbLogoPainter(),
             contentDescription = stringResource(Res.string.source_imdb),
             modifier = Modifier.size(width = 30.dp, height = 16.dp),
         )

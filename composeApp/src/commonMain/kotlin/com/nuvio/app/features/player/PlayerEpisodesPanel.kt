@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -630,7 +631,7 @@ private fun PlayerEpisodeRatingBadge(
     ) {
         if (AppFeaturePolicy.imdbRatingLogoEnabled) {
             Image(
-                painter = painterResource(Res.drawable.rating_imdb),
+                painter = rememberImdbLogoPainter(),
                 contentDescription = stringResource(Res.string.source_imdb),
                 modifier = Modifier
                     .width(24.dp)

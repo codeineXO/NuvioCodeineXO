@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
@@ -220,7 +221,7 @@ internal fun DetailRatingsRow(
                         else -> 16.dp
                     }
                     Image(
-                        painter = painterResource(visuals.logoFor(rating)),
+                        painter = if (visuals.source == PROVIDER_IMDB) rememberImdbLogoPainter() else painterResource(visuals.logoFor(rating)),
                         contentDescription = visuals.displayName,
                         modifier = Modifier.size(width = maxOf(visuals.logoWidth, logoHeight), height = logoHeight),
                     )
@@ -244,7 +245,7 @@ internal fun ImdbRatingSourceLabel(
     if (AppFeaturePolicy.imdbRatingLogoEnabled) {
         if (isDesktop) {
             Image(
-                painter = painterResource(Res.drawable.rating_imdb),
+                painter = rememberImdbLogoPainter(),
                 contentDescription = stringResource(Res.string.source_imdb),
                 modifier = Modifier.size(width = 30.dp, height = 16.dp),
             )

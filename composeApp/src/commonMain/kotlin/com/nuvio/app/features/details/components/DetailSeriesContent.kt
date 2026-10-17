@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -1717,7 +1718,7 @@ private fun ImdbEpisodeRatingBadge(
     ) {
         if (AppFeaturePolicy.imdbRatingLogoEnabled) {
             Image(
-                painter = painterResource(Res.drawable.rating_imdb),
+                painter = rememberImdbLogoPainter(),
                 contentDescription = stringResource(Res.string.source_imdb),
                 modifier = Modifier
                     .width(logoWidth)
