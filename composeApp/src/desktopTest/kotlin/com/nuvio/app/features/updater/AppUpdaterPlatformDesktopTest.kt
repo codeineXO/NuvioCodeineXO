@@ -42,6 +42,19 @@ class AppUpdaterPlatformDesktopTest {
     }
 
     @Test
+    fun windowsExeUpdateKeepsInstallerInteractive() {
+        val updateFile = java.io.File("C:\\Users\\User Name\\Downloads\\update.EXE")
+        val logFile = java.io.File("C:\\Users\\User Name\\Downloads\\update.log")
+        val command = windowsInstallerCommand(updateFile, logFile)
+
+        assertEquals(updateFile.absolutePath, command.first())
+        assertFalse(command.any { it.equals("/SILENT", true) || it.equals("/VERYSILENT", true) })
+        assertFalse(command.any { it.equals("/SUPPRESSMSGBOXES", true) })
+        assertTrue("/NORESTART" in command)
+        assertTrue("/LOG=${logFile.absolutePath}" in command)
+    }
+
+    @Test
     fun windowsInstallerCommandBuildsCorrectMsiArguments() {
         val msiFile = java.io.File("C:\\Program Files\\Nuvio\\update.msi")
         val logFile = java.io.File("C:\\Program Files\\Nuvio\\update.log")

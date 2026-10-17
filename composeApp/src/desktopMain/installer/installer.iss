@@ -34,6 +34,7 @@ SolidCompression=yes
 WizardStyle=modern dark
 DisableProgramGroupPage=yes
 DisableDirPage=no
+DisableFinishedPage=no
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog commandline
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -53,6 +54,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#AppSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+; Replace the complete application payload, including obsolete hashed JARs.
+; Keep the launcher until last so the existing-install check survives cleanup.
+; Preserve Inno's uninstall records and all user data outside these payload paths.
+Type: filesandordirs; Name: "{app}\runtime"; Check: HasExistingAppPayload
+Type: filesandordirs; Name: "{app}\app"; Check: HasExistingAppPayload
+Type: files; Name: "{app}\NuvioCodeineXO.exe"; Check: HasExistingAppPayload
 
 [Icons]
 Name: "{autoprograms}\NuvioCodeineXO"; Filename: "{app}\NuvioCodeineXO.exe"
@@ -89,6 +98,12 @@ var
   DeleteDataCheckbox: TNewCheckBox;
   UninstallBtn: TNewButton;
   ConfirmedUninstall: Boolean;
+
+function HasExistingAppPayload(): Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\NuvioCodeineXO.exe')) or
+    FileExists(ExpandConstant('{app}\app\NuvioCodeineXO.cfg'));
+end;
 
 // Clean up legacy MSI installation if detected
 procedure RemoveLegacyMsi();

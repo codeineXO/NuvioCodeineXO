@@ -242,11 +242,10 @@ actual object AppUpdaterPlatform {
     private fun updatesDir(): File =
         File(DesktopStorage.rootDir.resolve("updates").also { it.createDirectories() }.toUri())
 
-    // Windows Installer writes nothing anywhere useful when it is spawned without
-    // a console, so the log file is the only record of why a run was refused.
+    // Keep installation diagnostics for both Inno Setup and legacy MSI updates.
     private fun installerLogFile(updateFile: File): File? =
         if (currentOs == DesktopUpdaterOs.WINDOWS &&
-            updateFile.extension.equals("msi", ignoreCase = true)
+            updateFile.extension.lowercase(Locale.ROOT) in setOf("exe", "msi")
         ) {
             File(updatesDir(), "${updateFile.name}.log")
         } else {
@@ -368,9 +367,8 @@ internal fun windowsInstallerCommand(updateFile: File, logFile: File? = null): L
     if (updateFile.extension.equals("exe", ignoreCase = true)) {
         return buildList {
             add(updateFile.absolutePath)
-            add("/SILENT")
+            // Interactive setup retains the finish page and its Launch checkbox.
             add("/NORESTART")
-            add("/SUPPRESSMSGBOXES")
             logFile?.let {
                 add("/LOG=${it.absolutePath}")
             }
