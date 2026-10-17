@@ -1662,7 +1662,6 @@ const renderShaderOptionList = () => {
         send("setAnimeUpscalerMode", opt.modeIndex);
         renderShaderOptionList();
         renderChrome();
-        window.setTimeout(closePlayerModal, 120);
       });
     }
 
@@ -1757,7 +1756,6 @@ const renderShaderOptionList = () => {
       showPlayerToast("Motion Smoothing: " + opt.label);
       renderShaderOptionList();
       renderChrome();
-      window.setTimeout(closePlayerModal, 120);
     });
 
     const copy = document.createElement("span");
