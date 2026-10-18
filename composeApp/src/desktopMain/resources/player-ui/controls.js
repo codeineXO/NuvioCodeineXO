@@ -575,6 +575,15 @@ let chromeInteractionLastNotedAt = 0;
 let isChromePointerInside = false;
 let isChromePointerDown = false;
 let isChromeFocusInside = false;
+let lastPointerClientX = -1;
+let lastPointerClientY = -1;
+
+const updatePointerCoordinates = event => {
+  if (event && typeof event.clientX === "number") {
+    lastPointerClientX = event.clientX;
+    lastPointerClientY = event.clientY;
+  }
+};
 let hiddenCursorTimer = 0;
 let hiddenCursorTemporarilyVisible = false;
 let cursorActivityLastSentAt = 0;
@@ -639,7 +648,8 @@ const chromeInteractionSelector = [
   ".header-actions",
   ".center-controls",
   ".progress",
-  ".modal-layer",
+  ".track-panel",
+  ".party-confirm",
   ".skip-prompt",
   ".next-episode-card",
 ].join(",");
@@ -1419,7 +1429,15 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
   }
   if (closingModal === "episodes") onEpisodesModalClosed();
   if (closingModal === "party") onPartyModalClosed();
+  focusShortcutRoot();
+  isChromePointerDown = false;
+  isChromeFocusInside = false;
+  const targetUnderPointer = (lastPointerClientX >= 0 && lastPointerClientY >= 0)
+    ? document.elementFromPoint(lastPointerClientX, lastPointerClientY)
+    : null;
+  isChromePointerInside = Boolean(targetUnderPointer && isChromeInteractionTarget(targetUnderPointer));
   renderChrome();
+  noteChromeActivity(true);
 };
 
 const openPlayerModal = modal => {
@@ -3543,6 +3561,7 @@ const updateChromePointerInside = inside => {
 };
 
 const finishChromePointerInteraction = event => {
+  updatePointerCoordinates(event);
   isChromePointerDown = false;
   if (event && event.type !== "pointercancel") {
     isChromePointerInside = isChromeInteractionTarget(event.target);
@@ -4001,6 +4020,7 @@ const clearPressedButton = () => {
 };
 
 document.addEventListener("pointerdown", event => {
+  updatePointerCoordinates(event);
   if (event.button === 3) {
     showCommandToast("seekBack");
     send("seekBack", 0);
@@ -4030,6 +4050,7 @@ document.addEventListener("pointerdown", event => {
 }, true);
 
 document.addEventListener("pointermove", event => {
+  updatePointerCoordinates(event);
   if (state.isMiniPlayer) return;
   noteCursorActivity();
   const inside = isChromeInteractionTarget(event.target);
@@ -4269,11 +4290,10 @@ openingOverlay.addEventListener("click", event => {
 modalElements.forEach(modal => {
   modal.addEventListener("click", event => {
     event.stopPropagation();
-    if (modal.classList.contains("player-rail-modal")) {
-      if (event.target === modal) closePlayerModal(true);
-      return;
+    const isInsideDialog = Boolean(event.target.closest(".track-panel, .party-confirm"));
+    if (!isInsideDialog) {
+      closePlayerModal(true);
     }
-    if (event.target === modal) closePlayerModal(true);
   });
 });
 
