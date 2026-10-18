@@ -22,6 +22,7 @@ internal object WindowsMpvSubStyleHelper {
     private var getPropertyHandle: MethodHandle? = null
     private var getPropertyStringHandle: MethodHandle? = null
     private var freeHandle: MethodHandle? = null
+    private var freeNodeHandle: MethodHandle? = null
     private var clientNameHandle: MethodHandle? = null
     private var lastSpeed = 0L
     private var lastSpeedTimestamp = 0L
@@ -98,6 +99,7 @@ internal object WindowsMpvSubStyleHelper {
 
             val getPropStrSym = lookup.find("mpv_get_property_string").orElse(null)
             val freeSym = lookup.find("mpv_free").orElse(null)
+            val freeNodeSym = lookup.find("mpv_free_node_contents").orElse(null)
             if (getPropStrSym != null) {
                 getPropertyStringHandle = linker.downcallHandle(
                     getPropStrSym,
@@ -107,6 +109,12 @@ internal object WindowsMpvSubStyleHelper {
             if (freeSym != null) {
                 freeHandle = linker.downcallHandle(
                     freeSym,
+                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS),
+                )
+            }
+            if (freeNodeSym != null) {
+                freeNodeHandle = linker.downcallHandle(
+                    freeNodeSym,
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS),
                 )
             }
@@ -139,7 +147,12 @@ internal object WindowsMpvSubStyleHelper {
                 val pName = arena.allocateUtf8String(name)
                 val pOut = arena.allocate(ValueLayout.JAVA_LONG)
                 val res = getProp.invoke(mpvCtx, pName, 4 /* MPV_FORMAT_INT64 */, pOut) as Int
-                if (res >= 0) pOut.get(ValueLayout.JAVA_LONG, 0L) else 0L
+                if (res >= 0) {
+                    pOut.get(ValueLayout.JAVA_LONG, 0L)
+                } else {
+                    getStringProperty(mpvCtx, name)?.toLongOrNull()
+                        ?: getDoubleProperty(mpvCtx, name).toLong()
+                }
             }
         }.getOrDefault(0L)
     }
@@ -151,7 +164,11 @@ internal object WindowsMpvSubStyleHelper {
                 val pName = arena.allocateUtf8String(name)
                 val pOut = arena.allocate(ValueLayout.JAVA_DOUBLE)
                 val res = getProp.invoke(mpvCtx, pName, 5 /* MPV_FORMAT_DOUBLE */, pOut) as Int
-                if (res >= 0) pOut.get(ValueLayout.JAVA_DOUBLE, 0L) else 0.0
+                if (res >= 0) {
+                    pOut.get(ValueLayout.JAVA_DOUBLE, 0L)
+                } else {
+                    getStringProperty(mpvCtx, name)?.toDoubleOrNull() ?: 0.0
+                }
             }
         }.getOrDefault(0.0)
     }
@@ -161,20 +178,12 @@ internal object WindowsMpvSubStyleHelper {
     fun getCacheSpeed(bridgeHandle: Long): Long {
         if (!supportsCacheSpeed()) return 0L
         if (!ensureInitialized()) return 0L
-        val getProp = getPropertyHandle ?: return 0L
         val mpvCtx = resolveMpvHandle(bridgeHandle) ?: return 0L
 
         val speed = runCatching {
-            Arena.ofConfined().use { arena ->
-                val pName = arena.allocateUtf8String("cache-speed")
-                val pOut = arena.allocate(ValueLayout.JAVA_LONG)
-                val res = getProp.invoke(mpvCtx, pName, 4 /* MPV_FORMAT_INT64 */, pOut) as Int
-                if (res >= 0) {
-                    pOut.get(ValueLayout.JAVA_LONG, 0L).coerceAtLeast(0L)
-                } else {
-                    0L
-                }
-            }
+            val s = getLongProperty(mpvCtx, "cache-speed").takeIf { it > 0 }
+                ?: getLongProperty(mpvCtx, "demuxer-cache-state/raw-input-rate")
+            s.coerceAtLeast(0L)
         }.getOrDefault(0L)
 
         val now = System.currentTimeMillis()
@@ -217,10 +226,34 @@ internal object WindowsMpvSubStyleHelper {
         val audioChannels = getStringProperty(mpvCtx, "audio-params/channels").orEmpty()
         val audioSampleRate = getLongProperty(mpvCtx, "audio-params/samplerate")
         val audioBitrate = getLongProperty(mpvCtx, "audio-bitrate") / 1000L
-        val cacheDuration = getDoubleProperty(mpvCtx, "demuxer-cache-duration")
-        val cacheUsed = getLongProperty(mpvCtx, "demuxer-cache-state/cache-used").takeIf { it > 0 }
-            ?: getLongProperty(mpvCtx, "cache-used")
-        val cacheSpeed = getCacheSpeed(bridgeHandle)
+        val cacheInfo = getDemuxerCacheInfo(mpvCtx)
+        val cacheDuration = cacheInfo.cacheDuration.takeIf { it > 0.0 }
+            ?: getDoubleProperty(mpvCtx, "demuxer-cache-duration").takeIf { it > 0.0 }
+            ?: run {
+                val cacheTime = getDoubleProperty(mpvCtx, "demuxer-cache-time")
+                val pos = getDoubleProperty(mpvCtx, "playback-time").takeIf { it > 0.0 }
+                    ?: getDoubleProperty(mpvCtx, "time-pos")
+                if (cacheTime > 0.0 && cacheTime >= pos) (cacheTime - pos).coerceAtLeast(0.0) else 0.0
+            }
+        val estimatedBytesFromDuration = if (cacheDuration > 0.0 && videoBitrate > 0L) {
+            (videoBitrate * 125.0 * cacheDuration).toLong()
+        } else {
+            0L
+        }
+        val cacheUsed = when {
+            cacheInfo.totalBytes > 0L -> cacheInfo.totalBytes
+            cacheInfo.fwBytes > 0L -> cacheInfo.fwBytes
+            cacheInfo.fileCacheBytes > 0L -> cacheInfo.fileCacheBytes
+            else -> {
+                val legacy = getLongProperty(mpvCtx, "cache-used")
+                if (legacy > 0L) legacy * 1024L else estimatedBytesFromDuration
+            }
+        }
+        val cacheSpeed = if (cacheInfo.rawInputRate > 0L) {
+            cacheInfo.rawInputRate
+        } else {
+            getCacheSpeed(bridgeHandle)
+        }
 
         return PlayerPlaybackStats(
             videoCodec = videoCodec,
@@ -241,6 +274,107 @@ internal object WindowsMpvSubStyleHelper {
             cacheUsedBytes = cacheUsed,
             cacheSpeedBytes = cacheSpeed,
         )
+    }
+
+    private data class DemuxerCacheInfo(
+        val totalBytes: Long = 0L,
+        val fwBytes: Long = 0L,
+        val fileCacheBytes: Long = 0L,
+        val cacheDuration: Double = 0.0,
+        val rawInputRate: Long = 0L,
+    )
+
+    private fun getDemuxerCacheInfo(mpvCtx: MemorySegment): DemuxerCacheInfo {
+        val getProp = getPropertyHandle ?: return DemuxerCacheInfo()
+        val freeNode = freeNodeHandle
+        return runCatching {
+            Arena.ofConfined().use { arena ->
+                val pName = arena.allocateUtf8String("demuxer-cache-state")
+                // struct mpv_node: union u (8 bytes), mpv_format (4 bytes), 4 bytes padding
+                val pNode = arena.allocate(16, 8)
+                val res = getProp.invoke(mpvCtx, pName, 6 /* MPV_FORMAT_NODE */, pNode) as Int
+                if (res < 0) return DemuxerCacheInfo()
+
+                try {
+                    val format = pNode.get(ValueLayout.JAVA_INT, 8L)
+                    if (format != 8 /* MPV_FORMAT_NODE_MAP */) return DemuxerCacheInfo()
+
+                    val listAddr = pNode.get(ValueLayout.JAVA_LONG, 0L)
+                    if (listAddr == 0L) return DemuxerCacheInfo()
+
+                    // mpv_node_list: int num (0..4), 4 pad, values ptr (8..16), keys ptr (16..24)
+                    val listSeg = MemorySegment.ofAddress(listAddr).reinterpret(24)
+                    val num = listSeg.get(ValueLayout.JAVA_INT, 0L)
+                    val valuesAddr = listSeg.get(ValueLayout.JAVA_LONG, 8L)
+                    val keysAddr = listSeg.get(ValueLayout.JAVA_LONG, 16L)
+
+                    if (num <= 0 || num > 1024 || valuesAddr == 0L || keysAddr == 0L) return DemuxerCacheInfo()
+
+                    val keysSeg = MemorySegment.ofAddress(keysAddr).reinterpret(num.toLong() * 8L)
+                    val valuesSeg = MemorySegment.ofAddress(valuesAddr).reinterpret(num.toLong() * 16L)
+
+                    var totalBytes = 0L
+                    var fwBytes = 0L
+                    var fileCacheBytes = 0L
+                    var cacheDuration = 0.0
+                    var rawInputRate = 0L
+
+                    for (i in 0 until num) {
+                        val keyAddr = keysSeg.get(ValueLayout.JAVA_LONG, i.toLong() * 8L)
+                        if (keyAddr == 0L) continue
+                        val key = MemorySegment.ofAddress(keyAddr).reinterpret(64).getUtf8String(0L)
+
+                        val valOffset = i.toLong() * 16L
+                        val valFormat = valuesSeg.get(ValueLayout.JAVA_INT, valOffset + 8L)
+
+                        when (key) {
+                            "total-bytes" -> totalBytes = readNodeInt64(valuesSeg, valOffset, valFormat)
+                            "fw-bytes" -> fwBytes = readNodeInt64(valuesSeg, valOffset, valFormat)
+                            "file-cache-bytes" -> fileCacheBytes = readNodeInt64(valuesSeg, valOffset, valFormat)
+                            "raw-input-rate" -> rawInputRate = readNodeInt64(valuesSeg, valOffset, valFormat)
+                            "cache-duration" -> cacheDuration = readNodeDouble(valuesSeg, valOffset, valFormat)
+                        }
+                    }
+
+                    DemuxerCacheInfo(
+                        totalBytes = totalBytes,
+                        fwBytes = fwBytes,
+                        fileCacheBytes = fileCacheBytes,
+                        cacheDuration = cacheDuration,
+                        rawInputRate = rawInputRate,
+                    )
+                } finally {
+                    if (freeNode != null) {
+                        runCatching { freeNode.invoke(pNode) }
+                    }
+                }
+            }
+        }.getOrDefault(DemuxerCacheInfo())
+    }
+
+    private fun readNodeInt64(seg: MemorySegment, offset: Long, format: Int): Long {
+        return when (format) {
+            4 /* MPV_FORMAT_INT64 */ -> seg.get(ValueLayout.JAVA_LONG, offset)
+            5 /* MPV_FORMAT_DOUBLE */ -> seg.get(ValueLayout.JAVA_DOUBLE, offset).toLong()
+            3 /* MPV_FORMAT_FLAG */ -> seg.get(ValueLayout.JAVA_INT, offset).toLong()
+            1 /* MPV_FORMAT_STRING */ -> {
+                val strAddr = seg.get(ValueLayout.JAVA_LONG, offset)
+                if (strAddr != 0L) MemorySegment.ofAddress(strAddr).reinterpret(64).getUtf8String(0L).toLongOrNull() ?: 0L else 0L
+            }
+            else -> 0L
+        }
+    }
+
+    private fun readNodeDouble(seg: MemorySegment, offset: Long, format: Int): Double {
+        return when (format) {
+            5 /* MPV_FORMAT_DOUBLE */ -> seg.get(ValueLayout.JAVA_DOUBLE, offset)
+            4 /* MPV_FORMAT_INT64 */ -> seg.get(ValueLayout.JAVA_LONG, offset).toDouble()
+            1 /* MPV_FORMAT_STRING */ -> {
+                val strAddr = seg.get(ValueLayout.JAVA_LONG, offset)
+                if (strAddr != 0L) MemorySegment.ofAddress(strAddr).reinterpret(64).getUtf8String(0L).toDoubleOrNull() ?: 0.0 else 0.0
+            }
+            else -> 0.0
+        }
     }
 
     private fun resolveMpvHandle(bridgeHandle: Long): MemorySegment? {

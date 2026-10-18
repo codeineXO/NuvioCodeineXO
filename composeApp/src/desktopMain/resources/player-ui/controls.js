@@ -1207,11 +1207,23 @@ const renderPlaybackStats = () => {
 
   // Buffer & Network
   const cacheDur = Number(stats.cacheDurationSec) || 0;
-  setText(statBufferDuration, cacheDur > 0 ? `${cacheDur.toFixed(1)} s` : "-");
+  setText(statBufferDuration, cacheDur > 0 ? `${cacheDur.toFixed(1)} s` : "0.0 s");
   const cacheUsed = Number(stats.cacheUsedBytes) || 0;
-  setText(statBufferSize, cacheUsed > 0 ? `${(cacheUsed / (1024 * 1024)).toFixed(1)} MB` : "-");
+  if (cacheUsed >= 1024 * 1024) {
+    setText(statBufferSize, `${(cacheUsed / (1024 * 1024)).toFixed(1)} MB`);
+  } else if (cacheUsed > 0) {
+    setText(statBufferSize, `${(cacheUsed / 1024).toFixed(0)} KB`);
+  } else {
+    setText(statBufferSize, "0 MB");
+  }
   const cacheSpeed = Number(stats.cacheSpeedBytes) || 0;
-  setText(statBufferSpeed, cacheSpeed > 0 ? `${(cacheSpeed / (1024 * 1024)).toFixed(2)} MB/s` : "0 MB/s");
+  if (cacheSpeed >= 1024 * 1024) {
+    setText(statBufferSpeed, `${(cacheSpeed / (1024 * 1024)).toFixed(2)} MB/s`);
+  } else if (cacheSpeed > 0) {
+    setText(statBufferSpeed, `${(cacheSpeed / 1024).toFixed(0)} KB/s`);
+  } else {
+    setText(statBufferSpeed, "0 MB/s");
+  }
   if (statP2pRow && statP2pText) {
     const torrentText = String(state.torrentStatsText || "").trim();
     if (torrentText) {
