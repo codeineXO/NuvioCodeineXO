@@ -525,6 +525,7 @@ internal class NativePlayerController(
 
     @Synchronized
     fun updateControls(state: PlayerControlsState) {
+        val wasMiniPlayer = controlsState.isMiniPlayer
         host.setControlsVisible(state.controlsVisible)
         val currentHandle = handle
         val current = currentHandle.takeIf { it != 0L } ?: run {
@@ -571,6 +572,9 @@ internal class NativePlayerController(
                 "subsLabel=${stateWithEnhancements.subtitlesLabel} fullscreen=$isFullscreen"
         }
         NativePlayerBridge.updateControls(current, stateWithEnhancements.toControlsJson(isFullscreen, ::refreshControlsForImage))
+        if (wasMiniPlayer && !state.isMiniPlayer) {
+            requestKeyboardFocus()
+        }
     }
 
     private fun refreshControlsForImage() {
@@ -601,7 +605,7 @@ internal class NativePlayerController(
         NativePlayerBridge.layoutNativeSubviews(current)
     }
 
-    fun requestKeyboardFocus() {
+    override fun requestKeyboardFocus() {
         SwingUtilities.invokeLater {
             val current = handle.takeIf { it != 0L } ?: return@invokeLater
             if (DesktopPlayerPictureInPicture.isEnabled) {
@@ -610,7 +614,14 @@ internal class NativePlayerController(
                 return@invokeLater
             }
             if (!isHostDisplayable()) return@invokeLater
-            host.requestFocusInWindow()
+            val window = SwingUtilities.getWindowAncestor(host)
+            if (window != null && !window.isFocused) {
+                window.toFront()
+                window.requestFocus()
+            }
+            if (!host.requestFocusInWindow()) {
+                host.requestFocus()
+            }
             NativePlayerBridge.requestFocus(current)
         }
     }

@@ -5131,6 +5131,7 @@ window.playerControls = nextState => {
   const previousEpisodeText = state.episodeText || "";
   const previousStreamTitle = state.streamTitle || "";
   const previousParty = state.party;
+  const wasMiniPlayer = Boolean(state.isMiniPlayer);
   const replayingParty = !hasReceivedPlayerControls;
   const currentPlaybackState = pendingIsPlaying === null
     ? state.isPlaying
@@ -5143,6 +5144,9 @@ window.playerControls = nextState => {
     volumeLevel: currentVolumeLevel ?? nextState.volumeLevel,
     controlsVisible: nextState.isMiniPlayer ? false : (nextState.controlsVisible ?? true),
   };
+  if (wasMiniPlayer && !state.isMiniPlayer) {
+    focusShortcutRoot();
+  }
   const mediaMetadataChanged = (nextState.title !== undefined && nextState.title !== previousTitle) ||
     (nextState.episodeText !== undefined && nextState.episodeText !== previousEpisodeText) ||
     (nextState.streamTitle !== undefined && nextState.streamTitle !== previousStreamTitle);

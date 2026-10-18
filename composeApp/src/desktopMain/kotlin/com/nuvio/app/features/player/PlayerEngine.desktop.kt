@@ -265,6 +265,19 @@ private fun NativePlayerSurface(
         )
     }
 
+    val wasMiniPlayer = remember { mutableStateOf(playerControlsState.isMiniPlayer) }
+    LaunchedEffect(playerControlsState.isMiniPlayer) {
+        val returningFromMini = wasMiniPlayer.value && !playerControlsState.isMiniPlayer
+        wasMiniPlayer.value = playerControlsState.isMiniPlayer
+        if (returningFromMini) {
+            controller.requestKeyboardFocus()
+            delay(50L)
+            controller.requestKeyboardFocus()
+            delay(150L)
+            controller.requestKeyboardFocus()
+        }
+    }
+
     LaunchedEffect(controller) {
         DesktopPlayerPictureInPicture.changes.drop(1).collect {
             controller.updateControls(latestPlayerControlsState.value)

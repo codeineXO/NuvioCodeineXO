@@ -37,6 +37,7 @@ interface PlayerEngineController {
     fun configureIosVideoOutput(settings: PlayerSettingsUiState) {}
     fun updateNowPlayingMetadata(info: PlayerNowPlayingInfo) {}
     fun clearNowPlayingInfo() {}
+    fun requestKeyboardFocus() {}
 
     /** Optional barrier for platforms that must release native resources before their route is removed. */
     fun releaseBeforeNavigation(

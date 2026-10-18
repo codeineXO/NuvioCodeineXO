@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.layout.onSizeChanged
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
@@ -632,6 +633,17 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val enableSurfaceGestures = !args.isMiniPlayer && !isDesktop && !isInPip
 
     BindAutoSyncRuntimeEffects() // AutoSync hook
+
+    val focusManager = LocalFocusManager.current
+    val wasMiniPlayer = remember { mutableStateOf(args.isMiniPlayer) }
+    LaunchedEffect(args.isMiniPlayer) {
+        val returningFromMini = wasMiniPlayer.value && !args.isMiniPlayer
+        wasMiniPlayer.value = args.isMiniPlayer
+        if (returningFromMini) {
+            focusManager.clearFocus(force = true)
+            playerController?.requestKeyboardFocus()
+        }
+    }
 
     Column(
         modifier = Modifier

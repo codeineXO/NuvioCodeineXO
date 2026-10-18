@@ -34,6 +34,8 @@ internal class NativePlayerHost : Canvas() {
     }
 
     init {
+        isFocusable = true
+        focusTraversalKeysEnabled = false
         background = Color.BLACK
         ignoreRepaint = false
         addMouseMotionListener(object : MouseMotionAdapter() {
