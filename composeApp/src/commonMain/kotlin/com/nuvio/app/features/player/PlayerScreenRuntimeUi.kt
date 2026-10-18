@@ -318,6 +318,10 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val nextEpisodeForControls = nextEpisodeInfo.takeIf { 
         isSeries && (showNextEpisodeCard || nextEpisodeAutoPlaySearching || nextEpisodeAutoPlayCountdown != null) 
     }
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
     val nextEpisodeStatus = when {
         nextEpisodeForControls == null -> ""
         !nextEpisodeForControls.hasAired && !nextEpisodeForControls.unairedMessage.isNullOrBlank() ->
@@ -627,6 +631,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             stringResource(Res.string.player_next_episode_unaired)
         },
         nextEpisodePlayable = nextEpisodeInfo?.hasAired == true,
+        nextEpisodeIsFiller = isFillerEnabled && nextEpisodeForControls?.isFiller == true,
+        nextEpisodeIsMixed = isFillerEnabled && nextEpisodeForControls?.isMixed == true,
     )
     val gestureCallbacks = rememberSurfaceGestureCallbacks()
     val playbackGesturesEnabled = !args.isMiniPlayer && !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
@@ -1952,9 +1958,15 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeItems(): List<PlayerCon
         AnimeFillerSettingsRepository.ensureLoaded()
         AnimeFillerSettingsRepository.enabled
     }.collectAsStateWithLifecycle()
+    val hideFillerEpisodes by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.hideFillers
+    }.collectAsStateWithLifecycle()
+    val shouldHideFillers = isFillerEnabled && hideFillerEpisodes
     val items = mutableListOf<PlayerControlEpisodeItem>()
     for ((index, video) in playerMetaVideos.withIndex()) {
         if (video.season == null && video.episode == null) continue
+        if (shouldHideFillers && video.isFiller && !video.isMixed) continue
         val episodeVideoId = buildPlaybackVideoId(
             parentMetaId = parentMetaId,
             seasonNumber = video.season,

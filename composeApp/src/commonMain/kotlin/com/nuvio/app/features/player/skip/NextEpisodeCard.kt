@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.PlatformBackHandler
+import com.nuvio.app.features.anime.FillerBadge
+import com.nuvio.app.features.anime.MixedBadge
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_episode_title_format
 import nuvio.composeapp.generated.resources.detail_btn_play
@@ -181,12 +183,22 @@ fun NextEpisodeCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(
-                    text = stringResource(Res.string.player_next_episode),
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.player_next_episode),
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    if (nextEpisode.isFiller) {
+                        FillerBadge()
+                    } else if (nextEpisode.isMixed) {
+                        MixedBadge()
+                    }
+                }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(

@@ -30,13 +30,31 @@ internal fun preferredEpisodeNumberForSeason(
     preferredEpisodeNumber: Int?,
 ): Int? = preferredEpisodeNumber.takeIf { displayedSeasonNumber == preferredSeasonNumber }
 
-internal fun MetaDetails.groupedEpisodesForDisplay(): Map<Int, List<MetaVideo>> {
+internal fun MetaDetails.groupedEpisodesForDisplay(
+    hideFillerEpisodes: Boolean = false,
+): Map<Int, List<MetaVideo>> {
     val numberedEpisodes = videos.filter { it.season != null || it.episode != null }
     return when {
-        numberedEpisodes.isNotEmpty() -> numberedEpisodes
-            .sortedWith(metaVideoSeasonEpisodeComparator)
-            .groupBy { normalizeSeasonNumber(it.season) }
-        type != "series" && videos.isNotEmpty() -> mapOf(normalizeSeasonNumber(null) to videos)
+        numberedEpisodes.isNotEmpty() -> {
+            val grouped = numberedEpisodes
+                .sortedWith(metaVideoSeasonEpisodeComparator)
+                .groupBy { normalizeSeasonNumber(it.season) }
+            if (hideFillerEpisodes) {
+                grouped.mapValues { (_, eps) ->
+                    eps.filterNot { it.isFiller && !it.isMixed }
+                }
+            } else {
+                grouped
+            }
+        }
+        type != "series" && videos.isNotEmpty() -> {
+            val base = if (hideFillerEpisodes) {
+                videos.filterNot { it.isFiller && !it.isMixed }
+            } else {
+                videos
+            }
+            mapOf(normalizeSeasonNumber(null) to base)
+        }
         else -> emptyMap()
     }
 }

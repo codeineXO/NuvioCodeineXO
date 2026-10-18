@@ -115,7 +115,12 @@ internal fun PlayerTimeline(
 ) {
     val durationMs = snapshot.durationMs.coerceAtLeast(0L)
     val rangeEnd = durationMs.coerceAtLeast(1L).toFloat()
-    val bufferedFraction = (snapshot.bufferedPositionMs.toFloat() / rangeEnd).coerceIn(0f, 1f)
+    val rawBufferedFraction = (snapshot.bufferedPositionMs.toFloat() / rangeEnd).coerceIn(0f, 1f)
+    val bufferedFraction = if (durationMs > 2000L && (snapshot.bufferedPositionMs >= durationMs - 2000L || snapshot.positionMs >= durationMs - 1500L || rawBufferedFraction >= 0.985f)) {
+        1f
+    } else {
+        rawBufferedFraction
+    }
     val accent = MaterialTheme.colorScheme.primary
     val accentBrush = MaterialTheme.themePalette.accentBrush()
     val description = stringResource(Res.string.player_seek_position)
@@ -139,7 +144,9 @@ internal fun PlayerTimeline(
                 onScrubChange(position)
             },
             onValueChangeFinished = {
-                onScrubFinished((scrubPosition ?: displayedPositionMs).coerceIn(0L, durationMs))
+                val rawTarget = (scrubPosition ?: displayedPositionMs).coerceIn(0L, durationMs)
+                val target = if (durationMs > 2000L) rawTarget.coerceAtMost(durationMs - 1500L) else rawTarget
+                onScrubFinished(target)
                 scrubPosition = null
             },
             valueRange = 0f..rangeEnd,

@@ -21,6 +21,8 @@ data class NextEpisodeInfo(
     val hasAired: Boolean,
     val isWatched: Boolean,
     val unairedMessage: String?,
+    val isFiller: Boolean = false,
+    val isMixed: Boolean = false,
 )
 
 enum class NextEpisodeThresholdMode {

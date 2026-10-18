@@ -24,6 +24,7 @@ class NativePlayerControllerSeekTest {
             nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
             nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
             nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { 0L },
         )
         controller.setNativeHandleForTest(101L)
 
@@ -47,6 +48,7 @@ class NativePlayerControllerSeekTest {
             nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
             nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
             nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { 0L },
         )
         controller.setNativeHandleForTest(101L)
 
@@ -70,6 +72,7 @@ class NativePlayerControllerSeekTest {
             nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
             nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
             nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { 0L },
         )
         controller.setNativeHandleForTest(101L)
 
@@ -93,6 +96,7 @@ class NativePlayerControllerSeekTest {
             nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
             nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
             nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { 0L },
         )
         controller.setNativeHandleForTest(101L)
 
@@ -136,6 +140,7 @@ class NativePlayerControllerSeekTest {
             nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
             nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
             nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { 0L },
         )
         controller.setNativeHandleForTest(101L)
 
@@ -157,12 +162,64 @@ class NativePlayerControllerSeekTest {
             nativeSeekTo = { _, _ -> },
             nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
             nativePositionMs = { 0L },
+            nativeDurationMs = { 0L },
         )
         controller.setNativeHandleForTest(101L)
 
         controller.seekBy(-10_000L)
 
         assertEquals(101L to -10_000L, soughtBy)
+    }
+
+    @Test
+    fun seekToNearEndClampsToSafeBoundaryAndUsesExactSeekTo() {
+        var soughtTo: Pair<Long, Long>? = null
+        var soughtBy: Pair<Long, Long>? = null
+        val reportedPositionMs = 20_000L
+        val reportedDurationMs = 120_000L
+
+        val controller = NativePlayerController(
+            host = NativePlayerHost(),
+            nativeCreate = failNativeCreate,
+            nativeDispose = {},
+            nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
+            nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
+            nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { reportedDurationMs },
+        )
+        controller.setNativeHandleForTest(101L)
+
+        // Seek all the way to 120_000L (end of duration)
+        controller.seekTo(120_000L)
+
+        // Clamped to duration - 1500L = 118_500L, and since it is near end, uses exact seekTo
+        assertEquals(101L to 118_500L, soughtTo)
+        assertEquals(null, soughtBy)
+    }
+
+    @Test
+    fun seekToNearEndDoesNotUseSeekByEvenWithLargeForwardDelta() {
+        var soughtTo: Pair<Long, Long>? = null
+        var soughtBy: Pair<Long, Long>? = null
+        val reportedPositionMs = 10_000L
+        val reportedDurationMs = 100_000L
+
+        val controller = NativePlayerController(
+            host = NativePlayerHost(),
+            nativeCreate = failNativeCreate,
+            nativeDispose = {},
+            nativeSeekTo = { handle, pos -> soughtTo = handle to pos },
+            nativeSeekBy = { handle, offset -> soughtBy = handle to offset },
+            nativePositionMs = { reportedPositionMs },
+            nativeDurationMs = { reportedDurationMs },
+        )
+        controller.setNativeHandleForTest(101L)
+
+        // Seeking to 95s (within 45s of 100s duration, delta is +85s > 3s)
+        controller.seekTo(95_000L)
+
+        assertEquals(101L to 95_000L, soughtTo)
+        assertEquals(null, soughtBy)
     }
 }
 

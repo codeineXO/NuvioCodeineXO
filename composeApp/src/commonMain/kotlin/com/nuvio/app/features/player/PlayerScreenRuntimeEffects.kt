@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.features.party.PartyRepository
@@ -794,22 +795,41 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         }
     }
 
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
+    val hideFillerEpisodes by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.hideFillers
+    }.collectAsStateWithLifecycle()
+    val shouldHideFillers = isFillerEnabled && hideFillerEpisodes
+
     LaunchedEffect(
         playerMetaVideos,
         shuffleSettings,
         profileId,
         parentMetaId,
+        activeVideoId,
         activeSeasonNumber,
         activeEpisodeNumber,
         watchProgressUiState.entries,
         watchedUiState.watchedKeys,
+        shouldHideFillers,
+        isFillerEnabled,
     ) {
         if (!isSeries || playerMetaVideos.isEmpty()) {
             nextEpisodeInfo = null
             return@LaunchedEffect
         }
-        val curSeason = activeSeasonNumber ?: return@LaunchedEffect
-        val curEpisode = activeEpisodeNumber ?: return@LaunchedEffect
+        val currentVideo = playerMetaVideos.firstOrNull { it.id == activeVideoId }
+            ?: playerMetaVideos.firstOrNull { it.season == activeSeasonNumber && it.episode == activeEpisodeNumber }
+        val curSeason = activeSeasonNumber ?: currentVideo?.season ?: 1
+        val curEpisode = activeEpisodeNumber ?: currentVideo?.episode
+        if (curEpisode == null) {
+            nextEpisodeInfo = null
+            return@LaunchedEffect
+        }
         val nextVideo = if (shuffleSettings.enabled) {
             EpisodeShuffleRepository.shuffle.select(
                 profileId, parentMetaId, playerMetaVideos, shuffleSettings.includeWatched,
@@ -823,11 +843,13 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
                 videos = playerMetaVideos,
                 currentSeason = curSeason,
                 currentEpisode = curEpisode,
+                hideFillers = shouldHideFillers,
+                currentVideoId = activeVideoId,
             )
         }
-        val nextSeason = nextVideo?.season
+        val nextSeason = nextVideo?.season ?: curSeason
         val nextEpisode = nextVideo?.episode
-        nextEpisodeInfo = if (nextVideo != null && nextSeason != null && nextEpisode != null) {
+        nextEpisodeInfo = if (nextVideo != null && nextEpisode != null) {
             val playbackVideoId = buildPlaybackVideoId(
                 parentMetaId = parentMetaId,
                 seasonNumber = nextSeason,
@@ -858,6 +880,8 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
                 unairedMessage = if (!PlayerNextEpisodeRules.hasEpisodeAired(nextVideo.released)) {
                     "$airsPrefix ${nextVideo.released ?: tbaLabel}"
                 } else null,
+                isFiller = isFillerEnabled && nextVideo.isFiller,
+                isMixed = isFillerEnabled && nextVideo.isMixed,
             )
         } else null
     }

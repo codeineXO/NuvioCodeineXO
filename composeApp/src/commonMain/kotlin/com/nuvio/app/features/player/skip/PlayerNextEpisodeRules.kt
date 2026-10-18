@@ -9,20 +9,34 @@ object PlayerNextEpisodeRules {
         videos: List<MetaVideo>,
         currentSeason: Int?,
         currentEpisode: Int?,
+        hideFillers: Boolean = false,
+        currentVideoId: String? = null,
     ): MetaVideo? {
-        if (currentSeason == null || currentEpisode == null) return null
+        val effectiveVideo = if (!currentVideoId.isNullOrBlank()) {
+            videos.firstOrNull { it.id == currentVideoId }
+        } else null
+        val effectiveSeason = currentSeason ?: effectiveVideo?.season ?: 1
+        val effectiveEpisode = currentEpisode ?: effectiveVideo?.episode ?: return null
+
         val sortedEpisodes = videos
-            .filter { it.season != null && it.episode != null }
+            .filter { it.episode != null }
             .sortedWith(
-                compareBy<MetaVideo> { it.season ?: Int.MAX_VALUE }
-                    .thenBy { it.episode ?: Int.MAX_VALUE }
+                compareBy<MetaVideo> { video ->
+                    val s = video.season
+                    if (s == null) 1 else if (s <= 0) Int.MAX_VALUE else s
+                }.thenBy { it.episode ?: Int.MAX_VALUE }
             )
 
         val currentIndex = sortedEpisodes.indexOfFirst {
-            it.season == currentSeason && it.episode == currentEpisode
+            (!currentVideoId.isNullOrBlank() && it.id == currentVideoId) ||
+                ((it.season ?: 1) == effectiveSeason && it.episode == effectiveEpisode)
         }
         if (currentIndex < 0) return null
-        return sortedEpisodes.getOrNull(currentIndex + 1)
+        return if (hideFillers) {
+            sortedEpisodes.drop(currentIndex + 1).firstOrNull { !(it.isFiller && !it.isMixed) }
+        } else {
+            sortedEpisodes.getOrNull(currentIndex + 1)
+        }
     }
 
     fun shouldShowNextEpisodeCard(

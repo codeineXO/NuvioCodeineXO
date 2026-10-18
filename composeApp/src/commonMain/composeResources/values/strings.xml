@@ -497,6 +497,9 @@
     <string name="compose_player_tap_to_unlock">Tap to unlock</string>
     <string name="compose_player_track_number">Track %1$d</string>
     <string name="compose_player_unlock_controls">Unlock player controls</string>
+    <string name="anime_filler_markers">Filler Markers</string>
+    <string name="anime_hide_fillers">Hide Filler</string>
+    <string name="anime_filler_all_hidden">All episodes in this season are fillers and currently hidden.</string>
     <string name="compose_player_youre_watching">You&apos;re watching</string>
     <string name="compose_profile_add_profile">Add Profile</string>
     <string name="compose_search_clear">Clear search</string>

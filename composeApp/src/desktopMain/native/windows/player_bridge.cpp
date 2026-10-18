@@ -1325,13 +1325,20 @@ public:
 
     void seekToMilliseconds(long long positionMs) {
         promoteResumeCache();
+        long long durMs = durationMs();
+        if (durMs > 2000) {
+            positionMs = std::min(positionMs, durMs - 1500);
+        }
+        positionMs = std::max(0LL, positionMs);
+
         // doubleProperty acquires mpvMutex itself, so read the current position
         // before taking the lock used to submit the seek command.
         long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         long long deltaMs = std::abs(positionMs - currentPosMs);
-        const char *mode = (deltaMs <= 30000) ? "absolute+exact" : "absolute+keyframes";
+        bool nearEnd = (durMs > 0 && positionMs >= durMs - 45000);
+        const char *mode = (deltaMs <= 30000 || nearEnd) ? "absolute+exact" : "absolute+keyframes";
         std::string seconds = std::to_string((double)positionMs / 1000.0);
         const char *command[] = {"seek", seconds.c_str(), mode, nullptr};
         mpvApi().command(mpv, command);
@@ -1339,10 +1346,20 @@ public:
 
     void seekByMilliseconds(long long offsetMs) {
         promoteResumeCache();
+        long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
+        long long durMs = durationMs();
+        long long targetMs = currentPosMs + offsetMs;
+        if (durMs > 2000) {
+            targetMs = std::min(targetMs, durMs - 1500);
+        }
+        targetMs = std::max(0LL, targetMs);
+        long long effectiveOffsetMs = targetMs - currentPosMs;
+
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
-        std::string seconds = std::to_string((double)offsetMs / 1000.0);
-        const char *mode = (std::abs(offsetMs) <= 30000) ? "relative+exact" : "relative+keyframes";
+        bool nearEnd = (durMs > 0 && targetMs >= durMs - 45000);
+        const char *mode = (std::abs(effectiveOffsetMs) <= 30000 || nearEnd) ? "relative+exact" : "relative+keyframes";
+        std::string seconds = std::to_string((double)effectiveOffsetMs / 1000.0);
         const char *command[] = {"seek", seconds.c_str(), mode, nullptr};
         mpvApi().command(mpv, command);
     }
@@ -1408,8 +1425,22 @@ public:
     }
 
     long long bufferedPositionMs() {
+        double duration = doubleProperty("duration", 0.0);
+        long long durationMsVal = (long long)std::llround(duration * 1000.0);
+        if (duration > 0.0) {
+            if (isEnded() || flagProperty("demuxer-cache-state/eof", false)) {
+                return durationMsVal;
+            }
+        }
         double buffered = rawPositionSeconds() + cacheAheadSeconds();
-        return (long long)std::llround(std::max(buffered, 0.0) * 1000.0);
+        if (duration > 0.0 && buffered >= (duration - 2.0)) {
+            return durationMsVal;
+        }
+        long long bufferedMs = (long long)std::llround(std::max(buffered, 0.0) * 1000.0);
+        if (duration > 0.0) {
+            bufferedMs = std::min(bufferedMs, durationMsVal);
+        }
+        return bufferedMs;
     }
 
     bool isLoading() {
@@ -1422,7 +1453,11 @@ public:
     }
 
     bool isEnded() {
-        return flagProperty("eof-reached", false);
+        if (!flagProperty("eof-reached", false)) return false;
+        long long duration = durationMs();
+        if (duration <= 0) return true;
+        long long pos = positionMs();
+        return pos >= std::max(0LL, duration - 3000LL);
     }
 
     std::string audioTracksJson() {
@@ -2284,7 +2319,7 @@ private:
         }
         if (type == "setPlaybackState" || type == "setPlaybackStateQuiet") {
             bool shouldPlay = value >= 0.5;
-            if (shouldPlay && isEnded()) {
+            if (shouldPlay && type == "setPlaybackState" && isEnded()) {
                 seekToMilliseconds(0);
             }
             setPaused(!shouldPlay);
@@ -2770,7 +2805,7 @@ LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 }
 
 std::shared_ptr<WindowsMpvWebPlayer> playerFromHandle(jlong handle) {
-    if (handle == 0) return nullptr;
+    if (handle <= 0x10000) return nullptr;
     auto *holder = reinterpret_cast<std::shared_ptr<WindowsMpvWebPlayer> *>(handle);
     return holder ? *holder : nullptr;
 }

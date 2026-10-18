@@ -19,6 +19,7 @@ import com.nuvio.app.features.player.skip.SkipInterval
 import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.tracking.TrackingMediaReference
 import com.nuvio.app.features.watched.WatchedUiState
+import com.nuvio.app.features.watching.domain.isSeriesLikeWatchingContentType
 import com.nuvio.app.features.watchprogress.WatchProgressUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -100,7 +101,11 @@ internal class PlayerScreenRuntime(
     val initialPositionMs: Long get() = args.initialPositionMs
     val initialProgressFraction: Float? get() = args.initialProgressFraction
     var externalSubtitles by mutableStateOf(args.externalSubtitles)
-    val isSeries: Boolean get() = parentMetaType == "series"
+    val isSeries: Boolean
+        get() = parentMetaType.isSeriesLikeWatchingContentType(includeAnime = true) ||
+            contentType.isSeriesLikeWatchingContentType(includeAnime = true) ||
+            (activeSeasonNumber != null && activeEpisodeNumber != null) ||
+            activeEpisodeNumber != null
 
     lateinit var scope: CoroutineScope
     lateinit var hapticFeedback: HapticFeedback

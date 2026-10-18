@@ -817,12 +817,20 @@ button:disabled {
   padding-left: 8px;
 }
 
+.next-episode-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .next-episode-header {
   display: block;
   color: rgba(255, 255, 255, .8);
   font-size: 10px;
   line-height: 1.25;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .next-episode-title {

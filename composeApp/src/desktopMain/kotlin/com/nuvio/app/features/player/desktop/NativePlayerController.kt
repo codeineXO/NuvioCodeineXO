@@ -92,6 +92,9 @@ internal class NativePlayerController(
     private val nativeSeekTo: (Long, Long) -> Unit = NativePlayerBridge::seekTo,
     private val nativeSeekBy: (Long, Long) -> Unit = NativePlayerBridge::seekBy,
     private val nativePositionMs: (Long) -> Long = NativePlayerBridge::positionMs,
+    private val nativeDurationMs: (Long) -> Long = { handle ->
+        if (handle <= 0x10000L) 0L else runCatching { NativePlayerBridge.durationMs(handle) }.getOrDefault(0L)
+    },
     private val isHostDisplayable: () -> Boolean = { host.isDisplayable },
     private val resolveHostView: () -> Long = { AwtNativeViewResolver.resolveNativeViewPointer(host) },
     private val createWaitTimeoutMs: Long = 5_000L,
@@ -984,7 +987,10 @@ internal class NativePlayerController(
                 if (current == 0L) return
                 val isEnded = NativePlayerBridge.isEnded(current)
                 val isPaused = NativePlayerBridge.isPaused(current)
-                if (isEnded) {
+                val duration = nativeDurationMs(current)
+                val pos = nativePositionMs(current)
+                val trulyEnded = isEnded && (duration <= 0L || pos >= duration - 3_000L)
+                if (trulyEnded) {
                     NativePlayerBridge.seekTo(current, 0L)
                     NativePlayerBridge.setPaused(current, false)
                 } else {
@@ -1083,15 +1089,24 @@ internal class NativePlayerController(
         if (current == 0L) return PlayerPlaybackSnapshot(isLoading = true)
         return runCatching {
             val isLoading = NativePlayerBridge.isLoading(current)
-            val isEnded = NativePlayerBridge.isEnded(current)
+            val durationMs = NativePlayerBridge.durationMs(current)
+            val positionMs = NativePlayerBridge.positionMs(current)
+            val rawBufferedMs = NativePlayerBridge.bufferedPositionMs(current)
+            val rawIsEnded = NativePlayerBridge.isEnded(current)
+            val isEnded = rawIsEnded && (durationMs <= 0L || positionMs >= durationMs - 3_000L)
+            val bufferedPositionMs = if (durationMs > 2_000L && (rawBufferedMs >= durationMs - 2_000L || positionMs >= durationMs - 1_500L)) {
+                durationMs
+            } else {
+                rawBufferedMs
+            }
             val cacheSpeed = WindowsMpvSubStyleHelper.getCacheSpeed(current)
             PlayerPlaybackSnapshot(
                 isLoading = isLoading,
                 isPlaying = !NativePlayerBridge.isPaused(current) && !isLoading && !isEnded,
                 isEnded = isEnded,
-                durationMs = NativePlayerBridge.durationMs(current),
-                positionMs = NativePlayerBridge.positionMs(current),
-                bufferedPositionMs = NativePlayerBridge.bufferedPositionMs(current),
+                durationMs = durationMs,
+                positionMs = positionMs,
+                bufferedPositionMs = bufferedPositionMs,
                 playbackSpeed = NativePlayerBridge.speed(current),
                 downloadSpeedBytes = cacheSpeed,
                 downloadSpeedAvailable = WindowsMpvSubStyleHelper.supportsCacheSpeed(),
@@ -1377,23 +1392,50 @@ internal class NativePlayerController(
 
     override fun seekBy(offsetMs: Long) {
         log.d { "seekBy offsetMs=$offsetMs handle=$handle" }
-        handle.takeIf { it != 0L }?.let { nativeSeekBy(it, offsetMs) }
+        handle.takeIf { it != 0L }?.let { current ->
+            val durationMs = controlsState.durationMs.takeIf { it > 0L }
+                ?: nativeDurationMs(current).takeIf { it > 0L }
+                ?: 0L
+            val currentPos = nativePositionMs(current).takeIf { it > 0L }
+                ?: controlsState.positionMs.takeIf { it > 0L }
+                ?: 0L
+            if (durationMs > 2_000L) {
+                val targetMs = (currentPos + offsetMs).coerceIn(0L, durationMs - 1_500L)
+                val nearEnd = targetMs >= durationMs - 45_000L
+                if (nearEnd) {
+                    nativeSeekTo(current, targetMs)
+                    return@let
+                }
+                val safeOffset = targetMs - currentPos
+                nativeSeekBy(current, safeOffset)
+            } else {
+                nativeSeekBy(current, offsetMs)
+            }
+        }
     }
 
     private fun performSeekTo(current: Long, positionMs: Long) {
-        val targetPosition = positionMs.coerceAtLeast(0L)
-        if (targetPosition == 0L) {
+        val durationMs = controlsState.durationMs.takeIf { it > 0L }
+            ?: nativeDurationMs(current).takeIf { it > 0L }
+            ?: 0L
+        val clampedPosition = if (durationMs > 2_000L) {
+            positionMs.coerceIn(0L, durationMs - 1_500L)
+        } else {
+            positionMs.coerceAtLeast(0L)
+        }
+        if (clampedPosition == 0L) {
             nativeSeekTo(current, 0L)
             return
         }
+        val nearEnd = durationMs > 0L && clampedPosition >= durationMs - 45_000L
         val currentPos = nativePositionMs(current).takeIf { it > 0L }
             ?: controlsState.positionMs.takeIf { it > 0L }
             ?: 0L
-        val offsetMs = targetPosition - currentPos
-        if (kotlin.math.abs(offsetMs) > 3_000L) {
+        val offsetMs = clampedPosition - currentPos
+        if (!nearEnd && kotlin.math.abs(offsetMs) > 3_000L) {
             nativeSeekBy(current, offsetMs)
         } else {
-            nativeSeekTo(current, targetPosition)
+            nativeSeekTo(current, clampedPosition)
         }
     }
 
@@ -2242,6 +2284,10 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("nextEpisodeActionLabel", nextEpisodeActionLabel)
         append(',')
         appendJsonField("nextEpisodePlayable", nextEpisodePlayable)
+        append(',')
+        appendJsonField("nextEpisodeIsFiller", nextEpisodeIsFiller)
+        append(',')
+        appendJsonField("nextEpisodeIsMixed", nextEpisodeIsMixed)
         append(',')
         appendJsonField("showSubmitIntro", showSubmitIntro)
         append(',')

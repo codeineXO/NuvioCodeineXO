@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
@@ -367,6 +368,14 @@ fun MetaDetailsScreen(
         TraktCommentsSettings.ensureLoaded()
         TraktCommentsSettings.enabled
     }.collectAsStateWithLifecycle()
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
+    val hideFillerEpisodes by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.hideFillers
+    }.collectAsStateWithLifecycle()
     var comments by remember(type, id) { mutableStateOf<List<TraktCommentReview>>(emptyList()) }
     var commentsCurrentPage by remember(type, id) { mutableIntStateOf(0) }
     var commentsPageCount by remember(type, id) { mutableIntStateOf(0) }
@@ -535,6 +544,7 @@ fun MetaDetailsScreen(
         tmdbSettingsUiState.useMoreLikeThis,
         tmdbSettingsUiState.language,
         mdbListSettings,
+        isFillerEnabled,
     ) {
         if (displayedMeta != null && !uiState.isLoading) {
             MetaDetailsRepository.load(type, id)
@@ -788,13 +798,16 @@ fun MetaDetailsScreen(
                     seriesActionVideo?.id?.takeIf { it.isNotBlank() } ?: action.videoId
                 }
                 val hasEpisodes = meta.videos.any { it.season != null || it.episode != null }
+                val shouldHideFillers = isFillerEnabled && hideFillerEpisodes
+
                 val episodeListGroupedEpisodes = remember(
                     meta.videos,
                     meta.type,
                     metaScreenSettingsUiState.episodeCardStyle,
+                    shouldHideFillers,
                 ) {
                     if (metaScreenSettingsUiState.episodeCardStyle == MetaEpisodeCardStyle.List) {
-                        meta.groupedEpisodesForDisplay()
+                        meta.groupedEpisodesForDisplay(hideFillerEpisodes = shouldHideFillers)
                     } else {
                         emptyMap()
                     }
@@ -2701,7 +2714,6 @@ private fun LazyListScope.configuredMetaSectionItems(
     fun addLazyEpisodeListItems(key: String) {
         val currentSeason = episodeListCurrentSeason ?: return
         val episodes = episodeListGroupedEpisodes[currentSeason].orEmpty()
-        if (episodes.isEmpty()) return
 
         item(
             key = "$key-header",
@@ -2723,6 +2735,42 @@ private fun LazyListScope.configuredMetaSectionItems(
                 )
             }
         }
+
+        if (episodes.isEmpty()) {
+            item(
+                key = "$key-empty",
+                contentType = "detail-episode-empty",
+            ) {
+                val isFillerEnabled by remember {
+                    AnimeFillerSettingsRepository.ensureLoaded()
+                    AnimeFillerSettingsRepository.enabled
+                }.collectAsStateWithLifecycle()
+                val hideFillerEpisodes by remember {
+                    AnimeFillerSettingsRepository.ensureLoaded()
+                    AnimeFillerSettingsRepository.hideFillers
+                }.collectAsStateWithLifecycle()
+                val isHidingFillers = isFillerEnabled && hideFillerEpisodes
+
+                DetailSectionContainer(
+                    horizontalPadding = contentHorizontalPadding,
+                    contentMaxWidth = contentMaxWidth,
+                    bottomPadding = 20.dp,
+                ) {
+                    Text(
+                        text = if (isHidingFillers) {
+                            stringResource(Res.string.anime_filler_all_hidden)
+                        } else {
+                            stringResource(Res.string.compose_player_no_episodes_available)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 16.dp),
+                    )
+                }
+            }
+            return
+        }
+
         itemsIndexed(
             items = episodes,
             key = { index, episode ->

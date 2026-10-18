@@ -107,10 +107,29 @@ fun PlayerEpisodesPanel(
     modifier: Modifier = Modifier,
     episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
-    val groupedEpisodes = remember(episodes) {
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
+    val hideFillerEpisodes by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.hideFillers
+    }.collectAsStateWithLifecycle()
+    val shouldHideFillers = isFillerEnabled && hideFillerEpisodes
+
+    val baseGroupedEpisodes = remember(episodes) {
         episodes
             .filter { it.season != null || it.episode != null }
             .groupBy { it.season?.coerceAtLeast(0) ?: 0 }
+    }
+    val groupedEpisodes = remember(baseGroupedEpisodes, shouldHideFillers) {
+        if (shouldHideFillers) {
+            baseGroupedEpisodes.mapValues { (_, eps) ->
+                eps.filterNot { it.isFiller && !it.isMixed }
+            }
+        } else {
+            baseGroupedEpisodes
+        }
     }
     val availableSeasons = remember(groupedEpisodes) {
         groupedEpisodes.keys.filter { it > 0 }.sorted() + groupedEpisodes.keys.filter { it == 0 }

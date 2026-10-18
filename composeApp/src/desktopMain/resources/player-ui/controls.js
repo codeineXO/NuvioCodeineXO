@@ -113,6 +113,8 @@ const skipPromptProgress = document.getElementById("skipPromptProgress");
 const nextEpisodeCard = document.getElementById("nextEpisodeCard");
 const nextEpisodeThumb = document.getElementById("nextEpisodeThumb");
 const nextEpisodeHeader = document.getElementById("nextEpisodeHeader");
+const nextEpisodeFillerBadge = document.getElementById("nextEpisodeFillerBadge");
+const nextEpisodeMixedBadge = document.getElementById("nextEpisodeMixedBadge");
 const nextEpisodeTitle = document.getElementById("nextEpisodeTitle");
 const nextEpisodeStatus = document.getElementById("nextEpisodeStatus");
 const nextEpisodeAction = document.getElementById("nextEpisodeAction");
@@ -442,6 +444,8 @@ let state = {
   nextEpisodeStatus: "",
   nextEpisodeActionLabel: "Play",
   nextEpisodePlayable: false,
+  nextEpisodeIsFiller: false,
+  nextEpisodeIsMixed: false,
   showSubmitIntro: false,
   showVideoSettings: false,
   showSources: false,
@@ -1333,7 +1337,14 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
   seek.value = Math.round(percent * 10);
   seek.style.setProperty("--progress", `${percent}%`);
   const bufferedMs = Math.max(positionMs, Number(bufferedPositionMs) || 0);
-  const bufferedPercent = durationMs > 0 ? Math.max(0, Math.min(100, (bufferedMs / durationMs) * 100)) : 0;
+  let bufferedPercent = 0;
+  if (durationMs > 0) {
+    if (bufferedMs >= durationMs - 2000 || positionMs >= durationMs - 1500 || (bufferedMs / durationMs) >= 0.985) {
+      bufferedPercent = 100;
+    } else {
+      bufferedPercent = Math.max(0, Math.min(100, (bufferedMs / durationMs) * 100));
+    }
+  }
   seek.style.setProperty("--buffered", `${bufferedPercent}%`);
   if (codeineSeekContainer) {
     codeineSeekContainer.style.setProperty("--progress", `${percent}%`);
@@ -1517,7 +1528,9 @@ const playbackErrorText = () => String(state.playbackErrorMessage || "").trim();
 
 const rangePositionMs = () => {
   const durationMs = Math.max(0, Number(state.durationMs) || 0);
-  return durationMs > 0 ? Math.round(durationMs * Number(seek.value) / 1000) : 0;
+  if (durationMs <= 0) return 0;
+  const rawMs = Math.round(durationMs * Number(seek.value) / 1000);
+  return durationMs > 2000 ? Math.min(rawMs, durationMs - 1500) : rawMs;
 };
 
 const modalByName = {
@@ -3581,6 +3594,10 @@ const renderNativePlaybackPrompts = () => {
   const nextThumbUrl = setImageSource(nextEpisodeThumb, state.nextEpisodeThumbnail);
   const blurNextThumb = Boolean(nextThumbUrl) && Boolean(state.nextEpisodeThumbnailBlurred);
   nextEpisodeHeader.textContent = state.nextEpisodeHeaderLabel || "Next episode";
+  const isFiller = Boolean(state.nextEpisodeIsFiller);
+  const isMixed = Boolean(state.nextEpisodeIsMixed);
+  if (nextEpisodeFillerBadge) nextEpisodeFillerBadge.hidden = !isFiller;
+  if (nextEpisodeMixedBadge) nextEpisodeMixedBadge.hidden = isFiller || !isMixed;
   nextEpisodeTitle.textContent = state.nextEpisodeTitle || "";
   nextEpisodeStatus.textContent = state.nextEpisodeStatus || "";
   nextEpisodeStatus.hidden = !state.nextEpisodeStatus;
@@ -5076,7 +5093,8 @@ if (codeineSeekContainer) {
     const rect = codeineSeekContainer.getBoundingClientRect();
     if (!rect.width) return;
     const frac = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const hoveredMs = Math.round(frac * state.durationMs);
+    const rawHoveredMs = Math.round(frac * state.durationMs);
+    const hoveredMs = state.durationMs > 2000 ? Math.min(rawHoveredMs, state.durationMs - 1500) : rawHoveredMs;
     updateSeekrPreview(isScrubbing ? scrubPositionMs : hoveredMs, event.clientX);
   });
   codeineSeekContainer.addEventListener("mouseleave", () => {
@@ -5278,9 +5296,12 @@ window.playerUpdate = update => {
   const reportedBufferedMs = update.bufferedMs != null
     ? Number(update.bufferedMs)
     : update.bufferedPosition != null ? Number(update.bufferedPosition) * 1000 : NaN;
-  const bufferedPositionMs = Number.isFinite(reportedBufferedMs)
+  let bufferedPositionMs = Number.isFinite(reportedBufferedMs)
     ? Math.round(reportedBufferedMs)
     : state.bufferedPositionMs;
+  if (durationMs > 2000 && (bufferedPositionMs >= durationMs - 2000 || positionMs >= durationMs - 1500)) {
+    bufferedPositionMs = durationMs;
+  }
   const audioTracks = normalizeTracks(update.audioTracks);
   const subtitleTracks = normalizeTracks(update.subtitleTracks);
   const audioTracksChanged = trackListSignature(audioTracks) !== trackListSignature(state.audioTracks);

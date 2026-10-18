@@ -14,10 +14,12 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.FlowRow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.anime.FillerBadge
 import com.nuvio.app.features.anime.MixedBadge
+import com.nuvio.app.features.player.MediaClassifier
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -177,14 +179,24 @@ fun DetailSeriesContent(
         return
     }
 
-    val groupedEpisodes = remember(meta.videos) {
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
+    val hideFillerEpisodes by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.hideFillers
+    }.collectAsStateWithLifecycle()
+    val shouldHideFillers = isFillerEnabled && hideFillerEpisodes
+
+    val groupedEpisodes = remember(meta.videos, shouldHideFillers) {
         log.d { "videos count=${meta.videos.size}, type=${meta.type}" }
         val withSeasonOrEp = meta.videos.filter { it.season != null || it.episode != null }
         log.d { "videos with season/episode=${withSeasonOrEp.size}" }
         if (meta.videos.isNotEmpty() && withSeasonOrEp.isEmpty()) {
             log.w { "All videos lack season/episode fields! First: ${meta.videos.first()}" }
         }
-        meta.groupedEpisodesForDisplay()
+        meta.groupedEpisodesForDisplay(hideFillerEpisodes = shouldHideFillers)
     }
 
     if (groupedEpisodes.isEmpty()) {
@@ -207,7 +219,7 @@ fun DetailSeriesContent(
     val seasons = groupedEpisodes.keys.sortedBy(::seasonSortKey)
     val defaultSeason = preferredSeasonNumber
         ?.takeIf { it in groupedEpisodes }
-        ?: seasons.first()
+        ?: seasons.firstOrNull() ?: 1
     var selectedSeasonOverride by rememberSaveable(meta.id) { mutableStateOf<Int?>(null) }
     val currentSeason = selectedSeasonOverride
         ?.takeIf { it in groupedEpisodes }
@@ -218,6 +230,10 @@ fun DetailSeriesContent(
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val scrollPostersLayoutEnabled = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+
+    val isAnime = remember(meta) {
+        MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val sizing = seriesContentSizing(
@@ -258,17 +274,42 @@ fun DetailSeriesContent(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    if ((!isDesktop || seasons.size <= 1) && episodeCardStyle != MetaEpisodeCardStyle.Enhanced) {
-                        DetailSectionTitle(
-                            title = if (meta.type != "series" && seasonForContent <= 0) {
-                                stringResource(Res.string.details_videos)
-                            } else {
-                                seasonForContent.label()
-                            },
-                        )
+                    val showTitle = (!isDesktop || seasons.size <= 1) && episodeCardStyle != MetaEpisodeCardStyle.Enhanced
+                    val showSingleSeasonAnimeToggles = seasons.size <= 1 && isAnime
+                    if (showTitle || showSingleSeasonAnimeToggles) {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (showTitle) {
+                                DetailSectionTitle(
+                                    title = if (meta.type != "series" && seasonForContent <= 0) {
+                                        stringResource(Res.string.details_videos)
+                                    } else {
+                                        seasonForContent.label()
+                                    },
+                                    fullWidth = false,
+                                )
+                            }
+                            if (showSingleSeasonAnimeToggles) {
+                                AnimeFillerTogglesRow(sizing = sizing)
+                            }
+                        }
                     }
-                    val seasonEpisodes = groupedEpisodes.getValue(seasonForContent)
-                    if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
+                    val seasonEpisodes = groupedEpisodes[seasonForContent].orEmpty()
+                    if (seasonEpisodes.isEmpty()) {
+                        Text(
+                            text = if (isAnime && shouldHideFillers) {
+                                stringResource(Res.string.anime_filler_all_hidden)
+                            } else {
+                                stringResource(Res.string.compose_player_no_episodes_available)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 16.dp),
+                        )
+                    } else if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
                         EpisodeHorizontalRow(
                             episodes = seasonEpisodes,
                             maxWidthDp = containerWidthDp,
@@ -345,6 +386,10 @@ internal fun DetailSeriesListHeader(
     }.collectAsStateWithLifecycle()
     val scrollPostersLayoutEnabled = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
 
+    val isAnime = remember(meta) {
+        MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
+    }
+
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val sizing = seriesContentSizing(
             maxWidthDp = maxWidth.value,
@@ -363,13 +408,23 @@ internal fun DetailSeriesListHeader(
                 onLongPress = onSeasonLongPress,
             )
             if (seasons.size == 1) {
-                DetailSectionTitle(
-                    title = if (meta.type != "series" && currentSeason <= 0) {
-                        stringResource(Res.string.details_videos)
-                    } else {
-                        currentSeason.label()
-                    },
-                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DetailSectionTitle(
+                        title = if (meta.type != "series" && currentSeason <= 0) {
+                            stringResource(Res.string.details_videos)
+                        } else {
+                            currentSeason.label()
+                        },
+                        fullWidth = false,
+                    )
+                    if (isAnime) {
+                        AnimeFillerTogglesRow(sizing = sizing)
+                    }
+                }
             }
         }
     }
@@ -433,6 +488,9 @@ private fun SeriesSeasonSelector(
     if (seasons.size <= 1) return
 
     val isEnhanced = episodeCardStyle == MetaEpisodeCardStyle.Enhanced
+    val isAnime = remember(meta) {
+        MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
+    }
 
     var seasonViewMode by remember {
         mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
@@ -448,14 +506,10 @@ private fun SeriesSeasonSelector(
         modifier = Modifier.animateContentSize(animationSpec = tween(280)),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isDesktop) {
-                Arrangement.spacedBy(12.dp)
-            } else {
-                Arrangement.SpaceBetween
-            },
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = stringResource(Res.string.details_seasons),
@@ -475,6 +529,9 @@ private fun SeriesSeasonSelector(
                         SeasonViewModeStorage.save(next)
                     },
                 )
+            }
+            if (isAnime) {
+                AnimeFillerTogglesRow(sizing = sizing)
             }
         }
 
@@ -571,6 +628,114 @@ private fun SeasonViewModeToggle(
             ),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun AnimeFillerTogglesRow(
+    sizing: SeriesContentSizing,
+    modifier: Modifier = Modifier,
+) {
+    val isFillerEnabled by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.enabled
+    }.collectAsStateWithLifecycle()
+    val hideFillerEpisodes by remember {
+        AnimeFillerSettingsRepository.ensureLoaded()
+        AnimeFillerSettingsRepository.hideFillers
+    }.collectAsStateWithLifecycle()
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AnimeFillerChip(
+            label = stringResource(Res.string.anime_filler_markers),
+            isActive = isFillerEnabled,
+            sizing = sizing,
+            onClick = {
+                AnimeFillerSettingsRepository.setEnabled(!isFillerEnabled)
+            },
+        )
+        AnimeFillerChip(
+            label = stringResource(Res.string.anime_hide_fillers),
+            isActive = hideFillerEpisodes && isFillerEnabled,
+            sizing = sizing,
+            onClick = {
+                val nextHide = !hideFillerEpisodes
+                if (nextHide && !isFillerEnabled) {
+                    AnimeFillerSettingsRepository.setEnabled(true)
+                }
+                AnimeFillerSettingsRepository.setHideFillers(nextHide)
+            },
+        )
+    }
+}
+
+@Composable
+private fun AnimeFillerChip(
+    label: String,
+    isActive: Boolean,
+    sizing: SeriesContentSizing,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val activeColor = Color(0xFFF59E0B)
+    val backgroundColor = if (isActive) {
+        activeColor.copy(alpha = 0.16f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+    }
+    val borderColor = if (isActive) {
+        activeColor.copy(alpha = 0.6f)
+    } else {
+        Color.White.copy(alpha = 0.15f)
+    }
+    val textColor = if (isActive) {
+        MaterialTheme.colorScheme.onBackground
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    }
+    val dotColor = if (isActive) {
+        activeColor
+    } else {
+        Color.White.copy(alpha = 0.3f)
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(backgroundColor)
+            .border(
+                width = 1.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(8.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(dotColor),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = sizing.seasonToggleTextSize,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                ),
+                color = textColor,
+                maxLines = 1,
+            )
+        }
     }
 }
 

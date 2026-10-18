@@ -26,6 +26,10 @@ internal fun LazyListScope.integrationsContent(
             AnimeFillerSettingsRepository.ensureLoaded()
             AnimeFillerSettingsRepository.enabled
         }.collectAsStateWithLifecycle()
+        val animeHideFillers by remember {
+            AnimeFillerSettingsRepository.ensureLoaded()
+            AnimeFillerSettingsRepository.hideFillers
+        }.collectAsStateWithLifecycle()
 
         SettingsSection(
             title = stringResource(Res.string.settings_integrations_section_title),
@@ -62,6 +66,15 @@ internal fun LazyListScope.integrationsContent(
                     isTablet = isTablet,
                     onCheckedChange = AnimeFillerSettingsRepository::setEnabled,
                 )
+                if (animeFillerEnabled) {
+                    SettingsSwitchRow(
+                        title = "Hide Anime Filler Episodes",
+                        description = "Hide filler episodes from episode lists and skip them during playback (mixed episodes are kept)",
+                        checked = animeHideFillers,
+                        isTablet = isTablet,
+                        onCheckedChange = AnimeFillerSettingsRepository::setHideFillers,
+                    )
+                }
             }
         }
     }

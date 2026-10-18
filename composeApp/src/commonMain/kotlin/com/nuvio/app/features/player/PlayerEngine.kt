@@ -239,6 +239,8 @@ data class PlayerControlsState(
     val nextEpisodeStatus: String = "",
     val nextEpisodeActionLabel: String = "Play",
     val nextEpisodePlayable: Boolean = false,
+    val nextEpisodeIsFiller: Boolean = false,
+    val nextEpisodeIsMixed: Boolean = false,
     val showSubmitIntro: Boolean = false,
     val showVideoSettings: Boolean = false,
     val showSources: Boolean = false,
