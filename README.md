@@ -27,6 +27,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ### 🎬 Player & Playback
 * **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
 * **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
+* **In Player Playback Statistics Overlay:** View Stats for Nerds in player with all kinds of statistics.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
 * **Streamlined In-Player Controls:** Right-click to cycle audio/subtitle tracks instantly, toggle between elapsed and remaining time, "show seekbar while seeking" toggle, rounded track styling, and refined Picture-in-Picture (PiP) controls.
@@ -77,6 +78,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 | `Q` | Open stream sources drawer |
 | `A` / `S` | Open audio / subtitle selection panels |
 | `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
+| `I` Show / Hide Playback Stats |
 
 ---
 
