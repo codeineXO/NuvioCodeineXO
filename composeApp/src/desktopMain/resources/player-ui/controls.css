@@ -4084,7 +4084,6 @@ svg {
 .player.ui-codeinexo .header-left,
 .player.ui-codeinexo .header-actions,
 .player.ui-codeinexo .torrent-stats-overlay,
-.player.ui-codeinexo .parental-guide,
 .player.ui-codeinexo .party-pill {
   transform: translateY(0);
   transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -4111,7 +4110,6 @@ svg {
 .player.ui-codeinexo.chrome-hidden .header-left,
 .player.ui-codeinexo.chrome-hidden .header-actions,
 .player.ui-codeinexo.chrome-hidden .torrent-stats-overlay,
-.player.ui-codeinexo.chrome-hidden .parental-guide,
 .player.ui-codeinexo.chrome-hidden .party-pill:not(.pinned) {
   opacity: 0;
   transform: translateY(-24px);
@@ -4191,7 +4189,6 @@ svg {
 .player.ui-codeinexo.native-resizing .center-controls,
 .player.ui-codeinexo.native-resizing .progress,
 .player.ui-codeinexo.native-resizing .torrent-stats-overlay,
-.player.ui-codeinexo.native-resizing .parental-guide,
 .player.ui-codeinexo.native-resizing .party-pill {
   transition-duration: 1ms !important;
 }
