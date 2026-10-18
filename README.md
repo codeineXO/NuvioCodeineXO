@@ -3,7 +3,7 @@
   <h1>NuvioCodeineXO Desktop</h1>
   
   <p>
-    An enhanced edition of Nuvio Desktop with Anime4K shaders, smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback.
+    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback .
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
@@ -22,7 +22,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🌸 Anime Features
 * **Anime Upscaler Shaders (Anime4K):** Integrated MPV post-processing shader pipelines (`Anime4K Fast`, `Anime4K Sharp HQ`, and `Line Recovery`) switchable in-player on the fly.
-* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with clear Manga Canon, Mixed Canon, and Anime Filler badges across episode lists, quick drawers, and player overlays.
+* **Anime Filler Markers:** Automatic anime filler detection that highlights episodes with Mixed Canon and Anime Filler badges across episode lists, quick drawers, and player overlays. Option to hide and skip pure filler episodes is included. 
 
 ### 🎬 Player & Playback
 * **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
