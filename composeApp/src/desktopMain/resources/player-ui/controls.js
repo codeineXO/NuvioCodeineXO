@@ -78,6 +78,10 @@ const codeineSourcesButton = document.getElementById("codeineSourcesButton");
 const codeineSubtitlesButton = document.getElementById("codeineSubtitlesButton");
 const codeineAudioButton = document.getElementById("codeineAudioButton");
 const codeineShadersButton = document.getElementById("codeineShadersButton");
+const codeineStatsButton = document.getElementById("codeineStatsButton");
+const playbackStatsOverlay = document.getElementById("playbackStatsOverlay");
+const playbackStatsCloseBtn = document.getElementById("playbackStatsCloseBtn");
+const playbackStatsContent = document.getElementById("playbackStatsContent");
 const codeineSpeedButton = document.getElementById("codeineSpeedButton");
 const codeineSpeedText = document.getElementById("codeineSpeedText");
 const codeineResizeButton = document.getElementById("codeineResizeButton");
@@ -259,6 +263,42 @@ const torrentStatsText = document.getElementById("torrentStatsText");
 const torrentStatsClock = document.getElementById("torrentStatsClock");
 const torrentStatsTimeRow = document.getElementById("torrentStatsTimeRow");
 const torrentStatsEnds = document.getElementById("torrentStatsEnds");
+
+const statVideoCodec = document.getElementById("statVideoCodec");
+const statVideoDecoder = document.getElementById("statVideoDecoder");
+const statVideoResolution = document.getElementById("statVideoResolution");
+const statVideoFps = document.getElementById("statVideoFps");
+const statVideoBitrate = document.getElementById("statVideoBitrate");
+const statVideoDropped = document.getElementById("statVideoDropped");
+const statVideoColor = document.getElementById("statVideoColor");
+
+const statAudioCodec = document.getElementById("statAudioCodec");
+const statAudioChannels = document.getElementById("statAudioChannels");
+const statAudioSampleRate = document.getElementById("statAudioSampleRate");
+const statAudioBitrate = document.getElementById("statAudioBitrate");
+const statAudioTrack = document.getElementById("statAudioTrack");
+
+const statSubtitleTrack = document.getElementById("statSubtitleTrack");
+const statSubtitleDelay = document.getElementById("statSubtitleDelay");
+
+const statEnhancementSvp = document.getElementById("statEnhancementSvp");
+const statEnhancementUpscaler = document.getElementById("statEnhancementUpscaler");
+const statEnhancementNightMode = document.getElementById("statEnhancementNightMode");
+const statEnhancementSpeed = document.getElementById("statEnhancementSpeed");
+const statEnhancementAspect = document.getElementById("statEnhancementAspect");
+
+const statBufferDuration = document.getElementById("statBufferDuration");
+const statBufferSize = document.getElementById("statBufferSize");
+const statBufferSpeed = document.getElementById("statBufferSpeed");
+const statP2pRow = document.getElementById("statP2pRow");
+const statP2pText = document.getElementById("statP2pText");
+
+const statSourceTitle = document.getElementById("statSourceTitle");
+const statSourceProvider = document.getElementById("statSourceProvider");
+const statSourceStream = document.getElementById("statSourceStream");
+const statSourceTime = document.getElementById("statSourceTime");
+
+let isPlaybackStatsVisible = false;
 
 let state = {
   playerUiMode: "codeine_xo",
@@ -1081,6 +1121,114 @@ const syncTorrentStatsOverlay = suppressed => {
   } else {
     stopStatsClockTick();
   }
+};
+
+const togglePlaybackStatsOverlay = () => {
+  isPlaybackStatsVisible = !isPlaybackStatsVisible;
+  if (playbackStatsOverlay) {
+    playbackStatsOverlay.hidden = !isPlaybackStatsVisible;
+  }
+  if (codeineStatsButton) {
+    codeineStatsButton.classList.toggle("is-active", isPlaybackStatsVisible);
+    codeineStatsButton.setAttribute("aria-pressed", String(isPlaybackStatsVisible));
+  }
+  send("setPlaybackStatsVisible", isPlaybackStatsVisible ? 1 : 0);
+  if (isPlaybackStatsVisible) {
+    renderPlaybackStats();
+  }
+};
+
+const renderPlaybackStats = () => {
+  if (!isPlaybackStatsVisible || !playbackStatsOverlay) return;
+  const stats = state.playbackStats || {};
+
+  // Video
+  setText(statVideoCodec, stats.videoCodec ? stats.videoCodec.toUpperCase() : "-");
+  setText(statVideoDecoder, stats.videoDecoder ? `${stats.videoDecoder} (Hardware)` : "Software / Auto");
+  setText(statVideoResolution, stats.videoResolution || "-");
+
+  // FPS with real-time SVP interpolated FPS and video FPS
+  const containerFps = Number(stats.containerFps) || 0;
+  const outputFps = Number(stats.outputFps) || 0;
+  const displayFps = Number(stats.displayFps) || 0;
+  const svpActive = Boolean(state.svpActive);
+  if (containerFps > 0) {
+    if (svpActive && outputFps > 0 && Math.abs(outputFps - containerFps) > 0.5) {
+      setText(statVideoFps, `${containerFps.toFixed(2)} fps → ${outputFps.toFixed(2)} fps (SVP)`);
+    } else if (outputFps > 0 && Math.abs(outputFps - containerFps) > 0.5) {
+      setText(statVideoFps, `${containerFps.toFixed(2)} fps (Output: ${outputFps.toFixed(2)} fps)`);
+    } else {
+      setText(statVideoFps, `${containerFps.toFixed(2)} fps`);
+    }
+  } else if (outputFps > 0) {
+    setText(statVideoFps, svpActive ? `${outputFps.toFixed(2)} fps (SVP)` : `${outputFps.toFixed(2)} fps`);
+  } else {
+    setText(statVideoFps, "-");
+  }
+
+  // Video Bitrate
+  const vBitrate = Number(stats.videoBitrateKbps) || 0;
+  setText(statVideoBitrate, vBitrate > 0 ? `${vBitrate.toLocaleString()} kbps` : "-");
+
+  // Dropped Frames
+  const dropped = Number(stats.droppedFrames) || 0;
+  const voDropped = Number(stats.voDroppedFrames) || 0;
+  setText(statVideoDropped, `${dropped} dropped (VO: ${voDropped})`);
+
+  // Color / Pixel
+  setText(statVideoColor, stats.videoColor || "-");
+
+  // Audio
+  setText(statAudioCodec, stats.audioCodec ? stats.audioCodec.toUpperCase() : "-");
+  setText(statAudioChannels, stats.audioChannels || "-");
+  const sampleRate = Number(stats.audioSampleRateHz) || 0;
+  setText(statAudioSampleRate, sampleRate > 0 ? `${sampleRate.toLocaleString()} Hz` : "-");
+  const aBitrate = Number(stats.audioBitrateKbps) || 0;
+  setText(statAudioBitrate, aBitrate > 0 ? `${aBitrate.toLocaleString()} kbps` : "-");
+  const selectedAudio = (state.audioTracks || []).find(t => t.selected);
+  setText(statAudioTrack, selectedAudio ? (selectedAudio.title || selectedAudio.language || selectedAudio.label || "Track") : "-");
+
+  // Subtitles
+  const selectedSub = (state.subtitleTracks || []).find(t => t.selected);
+  setText(statSubtitleTrack, selectedSub ? (selectedSub.title || selectedSub.language || selectedSub.label || "Track") : "None");
+  const subDelay = Number(state.subtitleDelayMs) || 0;
+  setText(statSubtitleDelay, `${subDelay >= 0 ? "+" : ""}${subDelay} ms`);
+
+  // Enhancements
+  if (state.svpActive) {
+    setText(statEnhancementSvp, `Active (${state.svpProfile || "Smooth"})`);
+  } else {
+    setText(statEnhancementSvp, state.svpMode && state.svpMode !== "off" ? `Ready (${state.svpMode})` : "Off");
+  }
+  setText(statEnhancementUpscaler, state.animeUpscalerActive ? "Active" : (state.animeUpscalerOption || "Off"));
+  setText(statEnhancementNightMode, state.audioNightModeEnabled ? "Enabled" : "Off");
+  setText(statEnhancementSpeed, state.playbackSpeedLabel || "1x");
+  setText(statEnhancementAspect, state.resizeModeLabel || "Fit");
+
+  // Buffer & Network
+  const cacheDur = Number(stats.cacheDurationSec) || 0;
+  setText(statBufferDuration, cacheDur > 0 ? `${cacheDur.toFixed(1)} s` : "-");
+  const cacheUsed = Number(stats.cacheUsedBytes) || 0;
+  setText(statBufferSize, cacheUsed > 0 ? `${(cacheUsed / (1024 * 1024)).toFixed(1)} MB` : "-");
+  const cacheSpeed = Number(stats.cacheSpeedBytes) || 0;
+  setText(statBufferSpeed, cacheSpeed > 0 ? `${(cacheSpeed / (1024 * 1024)).toFixed(2)} MB/s` : "0 MB/s");
+  if (statP2pRow && statP2pText) {
+    const torrentText = String(state.torrentStatsText || "").trim();
+    if (torrentText) {
+      statP2pRow.hidden = false;
+      setText(statP2pText, torrentText);
+    } else {
+      statP2pRow.hidden = true;
+    }
+  }
+
+  // Stream & Source
+  setText(statSourceTitle, state.title || "-");
+  setText(statSourceProvider, state.providerName || "-");
+  setText(statSourceStream, state.streamTitle || "-");
+  const pos = formatTime(state.positionMs || 0);
+  const dur = formatTime(state.durationMs || 0);
+  setText(statSourceTime, `${pos} / ${dur}`);
 };
 
 const cssColorOrFallback = (value, fallback) => {
@@ -3757,6 +3905,7 @@ const render = (modalOpened = false) => {
   applyTheme();
   renderChrome();
   renderActiveModal(modalOpened);
+  renderPlaybackStats();
 };
 
 const focusShortcutRoot = () => {
@@ -5035,6 +5184,50 @@ if (codeineDrawerButton && codeineQuickDrawer) {
   });
 }
 
+if (codeineStatsButton) {
+  codeineStatsButton.addEventListener("click", event => {
+    event.stopPropagation();
+    noteChromeActivity();
+    togglePlaybackStatsOverlay();
+  });
+}
+
+if (playbackStatsCloseBtn) {
+  playbackStatsCloseBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    noteChromeActivity();
+    if (isPlaybackStatsVisible) {
+      togglePlaybackStatsOverlay();
+    }
+  });
+}
+
+if (playbackStatsOverlay) {
+  playbackStatsOverlay.addEventListener("click", event => {
+    event.stopPropagation();
+  });
+  playbackStatsOverlay.addEventListener("pointerdown", event => {
+    event.stopPropagation();
+  });
+  playbackStatsOverlay.addEventListener("pointerup", event => {
+    event.stopPropagation();
+  });
+  playbackStatsOverlay.addEventListener("dblclick", event => {
+    event.stopPropagation();
+  });
+}
+
+document.querySelectorAll(".stats-section-header").forEach(header => {
+  header.addEventListener("click", event => {
+    event.stopPropagation();
+    const section = header.closest(".stats-section");
+    if (section) {
+      const isCollapsed = section.classList.toggle("collapsed");
+      header.setAttribute("aria-expanded", String(!isCollapsed));
+    }
+  });
+});
+
 timeLabel.addEventListener("click", () => {
   noteChromeActivity();
   timeLabelShowRemaining = !timeLabelShowRemaining;
@@ -5226,7 +5419,7 @@ window.playerControls = nextState => {
 
 const isControlsSurfaceEvent = event => {
   if (activeModal) return true;
-  if (event.target.closest("button, input, textarea, select, a, .action-pill, .volume-control, .modal-layer, .skip-prompt, .next-episode-card")) {
+  if (event.target.closest("button, input, textarea, select, a, .action-pill, .volume-control, .modal-layer, .skip-prompt, .next-episode-card, #playbackStatsOverlay, .playback-stats-overlay")) {
     return true;
   }
 
@@ -5744,6 +5937,9 @@ root.addEventListener("dblclick", event => {
 });
 
 root.addEventListener("wheel", event => {
+  if (event.target.closest("#playbackStatsOverlay")) {
+    return;
+  }
   if (playbackErrorText() || activeModal) return;
   const isProgressTarget = Boolean(event.target.closest("#seek, .time-row, .time-pill, .scrub"));
   if (isProgressTarget || event.shiftKey) {
@@ -5973,6 +6169,12 @@ document.addEventListener("keydown", event => {
     return;
   }
 
+  if (event.code === "KeyI") {
+    event.preventDefault();
+    togglePlaybackStatsOverlay();
+    return;
+  }
+
   if (activeModal) {
     return;
   }
@@ -6066,13 +6268,6 @@ document.addEventListener("keydown", event => {
   if (event.code === "KeyP") {
     event.preventDefault();
     send("pictureInPicture", 0);
-    return;
-  }
-  if (event.code === "KeyI") {
-    event.preventDefault();
-    const style = state.subtitleStyle || {};
-    const currentOpacity = Math.round((parseArgb(style.textColor).alpha / 255) * 100);
-    send("subtitleTextOpacity", Math.max(0, currentOpacity - 10));
     return;
   }
   if (event.shiftKey && event.code === "Comma") {

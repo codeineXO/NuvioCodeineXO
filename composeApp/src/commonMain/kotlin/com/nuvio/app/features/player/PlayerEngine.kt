@@ -100,6 +100,7 @@ data class PlayerControlsState(
     val showPlaybackTimeOverlay: Boolean = false,
     val showTorrentStatsOverlay: Boolean = true,
     val torrentStatsText: String = "",
+    val playbackStats: PlayerPlaybackStats? = null,
     val episodeText: String = "",
     val streamTitle: String = "",
     val providerName: String = "",

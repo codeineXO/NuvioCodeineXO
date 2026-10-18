@@ -246,3 +246,24 @@ data class PlayerNowPlayingInfo(
     val subtitle: String? = null,
     val artworkUrl: String? = null,
 )
+
+data class PlayerPlaybackStats(
+    val videoCodec: String = "",
+    val videoDecoder: String = "",
+    val videoResolution: String = "",
+    val videoColor: String = "",
+    val containerFps: Double = 0.0,
+    val outputFps: Double = 0.0,
+    val displayFps: Double = 0.0,
+    val videoBitrateKbps: Long = 0L,
+    val droppedFrames: Long = 0L,
+    val voDroppedFrames: Long = 0L,
+    val audioCodec: String = "",
+    val audioChannels: String = "",
+    val audioSampleRateHz: Long = 0L,
+    val audioBitrateKbps: Long = 0L,
+    val cacheDurationSec: Double = 0.0,
+    val cacheUsedBytes: Long = 0L,
+    val cacheSpeedBytes: Long = 0L,
+)
+

@@ -27,6 +27,7 @@ import com.nuvio.app.features.player.PlayerControlsAction
 import com.nuvio.app.features.player.PlayerControlsState
 import com.nuvio.app.features.player.PlayerEngineController
 import com.nuvio.app.features.player.PlayerPlaybackSnapshot
+import com.nuvio.app.features.player.PlayerPlaybackStats
 import com.nuvio.app.features.player.PlayerResizeMode
 import com.nuvio.app.features.player.SUBTITLE_DELAY_MAX_MS
 import com.nuvio.app.features.player.findPreferredAudioTrackIndex
@@ -46,6 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -208,6 +210,9 @@ internal class NativePlayerController(
     @Volatile
     private var currentSvpProfile: String = ""
     private var rememberedAudioNightModeEnabled: Boolean = false
+    private var isPlaybackStatsActive: Boolean = false
+    private var currentPlaybackStats: PlayerPlaybackStats? = null
+    private var statsJob: Job? = null
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
@@ -216,6 +221,35 @@ internal class NativePlayerController(
     private val eventSink = NativePlayerEventSink { type, value ->
         SwingUtilities.invokeLater {
             handlePlayerEvent(type, value)
+        }
+    }
+
+    private fun setPlaybackStatsActive(active: Boolean) {
+        if (isPlaybackStatsActive == active) return
+        isPlaybackStatsActive = active
+        statsJob?.cancel()
+        statsJob = null
+        if (active) {
+            ensureScopesActive()
+            statsJob = playerScope.launch {
+                while (isActive && isPlaybackStatsActive) {
+                    val current = handle
+                    if (current != 0L) {
+                        currentPlaybackStats = WindowsMpvSubStyleHelper.getPlaybackStats(current)
+                        SwingUtilities.invokeLater {
+                            if (!releaseRequested && isPlaybackStatsActive) {
+                                lastSentControlsStructureKey = null
+                                updateControls(controlsState)
+                            }
+                        }
+                    }
+                    delay(350L)
+                }
+            }
+        } else {
+            currentPlaybackStats = null
+            lastSentControlsStructureKey = null
+            updateControls(controlsState)
         }
     }
 
@@ -554,6 +588,7 @@ internal class NativePlayerController(
             svpProfile = currentSvpProfile,
             svpAvailable = runCatching { NativePlayerBridge.isSvpAvailable() }.getOrDefault(false),
             mediaContentType = mediaContentType,
+            playbackStats = currentPlaybackStats,
         )
         currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
         controlsState = stateWithEnhancements
@@ -915,6 +950,8 @@ internal class NativePlayerController(
                 PlayerSettingsRepository.setAnimeUpscalerOption(option)
                 handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
             }
+            "setPlaybackStatsVisible" -> setPlaybackStatsActive(value > 0.5)
+            "togglePlaybackStats" -> setPlaybackStatsActive(!isPlaybackStatsActive)
             else -> {
                 val eventHandled = onEvent(type, value)
                 if (type.shouldLogNativeControlEvent()) {
@@ -1190,6 +1227,10 @@ internal class NativePlayerController(
         if (!accepted) return
         host.onPeerReady = null
         cancelInFlightSubtitleDownload()
+        statsJob?.cancel()
+        statsJob = null
+        isPlaybackStatsActive = false
+        currentPlaybackStats = null
         playerScope.cancel()
         downloadScope.cancel()
         disposePlayerHandle()
@@ -1205,6 +1246,10 @@ internal class NativePlayerController(
     private fun invalidateForRelease() {
         cancelPendingAttachment()
         cancelInFlightSubtitleDownload()
+        statsJob?.cancel()
+        statsJob = null
+        isPlaybackStatsActive = false
+        currentPlaybackStats = null
         host.onCursorActivity = null
         onAction = { false }
         onEvent = { _, _ -> false }
@@ -2301,6 +2346,45 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("showTorrentStatsOverlay", showTorrentStatsOverlay)
         append(',')
         appendJsonField("torrentStatsText", torrentStatsText)
+        if (playbackStats != null) {
+            append(",\"playbackStats\":{")
+            appendJsonField("videoCodec", playbackStats.videoCodec)
+            append(',')
+            appendJsonField("videoDecoder", playbackStats.videoDecoder)
+            append(',')
+            appendJsonField("videoResolution", playbackStats.videoResolution)
+            append(',')
+            appendJsonField("videoColor", playbackStats.videoColor)
+            append(',')
+            append("\"containerFps\":").append(playbackStats.containerFps)
+            append(',')
+            append("\"outputFps\":").append(playbackStats.outputFps)
+            append(',')
+            append("\"displayFps\":").append(playbackStats.displayFps)
+            append(',')
+            appendJsonField("videoBitrateKbps", playbackStats.videoBitrateKbps)
+            append(',')
+            appendJsonField("droppedFrames", playbackStats.droppedFrames)
+            append(',')
+            appendJsonField("voDroppedFrames", playbackStats.voDroppedFrames)
+            append(',')
+            appendJsonField("audioCodec", playbackStats.audioCodec)
+            append(',')
+            appendJsonField("audioChannels", playbackStats.audioChannels)
+            append(',')
+            appendJsonField("audioSampleRateHz", playbackStats.audioSampleRateHz)
+            append(',')
+            appendJsonField("audioBitrateKbps", playbackStats.audioBitrateKbps)
+            append(',')
+            append("\"cacheDurationSec\":").append(playbackStats.cacheDurationSec)
+            append(',')
+            appendJsonField("cacheUsedBytes", playbackStats.cacheUsedBytes)
+            append(',')
+            appendJsonField("cacheSpeedBytes", playbackStats.cacheSpeedBytes)
+            append('}')
+        } else {
+            append(",\"playbackStats\":null")
+        }
         append(",\"party\":")
         append(partyJson.encodeToString(PlayerControlPartyState.serializer(), party.withWebviewImages(onImageReady)))
         append('}')

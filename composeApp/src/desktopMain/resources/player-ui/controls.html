@@ -129,6 +129,14 @@
     <symbol id="icon-pin" viewBox="0 0 24 24">
       <path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h6v7c0 .55.45 1 1 1s1-.45 1-1v-7h6v-2c-1.66 0-3-1.34-3-3z" fill="currentColor"/>
     </symbol>
+    <symbol id="icon-info-circle" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="12" y1="16" x2="12" y2="11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="12" cy="7.75" r="1.25" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+      <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" fill="currentColor"/>
+    </symbol>
   </svg>
 
   <div class="player" id="playerRoot" tabindex="-1">
@@ -206,6 +214,106 @@
           <span class="torrent-stats-ends" id="torrentStatsEnds"></span>
         </span>
         <span class="torrent-stats-text" id="torrentStatsText"></span>
+      </aside>
+
+      <aside class="playback-stats-overlay" id="playbackStatsOverlay" aria-label="Playback statistics" hidden>
+        <div class="stats-header-bar">
+          <div class="stats-header-title-row">
+            <svg class="stats-header-icon"><use href="#icon-info-circle"></use></svg>
+            <span class="stats-title-text">Playback Statistics</span>
+          </div>
+          <button class="stats-close-btn" id="playbackStatsCloseBtn" type="button" aria-label="Close statistics" title="Close statistics">
+            <svg><use href="#icon-close"></use></svg>
+          </button>
+        </div>
+        <div class="stats-scroll-content" id="playbackStatsContent">
+          <!-- Video Section -->
+          <div class="stats-section" id="statsSectionVideo">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Video</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Codec</span><span class="stats-value" id="statVideoCodec">-</span></div>
+              <div class="stats-row"><span class="stats-label">Decoder</span><span class="stats-value" id="statVideoDecoder">-</span></div>
+              <div class="stats-row"><span class="stats-label">Resolution</span><span class="stats-value" id="statVideoResolution">-</span></div>
+              <div class="stats-row"><span class="stats-label">Frame Rate</span><span class="stats-value" id="statVideoFps">-</span></div>
+              <div class="stats-row"><span class="stats-label">Bitrate</span><span class="stats-value" id="statVideoBitrate">-</span></div>
+              <div class="stats-row"><span class="stats-label">Dropped Frames</span><span class="stats-value" id="statVideoDropped">-</span></div>
+              <div class="stats-row"><span class="stats-label">Color / Pixel</span><span class="stats-value" id="statVideoColor">-</span></div>
+            </div>
+          </div>
+
+          <!-- Audio Section -->
+          <div class="stats-section" id="statsSectionAudio">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Audio</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Codec</span><span class="stats-value" id="statAudioCodec">-</span></div>
+              <div class="stats-row"><span class="stats-label">Channels</span><span class="stats-value" id="statAudioChannels">-</span></div>
+              <div class="stats-row"><span class="stats-label">Sample Rate</span><span class="stats-value" id="statAudioSampleRate">-</span></div>
+              <div class="stats-row"><span class="stats-label">Bitrate</span><span class="stats-value" id="statAudioBitrate">-</span></div>
+              <div class="stats-row"><span class="stats-label">Active Track</span><span class="stats-value" id="statAudioTrack">-</span></div>
+            </div>
+          </div>
+
+          <!-- Subtitles Section -->
+          <div class="stats-section" id="statsSectionSubtitles">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Subtitles</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Active Track</span><span class="stats-value" id="statSubtitleTrack">-</span></div>
+              <div class="stats-row"><span class="stats-label">Sync Offset</span><span class="stats-value" id="statSubtitleDelay">-</span></div>
+            </div>
+          </div>
+
+          <!-- Enhancements & Processing Section -->
+          <div class="stats-section" id="statsSectionEnhancements">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Enhancements & Processing</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Motion Smoothing</span><span class="stats-value" id="statEnhancementSvp">-</span></div>
+              <div class="stats-row"><span class="stats-label">Upscaler</span><span class="stats-value" id="statEnhancementUpscaler">-</span></div>
+              <div class="stats-row"><span class="stats-label">Night Mode</span><span class="stats-value" id="statEnhancementNightMode">-</span></div>
+              <div class="stats-row"><span class="stats-label">Playback Speed</span><span class="stats-value" id="statEnhancementSpeed">-</span></div>
+              <div class="stats-row"><span class="stats-label">Aspect Ratio</span><span class="stats-value" id="statEnhancementAspect">-</span></div>
+            </div>
+          </div>
+
+          <!-- Buffer & Network Section -->
+          <div class="stats-section" id="statsSectionBuffer">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Buffer & Network</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Cache Duration</span><span class="stats-value" id="statBufferDuration">-</span></div>
+              <div class="stats-row"><span class="stats-label">Cache Size</span><span class="stats-value" id="statBufferSize">-</span></div>
+              <div class="stats-row"><span class="stats-label">Cache Speed</span><span class="stats-value" id="statBufferSpeed">-</span></div>
+              <div class="stats-row" id="statP2pRow" hidden><span class="stats-label">Network Details</span><span class="stats-value" id="statP2pText">-</span></div>
+            </div>
+          </div>
+
+          <!-- Stream & Source Section -->
+          <div class="stats-section" id="statsSectionSource">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Stream & Source</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Title</span><span class="stats-value" id="statSourceTitle">-</span></div>
+              <div class="stats-row"><span class="stats-label">Provider</span><span class="stats-value" id="statSourceProvider">-</span></div>
+              <div class="stats-row"><span class="stats-label">Stream Details</span><span class="stats-value" id="statSourceStream">-</span></div>
+              <div class="stats-row"><span class="stats-label">Time</span><span class="stats-value" id="statSourceTime">-</span></div>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <section class="center-status" id="bufferingStatus" aria-label="Buffering" aria-hidden="true">
@@ -341,6 +449,9 @@
                 <svg class="codeine-drawer-icon-pin"><use href="#icon-pin"></use></svg>
               </button>
               <div class="codeine-drawer-items" id="codeineDrawerItems">
+                <button class="codeine-control-btn codeine-action-btn codeine-stats-btn" id="codeineStatsButton" type="button" aria-label="Playback statistics" title="Playback statistics (i)">
+                  <svg><use href="#icon-info-circle"></use></svg>
+                </button>
                 <button class="codeine-control-btn codeine-action-btn codeine-speed-btn" id="codeineSpeedButton" data-command="speed" aria-label="Playback speed">
                   <svg><use href="#icon-speed"></use></svg>
                   <span class="codeine-speed-text" id="codeineSpeedText">1x</span>
