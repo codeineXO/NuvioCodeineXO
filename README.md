@@ -78,7 +78,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 | `Q` | Open stream sources drawer |
 | `A` / `S` | Open audio / subtitle selection panels |
 | `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
-| `I` Show / Hide Playback Stats |
+| `I`  | Show / Hide Playback Stats for Nerds |
 
 ---
 
