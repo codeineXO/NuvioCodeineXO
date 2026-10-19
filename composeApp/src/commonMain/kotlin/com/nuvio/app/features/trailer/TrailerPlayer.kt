@@ -1,5 +1,7 @@
 package com.nuvio.app.features.trailer
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,7 +84,7 @@ internal fun TrailerPlayer(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (onRetry != null) {
-                    TextButton(onClick = onRetry) { Text(stringResource(Res.string.action_retry)) }
+                    TextButton(onClick = onRetry, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) { Text(stringResource(Res.string.action_retry)) }
                 }
             }
         }

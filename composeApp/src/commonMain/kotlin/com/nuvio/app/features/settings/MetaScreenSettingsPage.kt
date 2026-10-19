@@ -1,5 +1,8 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
@@ -264,9 +267,9 @@ private fun MetaSectionReorderableList(
     }
 
     LazyColumn(
-        modifier = Modifier
+        modifier = Modifier.remoteNavigationGroup().then(Modifier
             .fillMaxWidth()
-            .heightIn(max = if (isTablet) 820.dp else 640.dp),
+            .heightIn(max = if (isTablet) 820.dp else 640.dp)),
         state = lazyListState,
     ) {
         itemsIndexed(items, key = { _, item -> item.key.name }) { index, item ->
@@ -376,9 +379,9 @@ private fun MetaSectionRow(
                     uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
                 ),
-            )
+             modifier = Modifier.remoteNavigationTarget())
             IconButton(
-                modifier = with(dragHandleScope) {
+                modifier = (with(dragHandleScope) {
                     Modifier.draggableHandle(
                         onDragStarted = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -387,7 +390,7 @@ private fun MetaSectionRow(
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         },
                     )
-                },
+                }).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 onClick = {},
             ) {
                 Icon(
@@ -502,7 +505,7 @@ private fun MetaEpisodeCardStyleOption(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+            .remoteNavigationTarget(shape = RoundedCornerShape(12.dp)).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
         } else {

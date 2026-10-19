@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,7 +67,7 @@ internal fun SeekrApiKeyDialog(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .clickable { runCatching { uriHandler.openUri(SEEKR_WEBSITE_URL) } }
+                .remoteNavigationTarget(shape = RoundedCornerShape(6.dp)).clickable { runCatching { uriHandler.openUri(SEEKR_WEBSITE_URL) } }
                 .padding(vertical = 4.dp, horizontal = 2.dp),
         ) {
             Text(

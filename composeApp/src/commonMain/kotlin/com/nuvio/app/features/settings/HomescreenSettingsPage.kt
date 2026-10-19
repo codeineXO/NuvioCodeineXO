@@ -1,5 +1,8 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.clickable
@@ -226,7 +229,7 @@ private fun HeroSourcesDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 14.dp)
-                .clickable { onExpandedChange(!expanded) },
+                .remoteNavigationTarget().clickable { onExpandedChange(!expanded) },
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(
@@ -350,9 +353,9 @@ private fun HomescreenCatalogList(
 
     SettingsGroup(isTablet = isTablet) {
         LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .heightIn(max = if (isTablet) 900.dp else 680.dp),
+                .heightIn(max = if (isTablet) 900.dp else 680.dp)),
             state = lazyListState,
         ) {
             itemsIndexed(items, key = { _, item -> item.key }) { index, item ->

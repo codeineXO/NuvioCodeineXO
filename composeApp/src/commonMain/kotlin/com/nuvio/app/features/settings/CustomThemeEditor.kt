@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -127,7 +129,7 @@ internal fun CustomThemeEditor(
                                         if (gradient) Res.string.custom_theme_mode_gradient else Res.string.custom_theme_mode_solid,
                                     ))
                                 },
-                                modifier = Modifier.semantics { role = Role.RadioButton },
+                                modifier = (Modifier.semantics { role = Role.RadioButton }).remoteNavigationTarget(),
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -194,7 +196,7 @@ internal fun CustomThemeEditor(
                 modifier = Modifier.padding(bottom = NuvioTokens.Space.s12),
                 horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
             ) {
-                TextButton(onClick = ::dismiss, modifier = Modifier.height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)) {
+                TextButton(onClick = ::dismiss, modifier = (Modifier.height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                     Text(stringResource(Res.string.action_cancel))
                 }
                 NuvioPrimaryButton(
@@ -228,7 +230,7 @@ private fun ThemeColorSlot(
                 if (selected) tokens.colors.textPrimary else tokens.colors.borderDefault,
                 tokens.shapes.compactCard,
             )
-            .selectable(selected, role = Role.RadioButton, onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).selectable(selected, role = Role.RadioButton, onClick = onClick)
             .padding(NuvioTokens.Space.s8),
         verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
     ) {

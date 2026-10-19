@@ -1,5 +1,7 @@
 package com.nuvio.app.features.search
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -322,7 +324,7 @@ fun SearchScreen(
                         NuvioInputField(
                             value = query,
                             onValueChange = {
-                                focusRequester.captureFocus()
+                                if (!isDesktop) focusRequester.captureFocus()
                                 query = it
                             },
                             placeholder = stringResource(Res.string.compose_search_placeholder),
@@ -330,11 +332,11 @@ fun SearchScreen(
                                 .focusRequester(focusRequester)
                                 .onFocusChanged {
                                     isSearchFocused = it.isFocused
-                                    if (query.isNotBlank()) focusRequester.captureFocus()
+                                    if (query.isNotBlank()) if (!isDesktop) focusRequester.captureFocus()
                                 },
                             trailingContent = if (query.isNotBlank()) {
                                 {
-                                    IconButton(onClick = { query = "" }) {
+                                    IconButton(onClick = { query = "" }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,
                                             contentDescription = stringResource(Res.string.compose_search_clear),
@@ -354,7 +356,7 @@ fun SearchScreen(
 
         if (query.isBlank()) {
             if (isSearchFocused && recentSearches.isNotEmpty()) {
-                focusRequester.captureFocus()
+                if (!isDesktop) focusRequester.captureFocus()
                 item(key = "recent_searches") {
                     SearchRecentSection(
                         recentSearches = recentSearches,
@@ -574,7 +576,7 @@ private fun SearchRecentRow(
             .padding(vertical = 2.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(cardColor)
-            .clickable(onClick = onSearchPress)
+            .remoteNavigationTarget(shape = RoundedCornerShape(16.dp)).clickable(onClick = onSearchPress)
             .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -587,7 +589,7 @@ private fun SearchRecentRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        IconButton(onClick = onRemovePress) {
+        IconButton(onClick = onRemovePress, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = stringResource(Res.string.compose_search_remove_recent_search),

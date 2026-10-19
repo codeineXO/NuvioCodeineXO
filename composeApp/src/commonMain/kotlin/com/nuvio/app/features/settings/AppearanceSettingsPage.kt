@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -396,9 +398,9 @@ private fun DesktopNavigationLayoutBottomSheet(
         sheetState = sheetState,
     ) {
         LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 16.dp)),
         ) {
             item {
                 Text(
@@ -469,9 +471,9 @@ private fun AppearanceLanguageBottomSheet(
         sheetState = sheetState,
     ) {
         LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 16.dp)),
         ) {
             item {
                 Text(
@@ -536,9 +538,9 @@ private fun NavBarStyleBottomSheet(
         sheetState = sheetState,
     ) {
         LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 16.dp)),
         ) {
             item {
                 Text(

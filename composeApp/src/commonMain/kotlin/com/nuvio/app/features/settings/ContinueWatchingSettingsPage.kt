@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -237,7 +239,7 @@ private fun ContinueWatchingStyleOption(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .remoteNavigationTarget(shape = RoundedCornerShape(12.dp)).clickable(onClick = onClick),
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
         } else {

@@ -1,5 +1,8 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -28,7 +31,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -612,7 +615,7 @@ private fun SeasonViewModeToggle(
                 color = Color.White.copy(alpha = 0.2f),
                 shape = RoundedCornerShape(8.dp),
             )
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -712,7 +715,7 @@ private fun AnimeFillerChip(
                 color = borderColor,
                 shape = RoundedCornerShape(8.dp),
             )
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -789,7 +792,7 @@ private fun SeasonTextChipScrollRow(
         }
     }
     val interactionSource = remember { MutableInteractionSource() }
-    val isRowHovered by interactionSource.collectIsHoveredAsState()
+    val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
@@ -832,7 +835,7 @@ private fun SeasonTextChipScrollRow(
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = rowModifier,
+            modifier = Modifier.remoteNavigationGroup().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
@@ -840,7 +843,7 @@ private fun SeasonTextChipScrollRow(
                 val isSelected = season == currentSeason
                 val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
                 val chipInteractionSource = remember { MutableInteractionSource() }
-                val isChipHovered by chipInteractionSource.collectIsHoveredAsState()
+                val isChipHovered by chipInteractionSource.collectIsRemoteHoveredAsState()
                 val posterUrl = remember(season) { seasonPosterForSeason?.invoke(season) }
 
                 Box(
@@ -858,7 +861,7 @@ private fun SeasonTextChipScrollRow(
                                 },
                             )
                             .hoverable(chipInteractionSource)
-                            .combinedClickable(
+                            .remoteNavigationTarget(shape = RoundedCornerShape(sizing.seasonChipRadius)).combinedClickable(
                                 onClick = { onSelect(season) },
                                 onLongClick = onSecondaryClick,
                             )
@@ -1058,7 +1061,7 @@ private fun SeasonPosterScrollRow(
         }
     }
     val interactionSource = remember { MutableInteractionSource() }
-    val isRowHovered by interactionSource.collectIsHoveredAsState()
+    val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
@@ -1101,7 +1104,7 @@ private fun SeasonPosterScrollRow(
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = rowModifier,
+            modifier = Modifier.remoteNavigationGroup().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
@@ -1176,7 +1179,7 @@ private fun RowScrollNavButton(
 ) {
     val isLeft = direction == ScrollNavDirection.Left
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     val scale by animateFloatAsState(
         targetValue = if (isHovered) 1.12f else 1.0f,
         animationSpec = tween(180),
@@ -1211,7 +1214,7 @@ private fun RowScrollNavButton(
                 shape = CircleShape,
             )
             .hoverable(interactionSource)
-            .clickable(
+            .remoteNavigationTarget(shape = CircleShape).clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
@@ -1383,7 +1386,7 @@ private fun EpisodeHorizontalRow(
         }
     }
     val interactionSource = remember { MutableInteractionSource() }
-    val isRowHovered by interactionSource.collectIsHoveredAsState()
+    val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
@@ -1430,7 +1433,7 @@ private fun EpisodeHorizontalRow(
     ) {
         LazyRow(
             state = listState,
-            modifier = rowModifier,
+            modifier = Modifier.remoteNavigationGroup().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
         ) {
@@ -1952,7 +1955,7 @@ private fun EpisodeListCard(
                 color = Color.White.copy(alpha = 0.1f),
                 shape = cardShape,
             )
-            .combinedClickable(
+            .remoteNavigationTarget(shape = cardShape).combinedClickable(
                 enabled = onClick != null || onLongPress != null,
                 onClick = { onClick?.invoke() },
                 onLongClick = onLongPress,

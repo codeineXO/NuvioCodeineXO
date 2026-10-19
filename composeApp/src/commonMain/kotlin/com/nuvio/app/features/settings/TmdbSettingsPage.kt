@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -253,7 +255,7 @@ private fun TmdbApiKeyRow(
                 onApiKeyCommitted(normalizedDraft)
             },
             enabled = normalizedDraft != value,
-        ) {
+         modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
             Text(stringResource(Res.string.action_save))
         }
     }
@@ -297,7 +299,7 @@ private fun TmdbLanguageRow(
                 draft = it
             },
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
             singleLine = true,
             label = { Text(stringResource(Res.string.settings_tmdb_language_code_label)) },
             colors = OutlinedTextFieldDefaults.colors(
@@ -316,7 +318,7 @@ private fun TmdbLanguageRow(
                     onLanguageCommitted(normalizedDraft)
                 },
                 enabled = enabled && normalizedDraft != value,
-            ) {
+             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                 Text(stringResource(Res.string.action_save))
             }
         }

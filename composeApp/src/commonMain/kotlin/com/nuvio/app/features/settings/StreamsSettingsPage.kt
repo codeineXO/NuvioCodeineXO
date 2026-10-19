@@ -1,5 +1,8 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Column
@@ -231,7 +234,7 @@ private fun StreamBackgroundModeDialog(
         )
         StreamBackgroundMode.entries.forEach { mode ->
             Row(
-                modifier = Modifier.fillMaxWidth().selectable(
+                modifier = Modifier.fillMaxWidth().remoteNavigationTarget().selectable(
                     selected = mode == selectedMode,
                     role = Role.RadioButton,
                     onClick = { onModeSelected(mode) },
@@ -239,7 +242,7 @@ private fun StreamBackgroundModeDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
-                RadioButton(selected = mode == selectedMode, onClick = null)
+                RadioButton(selected = mode == selectedMode, onClick = null, modifier = Modifier.remoteNavigationTarget())
                 Text(
                     text = streamBackgroundModeLabel(mode),
                     style = MaterialTheme.typography.bodyLarge,
@@ -297,7 +300,7 @@ private fun StreamBadgePositionDialog(
                 RadioButton(
                     selected = placement == selectedPlacement,
                     onClick = { onPlacementSelected(placement) },
-                )
+                 modifier = Modifier.remoteNavigationTarget())
                 Text(
                     text = streamBadgePlacementLabel(placement),
                     style = MaterialTheme.typography.bodyLarge,
@@ -343,7 +346,7 @@ private fun BadgeUrlManagerDialog(
                 draftUrl = it
                 errorMessage = null
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
             label = { Text(stringResource(Res.string.settings_fusion_badge_url_label)) },
             singleLine = false,
             minLines = 2,
@@ -411,9 +414,9 @@ private fun BadgeUrlManagerDialog(
             )
         } else {
             LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 300.dp),
+                    .heightIn(max = 300.dp)),
                 verticalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
                 items(
@@ -491,7 +494,7 @@ private fun BadgeUrlRow(
                         selected = import.isActive,
                         onClick = onActivate,
                         enabled = enabled,
-                    )
+                     modifier = Modifier.remoteNavigationTarget())
                 }
                 Text(
                     text = import.sourceUrl,
@@ -526,7 +529,7 @@ private fun BadgeUrlRow(
                 TextButton(
                     enabled = enabled,
                     onClick = onPreview,
-                ) {
+                 modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                     Icon(
                         imageVector = Icons.Rounded.Visibility,
                         contentDescription = null,
@@ -538,7 +541,7 @@ private fun BadgeUrlRow(
                 IconButton(
                     enabled = enabled,
                     onClick = onDelete,
-                ) {
+                 modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                     Icon(
                         imageVector = Icons.Rounded.Delete,
                         contentDescription = stringResource(Res.string.action_delete),
@@ -583,9 +586,9 @@ private fun BadgePreviewDialog(
             )
         } else {
             LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 460.dp),
+                    .heightIn(max = 460.dp)),
                 verticalArrangement = Arrangement.spacedBy(tokens.spacing.railGap),
             ) {
                 items(

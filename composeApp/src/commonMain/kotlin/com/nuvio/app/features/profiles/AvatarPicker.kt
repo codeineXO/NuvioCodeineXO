@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,7 +78,7 @@ private fun AvatarChoiceItem(
                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                 shape = CircleShape,
             )
-            .clickable(onClick = onClick),
+            .remoteNavigationTarget(shape = CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         AsyncImage(

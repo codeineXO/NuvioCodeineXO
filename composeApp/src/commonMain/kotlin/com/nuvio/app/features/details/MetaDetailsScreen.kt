@@ -1,5 +1,9 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.core.ui.remoteNavigationScrollToTop
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -24,7 +28,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -625,7 +629,7 @@ fun MetaDetailsScreen(
                             NetworkStatusRepository.requestRefresh(force = true)
                             MetaDetailsRepository.load(type, id)
                         },
-                    ) {
+                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.action_retry))
                     }
                 }
@@ -1208,7 +1212,7 @@ fun MetaDetailsScreen(
                     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
                     var isSnappingToPage by remember { mutableStateOf(false) }
                     val episodesInteractionSource = remember { MutableInteractionSource() }
-                    val isEpisodesHovered by episodesInteractionSource.collectIsHoveredAsState()
+                    val isEpisodesHovered by episodesInteractionSource.collectIsRemoteHoveredAsState()
                     val onSnapTo: (Int) -> Unit = remember(listState) {
                         { targetIndex ->
                             if (!isSnappingToPage) {
@@ -1422,7 +1426,7 @@ fun MetaDetailsScreen(
                         LazyColumn(
                             state = listState,
                             flingBehavior = if (useEnhancedLayout) snapFlingBehavior else ScrollableDefaults.flingBehavior(),
-                            modifier = Modifier
+                            modifier = Modifier.remoteNavigationGroup().then(Modifier
                                 .fillMaxSize()
                                 .enhancedSnapMouseWheelScroll(
                                     state = listState,
@@ -1432,7 +1436,7 @@ fun MetaDetailsScreen(
                                     onSnapTo = onSnapTo,
                                 )
                                 .nestedScroll(heroStretchState.nestedScrollConnection)
-                                .zIndex(1f),
+                                .zIndex(1f)),
                         ) {
                             if (useEnhancedLayout) {
                                 item(
@@ -1442,6 +1446,7 @@ fun MetaDetailsScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillParentMaxHeight()
+                                            .remoteNavigationScrollToTop(listState)
                                             .fillMaxWidth()
                                             .clipToBounds(),
                                     ) {
@@ -1612,6 +1617,7 @@ fun MetaDetailsScreen(
                                     contentType = "detail-hero",
                                 ) {
                                     DesktopDetailHero(
+                                        modifier = Modifier.remoteNavigationScrollToTop(listState),
                                         meta = meta,
                                         showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
                                         isMdbListActive = mdbListSettings.isActive,
@@ -1938,7 +1944,7 @@ fun MetaDetailsScreen(
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                     shadowElevation = 8.dp,
                                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                                ) {
+                                 modifier = Modifier.remoteNavigationTarget(shape = RoundedCornerShape(20.dp))) {
                                     AnimatedContent(
                                         targetState = isPastPage1,
                                         transitionSpec = {
@@ -2018,7 +2024,7 @@ fun MetaDetailsScreen(
                         if (isDesktop) {
                             NuvioBackButton(
                                 onClick = onBackFromDetails,
-                                modifier = Modifier
+                                modifier = Modifier.remoteNavigationScrollToTop(listState)
                                     .statusBarsPadding()
                                     .padding(start = desktopPageHorizontalPadding, top = 32.dp)
                                     .zIndex(2f),
@@ -3198,7 +3204,7 @@ private fun TabbedSectionGroup(
                         },
                         maxLines = 1,
                         modifier = Modifier
-                            .clickable(
+                            .remoteNavigationTarget().clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                             ) { selectedIndex = index },

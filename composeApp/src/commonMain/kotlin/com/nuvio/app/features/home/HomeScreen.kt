@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.core.ui.remoteNavigationScrollToTop
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
@@ -1048,7 +1049,7 @@ fun HomeScreen(
 
                             homeUiState.heroItems.isNotEmpty() -> HomeHeroSection(
                                 items = homeUiState.heroItems,
-                                modifier = Modifier,
+                                modifier = Modifier.remoteNavigationScrollToTop(homeListState),
                                 viewportHeight = maxHeight,
                                 mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
                                 sectionPadding = if (isDesktop) homeSectionPadding else null,

@@ -1,5 +1,8 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import androidx.compose.ui.Modifier
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.Icon
@@ -34,7 +37,7 @@ internal fun LibraryListManagementButton() {
     if (context == null) return
     val provider = context.source.providerId?.let(TrackingProviderRegistry::libraryProvider) ?: return
     val manager = provider.listManager ?: return
-    IconButton(onClick = controller::create) {
+    IconButton(onClick = controller::create, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
         Icon(
             imageVector = Icons.Rounded.Add,
             contentDescription = stringResource(Res.string.library_create_list),

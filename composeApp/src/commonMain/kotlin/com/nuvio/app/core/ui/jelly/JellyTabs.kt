@@ -1,5 +1,7 @@
 package com.nuvio.app.core.ui.jelly
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -109,7 +111,7 @@ internal fun JellyTabTargets(
             }
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()
-                    .selectable(
+                    .remoteNavigationTarget().selectable(
                         selected = item.selected,
                         role = Role.Tab,
                         interactionSource = null,

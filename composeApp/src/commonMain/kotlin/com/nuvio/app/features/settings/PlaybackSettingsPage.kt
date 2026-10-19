@@ -1,5 +1,8 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import com.nuvio.app.core.build.AppFeaturePolicy
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -319,7 +322,7 @@ internal fun SettingsSliderRow(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(adjustable = true),
         )
     }
 }
@@ -1005,7 +1008,7 @@ private fun PlaybackSettingsSection(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary,
                         ),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(adjustable = true),
                     )
                 }
                 SettingsGroupDivider(isTablet = isTablet)
@@ -1685,7 +1688,7 @@ private fun PlaybackSettingsSection(
                                     thumbColor = MaterialTheme.colorScheme.primary,
                                     activeTrackColor = MaterialTheme.colorScheme.primary,
                                 ),
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(adjustable = true),
                             )
                         }
                     }
@@ -1738,7 +1741,7 @@ private fun PlaybackSettingsSection(
                                     thumbColor = MaterialTheme.colorScheme.primary,
                                     activeTrackColor = MaterialTheme.colorScheme.primary,
                                 ),
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(adjustable = true),
                             )
                         }
                     }
@@ -2350,7 +2353,7 @@ internal fun SvpMotionOptionDialog(
                                 )
                                 androidx.compose.material3.Button(
                                     onClick = { SvpRuntimeInstaller.startDownload() },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                                 ) {
                                     Text("Retry Download")
                                 }
@@ -2358,7 +2361,7 @@ internal fun SvpMotionOptionDialog(
                             else -> {
                                 androidx.compose.material3.Button(
                                     onClick = { SvpRuntimeInstaller.startDownload() },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                                 ) {
                                     Text("Download Motion Smoothing Pack (~26 MB)")
                                 }
@@ -2550,9 +2553,9 @@ private fun LanguageSelectionDialog(
         title = title,
     ) {
         LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .heightIn(max = 420.dp),
+                .heightIn(max = 420.dp)),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(options) { option ->
@@ -2858,7 +2861,7 @@ internal fun SubtitleColorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.action_done))
                     }
                 }
@@ -2903,7 +2906,7 @@ internal fun SubtitleFontDialog(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onFontSelected(font) },
+                            .remoteNavigationTarget(shape = RoundedCornerShape(12.dp)).clickable { onFontSelected(font) },
                         shape = RoundedCornerShape(12.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                     ) {
@@ -2946,7 +2949,7 @@ internal fun SubtitleFontDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.action_done))
                     }
                 }
@@ -2998,7 +3001,7 @@ internal fun SubtitleOutlineEffectDialog(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onEffectSelected(effect) },
+                            .remoteNavigationTarget(shape = RoundedCornerShape(12.dp)).clickable { onEffectSelected(effect) },
                         shape = RoundedCornerShape(12.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                     ) {
@@ -3042,7 +3045,7 @@ internal fun SubtitleOutlineEffectDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.action_done))
                     }
                 }
@@ -3209,9 +3212,9 @@ private fun StreamAutoPlayProviderSelectionDialog(
             )
         } else {
             LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 340.dp),
+                    .heightIn(max = 340.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(
@@ -3282,14 +3285,14 @@ private fun StreamAutoPlayRegexDialog(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.remoteNavigationGroup()) {
             items(
                 count = presets.size,
                 key = { presets[it].first },
             ) { index ->
                 val (label, pattern) = presets[index]
                 Surface(
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.remoteNavigationTarget(shape = RoundedCornerShape(20.dp)).clickable {
                         regex = pattern
                         regexError = null
                     },
@@ -3322,9 +3325,9 @@ private fun StreamAutoPlayRegexDialog(
                     regex = it
                     regexError = null
                 },
-                modifier = Modifier
+                modifier = (Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp)).remoteNavigationTarget(textField = true),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -3411,9 +3414,9 @@ private fun AnimeSkipClientIdDialog(
             BasicTextField(
                 value = value,
                 onValueChange = { value = it },
-                modifier = Modifier
+                modifier = (Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp)).remoteNavigationTarget(textField = true),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                 ),

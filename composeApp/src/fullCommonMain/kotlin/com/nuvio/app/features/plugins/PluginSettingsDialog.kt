@@ -1,5 +1,7 @@
 package com.nuvio.app.features.plugins
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -103,7 +105,7 @@ fun PluginSettingsDialog(
                             Box {
                                 OutlinedButton(
                                     onClick = { expanded = true },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = RoundedCornerShape(14.dp)),
                                     shape = RoundedCornerShape(14.dp),
                                     contentPadding = PaddingValues(16.dp)
                                 ) {
@@ -169,7 +171,7 @@ fun PluginSettingsDialog(
                             Switch(
                                 checked = value,
                                 onCheckedChange = { currentSettings[key] = JsonPrimitive(it) }
-                            )
+                            , modifier = Modifier.remoteNavigationTarget())
                         }
                     }
                 }

@@ -1,5 +1,9 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,10 +49,10 @@ internal fun LibraryListRows(
         }
         return
     }
-    LazyColumn(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(modifier.remoteNavigationGroup().fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(tabs, key = { it.key }) { tab ->
             Surface(onClick = { onEdit(tab) }, shape = tokens.shapes.compactCard,
-                color = tokens.colors.surfaceCard, contentColor = tokens.colors.textPrimary) {
+                color = tokens.colors.surfaceCard, contentColor = tokens.colors.textPrimary, modifier = Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard)) {
                 Row(
                     Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),

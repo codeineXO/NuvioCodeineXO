@@ -1,5 +1,7 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -343,7 +345,7 @@ private fun OpenSeatRow(onInvite: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onInvite)
+            .remoteNavigationTarget(shape = RoundedCornerShape(12.dp)).clickable(onClick = onInvite)
             .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,

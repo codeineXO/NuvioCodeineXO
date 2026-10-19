@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -101,7 +102,7 @@ fun NuvioScreen(
     ) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
             contentPadding = PaddingValues(
                 start = horizontalPadding,
                 top = topPadding ?: tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding,
@@ -202,7 +203,7 @@ fun NuvioScreenHeader(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
                 if (onBack != null) {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),
@@ -261,7 +262,7 @@ fun NuvioActionLabel(
         text = text,
         modifier = modifier.then(
             if (onClick != null) {
-                Modifier.clickable(onClick = onClick)
+                Modifier.remoteNavigationTarget().clickable(onClick = onClick)
             } else {
                 Modifier
             }
@@ -281,11 +282,11 @@ fun NuvioIconActionButton(
 ) {
     val tokens = MaterialTheme.nuvio
     IconButton(
-        modifier = modifier
+        modifier = (modifier
             .background(
                 color = tokens.colors.background.copy(alpha = 0.001f),
                 shape = tokens.shapes.avatar,
-            ),
+            )).remoteNavigationTarget(shape = tokens.shapes.avatar),
         onClick = onClick,
     ) {
         Icon(
@@ -316,7 +317,7 @@ fun NuvioBackButton(
             .size(buttonSize)
             .clip(shape)
             .background(effectiveContainerColor)
-            .clickable(onClick = onClick),
+            .remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.Back).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -338,9 +339,9 @@ fun NuvioPrimaryButton(
     val tokens = MaterialTheme.nuvio
     Button(
         onClick = onClick,
-        modifier = modifier
+        modifier = (modifier
             .fillMaxWidth()
-            .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4),
+            .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)).remoteNavigationTarget(shape = tokens.shapes.button),
         enabled = enabled,
         shape = tokens.shapes.button,
         colors = ButtonDefaults.buttonColors(
@@ -376,7 +377,7 @@ fun NuvioInputField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = (modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
         singleLine = true,
         shape = RoundedCornerShape(NuvioTokens.Radius.lg),
         placeholder = {

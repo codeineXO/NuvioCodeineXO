@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,7 +65,7 @@ internal fun FullscreenActionButton(
             .size(buttonSize)
             .clip(CircleShape)
             .background(containerColor)
-            .clickable(
+            .excludeFromRemoteNavigation().clickable(
                 enabled = enabled,
                 role = Role.Button,
                 onClick = ::toggleFullscreenAction,

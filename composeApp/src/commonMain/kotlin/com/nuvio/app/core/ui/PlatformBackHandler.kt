@@ -36,6 +36,7 @@ internal object PlatformBackDispatcher {
 
     /** Returns true when an enabled handler or fallback consumed the back request. */
     fun dispatch(): Boolean {
+        if (RemoteTextEditing.dispatchBack()) return true
         val target = registrations.lastOrNull { it.enabled }
         if (target != null) {
             target.onBack()

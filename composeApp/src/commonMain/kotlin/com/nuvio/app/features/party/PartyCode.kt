@@ -1,5 +1,7 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
@@ -80,10 +82,10 @@ internal fun CodeField(
             imeAction = ImeAction.Done,
         ),
         keyboardActions = KeyboardActions(onDone = { onDone() }),
-        modifier = modifier
+        modifier = (modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
-            .onFocusChanged { focused = it.isFocused },
+            .onFocusChanged { focused = it.isFocused }).remoteNavigationTarget(textField = true),
         decorationBox = {
             CodeSlots(
                 code = code,

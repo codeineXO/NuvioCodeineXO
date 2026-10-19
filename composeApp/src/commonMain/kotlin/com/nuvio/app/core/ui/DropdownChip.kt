@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -66,7 +67,7 @@ fun NuvioDropdownChip(
                 .background(tokens.colors.surface)
                 .then(
                     if (enabled) {
-                        Modifier.clickable { isSheetVisible = true }
+                        Modifier.remoteNavigationTarget().clickable { isSheetVisible = true }
                     } else {
                         Modifier
                     },
@@ -182,9 +183,9 @@ private fun NuvioDropdownOptionsSheet(
             )
             NuvioBottomSheetDivider()
             LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .heightIn(max = tokens.breakpoints.largePhone),
+                    .heightIn(max = tokens.breakpoints.largePhone)),
             ) {
                 items(options) { option ->
                     NuvioBottomSheetActionRow(

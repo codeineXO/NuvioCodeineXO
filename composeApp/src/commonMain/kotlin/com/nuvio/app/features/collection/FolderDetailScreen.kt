@@ -1,5 +1,7 @@
 package com.nuvio.app.features.collection
 
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
@@ -428,7 +430,7 @@ private fun TabbedGridContent(
                         LazyVerticalGrid(
                             columns = gridCells,
                             state = gridState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
                             contentPadding = PaddingValues(
                                 start = pageHorizontalPadding,
                                 end = pageHorizontalPadding,
@@ -539,7 +541,7 @@ private fun RowsContent(
         }
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
             contentPadding = PaddingValues(
                 bottom = nuvioSafeBottomPadding(18.dp),
             ),

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.shuffle
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -114,7 +116,7 @@ internal fun EpisodeShuffleSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (preview != null) {
-                    TextButton(enabled = !starting, onClick = { selected = null }) {
+                    TextButton(enabled = !starting, onClick = { selected = null }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
                     }
                 }
@@ -134,7 +136,7 @@ internal fun EpisodeShuffleSheet(
                             OutlinedButton(
                                 onClick = { includeWatched = include; selected = readyPicker.pick(include) },
                                 enabled = include || unwatchedCount > 0,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                             ) {
                                 Text(stringResource(if (include) Res.string.random_episode_include_watched else Res.string.random_episode_unwatched))
                             }
@@ -194,17 +196,17 @@ internal fun EpisodeShuffleSheet(
                 )
                 if ((readyPicker?.count(includeWatched) ?: 0) > 1) {
                     OutlinedButton(enabled = !starting, onClick = { selected = readyPicker?.pick(includeWatched) },
-                        modifier = Modifier.fillMaxWidth()) {
+                        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text(stringResource(Res.string.shuffle_again), modifier = Modifier.padding(start = 8.dp))
                     }
                 } else Text(stringResource(Res.string.shuffle_only_episode), style = MaterialTheme.typography.bodySmall)
                 if (onPlayManually != null && availability.canStream(meta.type, preview.id)) {
-                    TextButton(enabled = !starting, onClick = { play(onPlayManually) }, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(enabled = !starting, onClick = { play(onPlayManually) }, modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.play_manually))
                     }
                 }
-                if (resume) TextButton(enabled = !starting && canPlay, onClick = { play(onStartFromBeginning) }, modifier = Modifier.fillMaxWidth()) {
+                if (resume) TextButton(enabled = !starting && canPlay, onClick = { play(onStartFromBeginning) }, modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                     Text(stringResource(Res.string.cw_action_start_from_beginning))
                 }
             }

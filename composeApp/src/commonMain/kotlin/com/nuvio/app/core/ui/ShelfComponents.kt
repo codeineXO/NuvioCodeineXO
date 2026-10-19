@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -7,7 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -162,7 +163,7 @@ fun <T> NuvioShelfSection(
         }
         LazyRow(
             state = state,
-            modifier = effectiveRowModifier,
+            modifier = Modifier.remoteNavigationGroup().then(effectiveRowModifier),
             contentPadding = effectiveRowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
@@ -222,7 +223,7 @@ private fun PosterRowItem(
     val hover = remember { PosterRowItemHover() }
     val coordinates = remember { PosterRowHoverViewport() }
     val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
+    val hovered by interactionSource.collectIsRemoteHoveredAsState()
     CompositionLocalProvider(LocalPosterRowItemHover provides hover) {
         Box(
             modifier
@@ -582,7 +583,7 @@ private fun NuvioShelfSectionHeader(
                 text = title,
                 modifier = Modifier
                     .weight(1f)
-                    .then(if (onTitleClick != null) Modifier.clickable(onClick = onTitleClick) else Modifier),
+                    .then(if (onTitleClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onTitleClick) else Modifier),
                 style = MaterialTheme.typography.titleLarge,
                 color = tokens.colors.textPrimary,
                 maxLines = 1,
@@ -622,7 +623,7 @@ private fun NuvioViewAllPill(
                 color = tokens.colors.surface,
                 shape = RoundedCornerShape(NuvioTokens.Radius.xl),
             )
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .then(if (onClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -734,8 +735,9 @@ internal fun Modifier.desktopPosterHoverScale(
 ): Modifier {
     if (!enabled || !isDesktop) return this
 
-    val hovered by interactionSource.collectIsHoveredAsState()
-    val scale by animateFloatAsState(
+    val hovered by interactionSource.collectIsRemoteHoveredAsState()
+    val keyboardNavigation = isRemoteKeyboardNavigationActive
+    val animatedScale by animateFloatAsState(
         targetValue = if (hovered) DesktopPosterHoverScale else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
@@ -743,6 +745,7 @@ internal fun Modifier.desktopPosterHoverScale(
         ),
         label = "desktop_poster_hover_scale",
     )
+    val scale = if (keyboardNavigation) 1f else animatedScale
 
     val isScaling = hovered || scale != 1f
     LocalPosterRowItemHover.current?.scale = { scale }

@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -275,7 +276,7 @@ private class NuvioNavigationBarScopeImpl(
                     .weight(1f)
                     .clip(RoundedCornerShape(NuvioTokens.Radius.full))
                     .background(selectedBgColor)
-                    .selectable(
+                    .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.full)).selectable(
                         selected = selected,
                         enabled = true,
                         role = Role.Tab,
@@ -324,7 +325,7 @@ private class NuvioNavigationBarScopeImpl(
                     .weight(1f)
                     .clip(RoundedCornerShape(NuvioTokens.Radius.full))
                     .background(selectedBgColor)
-                    .selectable(
+                    .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.full)).selectable(
                         selected = selected,
                         enabled = true,
                         role = Role.Tab,
@@ -371,7 +372,7 @@ private class NuvioNavigationBarScopeImpl(
                     .weight(1f)
                     .clip(RoundedCornerShape(NuvioTokens.Radius.full))
                     .background(selectedBgColor)
-                    .selectable(
+                    .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.full)).selectable(
                         selected = selected,
                         enabled = true,
                         role = Role.Tab,
@@ -474,7 +475,7 @@ private class NuvioClassicNavigationBarScopeImpl(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .clip(tokens.components.navItemShape)
-                    .selectable(
+                    .remoteNavigationTarget(shape = tokens.components.navItemShape).selectable(
                         selected = selected,
                         enabled = true,
                         role = Role.Tab,
@@ -512,7 +513,7 @@ private class NuvioClassicNavigationBarScopeImpl(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .clip(tokens.components.navItemShape)
-                    .selectable(
+                    .remoteNavigationTarget(shape = tokens.components.navItemShape).selectable(
                         selected = selected,
                         enabled = true,
                         role = Role.Tab,
@@ -544,7 +545,7 @@ private class NuvioClassicNavigationBarScopeImpl(
                     .fillMaxWidth()
                     .weight(1f, fill = false)
                     .clip(tokens.components.navItemShape)
-                    .selectable(
+                    .remoteNavigationTarget(shape = tokens.components.navItemShape).selectable(
                         selected = selected,
                         enabled = true,
                         role = Role.Tab,

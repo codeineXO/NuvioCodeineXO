@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -369,7 +371,7 @@ fun DesktopDetailHero(
             Surface(
                 onClick = onHeroTrailerMuteToggle,
                 enabled = heroTrailerReady,
-                modifier = Modifier
+                modifier = (Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(
@@ -377,7 +379,7 @@ fun DesktopDetailHero(
                         end = actionHorizontalInset + if (isFullscreenActionSupported) 60.dp else 0.dp,
                     )
                     .size(48.dp)
-                    .graphicsLayer { alpha = trailerAlpha },
+                    .graphicsLayer { alpha = trailerAlpha }).remoteNavigationTarget(shape = CircleShape),
                 shape = CircleShape,
                 color = colorScheme.surfaceVariant.copy(alpha = 0.82f),
                 contentColor = colorScheme.onSurface,

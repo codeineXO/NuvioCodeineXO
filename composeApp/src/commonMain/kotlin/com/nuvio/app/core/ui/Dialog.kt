@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +58,7 @@ fun DialogSurface(
     BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
         Surface(
             modifier = modifier
+                .remoteNavigationModal()
                 .fillMaxWidth()
                 .widthIn(max = tokens.components.dialogMaxWidth),
             shape = tokens.shapes.dialog,
@@ -141,7 +143,7 @@ fun DialogButton(
     val contentColor = if (style == DialogButtonStyle.Secondary) tokens.colors.textPrimary else tokens.colors.onAccent
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = NuvioTokens.Space.s48),
+        modifier = (modifier.heightIn(min = NuvioTokens.Space.s48)).remoteNavigationTarget(shape = tokens.shapes.button),
         enabled = enabled && !loading,
         elevation = ButtonDefaults.buttonElevation(
             hoveredElevation = 0.dp,
@@ -194,7 +196,7 @@ fun DialogOption(
                     tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle)
                 },
             )
-            .selectable(selected = selected, enabled = enabled, role = role, onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).selectable(selected = selected, enabled = enabled, role = role, onClick = onClick)
             .padding(horizontal = NuvioTokens.Space.s14, vertical = NuvioTokens.Space.s12),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
         verticalAlignment = Alignment.CenterVertically,

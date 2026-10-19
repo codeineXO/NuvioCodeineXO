@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -194,7 +196,7 @@ private fun MdbListApiKeyRow(
                     onApiKeyCommitted(normalizedDraft)
                 },
                 enabled = normalizedDraft != value,
-            ) {
+             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                 Text(stringResource(Res.string.action_save))
             }
         }

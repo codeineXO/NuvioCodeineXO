@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -29,7 +31,7 @@ internal fun AutoSkipSegmentSelectionDialog(
         title = stringResource(Res.string.settings_playback_auto_skip_segments),
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxWidth().weight(1f, fill = false)),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(AutoSkipSegmentType.entries, key = { it.storedValue }) { segmentType ->

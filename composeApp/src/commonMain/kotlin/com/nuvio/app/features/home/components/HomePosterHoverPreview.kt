@@ -1,5 +1,7 @@
 package com.nuvio.app.features.home.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,7 +15,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -124,6 +127,7 @@ internal fun HomePosterHoverPreview(
     }
 
     val posterCardStyle = rememberPosterCardStyleUiState()
+    val keyboardNavigation = isRemoteKeyboardNavigationActive
     val trailerPlaybackEnabled = AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP &&
         posterCardStyle.hoverPreviewTrailerEnabled
     if (!posterCardStyle.hoverPreviewEnabled) {
@@ -138,8 +142,8 @@ internal fun HomePosterHoverPreview(
 
     val anchorInteractionSource = remember { MutableInteractionSource() }
     val previewInteractionSource = remember { MutableInteractionSource() }
-    val anchorHovered by anchorInteractionSource.collectIsHoveredAsState()
-    val previewHovered by previewInteractionSource.collectIsHoveredAsState()
+    val anchorHovered by anchorInteractionSource.collectIsRemoteHoveredAsState()
+    val previewHovered by previewInteractionSource.collectIsRemoteHoveredAsState()
     var previewVisible by remember(item.type, item.id) { mutableStateOf(false) }
     var popupMounted by remember(item.type, item.id) { mutableStateOf(false) }
     var previewDismissedByScroll by remember(item.type, item.id) { mutableStateOf(false) }
@@ -166,9 +170,15 @@ internal fun HomePosterHoverPreview(
     LaunchedEffect(
         anchorHovered,
         previewHovered,
+        keyboardNavigation,
         posterCardStyle.hoverPreviewOpenDelayMillis,
         previewDismissedByScroll,
     ) {
+        if (keyboardNavigation) {
+            previewVisible = false
+            popupMounted = false
+            return@LaunchedEffect
+        }
         if (previewDismissedByScroll) {
             if (!anchorHovered && !previewHovered) {
                 previewDismissedByScroll = false
@@ -190,8 +200,9 @@ internal fun HomePosterHoverPreview(
         }
     }
 
-    LaunchedEffect(anchorHovered, trailerPlaybackEnabled) {
+    LaunchedEffect(anchorHovered, trailerPlaybackEnabled, keyboardNavigation) {
         if (
+            !keyboardNavigation &&
             anchorHovered &&
             trailerPlaybackEnabled &&
             trailerPlaybackSource == null &&
@@ -206,10 +217,12 @@ internal fun HomePosterHoverPreview(
     LaunchedEffect(
         trailerRequestId,
         trailerPlaybackEnabled,
+        keyboardNavigation,
         item.type,
         item.id,
     ) {
-        if (!trailerPlaybackEnabled) {
+        if (!trailerPlaybackEnabled || keyboardNavigation) {
+            trailerRequestId = 0
             trailerPlaybackSource = null
             trailerResolutionPending = false
             return@LaunchedEffect
@@ -278,9 +291,9 @@ internal fun HomePosterHoverPreview(
     }
 
     Box(modifier = modifier) {
-        content(Modifier.hoverable(anchorInteractionSource))
+        content(Modifier.hoverable(anchorInteractionSource, enabled = !keyboardNavigation))
 
-        if (popupMounted) {
+        if (popupMounted && !keyboardNavigation) {
             Popup(
                 popupPositionProvider = positionProvider,
                 properties = PopupProperties(focusable = false),
@@ -377,7 +390,7 @@ private fun HomePosterPreviewCard(
             .clip(shape)
             .background(previewBackground)
             .border(tokens.borders.hairline, tokens.colors.borderStrong, shape)
-            .clickable(
+            .remoteNavigationTarget(shape = shape).clickable(
                 interactionSource = clickInteractionSource,
                 indication = null,
                 enabled = onClick != null,
@@ -518,7 +531,7 @@ private fun HomePosterPreviewCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clickable(onClick = onClick)
+                                .remoteNavigationTarget().clickable(onClick = onClick)
                                 .padding(horizontal = NuvioTokens.Space.s16),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,

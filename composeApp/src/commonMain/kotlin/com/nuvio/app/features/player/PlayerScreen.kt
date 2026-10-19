@@ -54,6 +54,7 @@ internal fun PlayerScreen(
     sourceFilename: String? = null,
     stream: com.nuvio.app.features.streams.StreamItem? = null,
 ) {
+    com.nuvio.app.core.ui.RemoteNavigationDisabled {
     PlayerScreenContent(
         PlayerScreenArgs(
             profileId = profileId,
@@ -105,4 +106,5 @@ internal fun PlayerScreen(
             stream = stream,
         )
     )
+    }
 }

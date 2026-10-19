@@ -1,5 +1,8 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteTextInputGuard
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -220,7 +223,7 @@ fun ProfileSwitcherTab(
     Box(
         modifier = modifier
             .onGloballyPositioned { triggerCoordinates = it }
-            .clickable(
+            .remoteNavigationTarget().clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = {
@@ -424,7 +427,7 @@ private fun SidebarProfileSwitcherRow(
                     tokens.colors.surface.copy(alpha = 0f)
                 },
             )
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(onClick = onClick)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -472,7 +475,7 @@ private fun SidebarAddProfileRow(
             .fillMaxWidth()
             .height(40.dp)
             .clip(tokens.shapes.compactCard)
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(onClick = onClick)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -559,6 +562,7 @@ private fun SidebarCompactPinEntry(
         modifier = Modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
+            .remoteTextInputGuard()
             .focusable()
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -592,7 +596,7 @@ private fun SidebarCompactPinEntry(
                     .size(30.dp)
                     .clip(tokens.shapes.avatar)
                     .background(tokens.colors.surfaceCard)
-                    .clickable(onClick = onCancel),
+                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -684,7 +688,7 @@ private fun SidebarCompactPinKeypad(
                                     .size(30.dp)
                                     .clip(tokens.shapes.avatar)
                                     .background(tokens.colors.surface)
-                                    .clickable(onClick = onBackspace),
+                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(onClick = onBackspace),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -701,7 +705,7 @@ private fun SidebarCompactPinKeypad(
                                     .size(30.dp)
                                     .clip(tokens.shapes.avatar)
                                     .background(tokens.colors.surface)
-                                    .clickable { onDigit(key) },
+                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable { onDigit(key) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
@@ -946,7 +950,7 @@ private fun PopupAddProfileBubble(
                 scaleY = itemScale.value
             }
             .clip(tokens.shapes.compactCard)
-            .clickable(
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
@@ -1040,7 +1044,7 @@ private fun PopupProfileBubble(
                 scaleY = itemScale.value * pressScale
             }
             .clip(tokens.shapes.compactCard)
-            .clickable(
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,

@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
@@ -107,16 +108,7 @@ internal fun Modifier.posterCardClickable(
             longClick()
         }
     }
-    return Modifier
-        .desktopPosterHoverScale(
-            enabled = hoverScaleEnabled,
-            interactionSource = interactionSource,
-        )
-        .then(posterModifier)
-        .combinedClickable(
-            interactionSource = interactionSource,
-            indication = if (!isDesktop && onPosterClickAnchor == null) LocalIndication.current else null,
-            onClick = {
+    val handleClick: () -> Unit = {
                 if (onClick != null) {
                     source.bounds?.let { bounds ->
                         onPosterClickAnchor?.invoke(
@@ -125,7 +117,17 @@ internal fun Modifier.posterCardClickable(
                     }
                     onClick()
                 }
-            },
+            }
+    return Modifier
+        .desktopPosterHoverScale(
+            enabled = hoverScaleEnabled,
+            interactionSource = interactionSource,
+        )
+        .then(posterModifier)
+        .remoteNavigationTarget(shape = androidx.compose.foundation.shape.RoundedCornerShape(zoomCornerRadius), onSelect = handleClick, onContext = handleLongClick).combinedClickable(
+            interactionSource = interactionSource,
+            indication = if (!isDesktop && onPosterClickAnchor == null) LocalIndication.current else null,
+            onClick = handleClick,
             onLongClick = handleLongClick,
         )
         .secondaryClick(handleLongClick)

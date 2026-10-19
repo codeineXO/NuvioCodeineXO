@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -11,7 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -304,7 +306,7 @@ fun ProfileSelectionScreen(
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
                             shape = RoundedCornerShape(24.dp),
                         )
-                        .clickable(enabled = interactionEnabled) { isEditMode = !isEditMode }
+                        .remoteNavigationTarget(shape = RoundedCornerShape(24.dp)).clickable(enabled = interactionEnabled) { isEditMode = !isEditMode }
                         .padding(horizontal = 24.dp, vertical = 10.dp),
                 ) {
                     Text(
@@ -384,7 +386,7 @@ private fun ProfileAvatarCard(
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     val currentOnHoverChange = rememberUpdatedState(onHoverChange)
     val pressScale = if (isPressed) 0.95f else 1f
 
@@ -420,7 +422,7 @@ private fun ProfileAvatarCard(
                     Modifier
                 },
             )
-            .clickable(
+            .remoteNavigationTarget(shape = RoundedCornerShape(20.dp)).clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
@@ -570,7 +572,7 @@ private fun AddProfileCard(
                 translationY = animOffset.value
             }
             .clip(RoundedCornerShape(20.dp))
-            .clickable(
+            .remoteNavigationTarget(shape = RoundedCornerShape(20.dp)).clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,

@@ -1,5 +1,8 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -69,10 +72,10 @@ fun DetailCastSection(
 
             LazyRow(
                 state = rowState,
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                     .fillMaxWidth()
-                    .nuvioDesktopDragScroll(rowState),
+                    .nuvioDesktopDragScroll(rowState)),
                 contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
                 horizontalArrangement = Arrangement.spacedBy(sizing.avatarGap),
             ) {
@@ -150,7 +153,7 @@ private fun CastItem(
             .width(sizing.itemWidth)
             .then(
                 if (onClick != null) {
-                    Modifier.clickable(
+                    Modifier.remoteNavigationTarget().clickable(
                         interactionSource = clickInteractionSource,
                         indication = null,
                         onClick = onClick,

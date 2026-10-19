@@ -7,7 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,7 +46,7 @@ internal fun DesktopNavigationBar(
 ) {
     if (items.isEmpty()) return
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     val isHomeSelected = items.first().selected
     val isSettingsSelected = items.last().selected
     val scrollOffset = scrollState?.totalScrollOffset ?: 0f

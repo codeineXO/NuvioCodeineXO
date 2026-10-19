@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -114,7 +116,7 @@ private fun ProductionChip(
             .clip(RoundedCornerShape(12.dp))
             .background(color = ProductionChipBackground)
             .then(
-                if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+                if (onClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onClick) else Modifier
             )
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .height(chipHeight),

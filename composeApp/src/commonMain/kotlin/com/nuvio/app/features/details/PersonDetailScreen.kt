@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -182,10 +184,10 @@ fun PersonDetailScreen(
             } else {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier
+                    modifier = (Modifier
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(start = 4.dp, top = 4.dp)
-                        .align(Alignment.TopStart),
+                        .align(Alignment.TopStart)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -1200,7 +1202,7 @@ private fun PersonDetailError(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-            ) {
+             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                 Text(stringResource(Res.string.action_retry))
             }
         }

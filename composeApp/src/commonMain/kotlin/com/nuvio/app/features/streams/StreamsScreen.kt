@@ -1,5 +1,8 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -68,7 +71,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -847,7 +850,7 @@ internal fun StreamList(
     Box(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
             contentPadding = PaddingValues(
                 horizontal = 12.dp,
                 vertical = 12.dp,
@@ -1300,7 +1303,7 @@ private fun DesktopStreamActionRow(
     onSelected: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     val rowShape = RoundedCornerShape(5.dp)
 
     Row(
@@ -1316,7 +1319,7 @@ private fun DesktopStreamActionRow(
                 },
             )
             .hoverable(interactionSource)
-            .clickable(
+            .remoteNavigationTarget(shape = rowShape).clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onSelected,

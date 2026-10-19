@@ -1,5 +1,7 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -375,7 +377,7 @@ fun LibraryScreen(
                                         onClick = {
                                             LibraryDisplaySettingsRepository.setLayoutMode(targetLayout)
                                         },
-                                    ) {
+                                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                         Crossfade(
                                             targetState = targetLayout,
                                             animationSpec = tween(durationMillis = 140),
@@ -730,7 +732,7 @@ private fun CloudLibrarySearchField(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = (modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         placeholder = { Text(stringResource(Res.string.cloud_library_search_label)) },
@@ -742,7 +744,7 @@ private fun CloudLibrarySearchField(
         },
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
+                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = stringResource(Res.string.compose_search_clear),
@@ -875,7 +877,7 @@ private fun CloudLibraryToolbar(
                     },
                 )
             }
-            IconButton(onClick = onRefresh) {
+            IconButton(onClick = onRefresh, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
                     contentDescription = stringResource(Res.string.cloud_library_refresh),
@@ -898,7 +900,7 @@ private fun LibraryChip(
     Surface(
         modifier = Modifier
             .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
+            .remoteNavigationTarget(shape = RoundedCornerShape(18.dp)).clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
         color = if (selected) colorScheme.primaryContainer else colorScheme.surfaceContainerLow,
         border = if (selected) BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.45f)) else null,
@@ -932,7 +934,7 @@ private fun CloudLibraryRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clickable(enabled = playableCount > 0, onClick = onClick),
+            .remoteNavigationTarget(shape = MaterialTheme.shapes.medium).clickable(enabled = playableCount > 0, onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
@@ -975,7 +977,7 @@ private fun CloudLibraryRow(
                     )
                 }
                 if (playableCount > 0) {
-                    IconButton(onClick = onClick) {
+                    IconButton(onClick = onClick, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
                             contentDescription = stringResource(Res.string.action_play),
@@ -1020,7 +1022,7 @@ private fun CloudLibraryFilePicker(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = onBack, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = stringResource(Res.string.action_back),
@@ -1080,7 +1082,7 @@ private fun CloudLibraryFileRow(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.58f),
     ) {

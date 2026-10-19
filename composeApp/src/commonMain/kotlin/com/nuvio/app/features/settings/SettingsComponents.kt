@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -173,7 +175,7 @@ internal fun SettingsSidebarItem(
             .fillMaxWidth()
             .padding(horizontal = tokens.spacing.listGap, vertical = NuvioTokens.Space.s2)
             .background(background, RoundedCornerShape(NuvioTokens.Space.s10))
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget().clickable(onClick = onClick)
             .padding(horizontal = tokens.spacing.screenHorizontal, vertical = tokens.spacing.listGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -249,7 +251,7 @@ internal fun SettingsNavigationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
+            .remoteNavigationTarget().clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
             .alpha(if (enabled) NuvioTokens.Opacity.visible else tokens.opacity.medium),
         horizontalArrangement = Arrangement.Start,
@@ -329,7 +331,7 @@ internal fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .remoteNavigationTarget().clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
@@ -360,7 +362,7 @@ internal fun SettingsSwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            modifier = Modifier.padding(start = 4.dp),
+            modifier = (Modifier.padding(start = 4.dp)).remoteNavigationTarget(),
             colors = SwitchDefaults.colors(
                 checkedThumbColor = tokens.colors.onAccent,
                 checkedTrackColor = tokens.colors.accent,
@@ -437,7 +439,7 @@ internal fun HomescreenCatalogRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onExpandedChange(!expanded) }
+            .remoteNavigationTarget().clickable { onExpandedChange(!expanded) }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -512,11 +514,11 @@ internal fun HomescreenCatalogRow(
                         uncheckedThumbColor = tokens.colors.textMuted,
                         uncheckedTrackColor = tokens.colors.borderDefault,
                     ),
-                )
+                 modifier = Modifier.remoteNavigationTarget())
                 if (item.isPinnedToTop) {
                     IconButton(
                         onClick = onPinnedDragAttempt,
-                    ) {
+                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                         Icon(
                             imageVector = Icons.Rounded.Lock,
                             contentDescription = stringResource(Res.string.settings_homescreen_pinned),
@@ -525,7 +527,7 @@ internal fun HomescreenCatalogRow(
                     }
                 } else {
                     IconButton(
-                        modifier = with(dragHandleScope) {
+                        modifier = (with(dragHandleScope) {
                             Modifier.draggableHandle(
                                 onDragStarted = {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -534,7 +536,7 @@ internal fun HomescreenCatalogRow(
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 },
                             )
-                        },
+                        }).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                         onClick = {},
                     ) {
                         Icon(
@@ -554,7 +556,7 @@ internal fun HomescreenCatalogRow(
                 OutlinedTextField(
                     value = item.customTitle,
                     onValueChange = onTitleChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
                     singleLine = true,
                     label = { Text(stringResource(Res.string.settings_homescreen_display_name)) },
                     placeholder = { Text(item.defaultTitle) },

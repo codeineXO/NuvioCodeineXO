@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -116,7 +118,7 @@ private fun NotificationTestCard(
             Button(
                 onClick = EpisodeReleaseNotificationsRepository::sendTestNotification,
                 enabled = !uiState.isSendingTest && !uiState.isLoading && uiState.testTargetTitle != null,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,

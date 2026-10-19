@@ -1,5 +1,8 @@
 package com.nuvio.app.features.collection
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,14 +93,14 @@ fun CollectionManagementScreen(
                     showCopyError = runCatching {
                         clipboardManager.setText(AnnotatedString(json))
                     }.isFailure
-                }) {
+                }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
                         contentDescription = stringResource(Res.string.collections_copy_json),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = { showImportDialog = true }) {
+                IconButton(onClick = { showImportDialog = true }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                     Icon(
                         imageVector = Icons.Rounded.ContentPaste,
                         contentDescription = stringResource(Res.string.collections_import),
@@ -242,9 +245,9 @@ private fun CollectionReorderableList(
     }
 
     LazyColumn(
-        modifier = Modifier
+        modifier = Modifier.remoteNavigationGroup().then(Modifier
             .fillMaxWidth()
-            .heightIn(max = 720.dp),
+            .heightIn(max = 720.dp)),
         state = lazyListState,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -315,7 +318,7 @@ private fun CollectionListItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
-                modifier = with(dragHandleScope) {
+                modifier = (with(dragHandleScope) {
                     Modifier.draggableHandle(
                         onDragStarted = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -324,7 +327,7 @@ private fun CollectionListItem(
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         },
                     ).size(36.dp)
-                },
+                }).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 onClick = {},
             ) {
                 Icon(
@@ -337,7 +340,7 @@ private fun CollectionListItem(
             Spacer(modifier = Modifier.weight(1f))
             IconButton(
                 onClick = onEdit,
-                modifier = Modifier.size(36.dp),
+                modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
@@ -348,7 +351,7 @@ private fun CollectionListItem(
             }
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(36.dp),
+                modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Delete,
@@ -377,9 +380,9 @@ private fun ImportDialog(
         OutlinedTextField(
             value = importText,
             onValueChange = onTextChange,
-            modifier = Modifier
+            modifier = (Modifier
                 .fillMaxWidth()
-                .height(160.dp),
+                .height(160.dp)).remoteNavigationTarget(textField = true),
             placeholder = {
                 Text(
                     stringResource(Res.string.collections_import_json_placeholder),

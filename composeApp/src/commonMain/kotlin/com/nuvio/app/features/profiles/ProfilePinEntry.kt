@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -168,7 +170,7 @@ internal fun InlinePinEntry(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
                 .clip(tokens.shapes.compactCard)
-                .clickable(onClick = onCancel)
+                .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(onClick = onCancel)
                 .padding(horizontal = tokens.spacing.cardPadding, vertical = NuvioTokens.Space.s6),
         )
     }
@@ -202,7 +204,7 @@ private fun CompactPinKeypad(
                                     .size(tokens.components.avatarSize)
                                     .clip(tokens.shapes.avatar)
                                     .background(tokens.colors.surfaceCard)
-                                    .clickable(onClick = onBackspace),
+                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(onClick = onBackspace),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -219,7 +221,7 @@ private fun CompactPinKeypad(
                                     .size(tokens.components.avatarSize)
                                     .clip(tokens.shapes.avatar)
                                     .background(tokens.colors.surfaceCard)
-                                    .clickable { onDigit(key) },
+                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable { onDigit(key) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(

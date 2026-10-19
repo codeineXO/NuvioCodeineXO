@@ -1,5 +1,7 @@
 package com.nuvio.app.features.downloads
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,7 +101,7 @@ fun DownloadsScreen(
                                 NuvioToastController.show(openDownloadsDirectoryFailedText)
                             }
                         },
-                    ) {
+                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                         Icon(
                             imageVector = Icons.Rounded.Folder,
                             contentDescription = stringResource(Res.string.downloads_open_directory),
@@ -214,7 +216,7 @@ private fun LazyListScope.downloadsRootContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .clickable { onOpenShow(item.parentMetaId, item.title) },
+                    .remoteNavigationTarget(shape = MaterialTheme.shapes.medium).clickable { onOpenShow(item.parentMetaId, item.title) },
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceContainer,
             ) {
@@ -355,7 +357,7 @@ private fun DownloadRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clickable(enabled = item.isPlayable, onClick = onOpen),
+            .remoteNavigationTarget(shape = MaterialTheme.shapes.medium).clickable(enabled = item.isPlayable, onClick = onOpen),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
@@ -399,7 +401,7 @@ private fun DownloadRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     when (item.status) {
                         DownloadStatus.Downloading -> {
-                            IconButton(onClick = onPause) {
+                            IconButton(onClick = onPause, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Pause,
                                     contentDescription = stringResource(Res.string.compose_action_pause),
@@ -407,7 +409,7 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Paused -> {
-                            IconButton(onClick = onResume) {
+                            IconButton(onClick = onResume, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = stringResource(Res.string.action_resume),
@@ -415,7 +417,7 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Failed -> {
-                            IconButton(onClick = onRetry) {
+                            IconButton(onClick = onRetry, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
                                     contentDescription = stringResource(Res.string.action_retry),
@@ -423,7 +425,7 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Completed -> {
-                            IconButton(onClick = onOpen) {
+                            IconButton(onClick = onOpen, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = stringResource(Res.string.action_play),
@@ -431,7 +433,7 @@ private fun DownloadRow(
                             }
                         }
                     }
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = onDelete, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                         Icon(
                             imageVector = Icons.Rounded.Delete,
                             contentDescription = stringResource(Res.string.action_delete),

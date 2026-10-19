@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -116,7 +118,7 @@ fun DetailActionButtons(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .combinedClickable(
+                        .remoteNavigationTarget(shape = playShape, initialFocus = true, onSelect = onPlayClick.takeIf { playEnabled }, onContext = onPlayLongClick).combinedClickable(
                             enabled = playEnabled,
                             onClick = {
                                 onPlayClick()
@@ -221,7 +223,7 @@ fun DetailActionButtons(
                     Box(
                         modifier = Modifier
                             .size(iconButtonSize)
-                            .clickable(role = Role.Button) {
+                            .remoteNavigationTarget(shape = CircleShape).clickable(role = Role.Button) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 actionsExpanded = !actionsExpanded
                             },
@@ -330,7 +332,7 @@ internal fun DetailIconAction(
         Box(
             modifier = Modifier
                 .size(size)
-                .combinedClickable(
+                .remoteNavigationTarget(shape = CircleShape, onSelect = onClick, onContext = onLongClick).combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
                     role = Role.Button,

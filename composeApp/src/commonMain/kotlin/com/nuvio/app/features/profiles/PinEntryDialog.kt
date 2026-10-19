@@ -1,5 +1,8 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteTextInputGuard
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -124,6 +127,7 @@ fun PinEntryDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
+                .remoteTextInputGuard()
                 .focusable()
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -199,7 +203,7 @@ fun PinEntryDialog(
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onForgotPin)
+                        .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onForgotPin)
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
@@ -271,7 +275,7 @@ private fun PinKeypad(
                                     .size(64.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .clickable(onClick = onBackspace),
+                                    .remoteNavigationTarget(shape = CircleShape).clickable(onClick = onBackspace),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -288,7 +292,7 @@ private fun PinKeypad(
                                     .size(64.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .clickable { onDigit(key) },
+                                    .remoteNavigationTarget(shape = CircleShape).clickable { onDigit(key) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(

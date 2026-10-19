@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -180,7 +182,7 @@ fun DetailHero(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clickable(
+                            .remoteNavigationTarget().clickable(
                                 enabled = heroTrailerReady,
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,

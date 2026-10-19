@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -247,7 +249,7 @@ private fun AppIconChoice(
     val label = stringResource(icon.labelResource)
     Surface(
         onClick = onClick,
-        modifier = modifier.semantics { this.selected = selected },
+        modifier = (modifier.semantics { this.selected = selected }).remoteNavigationTarget(shape = tokens.shapes.compactCard),
         enabled = enabled,
         shape = tokens.shapes.compactCard,
         color = if (selected) tokens.colors.overlaySelected else tokens.colors.surfaceCard,

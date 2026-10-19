@@ -4,7 +4,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -118,7 +118,7 @@ internal fun MainTabsDestination(
         val homeCatalogSettingsUiState by remember { HomeCatalogSettingsRepository.uiState }.collectAsStateWithLifecycle()
 
         val sidebarHoverSource = remember { MutableInteractionSource() }
-        val isSidebarHovered by sidebarHoverSource.collectIsHoveredAsState()
+        val isSidebarHovered by sidebarHoverSource.collectIsRemoteHoveredAsState()
         var isProfileStackVisible by remember { mutableStateOf(false) }
 
         val isSidebarExpanded = when (navBarStyleSetting) {

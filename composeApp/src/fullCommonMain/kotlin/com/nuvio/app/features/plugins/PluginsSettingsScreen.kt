@@ -1,5 +1,7 @@
 package com.nuvio.app.features.plugins
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -168,7 +170,7 @@ fun PluginsSettingsPageContent(
                 Switch(
                     checked = uiState.pluginsEnabled,
                     onCheckedChange = { PluginRepository.setPluginsEnabled(it) },
-                )
+                 modifier = Modifier.remoteNavigationTarget())
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -197,7 +199,7 @@ fun PluginsSettingsPageContent(
                 Switch(
                     checked = uiState.groupStreamsByRepository,
                     onCheckedChange = { PluginRepository.setGroupStreamsByRepository(it) },
-                )
+                 modifier = Modifier.remoteNavigationTarget())
             }
         }
 
@@ -315,7 +317,7 @@ fun PluginsSettingsPageContent(
                         Switch(
                             checked = repo.enabled,
                             onCheckedChange = { PluginRepository.toggleRepository(repo.manifestUrl, it) },
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Row(
@@ -433,7 +435,7 @@ fun PluginsSettingsPageContent(
                                             configuringLayout = layout
                                         }
                                     }
-                                }) {
+                                }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                     Icon(
                                         imageVector = Icons.Rounded.Settings,
                                         contentDescription = "Provider settings",
@@ -445,7 +447,7 @@ fun PluginsSettingsPageContent(
                                 checked = scraper.enabled,
                                 onCheckedChange = { PluginRepository.toggleScraper(scraper.id, it) },
                                 enabled = scraper.manifestEnabled && isRepoEnabled,
-                            )
+                             modifier = Modifier.remoteNavigationTarget())
                         }
                     }
 

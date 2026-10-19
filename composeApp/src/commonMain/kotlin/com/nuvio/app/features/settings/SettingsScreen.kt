@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.isDesktop
@@ -1170,9 +1172,9 @@ private fun TabletSettingsScreen(
                     }
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
+                        modifier = Modifier.remoteNavigationGroup().then(Modifier
                             .fillMaxSize()
-                            .nestedScroll(rootSearchRevealConnection),
+                            .nestedScroll(rootSearchRevealConnection)),
                         contentPadding = PaddingValues(
                             start = horizontalPadding,
                             top = effectiveTopOffset,

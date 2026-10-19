@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +24,7 @@ fun Chip(
     Surface(
         selected = selected,
         onClick = onClick,
-        modifier = modifier,
+        modifier = (modifier).remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.md)),
         enabled = enabled,
         shape = RoundedCornerShape(NuvioTokens.Radius.md),
         color = if (selected) tokens.colors.overlaySelected else Color.Transparent,

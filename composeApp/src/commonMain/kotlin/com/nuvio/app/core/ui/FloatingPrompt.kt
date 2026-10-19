@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
@@ -239,7 +240,7 @@ fun NuvioFloatingPrompt(
                         ) {
                             FilledIconButton(
                                 onClick = actionWithHaptic,
-                                modifier = Modifier.size(NuvioTokens.Space.s40 + NuvioTokens.Space.s2),
+                                modifier = (Modifier.size(NuvioTokens.Space.s40 + NuvioTokens.Space.s2)).remoteNavigationTarget(shape = tokens.shapes.avatar),
                                 shape = tokens.shapes.avatar,
                             ) {
                                 Icon(

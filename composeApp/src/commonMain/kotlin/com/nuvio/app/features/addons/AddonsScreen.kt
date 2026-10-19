@@ -1,5 +1,7 @@
 package com.nuvio.app.features.addons
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -491,7 +493,7 @@ private fun InstalledAddonCard(
                     uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
                 ),
-            )
+             modifier = Modifier.remoteNavigationTarget())
         }
 
         Spacer(modifier = Modifier.height(12.dp))

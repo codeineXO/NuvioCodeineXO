@@ -1,5 +1,7 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -14,7 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -334,7 +336,7 @@ internal fun TabletFloatingTopBar(
     val tokens = MaterialTheme.nuvio
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     var isProfileSwitcherOpen by remember { mutableStateOf(false) }
 
     val isNarrowWindow = windowWidth != null && windowWidth < 800.dp
@@ -642,9 +644,9 @@ private fun TabletTopPillItem(
         color = selectedBgColor,
         shape = itemShape,
         tonalElevation = if (selected) tokens.elevation.raised else tokens.elevation.flat,
-        modifier = Modifier
+        modifier = (Modifier
             .height(pillHeight)
-            .clip(itemShape),
+            .clip(itemShape)).remoteNavigationTarget(shape = itemShape),
     ) {
         Row(
             modifier = Modifier
@@ -790,7 +792,7 @@ internal fun DesktopHoverSidebar(
                     .fillMaxWidth()
                     .height(DesktopSidebarItemHeight)
                     .padding(horizontal = 6.dp, vertical = 4.dp)
-                    .clickable(
+                    .remoteNavigationTarget().clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = { onProfileStackVisibleChange(!profileStackVisible) },
@@ -978,10 +980,10 @@ private fun DesktopSidebarItem(
 
     Surface(
         onClick = onClick,
-        modifier = Modifier
+        modifier = (Modifier
             .fillMaxWidth()
             .height(DesktopSidebarItemHeight)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp)).remoteNavigationTarget(shape = RoundedCornerShape(16.dp)),
         color = Color.Transparent,
         shape = RoundedCornerShape(16.dp),
     ) {

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -181,7 +183,7 @@ private fun FilterChip(
             .height(36.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(containerColor)
-            .clickable(
+            .remoteNavigationTarget(shape = RoundedCornerShape(16.dp)).clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,

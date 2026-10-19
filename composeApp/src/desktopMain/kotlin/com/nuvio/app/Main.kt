@@ -5,6 +5,9 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.SwingWindow
 import androidx.compose.ui.configureSwingGlobalsForCompose
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.CompositionLocalProvider
+import com.nuvio.app.core.ui.LocalRemotePlatformFocus
+import com.nuvio.app.core.ui.LocalRemoteHiddenPointerIcon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -227,7 +230,12 @@ fun main(args: Array<String>) {
 
             if (smokePlayerUrl == null) {
                 ProvideDesktopWindowInsets(isFullscreen = windowState.placement == WindowPlacement.Fullscreen) {
-                    App()
+                    CompositionLocalProvider(
+                        LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
+                        LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
+                    ) {
+                        App()
+                    }
                 }
             } else {
                 // The player surface reads LocalNuvioPlatformDensity, which only

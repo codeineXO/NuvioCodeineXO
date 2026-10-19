@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -317,9 +319,9 @@ fun ProfileEditScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = { showDeleteConfirm = true },
-                    modifier = Modifier
+                    modifier = (Modifier
                         .fillMaxWidth()
-                        .height(52.dp),
+                        .height(52.dp)).remoteNavigationTarget(shape = RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
@@ -555,7 +557,7 @@ private fun ProfileOptionRow(
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
             ),
-        )
+         modifier = Modifier.remoteNavigationTarget())
     }
 }
 

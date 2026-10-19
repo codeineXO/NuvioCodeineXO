@@ -1,5 +1,8 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -82,10 +85,10 @@ fun DetailCommentsSection(
                 val loadingListState = rememberLazyListState()
                 LazyRow(
                     state = loadingListState,
-                    modifier = Modifier
+                    modifier = Modifier.remoteNavigationGroup().then(Modifier
                         .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                         .fillMaxWidth()
-                        .nuvioDesktopDragScroll(loadingListState),
+                        .nuvioDesktopDragScroll(loadingListState)),
                     contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -108,7 +111,7 @@ fun DetailCommentsSection(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ),
-                    ) {
+                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.action_retry))
                     }
                 }
@@ -125,10 +128,10 @@ fun DetailCommentsSection(
             else -> {
                 LazyRow(
                     state = listState,
-                    modifier = Modifier
+                    modifier = Modifier.remoteNavigationGroup().then(Modifier
                         .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                         .fillMaxWidth()
-                        .nuvioDesktopDragScroll(listState),
+                        .nuvioDesktopDragScroll(listState)),
                     contentPadding = PaddingValues(horizontal = horizontalScrollPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -193,7 +196,7 @@ private fun CommentCard(
             modifier = modifier
                 .width(cardWidth)
                 .height(cardHeight)
-                .clickable(onClick = onClick),
+                .remoteNavigationTarget(shape = RoundedCornerShape(16.dp)).clickable(onClick = onClick),
             shape = RoundedCornerShape(16.dp),
             color = if (isAmoled) Color(0xFF121212) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
             tonalElevation = 1.dp,

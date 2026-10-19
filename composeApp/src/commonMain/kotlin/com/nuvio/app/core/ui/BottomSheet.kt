@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,6 +71,7 @@ fun NuvioModalBottomSheet(
             CompositionLocalProvider(LocalBottomInsetsConsumed provides true) {
                 Column(
                     modifier = modifier
+                        .remoteNavigationModal()
                         .padding(NuvioTokens.Space.s10)
                         .clip(SheetShape)
                         .background(containerColor)
@@ -114,7 +116,7 @@ fun NuvioBottomSheetActionRow(
             .heightIn(min = NuvioTokens.Space.s56)
             .clip(tokens.shapes.compactCard)
             .background(if (selected) tokens.colors.accent.copy(alpha = tokens.opacity.hover) else Color.Transparent)
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(onClick = onClick)
             .padding(NuvioTokens.Space.s8),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s14),
         verticalAlignment = Alignment.CenterVertically,

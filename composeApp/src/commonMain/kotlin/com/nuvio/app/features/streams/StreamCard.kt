@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -164,7 +166,7 @@ internal fun StreamCard(
                     Modifier
                 },
             )
-            .combinedClickable(
+            .remoteNavigationTarget(shape = cardShape).combinedClickable(
                 enabled = enabled,
                 onClick = onClick,
                 onLongClick = if (isDesktop) null else onLongClick,

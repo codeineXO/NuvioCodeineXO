@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -160,10 +162,10 @@ fun TmdbEntityBrowseScreen(
             } else {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier
+                    modifier = (Modifier
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(start = 4.dp, top = 4.dp)
-                        .align(Alignment.TopStart),
+                        .align(Alignment.TopStart)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -712,7 +714,7 @@ private fun EntityBrowseError(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ),
-            ) {
+             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                 Text(stringResource(Res.string.action_retry))
             }
         }

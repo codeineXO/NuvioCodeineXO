@@ -98,7 +98,8 @@ private fun RootTabPane(
             Box(
                 Modifier.fillMaxSize()
                     .graphicsLayer()
-                    .focusProperties { canFocus = active }
+                    // An active pane must not turn a descendant focusGroup into a focus stop.
+                    .then(if (active) Modifier else Modifier.focusProperties { canFocus = false })
                     .pointerInput(active) {
                         if (!active) {
                             awaitPointerEventScope {

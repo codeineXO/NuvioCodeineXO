@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -208,7 +210,7 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                     OutlinedTextField(
                         value = editingPattern,
                         onValueChange = { editingPattern = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
                         placeholder = {
                             Text(
                                 text = stringResource(Res.string.settings_custom_poster_placeholder),
@@ -229,7 +231,7 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                                 CustomPosterUrlRepository.setPattern(editingPattern)
                             },
                             enabled = editingPattern.trim() != currentPattern,
-                        ) {
+                         modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                             Text(text = stringResource(Res.string.settings_custom_poster_save))
                         }
                     }
@@ -361,7 +363,7 @@ private fun CardDepthStyleControls(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .clickable { showFineTune = true },
+                    .remoteNavigationTarget(shape = RoundedCornerShape(10.dp)).clickable { showFineTune = true },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -512,7 +514,7 @@ private fun CardDepthFineTuneSheet(
                     thumbColor = MaterialTheme.colorScheme.primary,
                     activeTrackColor = MaterialTheme.colorScheme.primary,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(adjustable = true),
             )
         }
     }
@@ -831,7 +833,7 @@ private fun PosterToggleRow(
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
             ),
-        )
+         modifier = Modifier.remoteNavigationTarget())
     }
 }
 
@@ -958,7 +960,7 @@ private fun PosterStyleOptionRow(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     ),
-                )
+                 modifier = Modifier.remoteNavigationTarget())
             }
         }
     }

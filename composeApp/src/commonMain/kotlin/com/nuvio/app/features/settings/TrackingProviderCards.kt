@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -466,9 +468,9 @@ internal fun TrackingProviderCard(
                     OutlinedButton(
                         onClick = onCancelAuthorization,
                         enabled = !isLoading,
-                        modifier = Modifier
+                        modifier = (Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 48.dp),
+                            .heightIn(min = 48.dp)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.44f)),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color.White,
@@ -530,7 +532,7 @@ internal fun TrackingProviderCard(
                     if (hasWebsiteAction) {
                         TextButton(
                             onClick = { openUrl(websiteUrl) },
-                            modifier = if (footerActionCount > 1) Modifier.weight(0.95f) else Modifier,
+                            modifier = (if (footerActionCount > 1) Modifier.weight(0.95f) else Modifier).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                             colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
                         ) {
@@ -545,7 +547,7 @@ internal fun TrackingProviderCard(
                     if (hasDisconnectAction) {
                         TextButton(
                             onClick = { showDisconnectDialog = true },
-                            modifier = if (footerActionCount > 1) Modifier.weight(1.05f) else Modifier,
+                            modifier = (if (footerActionCount > 1) Modifier.weight(1.05f) else Modifier).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                             enabled = !isLoading && !isSyncing,
                             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                             colors = ButtonDefaults.textButtonColors(
@@ -564,7 +566,7 @@ internal fun TrackingProviderCard(
                     if (hasInfoAction) {
                         TextButton(
                             onClick = { onInfoRequested?.invoke() },
-                            modifier = if (footerActionCount > 1) Modifier.weight(1.55f) else Modifier,
+                            modifier = (if (footerActionCount > 1) Modifier.weight(1.55f) else Modifier).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
                             colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
                         ) {
@@ -602,7 +604,7 @@ private fun TrackingApprovalCode(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onCopy),
+            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.md)).clickable(onClick = onCopy),
         shape = RoundedCornerShape(NuvioTokens.Radius.md),
         color = Color.White.copy(alpha = 0.12f),
     ) {
@@ -661,9 +663,9 @@ private fun TrackingBrandPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier
+        modifier = (Modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp),
+            .heightIn(min = 48.dp)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.White,
             contentColor = Color(0xFF171717),

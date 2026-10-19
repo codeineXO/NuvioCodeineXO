@@ -1382,7 +1382,9 @@ internal fun MainAppContent(
                     PlatformBackDispatcher.setFallback(null)
                 }
             }
-            Box(
+            com.nuvio.app.core.ui.RemoteNavigationHost(
+                enabled = isDesktop && currentRoute !is PlayerRoute,
+                restorationKey = if (currentRoute is TabsRoute) currentRoute to selectedTab else currentRoute ?: TabsRoute,
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.nuvio.colors.background)
@@ -1849,10 +1851,17 @@ internal fun MainAppContent(
                         { key ->
                             routeDisposalDecorator.register(
                                 key = key,
-                                entry = if (posterNavigationEnabled) {
+                                entry = (if (posterNavigationEnabled) {
                                     posterNavigationEntry(key, provider(key), posterNavigation)
                                 } else {
                                     provider(key)
+                                }).let { entry ->
+                                    androidx.navigation3.runtime.NavEntry(key = key, contentKey = entry.contentKey, metadata = entry.metadata) {
+                                        com.nuvio.app.core.ui.RemoteNavigationEntry(
+                                            routeKey = if (key is TabsRoute) key to selectedTab else key,
+                                            active = key == navBackStack.lastOrNull(),
+                                        ) { entry.Content() }
+                                    }
                                 },
                             )
                         }

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -204,9 +206,9 @@ private fun DeleteAccountCard(
         Spacer(modifier = Modifier.height(14.dp))
         Button(
             onClick = onDeleteClick,
-            modifier = Modifier
+            modifier = (Modifier
                 .fillMaxWidth()
-                .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4),
+                .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)).remoteNavigationTarget(shape = tokens.shapes.button),
             shape = tokens.shapes.button,
             colors = ButtonDefaults.buttonColors(
                 containerColor = tokens.colors.danger,

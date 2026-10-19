@@ -1,5 +1,8 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -243,7 +246,7 @@ fun CatalogScreen(
                     LazyVerticalGrid(
                         columns = gridCells,
                         state = gridState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
                         contentPadding = PaddingValues(
                             start = pageHorizontalPadding,
                             end = pageHorizontalPadding,
@@ -368,7 +371,7 @@ private fun CatalogHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(onClick = onBack, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(Res.string.action_back),

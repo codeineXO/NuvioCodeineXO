@@ -1,5 +1,8 @@
 package com.nuvio.app.features.onboarding
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -241,7 +244,7 @@ fun OnboardingScreen(
                     Surface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable(onClick = onBack)
+                            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onBack)
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         color = Color.Transparent,
                     ) {
@@ -255,7 +258,7 @@ fun OnboardingScreen(
                     Surface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable(onClick = onComplete)
+                            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onComplete)
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         color = Color.Transparent,
                     ) {
@@ -391,9 +394,9 @@ private fun WelcomeStepContent(
 
         Button(
             onClick = onNext,
-            modifier = Modifier
+            modifier = (Modifier
                 .widthIn(min = 220.dp, max = 320.dp)
-                .heightIn(min = 50.dp),
+                .heightIn(min = 50.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
             shape = tokens.shapes.button,
             colors = ButtonDefaults.buttonColors(
                 containerColor = tokens.colors.accent,
@@ -515,7 +518,7 @@ private fun RecommendedSetupStepContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(NuvioTokens.Radius.xl))
-                .clickable(onClick = onOpenReviewDialog),
+                .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.xl)).clickable(onClick = onOpenReviewDialog),
             color = tokens.colors.surface,
             border = BorderStroke(
                 width = if (presetApplied) 1.5.dp else 1.dp,
@@ -621,9 +624,9 @@ private fun RecommendedSetupStepContent(
                 ) {
                     OutlinedButton(
                         onClick = onOpenReviewDialog,
-                        modifier = Modifier
+                        modifier = (Modifier
                             .weight(1f)
-                            .heightIn(min = 44.dp),
+                            .heightIn(min = 44.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
                         shape = tokens.shapes.button,
                         border = BorderStroke(1.dp, tokens.colors.borderDefault),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -639,9 +642,9 @@ private fun RecommendedSetupStepContent(
 
                     Button(
                         onClick = onApplyDirectly,
-                        modifier = Modifier
+                        modifier = (Modifier
                             .weight(1f)
-                            .heightIn(min = 44.dp),
+                            .heightIn(min = 44.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
                         shape = tokens.shapes.button,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = tokens.colors.accent,
@@ -749,7 +752,7 @@ private fun RecommendedSetupStepContent(
                                 OutlinedButton(
                                     onClick = { SvpRuntimeInstaller.startDownload() },
                                     shape = tokens.shapes.button,
-                                ) {
+                                 modifier = Modifier.remoteNavigationTarget(shape = tokens.shapes.button)) {
                                     Text("Retry", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
@@ -757,7 +760,7 @@ private fun RecommendedSetupStepContent(
                         else -> {
                             OutlinedButton(
                                 onClick = { SvpRuntimeInstaller.startDownload() },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
                                 shape = tokens.shapes.button,
                                 border = BorderStroke(1.dp, tokens.colors.accent.copy(alpha = 0.5f)),
                                 colors = ButtonDefaults.outlinedButtonColors(
@@ -822,9 +825,9 @@ private fun RecommendedSetupStepContent(
         ) {
             OutlinedButton(
                 onClick = onBack,
-                modifier = Modifier
+                modifier = (Modifier
                     .weight(0.4f)
-                    .heightIn(min = 48.dp),
+                    .heightIn(min = 48.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
                 shape = tokens.shapes.button,
                 border = BorderStroke(1.dp, tokens.colors.borderDefault),
                 colors = ButtonDefaults.outlinedButtonColors(
@@ -836,9 +839,9 @@ private fun RecommendedSetupStepContent(
 
             Button(
                 onClick = onNext,
-                modifier = Modifier
+                modifier = (Modifier
                     .weight(0.6f)
-                    .heightIn(min = 48.dp),
+                    .heightIn(min = 48.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
                 shape = tokens.shapes.button,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = tokens.colors.accent,
@@ -986,9 +989,9 @@ private fun ReadyStepContent(
         ) {
             OutlinedButton(
                 onClick = onBack,
-                modifier = Modifier
+                modifier = (Modifier
                     .weight(0.4f)
-                    .heightIn(min = 50.dp),
+                    .heightIn(min = 50.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
                 shape = tokens.shapes.button,
                 border = BorderStroke(1.dp, tokens.colors.borderDefault),
                 colors = ButtonDefaults.outlinedButtonColors(
@@ -1000,9 +1003,9 @@ private fun ReadyStepContent(
 
             Button(
                 onClick = onFinish,
-                modifier = Modifier
+                modifier = (Modifier
                     .weight(0.6f)
-                    .heightIn(min = 50.dp),
+                    .heightIn(min = 50.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
                 shape = tokens.shapes.button,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = tokens.colors.accent,
@@ -1077,7 +1080,7 @@ private fun RecommendedPresetReviewDialog(
                     Surface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable {
+                            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable {
                                 onStateChange(RecommendedPresetState())
                                 NuvioToastController.show("Reset to recommended defaults")
                             }
@@ -1097,7 +1100,7 @@ private fun RecommendedPresetReviewDialog(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .clickable(onClick = onDismissRequest),
+                            .remoteNavigationTarget(shape = CircleShape).clickable(onClick = onDismissRequest),
                         color = tokens.colors.surfaceElevated,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -1121,9 +1124,9 @@ private fun RecommendedPresetReviewDialog(
 
             // Scrollable settings list
             LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 item {
@@ -1307,7 +1310,7 @@ private fun <T> PresetSegmentRow(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable { onSelect(option) },
+                        .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable { onSelect(option) },
                     shape = RoundedCornerShape(8.dp),
                     color = if (isSelected) tokens.colors.accent.copy(alpha = 0.2f) else tokens.colors.surfaceElevated,
                     border = BorderStroke(
@@ -1380,7 +1383,7 @@ private fun SvpMotionPresetRow(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onSelect(SvpMotionOption.OFF) },
+                    .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable { onSelect(SvpMotionOption.OFF) },
                 shape = RoundedCornerShape(8.dp),
                 color = if (isOffSelected) tokens.colors.accent.copy(alpha = 0.2f) else tokens.colors.surfaceElevated,
                 border = BorderStroke(
@@ -1408,7 +1411,7 @@ private fun SvpMotionPresetRow(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable {
+                    .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable {
                         if (isInstalled) {
                             onSelect(SvpMotionOption.AUTO)
                         } else {
@@ -1513,7 +1516,7 @@ private fun SvpMotionPresetRow(
                                 )
                                 OutlinedButton(
                                     onClick = { SvpRuntimeInstaller.startDownload() },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
                                     shape = tokens.shapes.button,
                                 ) {
                                     Text("Retry Download", style = MaterialTheme.typography.labelSmall)
@@ -1523,7 +1526,7 @@ private fun SvpMotionPresetRow(
                         else -> {
                             Button(
                                 onClick = { SvpRuntimeInstaller.startDownload() },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
                                 shape = tokens.shapes.button,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = tokens.colors.accent,

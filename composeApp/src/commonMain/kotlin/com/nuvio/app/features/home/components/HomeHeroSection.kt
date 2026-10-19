@@ -1,5 +1,7 @@
 package com.nuvio.app.features.home.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -394,7 +397,7 @@ private fun HeroContentLayers(
     layerPages.forEach { page ->
         val item = items[page % items.size]
         Box(
-            modifier = Modifier.graphicsLayer {
+            modifier = Modifier.focusProperties { canFocus = page == pagerState.currentPage }.graphicsLayer {
                 val pageOffset = heroPageOffset(pagerState, page)
 
                 alpha = heroPageVisibility(pageOffset)
@@ -468,6 +471,7 @@ private fun HeroDesktopContentLayers(
         val item = items[page % items.size]
         Box(
             modifier = Modifier
+                .focusProperties { canFocus = page == pagerState.currentPage }
                 .fillMaxWidth()
                 .graphicsLayer {
                     val pageOffset = heroPageOffset(pagerState, page)
@@ -588,7 +592,7 @@ private fun DefaultHomeHeroFrame(
                 Spacer(modifier = Modifier.height(14.dp))
                 Surface(
                     modifier = Modifier
-                        .clickable(enabled = onItemClick != null) {
+                        .remoteNavigationTarget(shape = RoundedCornerShape(40.dp)).clickable(enabled = onItemClick != null) {
                             onItemClick?.invoke(currentHeroItem(items, pagerState))
                         },
                     color = MaterialTheme.colorScheme.onBackground,
@@ -770,7 +774,7 @@ private fun HeroPageIndicatorRow(
             val activeFraction = heroPageVisibility(pagerState, page)
             Box(
                 modifier = Modifier
-                    .clickable {
+                    .remoteNavigationTarget().clickable {
                         coroutineScope.launch {
                             pagerState.animateScrollToPage(heroPageForItem(pagerState.currentPage, index, itemCount))
                         }
@@ -831,7 +835,7 @@ private fun HeroPageIndicatorDot(
 ) {
     Box(
         modifier = Modifier
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget().clickable(onClick = onClick)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.onBackground)
             .graphicsLayer {
@@ -916,7 +920,7 @@ private fun HeroContentBlock(
                 modifier = Modifier
                     .fillMaxWidth(layout.logoWidthFraction)
                     .aspectRatio(2.6f)
-                    .clickable(enabled = onItemClick != null) {
+                    .remoteNavigationTarget().clickable(enabled = onItemClick != null) {
                         onItemClick?.invoke(item)
                     },
                 alignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center,
@@ -928,7 +932,7 @@ private fun HeroContentBlock(
                 text = item.name,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = onItemClick != null) {
+                    .remoteNavigationTarget().clickable(enabled = onItemClick != null) {
                         onItemClick?.invoke(item)
                     },
                 style = if (layout.isTablet) {
@@ -1020,7 +1024,7 @@ private fun DesktopHeroContentBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
+            .remoteNavigationTarget().clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 enabled = onItemClick != null,
@@ -1136,7 +1140,7 @@ private fun DesktopHeroContentBlock(
                 Surface(
                     modifier = Modifier
                         .height(48.dp)
-                        .clickable { onItemClick(item) },
+                        .remoteNavigationTarget(shape = RoundedCornerShape(40.dp)).clickable { onItemClick(item) },
                     color = colorScheme.onBackground,
                     contentColor = colorScheme.background,
                     shape = RoundedCornerShape(40.dp),

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -38,7 +40,7 @@ internal fun ExpandableDescription(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize()
-            .clickable(enabled = canExpand) { expanded = !expanded },
+            .remoteNavigationTarget().clickable(enabled = canExpand) { expanded = !expanded },
     ) {
         Text(
             text = text,

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.updater
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -268,7 +270,7 @@ private fun AppUpdateBanner(
             IconButton(
                 onClick = onShowReleaseNotes,
                 enabled = update.notes.isNotBlank(),
-                modifier = Modifier.size(40.dp),
+                modifier = (Modifier.size(40.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Info,
@@ -280,7 +282,7 @@ private fun AppUpdateBanner(
             if (onOpenReleasePage != null) {
                 IconButton(
                     onClick = onOpenReleasePage,
-                    modifier = Modifier.size(40.dp),
+                    modifier = (Modifier.size(40.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.OpenInBrowser,
@@ -294,7 +296,7 @@ private fun AppUpdateBanner(
                 Button(
                     onClick = if (state.downloadedUpdatePath != null) onInstall else onDownload,
                     enabled = state.downloadedUpdatePath != null || state.isUpdateAvailable,
-                    modifier = Modifier.heightIn(min = 40.dp),
+                    modifier = (Modifier.heightIn(min = 40.dp)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     Text(
@@ -312,7 +314,7 @@ private fun AppUpdateBanner(
             if (!state.isDownloading) {
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(40.dp),
+                    modifier = (Modifier.size(40.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
@@ -356,7 +358,7 @@ private fun ReleaseNotesDialog(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onDismiss) {
+            IconButton(onClick = onDismiss, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(Res.string.action_close),

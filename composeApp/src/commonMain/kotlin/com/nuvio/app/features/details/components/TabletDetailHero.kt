@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -357,14 +359,14 @@ fun TabletDetailHero(
             Surface(
                 onClick = onHeroTrailerMuteToggle,
                 enabled = heroTrailerReady,
-                modifier = Modifier
+                modifier = (Modifier
                     .align(Alignment.TopEnd)
                     .padding(
                         top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + space.s8,
                         end = horizontalPadding,
                     )
                     .size(40.dp)
-                    .graphicsLayer { alpha = trailerAlpha },
+                    .graphicsLayer { alpha = trailerAlpha }).remoteNavigationTarget(shape = CircleShape),
                 shape = CircleShape,
                 color = colorScheme.surfaceVariant.copy(alpha = 0.82f),
                 contentColor = colorScheme.onSurface,

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -133,7 +135,7 @@ internal fun ServerSignInSheet(
                         address = it
                         error = null
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
                     enabled = !connecting,
                     singleLine = true,
                     label = { Text(stringResource(Res.string.servers_address)) },
@@ -153,7 +155,7 @@ internal fun ServerSignInSheet(
                         username = it
                         error = null
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
                     enabled = !connecting,
                     singleLine = true,
                     label = { Text(stringResource(Res.string.servers_username)) },
@@ -191,9 +193,9 @@ internal fun ServerSignInSheet(
             Spacer(modifier = Modifier.height(NuvioTokens.Space.s20))
             Button(
                 onClick = ::connect,
-                modifier = Modifier
+                modifier = (Modifier
                     .fillMaxWidth()
-                    .height(NuvioTokens.Space.s56),
+                    .height(NuvioTokens.Space.s56)).remoteNavigationTarget(shape = tokens.shapes.button),
                 enabled = canConnect,
                 shape = tokens.shapes.button,
                 colors = ButtonDefaults.buttonColors(

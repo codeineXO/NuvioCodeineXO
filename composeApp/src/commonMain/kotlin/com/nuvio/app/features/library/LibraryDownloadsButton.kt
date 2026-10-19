@@ -1,5 +1,7 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -41,7 +43,7 @@ internal fun LibraryDownloadsButton(onClick: () -> Unit) {
     }.collectAsStateWithLifecycle()
     val hasUnseenCompleted by DownloadsRepository.hasUnseenCompleted.collectAsStateWithLifecycle()
 
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
         when {
             downloads.items.any { it.status == DownloadStatus.Downloading } -> FlowingDownloadIcon()
             hasUnseenCompleted -> DownloadIcon(

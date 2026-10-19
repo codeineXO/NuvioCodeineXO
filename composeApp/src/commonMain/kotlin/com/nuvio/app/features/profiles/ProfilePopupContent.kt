@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -216,7 +218,7 @@ private fun ProfilePopupItem(
         modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(tokens.shapes.compactCard)
             .background(if (isHovered) tokens.colors.accent.copy(alpha = 0.14f) else Color.Transparent)
-            .selectable(selected = isActive, onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).selectable(selected = isActive, onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

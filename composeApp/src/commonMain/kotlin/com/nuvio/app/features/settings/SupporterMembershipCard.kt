@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -462,7 +464,7 @@ private fun MembershipRefreshButton(
         onClick = onRefresh,
         enabled = !isRefreshing,
         colors = ButtonDefaults.textButtonColors(contentColor = SecondaryTextColor),
-    ) {
+     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
         Text(
             stringResource(
                 if (isRefreshing) {
@@ -495,7 +497,7 @@ private fun MembershipButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.heightIn(min = 44.dp),
+        modifier = (Modifier.heightIn(min = 44.dp)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
         colors = ButtonDefaults.buttonColors(
             containerColor = PrimaryTextColor,
             contentColor = CardColor,

@@ -478,7 +478,10 @@ internal fun AppGate(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    com.nuvio.app.core.ui.RemoteNavigationHost(
+        enabled = isDesktop && gateScreen != AppGateScreen.Auth.name && gateScreen != AppGateScreen.Main.name,
+        restorationKey = gateScreen,
+    ) {
         AnimatedContent(
             targetState = gateScreen,
             label = "app_gate",

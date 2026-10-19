@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -124,7 +126,7 @@ private fun ThemeChip(
     Column(
         modifier = modifier
             .clip(tokens.shapes.compactCard)
-            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = NuvioTokens.Space.s4, vertical = NuvioTokens.Space.s8),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

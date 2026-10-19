@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -41,6 +42,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -258,6 +260,7 @@ fun NuvioPosterZoomActionOverlay(
 
     BoxWithConstraints(
         modifier = modifier
+            .remoteNavigationModal()
             .fillMaxSize()
             .onGloballyPositioned { coordinates -> rootOrigin = coordinates.positionInRoot() }
             .pointerInput(Unit) {
@@ -377,6 +380,7 @@ fun NuvioPosterZoomActionOverlay(
                     }
                     PosterZoomMenuRow(
                         action = action,
+                        shape = posterZoomMenuRowShape(index, frozenActions.size),
                         enabled = phase == PosterZoomPhase.Open,
                         onSelected = { select(action) },
                         modifier = Modifier.graphicsLayer {
@@ -514,8 +518,9 @@ fun NuvioPosterZoomActionOverlay(
 }
 
 @Composable
-private fun PosterZoomMenuRow(
+internal fun PosterZoomMenuRow(
     action: PosterZoomOverlayAction,
+    shape: Shape,
     enabled: Boolean,
     onSelected: () -> Unit,
     modifier: Modifier = Modifier,
@@ -525,7 +530,7 @@ private fun PosterZoomMenuRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onSelected)
+            .remoteNavigationTarget(shape = shape).clickable(enabled = enabled, onClick = onSelected)
             .padding(horizontal = NuvioTokens.Space.s18, vertical = NuvioTokens.Space.s16),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
         verticalAlignment = Alignment.CenterVertically,
@@ -547,6 +552,13 @@ private fun PosterZoomMenuRow(
         )
     }
 }
+
+internal fun posterZoomMenuRowShape(index: Int, count: Int): Shape = RoundedCornerShape(
+    topStart = if (index == 0) NuvioTokens.Space.s20 else 0.dp,
+    topEnd = if (index == 0) NuvioTokens.Space.s20 else 0.dp,
+    bottomStart = if (index == count - 1) NuvioTokens.Space.s20 else 0.dp,
+    bottomEnd = if (index == count - 1) NuvioTokens.Space.s20 else 0.dp,
+)
 
 private fun lerp(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction

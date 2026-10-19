@@ -1,5 +1,8 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -465,9 +468,9 @@ internal fun DiscordActivityModeBottomSheet(
         sheetState = sheetState,
     ) {
         androidx.compose.foundation.lazy.LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 16.dp)),
         ) {
             item {
                 Text(
@@ -488,7 +491,7 @@ internal fun DiscordActivityModeBottomSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
+                        .remoteNavigationTarget().clickable {
                             onModeSelected(mode)
                             coroutineScope.launch {
                                 dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
@@ -555,9 +558,9 @@ internal fun DiscordActivityTypeBottomSheet(
         sheetState = sheetState,
     ) {
         androidx.compose.foundation.lazy.LazyColumn(
-            modifier = Modifier
+            modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 16.dp)),
         ) {
             item {
                 Text(
@@ -578,7 +581,7 @@ internal fun DiscordActivityTypeBottomSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
+                        .remoteNavigationTarget().clickable {
                             onTypeSelected(type)
                             coroutineScope.launch {
                                 dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)

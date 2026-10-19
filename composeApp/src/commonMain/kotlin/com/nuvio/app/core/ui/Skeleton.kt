@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -72,7 +73,7 @@ internal fun SkeletonPosterRow(
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val count = ((maxWidth - horizontalPadding) / (width + 10.dp)).toInt().coerceAtLeast(0) + 2
         LazyRow(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxWidth()),
             contentPadding = PaddingValues(horizontal = horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             userScrollEnabled = false,

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -1207,7 +1209,7 @@ private fun SettingsSearchField(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
         singleLine = true,
         shape = tokens.shapes.compactCard,
         leadingIcon = {
@@ -1219,7 +1221,7 @@ private fun SettingsSearchField(
         },
         trailingIcon = if (query.isNotBlank()) {
             {
-                IconButton(onClick = { onQueryChange("") }) {
+                IconButton(onClick = { onQueryChange("") }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = stringResource(Res.string.compose_search_clear),

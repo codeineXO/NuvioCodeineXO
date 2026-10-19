@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -69,7 +70,7 @@ fun MenuItem(
             .padding(horizontal = NuvioTokens.Space.s8)
             .clip(tokens.shapes.compactCard)
             .background(if (selected) tokens.colors.accent.copy(alpha = tokens.opacity.hover) else Color.Transparent)
-            .clickable(enabled = enabled, onClick = onClick)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(enabled = enabled, onClick = onClick)
             .padding(NuvioTokens.Space.s12),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
         verticalAlignment = Alignment.CenterVertically,

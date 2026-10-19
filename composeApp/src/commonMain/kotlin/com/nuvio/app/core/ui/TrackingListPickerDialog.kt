@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -83,9 +84,9 @@ fun TrackingListPickerDialog(
             }
         } else {
             LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .height(NuvioTokens.Space.s80 + NuvioTokens.Space.s80 + NuvioTokens.Space.s80 + NuvioTokens.Space.s40),
+                    .height(NuvioTokens.Space.s80 + NuvioTokens.Space.s80 + NuvioTokens.Space.s80 + NuvioTokens.Space.s40)),
                 verticalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
                 items(items = destinations, key = { it.key }) { tab ->

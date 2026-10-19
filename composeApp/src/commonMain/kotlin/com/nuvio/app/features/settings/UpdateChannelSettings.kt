@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -67,7 +69,7 @@ internal fun UpdateChannelSettingsRow(isTablet: Boolean) {
             ) {
                 UpdateChannel.entries.filter { it != UpdateChannel.ALL_RELEASES }.forEach { option ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().selectable(
+                        modifier = Modifier.fillMaxWidth().remoteNavigationTarget().selectable(
                             selected = option == channel,
                             role = Role.RadioButton,
                             onClick = {
@@ -78,7 +80,7 @@ internal fun UpdateChannelSettingsRow(isTablet: Boolean) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
                     ) {
-                        RadioButton(selected = option == channel, onClick = null)
+                        RadioButton(selected = option == channel, onClick = null, modifier = Modifier.remoteNavigationTarget())
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = updateChannelLabel(option),

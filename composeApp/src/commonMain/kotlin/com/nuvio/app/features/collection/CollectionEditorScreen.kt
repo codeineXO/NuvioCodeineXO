@@ -1,5 +1,8 @@
 package com.nuvio.app.features.collection
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -275,7 +278,7 @@ fun CollectionEditorScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { CollectionEditorRepository.setPinToTop(!state.pinToTop) },
+                            .remoteNavigationTarget().clickable { CollectionEditorRepository.setPinToTop(!state.pinToTop) },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -301,7 +304,7 @@ fun CollectionEditorScreen(
                                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
                             ),
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                     }
                 }
             }
@@ -346,7 +349,7 @@ fun CollectionEditorScreen(
                                         )
                                     }
                                 } else null,
-                            )
+                             modifier = Modifier.remoteNavigationTarget())
                         }
                     }
                 }
@@ -358,7 +361,7 @@ fun CollectionEditorScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { CollectionEditorRepository.setShowAllTab(!state.showAllTab) },
+                            .remoteNavigationTarget().clickable { CollectionEditorRepository.setShowAllTab(!state.showAllTab) },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -384,7 +387,7 @@ fun CollectionEditorScreen(
                                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
                             ),
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                     }
                 }
             }
@@ -403,7 +406,7 @@ fun CollectionEditorScreen(
                             CollectionEditorRepository.addFolder(newFolderTitle)
                             onNavigateToPage?.invoke(CollectionEditorPage.FolderEditor, newFolderTitle)
                         },
-                    ) {
+                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Icon(
                             imageVector = Icons.Rounded.Add,
                             contentDescription = null,
@@ -503,9 +506,9 @@ private fun FolderReorderableList(
     }
 
     LazyColumn(
-        modifier = Modifier
+        modifier = Modifier.remoteNavigationGroup().then(Modifier
             .fillMaxWidth()
-            .heightIn(max = 720.dp),
+            .heightIn(max = 720.dp)),
         state = lazyListState,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -584,7 +587,7 @@ private fun FolderListItem(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(
-                modifier = with(dragHandleScope) {
+                modifier = (with(dragHandleScope) {
                     Modifier.draggableHandle(
                         onDragStarted = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -593,7 +596,7 @@ private fun FolderListItem(
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         },
                     ).size(36.dp)
-                },
+                }).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 onClick = {},
             ) {
                 Icon(
@@ -604,7 +607,7 @@ private fun FolderListItem(
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = onEdit, modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
                     contentDescription = stringResource(Res.string.action_edit),
@@ -612,7 +615,7 @@ private fun FolderListItem(
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
-            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = onDelete, modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                 Icon(
                     imageVector = Icons.Rounded.Delete,
                     contentDescription = stringResource(Res.string.action_delete),
@@ -697,7 +700,7 @@ private fun FolderEditorPage(
                                         selected = folder.coverEmoji == null && folder.coverImageUrl == null,
                                         onClick = { CollectionEditorRepository.clearFolderCover() },
                                         label = { Text(stringResource(Res.string.collections_editor_cover_none)) },
-                                    )
+                                     modifier = Modifier.remoteNavigationTarget())
                                     FilterChip(
                                         selected = folder.coverEmoji != null,
                                         onClick = {
@@ -706,7 +709,7 @@ private fun FolderEditorPage(
                                             }
                                         },
                                         label = { Text(stringResource(Res.string.collections_editor_cover_emoji)) },
-                                    )
+                                     modifier = Modifier.remoteNavigationTarget())
                                     FilterChip(
                                         selected = folder.coverImageUrl != null,
                                         onClick = {
@@ -715,7 +718,7 @@ private fun FolderEditorPage(
                                             }
                                         },
                                         label = { Text(stringResource(Res.string.collections_editor_cover_image_url)) },
-                                    )
+                                     modifier = Modifier.remoteNavigationTarget())
                                 }
                             }
 
@@ -771,7 +774,7 @@ private fun FolderEditorPage(
                                                     )
                                                 }
                                             } else null,
-                                        )
+                                         modifier = Modifier.remoteNavigationTarget())
                                     }
                                 }
                             }
@@ -810,7 +813,7 @@ private fun FolderEditorPage(
                                         tmdbSourcePickerTitle,
                                     )
                                 },
-                            ) {
+                             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Add,
                                     contentDescription = null,
@@ -827,7 +830,7 @@ private fun FolderEditorPage(
                                         traktSourcePickerTitle,
                                     )
                                 },
-                            ) {
+                             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Add,
                                     contentDescription = null,
@@ -844,7 +847,7 @@ private fun FolderEditorPage(
                                         catalogPickerTitle,
                                     )
                                 },
-                            ) {
+                             modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Add,
                                     contentDescription = null,
@@ -1081,7 +1084,7 @@ private fun TmdbSourcePickerScreen(
                                     )
                                 }
                             } else null,
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                     }
                 }
             }
@@ -1201,7 +1204,7 @@ private fun TmdbSourcePickerScreen(
                                         CollectionEditorRepository.setTmdbMediaType(TmdbCollectionMediaType.MOVIE)
                                     },
                                     label = { Text(stringResource(Res.string.collections_editor_tmdb_movies)) },
-                                )
+                                 modifier = Modifier.remoteNavigationTarget())
                                 FilterChip(
                                     selected = state.tmdbMediaType == TmdbCollectionMediaType.TV && !state.tmdbMediaBoth,
                                     onClick = {
@@ -1209,12 +1212,12 @@ private fun TmdbSourcePickerScreen(
                                         CollectionEditorRepository.setTmdbMediaType(TmdbCollectionMediaType.TV)
                                     },
                                     label = { Text(stringResource(Res.string.collections_editor_tmdb_series)) },
-                                )
+                                 modifier = Modifier.remoteNavigationTarget())
                                 FilterChip(
                                     selected = state.tmdbMediaBoth,
                                     onClick = { CollectionEditorRepository.setTmdbMediaBoth(true) },
                                     label = { Text(stringResource(Res.string.collections_editor_tmdb_both)) },
-                                )
+                                 modifier = Modifier.remoteNavigationTarget())
                             }
                     }
                 }
@@ -1244,7 +1247,7 @@ private fun TmdbSourcePickerScreen(
                                         selected = state.tmdbSortBy == sort.value,
                                         onClick = { CollectionEditorRepository.setTmdbSortBy(sort.value) },
                                         label = { Text(tmdbSortLabel(sort)) },
-                                    )
+                                     modifier = Modifier.remoteNavigationTarget())
                                 }
                             }
                     }
@@ -1610,7 +1613,7 @@ private fun TmdbSourcePickerScreen(
                                     CollectionEditorRepository.searchTmdbCollections()
                                 }
                             },
-                        ) {
+                         modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                             Icon(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = null,
@@ -1701,7 +1704,7 @@ private fun TraktSourcePickerScreen(
                                 CollectionEditorRepository.setTraktMediaType(TmdbCollectionMediaType.MOVIE)
                             },
                             label = { Text(stringResource(Res.string.collections_editor_tmdb_movies)) },
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                         FilterChip(
                             selected = state.traktMediaType == TmdbCollectionMediaType.TV && !state.traktMediaBoth,
                             onClick = {
@@ -1709,12 +1712,12 @@ private fun TraktSourcePickerScreen(
                                 CollectionEditorRepository.setTraktMediaType(TmdbCollectionMediaType.TV)
                             },
                             label = { Text(stringResource(Res.string.collections_editor_tmdb_series)) },
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                         FilterChip(
                             selected = state.traktMediaBoth,
                             onClick = { CollectionEditorRepository.setTraktMediaBoth(true) },
                             label = { Text(stringResource(Res.string.collections_editor_tmdb_both)) },
-                        )
+                         modifier = Modifier.remoteNavigationTarget())
                     }
                 }
             }
@@ -1730,7 +1733,7 @@ private fun TraktSourcePickerScreen(
                                 selected = state.traktSortBy == value,
                                 onClick = { CollectionEditorRepository.setTraktSortBy(value) },
                                 label = { Text(label) },
-                            )
+                             modifier = Modifier.remoteNavigationTarget())
                         }
                     }
 
@@ -1749,12 +1752,12 @@ private fun TraktSourcePickerScreen(
                                 selected = state.traktSortHow == TraktSortHow.ASC.value,
                                 onClick = { CollectionEditorRepository.setTraktSortHow(TraktSortHow.ASC.value) },
                                 label = { Text(stringResource(Res.string.collections_editor_trakt_ascending)) },
-                            )
+                             modifier = Modifier.remoteNavigationTarget())
                             FilterChip(
                                 selected = state.traktSortHow == TraktSortHow.DESC.value,
                                 onClick = { CollectionEditorRepository.setTraktSortHow(TraktSortHow.DESC.value) },
                                 label = { Text(stringResource(Res.string.collections_editor_trakt_descending)) },
-                            )
+                             modifier = Modifier.remoteNavigationTarget())
                         }
                     }
                 }
@@ -1792,7 +1795,7 @@ private fun TraktSourcePickerScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
                     .padding(bottom = bottomInset),
             ) {
-                TextButton(onClick = { CollectionEditorRepository.searchTraktLists() }) {
+                TextButton(onClick = { CollectionEditorRepository.searchTraktLists() }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                     Icon(
                         imageVector = Icons.Rounded.Search,
                         contentDescription = null,
@@ -1882,7 +1885,7 @@ private fun PickerOptionRow(
             .fillMaxWidth()
             .clip(rowShape)
             .background(bgColor)
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = rowShape).clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -2010,7 +2013,7 @@ private fun TmdbQuickChips(
                     selected = false,
                     onClick = { onSelect(value) },
                     label = { Text(chipLabel) },
-                )
+                 modifier = Modifier.remoteNavigationTarget())
             }
         }
     }
@@ -2079,7 +2082,7 @@ private fun GenrePickerSheet(
         LazyColumn(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+         modifier = Modifier.remoteNavigationGroup()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
@@ -2151,7 +2154,7 @@ private fun FolderEditorToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) },
+            .remoteNavigationTarget().clickable { onCheckedChange(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -2182,7 +2185,7 @@ private fun FolderEditorToggleRow(
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
             ),
-        )
+         modifier = Modifier.remoteNavigationTarget())
     }
 }
 
@@ -2211,7 +2214,7 @@ private fun FolderTmdbSourceCard(
                 }
                 IconButton(
                     onClick = onRemove,
-                    modifier = Modifier.size(36.dp),
+                    modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
@@ -2257,7 +2260,7 @@ private fun FolderTraktSourceCard(
                 }
                 IconButton(
                     onClick = onEdit,
-                    modifier = Modifier.size(36.dp),
+                    modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Edit,
@@ -2268,7 +2271,7 @@ private fun FolderTraktSourceCard(
                 }
                 IconButton(
                     onClick = onRemove,
-                    modifier = Modifier.size(36.dp),
+                    modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
@@ -2332,7 +2335,7 @@ private fun FolderCatalogSourceCard(
                 }
                 IconButton(
                     onClick = onRemove,
-                    modifier = Modifier.size(36.dp),
+                    modifier = (Modifier.size(36.dp)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
@@ -2353,7 +2356,7 @@ private fun FolderCatalogSourceCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable(onClick = onOpenGenrePicker),
+                        .remoteNavigationTarget().clickable(onClick = onOpenGenrePicker),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -2373,7 +2376,7 @@ private fun FolderCatalogSourceCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(onClick = onOpenGenrePicker) {
+                    TextButton(onClick = onOpenGenrePicker, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
                         Text(stringResource(Res.string.collections_editor_choose_genre))
                     }
                 }
@@ -2587,7 +2590,7 @@ private fun GenrePickerOptionRow(
             .clip(RoundedCornerShape(10.dp))
             .background(bgColor)
             .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = RoundedCornerShape(10.dp)).clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,

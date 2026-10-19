@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -25,7 +26,7 @@ fun NuvioTokenPreviewSurface(
     themes: List<AppTheme> = AppTheme.entries,
 ) {
     LazyColumn(
-        modifier = modifier.background(MaterialTheme.nuvio.colors.background),
+        modifier = Modifier.remoteNavigationGroup().then(modifier.background(MaterialTheme.nuvio.colors.background)),
         contentPadding = PaddingValues(MaterialTheme.nuvio.spacing.screenHorizontal),
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.sectionGap),
     ) {

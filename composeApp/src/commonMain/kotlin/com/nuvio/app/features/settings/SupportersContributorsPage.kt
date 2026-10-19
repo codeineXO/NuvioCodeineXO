@@ -1,5 +1,8 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -530,7 +533,7 @@ private fun CommunityTabRow(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(999.dp))
-                    .clickable { onSelectTab(tab) },
+                    .remoteNavigationTarget(shape = RoundedCornerShape(999.dp)).clickable { onSelectTab(tab) },
                 color = if (isSelected) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                 } else {
@@ -576,9 +579,9 @@ private fun ContributorsCard(
             )
             contributors.isEmpty() -> EmptyState(label = stringResource(Res.string.community_empty_contributors))
             else -> LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 480.dp),
+                    .heightIn(max = 480.dp)),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding = PaddingValues(vertical = 2.dp),
             ) {
@@ -614,9 +617,9 @@ private fun SupportersCard(
             )
             supporters.isEmpty() -> EmptyState(label = stringResource(Res.string.community_empty_supporters))
             else -> LazyColumn(
-                modifier = Modifier
+                modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 480.dp),
+                    .heightIn(max = 480.dp)),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding = PaddingValues(vertical = 2.dp),
             ) {
@@ -712,7 +715,7 @@ private fun ContributorRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = RoundedCornerShape(18.dp)).clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -752,7 +755,7 @@ private fun SupporterRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
+            .remoteNavigationTarget(shape = RoundedCornerShape(18.dp)).clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -889,7 +892,7 @@ private fun ErrorState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        Button(onClick = onRetry) {
+        Button(onClick = onRetry, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
             Text(stringResource(Res.string.action_retry))
         }
     }
