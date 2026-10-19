@@ -615,6 +615,7 @@ let pauseMetadataEligibilityKey = "";
 let chromeAutoHideTimer = 0;
 let chromeAutoHideKey = "";
 let chromeAutoHideActivity = 0;
+let chromeAutoHidePinned = false;
 let chromeInteractionLastNotedAt = 0;
 let isChromePointerInside = false;
 let isChromePointerDown = false;
@@ -3616,10 +3617,12 @@ const isChromeInteractionTarget = target =>
   Boolean(target && target.closest && target.closest(chromeInteractionSelector));
 
 const isInteractingWithChrome = () =>
-  Boolean(isChromePointerInside || isChromePointerDown || isChromeFocusInside);
+  Boolean(isChromePointerInside || isChromePointerDown ||
+    (isChromeFocusInside && document.activeElement !== seek));
 
 const canAutoHideChrome = showOpening => Boolean(
   state.controlsVisible &&
+  !chromeAutoHidePinned &&
   !state.isLoading &&
   !state.nextEpisodeStatus &&
   !activeModal &&
@@ -5061,6 +5064,14 @@ function hideSeekrPreview() {
   }
 }
 
+if (torrentStatsClock) {
+  torrentStatsClock.addEventListener("click", event => {
+    event.stopPropagation();
+    chromeAutoHidePinned = !chromeAutoHidePinned;
+    noteChromeActivity(true);
+  });
+}
+
 seek.addEventListener("input", () => {
   noteChromeActivity();
   triggerSeekbarOnlyOnSeek();
@@ -5452,7 +5463,7 @@ window.playerControls = nextState => {
 
 const isControlsSurfaceEvent = event => {
   if (activeModal) return true;
-  if (event.target.closest("button, input, textarea, select, a, .action-pill, .volume-control, .modal-layer, .skip-prompt, .next-episode-card, #playbackStatsOverlay, .playback-stats-overlay")) {
+  if (event.target.closest("button, input, textarea, select, a, .action-pill, .volume-control, .modal-layer, .skip-prompt, .next-episode-card, #playbackStatsOverlay, .playback-stats-overlay, #torrentStatsClock")) {
     return true;
   }
 

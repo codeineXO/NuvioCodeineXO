@@ -363,6 +363,8 @@ button:disabled {
 
 /* Slightly larger clock for quick readability — same tnum/tabular guarantees */
 .torrent-stats-clock {
+  pointer-events: auto;
+  cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
