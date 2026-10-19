@@ -16,7 +16,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-internal actual object PlayerSettingsStorage {
+internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
+    private const val playbackBufferPresetKey = DesktopPlaybackBufferPresetStorage.KEY
+    private val playbackBufferStorage by lazy { DesktopPlaybackBufferPresetStorage(store) }
+    override fun loadPlaybackBufferPreset(): String? = playbackBufferStorage.loadPlaybackBufferPreset()
+    override fun savePlaybackBufferPreset(preset: String) = playbackBufferStorage.savePlaybackBufferPreset(preset)
     private const val pendingExternalPlaybackKey = "pending_external_playback"
     private const val playbackBrightnessKey = "playback_brightness"
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
@@ -121,6 +125,7 @@ internal actual object PlayerSettingsStorage {
     private const val svpMotionOptionKey = "svp_motion_option"
     private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
     private val syncKeys = listOf(
+        playbackBufferPresetKey,
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
         pauseOverlayEnabledKey,
@@ -535,6 +540,7 @@ internal actual object PlayerSettingsStorage {
         loadAnimeUpscalerOption()?.let { put(animeUpscalerOptionKey, encodeSyncString(it)) }
         loadAnimeUpscalerMode()?.let { put(animeUpscalerModeKey, encodeSyncString(it)) }
         loadSvpMotionOption()?.let { put(svpMotionOptionKey, encodeSyncString(it)) }
+        loadPlaybackBufferPreset()?.let { put(playbackBufferPresetKey, encodeSyncString(it)) }
         loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
@@ -628,6 +634,7 @@ internal actual object PlayerSettingsStorage {
         payload.decodeSyncString(animeUpscalerOptionKey)?.let(::saveAnimeUpscalerOption)
         payload.decodeSyncString(animeUpscalerModeKey)?.let(::saveAnimeUpscalerMode)
         payload.decodeSyncString(svpMotionOptionKey)?.let(::saveSvpMotionOption)
+        payload.decodeSyncString(playbackBufferPresetKey)?.let(::savePlaybackBufferPreset)
         payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)

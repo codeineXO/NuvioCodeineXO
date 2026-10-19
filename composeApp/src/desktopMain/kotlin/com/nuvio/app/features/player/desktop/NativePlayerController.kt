@@ -8,6 +8,7 @@ import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.MediaContentType
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.SvpMotionOption
+import com.nuvio.app.features.player.PlaybackBufferPreset
 import com.nuvio.app.features.player.SvpProfile
 import com.nuvio.app.features.player.SvpScriptProvider
 import com.nuvio.app.features.player.PlayerControlAddonSubtitleItem
@@ -100,6 +101,7 @@ internal class NativePlayerController(
     private val createWaitTimeoutMs: Long = 5_000L,
     private val releaseTimeoutMs: Long = 10_000L,
     private val onCreateWaitCompleted: () -> Unit = {},
+    private val nativeSetPlaybackBufferPreset: (Long, PlaybackBufferPreset) -> Unit = NativePlayerBridge::setPlaybackBufferPreset,
 ) : PlayerEngineController {
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
@@ -175,6 +177,8 @@ internal class NativePlayerController(
 
     @Volatile
     private var handle: Long = 0L
+    private var playbackBufferPreset = PlayerSettingsRepository.uiState.value.playbackBufferPreset
+    private var lastAppliedPlaybackBuffer: Pair<Long, PlaybackBufferPreset>? = null
 
     /** Native teardown of the previous player, if one is still running. */
     @Volatile
@@ -453,6 +457,7 @@ internal class NativePlayerController(
                     val accepted = synchronized(lifecycleLock) {
                         if (!releaseRequested && terminalReleaseFailure == null && pendingSource === pending) {
                             handle = created
+                            lastAppliedPlaybackBuffer = null
                             true
                         } else {
                             false
@@ -488,6 +493,7 @@ internal class NativePlayerController(
                             setNowPlayingMetadata(currentNowPlayingTitle, currentNowPlayingSubtitle, currentArtworkUrl)
                         }
                         applyPendingSubtitleSettings(created)
+                        applyPlaybackBufferPreset(created)
                         pendingSubtitleUri?.let { setSubtitleUri(it) }
                         applyCoordinatedEnhancements(created)
                         applyAudioNightMode(created, rememberedAudioNightModeEnabled)
@@ -716,6 +722,20 @@ internal class NativePlayerController(
         handle.takeIf { it != 0L }?.let { current ->
             applyCoordinatedEnhancements(current)
         }
+    }
+
+    fun setPlaybackBufferPreset(preset: PlaybackBufferPreset) = synchronized(lifecycleLock) {
+        playbackBufferPreset = preset
+        handle.takeIf { it != 0L }?.let(::applyPlaybackBufferPreset)
+    }
+
+    private fun applyPlaybackBufferPreset(target: Long) = synchronized(lifecycleLock) {
+        if (handle != target || releaseRequested) return@synchronized
+        val update = target to playbackBufferPreset
+        if (lastAppliedPlaybackBuffer == update) return@synchronized
+        runCatching { nativeSetPlaybackBufferPreset(target, playbackBufferPreset) }
+            .onSuccess { lastAppliedPlaybackBuffer = update }
+            .onFailure { log.w(it) { "Failed to update playback buffer handle=$target" } }
     }
 
     private fun computeUpscalerState(): Pair<Boolean, Boolean> {

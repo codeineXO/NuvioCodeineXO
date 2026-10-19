@@ -43,6 +43,7 @@ import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
+import com.nuvio.app.isWindows
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode
@@ -171,6 +172,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                if (isWindows) {
+                    PlaybackBufferSetting(isTablet)
+                    SettingsGroupDivider(isTablet = isTablet)
+                }
                 SettingsNavigationRow(
                     title = stringResource(Res.string.settings_playback_player_ui),
                     description = stringResource(playerSettings.playerUiMode.labelRes),

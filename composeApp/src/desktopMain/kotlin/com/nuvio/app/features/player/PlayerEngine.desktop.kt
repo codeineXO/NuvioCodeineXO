@@ -240,6 +240,10 @@ private fun NativePlayerSurface(
         controller.setResizeMode(resizeMode)
     }
 
+    LaunchedEffect(controller, playerSettings.playbackBufferPreset) {
+        controller.setPlaybackBufferPreset(playerSettings.playbackBufferPreset)
+    }
+
     LaunchedEffect(controller, animeUpscalerOption, animeUpscalerMode, svpMotionOption, playerControlsState.mediaContentType) {
         controller.setVideoEnhancements(
             mediaContentType = playerControlsState.mediaContentType,

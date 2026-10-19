@@ -114,6 +114,7 @@ data class PlayerSettingsUiState(
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
     val svpMotionOption: SvpMotionOption = SvpMotionOption.OFF,
+    val playbackBufferPreset: PlaybackBufferPreset = PlaybackBufferPreset.BALANCED,
     val audioNightModeEnabled: Boolean = false,
     val showSeekbarWhileSeeking: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
@@ -207,6 +208,7 @@ object PlayerSettingsRepository {
     private var animeUpscalerEnabled = false
     private var animeUpscalerMode = AnimeUpscalerMode.FAST
     private var svpMotionOption = SvpMotionOption.OFF
+    private var playbackBufferPreset = PlaybackBufferPreset.BALANCED
     private var audioNightModeEnabled = false
     private var showSeekbarWhileSeeking = true
     private var seekPreviewEnabled = true
@@ -306,6 +308,7 @@ object PlayerSettingsRepository {
         animeUpscalerEnabled = false
         animeUpscalerMode = AnimeUpscalerMode.FAST
         svpMotionOption = SvpMotionOption.OFF
+        playbackBufferPreset = PlaybackBufferPreset.BALANCED
         audioNightModeEnabled = false
         showSeekbarWhileSeeking = true
         seekPreviewEnabled = true
@@ -497,6 +500,7 @@ object PlayerSettingsRepository {
         animeUpscalerEnabled = animeUpscalerOption.isEnabled
         animeUpscalerMode = AnimeUpscalerMode.fromStorageKey(PlayerSettingsStorage.loadAnimeUpscalerMode())
         svpMotionOption = SvpMotionOption.fromStorageKey(PlayerSettingsStorage.loadSvpMotionOption())
+        playbackBufferPreset = PlaybackBufferPreset.fromStorageKey(PlayerSettingsStorage.loadPlaybackBufferPreset())
         audioNightModeEnabled = PlayerSettingsStorage.loadAudioNightModeEnabled() ?: false
         showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
@@ -1109,6 +1113,14 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSvpMotionOption(option.storageKey)
     }
 
+    fun setPlaybackBufferPreset(preset: PlaybackBufferPreset) {
+        ensureLoaded()
+        if (playbackBufferPreset == preset) return
+        playbackBufferPreset = preset
+        PlayerSettingsStorage.savePlaybackBufferPreset(preset.storageKey)
+        publish()
+    }
+
     fun setAudioNightModeEnabled(enabled: Boolean) {
         ensureLoaded()
         if (audioNightModeEnabled == enabled) return
@@ -1406,6 +1418,7 @@ object PlayerSettingsRepository {
             animeUpscalerEnabled = animeUpscalerEnabled,
             animeUpscalerMode = animeUpscalerMode,
             svpMotionOption = svpMotionOption,
+            playbackBufferPreset = playbackBufferPreset,
             audioNightModeEnabled = audioNightModeEnabled,
             showSeekbarWhileSeeking = showSeekbarWhileSeeking,
             seekPreviewEnabled = seekPreviewEnabled,

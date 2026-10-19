@@ -30,6 +30,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include "playback_buffer.h"
 
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
@@ -801,23 +802,6 @@ static void logSvpEvent(const char *msg) {
 // The resume window is a deliberately small cap used only while a
 // mid-file resume has not yet completed its initial seek (see
 // promoteResumeCache).
-struct MpvCacheWindow {
-    int64_t maxBytes;
-    int64_t maxBackBytes;
-    double seconds;
-};
-
-constexpr MpvCacheWindow kStreamingCacheWindow{
-    256ll * 1024 * 1024,
-    64ll * 1024 * 1024,
-    120.0,
-};
-
-constexpr MpvCacheWindow kResumeCacheWindow{
-    64ll * 1024 * 1024,
-    16ll * 1024 * 1024,
-    30.0,
-};
 
 class WindowsMpvWebPlayer;
 LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -1512,16 +1496,25 @@ public:
         }
     }
 
+    void setPlaybackBufferPreset(int presetId) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        selectedCacheWindow = playbackBufferWindow(presetId);
+        if (mpv) restoreStreamingCacheLocked();
+    }
+
     bool setSvpFilter(bool enabled, const std::string &vpyPath) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return false;
         if (enabled && !vpyPath.empty()) {
             if (!ensureVapourSynthLoaded()) {
+                svpCacheOverride = false;
+                restoreStreamingCacheLocked();
                 sendPlayerEvent("svp_unavailable", 0.0);
                 return false;
             }
             mpvApi().setPropertyString(mpv, "hwdec", "auto-copy");
-            mpvApi().setPropertyString(mpv, "demuxer-max-bytes", "1024MiB");
+            svpCacheOverride = true;
+            restoreStreamingCacheLocked();
             mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "no");
             mpvApi().setPropertyString(mpv, "vd-queue-enable", "yes");
             mpvApi().setPropertyString(mpv, "vd-queue-max-bytes", "1024MiB");
@@ -1539,6 +1532,7 @@ public:
             const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
             bool success = executeMpvCommandSeh(mpv, cmd);
             if (!success) {
+                svpCacheOverride = false;
                 const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
                 executeMpvCommandSeh(mpv, remCmd);
                 if (nvidiaRtxSuperResolutionActive) {
@@ -1560,6 +1554,7 @@ public:
             logSvpEvent("SVP FILTER ATTACHED to MPV pipeline");
             return true;
         } else {
+            svpCacheOverride = false;
             const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
             executeMpvCommandSeh(mpv, remCmd);
             if (nvidiaRtxSuperResolutionActive) {
@@ -1760,6 +1755,8 @@ private:
     // Set while a resume is still seeking, so the event drain can widen the
     // demuxer cache back to the streaming window once the seek has landed.
     std::atomic_bool resumeCachePending = false;
+    MpvCacheWindow selectedCacheWindow = kStreamingCacheWindow;
+    bool svpCacheOverride = false; // Guarded by mpvMutex.
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -2148,7 +2145,7 @@ private:
                 setCacheWindowLocked(kResumeCacheWindow);
                 resumeCachePending.store(true);
             } else {
-                setCacheWindowLocked(kStreamingCacheWindow);
+                setCacheWindowLocked(selectedCacheWindow);
             }
 
             int64_t wid = (int64_t)(intptr_t)containerHwnd;
@@ -2493,7 +2490,7 @@ private:
 
     // Caller owns mpvMutex. Keep an unfinished resume's smaller window intact.
     void restoreStreamingCacheLocked() {
-        const auto &window = resumeCachePending.load() ? kResumeCacheWindow : kStreamingCacheWindow;
+        const auto window = effectivePlaybackBuffer(selectedCacheWindow, resumeCachePending.load(), svpCacheOverride);
         int64_t maxBytes = window.maxBytes;
         int64_t maxBackBytes = window.maxBackBytes;
         double seconds = window.seconds;
@@ -3370,6 +3367,12 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setVideoFilter(JNI
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isSvpAvailable(JNIEnv *, jobject) {
     return ensureVapourSynthLoaded() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setPlaybackBufferPresetNative(JNIEnv *, jobject, jlong handle, jint presetId) {
+    auto player = playerFromHandle(handle);
+    if (player) player->setPlaybackBufferPreset(presetId);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

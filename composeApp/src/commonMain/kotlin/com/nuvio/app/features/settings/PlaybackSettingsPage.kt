@@ -1109,6 +1109,10 @@ private fun PlaybackSettingsSection(
                         isTablet = isTablet,
                         onClick = { showDecoderPriorityDialog = true },
                     )
+                    if (isWindows) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        PlaybackBufferSetting(isTablet)
+                    }
                     if (!isDesktop) {
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsSwitchRow(

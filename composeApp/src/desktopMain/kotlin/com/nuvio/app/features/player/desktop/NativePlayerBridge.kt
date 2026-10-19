@@ -99,6 +99,12 @@ internal object NativePlayerBridge {
     external fun setVideoFilter(handle: Long, filter: String)
     external fun isSvpAvailable(): Boolean
     external fun setSvpFilter(handle: Long, enabled: Boolean, vpyPath: String): Boolean
+    fun setPlaybackBufferPreset(handle: Long, preset: com.nuvio.app.features.player.PlaybackBufferPreset) {
+        if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+            setPlaybackBufferPresetNative(handle, preset.nativeId)
+        }
+    }
+    private external fun setPlaybackBufferPresetNative(handle: Long, presetId: Int)
     external fun addSubtitleUrl(handle: Long, url: String)
     external fun clearExternalSubtitles(handle: Long)
     external fun clearExternalSubtitlesAndSelect(handle: Long, trackId: Int)
