@@ -128,6 +128,7 @@ fun StreamsScreen(
     episodeNumber: Int? = null,
     episodeTitle: String? = null,
     episodeThumbnail: String? = null,
+    description: String? = null,
     resumePositionMs: Long? = null,
     resumeProgressFraction: Float? = null,
     manualSelection: Boolean = false,
@@ -259,6 +260,7 @@ fun StreamsScreen(
 
         if (isTabletLayout) {
             TabletStreamsLayout(
+                description = description,
                 isEpisode = isEpisode,
                 title = title,
                 logo = logo,
@@ -287,6 +289,7 @@ fun StreamsScreen(
             )
         } else {
             MobileStreamsLayout(
+                description = description,
                 isEpisode = isEpisode,
                 backgroundMode = streamDisplaySettings.backgroundMode,
                 title = title,
@@ -450,6 +453,7 @@ fun StreamsScreen(
 
 @Composable
 private fun MobileStreamsLayout(
+    description: String?,
     isEpisode: Boolean,
     backgroundMode: StreamBackgroundMode,
     title: String,
@@ -504,6 +508,19 @@ private fun MobileStreamsLayout(
                     title = title,
                     logo = logo,
                 )
+            }
+
+            if (!description.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black.copy(alpha = 0.68f))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    StreamSynopsis(description)
+                }
             }
 
             Box(

@@ -803,6 +803,7 @@ internal fun StreamDestination(
             LocalSharedStream provides sharedStream,
         ) {
             StreamsScreen(
+                description = pauseDescription,
                 showLoadingScreen = showLoadingScreen,
                 type = launch.type,
                 videoId = effectiveVideoId,

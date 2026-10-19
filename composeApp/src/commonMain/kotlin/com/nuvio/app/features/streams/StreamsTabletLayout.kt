@@ -65,6 +65,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun TabletStreamsLayout(
+    description: String? = null,
     isEpisode: Boolean,
     title: String,
     logo: String?,
@@ -88,6 +89,7 @@ internal fun TabletStreamsLayout(
 ) {
     if (!isDesktop) {
         LegacyTabletStreamsLayout(
+            description = description,
             isEpisode = isEpisode,
             title = title,
             logo = logo,
@@ -217,6 +219,7 @@ internal fun TabletStreamsLayout(
         ) {
             if (isEpisode && seasonNumber != null && episodeNumber != null) {
                 TabletEpisodeInfoPanel(
+                    description = description,
                     logo = logo,
                     seasonNumber = seasonNumber,
                     episodeNumber = episodeNumber,
@@ -225,6 +228,7 @@ internal fun TabletStreamsLayout(
                 )
             } else {
                 TabletMovieInfoPanel(
+                    description = description,
                     title = title,
                     logo = logo,
                 )
@@ -297,6 +301,7 @@ internal fun TabletStreamsLayout(
 
 @Composable
 private fun LegacyTabletStreamsLayout(
+    description: String?,
     isEpisode: Boolean,
     title: String,
     logo: String?,
@@ -393,6 +398,7 @@ private fun LegacyTabletStreamsLayout(
             ) {
                 if (isEpisode && seasonNumber != null && episodeNumber != null) {
                     TabletEpisodeInfoPanel(
+                        description = description,
                         logo = logo,
                         seasonNumber = seasonNumber,
                         episodeNumber = episodeNumber,
@@ -401,6 +407,7 @@ private fun LegacyTabletStreamsLayout(
                     )
                 } else {
                     TabletMovieInfoPanel(
+                        description = description,
                         title = title,
                         logo = logo,
                     )
@@ -473,6 +480,7 @@ private fun LegacyTabletStreamsLayout(
 
 @Composable
 private fun TabletMovieInfoPanel(
+    description: String? = null,
     title: String,
     logo: String?,
     modifier: Modifier = Modifier,
@@ -481,7 +489,10 @@ private fun TabletMovieInfoPanel(
     val logoUrl = logo?.takeIf { it.isNotBlank() }
 
     Column(
-        modifier = modifier.fillMaxWidth(0.8f),
+        modifier = modifier.fillMaxWidth(0.8f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.Black.copy(alpha = 0.68f))
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -508,7 +519,7 @@ private fun TabletMovieInfoPanel(
                         blurRadius = 4f,
                     ),
                 ),
-                color = MaterialTheme.colorScheme.onBackground,
+                color = Color.White,
                 textAlign = TextAlign.Center,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -524,11 +535,13 @@ private fun TabletMovieInfoPanel(
                 textAlign = TextAlign.Center,
             )
         }
+        StreamSynopsis(description)
     }
 }
 
 @Composable
 private fun TabletEpisodeInfoPanel(
+    description: String? = null,
     logo: String?,
     seasonNumber: Int,
     episodeNumber: Int,
@@ -545,7 +558,10 @@ private fun TabletEpisodeInfoPanel(
     )
 
     Column(
-        modifier = modifier.fillMaxWidth(0.8f),
+        modifier = modifier.fillMaxWidth(0.8f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.Black.copy(alpha = 0.68f))
+            .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -568,7 +584,7 @@ private fun TabletEpisodeInfoPanel(
                     letterSpacing = (-0.5).sp,
                     shadow = textShadow,
                 ),
-                color = MaterialTheme.colorScheme.onBackground,
+                color = Color.White,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -589,12 +605,27 @@ private fun TabletEpisodeInfoPanel(
                 fontWeight = FontWeight.SemiBold,
                 shadow = textShadow,
             ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.95f),
+            color = Color.White.copy(alpha = 0.95f),
             textAlign = TextAlign.Center,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        StreamSynopsis(description)
     }
+}
+
+@Composable
+internal fun StreamSynopsis(description: String?) {
+    val synopsis = description?.trim()?.takeIf { it.isNotEmpty() } ?: return
+    Text(
+        text = synopsis,
+        style = MaterialTheme.typography.bodyMedium,
+        color = Color.White.copy(alpha = 0.9f),
+        textAlign = TextAlign.Center,
+        maxLines = 5,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = 12.dp),
+    )
 }
 
 @Composable
