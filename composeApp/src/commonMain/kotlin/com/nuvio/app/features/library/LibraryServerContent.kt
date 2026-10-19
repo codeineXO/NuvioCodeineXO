@@ -12,12 +12,17 @@ import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.features.servers.ServerCatalog
 import com.nuvio.app.features.servers.ServerFailure
 import com.nuvio.app.features.servers.ServerLibraryRef
+import com.nuvio.app.features.servers.ServerRepository
+import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.isDesktop
 import com.nuvio.app.features.servers.message
 import com.nuvio.app.features.servers.serverFailure
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_retry
 import nuvio.composeapp.generated.resources.library_server_load_failed
@@ -31,7 +36,40 @@ internal data class LibraryServerShelf(
     val failure: ServerFailure? = null,
 )
 
-internal suspend fun loadServerShelves(): List<LibraryServerShelf> = coroutineScope {
+private val desktopShelfCache = LibraryServerShelvesCache()
+
+// Retain one metadata snapshot outside disposed tab compositions, never decoded artwork.
+internal class LibraryServerShelvesCache {
+    private val mutex = Mutex()
+    private var key: Pair<Int, Int>? = null
+    private var shelves: List<LibraryServerShelf>? = null
+
+    suspend fun get(
+        profileId: Int,
+        revision: Int,
+        forceRefresh: Boolean = false,
+        load: suspend () -> List<LibraryServerShelf>,
+    ): List<LibraryServerShelf> = mutex.withLock {
+        val requestKey = profileId to revision
+        if (!forceRefresh && key == requestKey) shelves?.let { return@withLock it }
+        key = null
+        shelves = null
+        load().also {
+            key = requestKey
+            shelves = it
+        }
+    }
+}
+
+internal suspend fun loadServerShelves(forceRefresh: Boolean = false): List<LibraryServerShelf> =
+    if (isDesktop) desktopShelfCache.get(
+        profileId = ProfileRepository.activeProfileId,
+        revision = ServerRepository.uiState.value.revision,
+        forceRefresh = forceRefresh,
+        load = ::fetchServerShelves,
+    ) else fetchServerShelves()
+
+private suspend fun fetchServerShelves(): List<LibraryServerShelf> = coroutineScope {
     ServerCatalog.libraries().map { ref ->
         async {
             try {

@@ -797,9 +797,8 @@ static void logSvpEvent(const char *msg) {
     }
 }
 
-// Demuxer cache sizing. The streaming window is large on purpose: the engine
-// serves a generous read-ahead of its own, and mpv's buffer absorbs jitter on
-// top of it. The resume window is a deliberately small cap used only while a
+// Bound mpv's read-ahead independently of the engine's disk cache.
+// The resume window is a deliberately small cap used only while a
 // mid-file resume has not yet completed its initial seek (see
 // promoteResumeCache).
 struct MpvCacheWindow {
@@ -809,9 +808,9 @@ struct MpvCacheWindow {
 };
 
 constexpr MpvCacheWindow kStreamingCacheWindow{
-    1024ll * 1024 * 1024,
     256ll * 1024 * 1024,
-    36000.0,
+    64ll * 1024 * 1024,
+    120.0,
 };
 
 constexpr MpvCacheWindow kResumeCacheWindow{
@@ -1553,6 +1552,7 @@ public:
                 }
                 mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
                 mpvApi().setPropertyString(mpv, "vd-queue-enable", "no");
+                restoreStreamingCacheLocked();
                 logSvpEvent("SVP FILTER ATTACH FAILED (cleared from MPV pipeline)");
                 sendPlayerEvent("svp_error", 1.0);
                 return false;
@@ -1573,6 +1573,7 @@ public:
             }
             mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
             mpvApi().setPropertyString(mpv, "vd-queue-enable", "no");
+            restoreStreamingCacheLocked();
             logSvpEvent("SVP FILTER DETACHED from MPV pipeline");
             return true;
         }
@@ -2487,9 +2488,15 @@ private:
         if (!resumeCachePending.exchange(false)) return;
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
-        int64_t maxBytes = kStreamingCacheWindow.maxBytes;
-        int64_t maxBackBytes = kStreamingCacheWindow.maxBackBytes;
-        double seconds = kStreamingCacheWindow.seconds;
+        restoreStreamingCacheLocked();
+    }
+
+    // Caller owns mpvMutex. Keep an unfinished resume's smaller window intact.
+    void restoreStreamingCacheLocked() {
+        const auto &window = resumeCachePending.load() ? kResumeCacheWindow : kStreamingCacheWindow;
+        int64_t maxBytes = window.maxBytes;
+        int64_t maxBackBytes = window.maxBackBytes;
+        double seconds = window.seconds;
         std::string maxBytesStr = std::to_string(maxBytes);
         std::string maxBackBytesStr = std::to_string(maxBackBytes);
         std::string secondsStr = std::to_string((int64_t)seconds);

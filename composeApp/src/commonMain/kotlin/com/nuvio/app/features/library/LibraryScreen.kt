@@ -272,14 +272,18 @@ fun LibraryScreen(
     }
 
     LaunchedEffect(sourceMode, serversUiState.revision, serverShelvesRequest) {
-        if (sourceMode == LibraryViewMode.Servers) serverShelves = loadServerShelves()
+        if (sourceMode == LibraryViewMode.Servers) {
+            serverShelves = loadServerShelves(forceRefresh = serverShelvesRequest > 0)
+        }
     }
 
+    var previousActiveSourceMode by rememberSaveable { mutableStateOf(sourceMode.name) }
     ScreenActivityEffect(sourceMode, cloudSettings.cloudLibraryEnabled, cloudSettings.providerApiKeys) { screenActive ->
         if (screenActive && sourceMode == LibraryViewMode.Cloud) {
             CloudLibraryRepository.ensureLoaded()
-            selectedCloudItemKey = null
+            if (!isDesktop || previousActiveSourceMode != sourceMode.name) selectedCloudItemKey = null
         }
+        if (screenActive) previousActiveSourceMode = sourceMode.name
     }
 
     val disintegration = remember { LibraryDisintegrationHolder() }

@@ -6,13 +6,16 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.URI
 import java.util.Base64
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
 internal object WebviewImages {
     private const val SIZE = 112
-    private val images = ConcurrentHashMap<String, String>()
+    private val images = Collections.synchronizedMap(object : LinkedHashMap<String, String>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 64
+    })
     private val loading = ConcurrentHashMap.newKeySet<String>()
 
     fun resolve(url: String, onReady: () -> Unit): String {

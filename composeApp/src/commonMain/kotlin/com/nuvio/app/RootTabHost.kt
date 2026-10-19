@@ -43,8 +43,13 @@ internal fun RootTabHost(
     key(profileId) {
         val tabStateHolder = rememberSaveableStateHolder()
         val visitedTabs = remember { mutableSetOf<AppScreenTab>() }
-        val displayedTabs = remember(selectedTab) { (visitedTabs + selectedTab).toList() }
-        SideEffect { visitedTabs += selectedTab }
+        val displayedTabs = remember(selectedTab) {
+            retainedRootTabs(visitedTabs.toList(), selectedTab, if (isDesktop) 2 else Int.MAX_VALUE)
+        }
+        SideEffect {
+            visitedTabs.clear()
+            visitedTabs.addAll(displayedTabs)
+        }
 
         Layout(
             modifier = modifier.fillMaxSize(),
@@ -68,6 +73,12 @@ internal fun RootTabHost(
         }
     }
 }
+
+internal fun retainedRootTabs(
+    previous: List<AppScreenTab>,
+    selected: AppScreenTab,
+    limit: Int,
+): List<AppScreenTab> = (previous.filterNot { it == selected } + selected).takeLast(limit)
 
 @Composable
 private fun RootTabPane(

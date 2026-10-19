@@ -21,9 +21,13 @@ import coil3.Image
 import coil3.PlatformContext
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import coil3.compose.ConstraintsSizeResolver
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import coil3.request.NullRequestDataException
+import coil3.size.Dimension
+import coil3.size.SizeResolver
+import coil3.size.Size as CoilSize
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.FilterMipmap
 import org.jetbrains.skia.FilterMode
@@ -61,14 +65,15 @@ internal actual fun NuvioAsyncImage(
     desktopImageScaling: NuvioDesktopImageScaling,
 ) {
     val context = LocalPlatformContext.current
+    val constraintsSizeResolver = remember { ConstraintsSizeResolver() }
     val effectiveDesktopImageScaling = remember(desktopImageScaling) {
         if (IsWindowsDesktop) desktopImageScaling else NuvioDesktopImageScaling.Disabled
     }
-    val requestModel = remember(context, model, effectiveDesktopImageScaling) {
+    val requestModel = remember(context, model, effectiveDesktopImageScaling, constraintsSizeResolver) {
         if (effectiveDesktopImageScaling == NuvioDesktopImageScaling.Disabled) {
             model
         } else {
-            model.withDesktopHighQualitySize(context)
+            model.withDesktopHighQualitySize(context, constraintsSizeResolver)
         }
     }
     val transform: (AsyncImagePainter.State) -> AsyncImagePainter.State = remember(
@@ -117,7 +122,7 @@ internal actual fun NuvioAsyncImage(
     AsyncImage(
         model = requestModel,
         contentDescription = contentDescription,
-        modifier = modifier,
+        modifier = modifier.then(constraintsSizeResolver),
         transform = transform,
         onState = onState,
         alignment = alignment,
@@ -129,19 +134,22 @@ internal actual fun NuvioAsyncImage(
     )
 }
 
-private fun Any?.withDesktopHighQualitySize(context: PlatformContext): Any? {
+internal fun Any?.withDesktopHighQualitySize(context: PlatformContext, resolver: SizeResolver): Any? {
     if (this == null) return null
+    if (this is ImageRequest && defined.sizeResolver != null) return this
 
-    return if (this is ImageRequest) {
-        newBuilder()
-            .size(MaxDesktopSourceSizePx)
-            .build()
-    } else {
-        ImageRequest.Builder(context)
-            .data(this)
-            .size(MaxDesktopSourceSizePx)
-            .build()
+    val builder = if (this is ImageRequest) newBuilder() else ImageRequest.Builder(context).data(this)
+    return builder.size(object : SizeResolver {
+        override suspend fun size(): CoilSize = desktopDecodeSize(resolver.size())
+    }).build()
+}
+
+internal fun desktopDecodeSize(size: CoilSize): CoilSize {
+    fun Dimension.withHeadroom(): Dimension = when (this) {
+        is Dimension.Pixels -> Dimension.Pixels((px.toLong() * 5 / 4).coerceIn(1, MaxDesktopSourceSizePx.toLong()).toInt())
+        else -> Dimension.Pixels(MaxDesktopSourceSizePx)
     }
+    return CoilSize(size.width.withHeadroom(), size.height.withHeadroom())
 }
 
 private fun Image.toScaledBitmapPainter(desktopImageScaling: NuvioDesktopImageScaling): Painter? {
