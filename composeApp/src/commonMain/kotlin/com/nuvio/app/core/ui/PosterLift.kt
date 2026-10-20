@@ -79,6 +79,8 @@ internal fun Modifier.posterCardClickable(
     val graphicsContext = LocalGraphicsContext.current
     val source = remember(graphicsContext, zoomImageUrl) { PosterLiftSource(graphicsContext) }
     val onPosterClickAnchor = LocalPosterClickAnchor.current
+    val navigation = LocalRemoteNavigation.current
+    val navigationItem = LocalPosterNavigationItem.current
     val posterModifier = Modifier
         .drawWithContent {
             source.layer.record { this@drawWithContent.drawContent() }
@@ -110,6 +112,7 @@ internal fun Modifier.posterCardClickable(
     }
     val handleClick: () -> Unit = {
                 if (onClick != null) {
+                    navigation?.capturePosterOrigin(navigationItem)
                     source.bounds?.let { bounds ->
                         onPosterClickAnchor?.invoke(
                             PosterZoomAnchor(bounds, zoomImageUrl, zoomCornerRadius).also { it.source = source },

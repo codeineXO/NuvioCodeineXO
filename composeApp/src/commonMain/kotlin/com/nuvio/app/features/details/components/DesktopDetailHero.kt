@@ -91,6 +91,19 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
+internal fun EnhancedDetailPage(
+    viewportHeight: Dp,
+    hasEpisodes: Boolean,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().heightIn(min = viewportHeight),
+        verticalArrangement = if (hasEpisodes) androidx.compose.foundation.layout.Arrangement.SpaceBetween
+            else androidx.compose.foundation.layout.Arrangement.Top,
+    ) { content() }
+}
+
+@Composable
 fun DesktopDetailBackdrop(
     meta: MetaDetails,
     viewportHeight: Dp,
@@ -222,6 +235,7 @@ fun DesktopDetailHero(
     onSaveLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    onPlayDown: (suspend () -> Unit)? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val space = NuvioTokens.Space
@@ -325,6 +339,7 @@ fun DesktopDetailHero(
                 )
             }
             DetailActionButtons(
+                onPlayDown = onPlayDown,
                 modifier = Modifier.widthIn(max = 520.dp),
                 playLabel = if (isPrimaryPlayEnabled) playButtonLabel else stringResource(Res.string.playback_unavailable),
                 playEnabled = isPrimaryPlayEnabled,

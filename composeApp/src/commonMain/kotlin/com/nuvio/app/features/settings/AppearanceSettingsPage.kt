@@ -170,6 +170,8 @@ internal fun LazyListScope.appearanceSettingsContent(
                 }
                 if (isDesktop) {
                     SettingsGroupDivider(isTablet = isTablet)
+                    KeyboardNavigationSettingsRow(isTablet)
+                    SettingsGroupDivider(isTablet = isTablet)
                     val desktopNavDescription = if (isTablet) {
                         stringResource(desktopNavigationLayout.labelRes)
                     } else {

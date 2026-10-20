@@ -3,9 +3,19 @@ package com.nuvio.app.features.details
 import com.nuvio.app.core.ui.remoteNavigationScrollToTop
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
+import com.nuvio.app.core.ui.remoteNavigationDetailsEntry
+import com.nuvio.app.core.ui.rememberRemotePrimaryFocus
+import com.nuvio.app.core.ui.rememberRemoteNextSectionFocus
+import com.nuvio.app.core.ui.BindRemotePrimaryFocusReveal
+import com.nuvio.app.features.details.components.EnhancedDetailPage
+import com.nuvio.app.features.details.components.EnhancedDetailsScrollButton
+import com.nuvio.app.core.ui.remoteNavigationUp
+import com.nuvio.app.core.ui.remoteNavigationDown
+import com.nuvio.app.core.ui.remoteNavigationFocusDestination
+import androidx.compose.foundation.layout.heightIn
 
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -14,11 +24,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -61,19 +66,15 @@ import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAddCheckCircle
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -99,6 +100,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -579,6 +581,7 @@ fun MetaDetailsScreen(
 
     Box(
         modifier = modifier
+            .remoteNavigationDetailsEntry()
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
@@ -1209,7 +1212,17 @@ fun MetaDetailsScreen(
                     val useDesktopDetailLayout = isDesktop && screenMaxWidth >= 1000.dp
                     val isDesktopOrTablet = useDesktopDetailLayout || isTablet
                     val useEnhancedLayout = isDesktopOrTablet && metaScreenSettingsUiState.episodeCardStyle == MetaEpisodeCardStyle.Enhanced
+                    BindRemotePrimaryFocusReveal(
+                        listState,
+                        hasPlayAction = useDesktopDetailLayout || useEnhancedLayout || isSectionEnabled(MetaScreenSectionKey.ACTIONS),
+                    )
+                    val enhancedSeriesFocus = remember(meta.id) { RemoteNavigationFocusDestination() }
+                    val enhancedMoreFocus = remember(meta.id) { RemoteNavigationFocusDestination() }
+                    val focusPrimary = rememberRemotePrimaryFocus()
+                    val focusNextSection = rememberRemoteNextSectionFocus(listState)
                     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+                    var enhancedPageHeightPx by remember(meta.id) { mutableIntStateOf(0) }
+                    val useEnhancedPaging = useEnhancedLayout && enhancedPageHeightPx <= with(density) { maxHeight.roundToPx() }
                     var isSnappingToPage by remember { mutableStateOf(false) }
                     val episodesInteractionSource = remember { MutableInteractionSource() }
                     val isEpisodesHovered by episodesInteractionSource.collectIsRemoteHoveredAsState()
@@ -1425,12 +1438,12 @@ fun MetaDetailsScreen(
                         }
                         LazyColumn(
                             state = listState,
-                            flingBehavior = if (useEnhancedLayout) snapFlingBehavior else ScrollableDefaults.flingBehavior(),
+                            flingBehavior = if (useEnhancedPaging) snapFlingBehavior else ScrollableDefaults.flingBehavior(),
                             modifier = Modifier.remoteNavigationGroup().then(Modifier
                                 .fillMaxSize()
                                 .enhancedSnapMouseWheelScroll(
                                     state = listState,
-                                    enabled = useEnhancedLayout,
+                                    enabled = useEnhancedPaging,
                                     isOverHorizontalContent = { hasEpisodes && isEpisodesHovered },
                                     isSnapping = { isSnappingToPage },
                                     onSnapTo = onSnapTo,
@@ -1445,15 +1458,11 @@ fun MetaDetailsScreen(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .fillParentMaxHeight()
-                                            .remoteNavigationScrollToTop(listState)
+                                            .heightIn(min = viewportHeight)
                                             .fillMaxWidth()
-                                            .clipToBounds(),
+                                            .onSizeChanged { enhancedPageHeightPx = it.height }
                                     ) {
-                                        Column(
-                                            modifier = Modifier.fillMaxSize(),
-                                            verticalArrangement = if (hasEpisodes) Arrangement.SpaceBetween else Arrangement.Top,
-                                        ) {
+                                        EnhancedDetailPage(viewportHeight, hasEpisodes) {
                                             DesktopDetailHero(
                                                 meta = meta,
                                                 showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
@@ -1478,8 +1487,12 @@ fun MetaDetailsScreen(
                                                 onWatchedClick = toggleWatched,
                                                 onSaveClick = toggleSaved,
                                                 onSaveLongClick = openLibraryListPicker,
-                                                modifier = if (hasEpisodes) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxSize(),
+                                                modifier = if (hasEpisodes) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().heightIn(min = viewportHeight),
                                                 compact = hasEpisodes,
+                                                onPlayDown = if (isDesktop) ({
+                                                    if (hasEpisodes) enhancedSeriesFocus.requestFocus() else enhancedMoreFocus.requestFocus()
+                                                    Unit
+                                                }) else null,
                                             )
 
                                             if (hasEpisodes) {
@@ -1500,6 +1513,9 @@ fun MetaDetailsScreen(
                                                             preferredSeasonNumber = seriesAction?.seasonNumber,
                                                             preferredEpisodeNumber = seriesAction?.episodeNumber,
                                                             episodeCardStyle = MetaEpisodeCardStyle.Enhanced,
+                                                            navigationEntry = enhancedSeriesFocus.takeIf { isDesktop },
+                                                            onEntryUp = if (isDesktop) ({ focusPrimary() }) else null,
+                                                            onEpisodesDown = if (isDesktop) ({ enhancedMoreFocus.requestFocus(); Unit }) else null,
                                                             progressByVideoId = progressByVideoId,
                                                             watchedKeys = watchedUiState.watchedKeys,
                                                             episodeRatings = episodeImdbRatings,
@@ -1924,62 +1940,33 @@ fun MetaDetailsScreen(
                         )
 
                         if (useEnhancedLayout) {
-                            val isPastPage1 by remember {
-                                derivedStateOf {
-                                    listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 50
-                                }
-                            }
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .padding(bottom = nuvioSafeBottomPadding(8.dp))
                                     .zIndex(3f),
                             ) {
-                                Surface(
-                                    onClick = {
-                                        onSnapTo(if (isPastPage1) 0 else 1)
-                                    },
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                    shadowElevation = 8.dp,
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                                 modifier = Modifier.remoteNavigationTarget(shape = RoundedCornerShape(20.dp), onSelect = { onSnapTo(if (isPastPage1) 0 else 1) })) {
-                                    AnimatedContent(
-                                        targetState = isPastPage1,
-                                        transitionSpec = {
-                                            (fadeIn(tween(180)) + scaleIn(initialScale = 0.92f, animationSpec = tween(180)))
-                                                .togetherWith(fadeOut(tween(140)) + scaleOut(targetScale = 0.92f, animationSpec = tween(140)))
-                                        },
-                                        label = "enhanced_nav_button_content",
-                                    ) { pastPage1 ->
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            Text(
-                                                text = if (pastPage1) {
-                                                    stringResource(Res.string.details_back_to_top)
-                                                } else {
-                                                    stringResource(Res.string.details_see_more)
-                                                },
-                                                style = MaterialTheme.typography.labelLarge.copy(
-                                                    fontWeight = FontWeight.SemiBold,
-                                                ),
-                                            )
-                                            Icon(
-                                                imageVector = if (pastPage1) {
-                                                    Icons.Rounded.KeyboardArrowUp
-                                                } else {
-                                                    Icons.Rounded.KeyboardArrowDown
-                                                },
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp),
-                                            )
+                                EnhancedDetailsScrollButton(
+                                    listState = listState,
+                                    onClick = { backToTop -> onSnapTo(if (backToTop) 0 else 1) },
+                                    modifier = Modifier
+                                        .remoteNavigationFocusDestination(enhancedMoreFocus)
+                                        .remoteNavigationUp {
+                                            listState.animateScrollToItem(0)
+                                            focusPrimary()
                                         }
-                                    }
-                                }
+                                        .remoteNavigationDown { focusNextSection() },
+                                    onSelect = { backToTop ->
+                                        detailsScope.launch {
+                                            if (backToTop) {
+                                                listState.animateScrollToItem(0)
+                                                focusPrimary()
+                                            } else {
+                                                focusNextSection()
+                                            }
+                                        }
+                                    },
+                                )
                             }
                         }
 

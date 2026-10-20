@@ -16,6 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.nuvio.app.core.ui.RemotePosterItem
+import com.nuvio.app.features.home.stableKey
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +35,8 @@ import com.nuvio.app.core.ui.SkeletonPoster
 import com.nuvio.app.core.ui.desktopPosterHoverScale
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.posterCardClickable
+import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
+import com.nuvio.app.core.ui.remoteNavigationFocusDestination
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
@@ -51,6 +55,7 @@ internal fun PosterGridRow(
     fullyWatchedSeriesKeys: Set<String> = emptySet(),
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
+    firstPosterFocus: RemoteNavigationFocusDestination? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
 
@@ -59,12 +64,13 @@ internal fun PosterGridRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        items.forEach { item ->
+        items.forEachIndexed { index, item ->
+            RemotePosterItem(item.stableKey(), index) {
             PosterGridTile(
                 item = item,
                 cornerRadiusDp = posterCardStyle.cornerRadiusDp,
                 hideLabels = posterCardStyle.hideLabelsEnabled,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).remoteNavigationFocusDestination(firstPosterFocus.takeIf { index == 0 }),
                 isWatched = WatchingState.isPosterWatched(
                     watchedKeys = watchedKeys,
                     item = item,
@@ -73,6 +79,7 @@ internal fun PosterGridRow(
                 onClick = onPosterClick?.let { { it(item) } },
                 onLongClick = onPosterLongClick?.let { { it(item) } },
             )
+            }
         }
         repeat(columns - items.size) {
             Spacer(modifier = Modifier.weight(1f))

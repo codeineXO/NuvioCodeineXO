@@ -12,6 +12,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithContent
@@ -37,8 +38,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.foundation.lazy.LazyListState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import androidx.compose.foundation.gestures.animateScrollBy
 import com.nuvio.app.isDesktop
 
 internal class RemoteNavigationSession {
@@ -50,13 +55,27 @@ internal class RemoteNavigationSession {
     var streamSourceMovedDuringHold = false
     val rememberedFocus = mutableMapOf<Any, Int>()
     var lastFocused: FocusRequester? = null
-    val targets = mutableListOf<RemoteFocusTarget>()
+    val targets = mutableStateListOf<RemoteFocusTarget>()
+    var explicitFocusTransfers = 0
+    val explicitFocusTransfer get() = explicitFocusTransfers > 0
+    val primaryRevealers = mutableStateMapOf<Any, suspend () -> Unit>()
     var focusedTarget by mutableStateOf<RemoteFocusTarget?>(null)
     val rememberedBounds = mutableMapOf<Any, Rect>()
+    val posterPages = mutableMapOf<String, PosterNavigationPage>()
+    var posterMoveJob: Job? = null
+    var posterMoveDirection: FocusDirection? = null
+    var posterMovePage: String? = null
+    var pendingPosterMove: PosterMoveCommand? = null
+    var posterPressedDirection: FocusDirection? = null
+    var posterRepeatingDirection: FocusDirection? = null
+    val fastPosterScroll get() = posterMoveDirection != null && posterRepeatingDirection == posterMoveDirection
+    var posterMoveGeneration = 0
+    var navigationScope: CoroutineScope? = null
 
     fun canEnterSidebar(): Boolean = !leftMovedDuringHold
 
     fun resetHoldState() {
+        cancelPosterNavigation()
         leftHeld = false
         leftMovedDuringHold = false
         arrowHeldKey = null
@@ -64,6 +83,7 @@ internal class RemoteNavigationSession {
     }
 
     fun onPreviewKeyEvent(event: KeyEvent): Boolean {
+        if (event.type == KeyEventType.KeyUp) remoteDirection(event.key)?.let { releasePosterDirection(it) }
         if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && !RemoteTextEditing.isTextInputFocused) {
             if (event.type == KeyEventType.KeyDown) {
                 if (enterHeld) return true
@@ -106,6 +126,7 @@ internal class RemoteNavigationSession {
     }
 
     fun restoreFocus(route: Any, manager: FocusManager): Boolean {
+        if (posterRestorationPending(route)) return true
         val bounds = rememberedBounds[route]
         val candidates = targets.filter {
             it.route == route && it.manager === manager && (
@@ -128,6 +149,9 @@ internal class RemoteNavigationSession {
         val source = focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
+        val sidebarEntry = targets.firstOrNull {
+            it.route == route && it.manager === manager && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+        }
         val moved = manager.moveFocus(direction)
         if (moved && focusedTarget != null && focusedTarget !== source) {
             val destination = focusedTarget
@@ -137,6 +161,9 @@ internal class RemoteNavigationSession {
                 if (direction != FocusDirection.Left || !canEnterSidebar()) {
                     source?.requester?.requestFocus()
                     return false
+                }
+                if (sidebarEntry != null && destination !== sidebarEntry) {
+                    return sidebarEntry.requester.requestFocus()
                 }
             }
             if (isSourceStreamSource && !isDestinationStreamSource) {
@@ -221,7 +248,10 @@ internal class RemoteNavigationSession {
                     else -> (b.center - origin.center).getDistanceSquared()
                 }
             }
-        }.any { candidate ->
+        }.any { spatialCandidate ->
+            val candidate = if (!isSourceSidebar && spatialCandidate.role == RemoteNavigationRole.Sidebar) {
+                sidebarEntry ?: spatialCandidate
+            } else spatialCandidate
             val requested = candidate.requester.requestFocus()
             if (requested) {
                 if (!isSourceSidebar && candidate.role != RemoteNavigationRole.Sidebar && direction == FocusDirection.Left) {
@@ -238,15 +268,17 @@ internal class RemoteNavigationSession {
 
 internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource }
 
-internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager) {
-    var bounds: Rect? = null
+internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager, val sidebarEntry: Boolean = false) {
+    var poster: PosterNavigationItem? = null
+    var bounds by mutableStateOf<Rect?>(null)
     var focused by mutableStateOf(false)
+    var reveal: suspend () -> Unit = {}
 }
 
 internal val LocalRemoteNavigationRole = staticCompositionLocalOf { RemoteNavigationRole.Default }
 internal val LocalRemoteFocusOutlineColor = staticCompositionLocalOf<Color?> { null }
 internal val LocalRemoteNavigation = staticCompositionLocalOf<RemoteNavigationSession?> { null }
-private val LocalRemoteRoute = staticCompositionLocalOf<Any> { Unit }
+internal val LocalRemoteRoute = staticCompositionLocalOf<Any> { Unit }
 internal val LocalRemotePlatformFocus = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalRemoteHiddenPointerIcon = staticCompositionLocalOf<PointerIcon?> { null }
 
@@ -347,7 +379,11 @@ internal fun RemoteNavigationHost(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val keyboardNavigationEnabled by com.nuvio.app.features.settings.KeyboardNavigationSettings.enabled.collectAsState()
+    val navigationEnabled = enabled && isDesktop && keyboardNavigationEnabled
     val session = remember { RemoteNavigationSession() }
+    val navigationScope = rememberCoroutineScope()
+    SideEffect { session.navigationScope = navigationScope }
     val focusManager = LocalFocusManager.current
     val rootFocus = remember { FocusRequester() }
     var rootFocused by remember { mutableStateOf(false) }
@@ -361,17 +397,19 @@ internal fun RemoteNavigationHost(
             true
         }
     }
-    DisposableEffect(enabled) {
+    DisposableEffect(navigationEnabled) {
+        session.keyboard = false
+        session.resetHoldState()
         session.enterHeld = false
         val handler: (Boolean) -> Boolean = { recoverFocus(it) }
-        if (enabled && isDesktop) RemoteNavigationDispatcher.register(handler) {
+        if (navigationEnabled) RemoteNavigationDispatcher.register(handler) {
             session.keyboard = false
             session.resetHoldState()
         }
-        onDispose { RemoteNavigationDispatcher.unregister(handler) }
+        onDispose { session.cancelPosterNavigation(); RemoteNavigationDispatcher.unregister(handler) }
     }
-    LaunchedEffect(enabled, restorationKey) {
-        if (enabled && isDesktop) {
+    LaunchedEffect(navigationEnabled, restorationKey) {
+        if (navigationEnabled) {
             // Tab disposal and native player teardown can clear focus after composition.
             withFrameNanos { }
             platformFocus()
@@ -380,12 +418,12 @@ internal fun RemoteNavigationHost(
         }
     }
     CompositionLocalProvider(
-        LocalRemoteNavigation provides session.takeIf { enabled && isDesktop },
+        LocalRemoteNavigation provides session.takeIf { navigationEnabled },
         LocalRemoteRoute provides restorationKey,
     ) {
         Box(
             modifier = modifier.fillMaxSize().then(
-                if (enabled && isDesktop) Modifier
+                if (navigationEnabled) Modifier
                     .remoteNavigationPointerIcon()
                     .pointerInput(session) {
                         awaitPointerEventScope {
@@ -435,6 +473,7 @@ internal fun Modifier.remoteNavigationTarget(
     adjustable: Boolean = false,
     shape: Shape = RoundedCornerShape(NuvioTokens.Radius.md),
     initialFocus: Boolean = false,
+    sidebarEntry: Boolean = false,
     role: RemoteNavigationRole? = null,
     focusOutlineColor: Color? = null,
     onEditingChange: ((Boolean) -> Unit)? = null,
@@ -448,8 +487,11 @@ internal fun Modifier.remoteNavigationTarget(
     val focusManager = LocalFocusManager.current
     val requester = remember { FocusRequester() }
     val effectiveRole = role ?: LocalRemoteNavigationRole.current
-    val target = remember(route, identity, initialFocus, effectiveRole, focusManager) { RemoteFocusTarget(route, identity, requester, initialFocus, effectiveRole, focusManager) }
+    val target = remember(route, identity, initialFocus, effectiveRole, focusManager, sidebarEntry) { RemoteFocusTarget(route, identity, requester, initialFocus, effectiveRole, focusManager, sidebarEntry) }
+    val poster = LocalPosterNavigationItem.current
+    SideEffect { target.poster = poster }
     val bringIntoView = remember { BringIntoViewRequester() }
+    SideEffect { target.reveal = { bringIntoView.bringIntoView() } }
     val scope = rememberCoroutineScope()
     val margin = with(LocalDensity.current) { 160.dp.toPx() }
     val longPressTimeout = LocalViewConfiguration.current.longPressTimeoutMillis
@@ -493,10 +535,10 @@ internal fun Modifier.remoteNavigationTarget(
         }
     }
     LaunchedEffect(route) {
-        if (session.keyboard && session.rememberedFocus[route] == identity) requester.requestFocus()
+        if (session.keyboard && !session.explicitFocusTransfer && !session.posterRestorationPending(route) && session.rememberedFocus[route] == identity) requester.requestFocus()
     }
     LaunchedEffect(focused, session.keyboard) {
-        if (focused && session.keyboard && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
+        if (focused && session.keyboard && !session.explicitFocusTransfer && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
             bringIntoView.bringIntoView(target.bounds?.let { Rect(0f, -margin, it.width, it.height + margin) })
         }
     }
@@ -557,6 +599,9 @@ internal fun Modifier.remoteNavigationTarget(
         .onPreviewKeyEvent { event ->
             session.onPreviewKeyEvent(event)
             val direction = remoteDirection(event.key)
+            if (poster != null && event.type == KeyEventType.KeyDown && (event.key == Key.Enter || event.key == Key.NumPadEnter)) {
+                session.cancelPosterNavigation(poster.page)
+            }
             if (!editing && event.type == KeyEventType.KeyDown &&
                 (direction != null || event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.Tab)) session.keyboard = true
             when {
@@ -599,6 +644,11 @@ internal fun Modifier.remoteNavigationTarget(
                 }
                 textField && editing -> false
                 adjustable && (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) -> false
+                direction != null && (session.handlesPosterDirection(target.poster, direction) ||
+                    (poster != null && session.posterMovePage == poster.page && session.posterMoveJob?.isActive == true)) -> {
+                    if (event.type == KeyEventType.KeyDown) session.enqueuePosterMove(target, direction)
+                    true
+                }
                 direction != null -> {
                     session.keyboard = true
                     if (event.type == KeyEventType.KeyDown && !session.moveFocus(route, direction, focusManager) &&
@@ -633,6 +683,214 @@ internal fun Modifier.remoteNavigationTarget(
 
 internal fun Modifier.remoteNavigationGroup(): Modifier = composed {
     if (LocalRemoteNavigation.current == null) this else this.focusRestorer().focusGroup()
+}
+
+/** An explicit destination can reveal lazy content before requesting its focus. */
+class RemoteNavigationFocusDestination internal constructor() {
+    internal val requester = FocusRequester()
+    internal var reveal: (suspend () -> Unit)? = null
+    internal var revealAttached: (suspend () -> Unit)? = null
+    internal var attached by mutableStateOf(false)
+    internal var session: RemoteNavigationSession? = null
+    internal var attachmentOwner: Any? = null
+
+    internal suspend fun requestFocus(): Boolean {
+        val owner = session
+        if (owner != null) owner.explicitFocusTransfers++
+        return try {
+            reveal?.invoke()
+            if (withTimeoutOrNull(750) { snapshotFlow { attached }.first { it } } != true) return false
+            revealAttached?.invoke()
+            withFrameNanos { }
+            runCatching { requester.requestFocus() }.getOrDefault(false).also {
+                withFrameNanos { }
+                withFrameNanos { }
+            }
+        } finally {
+            if (owner != null) owner.explicitFocusTransfers--
+        }
+    }
+}
+
+@Composable
+internal fun BindRemoteNavigationFocusDestination(
+    destination: RemoteNavigationFocusDestination?,
+    reveal: suspend () -> Unit,
+) {
+    val currentReveal by rememberUpdatedState(reveal)
+    val session = LocalRemoteNavigation.current
+    DisposableEffect(destination) {
+        val boundReveal: suspend () -> Unit = { currentReveal() }
+        destination?.reveal = boundReveal
+        destination?.session = session
+        onDispose { if (destination != null && destination.reveal === boundReveal) destination.reveal = null }
+    }
+}
+
+internal fun Modifier.remoteNavigationFocusDestination(destination: RemoteNavigationFocusDestination?): Modifier = composed {
+    if (destination == null) return@composed this
+    val session = LocalRemoteNavigation.current
+    val bring = remember { BringIntoViewRequester() }
+    val owner = remember { Any() }
+    DisposableEffect(destination) {
+        destination.attachmentOwner = owner
+        destination.session = session
+        destination.revealAttached = { bring.bringIntoView() }
+        onDispose {
+            if (destination.attachmentOwner === owner) {
+                destination.attached = false
+                destination.revealAttached = null
+                destination.attachmentOwner = null
+            }
+        }
+    }
+    this.focusRequester(destination.requester).bringIntoViewRequester(bring).onGloballyPositioned {
+        if (destination.attachmentOwner === owner)
+            destination.attached = it.isAttached && it.size.width > 0 && it.size.height > 0
+    }
+}
+
+/** Reveal only the obscured part; visible destinations must not jump to the top. */
+internal suspend fun LazyListState.revealNavigationItem(key: Any, keys: List<Any>, stickyHeader: Boolean = false) {
+    val index = keys.indexOf(key)
+    if (index < 0) return
+    val info = layoutInfo
+    val headerBottom = if (stickyHeader) info.visibleItemsInfo.firstOrNull { it.index == 0 }
+        ?.let { it.offset + it.size } ?: info.viewportStartOffset else info.viewportStartOffset
+    val item = info.visibleItemsInfo.firstOrNull { it.key == key }
+    if (item == null) {
+        animateScrollToItem(index, -headerBottom.coerceAtLeast(0))
+    } else {
+        val delta = when {
+            item.offset < headerBottom -> item.offset - headerBottom
+            item.offset + item.size > info.viewportEndOffset ->
+                minOf(item.offset - headerBottom, item.offset + item.size - info.viewportEndOffset)
+            else -> 0
+        }
+        if (delta != 0) animateScrollBy(delta.toFloat())
+    }
+}
+
+/** Scoped to a Details visit: late-loaded Play gets the initial focus exactly once. */
+internal fun Modifier.remoteNavigationDetailsEntry(): Modifier = composed {
+    var initialized by rememberSaveable { mutableStateOf(false) }
+    val session = LocalRemoteNavigation.current ?: return@composed this
+    val route = LocalRemoteRoute.current
+    val active = LocalScreenActive.current
+    val manager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(active, session.keyboard) {
+        if (active && session.keyboard && !initialized) {
+            snapshotFlow {
+                session.primaryRevealers[route] != null ||
+                    session.targets.any { it.route == route && it.initialFocus && it.bounds != null }
+            }.first { it }
+            if (!session.requestPrimaryFocus(route)) session.restoreFocus(route, manager)
+            initialized = true
+        }
+    }
+    this.onPreviewKeyEvent { event ->
+        if (active && event.key == Key.DirectionDown && session.focusedTarget?.role == RemoteNavigationRole.Back) {
+            if (event.type == KeyEventType.KeyDown) {
+                scope.launch {
+                    if (!session.requestPrimaryFocus(route)) session.moveFocus(route, FocusDirection.Down, manager)
+                }
+            }
+            return@onPreviewKeyEvent true
+        }
+        false
+    }
+}
+
+@Composable
+internal fun rememberRemotePrimaryFocus(): suspend () -> Unit {
+    val session = LocalRemoteNavigation.current
+    val route = LocalRemoteRoute.current
+    return {
+        session?.requestPrimaryFocus(route)
+        Unit
+    }
+}
+
+private suspend fun RemoteNavigationSession.requestPrimaryFocus(route: Any): Boolean {
+    primaryRevealers[route]?.invoke()
+    val play = withTimeoutOrNull(750) {
+        snapshotFlow { targets.firstOrNull { it.route == route && it.initialFocus && it.bounds != null } }
+            .first { it != null }
+    } ?: return false
+    play.reveal()
+    return play.requester.requestFocus()
+}
+
+/** The owning list can compose Play even when user-configured sections precede it. */
+@Composable
+internal fun BindRemotePrimaryFocusReveal(state: LazyListState, hasPlayAction: Boolean) {
+    val session = LocalRemoteNavigation.current ?: return
+    val route = LocalRemoteRoute.current
+    val active = LocalScreenActive.current
+    DisposableEffect(session, route, state, active, hasPlayAction) {
+        val reveal: suspend () -> Unit = {
+            snapshotFlow { state.layoutInfo.totalItemsCount }.first { it > 0 }
+            if (session.targets.none { it.route == route && it.initialFocus && it.bounds != null }) {
+                for (index in 0 until state.layoutInfo.totalItemsCount) {
+                    state.scrollToItem(index)
+                    withFrameNanos { }
+                    if (session.targets.any { it.route == route && it.initialFocus && it.bounds != null }) break
+                }
+            }
+        }
+        if (active && hasPlayAction) session.primaryRevealers[route] = reveal
+        onDispose { if (session.primaryRevealers[route] === reveal) session.primaryRevealers.remove(route) }
+    }
+}
+
+/** Enter the first available control below the enhanced hero, skipping text-only sections. */
+@Composable
+internal fun rememberRemoteNextSectionFocus(state: LazyListState): suspend () -> Unit {
+    val session = LocalRemoteNavigation.current
+    val route = LocalRemoteRoute.current
+    return action@{
+        if (session == null) return@action
+        val source = session.focusedTarget
+        for (index in 1 until state.layoutInfo.totalItemsCount) {
+            state.animateScrollToItem(index)
+            withFrameNanos { }
+            val candidate = session.targets.filter {
+                it.route == route && it !== source && !it.initialFocus &&
+                    it.role == RemoteNavigationRole.Default &&
+                    it.bounds?.let { bounds -> bounds.top >= 0 && bounds.bottom <= state.layoutInfo.viewportEndOffset } == true
+            }.minByOrNull { it.bounds!!.top }
+            if (candidate != null && candidate.requester.requestFocus()) return@action
+        }
+    }
+}
+
+/** Consume both key phases so a missing destination cannot fall through to spatial navigation. */
+internal fun Modifier.remoteNavigationDown(onDown: (suspend () -> Unit)?): Modifier = composed {
+    this.remoteNavigationDirection(Key.DirectionDown, onDown)
+}
+
+internal fun Modifier.remoteNavigationUp(onUp: (suspend () -> Unit)?): Modifier =
+    remoteNavigationDirection(Key.DirectionUp, onUp)
+
+private fun Modifier.remoteNavigationDirection(key: Key, onDown: (suspend () -> Unit)?): Modifier = composed {
+    val session = LocalRemoteNavigation.current
+    val active = LocalScreenActive.current
+    val scope = rememberCoroutineScope()
+    val handler by rememberUpdatedState(onDown)
+    var moveJob by remember { mutableStateOf<Job?>(null) }
+    DisposableEffect(active, onDown != null) { onDispose { moveJob?.cancel() } }
+    if (session == null || !active || onDown == null) this else onPreviewKeyEvent { event ->
+        if (event.key != key || RemoteTextEditing.isEditing) false
+        else {
+            session.keyboard = true
+            session.onPreviewKeyEvent(event)
+            if (event.type == KeyEventType.KeyDown && moveJob?.isActive != true) {
+                moveJob = scope.launch { handler?.invoke() }
+            }
+            true
+        }
+    }
 }
 
 /** Restore artwork above the hero's focused controls. */

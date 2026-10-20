@@ -13,8 +13,12 @@ import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.nuvio.app.core.ui.RemotePosterRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
+import com.nuvio.app.core.ui.remoteNavigationFocusDestination
+import com.nuvio.app.core.ui.remoteNavigationDown
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,8 +33,21 @@ import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
+internal val DiscoverUiState.firstEnabledFilterIndex: Int?
+    get() = when {
+        typeOptions.isNotEmpty() -> 0
+        catalogOptions.isNotEmpty() -> 1
+        genreOptions.size + (if (selectedCatalog?.genreRequired == true) 0 else 1) > 1 ||
+            selectedCatalog?.genreRequired == true -> 2
+        else -> null
+    }
+
 internal fun LazyListScope.discoverContent(
     state: DiscoverUiState,
+    filterFocus: RemoteNavigationFocusDestination? = null,
+    firstEnabledFilter: Int? = null,
+    posterFocus: RemoteNavigationFocusDestination? = null,
+    onFilterDown: (suspend () -> Unit)? = null,
     isSourceLoading: Boolean,
     columns: Int,
     networkCondition: NetworkCondition,
@@ -43,12 +60,15 @@ internal fun LazyListScope.discoverContent(
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
-    item {
+    item(key = "discover_header") {
         DiscoverSectionHeader(modifier = Modifier.padding(horizontal = 16.dp))
     }
-    item {
+    item(key = "discover_filters") {
         DiscoverFilterRow(
             state = state,
+            filterFocus = filterFocus,
+            firstEnabledFilter = firstEnabledFilter,
+            onFilterDown = onFilterDown,
             modifier = Modifier.padding(horizontal = 16.dp),
             onTypeSelected = onTypeSelected,
             onCatalogSelected = onCatalogSelected,
@@ -56,7 +76,7 @@ internal fun LazyListScope.discoverContent(
         )
     }
     state.selectedCatalog?.let { selectedCatalog ->
-        item {
+        item(key = "discover_catalog_context") {
             Text(
                 text = stringResource(
                     Res.string.discover_catalog_context,
@@ -96,17 +116,20 @@ internal fun LazyListScope.discoverContent(
         }
 
         else -> {
-            items(count = (state.items.size + columns - 1) / columns) { rowIndex ->
+            items(count = (state.items.size + columns - 1) / columns, key = { "discover_posters_$it" }) { rowIndex ->
                 val firstIndex = rowIndex * columns
+                RemotePosterRow("search", "discover_posters_$rowIndex") {
                 PosterGridRow(
                     items = state.items.subList(firstIndex, minOf(firstIndex + columns, state.items.size)),
                     columns = columns,
+                    firstPosterFocus = posterFocus.takeIf { rowIndex == 0 },
                     modifier = Modifier.padding(horizontal = 16.dp),
                     watchedKeys = watchedKeys,
                     fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     onPosterClick = onPosterClick,
                     onPosterLongClick = onPosterLongClick,
                 )
+                }
             }
             if (state.isLoading) {
                 item {
@@ -132,6 +155,9 @@ private fun DiscoverSectionHeader(modifier: Modifier = Modifier) {
 @Composable
 private fun DiscoverFilterRow(
     state: DiscoverUiState,
+    filterFocus: RemoteNavigationFocusDestination?,
+    firstEnabledFilter: Int?,
+    onFilterDown: (suspend () -> Unit)?,
     onTypeSelected: (String) -> Unit,
     onCatalogSelected: (String) -> Unit,
     onGenreSelected: (String?) -> Unit,
@@ -143,6 +169,7 @@ private fun DiscoverFilterRow(
     ) {
         NuvioDropdownChip(
             title = stringResource(Res.string.discover_select_type),
+            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 0 }).remoteNavigationDown(onFilterDown),
             label = state.selectedType?.displayTypeLabel() ?: stringResource(Res.string.discover_type),
             selectedKey = state.selectedType,
             options = state.typeOptions.map { NuvioDropdownOption(key = it, label = it.displayTypeLabel()) },
@@ -151,6 +178,7 @@ private fun DiscoverFilterRow(
         )
         NuvioDropdownChip(
             title = stringResource(Res.string.discover_select_catalog),
+            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 1 }).remoteNavigationDown(onFilterDown),
             label = state.selectedCatalog?.catalogName ?: stringResource(Res.string.discover_catalog),
             selectedKey = state.selectedCatalogKey,
             options = state.catalogOptions.map { option -> NuvioDropdownOption(key = option.key, label = option.catalogName) },
@@ -167,6 +195,7 @@ private fun DiscoverFilterRow(
         }
         NuvioDropdownChip(
             title = stringResource(Res.string.discover_select_genre),
+            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 2 }).remoteNavigationDown(onFilterDown),
             label = state.selectedGenre ?: stringResource(Res.string.discover_all_genres),
             selectedKey = state.selectedGenre ?: "",
             options = genreOptions,

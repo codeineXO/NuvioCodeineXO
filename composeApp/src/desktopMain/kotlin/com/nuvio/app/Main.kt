@@ -64,6 +64,11 @@ fun main(args: Array<String>) {
     if (System.getProperty("os.name", "").lowercase().contains("linux")) {
         runCatching { NativePlayerBridge.initGtkEarly() }
     }
+    val keyboardNavigationStore = com.nuvio.app.core.storage.DesktopStorage.store("nuvio_keyboard_navigation")
+    com.nuvio.app.features.settings.KeyboardNavigationSettings.initialize(
+        enabled = keyboardNavigationStore.getBoolean("enabled") ?: true,
+        save = { keyboardNavigationStore.putBoolean("enabled", it) },
+    )
     applyDesktopRendererPreference()
     SentryInitializer.start()
     configureDesktopQuickJsLibrary()

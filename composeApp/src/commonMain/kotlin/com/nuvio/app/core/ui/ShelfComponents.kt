@@ -111,6 +111,7 @@ fun <T> NuvioShelfSection(
     val duplicateSafeEntries = remember(entries, key) {
         key?.let { entries.withDuplicateSafeLazyKeys(it) }
     }
+    BindPosterShelf(state)
 
     ScreenActivityEffect(state) { active ->
         if (!active) state.stopScroll()
@@ -177,7 +178,9 @@ fun <T> NuvioShelfSection(
                         viewport = if (useGutterLayout) hoverViewport else null,
                         modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
                     ) {
-                        itemContent(keyedEntry.value)
+                        RemotePosterItem(key?.invoke(keyedEntry.value), duplicateSafeEntries.indexOf(keyedEntry)) {
+                            itemContent(keyedEntry.value)
+                        }
                     }
                 }
             } else {
@@ -189,7 +192,7 @@ fun <T> NuvioShelfSection(
                         viewport = if (useGutterLayout) hoverViewport else null,
                         modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
                     ) {
-                        itemContent(entry)
+                        RemotePosterItem(key?.invoke(entry), entries.indexOf(entry)) { itemContent(entry) }
                     }
                 }
             }
@@ -596,11 +599,13 @@ private fun NuvioShelfSectionHeader(
             } else {
                 Modifier
             }
+            RemotePosterItem(null, Int.MAX_VALUE, PosterTargetRole.EndAction) {
             NuvioViewAllPill(
                 onClick = onViewAllClick,
                 size = viewAllPillSize,
                 modifier = viewAllPlaceholderModifier,
             )
+            }
         }
     }
 }

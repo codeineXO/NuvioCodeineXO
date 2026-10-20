@@ -1047,7 +1047,7 @@
     <string name="settings_meta_episode_style_enhanced">Enhanced</string>
     <string name="settings_meta_episode_style_enhanced_description">Enhanced horizontal cards</string>
     <string name="details_see_more">See More</string>
-    <string name="details_back_to_top">Back to top</string>
+    <string name="details_back_to_top">Back to Top</string>
     <string name="settings_meta_episodes">Episodes</string>
     <string name="settings_meta_episodes_description">Seasons and episode list for series.</string>
     <string name="settings_meta_blur_unwatched_episodes">Blur Unwatched Episodes</string>
@@ -2596,4 +2596,6 @@
     <string name="stream_info_server">Server</string>
     <string name="settings_homescreen_scroll_posters_layout">Scroll Posters Layout</string>
     <string name="settings_homescreen_scroll_posters_layout_description">Scroll posters with scroll wheel when cursor is hovering over poster</string>
+    <string name="settings_keyboard_navigation">Keyboard navigation</string>
+    <string name="settings_keyboard_navigation_description">Use Arrow keys, Backspace, Enter and Esc to navigate the app</string>
 </resources>

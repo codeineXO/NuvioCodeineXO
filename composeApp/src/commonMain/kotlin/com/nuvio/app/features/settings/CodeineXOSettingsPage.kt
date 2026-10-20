@@ -139,6 +139,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 )
                 if (isDesktop) {
                     SettingsGroupDivider(isTablet = isTablet)
+                    KeyboardNavigationSettingsRow(isTablet)
+                    SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
                         description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),

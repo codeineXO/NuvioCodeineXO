@@ -1,6 +1,10 @@
 package com.nuvio.app.features.home
 
 import com.nuvio.app.core.ui.remoteNavigationScrollToTop
+import com.nuvio.app.core.ui.BindPosterNavigationPage
+import com.nuvio.app.core.ui.PosterNavigationRow
+import com.nuvio.app.core.ui.RemotePosterRow
+import com.nuvio.app.features.home.stableKey
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
@@ -86,6 +90,7 @@ import com.nuvio.app.features.watchprogress.CurrentDateProvider
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesUiState
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
+import com.nuvio.app.features.watchprogress.continueWatchingItemKey
 import com.nuvio.app.features.watchprogress.ContinueWatchingSortMode
 import com.nuvio.app.features.watchprogress.isMalformedNextUpSeedContentId
 import com.nuvio.app.features.watchprogress.isSeriesTypeForContinueWatching
@@ -1024,6 +1029,25 @@ fun HomeScreen(
             topChromePadding
         }
 
+        val navigationRows = buildList {
+            var index = if (showHeroSlot) 1 else 0
+            if (continueWatchingPreferences.isVisible) {
+                if (continueWatchingItems.isNotEmpty()) add(PosterNavigationRow(HOME_CONTINUE_WATCHING_SECTION_KEY, continueWatchingItems.map(::continueWatchingItemKey), index++))
+                if (upcomingItems.isNotEmpty()) add(PosterNavigationRow(HOME_UPCOMING_SECTION_KEY, upcomingItems.map(::continueWatchingItemKey), index++))
+            }
+            keyedEnabledHomeItems.forEach { keyed ->
+                if (keyed.value.isCollection) {
+                    if (collectionsMap[keyed.value.key] != null) index++
+                } else {
+                    val section = sectionsMap[keyed.value.key]
+                    if (section != null && section.items.isNotEmpty()) {
+                        add(PosterNavigationRow(keyed.lazyKey, section.items.map { it.stableKey() }, index++))
+                    }
+                }
+            }
+        }
+        BindPosterNavigationPage("home", activeProfileId, navigationRows, homeListState, homeUiState.isLoading || addonManifestsLoading)
+
         NuvioScreen(
             modifier = Modifier.fillMaxSize().then(heroStretchModifier),
             horizontalPadding = 0.dp,
@@ -1236,6 +1260,7 @@ fun HomeScreen(
                             val section = sectionsMap[settingsItem.key]
                             if (section != null && section.items.isNotEmpty()) {
                                 item(key = keyedSettingsItem.lazyKey, contentType = "catalog") {
+                                    RemotePosterRow("home", keyedSettingsItem.lazyKey) {
                                     HomeCatalogRowSection(
                                         section = section,
                                         entries = if (isDesktop) {
@@ -1258,6 +1283,7 @@ fun HomeScreen(
                                         onPosterClick = onPosterClick,
                                         onPosterLongClick = onPosterLongClick,
                                     )
+                                    }
                                 }
                             }
                         }
@@ -1306,6 +1332,7 @@ private fun LazyListScope.homeContinueWatchingSections(
 
     if (continueWatchingItems.isNotEmpty()) {
         item(key = HOME_CONTINUE_WATCHING_SECTION_KEY, contentType = "continue_watching") {
+            RemotePosterRow("home", HOME_CONTINUE_WATCHING_SECTION_KEY) {
             HomeContinueWatchingSection(
                 items = continueWatchingItems,
                 dataSourceKey = dataSourceKey,
@@ -1321,11 +1348,13 @@ private fun LazyListScope.homeContinueWatchingSections(
                 onItemLongPress = onItemLongPress,
                 disintegrationRequest = disintegrationRequest,
             )
+            }
         }
     }
 
     if (upcomingItems.isNotEmpty()) {
         item(key = HOME_UPCOMING_SECTION_KEY, contentType = "continue_watching") {
+            RemotePosterRow("home", HOME_UPCOMING_SECTION_KEY) {
             HomeContinueWatchingSection(
                 items = upcomingItems,
                 dataSourceKey = dataSourceKey,
@@ -1342,6 +1371,7 @@ private fun LazyListScope.homeContinueWatchingSections(
                 onItemLongPress = onItemLongPress,
                 disintegrationRequest = disintegrationRequest,
             )
+            }
         }
     }
 }

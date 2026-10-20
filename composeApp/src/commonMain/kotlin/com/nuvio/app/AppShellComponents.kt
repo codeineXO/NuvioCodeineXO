@@ -1001,7 +1001,7 @@ private fun DesktopSidebarItem(
         modifier = (Modifier
             .fillMaxWidth()
             .height(DesktopSidebarItemHeight)
-            .padding(horizontal = 6.dp, vertical = 4.dp)).remoteNavigationTarget(shape = RoundedCornerShape(16.dp)),
+            .padding(horizontal = 6.dp, vertical = 4.dp)).remoteNavigationTarget(shape = RoundedCornerShape(16.dp), sidebarEntry = selected),
         color = Color.Transparent,
         shape = RoundedCornerShape(16.dp),
     ) {

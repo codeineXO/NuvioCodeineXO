@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationDown
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -80,6 +81,7 @@ fun DetailActionButtons(
     isTablet: Boolean = false,
     onPlayClick: () -> Unit = {},
     onPlayLongClick: (() -> Unit)? = null,
+    onPlayDown: (suspend () -> Unit)? = null,
 ) {
     val playPainter = appIconPainter(AppIconResource.PlayerPlay)
     val buttonHeight = if (isTablet) 56.dp else 52.dp
@@ -118,6 +120,7 @@ fun DetailActionButtons(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .remoteNavigationDown(onPlayDown)
                         .remoteNavigationTarget(shape = playShape, initialFocus = true, onSelect = onPlayClick.takeIf { playEnabled }, onContext = onPlayLongClick).combinedClickable(
                             enabled = playEnabled,
                             onClick = {

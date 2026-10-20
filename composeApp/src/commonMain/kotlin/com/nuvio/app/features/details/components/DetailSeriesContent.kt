@@ -1,6 +1,11 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
+import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
+import com.nuvio.app.core.ui.remoteNavigationFocusDestination
+import com.nuvio.app.core.ui.remoteNavigationUp
+import com.nuvio.app.core.ui.remoteNavigationDown
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
@@ -75,6 +80,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -158,6 +164,9 @@ fun DetailSeriesContent(
     onEpisodeClick: ((MetaVideo) -> Unit)? = null,
     onEpisodeLongPress: ((MetaVideo) -> Unit)? = null,
     onSeasonLongPress: ((Int) -> Unit)? = null,
+    navigationEntry: RemoteNavigationFocusDestination? = null,
+    onEntryUp: (suspend () -> Unit)? = null,
+    onEpisodesDown: (suspend () -> Unit)? = null,
 ) {
     val hasVideos = meta.videos.isNotEmpty()
     if (meta.type != "series" && !hasVideos) return
@@ -227,6 +236,9 @@ fun DetailSeriesContent(
     val currentSeason = selectedSeasonOverride
         ?.takeIf { it in groupedEpisodes }
         ?: defaultSeason
+    val firstEpisodeFocus = remember(meta.id, navigationEntry, seasons.size) {
+        if (seasons.size <= 1) navigationEntry else navigationEntry?.let { RemoteNavigationFocusDestination() }
+    }
 
     val homeCatalogSettings by remember {
         HomeCatalogSettingsRepository.snapshot()
@@ -249,6 +261,9 @@ fun DetailSeriesContent(
             verticalArrangement = Arrangement.spacedBy(if (isDesktop) 12.dp else 16.dp),
         ) {
             SeriesSeasonSelector(
+                navigationEntry = navigationEntry,
+                onSeasonDown = firstEpisodeFocus?.let { { it.requestFocus(); Unit } },
+                onSeasonUp = onEntryUp,
                 meta = meta,
                 seasons = seasons,
                 groupedEpisodes = groupedEpisodes,
@@ -314,6 +329,12 @@ fun DetailSeriesContent(
                         )
                     } else if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
                         EpisodeHorizontalRow(
+                            firstEpisodeFocus = firstEpisodeFocus.takeIf { seasonForContent == currentSeason },
+                            onEpisodeUp = if (navigationEntry == null) null else ({
+                                if (seasons.size > 1) navigationEntry.requestFocus() else onEntryUp?.invoke()
+                                Unit
+                            }),
+                            onEpisodeDown = onEpisodesDown,
                             episodes = seasonEpisodes,
                             maxWidthDp = containerWidthDp,
                             horizontalScrollPadding = horizontalScrollPadding,
@@ -487,6 +508,9 @@ private fun SeriesSeasonSelector(
     episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Horizontal,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
+    navigationEntry: RemoteNavigationFocusDestination? = null,
+    onSeasonDown: (suspend () -> Unit)? = null,
+    onSeasonUp: (suspend () -> Unit)? = null,
 ) {
     if (seasons.size <= 1) return
 
@@ -540,6 +564,9 @@ private fun SeriesSeasonSelector(
 
         if (isEnhanced) {
             SeasonTextChipScrollRow(
+                navigationEntry = navigationEntry,
+                onSeasonDown = onSeasonDown,
+                onSeasonUp = onSeasonUp,
                 seasons = seasons,
                 currentSeason = currentSeason,
                 sizing = sizing,
@@ -754,8 +781,16 @@ private fun SeasonTextChipScrollRow(
     seasonPosterForSeason: ((Int) -> String?)? = null,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
+    navigationEntry: RemoteNavigationFocusDestination? = null,
+    onSeasonDown: (suspend () -> Unit)? = null,
+    onSeasonUp: (suspend () -> Unit)? = null,
 ) {
     val seasonListState = rememberLazyListState()
+    BindRemoteNavigationFocusDestination(navigationEntry) {
+        val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
+        val visible = seasonListState.layoutInfo.visibleItemsInfo.any { it.index == index }
+        if (!visible) seasonListState.animateScrollToItem(index)
+    }
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
@@ -861,6 +896,9 @@ private fun SeasonTextChipScrollRow(
                                 },
                             )
                             .hoverable(chipInteractionSource)
+                            .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
+                            .remoteNavigationDown(onSeasonDown)
+                            .remoteNavigationUp(onSeasonUp)
                             .remoteNavigationTarget(shape = RoundedCornerShape(sizing.seasonChipRadius)).combinedClickable(
                                 onClick = { onSelect(season) },
                                 onLongClick = onSecondaryClick,
@@ -1326,6 +1364,9 @@ private fun SeasonPosterButton(
 @Composable
 private fun EpisodeHorizontalRow(
     episodes: List<MetaVideo>,
+    firstEpisodeFocus: RemoteNavigationFocusDestination? = null,
+    onEpisodeUp: (suspend () -> Unit)? = null,
+    onEpisodeDown: (suspend () -> Unit)? = null,
     maxWidthDp: Float,
     horizontalScrollPadding: Dp,
     parentMetaId: String,
@@ -1346,6 +1387,13 @@ private fun EpisodeHorizontalRow(
         reduceSize = scrollPostersLayoutEnabled,
     )
     val listState = rememberLazyListState()
+    var entryIndex by remember { mutableStateOf(0) }
+    var hasPositioned by rememberSaveable(parentMetaId, episodes.firstOrNull()?.season) { mutableStateOf(false) }
+    BindRemoteNavigationFocusDestination(firstEpisodeFocus) {
+        hasPositioned = true
+        entryIndex = com.nuvio.app.core.ui.firstVisibleNavigationIndex(listState.layoutInfo) ?: listState.firstVisibleItemIndex
+        androidx.compose.runtime.withFrameNanos { }
+    }
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
@@ -1355,21 +1403,20 @@ private fun EpisodeHorizontalRow(
         desktopPageHorizontalPaddingForWidth(maxWidthDp)
     }
     val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
-    var hasPositioned by remember(episodes) { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        androidx.compose.runtime.snapshotFlow { listState.isScrollInProgress }.collect { if (it) hasPositioned = true }
+    }
 
     LaunchedEffect(episodes, preferredEpisodeNumber) {
+        if (hasPositioned) return@LaunchedEffect
         val targetIndex = if (preferredEpisodeNumber != null) {
             episodes.indexOfFirst { it.episode == preferredEpisodeNumber }
         } else {
             -1
         }
         if (targetIndex >= 0) {
-            if (hasPositioned) {
-                listState.animateScrollToItem(targetIndex)
-            } else {
-                listState.scrollToItem(targetIndex)
-                hasPositioned = true
-            }
+            hasPositioned = true
+            listState.scrollToItem(targetIndex)
         }
     }
 
@@ -1433,14 +1480,14 @@ private fun EpisodeHorizontalRow(
     ) {
         LazyRow(
             state = listState,
-            modifier = Modifier.remoteNavigationGroup().then(rowModifier),
+            modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.remoteNavigationGroup().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
         ) {
             itemsIndexed(
                 items = episodes,
                 key = { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" },
-            ) { _, episode ->
+            ) { index, episode ->
                 val episodeVideoId = buildPlaybackVideoId(
                     parentMetaId = parentMetaId,
                     seasonNumber = episode.season,
@@ -1448,6 +1495,8 @@ private fun EpisodeHorizontalRow(
                     fallbackVideoId = episode.id,
                 )
                 EpisodeHorizontalCard(
+                    modifier = Modifier.remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
+                        .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
                     video = episode,
                     fallbackImage = fallbackImage,
                     progressEntry = progressByVideoId[episodeVideoId],
@@ -1523,6 +1572,7 @@ private fun EpisodeHorizontalCard(
     metrics: EpisodeHorizontalCardMetrics,
     onClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     val cardShape = RoundedCornerShape(metrics.cornerRadius)
     val ratingLabel = remember(imdbRating, episodeRatingsVisibility, isWatched) {
@@ -1542,7 +1592,7 @@ private fun EpisodeHorizontalCard(
         metrics.contentBottomPadding
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .width(metrics.cardWidth)
             .height(metrics.cardHeight)
             .clip(cardShape)
