@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -31,8 +32,10 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,6 +46,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -57,6 +61,7 @@ import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -73,10 +78,13 @@ import androidx.compose.ui.zIndex
 import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.home_view_all
+import nuvio.composeapp.generated.resources.home_scroll_left
+import nuvio.composeapp.generated.resources.home_scroll_right
 import nuvio.composeapp.generated.resources.poster_logo_content_description
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 enum class NuvioPosterShape {
     Poster,
@@ -102,6 +110,7 @@ fun <T> NuvioShelfSection(
     onViewAllClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
     viewAllPillSize: NuvioViewAllPillSize = NuvioViewAllPillSize.Default,
+    showRowNavigationControls: Boolean = false,
     key: ((T) -> Any)? = null,
     animatePlacement: Boolean = false,
     state: LazyListState = rememberLazyListState(),
@@ -160,6 +169,13 @@ fun <T> NuvioShelfSection(
                 onViewAllClick = onViewAllClick,
                 onTitleClick = onTitleClick,
                 viewAllPillSize = viewAllPillSize,
+                showRowNavigationControls = showRowNavigationControls,
+                state = state,
+                viewportInset = if (useGutterLayout) {
+                    DesktopPosterRowHoverInset + ShelfPosterViewportSafetyInset
+                } else {
+                    ShelfPosterViewportSafetyInset
+                },
             )
         }
         LazyRow(
@@ -201,6 +217,7 @@ fun <T> NuvioShelfSection(
 }
 
 private val DesktopPosterRowHoverInset = 16.dp
+private val ShelfPosterViewportSafetyInset = 2.dp
 
 private class PosterRowHoverViewport {
     var left by mutableFloatStateOf(0f)
@@ -572,6 +589,9 @@ private fun NuvioShelfSectionHeader(
     onViewAllClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
     viewAllPillSize: NuvioViewAllPillSize = NuvioViewAllPillSize.Default,
+    showRowNavigationControls: Boolean = false,
+    state: LazyListState,
+    viewportInset: Dp,
 ) {
     val tokens = MaterialTheme.nuvio
     Column(
@@ -592,8 +612,21 @@ private fun NuvioShelfSectionHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (showRowNavigationControls) {
+                ShelfRowNavigationButton(
+                    state = state,
+                    direction = ShelfScrollDirection.Backward,
+                    viewportInset = viewportInset,
+                )
+                ShelfRowNavigationButton(
+                    state = state,
+                    direction = ShelfScrollDirection.Forward,
+                    viewportInset = viewportInset,
+                )
+            }
             val viewAllPlaceholderModifier = if (onViewAllClick == null) {
-                Modifier
+                if (showRowNavigationControls) Modifier.size(0.dp)
+                else Modifier
                     .alpha(0f)
                     .clearAndSetSemantics { }
             } else {
@@ -610,6 +643,94 @@ private fun NuvioShelfSectionHeader(
     }
 }
 
+private enum class ShelfScrollDirection { Backward, Forward }
+
+@Composable
+private fun ShelfRowNavigationButton(
+    state: LazyListState,
+    direction: ShelfScrollDirection,
+    viewportInset: Dp,
+) {
+    val scope = rememberCoroutineScope()
+    val viewportInsetPx = with(LocalDensity.current) { viewportInset.roundToPx() }
+    val enabled = when (direction) {
+        ShelfScrollDirection.Backward -> state.canScrollBackward
+        ShelfScrollDirection.Forward -> state.canScrollForward
+    }
+    val contentDescription = stringResource(
+        if (direction == ShelfScrollDirection.Backward) Res.string.home_scroll_left
+        else Res.string.home_scroll_right,
+    )
+
+    IconButton(
+        onClick = {
+            val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx)
+            if (scrollDistance != 0f) {
+                scope.launch {
+                    state.animateScrollBy(scrollDistance)
+                }
+            }
+        },
+        enabled = enabled,
+        modifier = Modifier.focusProperties { canFocus = false },
+    ) {
+        Icon(
+            imageVector = if (direction == ShelfScrollDirection.Backward) {
+                Icons.AutoMirrored.Rounded.KeyboardArrowLeft
+            } else {
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight
+            },
+            contentDescription = contentDescription,
+            tint = MaterialTheme.nuvio.colors.textMuted,
+        )
+    }
+}
+
+private fun shelfViewportScrollDistance(
+    state: LazyListState,
+    direction: ShelfScrollDirection,
+    viewportInsetPx: Int,
+): Float {
+    val layout = state.layoutInfo
+    // LazyListInfo's scroll bounds include content padding. Use the visible row
+    // bounds instead, excluding the desktop hover overdraw inset when enabled.
+    val viewportStart = viewportInsetPx.toFloat()
+    val viewportEnd = (layout.viewportSize.width - viewportInsetPx).toFloat()
+    if (viewportEnd <= viewportStart) return 0f
+
+    val visibleItems = layout.visibleItemsInfo
+    if (visibleItems.isEmpty()) return 0f
+
+    val clippedAtEdge = when (direction) {
+        ShelfScrollDirection.Backward -> visibleItems.firstOrNull { item ->
+            item.offset < viewportStart && item.offset + item.size > viewportStart
+        }
+        ShelfScrollDirection.Forward -> visibleItems.lastOrNull { item ->
+            item.offset < viewportEnd && item.offset + item.size > viewportEnd
+        }
+    }
+    if (clippedAtEdge != null) {
+        return when (direction) {
+            // Bring a left-clipped card fully into view, aligned to the right edge.
+            ShelfScrollDirection.Backward -> clippedAtEdge.offset + clippedAtEdge.size - viewportEnd
+            // Bring a right-clipped card fully into view, aligned to the left edge.
+            ShelfScrollDirection.Forward -> clippedAtEdge.offset - viewportStart
+        }
+    }
+
+    val spacing = layout.mainAxisItemSpacing
+    return when (direction) {
+        ShelfScrollDirection.Backward -> {
+            val first = visibleItems.firstOrNull { it.offset + it.size > viewportStart } ?: return 0f
+            first.offset - spacing - viewportEnd
+        }
+        ShelfScrollDirection.Forward -> {
+            val last = visibleItems.lastOrNull { it.offset < viewportEnd } ?: return 0f
+            last.offset + last.size + spacing - viewportStart
+        }
+    }
+}
+
 @Composable
 private fun NuvioViewAllPill(
     onClick: (() -> Unit)?,
@@ -617,25 +738,26 @@ private fun NuvioViewAllPill(
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
-    val actionSize = if (size == NuvioViewAllPillSize.Compact) NuvioTokens.Space.s32 else NuvioTokens.Space.s40
-    val iconSize = if (size == NuvioViewAllPillSize.Compact) NuvioTokens.Icon.sm else tokens.icons.md
     val viewAllText = stringResource(Res.string.home_view_all)
+    val actionSize = if (size == NuvioViewAllPillSize.Compact) NuvioTokens.Space.s32 else NuvioTokens.Space.s40
 
     Box(
         modifier = modifier
-            .size(actionSize)
+            .height(actionSize)
+            .widthIn(min = actionSize)
             .background(
                 color = tokens.colors.surface,
                 shape = RoundedCornerShape(NuvioTokens.Radius.xl),
             )
-            .then(if (onClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onClick) else Modifier),
+            .then(if (onClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = NuvioTokens.Space.s10),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = viewAllText,
-            tint = tokens.colors.textMuted,
-            modifier = Modifier.size(iconSize),
+        Text(
+            text = viewAllText,
+            style = MaterialTheme.typography.labelLarge,
+            color = tokens.colors.textMuted,
+            maxLines = 1,
         )
     }
 }

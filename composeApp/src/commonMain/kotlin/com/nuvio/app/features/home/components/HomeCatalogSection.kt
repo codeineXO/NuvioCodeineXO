@@ -84,6 +84,7 @@ private fun HomeCatalogRowSectionContent(
         onViewAllClick = onViewAllClick,
         onTitleClick = onViewAllClick?.takeIf { isDesktop },
         viewAllPillSize = NuvioViewAllPillSize.Compact,
+        showRowNavigationControls = true,
         key = { item -> item.stableKey() },
     ) { item ->
         HomePosterCard(

@@ -113,6 +113,7 @@ import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.features.watching.domain.WatchingContentRef
 import com.nuvio.app.features.watching.domain.isReleasedBy
 import com.nuvio.app.features.collection.CollectionRepository
+import com.nuvio.app.features.collection.Collection
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.home.components.HomeCollectionRowSection
 import kotlinx.coroutines.Dispatchers
@@ -149,6 +150,7 @@ fun HomeScreen(
     onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
     continueWatchingDisintegrationRequest: DisintegrationRequest<String>? = null,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    onCollectionClick: ((Collection) -> Unit)? = null,
     onFirstCatalogRendered: (() -> Unit)? = null,
 ) {
     LaunchedEffect(Unit) {
@@ -1253,6 +1255,7 @@ fun HomeScreen(
                                         useGutterLayout = useGutterLayout,
                                         animateGifs = animateCollectionGifs,
                                         onFolderClick = onFolderClick,
+                                        onViewAllClick = onCollectionClick?.let { open -> { open(collection) } },
                                     )
                                 }
                             }

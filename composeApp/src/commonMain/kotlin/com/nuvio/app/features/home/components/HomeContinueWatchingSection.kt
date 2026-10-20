@@ -358,6 +358,7 @@ private fun HomeContinueWatchingSectionContent(
             headerHorizontalPadding = sectionPadding,
             rowContentPadding = PaddingValues(horizontal = sectionPadding),
             useGutterLayout = useGutterLayout,
+            showRowNavigationControls = true,
             itemSpacing = layout.itemGap,
             key = { entry -> entry.key },
             animatePlacement = true,

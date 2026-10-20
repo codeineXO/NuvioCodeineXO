@@ -117,6 +117,12 @@ data class LicensesAttributionsSettingsRoute(override val title: String = "") : 
 data class CollectionsRoute(override val title: String = "") : SettingsDestinationRoute
 
 @Serializable
+data class CollectionFoldersRoute(
+    val collectionId: String,
+    override val title: String,
+) : AppRoute
+
+@Serializable
 data class CollectionEditorRoute(
     val collectionId: String? = null,
     override val title: String = "",

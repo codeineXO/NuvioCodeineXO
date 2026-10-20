@@ -44,6 +44,7 @@ fun HomeCollectionRowSection(
     useGutterLayout: Boolean = false,
     animateGifs: Boolean = true,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    onViewAllClick: (() -> Unit)? = null,
 ) {
     if (collection.folders.isEmpty()) return
 
@@ -55,6 +56,7 @@ fun HomeCollectionRowSection(
             useGutterLayout = useGutterLayout,
             animateGifs = animateGifs,
             onFolderClick = onFolderClick,
+            onViewAllClick = onViewAllClick,
         )
     } else {
         BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -65,6 +67,7 @@ fun HomeCollectionRowSection(
                 useGutterLayout = useGutterLayout,
                 animateGifs = animateGifs,
                 onFolderClick = onFolderClick,
+                onViewAllClick = onViewAllClick,
             )
         }
     }
@@ -78,6 +81,7 @@ private fun HomeCollectionRowSectionContent(
     useGutterLayout: Boolean,
     animateGifs: Boolean,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)?,
+    onViewAllClick: (() -> Unit)?,
 ) {
     NuvioShelfSection(
         title = collection.title,
@@ -86,6 +90,8 @@ private fun HomeCollectionRowSectionContent(
         headerHorizontalPadding = sectionPadding,
         rowContentPadding = PaddingValues(horizontal = sectionPadding),
         useGutterLayout = useGutterLayout,
+        onViewAllClick = onViewAllClick,
+        showRowNavigationControls = true,
         key = { folder -> "collection_${collection.id}_folder_${folder.id}" },
     ) { folder ->
         CollectionFolderCard(
@@ -97,11 +103,12 @@ private fun HomeCollectionRowSectionContent(
 }
 
 @Composable
-private fun CollectionFolderCard(
+internal fun CollectionFolderCard(
     folder: CollectionFolder,
     modifier: Modifier = Modifier,
     animateGifs: Boolean = true,
     onClick: (() -> Unit)? = null,
+    fillMaxWidth: Boolean = false,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
@@ -129,7 +136,7 @@ private fun CollectionFolderCard(
         modifier = Modifier
             .posterCardClickable(onClick = onClick, onLongClick = null)
             .then(modifier)
-            .width(cardWidth),
+            .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(cardWidth)),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         val shapeCorner = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)

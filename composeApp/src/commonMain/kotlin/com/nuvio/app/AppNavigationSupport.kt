@@ -44,6 +44,7 @@ internal val navigationSavedStateConfiguration = SavedStateConfiguration {
             subclass(SupportersContributorsSettingsRoute::class, SupportersContributorsSettingsRoute.serializer())
             subclass(LicensesAttributionsSettingsRoute::class, LicensesAttributionsSettingsRoute.serializer())
             subclass(CollectionsRoute::class, CollectionsRoute.serializer())
+            subclass(CollectionFoldersRoute::class, CollectionFoldersRoute.serializer())
             subclass(CollectionEditorRoute::class, CollectionEditorRoute.serializer())
             subclass(CollectionEditorPageRoute::class, CollectionEditorPageRoute.serializer())
             subclass(FolderDetailRoute::class, FolderDetailRoute.serializer())

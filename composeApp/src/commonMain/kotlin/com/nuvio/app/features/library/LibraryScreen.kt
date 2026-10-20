@@ -1288,6 +1288,7 @@ private fun LazyListScope.librarySections(
                 ?.takeIf { it.items.size > LIBRARY_SECTION_PREVIEW_LIMIT }
                 ?.let { source -> onSectionViewAllClick?.let { { it(source, sortOption) } } },
             viewAllPillSize = NuvioViewAllPillSize.Compact,
+            showRowNavigationControls = true,
             key = { entry -> entry.globalKey },
             animatePlacement = true,
         ) { entry ->

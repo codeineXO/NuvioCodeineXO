@@ -81,6 +81,7 @@ import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.CloudLibraryFile
 import com.nuvio.app.features.cloud.CloudLibraryItem
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.collection.Collection
 import com.nuvio.app.features.home.HomeScreen
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryItem
@@ -200,6 +201,7 @@ internal data class AppTabActions(
     val onCollectionsSettingsClick: () -> Unit = {},
     val onWatchPartySettingsClick: () -> Unit = {},
     val onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    val onCollectionClick: ((Collection) -> Unit)? = null,
     val onRequestedSettingsPageConsumed: () -> Unit = {},
     val onOnboardingClick: (() -> Unit)? = null,
     val onInitialHomeContentRendered: () -> Unit = {},
@@ -260,6 +262,7 @@ internal fun AppTabHost(
                         onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
                         continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
                         onFolderClick = actions.onFolderClick,
+                        onCollectionClick = actions.onCollectionClick,
                         onFirstCatalogRendered = actions.onInitialHomeContentRendered,
                     )
                 }

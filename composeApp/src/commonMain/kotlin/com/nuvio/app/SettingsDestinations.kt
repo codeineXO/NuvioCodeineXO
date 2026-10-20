@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.features.collection.CollectionEditorPage
 import com.nuvio.app.features.collection.CollectionEditorScreen
+import com.nuvio.app.features.collection.CollectionFolderBrowserScreen
 import com.nuvio.app.features.collection.CollectionManagementScreen
 import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.collection.FolderDetailRepository
@@ -18,6 +19,7 @@ import com.nuvio.app.navigation.AppRoute
 import com.nuvio.app.navigation.CollectionEditorPageRoute
 import com.nuvio.app.navigation.CollectionEditorRoute
 import com.nuvio.app.navigation.CollectionsRoute
+import com.nuvio.app.navigation.CollectionFoldersRoute
 import com.nuvio.app.navigation.FolderDetailRoute
 import com.nuvio.app.navigation.NuvioNavigator
 import com.nuvio.app.navigation.OnboardingRoute
@@ -88,6 +90,34 @@ internal fun CollectionsDestination(
                 CollectionEditorRoute(
                     collectionId = collectionId,
                     title = editorTitle.ifBlank { newCollectionTitle },
+                ),
+            )
+        },
+    )
+}
+
+@Composable
+internal fun CollectionFoldersDestination(
+    route: CollectionFoldersRoute,
+    navController: NuvioNavigator,
+) {
+    val onBack = rememberGuardedPopBackStack(navController, route)
+    CollectionFolderBrowserScreen(
+        collectionId = route.collectionId,
+        title = route.title,
+        onBack = onBack,
+        onFolderClick = { collectionId, folderId ->
+            val folderTitle = CollectionRepository.collections.value
+                .firstOrNull { it.id == collectionId }
+                ?.folders
+                ?.firstOrNull { it.id == folderId }
+                ?.title
+                .orEmpty()
+            navController.navigate(
+                FolderDetailRoute(
+                    collectionId = collectionId,
+                    folderId = folderId,
+                    title = folderTitle.ifBlank { route.title },
                 ),
             )
         },

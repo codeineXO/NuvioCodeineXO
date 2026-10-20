@@ -104,6 +104,7 @@
     <string name="collections_editor_folder_editor_help">Set the folder identity, presentation, and catalog sources with the same structure as the main collections editor.</string>
     <string name="collections_editor_folder_empty_subtitle">Add one to get started.</string>
     <string name="collections_editor_folder_empty_title">No folders yet</string>
+    <string name="collections_folders_empty">This collection has no folders.</string>
     <string name="collections_editor_folders">Folders</string>
     <string name="collections_editor_genre_filter">Genre Filter</string>
     <string name="collections_editor_hide_title_desc">Only show the cover image</string>
@@ -699,6 +700,8 @@
     <string name="hero_mark_watched">Mark as watched</string>
     <string name="hero_remove_from_library">Remove from library</string>
     <string name="home_view_all">View All</string>
+    <string name="home_scroll_left">Scroll posters left</string>
+    <string name="home_scroll_right">Scroll posters right</string>
     <string name="play_manually">Play manually</string>
     <string name="poster_logo_content_description">%1$s logo</string>
     <string name="settings_account">Account</string>
