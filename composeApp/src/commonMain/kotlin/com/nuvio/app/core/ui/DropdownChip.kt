@@ -92,6 +92,7 @@ fun NuvioDropdownChip(
         }
 
         if (isDesktop) {
+            PlatformBackHandler(enabled = isSheetVisible, onBack = { isSheetVisible = false })
             DropdownMenu(
                 expanded = isSheetVisible,
                 onDismissRequest = { isSheetVisible = false },

@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.remoteNavigationTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -153,6 +154,7 @@ fun SubtitleCustomColorPicker(
                     Box(
                         modifier = Modifier
                             .size(NuvioTokens.Space.s36)
+                            .remoteNavigationTarget(shape = CircleShape)
                             .clip(CircleShape)
                             .selectable(
                                 selected = isSelected,
@@ -389,7 +391,7 @@ private fun ColorChannelSlider(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = title },
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = title }.remoteNavigationTarget(adjustable = true),
             track = {
                 Box(
                     Modifier.fillMaxWidth().height(NuvioTokens.Space.s8)

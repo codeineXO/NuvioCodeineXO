@@ -374,10 +374,12 @@ fun NuvioInputField(
     trailingContent: (@Composable (() -> Unit))? = null,
 ) {
     val tokens = MaterialTheme.nuvio
+    var isEditing by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = (modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
+        readOnly = isRemoteKeyboardNavigationActive && !isEditing,
+        modifier = (modifier.fillMaxWidth()).remoteNavigationTarget(textField = true, onEditingChange = { isEditing = it }),
         singleLine = true,
         shape = RoundedCornerShape(NuvioTokens.Radius.lg),
         placeholder = {

@@ -691,7 +691,7 @@ private fun MobileSettingsScreen(
                     NuvioScreenHeader(
                         title = stringResource(page.titleRes),
                         topPadding = topChromePadding,
-                        onBack = previousPage?.let { { onNavigateBack() } },
+                        onBack = if (page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
                     )
                 }
             }
@@ -1196,7 +1196,7 @@ private fun TabletSettingsScreen(
                                     } else {
                                         stringResource(page.titleRes)
                                     },
-                                    showBack = previousPage != null,
+                                    showBack = previousPage != null && page != SettingsPage.CodeineXO,
                                     onBack = { if (previousPage != null) onNavigateBack() },
                                 )
                             }

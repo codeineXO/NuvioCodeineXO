@@ -1,6 +1,12 @@
 package com.nuvio.app
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
+import com.nuvio.app.core.ui.LocalRemoteNavigation
+import com.nuvio.app.core.ui.LocalRemoteNavigationRole
+import com.nuvio.app.core.ui.RemoteNavigationRole
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -748,15 +754,26 @@ internal fun DesktopHoverSidebar(
         onTabSelected(tab)
     }
 
-    Surface(
-        modifier = modifier
-            .width(sidebarWidth)
-            .fillMaxHeight()
-            .hoverable(hoverSource)
-            .zIndex(NuvioTokens.Z.navigation),
-        color = tokens.colors.background,
-        contentColor = tokens.colors.textPrimary,
-    ) {
+    val session = LocalRemoteNavigation.current
+    CompositionLocalProvider(LocalRemoteNavigationRole provides RemoteNavigationRole.Sidebar) {
+        Surface(
+            modifier = modifier
+                .width(sidebarWidth)
+                .fillMaxHeight()
+                .hoverable(hoverSource)
+                .focusProperties {
+                    onEnter = {
+                        if (requestedFocusDirection == FocusDirection.Down || requestedFocusDirection == FocusDirection.Up) {
+                            cancelFocusChange()
+                        } else if (requestedFocusDirection == FocusDirection.Left && session?.canEnterSidebar() == false) {
+                            cancelFocusChange()
+                        }
+                    }
+                }
+                .zIndex(NuvioTokens.Z.navigation),
+            color = tokens.colors.background,
+            contentColor = tokens.colors.textPrimary,
+        ) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -870,7 +887,7 @@ internal fun DesktopHoverSidebar(
                     label = stringResource(Res.string.compose_settings_page_root),
                     selected = selectedTab == AppScreenTab.Settings,
                     expanded = sidebarExpanded,
-                    onClick = { selectTab(AppScreenTab.Settings) },
+                    onClick = { if (selectedTab != AppScreenTab.Settings) selectTab(AppScreenTab.Settings) },
                 ) { color ->
                     Icon(
                         imageVector = Icons.Rounded.Settings,
@@ -903,6 +920,7 @@ internal fun DesktopHoverSidebar(
                 }
             }
         }
+    }
     }
 }
 

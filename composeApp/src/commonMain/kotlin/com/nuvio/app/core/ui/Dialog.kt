@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +56,7 @@ fun DialogSurface(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    PlatformBackHandler(enabled = true, onBack = onDismissRequest)
     BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
         Surface(
             modifier = modifier
@@ -143,7 +145,10 @@ fun DialogButton(
     val contentColor = if (style == DialogButtonStyle.Secondary) tokens.colors.textPrimary else tokens.colors.onAccent
     Button(
         onClick = onClick,
-        modifier = (modifier.heightIn(min = NuvioTokens.Space.s48)).remoteNavigationTarget(shape = tokens.shapes.button),
+        modifier = (modifier.heightIn(min = NuvioTokens.Space.s48)).remoteNavigationTarget(
+            shape = tokens.shapes.button,
+            focusOutlineColor = if (style == DialogButtonStyle.Primary) Color.White else null,
+        ),
         enabled = enabled && !loading,
         elevation = ButtonDefaults.buttonElevation(
             hoveredElevation = 0.dp,

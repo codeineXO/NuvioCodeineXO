@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
+import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.dismissNuvioBottomSheet
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.SurfaceEdge
@@ -127,6 +128,7 @@ private fun <T> TrackingPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    PlatformBackHandler(enabled = true, onBack = onDismiss)
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier

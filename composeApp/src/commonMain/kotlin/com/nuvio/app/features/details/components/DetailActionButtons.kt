@@ -223,7 +223,13 @@ fun DetailActionButtons(
                     Box(
                         modifier = Modifier
                             .size(iconButtonSize)
-                            .remoteNavigationTarget(shape = CircleShape).clickable(role = Role.Button) {
+                            .remoteNavigationTarget(
+                                shape = CircleShape,
+                                onSelect = {
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    actionsExpanded = !actionsExpanded
+                                },
+                            ).clickable(role = Role.Button) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 actionsExpanded = !actionsExpanded
                             },

@@ -2,6 +2,7 @@ package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.remoteNavigationModal
 
 import com.nuvio.app.core.build.AppFeaturePolicy
 import androidx.compose.foundation.BorderStroke
@@ -33,6 +34,7 @@ import com.nuvio.app.core.ui.DialogSurface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.BasicAlertDialog
+import com.nuvio.app.core.ui.PlatformBackHandler
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -2821,6 +2823,7 @@ internal fun SubtitleColorDialog(
     target: SubtitleColorEditTarget = SubtitleColorEditTarget.TEXT,
 ) {
     var currentColor by remember(selectedColor) { mutableStateOf(selectedColor) }
+    PlatformBackHandler(enabled = true, onBack = onDismiss)
 
     BasicAlertDialog(
         onDismissRequest = onDismiss,
@@ -2828,6 +2831,7 @@ internal fun SubtitleColorDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .remoteNavigationModal()
                 .widthIn(max = 520.dp),
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -2877,12 +2881,14 @@ internal fun SubtitleFontDialog(
     onFontSelected: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    PlatformBackHandler(enabled = true, onBack = onDismiss)
     BasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .remoteNavigationModal()
                 .widthIn(max = 500.dp),
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -2965,6 +2971,7 @@ internal fun SubtitleOutlineEffectDialog(
     onEffectSelected: (SubtitleOutlineEffect) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    PlatformBackHandler(enabled = true, onBack = onDismiss)
     val effectDescriptions = mapOf(
         SubtitleOutlineEffect.OUTLINE to "Clean sharp border with adjustable thickness",
         SubtitleOutlineEffect.SOFT_GLOW to "Soft blurred glow around text edges",
@@ -2979,6 +2986,7 @@ internal fun SubtitleOutlineEffectDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .remoteNavigationModal()
                 .widthIn(max = 500.dp),
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,

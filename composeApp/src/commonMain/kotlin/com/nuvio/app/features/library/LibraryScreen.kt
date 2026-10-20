@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ViewAgenda
 import com.nuvio.app.core.ui.DisintegratingContainer
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -729,10 +730,12 @@ private fun CloudLibrarySearchField(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var isEditing by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = (modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
+        readOnly = isRemoteKeyboardNavigationActive && !isEditing,
+        modifier = (modifier.fillMaxWidth()).remoteNavigationTarget(textField = true, onEditingChange = { isEditing = it }),
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         placeholder = { Text(stringResource(Res.string.cloud_library_search_label)) },

@@ -1944,7 +1944,7 @@ fun MetaDetailsScreen(
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                     shadowElevation = 8.dp,
                                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                                 modifier = Modifier.remoteNavigationTarget(shape = RoundedCornerShape(20.dp))) {
+                                 modifier = Modifier.remoteNavigationTarget(shape = RoundedCornerShape(20.dp), onSelect = { onSnapTo(if (isPastPage1) 0 else 1) })) {
                                     AnimatedContent(
                                         targetState = isPastPage1,
                                         transitionSpec = {

@@ -42,6 +42,10 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -1206,10 +1210,12 @@ private fun SettingsSearchField(
     onQueryChange: (String) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    var isEditing by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
+        readOnly = isRemoteKeyboardNavigationActive && !isEditing,
+        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true, onEditingChange = { isEditing = it }),
         singleLine = true,
         shape = tokens.shapes.compactCard,
         leadingIcon = {

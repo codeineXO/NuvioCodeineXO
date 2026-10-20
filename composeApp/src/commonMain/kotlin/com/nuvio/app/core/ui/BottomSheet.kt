@@ -59,6 +59,7 @@ fun NuvioModalBottomSheet(
         )
     } else {
         val tokens = MaterialTheme.nuvio
+        PlatformBackHandler(enabled = true, onBack = onDismissRequest)
         ModalBottomSheet(
             onDismissRequest = onDismissRequest,
             sheetState = sheetState,

@@ -1,6 +1,11 @@
 package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
@@ -87,7 +92,7 @@ private fun SettingsCard(
             tokens.colors.borderSubtle,
         ),
     ) {
-        Column(content = content)
+        Column(modifier = Modifier.padding(vertical = 4.dp), content = content)
     }
 }
 
@@ -174,8 +179,9 @@ internal fun SettingsSidebarItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = tokens.spacing.listGap, vertical = NuvioTokens.Space.s2)
+            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Space.s10))
             .background(background, RoundedCornerShape(NuvioTokens.Space.s10))
-            .remoteNavigationTarget().clickable(onClick = onClick)
+            .clickable(onClick = onClick)
             .padding(horizontal = tokens.spacing.screenHorizontal, vertical = tokens.spacing.listGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -251,8 +257,10 @@ internal fun SettingsNavigationRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .remoteNavigationTarget().clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.lg))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = (horizontalPadding - 6.dp).coerceAtLeast(0.dp), vertical = (verticalPadding - 2.dp).coerceAtLeast(0.dp))
             .alpha(if (enabled) NuvioTokens.Opacity.visible else tokens.opacity.medium),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
@@ -331,8 +339,10 @@ internal fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .remoteNavigationTarget().clickable(enabled = enabled) { onCheckedChange(!checked) }
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.lg))
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(horizontal = (horizontalPadding - 6.dp).coerceAtLeast(0.dp), vertical = (verticalPadding - 2.dp).coerceAtLeast(0.dp)),
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -362,7 +372,7 @@ internal fun SettingsSwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            modifier = (Modifier.padding(start = 4.dp)).remoteNavigationTarget(),
+            modifier = Modifier.padding(start = 4.dp),
             colors = SwitchDefaults.colors(
                 checkedThumbColor = tokens.colors.onAccent,
                 checkedTrackColor = tokens.colors.accent,
@@ -432,6 +442,7 @@ internal fun HomescreenCatalogRow(
     onPinnedDragAttempt: () -> Unit = {},
 ) {
     val tokens = MaterialTheme.nuvio
+    var isEditing by remember { mutableStateOf(false) }
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val verticalPadding = if (isTablet) 18.dp else 16.dp
     val hapticFeedback = LocalHapticFeedback.current
@@ -439,8 +450,10 @@ internal fun HomescreenCatalogRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .remoteNavigationTarget().clickable { onExpandedChange(!expanded) }
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.lg))
+            .clickable { onExpandedChange(!expanded) }
+            .padding(horizontal = (horizontalPadding - 6.dp).coerceAtLeast(0.dp), vertical = (verticalPadding - 2.dp).coerceAtLeast(0.dp)),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
@@ -556,7 +569,8 @@ internal fun HomescreenCatalogRow(
                 OutlinedTextField(
                     value = item.customTitle,
                     onValueChange = onTitleChange,
-                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true),
+                    readOnly = isRemoteKeyboardNavigationActive && !isEditing,
+                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(textField = true, onEditingChange = { isEditing = it }),
                     singleLine = true,
                     label = { Text(stringResource(Res.string.settings_homescreen_display_name)) },
                     placeholder = { Text(item.defaultTitle) },

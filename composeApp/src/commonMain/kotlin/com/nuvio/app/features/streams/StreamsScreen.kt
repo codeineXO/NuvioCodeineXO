@@ -2,6 +2,8 @@ package com.nuvio.app.features.streams
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.LocalRemoteNavigationRole
+import com.nuvio.app.core.ui.RemoteNavigationRole
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -846,7 +848,10 @@ internal fun StreamList(
         StreamBadgeSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
 
-    CompositionLocalProvider(LocalStreamSizeLabelFormat provides formatStreamSize) {
+    CompositionLocalProvider(
+        LocalStreamSizeLabelFormat provides formatStreamSize,
+        LocalRemoteNavigationRole provides RemoteNavigationRole.StreamSource,
+    ) {
     Box(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             state = listState,

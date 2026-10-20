@@ -470,7 +470,7 @@ internal fun MainAppContent(
                 searchScrollToTopRequests.tryEmit(Unit)
             }
             AppScreenTab.Library -> libraryScrollToTopRequests.tryEmit(Unit)
-            AppScreenTab.Settings -> settingsRootActionRequests.tryEmit(Unit)
+            AppScreenTab.Settings -> Unit
         }
     }
 
@@ -1391,7 +1391,9 @@ internal fun MainAppContent(
                     .onKeyEvent { event ->
                         if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
                             if (!PlatformBackDispatcher.dispatch()) {
-                                navController.popBackStack()
+                                if (navController.canPopBackStack()) {
+                                    navController.popBackStack()
+                                }
                             }
                             true
                         } else {
@@ -1407,7 +1409,9 @@ internal fun MainAppContent(
                                         if (event.button == PointerButton.Back) {
                                             event.changes.forEach { it.consume() }
                                             if (!PlatformBackDispatcher.dispatch()) {
-                                                navController.popBackStack()
+                                                if (navController.canPopBackStack()) {
+                                                    navController.popBackStack()
+                                                }
                                             }
                                         }
                                     }

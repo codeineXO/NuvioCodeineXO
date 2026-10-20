@@ -113,10 +113,12 @@ fun SearchScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     var isSearchFocused by remember { mutableStateOf(false) }
+    var isRecentSearchesFocused by remember { mutableStateOf(false) }
 
     ScreenActivityEffect(listState) { screenActive ->
         if (!screenActive) {
             isSearchFocused = false
+            isRecentSearchesFocused = false
             focusRequester.freeFocus()
             listState.stopScroll()
         }
@@ -331,7 +333,7 @@ fun SearchScreen(
                             modifier = Modifier
                                 .focusRequester(focusRequester)
                                 .onFocusChanged {
-                                    isSearchFocused = it.isFocused
+                                    isSearchFocused = it.hasFocus
                                     if (query.isNotBlank()) if (!isDesktop) focusRequester.captureFocus()
                                 },
                             trailingContent = if (query.isNotBlank()) {
@@ -355,7 +357,8 @@ fun SearchScreen(
         }
 
         if (query.isBlank()) {
-            if (isSearchFocused && recentSearches.isNotEmpty()) {
+            val showRecent = (isSearchFocused || isRecentSearchesFocused) && recentSearches.isNotEmpty()
+            if (showRecent) {
                 if (!isDesktop) focusRequester.captureFocus()
                 item(key = "recent_searches") {
                     SearchRecentSection(
@@ -363,6 +366,7 @@ fun SearchScreen(
                         auraBackgroundEnabled = auraBackgroundEnabled,
                         onSearchPress = { recentQuery -> query = recentQuery },
                         onRemoveSearch = SearchHistoryRepository::removeSearch,
+                        modifier = Modifier.onFocusChanged { isRecentSearchesFocused = it.hasFocus },
                     )
                 }
             }

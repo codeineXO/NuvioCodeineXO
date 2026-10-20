@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.nuvio.app.core.ui.PlatformBackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -224,6 +225,7 @@ private fun HeroSourcesDropdown(
     onExpandedChange: (Boolean) -> Unit,
 ) {
     val noSourcesSelected = stringResource(Res.string.settings_homescreen_no_sources_selected)
+    PlatformBackHandler(enabled = expanded, onBack = { onExpandedChange(false) })
     SettingsGroup(isTablet = isTablet) {
         Row(
             modifier = Modifier

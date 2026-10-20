@@ -17,6 +17,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -43,55 +44,208 @@ import com.nuvio.app.isDesktop
 internal class RemoteNavigationSession {
     var keyboard by mutableStateOf(false)
     var enterHeld = false
+    var leftHeld = false
+    var leftMovedDuringHold = false
+    var arrowHeldKey: Key? = null
+    var streamSourceMovedDuringHold = false
     val rememberedFocus = mutableMapOf<Any, Int>()
     var lastFocused: FocusRequester? = null
     val targets = mutableListOf<RemoteFocusTarget>()
     var focusedTarget by mutableStateOf<RemoteFocusTarget?>(null)
     val rememberedBounds = mutableMapOf<Any, Rect>()
 
+    fun canEnterSidebar(): Boolean = !leftMovedDuringHold
+
+    fun resetHoldState() {
+        leftHeld = false
+        leftMovedDuringHold = false
+        arrowHeldKey = null
+        streamSourceMovedDuringHold = false
+    }
+
+    fun onPreviewKeyEvent(event: KeyEvent): Boolean {
+        if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && !RemoteTextEditing.isTextInputFocused) {
+            if (event.type == KeyEventType.KeyDown) {
+                if (enterHeld) return true
+                enterHeld = true
+            } else enterHeld = false
+        }
+        val isArrowKey = event.key == Key.DirectionUp || event.key == Key.DirectionDown ||
+            event.key == Key.DirectionLeft || event.key == Key.DirectionRight
+        if (isArrowKey && !RemoteTextEditing.isTextInputFocused) {
+            if (event.type == KeyEventType.KeyDown) {
+                if (arrowHeldKey != event.key) {
+                    arrowHeldKey = event.key
+                    streamSourceMovedDuringHold = false
+                }
+            } else if (event.type == KeyEventType.KeyUp) {
+                if (arrowHeldKey == event.key) {
+                    arrowHeldKey = null
+                    streamSourceMovedDuringHold = false
+                }
+            }
+        } else if (event.type == KeyEventType.KeyDown && !RemoteTextEditing.isTextInputFocused) {
+            arrowHeldKey = null
+            streamSourceMovedDuringHold = false
+        }
+        if (event.key == Key.DirectionLeft && !RemoteTextEditing.isTextInputFocused) {
+            if (event.type == KeyEventType.KeyDown) {
+                if (!leftHeld) {
+                    leftHeld = true
+                    leftMovedDuringHold = false
+                }
+            } else if (event.type == KeyEventType.KeyUp) {
+                leftHeld = false
+                leftMovedDuringHold = false
+            }
+        } else if (event.type == KeyEventType.KeyDown && event.key != Key.DirectionLeft && !RemoteTextEditing.isTextInputFocused) {
+            leftHeld = false
+            leftMovedDuringHold = false
+        }
+        return false
+    }
+
     fun restoreFocus(route: Any, manager: FocusManager): Boolean {
         val bounds = rememberedBounds[route]
-        val candidates = targets.filter { it.route == route && it.manager === manager && it.bounds?.let { bounds -> bounds.width > 0 && bounds.height > 0 } == true }
+        val candidates = targets.filter {
+            it.route == route && it.manager === manager && (
+                it.initialFocus ||
+                it.identity == rememberedFocus[route] ||
+                it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true
+            )
+        }
         return candidates.sortedBy {
             when {
                 it.identity == rememberedFocus[route] -> -1f
                 rememberedFocus[route] == null && it.initialFocus -> -0.5f
-                bounds != null -> (it.bounds!!.center - bounds.center).getDistanceSquared()
+                bounds != null && it.bounds != null -> (it.bounds!!.center - bounds.center).getDistanceSquared()
                 else -> candidates.indexOf(it).toFloat()
             }
         }.any { it.requester.requestFocus() }
     }
 
     fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager): Boolean {
-        val source = focusedTarget
+        val source = focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
+        val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
+        val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
         val moved = manager.moveFocus(direction)
-        if (moved && focusedTarget != null && focusedTarget !== source) return true
+        if (moved && focusedTarget != null && focusedTarget !== source) {
+            val destination = focusedTarget
+            val isDestinationSidebar = destination?.role == RemoteNavigationRole.Sidebar
+            val isDestinationStreamSource = destination?.role == RemoteNavigationRole.StreamSource
+            if (!isSourceSidebar && isDestinationSidebar) {
+                if (direction != FocusDirection.Left || !canEnterSidebar()) {
+                    source?.requester?.requestFocus()
+                    return false
+                }
+            }
+            if (isSourceStreamSource && !isDestinationStreamSource) {
+                if (streamSourceMovedDuringHold) {
+                    source?.requester?.requestFocus()
+                    return false
+                }
+            }
+            if (!isSourceSidebar && !isDestinationSidebar && direction == FocusDirection.Left) {
+                leftMovedDuringHold = true
+            }
+            if (isSourceStreamSource && isDestinationStreamSource) {
+                streamSourceMovedDuringHold = true
+            }
+            return true
+        }
         val origin = source?.bounds ?: return moved
         val candidates = targets.filter {
-            it.route == route && it.manager === manager && it !== source && it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true
+            it.route == route && it.manager === manager && it !== source && it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true &&
+                (!isSourceStreamSource || !streamSourceMovedDuringHold || it.role == RemoteNavigationRole.StreamSource)
         }
         val fallback = when {
-            direction == FocusDirection.Up -> candidates.filter { it.role == RemoteNavigationRole.Back && it.bounds!!.center.y < origin.center.y }
-            direction == FocusDirection.Left -> candidates.filter { it.role == RemoteNavigationRole.Back && it.bounds!!.center.x < origin.center.x }
-            source.role == RemoteNavigationRole.Back && (direction == FocusDirection.Down || direction == FocusDirection.Right) ->
-                candidates.filter { it.role != RemoteNavigationRole.Back }
-            direction == FocusDirection.Down -> candidates.filter { it.bounds!!.center.y > origin.bottom }
+            isSourceSidebar -> when (direction) {
+                FocusDirection.Up -> candidates.filter { it.role == RemoteNavigationRole.Sidebar && it.bounds!!.center.y < origin.center.y }
+                FocusDirection.Down -> candidates.filter { it.role == RemoteNavigationRole.Sidebar && it.bounds!!.center.y > origin.bottom }
+                FocusDirection.Right -> candidates.filter { it.role != RemoteNavigationRole.Sidebar }
+                else -> emptyList()
+            }
+            direction == FocusDirection.Up -> candidates.filter {
+                it.role != RemoteNavigationRole.Sidebar && it.bounds!!.center.y < origin.center.y && (
+                    it.role == RemoteNavigationRole.Back ||
+                    isSourceStreamSource ||
+                    (it.bounds!!.right > origin.left - origin.width && it.bounds!!.left < origin.right + origin.width)
+                )
+            }
+            direction == FocusDirection.Left -> candidates.filter {
+                it.bounds!!.center.x < origin.center.x && (
+                    (it.role == RemoteNavigationRole.Sidebar && !isSourceSidebar && canEnterSidebar()) ||
+                    (it.role != RemoteNavigationRole.Sidebar && kotlin.math.abs(it.bounds!!.center.y - origin.center.y) < maxOf(origin.height, it.bounds!!.height) * 2.5f)
+                )
+            }
+            direction == FocusDirection.Right -> candidates.filter {
+                it.role != RemoteNavigationRole.Sidebar && it.bounds!!.center.x > origin.center.x &&
+                    kotlin.math.abs(it.bounds!!.center.y - origin.center.y) < maxOf(origin.height, it.bounds!!.height) * 2.5f
+            }
+            source?.role == RemoteNavigationRole.Back && (direction == FocusDirection.Down || direction == FocusDirection.Right) ->
+                candidates.filter { it.role != RemoteNavigationRole.Back && it.role != RemoteNavigationRole.Sidebar }
+            direction == FocusDirection.Down -> candidates.filter {
+                it.role != RemoteNavigationRole.Sidebar && it.bounds!!.center.y > origin.center.y && it.bounds!!.bottom > origin.bottom
+            }
             else -> emptyList()
         }
-        return fallback.sortedBy {
-            if (source.role == RemoteNavigationRole.Back && it.initialFocus) -1f
-            else (it.bounds!!.center - origin.center).getDistanceSquared()
-        }.any { it.requester.requestFocus() } || moved
+        return fallback.sortedBy { candidate ->
+            if (source?.role == RemoteNavigationRole.Back && candidate.initialFocus) -1f
+            else {
+                val b = candidate.bounds!!
+                when (direction) {
+                    FocusDirection.Up -> {
+                        val dy = (origin.top - b.bottom).coerceAtLeast(0f)
+                        val dx = kotlin.math.abs(b.center.x - origin.center.x)
+                        dy * 1000f + dx
+                    }
+                    FocusDirection.Down -> {
+                        val dy = (b.top - origin.bottom).coerceAtLeast(0f)
+                        val dx = kotlin.math.abs(b.center.x - origin.center.x)
+                        dy * 1000f + dx
+                    }
+                    FocusDirection.Left -> {
+                        if (candidate.role == RemoteNavigationRole.Sidebar) {
+                            500000f + kotlin.math.abs(b.center.y - origin.center.y)
+                        } else {
+                            val dx = (origin.left - b.right).coerceAtLeast(0f)
+                            val dy = kotlin.math.abs(b.center.y - origin.center.y)
+                            dx * 1000f + dy
+                        }
+                    }
+                    FocusDirection.Right -> {
+                        val dx = (b.left - origin.right).coerceAtLeast(0f)
+                        val dy = kotlin.math.abs(b.center.y - origin.center.y)
+                        dx * 1000f + dy
+                    }
+                    else -> (b.center - origin.center).getDistanceSquared()
+                }
+            }
+        }.any { candidate ->
+            val requested = candidate.requester.requestFocus()
+            if (requested) {
+                if (!isSourceSidebar && candidate.role != RemoteNavigationRole.Sidebar && direction == FocusDirection.Left) {
+                    leftMovedDuringHold = true
+                }
+                if (isSourceStreamSource && candidate.role == RemoteNavigationRole.StreamSource) {
+                    streamSourceMovedDuringHold = true
+                }
+            }
+            requested
+        } || (moved && focusedTarget != null && focusedTarget !== source)
     }
 }
 
-internal enum class RemoteNavigationRole { Default, Back }
+internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource }
 
 internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager) {
     var bounds: Rect? = null
+    var focused by mutableStateOf(false)
 }
 
-private val LocalRemoteNavigation = staticCompositionLocalOf<RemoteNavigationSession?> { null }
+internal val LocalRemoteNavigationRole = staticCompositionLocalOf { RemoteNavigationRole.Default }
+internal val LocalRemoteFocusOutlineColor = staticCompositionLocalOf<Color?> { null }
+internal val LocalRemoteNavigation = staticCompositionLocalOf<RemoteNavigationSession?> { null }
 private val LocalRemoteRoute = staticCompositionLocalOf<Any> { Unit }
 internal val LocalRemotePlatformFocus = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalRemoteHiddenPointerIcon = staticCompositionLocalOf<PointerIcon?> { null }
@@ -210,7 +364,10 @@ internal fun RemoteNavigationHost(
     DisposableEffect(enabled) {
         session.enterHeld = false
         val handler: (Boolean) -> Boolean = { recoverFocus(it) }
-        if (enabled && isDesktop) RemoteNavigationDispatcher.register(handler) { session.keyboard = false }
+        if (enabled && isDesktop) RemoteNavigationDispatcher.register(handler) {
+            session.keyboard = false
+            session.resetHoldState()
+        }
         onDispose { RemoteNavigationDispatcher.unregister(handler) }
     }
     LaunchedEffect(enabled, restorationKey) {
@@ -236,17 +393,13 @@ internal fun RemoteNavigationHost(
                                 val event = awaitPointerEvent(PointerEventPass.Initial)
                                 if (event.type == PointerEventType.Press || event.type == PointerEventType.Scroll) {
                                     session.keyboard = false
+                                    session.resetHoldState()
                                 }
                             }
                         }
                     }
                     .onPreviewKeyEvent {
-                        if ((it.key == Key.Enter || it.key == Key.NumPadEnter) && !RemoteTextEditing.isTextInputFocused) {
-                            if (it.type == KeyEventType.KeyDown) {
-                                if (session.enterHeld) return@onPreviewKeyEvent true
-                                session.enterHeld = true
-                            } else session.enterHeld = false
-                        }
+                        if (session.onPreviewKeyEvent(it)) return@onPreviewKeyEvent true
                         if (it.type == KeyEventType.KeyDown && !RemoteTextEditing.isEditing &&
                             (remoteDirection(it.key) != null || it.key == Key.Enter || it.key == Key.NumPadEnter || it.key == Key.Tab)) session.keyboard = true
                         false
@@ -282,7 +435,9 @@ internal fun Modifier.remoteNavigationTarget(
     adjustable: Boolean = false,
     shape: Shape = RoundedCornerShape(NuvioTokens.Radius.md),
     initialFocus: Boolean = false,
-    role: RemoteNavigationRole = RemoteNavigationRole.Default,
+    role: RemoteNavigationRole? = null,
+    focusOutlineColor: Color? = null,
+    onEditingChange: ((Boolean) -> Unit)? = null,
     onSelect: (() -> Unit)? = null,
     onContext: (() -> Unit)? = null,
 ): Modifier = composed {
@@ -292,13 +447,15 @@ internal fun Modifier.remoteNavigationTarget(
     val identity = currentCompositeKeyHash
     val focusManager = LocalFocusManager.current
     val requester = remember { FocusRequester() }
-    val target = remember(route, identity, initialFocus, role, focusManager) { RemoteFocusTarget(route, identity, requester, initialFocus, role, focusManager) }
+    val effectiveRole = role ?: LocalRemoteNavigationRole.current
+    val target = remember(route, identity, initialFocus, effectiveRole, focusManager) { RemoteFocusTarget(route, identity, requester, initialFocus, effectiveRole, focusManager) }
     val bringIntoView = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
     val margin = with(LocalDensity.current) { 160.dp.toPx() }
     val longPressTimeout = LocalViewConfiguration.current.longPressTimeoutMillis
     val select by rememberUpdatedState(onSelect)
     val context by rememberUpdatedState(onContext)
+    val editingCallback by rememberUpdatedState(onEditingChange)
     var enterJob by remember { mutableStateOf<Job?>(null) }
     var held by remember { mutableStateOf(false) }
     var longSelected by remember { mutableStateOf(false) }
@@ -307,10 +464,26 @@ internal fun Modifier.remoteNavigationTarget(
     var editing by remember { mutableStateOf(false) }
     var enteringEdit by remember { mutableStateOf(false) }
     val accent = MaterialTheme.nuvio.colors.accent
-    val exitEditing = remember { { requester.freeFocus(); editing = false; session.keyboard = true } }
+    val outlineColor = focusOutlineColor ?: LocalRemoteFocusOutlineColor.current ?: accent
+    val exitEditing = remember {
+        {
+            requester.freeFocus()
+            editing = false
+            editingCallback?.invoke(false)
+            session.keyboard = true
+        }
+    }
     DisposableEffect(focused && editing) {
         if (focused && editing) RemoteTextEditing.register(exitEditing)
         onDispose { RemoteTextEditing.unregister(exitEditing) }
+    }
+    DisposableEffect(focused, editing, session.keyboard, textField) {
+        if (textField && focused && (editing || !session.keyboard)) {
+            RemoteTextEditing.focusField(target)
+        }
+        onDispose {
+            if (textField) RemoteTextEditing.blurField(target)
+        }
     }
     DisposableEffect(target) {
         session.targets += target
@@ -323,13 +496,12 @@ internal fun Modifier.remoteNavigationTarget(
         if (session.keyboard && session.rememberedFocus[route] == identity) requester.requestFocus()
     }
     LaunchedEffect(focused, session.keyboard) {
-        if (focused && session.keyboard && !initialFocus && role != RemoteNavigationRole.Back) {
+        if (focused && session.keyboard && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
             bringIntoView.bringIntoView(target.bounds?.let { Rect(0f, -margin, it.width, it.height + margin) })
         }
     }
     this
         .remoteNavigationPointerIcon()
-        .then(if (textField) Modifier.remoteTextInputGuard() else Modifier)
         .focusRequester(requester)
         .bringIntoViewRequester(bringIntoView)
         .onGloballyPositioned { coordinates ->
@@ -338,8 +510,19 @@ internal fun Modifier.remoteNavigationTarget(
             if (focused) session.rememberedBounds[route] = target.bounds!!
         }
         .onFocusChanged {
-            focused = it.isFocused
-            if (it.isFocused) {
+            val hasChildTargetFocused = it.hasFocus && session.targets.any { other ->
+                other !== target && other.route == route && (other.focused || other.requester === session.lastFocused)
+            }
+            val isTargetFocused = it.isFocused || (it.hasFocus && !hasChildTargetFocused)
+            focused = isTargetFocused
+            target.focused = isTargetFocused
+            if (isTargetFocused) {
+                session.targets.filter { other ->
+                    other !== target && other.route == route && other.focused &&
+                        other.bounds?.let { ob -> target.bounds?.let { tb -> ob.contains(tb.center) } } == true
+                }.forEach { parent ->
+                    parent.focused = false
+                }
                 session.focusedTarget = target
                 session.rememberedFocus[route] = identity
                 session.lastFocused = requester
@@ -349,7 +532,10 @@ internal fun Modifier.remoteNavigationTarget(
                 if (session.focusedTarget === target) session.focusedTarget = null
                 enterJob?.cancel()
                 held = false
-                editing = false
+                if (editing) {
+                    editing = false
+                    editingCallback?.invoke(false)
+                }
                 enteringEdit = false
             }
         }
@@ -357,12 +543,19 @@ internal fun Modifier.remoteNavigationTarget(
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
-                    if (event.type == PointerEventType.Press || event.type == PointerEventType.Scroll) session.keyboard = false
-                    if (textField && event.type == PointerEventType.Press) editing = true
+                    if (event.type == PointerEventType.Press || event.type == PointerEventType.Scroll) {
+                        session.keyboard = false
+                        session.resetHoldState()
+                    }
+                    if (textField && event.type == PointerEventType.Press) {
+                        editing = true
+                        editingCallback?.invoke(true)
+                    }
                 }
             }
         }
         .onPreviewKeyEvent { event ->
+            session.onPreviewKeyEvent(event)
             val direction = remoteDirection(event.key)
             if (!editing && event.type == KeyEventType.KeyDown &&
                 (direction != null || event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.Tab)) session.keyboard = true
@@ -383,14 +576,24 @@ internal fun Modifier.remoteNavigationTarget(
                     }
                     true
                 }
-                textField && !focused -> false
+                textField && (!focused || session.focusedTarget !== target) -> false
                 textField && event.key == Key.Escape && editing -> {
                     if (event.type == KeyEventType.KeyDown) exitEditing()
                     true
                 }
-                textField && event.key == Key.Tab -> { editing = false; false }
+                textField && event.key == Key.Tab -> {
+                    if (editing) {
+                        editing = false
+                        editingCallback?.invoke(false)
+                    }
+                    false
+                }
                 textField && (event.key == Key.Enter || event.key == Key.NumPadEnter) && (!editing || enteringEdit) -> {
-                    if (event.type == KeyEventType.KeyDown) { editing = true; enteringEdit = true }
+                    if (event.type == KeyEventType.KeyDown) {
+                        editing = true
+                        editingCallback?.invoke(true)
+                        enteringEdit = true
+                    }
                     else enteringEdit = false
                     true
                 }
@@ -421,7 +624,7 @@ internal fun Modifier.remoteNavigationTarget(
                 val width = 2.dp.toPx()
                 if (size.width > width && size.height > width) {
                     inset(width / 2) {
-                        drawOutline(shape.createOutline(size, layoutDirection, this), accent, style = Stroke(width))
+                        drawOutline(shape.createOutline(this.size, layoutDirection, this), outlineColor, style = Stroke(width))
                     }
                 }
             }
