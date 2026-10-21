@@ -80,16 +80,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -156,23 +156,49 @@ import kotlin.math.roundToInt
 private val log = Logger.withTag("SeriesContent")
 private val SeriesScrollPostersExtraGutter = 20.dp
 
-private fun Modifier.seriesRowNavigation(): Modifier = composed {
-    val focusManager = LocalFocusManager.current
-    this.onPreviewKeyEvent { event ->
-        val direction = when (event.key) {
-            Key.DirectionLeft -> FocusDirection.Left
-            Key.DirectionRight -> FocusDirection.Right
-            else -> return@onPreviewKeyEvent false
-        }
-        if (event.type == KeyEventType.KeyDown) focusManager.moveFocus(direction)
-        true
-    }.focusProperties {
-        onExit = {
-            if (requestedFocusDirection == FocusDirection.Left || requestedFocusDirection == FocusDirection.Right) {
-                cancelFocusChange()
+private class SeriesRowNavigation(
+    val modifier: Modifier,
+    val itemModifier: (Int) -> Modifier,
+)
+
+@Composable
+private fun rememberSeriesRowNavigation(state: LazyListState, items: List<*>): SeriesRowNavigation {
+    val requesters = remember(items) { List(items.size) { FocusRequester() } }
+    var focusedIndex by remember(items) { mutableStateOf(0) }
+    var moving by remember(items) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    return SeriesRowNavigation(
+        modifier = Modifier.onPreviewKeyEvent { event ->
+            val step = when (event.key) {
+                Key.DirectionLeft -> -1
+                Key.DirectionRight -> 1
+                else -> return@onPreviewKeyEvent false
             }
-        }
-    }.remoteNavigationGroup()
+            if (event.type == KeyEventType.KeyDown && !moving) {
+                val next = focusedIndex + step
+                if (next in requesters.indices) {
+                    moving = true
+                    scope.launch {
+                        try {
+                            if (state.layoutInfo.visibleItemsInfo.none { it.index == next }) {
+                                state.scrollToItem(next)
+                                withFrameNanos { }
+                            }
+                            requesters[next].requestFocus()
+                        } finally {
+                            moving = false
+                        }
+                    }
+                }
+            }
+            true
+        }.remoteNavigationGroup(),
+        itemModifier = { index ->
+            Modifier.focusRequester(requesters[index]).onFocusChanged {
+                if (it.isFocused) focusedIndex = index
+            }
+        },
+    )
 }
 
 @Composable
@@ -814,6 +840,7 @@ private fun SeasonTextChipScrollRow(
     onSeasonUp: (suspend () -> Unit)? = null,
 ) {
     val seasonListState = rememberLazyListState()
+    val rowNavigation = rememberSeriesRowNavigation(seasonListState, seasons)
     BindRemoteNavigationFocusDestination(navigationEntry) {
         val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
         val visible = seasonListState.layoutInfo.visibleItemsInfo.any { it.index == index }
@@ -898,11 +925,11 @@ private fun SeasonTextChipScrollRow(
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = Modifier.seriesRowNavigation().then(rowModifier),
+            modifier = rowNavigation.modifier.then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
-            items(seasons, key = { season -> season }) { season ->
+            itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
                 val isSelected = season == currentSeason
                 val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
                 val chipInteractionSource = remember { MutableInteractionSource() }
@@ -924,6 +951,7 @@ private fun SeasonTextChipScrollRow(
                                 },
                             )
                             .hoverable(chipInteractionSource)
+                            .then(rowNavigation.itemModifier(index))
                             .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
                             .remoteNavigationDown(onSeasonDown)
                             .remoteNavigationUp(onSeasonUp)
@@ -1091,6 +1119,7 @@ private fun SeasonPosterScrollRow(
     onLongPress: ((Int) -> Unit)?,
 ) {
     val seasonListState = rememberLazyListState()
+    val rowNavigation = rememberSeriesRowNavigation(seasonListState, seasons)
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
@@ -1170,12 +1199,13 @@ private fun SeasonPosterScrollRow(
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = Modifier.seriesRowNavigation().then(rowModifier),
+            modifier = rowNavigation.modifier.then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
-            items(seasons, key = { season -> season }) { season ->
+            itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
                 SeasonPosterButton(
+                    modifier = rowNavigation.itemModifier(index),
                     label = season.label(),
                     imageUrl = resolveSeasonPoster(
                         season = season,
@@ -1314,6 +1344,7 @@ private fun resolveSeasonPoster(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SeasonPosterButton(
+    modifier: Modifier = Modifier,
     label: String,
     imageUrl: String?,
     isSelected: Boolean,
@@ -1322,7 +1353,7 @@ private fun SeasonPosterButton(
     onLongClick: (() -> Unit)?,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .width(sizing.seasonPosterWidth)
             .posterCardClickable(onClick = onClick, onLongClick = onLongClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1415,6 +1446,7 @@ private fun EpisodeHorizontalRow(
         reduceSize = scrollPostersLayoutEnabled,
     )
     val listState = rememberLazyListState()
+    val rowNavigation = rememberSeriesRowNavigation(listState, episodes)
     var entryIndex by remember { mutableStateOf(0) }
     var hasPositioned by rememberSaveable(parentMetaId, episodes.firstOrNull()?.season) { mutableStateOf(false) }
     BindRemoteNavigationFocusDestination(firstEpisodeFocus) {
@@ -1508,7 +1540,7 @@ private fun EpisodeHorizontalRow(
     ) {
         LazyRow(
             state = listState,
-            modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.seriesRowNavigation().then(rowModifier),
+            modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.then(rowNavigation.modifier).then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
         ) {
@@ -1523,7 +1555,7 @@ private fun EpisodeHorizontalRow(
                     fallbackVideoId = episode.id,
                 )
                 EpisodeHorizontalCard(
-                    modifier = Modifier.remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
+                    modifier = rowNavigation.itemModifier(index).remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
                         .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
                     video = episode,
                     fallbackImage = fallbackImage,
