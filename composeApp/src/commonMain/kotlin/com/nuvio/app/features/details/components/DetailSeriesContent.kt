@@ -80,7 +80,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -146,6 +155,25 @@ import kotlin.math.roundToInt
 
 private val log = Logger.withTag("SeriesContent")
 private val SeriesScrollPostersExtraGutter = 20.dp
+
+private fun Modifier.seriesRowNavigation(): Modifier = composed {
+    val focusManager = LocalFocusManager.current
+    this.onPreviewKeyEvent { event ->
+        val direction = when (event.key) {
+            Key.DirectionLeft -> FocusDirection.Left
+            Key.DirectionRight -> FocusDirection.Right
+            else -> return@onPreviewKeyEvent false
+        }
+        if (event.type == KeyEventType.KeyDown) focusManager.moveFocus(direction)
+        true
+    }.focusProperties {
+        onExit = {
+            if (requestedFocusDirection == FocusDirection.Left || requestedFocusDirection == FocusDirection.Right) {
+                cancelFocusChange()
+            }
+        }
+    }.remoteNavigationGroup()
+}
 
 @Composable
 fun DetailSeriesContent(
@@ -870,7 +898,7 @@ private fun SeasonTextChipScrollRow(
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = Modifier.remoteNavigationGroup().then(rowModifier),
+            modifier = Modifier.seriesRowNavigation().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
@@ -1142,7 +1170,7 @@ private fun SeasonPosterScrollRow(
     ) {
         LazyRow(
             state = seasonListState,
-            modifier = Modifier.remoteNavigationGroup().then(rowModifier),
+            modifier = Modifier.seriesRowNavigation().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
         ) {
@@ -1480,7 +1508,7 @@ private fun EpisodeHorizontalRow(
     ) {
         LazyRow(
             state = listState,
-            modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.remoteNavigationGroup().then(rowModifier),
+            modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.seriesRowNavigation().then(rowModifier),
             contentPadding = rowContentPadding,
             horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
         ) {
