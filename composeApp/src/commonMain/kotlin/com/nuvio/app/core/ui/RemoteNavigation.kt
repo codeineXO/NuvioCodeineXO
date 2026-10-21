@@ -145,8 +145,9 @@ internal class RemoteNavigationSession {
         }.any { it.requester.requestFocus() }
     }
 
-    fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager): Boolean {
-        val source = focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
+    fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager, sourceOverride: RemoteFocusTarget? = null): Boolean {
+        val source = sourceOverride ?: focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
+        if (source?.pageBoundary != null) return movePageFocus(source, direction)
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
         val sidebarEntry = targets.firstOrNull {
@@ -266,9 +267,10 @@ internal class RemoteNavigationSession {
     }
 }
 
-internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource }
+internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource, PageSwitch }
 
 internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager, val sidebarEntry: Boolean = false) {
+    var pageBoundary: RemoteNavigationPageBoundary? = null
     var poster: PosterNavigationItem? = null
     var bounds by mutableStateOf<Rect?>(null)
     var focused by mutableStateOf(false)
@@ -491,7 +493,8 @@ internal fun Modifier.remoteNavigationTarget(
     val effectiveRole = role ?: LocalRemoteNavigationRole.current
     val target = remember(route, identity, initialFocus, effectiveRole, focusManager, sidebarEntry) { RemoteFocusTarget(route, identity, requester, initialFocus, effectiveRole, focusManager, sidebarEntry) }
     val poster = LocalPosterNavigationItem.current
-    SideEffect { target.poster = poster }
+    val pageBoundary = LocalRemoteNavigationPageBoundary.current
+    SideEffect { target.poster = poster; target.pageBoundary = pageBoundary }
     val bringIntoView = remember { BringIntoViewRequester() }
     SideEffect { target.reveal = { bringIntoView.bringIntoView() } }
     val scope = rememberCoroutineScope()
@@ -629,6 +632,14 @@ internal fun Modifier.remoteNavigationTarget(
                     if (event.type == KeyEventType.KeyDown) exitEditing()
                     true
                 }
+                pageBoundary != null && event.key == Key.Tab && !editing -> {
+                    if (event.type == KeyEventType.KeyDown) {
+                        if (!session.movePageTabFocus(target, event.isShiftPressed)) {
+                            session.revealPageFocus(target, if (event.isShiftPressed) FocusDirection.Up else FocusDirection.Down)
+                        }
+                    }
+                    true
+                }
                 textField && event.key == Key.Tab -> {
                     if (editing) {
                         editing = false
@@ -656,7 +667,8 @@ internal fun Modifier.remoteNavigationTarget(
                     session.keyboard = true
                     if (event.type == KeyEventType.KeyDown && !session.moveFocus(route, direction, focusManager) &&
                         (direction == FocusDirection.Down || direction == FocusDirection.Up)) {
-                        scope.launch {
+                        if (pageBoundary != null) session.revealPageFocus(target, direction)
+                        else scope.launch {
                             val bounds = target.bounds ?: return@launch
                             val extra = margin * 3
                             bringIntoView.bringIntoView(Rect(0f, if (direction == FocusDirection.Up) -extra else 0f,
@@ -810,7 +822,14 @@ internal fun rememberRemotePrimaryFocus(): suspend () -> Unit {
     val session = LocalRemoteNavigation.current
     val route = LocalRemoteRoute.current
     return {
-        session?.requestPrimaryFocus(route)
+        // A page replacement can dispose the initiating target's coroutine scope.
+        // Finish the transfer in the host scope that owns both pages.
+        val owner = session
+        if (owner?.navigationScope != null) {
+            owner.navigationScope?.launch { owner.requestPrimaryFocus(route) }?.join()
+        } else {
+            owner?.requestPrimaryFocus(route)
+        }
         Unit
     }
 }
@@ -827,12 +846,18 @@ private suspend fun RemoteNavigationSession.requestPrimaryFocus(route: Any): Boo
 
 /** The owning list can compose Play even when user-configured sections precede it. */
 @Composable
-internal fun BindRemotePrimaryFocusReveal(state: LazyListState, hasPlayAction: Boolean) {
+internal fun BindRemotePrimaryFocusReveal(
+    state: LazyListState,
+    hasPlayAction: Boolean,
+    beforeReveal: suspend () -> Unit = {},
+) {
+    val prepareReveal by rememberUpdatedState(beforeReveal)
     val session = LocalRemoteNavigation.current ?: return
     val route = LocalRemoteRoute.current
     val active = LocalScreenActive.current
     DisposableEffect(session, route, state, active, hasPlayAction) {
         val reveal: suspend () -> Unit = {
+            prepareReveal()
             snapshotFlow { state.layoutInfo.totalItemsCount }.first { it > 0 }
             if (session.targets.none { it.route == route && it.initialFocus && it.bounds != null }) {
                 for (index in 0 until state.layoutInfo.totalItemsCount) {
@@ -849,22 +874,34 @@ internal fun BindRemotePrimaryFocusReveal(state: LazyListState, hasPlayAction: B
 
 /** Enter the first available control below the enhanced hero, skipping text-only sections. */
 @Composable
-internal fun rememberRemoteNextSectionFocus(state: LazyListState): suspend () -> Unit {
+internal fun rememberRemoteNextSectionFocus(state: LazyListState, firstItemIndex: Int = 1, fromEnd: Boolean = false): suspend () -> Unit {
     val session = LocalRemoteNavigation.current
     val route = LocalRemoteRoute.current
     return action@{
         if (session == null) return@action
         val source = session.focusedTarget
-        for (index in 1 until state.layoutInfo.totalItemsCount) {
+        val originalIndex = state.firstVisibleItemIndex
+        val originalOffset = state.firstVisibleItemScrollOffset
+        val indices = (firstItemIndex until state.layoutInfo.totalItemsCount).let { if (fromEnd) it.reversed() else it }
+        for (index in indices) {
             state.animateScrollToItem(index)
             withFrameNanos { }
-            val candidate = session.targets.filter {
+            val candidates = session.targets.filter {
+                val viewport = it.pageBoundary?.viewportBounds
                 it.route == route && it !== source && !it.initialFocus &&
                     it.role == RemoteNavigationRole.Default &&
-                    it.bounds?.let { bounds -> bounds.top >= 0 && bounds.bottom <= state.layoutInfo.viewportEndOffset } == true
-            }.minByOrNull { it.bounds!!.top }
+                    (source?.pageBoundary == null || it.pageBoundary === source.pageBoundary) &&
+                    it.bounds?.let { bounds ->
+                        if (viewport != null) bounds.bottom > viewport.top && bounds.top < viewport.bottom
+                        else bounds.top >= 0 && bounds.bottom <= state.layoutInfo.viewportEndOffset
+                    } == true
+            }
+            val candidate = if (fromEnd) candidates.maxByOrNull { it.bounds!!.bottom }
+                else candidates.minByOrNull { it.bounds!!.top }
             if (candidate != null && candidate.requester.requestFocus()) return@action
         }
+        // A text-only secondary page should stay at its opening position.
+        if (firstItemIndex == 0) state.scrollToItem(originalIndex, originalOffset)
     }
 }
 

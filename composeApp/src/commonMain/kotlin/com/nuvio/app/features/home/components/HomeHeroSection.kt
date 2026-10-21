@@ -161,6 +161,7 @@ fun HomeHeroSection(
     listState: LazyListState? = null,
     stretchPx: () -> Float = { 0f },
     onItemClick: ((MetaPreview) -> Unit)? = null,
+    containerMode: Boolean = false,
 ) {
     if (items.isEmpty()) return
 
@@ -267,6 +268,7 @@ fun HomeHeroSection(
 
             if (isDesktop) {
                 DesktopHomeHeroFrame(
+                    containerMode = containerMode,
                     items = items,
                     pagerState = pagerState,
                     listState = listState,
@@ -634,6 +636,7 @@ private fun DesktopHomeHeroFrame(
     showOverallRatings: Boolean = true,
     coroutineScope: CoroutineScope,
     onItemClick: ((MetaPreview) -> Unit)?,
+    containerMode: Boolean = false,
 ) {
     val opacity = NuvioTokens.Opacity
     val space = NuvioTokens.Space
@@ -645,7 +648,7 @@ private fun DesktopHomeHeroFrame(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .heroBottomFeather(bottomFadeRatio = 0.42f),
+                .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
         ) {
             HeroBackgroundLayers(
                 items = items,
@@ -874,11 +877,12 @@ fun HomeHeroReservedSpace(
     modifier: Modifier = Modifier,
     viewportHeight: Dp? = null,
     mobileBelowSectionHeightHint: Dp? = null,
+    containerMode: Boolean = false,
 ) {
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .heroBottomFeather(bottomFadeRatio = 0.42f),
+            .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
     ) {
         val layout = homeHeroLayout(
             maxWidthDp = maxWidth.value,

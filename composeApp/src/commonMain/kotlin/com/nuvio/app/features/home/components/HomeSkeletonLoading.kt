@@ -37,11 +37,12 @@ fun HomeSkeletonHero(
     viewportHeight: Dp? = null,
     mobileBelowSectionHeightHint: Dp? = null,
     sectionPadding: Dp? = null,
+    containerMode: Boolean = false,
 ) {
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .heroBottomFeather(bottomFadeRatio = 0.42f),
+            .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
     ) {
         val layout = homeHeroLayout(
             maxWidthDp = maxWidth.value,

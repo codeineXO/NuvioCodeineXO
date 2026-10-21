@@ -1,5 +1,8 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
+import com.nuvio.app.core.ui.nuvio
+import androidx.compose.ui.unit.TextUnit
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
@@ -290,9 +293,6 @@ fun DetailSeriesContent(
     val currentSeason = selectedSeasonOverride
         ?.takeIf { it in groupedEpisodes }
         ?: defaultSeason
-    val firstEpisodeFocus = remember(meta.id, navigationEntry, seasons.size) {
-        if (seasons.size <= 1) navigationEntry else navigationEntry?.let { RemoteNavigationFocusDestination() }
-    }
 
     val homeCatalogSettings by remember {
         HomeCatalogSettingsRepository.snapshot()
@@ -303,6 +303,20 @@ fun DetailSeriesContent(
     val isAnime = remember(meta) {
         MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
     }
+
+    val enhancedFillerNavigation = isAnime && episodeCardStyle == MetaEpisodeCardStyle.Enhanced && navigationEntry != null
+    val seasonNavigationEntry = if (enhancedFillerNavigation) {
+        remember(meta.id) { RemoteNavigationFocusDestination() }
+    } else navigationEntry
+    val firstEpisodeFocus = remember(meta.id, navigationEntry, seasons.size, enhancedFillerNavigation) {
+        if (seasons.size <= 1 && !enhancedFillerNavigation) navigationEntry
+        else navigationEntry?.let { RemoteNavigationFocusDestination() }
+    }
+    val fillerDown: (suspend () -> Unit)? = if (enhancedFillerNavigation) ({
+        val moved = if (seasons.size > 1) seasonNavigationEntry?.requestFocus() else firstEpisodeFocus?.requestFocus()
+        if (moved != true) onEpisodesDown?.invoke()
+        Unit
+    }) else null
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val sizing = seriesContentSizing(
@@ -315,9 +329,12 @@ fun DetailSeriesContent(
             verticalArrangement = Arrangement.spacedBy(if (isDesktop) 12.dp else 16.dp),
         ) {
             SeriesSeasonSelector(
-                navigationEntry = navigationEntry,
-                onSeasonDown = firstEpisodeFocus?.let { { it.requestFocus(); Unit } },
-                onSeasonUp = onEntryUp,
+                navigationEntry = seasonNavigationEntry,
+                fillerNavigationEntry = navigationEntry.takeIf { enhancedFillerNavigation },
+                onFillerUp = onEntryUp.takeIf { enhancedFillerNavigation },
+                onFillerDown = fillerDown,
+                onSeasonDown = firstEpisodeFocus?.let { { if (!it.requestFocus()) onEpisodesDown?.invoke(); Unit } },
+                onSeasonUp = if (enhancedFillerNavigation) ({ navigationEntry?.requestFocus(); Unit }) else onEntryUp,
                 meta = meta,
                 seasons = seasons,
                 groupedEpisodes = groupedEpisodes,
@@ -365,7 +382,12 @@ fun DetailSeriesContent(
                                 )
                             }
                             if (showSingleSeasonAnimeToggles) {
-                                AnimeFillerTogglesRow(sizing = sizing)
+                                AnimeFillerTogglesRow(
+                                    sizing = sizing,
+                                    navigationEntry = navigationEntry.takeIf { enhancedFillerNavigation },
+                                    onUp = onEntryUp.takeIf { enhancedFillerNavigation },
+                                    onDown = fillerDown,
+                                )
                             }
                         }
                     }
@@ -385,7 +407,9 @@ fun DetailSeriesContent(
                         EpisodeHorizontalRow(
                             firstEpisodeFocus = firstEpisodeFocus.takeIf { seasonForContent == currentSeason },
                             onEpisodeUp = if (navigationEntry == null) null else ({
-                                if (seasons.size > 1) navigationEntry.requestFocus() else onEntryUp?.invoke()
+                                if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+                                else if (enhancedFillerNavigation) navigationEntry.requestFocus()
+                                else onEntryUp?.invoke()
                                 Unit
                             }),
                             onEpisodeDown = onEpisodesDown,
@@ -563,6 +587,9 @@ private fun SeriesSeasonSelector(
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
     navigationEntry: RemoteNavigationFocusDestination? = null,
+    fillerNavigationEntry: RemoteNavigationFocusDestination? = null,
+    onFillerUp: (suspend () -> Unit)? = null,
+    onFillerDown: (suspend () -> Unit)? = null,
     onSeasonDown: (suspend () -> Unit)? = null,
     onSeasonUp: (suspend () -> Unit)? = null,
 ) {
@@ -612,7 +639,7 @@ private fun SeriesSeasonSelector(
                 )
             }
             if (isAnime) {
-                AnimeFillerTogglesRow(sizing = sizing)
+                AnimeFillerTogglesRow(sizing = sizing, navigationEntry = fillerNavigationEntry, onUp = onFillerUp, onDown = onFillerDown)
             }
         }
 
@@ -719,6 +746,9 @@ private fun SeasonViewModeToggle(
 private fun AnimeFillerTogglesRow(
     sizing: SeriesContentSizing,
     modifier: Modifier = Modifier,
+    navigationEntry: RemoteNavigationFocusDestination? = null,
+    onUp: (suspend () -> Unit)? = null,
+    onDown: (suspend () -> Unit)? = null,
 ) {
     val isFillerEnabled by remember {
         AnimeFillerSettingsRepository.ensureLoaded()
@@ -737,7 +767,9 @@ private fun AnimeFillerTogglesRow(
         AnimeFillerChip(
             label = stringResource(Res.string.anime_filler_markers),
             isActive = isFillerEnabled,
-            sizing = sizing,
+            textSize = sizing.seasonToggleTextSize,
+            modifier = Modifier.remoteNavigationFocusDestination(navigationEntry)
+                .remoteNavigationUp(onUp).remoteNavigationDown(onDown),
             onClick = {
                 AnimeFillerSettingsRepository.setEnabled(!isFillerEnabled)
             },
@@ -745,7 +777,8 @@ private fun AnimeFillerTogglesRow(
         AnimeFillerChip(
             label = stringResource(Res.string.anime_hide_fillers),
             isActive = hideFillerEpisodes && isFillerEnabled,
-            sizing = sizing,
+            textSize = sizing.seasonToggleTextSize,
+            modifier = Modifier.remoteNavigationUp(onUp).remoteNavigationDown(onDown),
             onClick = {
                 val nextHide = !hideFillerEpisodes
                 if (nextHide && !isFillerEnabled) {
@@ -758,20 +791,27 @@ private fun AnimeFillerTogglesRow(
 }
 
 @Composable
-private fun AnimeFillerChip(
+internal fun AnimeFillerChip(
     label: String,
     isActive: Boolean,
-    sizing: SeriesContentSizing,
+    textSize: TextUnit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val highlighted = focused && isRemoteKeyboardNavigationActive
+    val focusColor = MaterialTheme.nuvio.colors.accent
     val activeColor = Color(0xFFF59E0B)
-    val backgroundColor = if (isActive) {
+    val backgroundColor = if (highlighted) {
+        focusColor.copy(alpha = 0.3f)
+    } else if (isActive) {
         activeColor.copy(alpha = 0.16f)
     } else {
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
     }
-    val borderColor = if (isActive) {
+    val borderColor = if (highlighted) {
+        focusColor
+    } else if (isActive) {
         activeColor.copy(alpha = 0.6f)
     } else {
         Color.White.copy(alpha = 0.15f)
@@ -789,6 +829,7 @@ private fun AnimeFillerChip(
 
     Box(
         modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .border(
@@ -813,7 +854,7 @@ private fun AnimeFillerChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = sizing.seasonToggleTextSize,
+                    fontSize = textSize,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                 ),
                 color = textColor,

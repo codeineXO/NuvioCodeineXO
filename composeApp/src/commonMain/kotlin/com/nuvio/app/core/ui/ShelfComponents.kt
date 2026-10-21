@@ -49,6 +49,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.composed
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -297,6 +298,13 @@ internal fun Modifier.nuvioPosterRowGutterClip(
     }
 }
 
+/** Reports rail-owned wheel events to an optional enclosing page switcher. */
+internal class HorizontalWheelEvents {
+    var handled = false
+}
+
+internal val LocalHorizontalWheelEvents = staticCompositionLocalOf<HorizontalWheelEvents?> { null }
+
 @OptIn(ExperimentalComposeUiApi::class)
 internal fun Modifier.nuvioPosterRowMouseWheelScroll(
     state: LazyListState,
@@ -305,13 +313,17 @@ internal fun Modifier.nuvioPosterRowMouseWheelScroll(
 ): Modifier {
     if (!isDesktop || !enabled) return this
 
-    return onPointerEvent(PointerEventType.Scroll) { event ->
-        val totalDelta = event.changes.fold(0f) { acc, change ->
-            acc + change.scrollDelta.y + change.scrollDelta.x
-        }
-        if (totalDelta != 0f) {
-            state.dispatchRawDelta(totalDelta * scrollStepPx)
-            event.changes.forEach { it.consume() }
+    return composed {
+        val horizontalEvents = LocalHorizontalWheelEvents.current
+        onPointerEvent(PointerEventType.Scroll) { event ->
+            val totalDelta = event.changes.fold(0f) { acc, change ->
+                acc + change.scrollDelta.y + change.scrollDelta.x
+            }
+            if (totalDelta != 0f) {
+                horizontalEvents?.handled = true
+                state.dispatchRawDelta(totalDelta * scrollStepPx)
+                event.changes.forEach { it.consume() }
+            }
         }
     }
 }
@@ -323,17 +335,21 @@ internal fun Modifier.nuvioCenterScrollConsumer(
 ): Modifier {
     if (!isDesktop || !enabled) return this
 
-    return pointerInput(enabled, headerHorizontalPadding) {
-        val headerPaddingPx = headerHorizontalPadding.toPx()
-        awaitPointerEventScope {
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Main)
-                if (event.type == PointerEventType.Scroll) {
-                    val width = size.width.toFloat()
-                    event.changes.forEach { change ->
-                        val x = change.position.x
-                        if (x >= headerPaddingPx && x <= width - headerPaddingPx) {
-                            change.consume()
+    return composed {
+        val horizontalEvents = LocalHorizontalWheelEvents.current
+        pointerInput(enabled, headerHorizontalPadding, horizontalEvents) {
+            val headerPaddingPx = headerHorizontalPadding.toPx()
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    if (event.type == PointerEventType.Scroll) {
+                        val width = size.width.toFloat()
+                        event.changes.forEach { change ->
+                            val x = change.position.x
+                            if (x >= headerPaddingPx && x <= width - headerPaddingPx) {
+                                horizontalEvents?.handled = true
+                                change.consume()
+                            }
                         }
                     }
                 }

@@ -7,11 +7,14 @@ import com.nuvio.app.core.ui.RemotePosterRow
 import com.nuvio.app.features.home.stableKey
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -25,6 +28,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -41,6 +45,8 @@ import com.nuvio.app.core.ui.LocalNuvioBottomNavigationOverlayPadding
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.NuvioScreen
+import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
@@ -1060,7 +1066,27 @@ fun HomeScreen(
         ) {
             if (showHeroSlot) {
                 item(key = "home_hero", contentType = "hero") {
+                    val heroShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
+                    val heroContainerModifier = if (useGutterLayout) {
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = effectivePosterSectionPadding,
+                                end = effectivePosterSectionPadding,
+                                top = (topChromePadding ?: 0.dp) + NuvioTokens.Space.s16,
+                                bottom = NuvioTokens.Space.s24,
+                            )
+                            .clip(heroShape)
+                            .background(MaterialTheme.nuvio.colors.surface)
+                            .nuvioCardDepth(
+                                shape = heroShape,
+                                surface = NuvioCardDepthSurface.Posters,
+                            )
+                    } else {
+                        Modifier
+                    }
                     Crossfade(
+                        modifier = heroContainerModifier,
                         targetState = showHeroSkeleton,
                         animationSpec = tween(320),
                         label = "HomeHeroLoading",
@@ -1070,7 +1096,8 @@ fun HomeScreen(
                                 modifier = Modifier,
                                 viewportHeight = maxHeight,
                                 mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                sectionPadding = if (isDesktop) homeSectionPadding else null,
+                                sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
+                                containerMode = useGutterLayout,
                             )
 
                             homeUiState.heroItems.isNotEmpty() -> HomeHeroSection(
@@ -1078,7 +1105,8 @@ fun HomeScreen(
                                 modifier = Modifier.remoteNavigationScrollToTop(homeListState),
                                 viewportHeight = maxHeight,
                                 mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                sectionPadding = if (isDesktop) homeSectionPadding else null,
+                                sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
+                                containerMode = useGutterLayout,
                                 listState = homeListState,
                                 stretchPx = { heroStretchState.stretchPx },
                                 onItemClick = onPosterClick,
@@ -1088,6 +1116,7 @@ fun HomeScreen(
                                 modifier = Modifier,
                                 viewportHeight = maxHeight,
                                 mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
+                                containerMode = useGutterLayout,
                             )
                         }
                     }

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -15,12 +14,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import com.nuvio.app.core.ui.RemoteNavigationRole
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -31,21 +28,19 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun EnhancedDetailsScrollButton(
-    listState: LazyListState,
+    secondPage: Boolean,
     onClick: (backToTop: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     onSelect: (backToTop: Boolean) -> Unit = onClick,
 ) {
-    val backToTop by remember(listState) {
-        derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }
-    }
+    val backToTop = secondPage
     val tokens = MaterialTheme.nuvio
     val shape = RoundedCornerShape(NuvioTokens.Radius.lg)
     Surface(
         onClick = { onClick(backToTop) },
         modifier = modifier
             .heightIn(min = NuvioTokens.Space.s40)
-            .remoteNavigationTarget(shape = shape, onSelect = { onSelect(backToTop) }),
+            .remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.PageSwitch, onSelect = { onSelect(backToTop) }),
         shape = shape,
         color = tokens.colors.surfacePopover,
         contentColor = tokens.colors.textPrimary,
