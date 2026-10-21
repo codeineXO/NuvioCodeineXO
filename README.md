@@ -3,7 +3,7 @@
   <h1>NuvioCodeineXO Desktop</h1>
   
   <p>
-    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, keyboard navigation (coming soon), watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback .
+    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, TV Style keyboard navigation, watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback .
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
@@ -41,7 +41,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### ✨ Visuals, UX & Settings
 * **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
-* **Keyboard Navigation:** (Coming Soon!) Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc. 
+* **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc. 
 * **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
