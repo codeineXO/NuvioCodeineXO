@@ -2,13 +2,13 @@
     <string name="playback_buffer_title">Playback buffer</string>
     <string name="playback_buffer_description">Choose how much video to keep in memory. Larger buffers help with network slowdowns but use more RAM.</string>
     <string name="playback_buffer_svp_note">SVP uses its own forward-cache limit while enabled.</string>
-    <string name="playback_buffer_balanced">Balanced</string>
+    <string name="playback_buffer_low">Low</string>
     <string name="playback_buffer_medium">Medium</string>
     <string name="playback_buffer_large">Large</string>
-    <string name="playback_buffer_balanced_description">Lower RAM usage. Best for stable connections.</string>
+    <string name="playback_buffer_low_description">Lower RAM usage. Best for stable connections.</string>
     <string name="playback_buffer_medium_description">More buffering for high-bitrate video and occasional network slowdowns.</string>
     <string name="playback_buffer_large_description">Most buffering for unstable connections. Uses the most RAM.</string>
-    <string name="playback_buffer_balanced_sizes">256 MiB forward · 64 MiB backward</string>
+    <string name="playback_buffer_low_sizes">256 MiB forward · 64 MiB backward</string>
     <string name="playback_buffer_medium_sizes">512 MiB forward · 128 MiB backward</string>
     <string name="playback_buffer_large_sizes">1 GiB forward · 256 MiB backward</string>
 </resources>

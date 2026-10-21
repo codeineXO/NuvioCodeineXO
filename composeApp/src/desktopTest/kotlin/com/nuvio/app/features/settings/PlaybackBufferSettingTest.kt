@@ -17,7 +17,7 @@ class PlaybackBufferSettingTest {
 
     @Test
     fun sharedSettingsRowsStayInSyncAndSelectionClosesPopup() {
-        var preset by mutableStateOf(PlaybackBufferPreset.BALANCED)
+        var preset by mutableStateOf(PlaybackBufferPreset.LOW)
         compose.setContent {
             NuvioTheme {
                 Column {
@@ -25,7 +25,7 @@ class PlaybackBufferSettingTest {
                 }
             }
         }
-        compose.onAllNodesWithText("Balanced").assertCountEquals(2)
+        compose.onAllNodesWithText("Low").assertCountEquals(2)
         compose.onAllNodesWithText("Playback buffer")[0].performClick()
         compose.onNodeWithText("Choose how much video to keep in memory. Larger buffers help with network slowdowns but use more RAM.").assertExists()
         compose.onNodeWithText("SVP uses its own forward-cache limit while enabled.").assertExists()

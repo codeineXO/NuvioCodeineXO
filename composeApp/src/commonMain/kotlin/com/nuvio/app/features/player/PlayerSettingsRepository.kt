@@ -114,7 +114,7 @@ data class PlayerSettingsUiState(
     val animeUpscalerEnabled: Boolean = false,
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
     val svpMotionOption: SvpMotionOption = SvpMotionOption.OFF,
-    val playbackBufferPreset: PlaybackBufferPreset = PlaybackBufferPreset.BALANCED,
+    val playbackBufferPreset: PlaybackBufferPreset = PlaybackBufferPreset.MEDIUM,
     val audioNightModeEnabled: Boolean = false,
     val showSeekbarWhileSeeking: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
@@ -208,7 +208,7 @@ object PlayerSettingsRepository {
     private var animeUpscalerEnabled = false
     private var animeUpscalerMode = AnimeUpscalerMode.FAST
     private var svpMotionOption = SvpMotionOption.OFF
-    private var playbackBufferPreset = PlaybackBufferPreset.BALANCED
+    private var playbackBufferPreset = PlaybackBufferPreset.MEDIUM
     private var audioNightModeEnabled = false
     private var showSeekbarWhileSeeking = true
     private var seekPreviewEnabled = true
@@ -308,7 +308,7 @@ object PlayerSettingsRepository {
         animeUpscalerEnabled = false
         animeUpscalerMode = AnimeUpscalerMode.FAST
         svpMotionOption = SvpMotionOption.OFF
-        playbackBufferPreset = PlaybackBufferPreset.BALANCED
+        playbackBufferPreset = PlaybackBufferPreset.MEDIUM
         audioNightModeEnabled = false
         showSeekbarWhileSeeking = true
         seekPreviewEnabled = true

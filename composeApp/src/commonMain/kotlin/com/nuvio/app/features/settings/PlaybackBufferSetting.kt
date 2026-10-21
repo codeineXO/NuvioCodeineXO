@@ -59,7 +59,7 @@ internal fun PlaybackBufferSetting(
 @Composable
 internal fun playbackBufferLabel(preset: PlaybackBufferPreset): String = stringResource(
     when (preset) {
-        PlaybackBufferPreset.BALANCED -> Res.string.playback_buffer_balanced
+        PlaybackBufferPreset.LOW -> Res.string.playback_buffer_low
         PlaybackBufferPreset.MEDIUM -> Res.string.playback_buffer_medium
         PlaybackBufferPreset.LARGE -> Res.string.playback_buffer_large
     },
@@ -81,12 +81,12 @@ internal fun PlaybackBufferDialog(
             )
             PlaybackBufferPreset.entries.forEach { preset ->
                 val description = when (preset) {
-                    PlaybackBufferPreset.BALANCED -> Res.string.playback_buffer_balanced_description
+                    PlaybackBufferPreset.LOW -> Res.string.playback_buffer_low_description
                     PlaybackBufferPreset.MEDIUM -> Res.string.playback_buffer_medium_description
                     PlaybackBufferPreset.LARGE -> Res.string.playback_buffer_large_description
                 }
                 val sizes = when (preset) {
-                    PlaybackBufferPreset.BALANCED -> Res.string.playback_buffer_balanced_sizes
+                    PlaybackBufferPreset.LOW -> Res.string.playback_buffer_low_sizes
                     PlaybackBufferPreset.MEDIUM -> Res.string.playback_buffer_medium_sizes
                     PlaybackBufferPreset.LARGE -> Res.string.playback_buffer_large_sizes
                 }

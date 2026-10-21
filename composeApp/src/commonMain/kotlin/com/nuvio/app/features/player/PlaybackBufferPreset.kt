@@ -7,13 +7,19 @@ enum class PlaybackBufferPreset(
     val backwardMiB: Int,
     val readAheadSeconds: Int,
 ) {
-    BALANCED("balanced", 0, 256, 64, 120),
+    LOW("low", 0, 256, 64, 120),
     MEDIUM("medium", 1, 512, 128, 180),
     LARGE("large", 2, 1024, 256, 300);
 
     companion object {
+        @Deprecated("Renamed to LOW", ReplaceWith("PlaybackBufferPreset.LOW"))
+        val BALANCED: PlaybackBufferPreset get() = LOW
+
         fun fromStorageKey(key: String?): PlaybackBufferPreset =
-            entries.firstOrNull { it.storageKey == key } ?: BALANCED
+            when (key) {
+                "balanced" -> LOW
+                else -> entries.firstOrNull { it.storageKey == key } ?: MEDIUM
+            }
     }
 }
 
