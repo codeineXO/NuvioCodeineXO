@@ -1458,6 +1458,13 @@ public:
         mpvApi().setProperty(mpv, "aid", MPV_FORMAT_INT64, &id);
     }
 
+    void setAudioLanguages(const std::string &languages) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        mpvApi().setPropertyString(mpv, "alang", languages.c_str());
+        mpvApi().setPropertyString(mpv, "aid", "auto");
+    }
+
     void selectSubtitleTrackId(int trackId) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
@@ -2302,11 +2309,6 @@ private:
         if (type == "controlsReady") {
             controlsWebReady.store(true);
             flushPendingControlsJsonIfReady();
-            syncControls();
-            return;
-        }
-        if (type == "selectAudioTrack") {
-            selectAudioTrackId((int)std::llround(value));
             syncControls();
             return;
         }
@@ -3329,6 +3331,12 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectAudioTrack(JNIEnv *, jobject, jlong handle, jint trackId) {
     auto player = playerFromHandle(handle);
     if (player) player->selectAudioTrackId(trackId);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setAudioLanguages(JNIEnv *env, jobject, jlong handle, jstring languages) {
+    auto player = playerFromHandle(handle);
+    if (player) player->setAudioLanguages(jstringToUtf8(env, languages));
 }
 
 extern "C" JNIEXPORT void JNICALL

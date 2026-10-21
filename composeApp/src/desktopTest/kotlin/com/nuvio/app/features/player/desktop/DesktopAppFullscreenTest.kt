@@ -6,6 +6,18 @@ import kotlin.test.assertEquals
 
 class DesktopAppFullscreenTest {
     @Test
+    fun `escape is never a fullscreen shortcut`() {
+        val source = java.awt.Canvas()
+        for (modifiers in listOf(0, java.awt.event.KeyEvent.CTRL_DOWN_MASK, java.awt.event.KeyEvent.META_DOWN_MASK)) {
+            val event = java.awt.event.KeyEvent(source, java.awt.event.KeyEvent.KEY_PRESSED, 0L,
+                modifiers, java.awt.event.KeyEvent.VK_ESCAPE, '\u001b')
+            assertEquals(false, event.isDesktopAppFullscreenShortcut())
+        }
+        assertEquals(true, java.awt.event.KeyEvent(source, java.awt.event.KeyEvent.KEY_PRESSED, 0L,
+            0, java.awt.event.KeyEvent.VK_F11, java.awt.event.KeyEvent.CHAR_UNDEFINED).isDesktopAppFullscreenShortcut())
+    }
+
+    @Test
     fun `native fullscreen exit lets the window listener restore placement`() {
         val updates = mutableListOf<String>()
 

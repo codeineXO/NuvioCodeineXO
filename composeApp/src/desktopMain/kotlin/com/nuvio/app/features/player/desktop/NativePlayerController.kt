@@ -1511,6 +1511,7 @@ internal class NativePlayerController(
     }
 
     override fun applyAudioLanguagePreferences(languages: List<String>) {
+        handle.takeIf { it != 0L }?.let { NativePlayerBridge.setAudioLanguages(it, languages.joinToString(",")) }
         val trackIndex = findPreferredAudioTrackIndex(getAudioTracks(), languages)
         if (trackIndex >= 0) selectAudioTrack(trackIndex)
     }

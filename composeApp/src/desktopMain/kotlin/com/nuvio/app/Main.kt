@@ -239,7 +239,7 @@ fun main(args: Array<String>) {
                         LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
                         LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
                     ) {
-                        App()
+                        MiddleClickAutoscroll { App() }
                     }
                 }
             } else {

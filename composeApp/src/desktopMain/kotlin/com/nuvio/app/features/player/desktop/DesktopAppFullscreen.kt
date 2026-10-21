@@ -288,6 +288,8 @@ internal fun applyMacosComposeFullscreenExit(
 
 internal fun installDesktopAppFullscreenShortcuts(window: Window): () -> Unit {
     val dispatcher = KeyEventDispatcher { event ->
+        if (KeyboardFocusManager.getCurrentKeyboardFocusManager().focusedWindow !== window) return@KeyEventDispatcher false
+        if (event.id == KeyEvent.KEY_PRESSED && com.nuvio.app.DesktopAutoscrollInput.cancel()) return@KeyEventDispatcher true
         if (!event.isDesktopAppFullscreenShortcut()) return@KeyEventDispatcher false
         toggleDesktopAppFullscreen(window)
         true
@@ -298,7 +300,7 @@ internal fun installDesktopAppFullscreenShortcuts(window: Window): () -> Unit {
     }
 }
 
-private fun KeyEvent.isDesktopAppFullscreenShortcut(): Boolean {
+internal fun KeyEvent.isDesktopAppFullscreenShortcut(): Boolean {
     if (id != KeyEvent.KEY_PRESSED) return false
     if (keyCode == KeyEvent.VK_F11) return true
     if (keyCode != KeyEvent.VK_F) return false

@@ -1,6 +1,10 @@
 package com.nuvio.app.core.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.navigationevent.DirectNavigationEventInput
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 
 @Composable
 expect fun PlatformBackHandler(
@@ -8,40 +12,32 @@ expect fun PlatformBackHandler(
     onBack: () -> Unit,
 )
 
-/**
- * Registry of active back handlers for platforms without a system back gesture
- * (desktop). The most recently registered enabled handler wins, mirroring
- * Android's BackHandler ordering.
- */
-internal class PlatformBackRegistration(
-    var enabled: Boolean,
-    var onBack: () -> Unit,
-)
-
+/** Custom desktop inputs join Compose's dispatcher; they never maintain a second handler stack. */
 internal object PlatformBackDispatcher {
-    private val registrations = mutableListOf<PlatformBackRegistration>()
-    private var fallbackHandler: (() -> Boolean)? = null
+    private val inputs = mutableListOf<() -> Unit>()
 
-    fun setFallback(handler: (() -> Boolean)?) {
-        fallbackHandler = handler
+    fun attach(input: () -> Unit): () -> Unit {
+        inputs += input
+        return { inputs.remove(input) }
     }
 
-    fun register(registration: PlatformBackRegistration) {
-        registrations.add(registration)
-    }
-
-    fun unregister(registration: PlatformBackRegistration) {
-        registrations.remove(registration)
-    }
-
-    /** Returns true when an enabled handler or fallback consumed the back request. */
     fun dispatch(): Boolean {
-        if (RemoteTextEditing.dispatchBack()) return true
-        val target = registrations.lastOrNull { it.enabled }
-        if (target != null) {
-            target.onBack()
-            return true
+        val input = inputs.lastOrNull() ?: return false
+        input()
+        return true
+    }
+}
+
+@Composable
+internal fun BindPlatformBackInput() {
+    val dispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher
+    val input = remember { DirectNavigationEventInput() }
+    DisposableEffect(dispatcher) {
+        dispatcher?.addInput(input)
+        val detach = if (dispatcher != null) PlatformBackDispatcher.attach { input.backCompleted() } else null
+        onDispose {
+            detach?.invoke()
+            dispatcher?.removeInput(input)
         }
-        return fallbackHandler?.invoke() ?: false
     }
 }

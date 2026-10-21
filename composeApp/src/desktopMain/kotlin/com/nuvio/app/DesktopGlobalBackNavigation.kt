@@ -40,15 +40,13 @@ internal fun requestDesktopComposeFocus(window: Window) {
 // AWT mouse button number for the standard Back / thumb button (XBUTTON1 on Windows)
 private const val AWT_MOUSE_BACK_BUTTON = 4
 
-/**
- * Installs global AWT listeners for desktop back navigation:
- * 1. Escape key: Intercepted via [KeyEventDispatcher] so it works regardless of which
- *    component or text field currently holds focus.
- * 2. Mouse Back button (button 4): Intercepted via [AWTEventListener] for the entire window hierarchy.
- */
+/** Recover native focus and forward mouse Back once for the window and its dialogs. */
 internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
     var lastMousePosition = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull()
     val keyDispatcher = KeyEventDispatcher { event ->
+        val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+        if (focusManager.focusedWindow !== window) return@KeyEventDispatcher false
+        if (event.id == KeyEvent.KEY_PRESSED && DesktopAutoscrollInput.cancel()) return@KeyEventDispatcher true
         if (event.id == KeyEvent.KEY_PRESSED && event.keyCode in desktopNavigationArrowKeys) {
             val manager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
             // Dialogs and the live player retain their own key handling.
@@ -68,14 +66,14 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
         val backspace = event.keyCode == KeyEvent.VK_BACK_SPACE && RemoteNavigationDispatcher.isEnabled &&
             !com.nuvio.app.core.ui.RemoteTextEditing.isTextInputFocused &&
             KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner !is javax.swing.text.JTextComponent
-        if (event.id == KeyEvent.KEY_PRESSED && (event.keyCode == KeyEvent.VK_ESCAPE || backspace)) {
-            // Check if active window belongs to our window hierarchy
-            val focusedWindow = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusedWindow
-            if (focusedWindow == null || focusedWindow === window || window.isAncestorOf(focusedWindow)) {
-                if (PlatformBackDispatcher.dispatch()) {
-                    return@KeyEventDispatcher true
-                }
-            }
+        val input = window.composeInputComponent()
+        val owner = focusManager.focusOwner
+        val composeOwnsFocus = input != null && owner != null &&
+            (owner === input || SwingUtilities.isDescendingFrom(owner, input))
+        val liveNativePlayer = owner is com.nuvio.app.features.player.desktop.NativePlayerHost && owner.isShowing
+        if (event.id == KeyEvent.KEY_PRESSED && !composeOwnsFocus && !liveNativePlayer &&
+            (event.keyCode == KeyEvent.VK_ESCAPE || backspace)) {
+            return@KeyEventDispatcher PlatformBackDispatcher.dispatch()
         }
         false
     }
@@ -93,7 +91,13 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
         if (event is MouseEvent && event.id == MouseEvent.MOUSE_PRESSED) {
             if (event.button == AWT_MOUSE_BACK_BUTTON) {
                 val sourceComponent = event.component
-                if (sourceComponent == null || sourceComponent === window || window.isAncestorOf(sourceComponent)) {
+                var sourceWindow = (sourceComponent as? Window) ?: sourceComponent?.let(SwingUtilities::getWindowAncestor)
+                while (sourceWindow != null && sourceWindow !== window) sourceWindow = sourceWindow.owner
+                if (sourceWindow === window && !event.isConsumed) {
+                    if (DesktopAutoscrollInput.cancel()) {
+                        event.consume()
+                        return@AWTEventListener
+                    }
                     if (PlatformBackDispatcher.dispatch()) {
                         event.consume()
                     }

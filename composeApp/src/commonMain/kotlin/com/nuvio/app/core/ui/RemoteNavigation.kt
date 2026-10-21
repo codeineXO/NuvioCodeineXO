@@ -379,6 +379,7 @@ internal fun RemoteNavigationHost(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    if (isDesktop) BindPlatformBackInput()
     val keyboardNavigationEnabled by com.nuvio.app.features.settings.KeyboardNavigationSettings.enabled.collectAsState()
     val navigationEnabled = enabled && isDesktop && keyboardNavigationEnabled
     val session = remember { RemoteNavigationSession() }
@@ -398,7 +399,8 @@ internal fun RemoteNavigationHost(
         }
     }
     DisposableEffect(navigationEnabled) {
-        session.keyboard = false
+        // Preserve input mode while playback temporarily disables this host. Mouse motion
+        // resets it below; returning from keyboard-launched playback restores selection.
         session.resetHoldState()
         session.enterHeld = false
         val handler: (Boolean) -> Boolean = { recoverFocus(it) }
@@ -519,6 +521,7 @@ internal fun Modifier.remoteNavigationTarget(
         if (focused && editing) RemoteTextEditing.register(exitEditing)
         onDispose { RemoteTextEditing.unregister(exitEditing) }
     }
+    if (textField) PlatformBackHandler(enabled = focused && editing, onBack = exitEditing)
     DisposableEffect(focused, editing, session.keyboard, textField) {
         if (textField && focused && (editing || !session.keyboard)) {
             RemoteTextEditing.focusField(target)

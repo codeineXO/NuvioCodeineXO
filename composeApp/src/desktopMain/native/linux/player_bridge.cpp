@@ -1929,6 +1929,14 @@ JNIEXPORT void JNICALL NP(selectAudioTrack)(JNIEnv *, jobject, jlong handle, jin
     else mpv_set_property(p->mpv, "aid", MPV_FORMAT_INT64, &id);
 }
 
+JNIEXPORT void JNICALL NP(setAudioLanguages)(JNIEnv *env, jobject, jlong handle, jstring languages) {
+    Player *p = asPlayer(handle);
+    if (!p) return;
+    std::string value = jstringToUtf8(env, languages);
+    mpv_set_property_string(p->mpv, "alang", value.c_str());
+    mpv_set_property_string(p->mpv, "aid", "auto");
+}
+
 JNIEXPORT void JNICALL NP(selectSubtitleTrack)(JNIEnv *, jobject, jlong handle, jint trackId) {
     Player *p = asPlayer(handle);
     if (!p) return;
