@@ -98,25 +98,29 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         ?: extractImdbId(targetMetaForPresence?.id)
         ?: runtime.playerMetaVideos.firstNotNullOfOrNull { extractImdbId(it.id) }
 
-    val resolvedEpisodeImdbIdForPresence = androidx.compose.runtime.produceState<String?>(
-        initialValue = null,
-        isEpisode,
-        runtime.parentMetaId,
-        resolvedImdbIdForPresence,
-        seasonNumber,
-        episodeNumber,
+    val resolvedEpisodeImdbIdForPresence = key(
+        isEpisode, runtime.parentMetaId, resolvedImdbIdForPresence, seasonNumber, episodeNumber,
     ) {
-        value = if (isEpisode && seasonNumber != null && episodeNumber != null) {
-            com.nuvio.app.features.tmdb.TmdbService.episodeImdbId(
-                seriesId = runtime.parentMetaId.ifBlank { resolvedImdbIdForPresence.orEmpty() },
-                seasonNumber = seasonNumber,
-                episodeNumber = episodeNumber,
-                fallbackImdbId = resolvedImdbIdForPresence,
-            )
-        } else {
-            null
-        }
-    }.value
+        androidx.compose.runtime.produceState<String?>(
+            initialValue = null,
+            isEpisode,
+            runtime.parentMetaId,
+            resolvedImdbIdForPresence,
+            seasonNumber,
+            episodeNumber,
+        ) {
+            value = if (isEpisode && seasonNumber != null && episodeNumber != null) {
+                com.nuvio.app.features.tmdb.TmdbService.episodeImdbId(
+                    seriesId = runtime.parentMetaId.ifBlank { resolvedImdbIdForPresence.orEmpty() },
+                    seasonNumber = seasonNumber,
+                    episodeNumber = episodeNumber,
+                    fallbackImdbId = resolvedImdbIdForPresence,
+                )
+            } else {
+                null
+            }
+        }.value
+    }
 
     LaunchedEffect(
         runtime.title,
@@ -125,7 +129,12 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         episodeNumber,
         episodeTitle,
         episodeThumbnail,
-        playbackSnapshot.isPlaying,
+        playbackSnapshot.isPaused,
+        pausedForTimelineScrub,
+        resumingAfterTimelineScrubForPresence,
+        shouldPlay,
+        playbackSnapshot.isEnded,
+        playbackSnapshot.isLoading,
         resolvedImdbIdForPresence,
         resolvedEpisodeImdbIdForPresence,
     ) {
@@ -141,7 +150,10 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 episodeLabel = episodeLabel,
                 posterUrl = runtime.poster,
                 episodeThumbnailUrl = episodeThumbnail,
-                isPlaying = playbackSnapshot.isPlaying,
+                isPlaying = playbackSnapshot.isPlayingForPresence(
+                    temporarySeekPause = shouldPlay &&
+                        (pausedForTimelineScrub || resumingAfterTimelineScrubForPresence),
+                ),
                 positionMs = playbackSnapshot.positionMs,
                 durationMs = playbackSnapshot.durationMs,
                 imdbId = resolvedImdbIdForPresence,

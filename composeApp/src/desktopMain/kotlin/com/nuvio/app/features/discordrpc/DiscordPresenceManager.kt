@@ -27,6 +27,7 @@ private data class SyncConfig(
     val mode: DiscordActivityMode,
     val activityType: DiscordActivityType,
     val fullPoster: Boolean,
+    val episodeSmallImage: Boolean,
 )
 
 // Discord activity type: 0 = Playing, 2 = Listening, 3 = Watching, 5 = Competing.
@@ -70,14 +71,16 @@ internal object DiscordPresenceManager {
                             DiscordRichPresenceRepository.activityMode,
                             DiscordRichPresenceRepository.activityType,
                             DiscordRichPresenceRepository.fullPosterEnabled,
-                        ) { snapshot, mode, type, fullPoster ->
-                            SyncConfig(snapshot, mode, type, fullPoster)
+                            DiscordRichPresenceRepository.episodeSmallImageEnabled,
+                        ) { snapshot, mode, type, fullPoster, episodeSmallImage ->
+                            SyncConfig(snapshot, mode, type, fullPoster, episodeSmallImage)
                         }.collect { config ->
                             val activity = resolveDiscordActivity(
                                 config.snapshot,
                                 config.mode,
                                 config.activityType,
                                 config.fullPoster,
+                                config.episodeSmallImage,
                             )
                             if (activity == lastActivity) return@collect
                             if (client.setActivity(activity)) {
@@ -201,16 +204,17 @@ internal fun resolveDiscordActivity(
     mode: DiscordActivityMode,
     activityType: DiscordActivityType = DiscordActivityType.WATCHING,
     fullPosterEnabled: Boolean = false,
+    episodeSmallImageEnabled: Boolean = true,
 ): DiscordActivity? {
     return when {
         mode == DiscordActivityMode.ONLY_WATCHING -> {
             if (snapshot is PresenceSnapshot.Player) {
-                snapshot.toDiscordActivity(activityType, fullPosterEnabled)
+                snapshot.toDiscordActivity(activityType, fullPosterEnabled, episodeSmallImageEnabled)
             } else {
                 null
             }
         }
-        else -> snapshot?.toDiscordActivity(activityType, fullPosterEnabled) ?: createIdleActivity(activityType)
+        else -> snapshot?.toDiscordActivity(activityType, fullPosterEnabled, episodeSmallImageEnabled) ?: createIdleActivity(activityType)
     }
 }
 
@@ -226,6 +230,7 @@ internal fun String.toDiscordEpisodeLabel(): String {
 internal fun PresenceSnapshot.toDiscordActivity(
     activityType: DiscordActivityType = DiscordActivityType.WATCHING,
     fullPosterEnabled: Boolean = false,
+    episodeSmallImageEnabled: Boolean = true,
 ): DiscordActivity = when (this) {
     is PresenceSnapshot.Tab -> {
         val (tabDetails, tabState) = when (tab) {
@@ -319,6 +324,7 @@ internal fun PresenceSnapshot.toDiscordActivity(
             details = title,
             detailsUrl = imdbUrl,
             state = playerState,
+            stateUrl = if (isSeriesContent) episodeImdbUrl else null,
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = if (isPlaying) {
                 // start + end -> Discord renders a live progress bar with time remaining.
@@ -330,7 +336,7 @@ internal fun PresenceSnapshot.toDiscordActivity(
                 null
             },
             assets = if (formattedPoster != null || episodeThumb != null) {
-                val hasSmallImage = episodeThumb != null && formattedPoster != null
+                val hasSmallImage = episodeSmallImageEnabled && episodeThumb != null && formattedPoster != null
                 DiscordActivityAssets(
                     largeImage = formattedPoster ?: episodeThumb,
                     largeText = title,

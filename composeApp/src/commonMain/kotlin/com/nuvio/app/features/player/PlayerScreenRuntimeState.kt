@@ -191,6 +191,7 @@ internal class PlayerScreenRuntime(
     var scrubbingPositionMs by mutableStateOf<Long?>(null)
     var seekPreviewTrack by mutableStateOf<com.nuvio.app.features.player.seekpreview.SeekrPreviewTrack?>(null)
     var pausedForTimelineScrub by mutableStateOf(false)
+    var resumingAfterTimelineScrubForPresence by mutableStateOf(false)
     var pausedOverlayVisible by mutableStateOf(false)
     var gestureFeedback by mutableStateOf<GestureFeedbackState?>(null)
     var liveGestureFeedback by mutableStateOf<GestureFeedbackState?>(null)

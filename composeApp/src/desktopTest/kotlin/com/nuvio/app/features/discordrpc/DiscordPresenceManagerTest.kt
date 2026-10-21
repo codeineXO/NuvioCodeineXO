@@ -1,5 +1,6 @@
 package com.nuvio.app.features.discordrpc
 
+import com.nuvio.app.features.player.isPlayingForPresence
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
@@ -13,6 +14,85 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DiscordPresenceManagerTest {
+
+    private fun episodeSnapshot() = PresenceSnapshot.Player(
+        title = "Breaking Bad",
+        episodeLabel = "S01E01 - Pilot",
+        posterUrl = "https://example.com/poster.jpg",
+        episodeThumbnailUrl = "https://example.com/episode.jpg",
+        isPlaying = true,
+        positionMs = 15_000L,
+        durationMs = 60_000L,
+        imdbId = "tt0903747",
+        episodeImdbId = "tt0959621",
+        seasonNumber = 1,
+        episodeNumber = 1,
+        isSeries = true,
+    )
+
+    @Test
+    fun episodeNameLink_matchesImageFallback_evenWhenImageHidden() {
+        val exact = episodeSnapshot()
+        val season = exact.copy(episodeImdbId = null)
+        val series = season.copy(seasonNumber = null, episodeLabel = "Pilot")
+        val search = series.copy(imdbId = null)
+        val cases = listOf(
+            exact to "https://www.imdb.com/title/tt0959621/",
+            season to "https://www.imdb.com/title/tt0903747/episodes/?season=1",
+            series to "https://www.imdb.com/title/tt0903747/",
+            search to "https://www.imdb.com/find/?q=Breaking+Bad",
+        )
+        for (type in DiscordActivityType.entries) {
+            for ((snapshot, expectedUrl) in cases) {
+                val shown = snapshot.toDiscordActivity(type)
+                val hidden = resolveDiscordActivity(
+                    snapshot, com.nuvio.app.features.settings.DiscordActivityMode.ALL,
+                    type, episodeSmallImageEnabled = false,
+                )!!
+                assertEquals(expectedUrl, shown.stateUrl)
+                assertEquals(shown.assets?.smallUrl, shown.stateUrl)
+                assertEquals(expectedUrl, hidden.stateUrl)
+                assertNull(hidden.assets?.smallImage)
+                assertNull(hidden.assets?.smallText)
+                assertNull(hidden.assets?.smallUrl)
+                assertEquals(shown.assets?.largeImage, hidden.assets?.largeImage)
+                assertEquals(shown.detailsUrl, hidden.detailsUrl)
+                val payload = json.encodeToString(hidden)
+                assertTrue(!payload.contains("small_image"))
+                assertTrue(payload.contains("state_url"))
+            }
+            val noPoster = exact.copy(posterUrl = null)
+            assertEquals(noPoster.episodeThumbnailUrl,
+                noPoster.toDiscordActivity(type, episodeSmallImageEnabled = false).assets?.largeImage)
+            val noThumb = exact.copy(episodeThumbnailUrl = null).toDiscordActivity(type)
+            assertNull(noThumb.assets?.smallImage)
+            assertEquals(exact.toDiscordActivity(type).stateUrl, noThumb.stateUrl)
+        }
+    }
+
+    @Test
+    fun presenceUsesExplicitPauseState_duringSeekingAndBuffering() {
+        val playing = com.nuvio.app.features.player.PlayerPlaybackSnapshot(
+            isLoading = false, isPlaying = true, isPaused = false,
+        )
+        val seeking = playing.copy(isLoading = true, isPlaying = false)
+        val paused = playing.copy(isPlaying = false, isPaused = true)
+        val pausedSeeking = paused.copy(isLoading = true)
+        assertTrue(paused.isPlayingForPresence(temporarySeekPause = true))
+        assertTrue(pausedSeeking.isPlayingForPresence(temporarySeekPause = true))
+        assertTrue(!pausedSeeking.isPlayingForPresence())
+        assertTrue(!paused.copy(isEnded = true).isPlayingForPresence(temporarySeekPause = true))
+        for (snapshot in listOf(playing, seeking, playing)) {
+            val activity = episodeSnapshot().copy(isPlaying = snapshot.isPlayingForPresence()).toDiscordActivity()
+            assertEquals("S01, E01: Pilot", activity.state)
+            assertNotNull(activity.timestamps)
+        }
+        for (snapshot in listOf(paused, pausedSeeking, playing.copy(isEnded = true))) {
+            val activity = episodeSnapshot().copy(isPlaying = snapshot.isPlayingForPresence()).toDiscordActivity()
+            assertEquals("S01, E01: Pilot • Paused", activity.state)
+            assertNull(activity.timestamps)
+        }
+    }
 
     private val json = discordIpcJson
 

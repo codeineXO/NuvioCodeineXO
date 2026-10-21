@@ -134,6 +134,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         scrubbingPositionMs = null
         seekPreviewTrack = null
         pausedForTimelineScrub = false
+        resumingAfterTimelineScrubForPresence = false
         liveGestureFeedback = null
         renderedGestureFeedback = null
         lockedOverlayVisible = false

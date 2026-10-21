@@ -26,6 +26,7 @@ internal fun PlayerScreenRuntime.finishTimelineScrub(positionMs: Long) {
     isScrubbingTimeline = false
     scrubbingPositionMs = positionMs.takeIf { playbackSnapshot.isLoading }
     if (pausedForTimelineScrub) {
+        resumingAfterTimelineScrubForPresence = true
         pausedForTimelineScrub = false
         playerController?.play()
     }
@@ -36,6 +37,9 @@ internal fun PlayerScreenRuntime.updatePlaybackSnapshot(
     playbackKey: PlaybackKey = activePlaybackKey,
 ): Boolean {
     if (playbackKey != activePlaybackKey) return false
+    if (!snapshot.isPaused || snapshot.isEnded || !shouldPlay) {
+        resumingAfterTimelineScrubForPresence = false
+    }
     val reported = if (partyRateNudge != null) snapshot.copy(playbackSpeed = partyBaseRate()) else snapshot
     playbackSnapshot = if (reported.durationMs <= 0L && playbackSnapshotKey == playbackKey) {
         reported.copy(durationMs = playbackSnapshot.durationMs)

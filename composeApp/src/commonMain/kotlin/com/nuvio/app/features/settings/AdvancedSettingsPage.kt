@@ -66,6 +66,8 @@ import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_t
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_sheet_title
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_watching
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_type_watching_desc
+import nuvio.composeapp.generated.resources.settings_advanced_discord_episode_small_image
+import nuvio.composeapp.generated.resources.settings_advanced_discord_episode_small_image_description
 import nuvio.composeapp.generated.resources.settings_advanced_discord_full_poster
 import nuvio.composeapp.generated.resources.settings_advanced_discord_full_poster_description
 import nuvio.composeapp.generated.resources.settings_advanced_discord_rich_presence
@@ -215,6 +217,7 @@ internal fun LazyListScope.advancedSettingsContent(
                 DiscordRichPresenceRepository.fullPosterEnabled
             }
             val fullPosterEnabled by fullPosterEnabledFlow.collectAsStateWithLifecycle()
+            val episodeSmallImageEnabled by DiscordRichPresenceRepository.episodeSmallImageEnabled.collectAsStateWithLifecycle()
             var showActivityModeSheet by rememberSaveable { mutableStateOf(false) }
             var showActivityTypeSheet by rememberSaveable { mutableStateOf(false) }
 
@@ -264,6 +267,14 @@ internal fun LazyListScope.advancedSettingsContent(
                             checked = fullPosterEnabled,
                             isTablet = isTablet,
                             onCheckedChange = DiscordRichPresenceRepository::setFullPosterEnabled,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.settings_advanced_discord_episode_small_image),
+                            description = stringResource(Res.string.settings_advanced_discord_episode_small_image_description),
+                            checked = episodeSmallImageEnabled,
+                            isTablet = isTablet,
+                            onCheckedChange = DiscordRichPresenceRepository::setEpisodeSmallImageEnabled,
                         )
                     }
                 }

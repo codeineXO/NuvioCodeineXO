@@ -522,6 +522,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 DiscordRichPresenceRepository.fullPosterEnabled
             }
             val fullPosterEnabled by fullPosterEnabledFlow.collectAsStateWithLifecycle()
+            val episodeSmallImageEnabled by DiscordRichPresenceRepository.episodeSmallImageEnabled.collectAsStateWithLifecycle()
             var showActivityModeSheet by rememberSaveable { mutableStateOf(false) }
             var showActivityTypeSheet by rememberSaveable { mutableStateOf(false) }
 
@@ -571,6 +572,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
                             checked = fullPosterEnabled,
                             isTablet = isTablet,
                             onCheckedChange = DiscordRichPresenceRepository::setFullPosterEnabled,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.settings_advanced_discord_episode_small_image),
+                            description = stringResource(Res.string.settings_advanced_discord_episode_small_image_description),
+                            checked = episodeSmallImageEnabled,
+                            isTablet = isTablet,
+                            onCheckedChange = DiscordRichPresenceRepository::setEpisodeSmallImageEnabled,
                         )
                     }
                 }

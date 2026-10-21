@@ -239,7 +239,12 @@ data class PlayerPlaybackSnapshot(
     val videoHeight: Int = 0,
     val downloadSpeedBytes: Long = 0L,
     val downloadSpeedAvailable: Boolean = false,
+    // Explicit pause state, independent of transient loading during seeks.
+    val isPaused: Boolean = !isPlaying,
 )
+
+internal fun PlayerPlaybackSnapshot.isPlayingForPresence(temporarySeekPause: Boolean = false): Boolean =
+    !isEnded && (!isPaused || temporarySeekPause)
 
 data class PlayerNowPlayingInfo(
     val title: String,

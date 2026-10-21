@@ -20,6 +20,9 @@ internal object DiscordRichPresenceRepository {
     private val _fullPosterEnabled = MutableStateFlow(false)
     val fullPosterEnabled: StateFlow<Boolean> = _fullPosterEnabled.asStateFlow()
 
+    private val _episodeSmallImageEnabled = MutableStateFlow(true)
+    val episodeSmallImageEnabled: StateFlow<Boolean> = _episodeSmallImageEnabled.asStateFlow()
+
     private var hasLoaded = false
 
     fun ensureLoaded() {
@@ -29,6 +32,7 @@ internal object DiscordRichPresenceRepository {
         _activityMode.value = DiscordRichPresenceStorage.loadActivityMode() ?: DiscordActivityMode.ALL
         _activityType.value = DiscordRichPresenceStorage.loadActivityType() ?: DiscordActivityType.WATCHING
         _fullPosterEnabled.value = DiscordRichPresenceStorage.loadFullPosterEnabled() ?: false
+        _episodeSmallImageEnabled.value = DiscordRichPresenceStorage.loadEpisodeSmallImageEnabled() ?: true
     }
 
     fun setEnabled(enabled: Boolean) {
@@ -50,6 +54,13 @@ internal object DiscordRichPresenceRepository {
         if (_activityType.value == type) return
         _activityType.value = type
         DiscordRichPresenceStorage.saveActivityType(type)
+    }
+
+    fun setEpisodeSmallImageEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (_episodeSmallImageEnabled.value == enabled) return
+        _episodeSmallImageEnabled.value = enabled
+        DiscordRichPresenceStorage.saveEpisodeSmallImageEnabled(enabled)
     }
 
     fun setFullPosterEnabled(enabled: Boolean) {

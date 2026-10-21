@@ -12,6 +12,7 @@ internal actual object DiscordRichPresenceStorage {
     private const val activityTypeKey = "activity_type"
     private const val fullPosterKey = "full_poster_enabled"
     private val store = DesktopStorage.store("nuvio_discord_rich_presence")
+    private val episodeSmallImagePreference = DiscordEpisodeSmallImagePreference(store)
 
     actual fun loadEnabled(): Boolean? =
         if (store.contains(enabledKey)) store.getBoolean(enabledKey) else null
@@ -38,10 +39,27 @@ internal actual object DiscordRichPresenceStorage {
         store.putString(activityTypeKey, type.name)
     }
 
+    actual fun loadEpisodeSmallImageEnabled(): Boolean? =
+        episodeSmallImagePreference.load()
+
+    actual fun saveEpisodeSmallImageEnabled(enabled: Boolean) {
+        episodeSmallImagePreference.save(enabled)
+    }
+
     actual fun loadFullPosterEnabled(): Boolean? =
         if (store.contains(fullPosterKey)) store.getBoolean(fullPosterKey) else null
 
     actual fun saveFullPosterEnabled(enabled: Boolean) {
         store.putBoolean(fullPosterKey, enabled)
+    }
+}
+
+internal class DiscordEpisodeSmallImagePreference(private val store: DesktopStorage.Store) {
+    private val key = "episode_small_image_enabled"
+
+    fun load(): Boolean? = store.getBoolean(key)
+
+    fun save(enabled: Boolean) {
+        store.putBoolean(key, enabled)
     }
 }
