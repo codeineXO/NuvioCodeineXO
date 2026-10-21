@@ -65,6 +65,8 @@ import nuvio.composeapp.generated.resources.settings_homescreen_section_collecti
 import nuvio.composeapp.generated.resources.settings_homescreen_section_hero
 import nuvio.composeapp.generated.resources.settings_homescreen_section_hero_sources
 import nuvio.composeapp.generated.resources.settings_homescreen_selected_count
+import nuvio.composeapp.generated.resources.settings_homescreen_always_animate_collections
+import nuvio.composeapp.generated.resources.settings_homescreen_always_animate_collections_description
 import nuvio.composeapp.generated.resources.settings_homescreen_show_hero
 import nuvio.composeapp.generated.resources.settings_homescreen_show_hero_description
 import nuvio.composeapp.generated.resources.settings_homescreen_summary
@@ -84,6 +86,7 @@ internal fun LazyListScope.homescreenSettingsContent(
     showCatalogType: Boolean,
     hideUnreleasedContent: Boolean,
     scrollPostersLayoutEnabled: Boolean = false,
+    alwaysAnimateCollectionCards: Boolean = false,
     items: List<HomeCatalogSettingsItem>,
     isCatalogLoading: Boolean,
     catalogErrorMessage: String?,
@@ -126,6 +129,14 @@ internal fun LazyListScope.homescreenSettingsContent(
                     checked = hideUnreleasedContent,
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setHideUnreleasedContent,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_homescreen_always_animate_collections),
+                    description = stringResource(Res.string.settings_homescreen_always_animate_collections_description),
+                    checked = alwaysAnimateCollectionCards,
+                    isTablet = isTablet,
+                    onCheckedChange = HomeCatalogSettingsRepository::setAlwaysAnimateCollectionCards,
                 )
                 if (isDesktop) {
                     SettingsGroupDivider(isTablet = isTablet)

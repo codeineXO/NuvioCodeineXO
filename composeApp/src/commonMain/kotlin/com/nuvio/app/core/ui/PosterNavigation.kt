@@ -165,6 +165,40 @@ internal fun RemoteNavigationSession.releasePosterDirection(direction: FocusDire
     if (pendingPosterMove?.let { it.repeated && it.direction == direction } == true) pendingPosterMove = null
 }
 
+/** Match the immediate horizontal focus transfers used by unregistered collection shelves. */
+internal fun RemoteNavigationSession.movePosterHorizontally(source: RemoteFocusTarget, direction: FocusDirection) {
+    val item = source.poster ?: return
+    val page = posterPages[item.page] ?: return
+    val row = page.rows.firstOrNull { it.key == item.row } ?: return
+    if (posterMoveJob?.isActive == true) cancelPosterNavigation()
+    val next = item.index + if (direction == FocusDirection.Right) 1 else -1
+    if (item.role != PosterTargetRole.Poster || next !in row.items.indices) {
+        enqueuePosterMove(source, direction)
+        return
+    }
+    posterRepeatingDirection = direction.takeIf { posterPressedDirection == direction }
+    posterPressedDirection = direction
+    page.lane = null
+    val target = targets.firstOrNull { it.poster?.let { p ->
+        p.page == item.page && p.row == item.row && p.index == next && p.role == PosterTargetRole.Poster
+    } == true }
+    val moved = target?.requester?.requestFocus() == true || source.manager.moveFocus(direction)
+    val destination = focusedTarget?.poster
+    if (!moved || destination == null || destination.page != item.page || destination.row != item.row || destination.index != next) {
+        source.requester.requestFocus()
+        enqueuePosterMove(source, direction)
+    } else if (direction == FocusDirection.Left && leftHeld) leftMovedDuringHold = true
+}
+
+internal suspend fun RemoteNavigationSession.revealHorizontallyFocusedPoster(item: PosterNavigationItem) {
+    // Native focus changes stay immediate; the reveal follows the latest selection
+    // and is cancelled by its focus effect when another poster is selected.
+    withFrameNanos { }
+    posterPages[item.page]?.shelves?.get(item.row)?.revealPosterEdge(
+        item.index, animated = true, fast = { posterRepeatingDirection != null }, followingIndex = null,
+    )
+}
+
 internal fun RemoteNavigationSession.enqueuePosterMove(source: RemoteFocusTarget, direction: FocusDirection) {
     val pageId = source.poster?.page ?: return
     val scope = navigationScope ?: return
@@ -241,7 +275,9 @@ private suspend fun RemoteNavigationSession.movePosterInPage(source: RemoteFocus
         val next = if (item.role == PosterTargetRole.EndAction) row.items.lastIndex
             else item.index + if (direction == FocusDirection.Right) 1 else -1
         if (next in row.items.indices) {
-            if (focusPoster(item.page, row, next, animated = true, rightLookAhead = direction == FocusDirection.Right) &&
+            val nativeHorizontal = item.page == "home" || item.page == "collection"
+            if (focusPoster(item.page, row, next, animated = !nativeHorizontal,
+                    rightLookAhead = !nativeHorizontal && direction == FocusDirection.Right) &&
                 direction == FocusDirection.Left && leftHeld) leftMovedDuringHold = true
         } else if (direction == FocusDirection.Right && item.role == PosterTargetRole.Poster) {
             targets.firstOrNull { it.poster?.let { p -> p.page == item.page && p.row == item.row && p.role == PosterTargetRole.EndAction } == true }
@@ -256,22 +292,37 @@ private suspend fun RemoteNavigationSession.movePosterInPage(source: RemoteFocus
     val lane = page.lane ?: source.bounds?.center?.x ?: return
     page.lane = lane
     val next = rows.getOrNull(rows.indexOf(row) + if (direction == FocusDirection.Down) 1 else -1) ?: return
-    revealPosterRow(item.page, next, PosterRowReveal.Centered)
-    val candidates = targets.filter { it.poster?.let { p -> p.page == item.page && p.row == next.key && p.role == PosterTargetRole.Poster } == true }
-    val shelf = page.shelves[next.key]
-    val visible = shelf?.layoutInfo?.let { layout ->
-        layout.visibleItemsInfo.filter { it.offset >= layout.viewportStartOffset && it.offset + it.size <= layout.viewportEndOffset }
-            .map { it.index }.toSet().ifEmpty { setOfNotNull(firstVisibleNavigationIndex(layout)) }
+    fun destination(): RemoteFocusTarget? {
+        val candidates = targets.filter { it.poster?.let { p -> p.page == item.page && p.row == next.key && p.role == PosterTargetRole.Poster } == true }
+        val visible = page.shelves[next.key]?.layoutInfo?.let { layout ->
+            layout.visibleItemsInfo.filter {
+                it.offset >= layout.viewportStartOffset + layout.beforeContentPadding &&
+                    it.offset + it.size <= layout.viewportEndOffset - layout.afterContentPadding
+            }.map { it.index }.toSet().ifEmpty { setOfNotNull(firstVisibleNavigationIndex(layout)) }
+        }
+        return candidates.filter { visible == null || it.poster!!.index in visible }.ifEmpty { candidates }
+            .minByOrNull { abs((it.bounds?.center?.x ?: Float.MAX_VALUE) - lane) }
     }
-    val destination = candidates.filter { visible == null || it.poster!!.index in visible }.ifEmpty { candidates }
-        .minByOrNull { abs((it.bounds?.center?.x ?: Float.MAX_VALUE) - lane) }
-    destination?.poster?.index?.let { focusPoster(item.page, next, it, animated = true) }
+    var selected: RemoteFocusTarget? = null
+    revealPosterRow(item.page, next, PosterRowReveal.Centered, onPositioned = {
+        // Show the outline as soon as the destination fits, while centering continues.
+        if (!next.grid && selected == null) {
+            val layout = page.state?.layoutInfo
+            val measured = layout?.visibleItemsInfo?.firstOrNull { it.index == next.lazyIndex }
+            if (layout != null && measured != null && measured.offset >= layout.viewportStartOffset &&
+                measured.offset + measured.size <= layout.viewportEndOffset) {
+                destination()?.let { if (it.requester.requestFocus()) selected = it }
+            }
+        }
+    })
+    (selected ?: destination())?.poster?.index?.let { focusPoster(item.page, next, it, animated = true) }
 }
 
 internal suspend fun RemoteNavigationSession.revealPosterRow(
     pageId: String,
     row: PosterNavigationRow,
     policy: PosterRowReveal = PosterRowReveal.PreservePosition,
+    onPositioned: () -> Unit = {},
 ) {
     val page = posterPages[pageId] ?: return
     val state = page.state ?: return
@@ -282,7 +333,7 @@ internal suspend fun RemoteNavigationSession.revealPosterRow(
             ?.takeIf { pageId == "search" }?.let { it.offset + it.size } ?: layout.viewportStartOffset
     val headerBottom = viewportStart(info)
     if (policy == PosterRowReveal.Centered) {
-        state.animatePosterScroll(fast = { fastPosterScroll }) { layout ->
+        state.animatePosterScroll(fast = { fastPosterScroll }, onPositioned = onPositioned) { layout ->
             val measured = layout.visibleItemsInfo.firstOrNull { it.index == row.lazyIndex }
             val nearest = measured ?: layout.visibleItemsInfo.filter { pageId != "search" || it.index != 0 }
                 .minByOrNull { abs(it.index - row.lazyIndex) }
@@ -301,6 +352,7 @@ internal suspend fun RemoteNavigationSession.revealPosterRow(
         }
         if (delta != 0) state.scrollBy(delta.toFloat())
     }
+    onPositioned()
     withFrameNanos { }
     withTimeoutOrNull(1500) {
         snapshotFlow { targets.any { it.poster?.let { p -> p.page == pageId && p.row == row.key } == true && it.bounds != null } }.first { it }
@@ -322,8 +374,7 @@ internal suspend fun RemoteNavigationSession.focusPoster(
         val target = withTimeoutOrNull(1500) {
             snapshotFlow { targets.firstOrNull { it.poster?.let { p -> p.page == pageId && p.row == row.key && p.index == index && p.role == PosterTargetRole.Poster } == true && it.bounds != null } }.first { it != null }
         }
-        withFrameNanos { }
-        val focused = target?.requester?.requestFocus() == true
+        val focused = target != null && (focusedTarget === target || target.requester.requestFocus())
         withFrameNanos { }
         withFrameNanos { }
         focused
@@ -339,24 +390,26 @@ private suspend fun LazyListState.revealPosterEdge(
 ): Boolean = withTimeoutOrNull(1500) {
     if (animated) {
         animatePosterScroll(fast) { layout ->
+            val start = layout.viewportStartOffset + layout.beforeContentPadding
+            val end = layout.viewportEndOffset - layout.afterContentPadding
             val item = layout.visibleItemsInfo.firstOrNull { it.index == index }
             val nearest = item ?: layout.visibleItemsInfo.minByOrNull { abs(it.index - index) }
             if (nearest == null) 0f else {
                 val offset = nearest.offset.toFloat() + (index - nearest.index).toFloat() * (nearest.size + layout.mainAxisItemSpacing)
                 val revealFocused = when {
-                    offset >= layout.viewportStartOffset && offset + nearest.size <= layout.viewportEndOffset -> 0f
-                    offset <= layout.viewportStartOffset && offset + nearest.size >= layout.viewportEndOffset -> 0f
-                    offset < layout.viewportStartOffset -> offset - layout.viewportStartOffset
-                    else -> offset + nearest.size - layout.viewportEndOffset
+                    offset >= start && offset + nearest.size <= end -> 0f
+                    offset <= start && offset + nearest.size >= end -> 0f
+                    offset < start -> offset - start
+                    else -> offset + nearest.size - end
                 }
-                if (followingIndex == null || nearest.size > layout.viewportEndOffset - layout.viewportStartOffset) revealFocused
+                if (followingIndex == null || nearest.size > end - start) revealFocused
                 else {
                     val following = layout.visibleItemsInfo.firstOrNull { it.index == followingIndex }
                     val followingRight = following?.let { (it.offset + it.size).toFloat() }
                         ?: (offset + nearest.size + layout.mainAxisItemSpacing + nearest.size)
-                    val revealFollowing = (followingRight - layout.viewportEndOffset).coerceAtLeast(0f)
+                    val revealFollowing = (followingRight - end).coerceAtLeast(0f)
                     // Narrow viewports prioritize the focused poster when both cannot fit.
-                    val keepFocusedVisible = (offset - layout.viewportStartOffset).coerceAtLeast(0f)
+                    val keepFocusedVisible = (offset - start).coerceAtLeast(0f)
                     maxOf(revealFocused, minOf(revealFollowing, keepFocusedVisible))
                 }
             }
@@ -365,8 +418,8 @@ private suspend fun LazyListState.revealPosterEdge(
     }
     while (true) {
         val layout = layoutInfo
-        val start = layout.viewportStartOffset
-        val end = layout.viewportEndOffset
+        val start = layout.viewportStartOffset + layout.beforeContentPadding
+        val end = layout.viewportEndOffset - layout.afterContentPadding
         val item = layout.visibleItemsInfo.firstOrNull { it.index == index }
         val delta = if (item != null) {
             when {
@@ -394,8 +447,13 @@ private suspend fun LazyListState.revealPosterEdge(
 } ?: false
 
 /** Re-measure the remaining distance each frame, so lazy measurement refines the same motion. */
-private suspend fun LazyListState.animatePosterScroll(fast: () -> Boolean, distance: (LazyListLayoutInfo) -> Float) {
+private suspend fun LazyListState.animatePosterScroll(
+    fast: () -> Boolean,
+    onPositioned: () -> Unit = {},
+    distance: (LazyListLayoutInfo) -> Float,
+) {
     fun canMove(delta: Float) = (delta < -0.5f && canScrollBackward) || (delta > 0.5f && canScrollForward)
+    onPositioned()
     if (!canMove(distance(layoutInfo))) return
     suspend fun move(durationMillis: Int, heldMillis: Int) {
         scroll {
@@ -409,12 +467,13 @@ private suspend fun LazyListState.animatePosterScroll(fast: () -> Boolean, dista
                 val eased = NuvioTokens.Motion.standard.transform(progress)
                 val fraction = if (eased >= 1f) 1f else ((eased - previous) / (1f - previous)).coerceIn(0f, 1f)
                 scrollBy(distance(layoutInfo) * fraction)
+                onPositioned()
                 previous = eased
             }
         }
     }
     // Repeats accelerate the motion already in flight as well as subsequent moves.
-    move(NuvioTokens.Motion.normalMillis, NuvioTokens.Motion.fastMillis / 2)
+    move(NuvioTokens.Motion.fastMillis, NuvioTokens.Motion.fastMillis / 2)
     withFrameNanos { }
     // Usually just subpixel rounding; late lazy measurements get a short eased tail, never a snap.
     if (canMove(distance(layoutInfo))) move(NuvioTokens.Motion.fastMillis / 2, NuvioTokens.Motion.fastMillis / 4)

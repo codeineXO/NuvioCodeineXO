@@ -622,7 +622,10 @@ private fun NuvioShelfSectionHeader(
                 text = title,
                 modifier = Modifier
                     .weight(1f)
-                    .then(if (onTitleClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onTitleClick) else Modifier),
+                    .then(if (onTitleClick != null) {
+                        (if (LocalPosterNavigationRow.current != null) Modifier.excludeFromRemoteNavigation()
+                        else Modifier.remoteNavigationTarget()).clickable(onClick = onTitleClick)
+                    } else Modifier),
                 style = MaterialTheme.typography.titleLarge,
                 color = tokens.colors.textPrimary,
                 maxLines = 1,
@@ -880,7 +883,7 @@ internal fun Modifier.desktopPosterHoverScale(
 
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
     val keyboardNavigation = isRemoteKeyboardNavigationActive
-    val animatedScale by animateFloatAsState(
+    val animatedScale = animateFloatAsState(
         targetValue = if (hovered) DesktopPosterHoverScale else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
@@ -888,10 +891,12 @@ internal fun Modifier.desktopPosterHoverScale(
         ),
         label = "desktop_poster_hover_scale",
     )
-    val scale = if (keyboardNavigation) 1f else animatedScale
+    val scale = if (keyboardNavigation) 1f else animatedScale.value
 
     val isScaling = hovered || scale != 1f
-    LocalPosterRowItemHover.current?.scale = { scale }
+    // Read animation state in the parent's draw scope so its clip is invalidated
+    // together with the scaled child layer on every animation frame.
+    LocalPosterRowItemHover.current?.scale = { if (keyboardNavigation) 1f else animatedScale.value }
 
     return this
         .then(

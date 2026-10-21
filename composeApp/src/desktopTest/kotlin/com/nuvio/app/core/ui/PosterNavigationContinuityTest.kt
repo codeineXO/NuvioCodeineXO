@@ -43,17 +43,21 @@ class PosterNavigationContinuityTest {
         entries: List<List<String>>, context: Any = Unit, loading: Boolean = false,
         onOpen: () -> Unit = {}, arrow: Boolean = false,
         posterWidths: Map<String, Int> = emptyMap(),
+        gutter: Boolean = false,
+        pageId: String = "test",
     ) {
         val state = rememberLazyListState()
-        BindPosterNavigationPage("test", context, entries.mapIndexed { i, items -> PosterNavigationRow("row$i", items, i) }, state, loading)
+        BindPosterNavigationPage(pageId, context, entries.mapIndexed { i, items -> PosterNavigationRow("row$i", items, i) }, state, loading)
         LazyColumn(state = state, verticalArrangement = Arrangement.spacedBy(20.dp)) {
             if (entries.isEmpty()) item {
                 BasicText("Retry", Modifier.testTag("retry").remoteNavigationTarget().clickable {})
             }
             entries.forEachIndexed { row, items ->
                 item(key = "row$row") {
-                    RemotePosterRow("test", "row$row") {
-                        NuvioShelfSection("Title $row", items, key = { it }, onViewAllClick = onOpen.takeIf { arrow }, onTitleClick = onOpen) { id ->
+                    RemotePosterRow(pageId, "row$row") {
+                        NuvioShelfSection("Title $row", items, key = { it }, useGutterLayout = gutter,
+                            headerHorizontalPadding = if (gutter) 24.dp else 0.dp,
+                            onViewAllClick = onOpen.takeIf { arrow }, onTitleClick = onOpen) { id ->
                             BasicText(id, Modifier.size((posterWidths[id] ?: 100).dp, 100.dp).testTag("$row-$id")
                                 .posterCardClickable(onClick = onOpen, onLongClick = null))
                         }
@@ -63,12 +67,12 @@ class PosterNavigationContinuityTest {
         }
     }
 
-    private fun shelves(entries: List<List<String>>, arrow: Boolean = false, onOpen: () -> Unit = {}, viewportWidth: Int = 500, posterWidths: Map<String, Int> = emptyMap()) {
+    private fun shelves(entries: List<List<String>>, arrow: Boolean = false, onOpen: () -> Unit = {}, viewportWidth: Int = 500, posterWidths: Map<String, Int> = emptyMap(), gutter: Boolean = false) {
         compose.setContent {
             NuvioTheme {
                 RemoteNavigationHost(true, modifier = Modifier.size(viewportWidth.dp, 600.dp).testTag("host")) {
                     session = LocalRemoteNavigation.current!!
-                    Shelves(entries, arrow = arrow, onOpen = onOpen, posterWidths = posterWidths)
+                    Shelves(entries, arrow = arrow, onOpen = onOpen, posterWidths = posterWidths, gutter = gutter)
                 }
             }
         }
@@ -113,6 +117,25 @@ class PosterNavigationContinuityTest {
         focus("0-b")
         repeat(5) { key(Key.DirectionRight) }
         compose.onNodeWithTag("0-b").assertIsFocused()
+    }
+
+    @Test fun gutterNavigationKeepsSelectedPostersInsideUnclippedViewportInBothDirections() {
+        shelves(listOf((0..12).map(Int::toString)), gutter = true)
+        focus("0-0")
+        fun assertUnclipped(index: Int) {
+            compose.onNodeWithTag("0-$index").assertIsFocused()
+            compose.runOnIdle {
+                val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
+                val item = layout.visibleItemsInfo.single { it.index == index }
+                assertTrue(item.offset >= layout.viewportStartOffset + layout.beforeContentPadding,
+                    "Poster $index enters the clipped left gutter")
+                assertTrue(item.offset + item.size <= layout.viewportEndOffset - layout.afterContentPadding,
+                    "Poster $index enters the clipped right gutter")
+            }
+        }
+        assertUnclipped(0)
+        (1..12).forEach { index -> key(Key.DirectionRight); assertUnclipped(index) }
+        (11 downTo 0).forEach { index -> key(Key.DirectionLeft); assertUnclipped(index) }
     }
 
     private fun assertFocusedAndFollowingVisible(index: Int) {
@@ -260,6 +283,70 @@ class PosterNavigationContinuityTest {
         compose.mainClock.autoAdvance = true
     }
 
+    @Test fun homeHorizontalFocusKeepsUpWithEveryKeyRepeat() = immediateHorizontalNavigation("home")
+
+    @Test fun collectionHorizontalFocusKeepsUpWithEveryKeyRepeat() = immediateHorizontalNavigation("collection")
+
+    private fun immediateHorizontalNavigation(pageId: String) {
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(true, modifier = Modifier.size(500.dp, 600.dp).testTag("host")) {
+                    session = LocalRemoteNavigation.current!!
+                    Shelves(listOf((0..20).map(Int::toString)), pageId = pageId, gutter = true)
+                }
+            }
+        }
+        focus("0-1")
+        compose.runOnIdle { session.keyboard = true }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        fun repeatKey(key: Key, index: Int) {
+            compose.onNodeWithTag("host").performKeyInput { keyDown(key) }
+            // Focus must follow input before the previous reveal animation finishes.
+            compose.mainClock.advanceTimeByFrame()
+            compose.onNodeWithTag("0-$index").assertIsFocused()
+        }
+        repeatKey(Key.DirectionRight, 2)
+        // Send repeat events through the same handler without releasing the held key.
+        compose.runOnIdle {
+            session.movePosterHorizontally(session.focusedTarget!!, FocusDirection.Right)
+            assertEquals(3, session.focusedTarget?.poster?.index)
+            session.movePosterHorizontally(session.focusedTarget!!, FocusDirection.Right)
+            assertEquals(4, session.focusedTarget?.poster?.index)
+        }
+        compose.onNodeWithTag("host").performKeyInput { keyUp(Key.DirectionRight) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithTag("0-4").assertIsFocused()
+        repeatKey(Key.DirectionLeft, 3)
+        compose.runOnIdle {
+            session.movePosterHorizontally(session.focusedTarget!!, FocusDirection.Left)
+            assertEquals(2, session.focusedTarget?.poster?.index)
+        }
+        compose.onNodeWithTag("host").performKeyInput { keyUp(Key.DirectionLeft) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithTag("0-2").assertIsFocused()
+        compose.runOnIdle {
+            assertNull(session.pendingPosterMove)
+            assertEquals(0, session.explicitFocusTransfers)
+            val layout = session.posterPages.getValue(pageId).shelves.getValue("row0").layoutInfo
+            val poster = layout.visibleItemsInfo.single { it.index == 2 }
+            assertTrue(poster.offset >= layout.viewportStartOffset + layout.beforeContentPadding)
+            assertTrue(poster.offset + poster.size <= layout.viewportEndOffset - layout.afterContentPadding)
+        }
+        // Continue beyond the initially composed cards at one repeat per frame.
+        (3..12).forEach { index ->
+            compose.runOnIdle {
+                session.movePosterHorizontally(session.focusedTarget!!, FocusDirection.Right)
+            }
+            compose.mainClock.advanceTimeByFrame()
+            compose.runOnIdle { assertEquals(index, session.focusedTarget?.poster?.index) }
+        }
+        compose.runOnIdle { session.releasePosterDirection(FocusDirection.Right) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithTag("0-12").assertIsFocused().assertIsDisplayed()
+        compose.mainClock.autoAdvance = true
+    }
+
     @Test fun holdRepeatAcceleratesAnAlreadyRunningScroll() {
         shelves(listOf((0..20).map(Int::toString)))
         focus("0-3")
@@ -321,6 +408,7 @@ class PosterNavigationContinuityTest {
         compose.mainClock.autoAdvance = false
         compose.onNodeWithTag("host").performKeyInput { pressKey(Key.DirectionDown) }
         compose.mainClock.advanceTimeBy(80)
+        compose.onNodeWithTag("3-a").assertIsFocused()
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").state!!.layoutInfo
             val row = layout.visibleItemsInfo.single { it.index == 3 }

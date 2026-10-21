@@ -830,6 +830,7 @@ internal fun settingsSearchEntries(
 
     val homeLayoutSection = stringResource(Res.string.settings_homescreen_section_hero)
     listOf(
+        PlaybackSearchRow("home-collection-animation", stringResource(Res.string.settings_homescreen_always_animate_collections), stringResource(Res.string.settings_homescreen_always_animate_collections_description)),
         PlaybackSearchRow("home-hero", stringResource(Res.string.settings_homescreen_show_hero), stringResource(Res.string.settings_homescreen_show_hero_description)),
         PlaybackSearchRow("home-catalog-type", stringResource(Res.string.layout_catalog_type), stringResource(Res.string.layout_catalog_type_sub)),
         PlaybackSearchRow("home-hide-unreleased", stringResource(Res.string.layout_hide_unreleased), stringResource(Res.string.layout_hide_unreleased_sub)),

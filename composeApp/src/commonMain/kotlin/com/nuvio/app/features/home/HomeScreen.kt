@@ -1045,7 +1045,10 @@ fun HomeScreen(
             }
             keyedEnabledHomeItems.forEach { keyed ->
                 if (keyed.value.isCollection) {
-                    if (collectionsMap[keyed.value.key] != null) index++
+                    collectionsMap[keyed.value.key]?.let { collection ->
+                        add(PosterNavigationRow(keyed.lazyKey,
+                            collection.folders.map { "collection_${collection.id}_folder_${it.id}" }, index++))
+                    }
                 } else {
                     val section = sectionsMap[keyed.value.key]
                     if (section != null && section.items.isNotEmpty()) {
@@ -1277,6 +1280,7 @@ fun HomeScreen(
                             val collection = collectionsMap[settingsItem.key]
                             if (collection != null) {
                                 item(key = keyedSettingsItem.lazyKey, contentType = "collection") {
+                                    RemotePosterRow("home", keyedSettingsItem.lazyKey) {
                                     HomeCollectionRowSection(
                                         collection = collection,
                                         modifier = Modifier.padding(bottom = sectionBottomPadding),
@@ -1286,6 +1290,7 @@ fun HomeScreen(
                                         onFolderClick = onFolderClick,
                                         onViewAllClick = onCollectionClick?.let { open -> { open(collection) } },
                                     )
+                                    }
                                 }
                             }
                         } else {

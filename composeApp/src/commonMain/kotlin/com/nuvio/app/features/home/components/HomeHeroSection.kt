@@ -73,6 +73,7 @@ import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.heroStretchHeight
 import com.nuvio.app.core.ui.ScreenActivityEffect
+import com.nuvio.app.core.ui.onViewportVisibilityChanged
 import com.nuvio.app.core.ui.heroStretchZoom
 import com.nuvio.app.core.ui.ultrawideViewportProgress
 import com.nuvio.app.features.home.MetaPreview
@@ -178,21 +179,22 @@ fun HomeHeroSection(
     }
     val coroutineScope = rememberCoroutineScope()
     var pagerDragActive by remember { mutableStateOf(false) }
+    var heroVisible by remember { mutableStateOf(false) }
     val autoScrollPage = pagerState.settledPage
 
     LaunchedEffect(pagerState) {
         pagerState.scrollToPage(pagerState.currentPage)
     }
 
-    ScreenActivityEffect(pagerState) { active ->
-        if (!active) {
+    ScreenActivityEffect(pagerState, heroVisible) { active ->
+        if (!active || !heroVisible) {
             pagerState.stopScroll(MutatePriority.PreventUserInput)
             pagerState.scrollToPage(pagerState.currentPage)
         }
     }
 
-    ScreenActivityEffect(autoScrollPage, items.size) { active ->
-        if (!active || items.size <= 1) return@ScreenActivityEffect
+    ScreenActivityEffect(autoScrollPage, items.size, heroVisible) { active ->
+        if (!active || !heroVisible || items.size <= 1) return@ScreenActivityEffect
         delay(HERO_AUTO_SCROLL_INTERVAL_MS)
         while (pagerState.isScrollInProgress) {
             delay(100L)
@@ -235,6 +237,7 @@ fun HomeHeroSection(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
+            .onViewportVisibilityChanged { heroVisible = it }
             .homeHeroPagerGesture(
                 pagerState = pagerState,
                 itemCount = items.size,

@@ -1,6 +1,9 @@
 package com.nuvio.app.features.collection
 
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.BindPosterNavigationPage
+import com.nuvio.app.core.ui.PosterNavigationRow
+import com.nuvio.app.core.ui.RemotePosterRow
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -170,6 +173,7 @@ fun FolderDetailScreen(
                         includeStatusBarPadding = false,
                         topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 32.dp,
                         onBack = onBack,
+                        backButtonKeyboardNavigationEnabled = false,
                     )
                 }
 
@@ -539,6 +543,14 @@ private fun RowsContent(
         } else {
             18
         }
+        val keyedSections = sections.withDuplicateSafeLazyKeys { it.key }
+        BindPosterNavigationPage(
+            "collection", uiState.collectionTitle to uiState.folder?.id,
+            keyedSections.mapIndexed { index, section ->
+                PosterNavigationRow(section.lazyKey, section.value.items.map { it.stableKey() }, index)
+            },
+            listState, uiState.isLoading,
+        )
         LazyColumn(
             state = listState,
             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
@@ -548,10 +560,11 @@ private fun RowsContent(
             verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = sections.withDuplicateSafeLazyKeys { it.key },
+                items = keyedSections,
                 key = { it.lazyKey },
             ) { keyedSection ->
                 val section = keyedSection.value
+                RemotePosterRow("collection", keyedSection.lazyKey) {
                 HomeCatalogRowSection(
                     section = section,
                     entries = if (isDesktop) {
@@ -572,6 +585,7 @@ private fun RowsContent(
                     watchedKeys = watchedKeys,
                     onPosterClick = { onPosterClick(it) },
                 )
+                }
             }
         }
         NuvioDesktopVerticalScrollbar(

@@ -87,6 +87,7 @@ fun CollectionManagementScreen(
             NuvioScreenHeader(
                 title = stringResource(Res.string.collections_header),
                 onBack = onBack,
+                backButtonKeyboardNavigationEnabled = false,
             ) {
                 IconButton(onClick = {
                     val json = CollectionRepository.exportToJson()

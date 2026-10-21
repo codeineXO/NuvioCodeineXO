@@ -219,36 +219,20 @@ internal actual fun CollectionCardRemoteImage(
     contentScale: ContentScale,
     animateIfPossible: Boolean,
 ) {
-    // Collection banners always animate once visible - no hover required.
     val shouldAnimate = animateIfPossible
-
     var composeBitmap by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
-
-    // Prefetch as soon as the card becomes visible (not on hover) so the codec is already
-    // downloaded/decoded and cached by the time animation starts - playback then reads
-    // straight from gifCodecCache with zero network/decode delay.
-    if (animateIfPossible) {
-        LaunchedEffect(imageUrl) {
-            if (synchronized(gifCodecCache) { !gifCodecCache.containsKey(imageUrl) }) {
-                loadDesktopGifCodec(imageUrl)
-            }
-        }
-    }
+    var frameIndex by remember(imageUrl) { mutableStateOf(0) }
 
     if (shouldAnimate) {
         var codecHolder by remember(imageUrl) {
             mutableStateOf(synchronized(gifCodecCache) { gifCodecCache[imageUrl] })
         }
-
         LaunchedEffect(imageUrl) {
-            if (codecHolder == null && synchronized(gifCodecCache) { !gifCodecCache.containsKey(imageUrl) }) {
-                codecHolder = loadDesktopGifCodec(imageUrl)
-            }
+            if (codecHolder == null) codecHolder = loadDesktopGifCodec(imageUrl)
         }
 
         val currentHolder = codecHolder
         if (currentHolder != null && currentHolder.frameDelaysMs.isNotEmpty()) {
-            var frameIndex by remember(imageUrl) { mutableStateOf(0) }
 
             // Allocate ONLY ONE single reusable Skia Bitmap for this card while animating
             val singleBitmap = remember(imageUrl, currentHolder) {
@@ -276,6 +260,7 @@ internal actual fun CollectionCardRemoteImage(
 
             DisposableEffect(singleBitmap, fullBitmap) {
                 onDispose {
+                    composeBitmap = null
                     try {
                         singleBitmap?.close()
                     } catch (_: Exception) {}
@@ -317,16 +302,10 @@ internal actual fun CollectionCardRemoteImage(
                 }
             }
         }
-    } else {
-        composeBitmap = null
     }
 
     val context = LocalPlatformContext.current
-    val displayImageUrl = if (animateIfPossible) {
-        staticImageUrl?.takeIf { it.isNotBlank() } ?: imageUrl
-    } else {
-        imageUrl
-    }
+    val displayImageUrl = staticImageUrl?.takeIf { it.isNotBlank() } ?: imageUrl
     val request = remember(context, displayImageUrl) {
         ImageRequest.Builder(context)
             .data(displayImageUrl)
@@ -345,7 +324,7 @@ internal actual fun CollectionCardRemoteImage(
             filterQuality = FilterQuality.High,
         )
 
-        val animatedFrame = composeBitmap
+        val animatedFrame = composeBitmap.takeIf { shouldAnimate }
         if (animatedFrame != null) {
             Image(
                 bitmap = animatedFrame,

@@ -545,7 +545,14 @@ internal fun Modifier.remoteNavigationTarget(
     }
     LaunchedEffect(focused, session.keyboard) {
         if (focused && session.keyboard && !session.explicitFocusTransfer && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
-            bringIntoView.bringIntoView(target.bounds?.let { Rect(0f, -margin, it.width, it.height + margin) })
+            if (poster?.role == PosterTargetRole.Poster && (poster.page == "home" || poster.page == "collection")) {
+                // Let native focus scrolling retain its velocity across key repeats.
+                // Correct the padded edge only after that reveal completes.
+                bringIntoView.bringIntoView()
+                session.revealHorizontallyFocusedPoster(poster)
+            } else {
+                bringIntoView.bringIntoView(target.bounds?.let { Rect(0f, -margin, it.width, it.height + margin) })
+            }
         }
     }
     this
@@ -658,6 +665,11 @@ internal fun Modifier.remoteNavigationTarget(
                 }
                 textField && editing -> false
                 adjustable && (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) -> false
+                (direction == FocusDirection.Left || direction == FocusDirection.Right) &&
+                    poster != null && (poster.page == "home" || poster.page == "collection") -> {
+                    if (event.type == KeyEventType.KeyDown) session.movePosterHorizontally(target, direction)
+                    true
+                }
                 direction != null && (session.handlesPosterDirection(target.poster, direction) ||
                     (poster != null && session.posterMovePage == poster.page && session.posterMoveJob?.isActive == true)) -> {
                     if (event.type == KeyEventType.KeyDown) session.enqueuePosterMove(target, direction)

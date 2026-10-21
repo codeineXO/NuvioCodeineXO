@@ -1,5 +1,7 @@
 package com.nuvio.app.features.home.components
 
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,6 +17,16 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.focus.onFocusChanged
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
+import com.nuvio.app.core.ui.onViewportVisibilityChanged
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -110,6 +122,14 @@ internal fun CollectionFolderCard(
     onClick: (() -> Unit)? = null,
     fillMaxWidth: Boolean = false,
 ) {
+    val animationSettings by HomeCatalogSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsRemoteHoveredAsState()
+    var focused by remember { mutableStateOf(false) }
+    var imageVisible by remember { mutableStateOf(false) }
+    val shouldPlay = animateGifs && LocalScreenActive.current && imageVisible &&
+        (animationSettings.alwaysAnimateCollectionCards || hovered ||
+            (focused && isRemoteKeyboardNavigationActive))
     val posterCardStyle = rememberPosterCardStyleUiState()
     val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
     val isLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled
@@ -134,6 +154,8 @@ internal fun CollectionFolderCard(
 
     Column(
         modifier = Modifier
+            .hoverable(interactionSource)
+            .onFocusChanged { focused = it.hasFocus }
             .posterCardClickable(onClick = onClick, onLongClick = null)
             .then(modifier)
             .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(cardWidth)),
@@ -145,6 +167,7 @@ internal fun CollectionFolderCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
+                .onViewportVisibilityChanged { imageVisible = it }
                 .nuvioCardDepth(
                     shape = shapeCorner,
                     surface = NuvioCardDepthSurface.Posters,
@@ -169,9 +192,8 @@ internal fun CollectionFolderCard(
                             contentDescription = folder.title,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            animateIfPossible = animateGifs &&
-                                isAnimatedCollectionFolderImage(folder, imageUrl) &&
-                                LocalScreenActive.current,
+                            animateIfPossible = shouldPlay &&
+                                isAnimatedCollectionFolderImage(folder, imageUrl),
                         )
                     }
                     !folder.coverEmoji.isNullOrBlank() -> {

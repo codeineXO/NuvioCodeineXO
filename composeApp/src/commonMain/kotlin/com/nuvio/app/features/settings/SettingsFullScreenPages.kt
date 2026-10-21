@@ -88,6 +88,7 @@ fun HomescreenSettingsScreen(
                 showCatalogType = homescreenSettingsUiState.showCatalogType,
                 hideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
                 scrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
+                alwaysAnimateCollectionCards = homescreenSettingsUiState.alwaysAnimateCollectionCards,
                 items = homescreenSettingsUiState.items,
                 isCatalogLoading = addonManifestsLoading,
                 catalogErrorMessage = addonManifestErrorMessage,

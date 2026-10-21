@@ -49,6 +49,7 @@ fun CollectionFolderBrowserScreen(
         NuvioScreenHeader(
             title = collection?.title ?: title,
             onBack = onBack,
+            backButtonKeyboardNavigationEnabled = false,
         )
         val folders = collection?.folders.orEmpty()
         if (folders.isEmpty()) {

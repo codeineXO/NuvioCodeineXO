@@ -2612,4 +2612,6 @@
     <string name="settings_homescreen_scroll_posters_layout_description">Scroll posters with scroll wheel when cursor is hovering over poster</string>
     <string name="settings_keyboard_navigation">Keyboard navigation</string>
     <string name="settings_keyboard_navigation_description">Use Arrow keys, Backspace, Enter and Esc to navigate the app</string>
+    <string name="settings_homescreen_always_animate_collections">Always animate collection cards</string>
+    <string name="settings_homescreen_always_animate_collections_description">Animate visible collection cards without hovering or focusing them.</string>
 </resources>

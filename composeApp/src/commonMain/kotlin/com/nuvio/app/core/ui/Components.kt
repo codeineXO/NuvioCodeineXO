@@ -163,6 +163,7 @@ fun NuvioScreenHeader(
     includeStatusBarPadding: Boolean = true,
     topPadding: Dp? = null,
     onBack: (() -> Unit)? = null,
+    backButtonKeyboardNavigationEnabled: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val tokens = MaterialTheme.nuvio
@@ -203,7 +204,9 @@ fun NuvioScreenHeader(
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
                 if (onBack != null) {
-                    IconButton(onClick = onBack, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                    IconButton(onClick = onBack, modifier = if (backButtonKeyboardNavigationEnabled) {
+                        Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)
+                    } else Modifier.excludeFromRemoteNavigation()) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),
