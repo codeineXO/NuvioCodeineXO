@@ -3597,6 +3597,21 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_audioTracksJson(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_stringProperty(
+    JNIEnv *env,
+    jobject /* bridge */,
+    jlong handle,
+    jstring name
+) {
+    if (handle == 0 || name == nullptr) return env->NewStringUTF("");
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    const char *chars = env->GetStringUTFChars(name, nullptr);
+    NSString *value = [player stringProperty:chars fallback:@""];
+    env->ReleaseStringUTFChars(name, chars);
+    return env->NewStringUTF(value.UTF8String);
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_subtitleTracksJson(
     JNIEnv *env,
     jobject /* bridge */,

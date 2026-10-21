@@ -35,6 +35,8 @@ const episode = document.getElementById("episode");
 const playbackMetadata = document.querySelector(".metadata");
 const streamTitle = document.getElementById("streamTitle");
 const providerName = document.getElementById("providerName");
+const playerBadges = document.getElementById("playerBadges");
+const codeinePlayerBadges = document.getElementById("codeinePlayerBadges");
 const resizeLabel = document.getElementById("resizeLabel");
 const speedLabel = document.getElementById("speedLabel");
 const subtitlesLabel = document.getElementById("subtitlesLabel");
@@ -1393,6 +1395,38 @@ const setText = (element, text) => {
   if (element.textContent !== clean) element.textContent = clean;
   const isHidden = !clean;
   if (element.hidden !== isHidden) element.hidden = isHidden;
+};
+
+let playerBadgesSignature = "";
+
+const renderPlayerBadges = () => {
+  const badges = Array.isArray(state.badges) ? state.badges : [];
+  const signature = JSON.stringify(badges);
+  if (signature === playerBadgesSignature) return;
+  playerBadgesSignature = signature;
+
+  const populate = (container) => {
+    if (!container) return;
+    container.textContent = "";
+    badges.forEach((badge) => {
+      const chip = document.createElement("span");
+      chip.className = "player-badge";
+      if (String(badge.tagStyle || "").toLowerCase() === "filled" && badge.tagColor) chip.style.background = badge.tagColor;
+      if (badge.borderColor) chip.style.borderColor = badge.borderColor;
+      const image = document.createElement("img");
+      image.alt = badge.name || "";
+      image.draggable = false;
+      image.addEventListener("error", () => chip.remove());
+      image.addEventListener("load", () => { container.hidden = !container.childElementCount; });
+      image.src = badge.imageUrl;
+      chip.appendChild(image);
+      container.appendChild(chip);
+    });
+    container.hidden = badges.length === 0;
+  };
+
+  populate(playerBadges);
+  populate(codeinePlayerBadges);
 };
 
 const setVisible = (element, visible) => {
@@ -3788,6 +3822,7 @@ const renderChrome = () => {
   setText(episode, state.episodeText);
   setText(streamTitle, state.streamTitle);
   setText(providerName, state.providerName);
+  renderPlayerBadges();
   resizeLabel.textContent = state.resizeModeLabel || "Fit";
   speedLabel.textContent = state.playbackSpeedLabel || "1x";
   subtitlesLabel.textContent = state.subtitlesLabel || "Subs";

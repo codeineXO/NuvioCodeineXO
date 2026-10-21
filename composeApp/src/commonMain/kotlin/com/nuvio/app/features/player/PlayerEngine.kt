@@ -2,6 +2,7 @@ package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.streams.StreamBadge
 
 interface PlayerEngineController {
     val playbackEngine: AndroidPlaybackEngine? get() = null
@@ -300,6 +301,7 @@ data class PlayerControlsState(
     val svpAvailable: Boolean = true,
     val audioNightModeEnabled: Boolean = false,
     val party: PlayerControlPartyState = PlayerControlPartyState(),
+    val badges: List<StreamBadge> = emptyList(),
 )
 
 data class PlayerControlFilterItem(

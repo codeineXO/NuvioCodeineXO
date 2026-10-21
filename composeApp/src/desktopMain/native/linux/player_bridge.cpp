@@ -1915,6 +1915,12 @@ JNIEXPORT jstring JNICALL NP(audioTracksJson)(JNIEnv *env, jobject, jlong handle
     return utf8ToJstring(env, buildTracksJson(p->mpv, "audio"));
 }
 
+JNIEXPORT jstring JNICALL NP(stringProperty)(JNIEnv *env, jobject, jlong handle, jstring name) {
+    Player *p = asPlayer(handle);
+    if (!p) return utf8ToJstring(env, "");
+    return utf8ToJstring(env, mpvGetStr(p->mpv, jstringToUtf8(env, name)));
+}
+
 JNIEXPORT jstring JNICALL NP(subtitleTracksJson)(JNIEnv *env, jobject, jlong handle) {
     Player *p = asPlayer(handle);
     if (!p) return utf8ToJstring(env, "[]");

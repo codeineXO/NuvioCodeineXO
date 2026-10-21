@@ -81,8 +81,10 @@ internal fun StreamCard(
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
     currentLabel: String? = null,
+    outlined: Boolean = false,
 ) {
     val highlightLabel = if (isCurrent) null else LocalStreamHighlight.current(stream)
+    val partyLabel = highlightLabel
     val marked = isCurrent || highlightLabel != null
     val markedLabel = if (isCurrent) currentLabel else highlightLabel
     val cardShape = RoundedCornerShape(12.dp)
@@ -141,7 +143,7 @@ internal fun StreamCard(
                 },
             )
             .then(
-                if (marked) {
+                if (marked || outlined) {
                     Modifier.border(
                         width = 1.dp,
                         color = primaryColor.copy(alpha = 0.52f),
@@ -195,9 +197,20 @@ internal fun StreamCard(
                 stream = stream,
                 appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
             ) {
-                if (marked && !markedLabel.isNullOrBlank()) {
+                if (isCurrent && !currentLabel.isNullOrBlank()) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    CurrentStreamBadge(label = markedLabel)
+                    CurrentStreamBadge(label = currentLabel)
+                }
+                if (partyLabel != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = partyLabel,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
 

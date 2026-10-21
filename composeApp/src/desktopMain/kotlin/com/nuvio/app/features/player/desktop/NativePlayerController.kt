@@ -27,6 +27,8 @@ import com.nuvio.app.features.player.ParentalWarning
 import com.nuvio.app.features.player.PlayerControlsAction
 import com.nuvio.app.features.player.PlayerControlsState
 import com.nuvio.app.features.player.PlayerEngineController
+import com.nuvio.app.features.player.PlayerMediaInfo
+import com.nuvio.app.features.player.mpvMediaInfo
 import com.nuvio.app.features.player.PlayerPlaybackSnapshot
 import com.nuvio.app.features.player.PlayerPlaybackStats
 import com.nuvio.app.features.player.PlayerResizeMode
@@ -1493,6 +1495,11 @@ internal class NativePlayerController(
         }
     }
 
+    override suspend fun getMediaInfo(): PlayerMediaInfo {
+        val current = handle.takeIf { it != 0L } ?: return PlayerMediaInfo()
+        return mpvMediaInfo { name -> NativePlayerBridge.stringProperty(current, name).takeIf { it.isNotBlank() } }
+    }
+
     override fun getSubtitleTracks(): List<SubtitleTrack> {
         val tracks = decodeTracks { NativePlayerBridge.subtitleTracksJson(it) }
         cachedSubtitleTracks = tracks
@@ -2453,6 +2460,15 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
             append('}')
         } else {
             append(",\"playbackStats\":null")
+        }
+        append(',')
+        appendJsonArrayField("badges", badges) {
+            append("{\"name\":").append(it.name.toJsonString())
+            append(",\"imageUrl\":").append(it.imageURL.toJsonString())
+            append(",\"tagColor\":").append(it.tagColor.toJsonString())
+            append(",\"tagStyle\":").append(it.tagStyle.toJsonString())
+            append(",\"borderColor\":").append(it.borderColor.toJsonString())
+            append('}')
         }
         append(",\"party\":")
         append(partyJson.encodeToString(PlayerControlPartyState.serializer(), party.withWebviewImages(onImageReady)))

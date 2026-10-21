@@ -604,6 +604,36 @@ button:disabled {
   font-style: italic;
 }
 
+.player-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(760px, 100%);
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.player-badge {
+  flex: none;
+  box-sizing: border-box;
+  height: 17px;
+  padding: 2px 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.player-badge img {
+  display: block;
+  height: 13px;
+  min-width: 28px;
+  max-width: 78px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
 .parental-guide {
   position: absolute;
   top: calc(var(--slider-bottom) + env(safe-area-inset-top));
@@ -4413,6 +4443,26 @@ svg {
   white-space: nowrap;
   overflow: visible;
   text-align: center;
+}
+
+.player.ui-codeinexo .codeine-player-badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: min(760px, 100%);
+  margin-top: 4px;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+.player.ui-codeinexo .codeine-player-badges .player-badge {
+  background: rgba(22, 22, 26, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* CodeineXO Seekbar Row: flanking time & buffer fill */
