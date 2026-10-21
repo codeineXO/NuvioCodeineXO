@@ -647,6 +647,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         nextEpisodePlayable = nextEpisodeInfo?.hasAired == true,
         nextEpisodeIsFiller = isFillerEnabled && nextEpisodeForControls?.isFiller == true,
         nextEpisodeIsMixed = isFillerEnabled && nextEpisodeForControls?.isMixed == true,
+        badges = playerBadges,
     )
     val gestureCallbacks = rememberSurfaceGestureCallbacks()
     val playbackGesturesEnabled = !args.isMiniPlayer && !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
