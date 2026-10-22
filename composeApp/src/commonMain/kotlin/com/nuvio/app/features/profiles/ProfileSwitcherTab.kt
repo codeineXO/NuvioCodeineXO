@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlassFeedback
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
@@ -417,19 +419,15 @@ private fun SidebarProfileSwitcherRow(
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
             .clip(tokens.shapes.compactCard)
-            .background(
-                if (isActive) {
-                    tokens.colors.overlaySelected
-                } else {
-                    tokens.colors.surface.copy(alpha = 0f)
-                },
-            )
-            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(onClick = onClick)
+            .navigationGlassFeedback(interaction, tokens.shapes.compactCard, isActive)
+            .hoverable(interaction)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -472,12 +470,15 @@ private fun SidebarAddProfileRow(
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
             .clip(tokens.shapes.compactCard)
-            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(onClick = onClick)
+            .navigationGlassFeedback(interaction, tokens.shapes.compactCard)
+            .hoverable(interaction)
+            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -593,12 +594,15 @@ private fun SidebarCompactPinEntry(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            val backInteraction = remember { MutableInteractionSource() }
             Box(
                 modifier = Modifier
                     .size(if (isDesktop) 48.dp else 30.dp)
                     .clip(tokens.shapes.avatar)
-                    .background(tokens.colors.surfaceCard)
-                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(onClick = onCancel),
+                    .background(tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle))
+                    .navigationGlassFeedback(backInteraction, tokens.shapes.avatar)
+                    .hoverable(backInteraction)
+                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(interactionSource = backInteraction, indication = null, onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -682,6 +686,7 @@ private fun SidebarCompactPinKeypad(
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             ) {
                 row.forEach { key ->
+                    val interaction = remember { MutableInteractionSource() }
                     when (key) {
                         "" -> Spacer(modifier = Modifier.size(30.dp))
                         "⌫" -> {
@@ -689,8 +694,10 @@ private fun SidebarCompactPinKeypad(
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(tokens.shapes.avatar)
-                                    .background(tokens.colors.surface)
-                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(onClick = onBackspace),
+                                    .background(tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle))
+                                    .navigationGlassFeedback(interaction, tokens.shapes.avatar)
+                                    .hoverable(interaction)
+                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(interactionSource = interaction, indication = null, onClick = onBackspace),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
@@ -706,8 +713,10 @@ private fun SidebarCompactPinKeypad(
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(tokens.shapes.avatar)
-                                    .background(tokens.colors.surface)
-                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable { onDigit(key) },
+                                    .background(tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle))
+                                    .navigationGlassFeedback(interaction, tokens.shapes.avatar)
+                                    .hoverable(interaction)
+                                    .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(interactionSource = interaction, indication = null) { onDigit(key) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(

@@ -112,7 +112,7 @@ fun NuvioScreen(
         CompositionLocalProvider(LocalScreenHeaderInset provides true) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
+                modifier = Modifier.remoteNavigationGroup().fillMaxSize().navigationGlassSource(zIndex = 1f),
                 contentPadding = PaddingValues(
                     start = pagePadding,
                     top = topPadding ?: if (isDesktop) 0.dp else tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding,
@@ -224,8 +224,7 @@ fun NuvioScreenHeader(
                 if (onBack != null) {
                     IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
                         .size(desktopBackButtonSize)
-                        .background(desktopBackButtonContainerColor, androidx.compose.foundation.shape.CircleShape)
-                    else Modifier).then(if (backButtonKeyboardNavigationEnabled) {
+                    else Modifier).navigationGlass().then(if (backButtonKeyboardNavigationEnabled) {
                         Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)
                     } else Modifier.excludeFromRemoteNavigation())) {
                         Icon(
@@ -349,8 +348,11 @@ fun NuvioBackButton(
     Box(
         modifier = modifier
             .size(if (desktopPageStyle) desktopBackButtonSize else buttonSize)
-            .clip(effectiveShape)
-            .background(effectiveContainerColor)
+            // Players use the original branch; only page navigation opts into glass.
+            .then(
+                if (usePageStyle) Modifier.navigationGlass(effectiveShape)
+                else Modifier.clip(effectiveShape).background(effectiveContainerColor),
+            )
             .remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.Back).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

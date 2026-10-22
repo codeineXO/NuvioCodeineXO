@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.LocalNuvioBottomNavigationOverlayPadding
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioClassicNavigationBar
@@ -120,11 +121,12 @@ internal fun MainTabsDestination(
         val sidebarHoverSource = remember { MutableInteractionSource() }
         val isSidebarHovered by sidebarHoverSource.collectIsRemoteHoveredAsState()
         var isProfileStackVisible by remember { mutableStateOf(false) }
+        var isSidebarFocused by remember { mutableStateOf(false) }
 
         val isSidebarExpanded = when (navBarStyleSetting) {
             NavBarStyle.EXPANDED -> true
             NavBarStyle.COMPACT -> isProfileStackVisible
-            else -> isSidebarHovered || isProfileStackVisible // ADAPTIVE
+            else -> isSidebarHovered || isSidebarFocused || isProfileStackVisible // ADAPTIVE
         }
 
         val animatedSidebarWidth by animateDpAsState(
@@ -133,9 +135,14 @@ internal fun MainTabsDestination(
             label = "desktop_sidebar_width",
         )
 
-        val isSidebarAlwaysExpanded = useDesktopSidebar && navBarStyleSetting == NavBarStyle.EXPANDED
+        // Adaptive expansion floats over the page without resizing its content.
+        val reservedSidebarWidth = when (navBarStyleSetting) {
+            NavBarStyle.EXPANDED -> DesktopSidebarExpandedWidth
+            NavBarStyle.COMPACT -> animatedSidebarWidth
+            else -> DesktopSidebarCollapsedWidth
+        }
         val contentStartPadding = if (useDesktopSidebar) {
-            if (isSidebarAlwaysExpanded) DesktopSidebarExpandedWidth else DesktopSidebarCollapsedWidth
+            reservedSidebarWidth + DesktopSidebarOuterInset * 2
         } else {
             0.dp
         }
@@ -222,7 +229,7 @@ internal fun MainTabsDestination(
             },
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                val requiresNavBarHaze = if (useDesktopTopBar) {
+                val requiresNavBarHaze = if (useDesktopTopBar || useDesktopSidebar) {
                     true
                 } else if (isTabletLayout) {
                     useFloatingTopBar
@@ -235,6 +242,7 @@ internal fun MainTabsDestination(
                     navBarStyleSetting == NavBarStyle.ADAPTIVE
                 }
                 CompositionLocalProvider(
+                    LocalDesktopSidebarContentInset provides if (useDesktopSidebar && selectedTab == AppScreenTab.Home) contentStartPadding else 0.dp,
                     LocalNuvioBottomNavigationOverlayPadding provides if (useNativeBottomTabs) 49.dp else if (!isDesktop && !isTabletLayout && navBarStyleSetting != NavBarStyle.CLASSIC) 72.dp else 0.dp,
                     LocalNuvioNavBarScrollState provides navBarScrollState,
                 ) {
@@ -251,7 +259,7 @@ internal fun MainTabsDestination(
                             .then(if (requiresNavBarHaze) Modifier.hazeSource(state = navBarHazeState) else Modifier)
                             .then(if (shouldAttachNestedScroll) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                             .padding(innerPadding)
-                            .padding(start = contentStartPadding),
+                            .padding(start = if (selectedTab == AppScreenTab.Home) 0.dp else contentStartPadding),
                     )
                 }
 
@@ -266,6 +274,8 @@ internal fun MainTabsDestination(
                         hoverSource = sidebarHoverSource,
                         profileStackVisible = isProfileStackVisible,
                         onProfileStackVisibleChange = { isProfileStackVisible = it },
+                        hazeState = navBarHazeState,
+                        onFocusWithinChanged = { isSidebarFocused = it },
                         modifier = Modifier.align(Alignment.CenterStart),
                     )
                 }

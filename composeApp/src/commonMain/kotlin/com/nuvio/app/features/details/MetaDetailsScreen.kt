@@ -97,6 +97,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlassSource
 import androidx.compose.ui.draw.shadow
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
@@ -1995,7 +1996,7 @@ fun MetaDetailsScreen(
                                     LazyColumn(
                                         state = listState,
                                         flingBehavior = ScrollableDefaults.flingBehavior(),
-                                        modifier = Modifier.remoteNavigationGroup()
+                                        modifier = Modifier.then(if (heroTrailerSourceUrl == null) Modifier.navigationGlassSource(zIndex = 1f) else Modifier).remoteNavigationGroup()
                                             .padding(top = secondaryPageTopPadding)
                                             .fillMaxSize()
                                             .onGloballyPositioned { pageBoundary.viewportBounds = it.boundsInRoot() }

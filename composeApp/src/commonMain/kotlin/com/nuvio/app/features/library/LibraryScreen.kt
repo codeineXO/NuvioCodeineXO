@@ -59,6 +59,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlass
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -1029,7 +1030,7 @@ private fun CloudLibraryFilePicker(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    IconButton(onClick = onBack, modifier = Modifier.then(if (isDesktop) Modifier.size(48.dp) else Modifier).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                    IconButton(onClick = onBack, modifier = Modifier.then(if (isDesktop) Modifier.size(48.dp) else Modifier).navigationGlass().remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),

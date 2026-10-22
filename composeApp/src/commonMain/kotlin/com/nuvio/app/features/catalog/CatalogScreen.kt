@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlass
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -376,7 +377,7 @@ private fun CatalogHeader(
         verticalAlignment = if (isDesktop) Alignment.Top else Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize).background(desktopBackButtonContainerColor, androidx.compose.foundation.shape.CircleShape) else Modifier).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+        IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize) else Modifier).navigationGlass().remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(Res.string.action_back),

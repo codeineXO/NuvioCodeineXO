@@ -46,6 +46,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -346,7 +348,7 @@ private fun HeroBackgroundLayers(
         AsyncImage(
             model = if (desktopFrame) originalTmdbImageUrl(imageUrl) else imageUrl,
             contentDescription = item.name,
-            modifier = backgroundModifier
+            modifier = backgroundModifier.navigationGlassSource()
                 .graphicsLayer {
                     val pageOffset = heroPageOffset(pagerState, page)
                     val scrollOffsetPx = heroScrollOffsetPx(listState, heroHeightPx)
@@ -725,7 +727,7 @@ private fun DesktopHomeHeroFrame(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(
-                        start = contentHorizontalPadding,
+                        start = contentHorizontalPadding + if (containerMode) 0.dp else LocalDesktopSidebarContentInset.current,
                         end = space.s32,
                         bottom = layout.contentVerticalPadding,
                     )

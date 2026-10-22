@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlassSource
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
@@ -168,7 +169,7 @@ fun DesktopDetailBackdrop(
             AsyncImage(
                 model = originalTmdbImageUrl(imageUrl),
                 contentDescription = meta.name,
-                modifier = artworkModifier,
+                modifier = artworkModifier.navigationGlassSource(),
                 alignment = BiasAlignment(0f, DesktopBackdropVerticalBias),
                 contentScale = if (useWideArtworkFrame && !cropSideBackdrop) ContentScale.Fit else ContentScale.Crop,
                 desktopImageScaling = NuvioDesktopImageScaling.Disabled,
@@ -425,7 +426,6 @@ fun DesktopDetailHero(
                     .padding(top = desktopBackButtonTopPadding, end = actionHorizontalInset),
                 buttonSize = 48.dp,
                 iconSize = 24.dp,
-                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
                 contentColor = colorScheme.onSurface,
             )
         }

@@ -40,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassSource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -123,6 +125,7 @@ fun TmdbEntityBrowseScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Crossfade(
+            modifier = Modifier.fillMaxSize().navigationGlassSource(zIndex = 1f),
             targetState = uiState,
             label = "EntityBrowseCrossfade",
         ) { state ->
@@ -167,7 +170,7 @@ fun TmdbEntityBrowseScreen(
                     modifier = (Modifier
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(start = 4.dp, top = 4.dp)
-                        .align(Alignment.TopStart)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
+                        .align(Alignment.TopStart)).navigationGlass().remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,

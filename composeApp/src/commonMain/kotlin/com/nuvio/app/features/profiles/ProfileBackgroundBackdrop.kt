@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.ProfileMeshBackground
+import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.features.membership.MemberAccessRepository
 import com.nuvio.app.features.membership.ProfileBackgroundRepository
 import com.nuvio.app.features.membership.ProfileBackgroundSelection
@@ -41,7 +42,7 @@ fun ProfileBackgroundBackdrop(
         profile?.let { resolveProfileBackground(it, memberAccess.entitlements) }
     }
 
-    BoxWithConstraints(modifier = modifier) {
+    BoxWithConstraints(modifier = modifier.navigationGlassSource()) {
         val isPortrait = maxHeight > maxWidth
         LaunchedEffect(backgroundSelection, isPortrait) {
             val selectedId = (backgroundSelection as? ProfileBackgroundSelection.Catalog)?.id

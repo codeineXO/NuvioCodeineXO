@@ -22,6 +22,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.navigationGlassSource
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -102,7 +103,7 @@ fun HomeInteractiveGradientBackground(
     }
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().navigationGlassSource(),
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width

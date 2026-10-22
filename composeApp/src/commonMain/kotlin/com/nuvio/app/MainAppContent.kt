@@ -310,6 +310,7 @@ internal fun MainAppContent(
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
         val posterOverlayHazeState = rememberHazeState()
+        val navigationGlassState = remember(currentRoute) { dev.chrisbanes.haze.HazeState() }
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
         var selectedContinueWatchingZoomAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
         val libraryDisintegrationRequests = remember { DisintegrationRequestController<String>() }
@@ -1403,6 +1404,7 @@ internal fun MainAppContent(
             ) {
             SharedTransitionLayout {
                 CompositionLocalProvider(
+                    com.nuvio.app.core.ui.LocalNavigationGlassState provides navigationGlassState.takeUnless { currentRoute is PlayerRoute },
                     LocalPosterClickAnchor provides if (posterNavigationEnabled) posterNavigation::prepare else null,
                     LocalUseNativeNavigation provides useNativeNavigation,
                     LocalNativeNavigationBarHidden provides (currentRoute?.hidesNavigationBar == true),

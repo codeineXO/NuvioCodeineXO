@@ -28,6 +28,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -969,7 +970,9 @@ fun HomeScreen(
             )
         }
 
-        val homeSectionPadding = homeSectionHorizontalPaddingForWidth(maxWidth.value)
+        val sidebarContentInset = LocalDesktopSidebarContentInset.current
+        val contentWidth = (maxWidth - sidebarContentInset).coerceAtLeast(0.dp)
+        val homeSectionPadding = homeSectionHorizontalPaddingForWidth(contentWidth.value)
         val posterCardStyle = rememberPosterCardStyleUiState()
         val useGutterLayout = homeSettingsUiState.scrollPostersLayoutEnabled && isDesktop
         val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
@@ -979,14 +982,14 @@ fun HomeScreen(
             basePosterWidthDp.dp
         }
         val effectivePosterSectionPadding = if (useGutterLayout) {
-            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+            homePosterGutterPaddingForWidth(contentWidth.value, effectivePosterWidth)
         } else {
             homeSectionPadding
         }
         val sectionBottomPadding = if (useGutterLayout) 24.dp else 12.dp
         val homeCatalogPreviewLimit = if (isDesktop) {
             homeCatalogPreviewLimitForWidth(
-                maxWidthDp = maxWidth.value,
+                maxWidthDp = contentWidth.value,
                 sectionPadding = effectivePosterSectionPadding,
                 basePosterWidthDp = posterCardStyle.widthDp,
                 useLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled,
@@ -994,7 +997,7 @@ fun HomeScreen(
         } else {
             HOME_CATALOG_PREVIEW_LIMIT
         }
-        val continueWatchingLayout = rememberContinueWatchingLayout(maxWidth.value, posterCardStyle)
+        val continueWatchingLayout = rememberContinueWatchingLayout(contentWidth.value, posterCardStyle)
         val nativeBottomNavigationOverlayHeight =
             if (LocalNuvioBottomNavigationOverlayPadding.current > 0.dp) {
                 nuvioSafeBottomPadding()
@@ -1075,7 +1078,7 @@ fun HomeScreen(
                         Modifier
                             .fillMaxWidth()
                             .padding(
-                                start = effectivePosterSectionPadding,
+                                start = sidebarContentInset + effectivePosterSectionPadding,
                                 end = effectivePosterSectionPadding,
                                 top = (topChromePadding ?: 0.dp) + NuvioTokens.Space.s16,
                                 bottom = NuvioTokens.Space.s24,
@@ -1150,6 +1153,7 @@ fun HomeScreen(
                         contentType = { "skeleton" },
                     ) {
                         HomeSkeletonRow(
+                            modifier = Modifier.padding(start = sidebarContentInset),
                             horizontalPadding = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                         )
                     }
@@ -1176,7 +1180,7 @@ fun HomeScreen(
                             networkStatusUiState.isOfflineLike && addonManifestErrorMessage != null -> {
                                 NuvioNetworkOfflineCard(
                                     condition = networkStatusUiState.condition,
-                                    modifier = Modifier.padding(
+                                    modifier = Modifier.padding(start = sidebarContentInset).padding(
                                         horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                     ),
                                     onRetry = {
@@ -1188,7 +1192,7 @@ fun HomeScreen(
 
                             addonManifestErrorMessage != null -> {
                                 HomeEmptyStateCard(
-                                    modifier = Modifier.padding(
+                                    modifier = Modifier.padding(start = sidebarContentInset).padding(
                                         horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                     ),
                                     title = stringResource(Res.string.home_load_failed_title),
@@ -1203,7 +1207,7 @@ fun HomeScreen(
 
                             else -> {
                                 HomeEmptyStateCard(
-                                    modifier = Modifier.padding(
+                                    modifier = Modifier.padding(start = sidebarContentInset).padding(
                                         horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                     ),
                                     title = stringResource(Res.string.home_empty_no_sources_title),
@@ -1222,7 +1226,7 @@ fun HomeScreen(
                         if (networkStatusUiState.isOfflineLike && loadFailed) {
                             NuvioNetworkOfflineCard(
                                 condition = networkStatusUiState.condition,
-                                modifier = Modifier.padding(
+                                modifier = Modifier.padding(start = sidebarContentInset).padding(
                                     horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                 ),
                                 onRetry = {
@@ -1232,7 +1236,7 @@ fun HomeScreen(
                             )
                         } else {
                             HomeEmptyStateCard(
-                                modifier = Modifier.padding(
+                                modifier = Modifier.padding(start = sidebarContentInset).padding(
                                     horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
                                 ),
                                 title = stringResource(
@@ -1284,7 +1288,7 @@ fun HomeScreen(
                                     RemotePosterRow("home", keyedSettingsItem.lazyKey) {
                                     HomeCollectionRowSection(
                                         collection = collection,
-                                        modifier = Modifier.padding(bottom = sectionBottomPadding),
+                                        modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
                                         sectionPadding = effectivePosterSectionPadding,
                                         useGutterLayout = useGutterLayout,
                                         animateGifs = animateCollectionGifs,
@@ -1308,7 +1312,7 @@ fun HomeScreen(
                                         } else {
                                             section.items.take(homeCatalogPreviewLimit)
                                         },
-                                        modifier = Modifier.padding(bottom = sectionBottomPadding),
+                                        modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
                                         sectionPadding = effectivePosterSectionPadding,
                                         useGutterLayout = useGutterLayout,
                                         onViewAllClick = if (section.canOpenCatalog(homeCatalogPreviewLimit)) {
@@ -1345,7 +1349,6 @@ fun HomeScreen(
                     ),
                 buttonSize = 48.dp,
                 iconSize = 24.dp,
-                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
                 contentColor = colorScheme.onSurface,
             )
         }
@@ -1378,7 +1381,7 @@ private fun LazyListScope.homeContinueWatchingSections(
                 style = preferences.style,
                 useEpisodeThumbnails = preferences.useEpisodeThumbnails,
                 blurNextUp = preferences.blurNextUp,
-                modifier = Modifier.padding(bottom = sectionBottomPadding),
+                modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
                 sectionPadding = sectionPadding,
                 useGutterLayout = useGutterLayout,
                 layout = layout,
@@ -1400,7 +1403,7 @@ private fun LazyListScope.homeContinueWatchingSections(
                 style = preferences.style,
                 useEpisodeThumbnails = preferences.useEpisodeThumbnails,
                 blurNextUp = preferences.blurNextUp,
-                modifier = Modifier.padding(bottom = sectionBottomPadding),
+                modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
                 title = stringResource(Res.string.upcoming_section_title),
                 sectionPadding = sectionPadding,
                 useGutterLayout = useGutterLayout,

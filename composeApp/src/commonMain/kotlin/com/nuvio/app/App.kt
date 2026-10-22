@@ -3,6 +3,7 @@ package com.nuvio.app
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -17,6 +18,8 @@ import coil3.svg.SvgDecoder
 import com.nuvio.app.core.poster.CustomPosterFallbackInterceptor
 import com.nuvio.app.core.ui.NativeProfileSwitcherController
 import com.nuvio.app.core.ui.NuvioTheme
+import com.nuvio.app.core.ui.LocalNavigationGlassState
+import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.core.ui.addPlatformDecoders
 import com.nuvio.app.core.ui.configurePlatformImageLoader
 import com.nuvio.app.core.ui.desktopUiScaleForWindow
@@ -118,7 +121,9 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
             desktopUiScale = desktopUiScaleForWindow(maxWidth.value, maxHeight.value),
             auraEnabled = auraBackgroundEnabled,
         ) {
-            content()
+            CompositionLocalProvider(LocalNavigationGlassState provides rememberHazeState()) {
+                content()
+            }
         }
     }
 }

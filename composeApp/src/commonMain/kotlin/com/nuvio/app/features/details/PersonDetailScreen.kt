@@ -46,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassSource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -136,34 +138,35 @@ fun PersonDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        when (val state = uiState) {
-            is PersonDetailUiState.Loading -> PersonDetailSkeleton(
-                personId = personId,
-                personName = personName,
-                profilePhoto = initialProfilePhoto,
-                avatarTransitionKey = resolvedAvatarTransitionKey,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-            )
-            is PersonDetailUiState.Error -> PersonDetailError(
-                message = state.message,
-                onRetry = {
-                    uiState = PersonDetailUiState.Loading
-                    // Retry will be triggered by the LaunchedEffect above if we reset
-                },
-            )
-            is PersonDetailUiState.Success -> PersonDetailContent(
-                person = state.personDetail,
-                watchedKeys = watchedUiState.watchedKeys,
-                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                onOpenMeta = onOpenMeta,
-                initialProfilePhoto = initialProfilePhoto,
-                avatarTransitionKey = resolvedAvatarTransitionKey,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-            )
+        Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = 1f)) {
+            when (val state = uiState) {
+                is PersonDetailUiState.Loading -> PersonDetailSkeleton(
+                    personId = personId,
+                    personName = personName,
+                    profilePhoto = initialProfilePhoto,
+                    avatarTransitionKey = resolvedAvatarTransitionKey,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                )
+                is PersonDetailUiState.Error -> PersonDetailError(
+                    message = state.message,
+                    onRetry = {
+                        uiState = PersonDetailUiState.Loading
+                        // Retry will be triggered by the LaunchedEffect above if we reset
+                    },
+                )
+                is PersonDetailUiState.Success -> PersonDetailContent(
+                    person = state.personDetail,
+                    watchedKeys = watchedUiState.watchedKeys,
+                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                    onOpenMeta = onOpenMeta,
+                    initialProfilePhoto = initialProfilePhoto,
+                    avatarTransitionKey = resolvedAvatarTransitionKey,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                )
             }
-
+        }
         if (!LocalUseNativeNavigation.current) {
             if (isDesktop) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -189,7 +192,7 @@ fun PersonDetailScreen(
                     modifier = (Modifier
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(start = 4.dp, top = 4.dp)
-                        .align(Alignment.TopStart)).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
+                        .align(Alignment.TopStart)).navigationGlass().remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,

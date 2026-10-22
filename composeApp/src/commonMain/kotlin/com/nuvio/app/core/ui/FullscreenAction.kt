@@ -2,7 +2,6 @@ package com.nuvio.app.core.ui
 
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -12,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -46,7 +44,6 @@ internal fun FullscreenActionButton(
     enabled: Boolean = true,
     buttonSize: Dp = 40.dp,
     iconSize: Dp = 24.dp,
-    containerColor: Color = Color.Transparent,
     contentColor: Color = MaterialTheme.colorScheme.onBackground,
 ) {
     if (!isFullscreenActionSupported) return
@@ -63,8 +60,7 @@ internal fun FullscreenActionButton(
     Box(
         modifier = modifier
             .size(buttonSize)
-            .clip(CircleShape)
-            .background(containerColor)
+            .navigationGlass(CircleShape)
             .excludeFromRemoteNavigation().clickable(
                 enabled = enabled,
                 role = Role.Button,
