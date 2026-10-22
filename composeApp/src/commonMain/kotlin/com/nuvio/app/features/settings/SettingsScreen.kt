@@ -1,7 +1,5 @@
 package com.nuvio.app.features.settings
 
-import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
-
 import com.nuvio.app.core.ui.desktopBackButtonSize
 
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
@@ -1058,20 +1056,33 @@ private fun TabletSettingsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = effectiveTopOffset + if (desktopBackVisible) 64.dp else 0.dp),
+                        .padding(top = effectiveTopOffset),
                 ) {
-                    Text(
-                        text = stringResource(Res.string.compose_settings_page_root),
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
+                            .padding(horizontal = if (desktopBackVisible) 12.dp else 24.dp)
                             .padding(bottom = 16.dp),
-                        style = MaterialTheme.typography.displayLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
+                    ) {
+                        if (desktopBackVisible) {
+                            NuvioBackButton(
+                                usePageStyle = true,
+                                onClick = onNavigateBack,
+                                buttonSize = desktopBackButtonSize,
+                            )
+                        }
+                        Text(
+                            text = stringResource(Res.string.compose_settings_page_root),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.displayLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                     SettingsCategory.entries.forEach { category ->
                         SettingsSidebarItem(
                             label = stringResource(category.labelRes),
@@ -1419,17 +1430,6 @@ private fun TabletSettingsScreen(
                     }
                 }
             }
-        }
-        if (desktopBackVisible) {
-            NuvioBackButton(
-                usePageStyle = true,
-                onClick = onNavigateBack,
-                modifier = Modifier.padding(
-                    start = desktopPageHorizontalPaddingForWidth(maxWidth.value),
-                    top = statusBarPadding + desktopBackButtonTopPadding,
-                ),
-                buttonSize = desktopBackButtonSize,
-            )
         }
     }
 }

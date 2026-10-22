@@ -150,6 +150,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     )
                 }
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_homescreen_always_animate_collections),
+                    description = stringResource(Res.string.settings_homescreen_always_animate_collections_description),
+                    checked = homeCatalogSettings.alwaysAnimateCollectionCards,
+                    isTablet = isTablet,
+                    onCheckedChange = HomeCatalogSettingsRepository::setAlwaysAnimateCollectionCards,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 MetaEpisodeCardStyleSelector(
                     isTablet = isTablet,
                     selectedStyle = metaScreenSettings.episodeCardStyle,
