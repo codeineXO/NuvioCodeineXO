@@ -54,7 +54,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🪟 Windows Desktop Isolation & Installer
 * **Isolated Environment:** Runs entirely out of dedicated `NuvioCodeineXO` data directories without conflicting with or overwriting official Nuvio settings or shortcuts.
-* **Custom Installer & In-App Updater:** Dedicated Windows MSI installer, an interactive uninstall prompt asking whether to retain or wipe data, and a silent background updater tracking the fork’s GitHub releases.
+* **Custom Installer & In-App Updater:** Dedicated Windows .exe installer, an interactive uninstall prompt asking whether to retain or wipe data, and an updater tracking the fork’s GitHub latest releases.
 
 ---
 
