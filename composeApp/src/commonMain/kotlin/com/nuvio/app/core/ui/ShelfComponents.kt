@@ -154,8 +154,10 @@ fun <T> NuvioShelfSection(
     val sectionModifier = if (useGutterLayout) {
         Modifier
             .fillMaxWidth()
-            .nuvioCenterScrollConsumer(headerHorizontalPadding, enabled = true)
             .then(modifier)
+            // Measure the wheel region inside caller padding so the sidebar
+            // inset does not shift the left gutter into the consumed center.
+            .nuvioCenterScrollConsumer(headerHorizontalPadding, enabled = true)
     } else {
         modifier.fillMaxWidth()
     }
