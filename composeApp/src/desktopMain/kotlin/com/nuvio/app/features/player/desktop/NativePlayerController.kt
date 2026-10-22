@@ -849,6 +849,10 @@ internal class NativePlayerController(
             log.d { "event received handle=$handle type=$type value=$value" }
         }
         when (type) {
+            "controlsUnavailable" -> {
+                log.e { "Player controls initialization failed HRESULT=${value.toLong()} handle=$handle" }
+                pendingSource?.onError("Player controls could not be loaded. Please reopen the player.")
+            }
             "svp_unavailable" -> {
                 log.w { "SVP unavailable: VapourSynth runtime is missing." }
                 controlsState = controlsState.copy(

@@ -1191,6 +1191,7 @@ public:
 
     void onTimer() {
         if (shuttingDown.load()) return;
+        recoverWebViewIfNeeded();
         layoutNativeSubviews();
         syncControls();
     }
@@ -1769,6 +1770,18 @@ private:
     MpvCacheWindow selectedCacheWindow = kStreamingCacheWindow;
     bool svpCacheOverride = false; // Guarded by mpvMutex.
 
+    // Keep new fields after the mpv fields: WindowsMpvSubStyleHelper reads their ABI offsets.
+    std::string controlsPageUrl;
+    uint64_t webViewGeneration = 0;
+    ULONGLONG webViewAttemptStartedAt = 0;
+    ULONGLONG webViewRetryAt = 0;
+    unsigned webViewFailureCount = 0;
+    bool webViewAttemptInFlight = false;
+    EventRegistrationToken processFailedToken = {};
+    EventRegistrationToken navigationToken = {};
+    static constexpr unsigned kMaxWebViewFailures = 5;
+    static constexpr ULONGLONG kWebViewStartupTimeoutMs = 15000;
+
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -1878,20 +1891,9 @@ private:
         if (messageHwnd) {
             KillTimer(messageHwnd, NUVIO_TIMER_ID);
         }
-        if (webView && messageToken.value != 0) {
-            webView->remove_WebMessageReceived(messageToken);
-            messageToken.value = 0;
-        }
-        if (controller && acceleratorToken.value != 0) {
-            controller->remove_AcceleratorKeyPressed(acceleratorToken);
-            acceleratorToken.value = 0;
-        }
-        if (controller) {
-            controller->Close();
-            controller.Reset();
-        }
-        webView.Reset();
-        environment.Reset();
+        ++webViewGeneration;
+        webViewRetryAt = 0;
+        closeWebView();
         if (containerHwnd) {
             DestroyWindow(containerHwnd);
             containerHwnd = nullptr;
@@ -1905,6 +1907,32 @@ private:
             OleUninitialize();
             didOleInitialize = false;
         }
+    }
+
+    void closeWebView() {
+        controlsWebReady.store(false);
+        if (webView && messageToken.value != 0) {
+            webView->remove_WebMessageReceived(messageToken);
+            messageToken.value = 0;
+        }
+        if (webView && processFailedToken.value != 0) {
+            webView->remove_ProcessFailed(processFailedToken);
+            processFailedToken.value = 0;
+        }
+        if (webView && navigationToken.value != 0) {
+            webView->remove_NavigationCompleted(navigationToken);
+            navigationToken.value = 0;
+        }
+        if (controller && acceleratorToken.value != 0) {
+            controller->remove_AcceleratorKeyPressed(acceleratorToken);
+            acceleratorToken.value = 0;
+        }
+        if (controller) {
+            controller->Close();
+            controller.Reset();
+        }
+        webView.Reset();
+        environment.Reset();
     }
 
     void postUiTask(std::function<void()> task) {
@@ -1953,7 +1981,58 @@ private:
         doneCv->wait_for(waitLock, std::chrono::milliseconds(kUiTaskTimeoutMs), [&]() { return *done; });
     }
 
+    bool isCurrentWebView(uint64_t generation) const {
+        return !shuttingDown.load() && generation == webViewGeneration;
+    }
+
+    void retryWebView(const char *operation, HRESULT result) {
+        if (shuttingDown.load() || webViewRetryAt != 0) return;
+        ++webViewGeneration; // Ignore callbacks from the failed/timed-out attempt.
+        webViewAttemptInFlight = false;
+        controlsWebReady.store(false);
+        ++webViewFailureCount;
+        const std::string diagnostic = hresultMessage(operation, result);
+        OutputDebugStringA(("Nuvio player controls: " + diagnostic + "\n").c_str());
+        wchar_t appPath[MAX_PATH] = {};
+        if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, appPath))) {
+            const std::wstring path = std::wstring(appPath) + L"\\NuvioCodeineXO\\player-controls.log";
+            FILE *file = _wfopen(path.c_str(), L"a, ccs=UTF-8");
+            if (file) {
+                SYSTEMTIME time = {};
+                GetLocalTime(&time);
+                fwprintf(file, L"%04u-%02u-%02u %02u:%02u:%02u attempt=%u %S\n",
+                    time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute,
+                    time.wSecond, webViewFailureCount, diagnostic.c_str());
+                fclose(file);
+            }
+        }
+        // Close/recreate on a later message-loop turn, never inside a WebView callback.
+        webViewRetryAt = GetTickCount64() + 500 * std::min(webViewFailureCount, 4u);
+        if (webViewFailureCount >= kMaxWebViewFailures ||
+            result == HRESULT_FROM_WIN32(ERROR_INVALID_STATE)) {
+            webViewFailureCount = kMaxWebViewFailures;
+            sendPlayerEvent("controlsUnavailable", static_cast<double>(result));
+        }
+    }
+
+    void recoverWebViewIfNeeded() {
+        const ULONGLONG now = GetTickCount64();
+        if (webViewAttemptInFlight && now - webViewAttemptStartedAt >= kWebViewStartupTimeoutMs) {
+            retryWebView("WebView controls startup timed out", HRESULT_FROM_WIN32(ERROR_TIMEOUT));
+        }
+        if (webViewRetryAt == 0 || now < webViewRetryAt) return;
+        webViewRetryAt = 0;
+        closeWebView();
+        if (webViewFailureCount < kMaxWebViewFailures) {
+            startWebView(controlsPageUrl);
+        }
+    }
+
     void startWebView(const std::string &controlsUrl) {
+        controlsPageUrl = controlsUrl;
+        const uint64_t generation = ++webViewGeneration;
+        webViewAttemptInFlight = true;
+        webViewAttemptStartedAt = GetTickCount64();
         std::wstring userDataDir = webViewUserDataDirectory();
         auto weakSelf = weak_from_this();
         HRESULT result = CreateCoreWebView2EnvironmentWithOptions(
@@ -1961,10 +2040,11 @@ private:
             userDataDir.c_str(),
             nullptr,
             Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-                [weakSelf, controlsUrl](HRESULT envResult, ICoreWebView2Environment *createdEnvironment) -> HRESULT {
+                [weakSelf, controlsUrl, generation](HRESULT envResult, ICoreWebView2Environment *createdEnvironment) -> HRESULT {
                     auto self = weakSelf.lock();
-                    if (!self || self->shuttingDown.load()) return S_OK;
+                    if (!self || !self->isCurrentWebView(generation)) return S_OK;
                     if (FAILED(envResult) || !createdEnvironment) {
+                        self->retryWebView("CreateCoreWebView2Environment completed", FAILED(envResult) ? envResult : E_POINTER);
                         return S_OK;
                     }
                     self->environment = createdEnvironment;
@@ -1972,14 +2052,22 @@ private:
                     HRESULT controllerResult = createdEnvironment->CreateCoreWebView2Controller(
                         self->containerHwnd,
                         Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                            [controllerWeakSelf, controlsUrl](HRESULT controllerResult, ICoreWebView2Controller *createdController) -> HRESULT {
+                            [controllerWeakSelf, controlsUrl, generation](HRESULT controllerResult, ICoreWebView2Controller *createdController) -> HRESULT {
                                 auto controllerSelf = controllerWeakSelf.lock();
-                                if (!controllerSelf || controllerSelf->shuttingDown.load()) return S_OK;
+                                if (!controllerSelf || !controllerSelf->isCurrentWebView(generation)) {
+                                    if (createdController) createdController->Close();
+                                    return S_OK;
+                                }
                                 if (FAILED(controllerResult) || !createdController) {
+                                    controllerSelf->retryWebView("CreateCoreWebView2Controller completed", FAILED(controllerResult) ? controllerResult : E_POINTER);
                                     return S_OK;
                                 }
                                 controllerSelf->controller = createdController;
-                                createdController->get_CoreWebView2(&controllerSelf->webView);
+                                HRESULT viewResult = createdController->get_CoreWebView2(&controllerSelf->webView);
+                                if (FAILED(viewResult) || !controllerSelf->webView) {
+                                    controllerSelf->retryWebView("get_CoreWebView2", FAILED(viewResult) ? viewResult : E_POINTER);
+                                    return S_OK;
+                                }
 
                                 ComPtr<ICoreWebView2Controller2> controller2;
                                 if (SUCCEEDED(createdController->QueryInterface(IID_PPV_ARGS(&controller2))) && controller2) {
@@ -1997,9 +2085,9 @@ private:
                                     auto acceleratorWeakSelf = controllerWeakSelf;
                                     controllerSelf->controller->add_AcceleratorKeyPressed(
                                         Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
-                                            [acceleratorWeakSelf](ICoreWebView2Controller *, ICoreWebView2AcceleratorKeyPressedEventArgs *args) -> HRESULT {
+                                            [acceleratorWeakSelf, generation](ICoreWebView2Controller *, ICoreWebView2AcceleratorKeyPressedEventArgs *args) -> HRESULT {
                                                 auto acceleratorSelf = acceleratorWeakSelf.lock();
-                                                if (!acceleratorSelf || acceleratorSelf->shuttingDown.load() || !args) return S_OK;
+                                                if (!acceleratorSelf || !acceleratorSelf->isCurrentWebView(generation) || !args) return S_OK;
 
                                                 COREWEBVIEW2_KEY_EVENT_KIND keyEventKind = COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN;
                                                 UINT virtualKey = 0;
@@ -2024,9 +2112,9 @@ private:
                                     auto messageWeakSelf = controllerWeakSelf;
                                     controllerSelf->webView->add_WebMessageReceived(
                                         Callback<ICoreWebView2WebMessageReceivedEventHandler>(
-                                            [messageWeakSelf](ICoreWebView2 *, ICoreWebView2WebMessageReceivedEventArgs *args) -> HRESULT {
+                                            [messageWeakSelf, generation](ICoreWebView2 *, ICoreWebView2WebMessageReceivedEventArgs *args) -> HRESULT {
                                                 auto messageSelf = messageWeakSelf.lock();
-                                                if (!messageSelf || messageSelf->shuttingDown.load() || !args) return S_OK;
+                                                if (!messageSelf || !messageSelf->isCurrentWebView(generation) || !args) return S_OK;
                                                 PWSTR messageJson = nullptr;
                                                 if (SUCCEEDED(args->get_WebMessageAsJson(&messageJson)) && messageJson) {
                                                     messageSelf->handleWebMessage(std::wstring(messageJson));
@@ -2037,22 +2125,57 @@ private:
                                         ).Get(),
                                         &controllerSelf->messageToken
                                     );
+                                    controllerSelf->webView->add_ProcessFailed(
+                                        Callback<ICoreWebView2ProcessFailedEventHandler>(
+                                            [controllerWeakSelf, generation](ICoreWebView2 *, ICoreWebView2ProcessFailedEventArgs *args) -> HRESULT {
+                                                auto self = controllerWeakSelf.lock();
+                                                if (!self || !self->isCurrentWebView(generation) || !args) return S_OK;
+                                                COREWEBVIEW2_PROCESS_FAILED_KIND kind;
+                                                if (SUCCEEDED(args->get_ProcessFailedKind(&kind)) &&
+                                                    (kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED ||
+                                                     kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED ||
+                                                     kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE)) {
+                                                    self->retryWebView("WebView controls process failed", E_FAIL);
+                                                }
+                                                return S_OK;
+                                            }
+                                        ).Get(), &controllerSelf->processFailedToken
+                                    );
+                                    controllerSelf->webView->add_NavigationCompleted(
+                                        Callback<ICoreWebView2NavigationCompletedEventHandler>(
+                                            [controllerWeakSelf, generation](ICoreWebView2 *, ICoreWebView2NavigationCompletedEventArgs *args) -> HRESULT {
+                                                auto self = controllerWeakSelf.lock();
+                                                if (!self || !self->isCurrentWebView(generation) || !args) return S_OK;
+                                                BOOL succeeded = FALSE;
+                                                if (FAILED(args->get_IsSuccess(&succeeded)) || !succeeded) {
+                                                    self->retryWebView("WebView controls navigation failed", E_FAIL);
+                                                }
+                                                return S_OK;
+                                            }
+                                        ).Get(), &controllerSelf->navigationToken
+                                    );
                                     controllerSelf->layoutNativeSubviews();
                                     std::wstring url = toWide(controlsUrl);
-                                    controllerSelf->webView->Navigate(url.c_str());
+                                    HRESULT navigateResult = controllerSelf->webView->Navigate(url.c_str());
+                                    if (FAILED(navigateResult)) {
+                                        controllerSelf->retryWebView("Navigate player controls", navigateResult);
+                                        return S_OK;
+                                    }
                                     createdController->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
                                 }
                                 return S_OK;
                             }
                         ).Get()
                     );
-                    (void)controllerResult;
+                    if (FAILED(controllerResult)) {
+                        self->retryWebView("CreateCoreWebView2Controller", controllerResult);
+                    }
                     return S_OK;
                 }
             ).Get()
         );
         if (FAILED(result)) {
-            throw std::runtime_error(hresultMessage("CreateCoreWebView2EnvironmentWithOptions", result));
+            retryWebView("CreateCoreWebView2EnvironmentWithOptions", result);
         }
     }
 
@@ -2243,6 +2366,14 @@ private:
             RECT webBounds = {0, 0, width, height};
             controller->put_Bounds(webBounds);
             controller->put_IsVisible(TRUE);
+            // A controls WebView recovered after playback starts can be inserted below mpv's
+            // existing child HWND. Keyboard focus still works there, but video covers the UI
+            // and receives its mouse input. Keep the video child behind the controls.
+            HWND videoWindow = FindWindowExW(containerHwnd, nullptr, L"mpv", nullptr);
+            if (videoWindow && GetWindow(videoWindow, GW_HWNDNEXT)) {
+                SetWindowPos(videoWindow, HWND_BOTTOM, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            }
         }
     }
 
@@ -2270,7 +2401,7 @@ private:
         {
             std::lock_guard<std::mutex> lock(controlsMutex);
             controlsJson = pendingControlsJson;
-            pendingControlsJson.clear();
+            // Replay the latest complete state if the controls WebView has to be recreated.
         }
         if (controlsJson.empty()) return;
         std::wstring script =
@@ -2281,7 +2412,7 @@ private:
     }
 
     void syncControls() {
-        if (!webView) return;
+        if (!webView || !controlsWebReady.load()) return;
         double duration = doubleProperty("duration", 0.0);
         double position = doubleProperty("time-pos", 0.0);
         long long bufferedMs = bufferedPositionMs();
@@ -2311,6 +2442,9 @@ private:
         double value = extractJsonNumber(messageJson, L"value", 0.0);
 
         if (type == "controlsReady") {
+            webViewAttemptInFlight = false;
+            webViewFailureCount = 0;
+            webViewRetryAt = 0;
             controlsWebReady.store(true);
             flushPendingControlsJsonIfReady();
             syncControls();
