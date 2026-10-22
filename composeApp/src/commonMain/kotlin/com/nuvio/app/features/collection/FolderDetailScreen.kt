@@ -67,6 +67,7 @@ import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
+import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
@@ -137,31 +138,34 @@ fun FolderDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
+        Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
         if (coverImageUrl != null) {
-            AsyncImage(
-                model = coverImageUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = 1.06f
-                        scaleY = 1.06f
-                    }
-                    .blur(28.dp),
-                contentScale = ContentScale.Crop,
-                alpha = 0.72f,
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to MaterialTheme.colorScheme.background.copy(alpha = 0.50f),
-                            0.42f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                            1f to MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
+            Box(Modifier.matchParentSize().navigationGlassSource()) {
+                AsyncImage(
+                    model = coverImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = 1.06f
+                            scaleY = 1.06f
+                        }
+                        .blur(28.dp),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.72f,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                0f to MaterialTheme.colorScheme.background.copy(alpha = 0.50f),
+                                0.42f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
+                                1f to MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
+                            ),
                         ),
-                    ),
-            )
+                )
+            }
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {

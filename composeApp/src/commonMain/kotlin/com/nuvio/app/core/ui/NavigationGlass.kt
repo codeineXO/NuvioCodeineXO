@@ -38,18 +38,25 @@ internal fun Modifier.navigationGlass(
     shape: Shape = MaterialTheme.nuvio.shapes.avatar,
     panel: Boolean = false,
     hazeState: HazeState? = LocalNavigationGlassState.current,
+    backgroundOnly: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
+    // In-page effects must not sample the z=1 scrolling source which contains them.
+    // Navigation overlays retain their existing full-page backdrop behavior.
+    val backdropState = hazeState?.takeIf { state ->
+        !backgroundOnly || state.areas.any { it.zIndex < 1f }
+    }
     // The same light, theme-neutral tint for controls and panels, without a gray surface wash.
     val tint = tokens.colors.background.copy(alpha = tokens.opacity.pressed)
     val fallback = tokens.colors.background.copy(alpha = tokens.opacity.strong)
     return this
         .shadow(if (panel) tokens.elevation.modal else tokens.elevation.raised, shape, clip = false)
         .clip(shape)
-        .background(if (hazeState == null) fallback else tint)
+        .background(if (backdropState == null) fallback else tint)
         .then(
-            if (hazeState != null) {
-                Modifier.hazeEffect(hazeState) {
+            if (backdropState != null) {
+                Modifier.hazeEffect(backdropState) {
+                    if (backgroundOnly) canDrawArea = { it.zIndex < 1f }
                     backgroundColor = tokens.colors.background
                     blurRadius = if (panel) 16.dp else 10.dp
                     inputScale = HazeInputScale.Auto

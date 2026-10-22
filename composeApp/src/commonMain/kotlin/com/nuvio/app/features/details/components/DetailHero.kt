@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.navigationGlassSource
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -140,7 +141,8 @@ fun DetailHero(
                                 translationY = scrollOffset() * 0.5f
                                 scaleX = backdropScale
                                 scaleY = backdropScale
-                            },
+                            }
+                            .navigationGlassSource(),
                         alignment = if (isTablet) Alignment.TopCenter else Alignment.Center,
                         contentScale = ContentScale.Crop,
                         desktopImageScaling = NuvioDesktopImageScaling.Disabled,
@@ -225,6 +227,7 @@ fun DetailHero(
                         .fillMaxWidth()
                         .height(if (isTablet) 360.dp else 320.dp)
                         .align(Alignment.BottomCenter)
+                        .navigationGlassSource(zIndex = 0.5f)
                         .background(
                             Brush.verticalGradient(
                                 colorStops = arrayOf(

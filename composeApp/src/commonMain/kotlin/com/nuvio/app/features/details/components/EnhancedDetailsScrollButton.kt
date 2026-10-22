@@ -16,10 +16,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.nuvio.app.core.ui.RemoteNavigationRole
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.details_back_to_top
@@ -40,11 +42,11 @@ internal fun EnhancedDetailsScrollButton(
         onClick = { onClick(backToTop) },
         modifier = modifier
             .heightIn(min = NuvioTokens.Space.s40)
+            .navigationGlass(shape = shape, backgroundOnly = true)
             .remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.PageSwitch, onSelect = { onSelect(backToTop) }),
         shape = shape,
-        color = tokens.colors.surfacePopover,
+        color = Color.Transparent,
         contentColor = tokens.colors.textPrimary,
-        shadowElevation = NuvioTokens.Elevation.raised,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = NuvioTokens.Space.s16, vertical = NuvioTokens.Space.s10),

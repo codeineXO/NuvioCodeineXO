@@ -9,6 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -38,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -49,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
 import com.nuvio.app.core.ui.secondaryClick
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassFeedback
+import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.details_actions_menu_label
@@ -89,6 +95,7 @@ fun DetailActionButtons(
     val playShape = RoundedCornerShape(40.dp)
     val hapticFeedback = LocalHapticFeedback.current
     var actionsExpanded by remember { mutableStateOf(false) }
+    val menuInteractionSource = remember { MutableInteractionSource() }
     val menuProgress by animateFloatAsState(
         targetValue = if (actionsExpanded) 1f else 0f,
         animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
@@ -170,69 +177,72 @@ fun DetailActionButtons(
 
             if (hasSecondaryActions) {
                 Spacer(modifier = Modifier.width(12.dp))
-                secondaryActions.forEachIndexed { index, action ->
-                    Box(
-                        modifier = Modifier
-                            .width(iconButtonSize * menuProgress)
-                            .height(iconButtonSize)
-                            .graphicsLayer {
-                                clip = true
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (actionsExpanded || menuProgress > 0.01f) {
-                            DetailIconAction(
-                                label = action.label,
-                                icon = action.icon,
-                                active = action.isActive,
-                                progress = menuProgress,
-                                size = iconButtonSize,
-                                onClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    action.onClick()
+                Row(
+                    modifier = if (menuProgress > 0.01f) {
+                        Modifier.navigationGlass(shape = playShape, panel = true, backgroundOnly = true)
+                    } else Modifier,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    secondaryActions.forEachIndexed { index, action ->
+                        Box(
+                            modifier = Modifier
+                                .width(iconButtonSize * menuProgress)
+                                .height(iconButtonSize)
+                                .graphicsLayer {
+                                    clip = true
                                 },
-                                onLongClick = action.onLongClick?.let { longClick ->
-                                    {
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (actionsExpanded || menuProgress > 0.01f) {
+                                DetailIconAction(
+                                    label = action.label,
+                                    icon = action.icon,
+                                    active = action.isActive,
+                                    progress = menuProgress,
+                                    size = iconButtonSize,
+                                    glassMenuItem = true,
+                                    onClick = {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        longClick()
-                                    }
-                                },
-                            )
+                                        action.onClick()
+                                    },
+                                    onLongClick = action.onLongClick?.let { longClick ->
+                                        {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            longClick()
+                                        }
+                                    },
+                                )
+                            }
+                        }
+
+                        if (index != secondaryActions.lastIndex) {
+                            Spacer(modifier = Modifier.width(12.dp * menuProgress))
                         }
                     }
-
-                    if (index != secondaryActions.lastIndex) {
-                        Spacer(modifier = Modifier.width(12.dp * menuProgress))
-                    }
+                    Spacer(modifier = Modifier.width(12.dp * menuProgress))
                 }
-                Spacer(modifier = Modifier.width(12.dp * menuProgress))
             }
 
             if (hasSecondaryActions) {
                 Surface(
-                    modifier = Modifier.size(iconButtonSize),
+                    modifier = Modifier.size(iconButtonSize)
+                        .navigationGlass(shape = CircleShape, backgroundOnly = true),
                     shape = CircleShape,
-                    color = if (actionsExpanded) {
-                        MaterialTheme.colorScheme.onBackground
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
-                    },
-                    contentColor = if (actionsExpanded) {
-                        MaterialTheme.colorScheme.background
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.nuvio.colors.textPrimary,
                 ) {
                     Box(
                         modifier = Modifier
                             .size(iconButtonSize)
+                            .navigationGlassFeedback(menuInteractionSource, CircleShape, selected = actionsExpanded)
+                            .hoverable(menuInteractionSource)
                             .remoteNavigationTarget(
                                 shape = CircleShape,
                                 onSelect = {
                                     hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     actionsExpanded = !actionsExpanded
                                 },
-                            ).clickable(role = Role.Button) {
+                            ).clickable(interactionSource = menuInteractionSource, indication = null, role = Role.Button) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 actionsExpanded = !actionsExpanded
                             },
@@ -318,7 +328,9 @@ internal fun DetailIconAction(
     modifier: Modifier = Modifier,
     size: Dp,
     onLongClick: (() -> Unit)? = null,
+    glassMenuItem: Boolean = false,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         modifier = modifier.graphicsLayer {
             alpha = progress
@@ -326,22 +338,32 @@ internal fun DetailIconAction(
             scaleY = 0.86f + (0.14f * progress)
         },
         shape = CircleShape,
-        color = if (active) {
+        color = if (glassMenuItem) {
+            Color.Transparent
+        } else if (active) {
             MaterialTheme.colorScheme.onBackground
         } else {
             MaterialTheme.colorScheme.surfaceVariant
         },
-        contentColor = if (active) {
+        contentColor = if (glassMenuItem) {
+            if (active) MaterialTheme.nuvio.colors.accent else MaterialTheme.nuvio.colors.textPrimary
+        } else if (active) {
             MaterialTheme.colorScheme.background
         } else {
             MaterialTheme.colorScheme.onSurface
         },
-        tonalElevation = 6.dp,
+        tonalElevation = if (glassMenuItem) 0.dp else 6.dp,
     ) {
         Box(
             modifier = Modifier
                 .size(size)
+                .then(if (glassMenuItem) {
+                    Modifier.navigationGlassFeedback(interactionSource, CircleShape, selected = active)
+                        .hoverable(interactionSource)
+                } else Modifier)
                 .remoteNavigationTarget(shape = CircleShape, onSelect = onClick, onContext = onLongClick).combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = androidx.compose.foundation.LocalIndication.current,
                     onClick = onClick,
                     onLongClick = onLongClick,
                     role = Role.Button,

@@ -696,7 +696,9 @@ private fun ShelfRowNavigationButton(
             }
         },
         enabled = enabled,
-        modifier = Modifier.focusProperties { canFocus = false },
+        modifier = Modifier
+            .navigationGlass(backgroundOnly = true)
+            .focusProperties { canFocus = false },
     ) {
         Icon(
             imageVector = if (direction == ShelfScrollDirection.Backward) {
@@ -769,10 +771,9 @@ private fun NuvioViewAllPill(
         modifier = modifier
             .height(actionSize)
             .widthIn(min = actionSize)
-            .background(
-                color = tokens.colors.surface,
-                shape = RoundedCornerShape(NuvioTokens.Radius.xl),
-            )
+            .then(if (onClick != null) {
+                Modifier.navigationGlass(shape = RoundedCornerShape(NuvioTokens.Radius.xl), backgroundOnly = true)
+            } else Modifier)
             .then(if (onClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onClick) else Modifier)
             .padding(horizontal = NuvioTokens.Space.s10),
         contentAlignment = Alignment.Center,

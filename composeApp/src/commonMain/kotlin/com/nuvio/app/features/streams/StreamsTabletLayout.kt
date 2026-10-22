@@ -51,6 +51,7 @@ import com.nuvio.app.core.ui.StreamResultsWideArtworkAspectRatio
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
 import com.nuvio.app.core.ui.dominantBackdropBlendColor
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.navigationGlassSource
 import com.kmpalette.extensions.painter.rememberPainterDominantColorState
 import com.nuvio.app.core.ui.platformPhysicalTopInset
 import com.nuvio.app.core.ui.shimmer
@@ -162,6 +163,7 @@ internal fun TabletStreamsLayout(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationGlassSource()
                 .background(if (useWideArtworkFrame) wideFadeColor else colorScheme.background)
                 .hazeSource(state = hazeState),
         ) {
@@ -350,6 +352,7 @@ private fun LegacyTabletStreamsLayout(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationGlassSource()
                 .hazeSource(state = hazeState),
         ) {
             if (tabletBackdrop != null) {

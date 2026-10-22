@@ -4,6 +4,7 @@ import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.unit.TextUnit
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
@@ -988,14 +989,12 @@ private fun SeasonTextChipScrollRow(
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(sizing.seasonChipRadius))
-                            .background(
-                                if (isSelected) {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                                } else {
-                                    Color.Transparent
-                                },
-                            )
+                            .then(if (isSelected) {
+                                Modifier.navigationGlass(
+                                    shape = RoundedCornerShape(sizing.seasonChipRadius),
+                                    backgroundOnly = true,
+                                )
+                            } else Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius)))
                             .hoverable(chipInteractionSource)
                             .then(rowNavigation.itemModifier(index))
                             .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })

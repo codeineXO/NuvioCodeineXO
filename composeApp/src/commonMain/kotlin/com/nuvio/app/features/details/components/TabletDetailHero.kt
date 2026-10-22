@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.navigationGlassSource
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -116,6 +117,7 @@ fun TabletDetailBackdrop(
                 .graphicsLayer {
                     alpha = scrollProgress() * if (cinematic) 0.36f else 0.86f
                 }
+                .navigationGlassSource(zIndex = 0.5f)
                 .background(backgroundColor),
         )
     }
@@ -163,7 +165,7 @@ private fun BackdropArtwork(
             AsyncImage(
                 model = imageUrl,
                 contentDescription = meta.name,
-                modifier = artworkModifier,
+                modifier = artworkModifier.navigationGlassSource(),
                 alignment = BiasAlignment(0f, BackdropVerticalBias),
                 contentScale = ContentScale.Crop,
                 onSuccess = { state ->
@@ -204,6 +206,7 @@ private fun BackdropArtwork(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationGlassSource(zIndex = 0.5f)
                 .drawWithCache {
                     val sideFade = Brush.horizontalGradient(
                         colorStops = arrayOf(

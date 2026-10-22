@@ -195,6 +195,7 @@ fun DesktopDetailBackdrop(
 
         Box(
             modifier = backdropModifier
+                .navigationGlassSource(zIndex = 0.5f)
                 .drawWithCache {
                     val bottomSpread = Brush.radialGradient(
                         colorStops = arrayOf(

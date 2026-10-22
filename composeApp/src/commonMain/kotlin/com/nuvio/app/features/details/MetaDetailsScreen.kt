@@ -612,6 +612,8 @@ fun MetaDetailsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
+        // Independent background for in-page glass; never captures the scrolling controls or video.
+        Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1405,28 +1407,31 @@ fun MetaDetailsScreen(
                         } else when (backgroundMode) {
                             MetaScreenBackgroundMode.Normal -> Unit
                             MetaScreenBackgroundMode.Cinematic -> if (deferredMetaWorkAllowed && backdropUrl != null) {
-                                AsyncImage(
-                                    model = if (isDesktop) originalTmdbImageUrl(backdropUrl) else backdropUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .blur(30.dp),
-                                    contentScale = ContentScale.Crop,
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            colorScheme.background.copy(
-                                                alpha = if (isDesktop) 0.48f else 0.92f,
+                                Box(Modifier.fillMaxSize().navigationGlassSource()) {
+                                    AsyncImage(
+                                        model = if (isDesktop) originalTmdbImageUrl(backdropUrl) else backdropUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .blur(30.dp),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                colorScheme.background.copy(
+                                                    alpha = if (isDesktop) 0.48f else 0.92f,
+                                                ),
                                             ),
-                                        ),
-                                )
+                                    )
+                                }
                             }
                             MetaScreenBackgroundMode.DominantColor -> if (deferredMetaWorkAllowed) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .navigationGlassSource()
                                         .background(dominantBackdropColor),
                                 )
                             }

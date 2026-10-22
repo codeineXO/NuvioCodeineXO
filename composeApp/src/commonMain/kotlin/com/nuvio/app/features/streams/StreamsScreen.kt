@@ -83,6 +83,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
+import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
@@ -263,6 +264,7 @@ fun StreamsScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         val isTabletLayout = maxWidth >= 768.dp
+        Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
 
         if (isTabletLayout) {
             TabletStreamsLayout(
@@ -483,19 +485,21 @@ private fun MobileStreamsLayout(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         if (backgroundMode == StreamBackgroundMode.Cinematic && heroArtwork != null) {
-            AsyncImage(
-                model = heroArtwork,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(22.dp),
-                contentScale = ContentScale.Crop,
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = if (isEpisode) 0.9f else 0.82f)),
-            )
+            Box(Modifier.fillMaxSize().navigationGlassSource()) {
+                AsyncImage(
+                    model = heroArtwork,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(22.dp),
+                    contentScale = ContentScale.Crop,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = if (isEpisode) 0.9f else 0.82f)),
+                )
+            }
         }
 
         val streamBlendColor = MaterialTheme.colorScheme.background

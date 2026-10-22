@@ -109,6 +109,10 @@ fun NuvioScreen(
         val pagePadding = horizontalPadding ?: if (isDesktop) {
             desktopPageHorizontalPaddingForWidth(maxWidth.value)
         } else tokens.spacing.screenHorizontal
+        if (backgroundColor != Color.Transparent) {
+            // A sibling source for controls inside the scrolling content source.
+            Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(backgroundColor))
+        }
         CompositionLocalProvider(LocalScreenHeaderInset provides true) {
             LazyColumn(
                 state = listState,
