@@ -13,6 +13,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +54,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import com.nuvio.app.core.ui.nuvio
@@ -103,6 +105,7 @@ import nuvio.composeapp.generated.resources.compose_nav_search
 import nuvio.composeapp.generated.resources.home_empty_no_sources_title
 import nuvio.composeapp.generated.resources.search_empty_no_sources_message
 import nuvio.composeapp.generated.resources.compose_search_clear
+import nuvio.composeapp.generated.resources.compose_search_clear_all
 import nuvio.composeapp.generated.resources.compose_search_discover_title
 import nuvio.composeapp.generated.resources.compose_search_empty_failed_message
 import nuvio.composeapp.generated.resources.compose_search_empty_failed_title
@@ -425,6 +428,7 @@ fun SearchScreen(
                         auraBackgroundEnabled = auraBackgroundEnabled,
                         onSearchPress = { recentQuery -> query = recentQuery },
                         onRemoveSearch = SearchHistoryRepository::removeSearch,
+                        onClearSearches = SearchHistoryRepository::clearSearches,
                         focusDestinations = recentFocus,
                         onExitDown = focusDiscoverFilters,
                         onExitUp = { focusRequester.requestFocus(); Unit },
@@ -603,6 +607,7 @@ internal fun SearchRecentSection(
     auraBackgroundEnabled: Boolean,
     onSearchPress: (String) -> Unit,
     onRemoveSearch: (String) -> Unit,
+    onClearSearches: () -> Unit,
     modifier: Modifier = Modifier,
     focusDestinations: MutableMap<String, RemoteNavigationFocusDestination> = remember { mutableMapOf() },
     onExitDown: (suspend () -> Unit)? = null,
@@ -616,11 +621,40 @@ internal fun SearchRecentSection(
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            text = stringResource(Res.string.compose_search_recent_searches),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.compose_search_recent_searches),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                text = stringResource(Res.string.compose_search_clear_all),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .remoteNavigationDown {
+                        recentSearches.firstOrNull()?.let { focusDestinations[it]?.requestFocus() }
+                    }
+                    .remoteNavigationUp(onExitUp)
+                    .remoteNavigationTarget(shape = RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        role = Role.Button,
+                        onClick = {
+                            if (keyboard) scope.launch {
+                                onExitUp?.invoke()
+                                onClearSearches()
+                            } else onClearSearches()
+                        },
+                    )
+                    .padding(horizontal = 12.dp, vertical = 14.dp),
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
         recentSearches.forEachIndexed { index, recentQuery ->
             key(recentQuery) {

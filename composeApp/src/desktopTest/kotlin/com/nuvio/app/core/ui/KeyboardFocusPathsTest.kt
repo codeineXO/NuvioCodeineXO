@@ -72,6 +72,7 @@ class KeyboardFocusPathsTest {
                         item(key = "recent") {
                             SearchRecentSection(
                                 listOf("Recent one", "Recent two"), false, {}, {},
+                                onClearSearches = {},
                                 focusDestinations = recent,
                                 onExitDown = { filters.requestFocus() },
                             )
@@ -309,6 +310,7 @@ class KeyboardFocusPathsTest {
                             .remoteNavigationDown { recent[history.firstOrNull()]?.requestFocus() })
                         if (history.isNotEmpty()) SearchRecentSection(
                             history, false, {}, { removed -> history = history.filterNot { it == removed } },
+                            onClearSearches = { history = emptyList() },
                             focusDestinations = recent, onExitUp = { search.requestFocus() },
                         )
                     }
