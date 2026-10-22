@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
@@ -145,12 +146,13 @@ fun TmdbEntityBrowseScreen(
             if (isDesktop) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     NuvioBackButton(
+                        usePageStyle = true,
                         onClick = onBack,
                         modifier = Modifier
                             .windowInsetsPadding(WindowInsets.statusBars)
                             .padding(
                                 start = desktopPageHorizontalPaddingForWidth(maxWidth.value),
-                                top = 32.dp,
+                                top = desktopBackButtonTopPadding,
                             )
                             .align(Alignment.TopStart),
                         containerColor = Color.Transparent,

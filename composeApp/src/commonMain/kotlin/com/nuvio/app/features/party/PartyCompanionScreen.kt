@@ -1,5 +1,7 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.isDesktop
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -125,10 +127,12 @@ private fun CompanionError(
             color = tokens.colors.textPrimary,
             textAlign = TextAlign.Center,
         )
-        DialogButton(
-            text = stringResource(Res.string.action_back),
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (!isDesktop) {
+            DialogButton(
+                text = stringResource(Res.string.action_back),
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }

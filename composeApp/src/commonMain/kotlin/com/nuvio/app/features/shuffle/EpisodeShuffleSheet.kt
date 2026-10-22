@@ -4,6 +4,10 @@ import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import com.nuvio.app.isDesktop
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -109,109 +113,113 @@ internal fun EpisodeShuffleSheet(
         sheetState = sheetState,
         fullHeight = true,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp).padding(bottom = nuvioSafeBottomPadding(20.dp)),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (preview != null) {
-                    TextButton(enabled = !starting, onClick = { selected = null }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val backInset = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 20.dp
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = backInset).padding(top = if (isDesktop) 16.dp else 0.dp, bottom = nuvioSafeBottomPadding(20.dp)),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (preview != null) {
+                        IconButton(enabled = !starting, onClick = { selected = null }, modifier = Modifier.then(if (isDesktop) Modifier.size(48.dp) else Modifier).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back), modifier = Modifier.size(24.dp))
+                        }
+                    }
+                    Column {
+                        Text(stringResource(Res.string.random_episode_title), style = MaterialTheme.typography.titleLarge)
+                        Text(meta.name, style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                Column {
-                    Text(stringResource(Res.string.random_episode_title), style = MaterialTheme.typography.titleLarge)
-                    Text(meta.name, style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            if (preview == null) {
-                Text(stringResource(Res.string.shuffle_choose_episodes), style = MaterialTheme.typography.bodyLarge)
-                when {
-                    readyPicker == null -> Text(stringResource(Res.string.random_episode_loading))
-                    allCount == 0 -> Text(stringResource(Res.string.random_episode_empty_subtitle))
-                    else -> {
-                        for (include in listOf(false, true)) {
-                            OutlinedButton(
-                                onClick = { includeWatched = include; selected = readyPicker.pick(include) },
-                                enabled = include || unwatchedCount > 0,
-                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
-                            ) {
-                                Text(stringResource(if (include) Res.string.random_episode_include_watched else Res.string.random_episode_unwatched))
+                if (preview == null) {
+                    Text(stringResource(Res.string.shuffle_choose_episodes), style = MaterialTheme.typography.bodyLarge)
+                    when {
+                        readyPicker == null -> Text(stringResource(Res.string.random_episode_loading))
+                        allCount == 0 -> Text(stringResource(Res.string.random_episode_empty_subtitle))
+                        else -> {
+                            for (include in listOf(false, true)) {
+                                OutlinedButton(
+                                    onClick = { includeWatched = include; selected = readyPicker.pick(include) },
+                                    enabled = include || unwatchedCount > 0,
+                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
+                                ) {
+                                    Text(stringResource(if (include) Res.string.random_episode_include_watched else Res.string.random_episode_unwatched))
+                                }
+                            }
+                            if (unwatchedCount == 0) Text(stringResource(Res.string.random_episode_caught_up),
+                                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                } else {
+                    val watched = readyPicker?.isWatched(preview) == true
+                    val hidden = blurUnwatchedEpisodes && !watched
+                    Box(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (!hidden && !preview.thumbnail.isNullOrBlank()) {
+                            AsyncImage(model = preview.thumbnail, contentDescription = null,
+                                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(if (hidden) Icons.Default.VisibilityOff else Icons.Default.Shuffle,
+                                    contentDescription = null, modifier = Modifier.size(32.dp))
+                                if (hidden) Text(stringResource(Res.string.shuffle_artwork_hidden), style = MaterialTheme.typography.bodySmall)
                             }
                         }
-                        if (unwatchedCount == 0) Text(stringResource(Res.string.random_episode_caught_up),
-                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            stringResource(if (watched) Res.string.episodes_cd_watched else Res.string.shuffle_unwatched),
+                            style = MaterialTheme.typography.labelMedium, color = Color.White,
+                            modifier = Modifier.align(Alignment.BottomStart).padding(12.dp)
+                                .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                        )
                     }
-                }
-            } else {
-                val watched = readyPicker?.isWatched(preview) == true
-                val hidden = blurUnwatchedEpisodes && !watched
-                Box(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (!hidden && !preview.thumbnail.isNullOrBlank()) {
-                        AsyncImage(model = preview.thumbnail, contentDescription = null,
-                            contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(if (hidden) Icons.Default.VisibilityOff else Icons.Default.Shuffle,
-                                contentDescription = null, modifier = Modifier.size(32.dp))
-                            if (hidden) Text(stringResource(Res.string.shuffle_artwork_hidden), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(if (includeWatched) Res.string.random_episode_include_watched else Res.string.random_episode_unwatched),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(Res.string.shuffle_preview_title), style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary)
+                    Text(localizedSeasonEpisodeCode(preview.season, preview.episode).orEmpty(),
+                        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(preview.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    preview.overview?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    val resume = progress[preview.season to preview.episode]?.let {
+                        !it.isEffectivelyCompleted && (it.lastPositionMs > 0 || it.progressFraction > 0)
+                    } == true
+                    val canPlay = availability.canPlay(meta.type, preview.id, meta.id, preview.season, preview.episode)
+                    NuvioPrimaryButton(
+                        text = stringResource(when {
+                            starting -> Res.string.shuffle_starting
+                            !canPlay -> Res.string.playback_unavailable
+                            resume -> Res.string.action_resume
+                            else -> Res.string.shuffle_play_episode
+                        }), enabled = !starting && canPlay, onClick = { play(onPlay) },
+                    )
+                    if ((readyPicker?.count(includeWatched) ?: 0) > 1) {
+                        OutlinedButton(enabled = !starting, onClick = { selected = readyPicker?.pick(includeWatched) },
+                            modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                            Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(Res.string.shuffle_again), modifier = Modifier.padding(start = 8.dp))
+                        }
+                    } else Text(stringResource(Res.string.shuffle_only_episode), style = MaterialTheme.typography.bodySmall)
+                    if (onPlayManually != null && availability.canStream(meta.type, preview.id)) {
+                        TextButton(enabled = !starting, onClick = { play(onPlayManually) }, modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                            Text(stringResource(Res.string.play_manually))
                         }
                     }
-                    Text(
-                        stringResource(if (watched) Res.string.episodes_cd_watched else Res.string.shuffle_unwatched),
-                        style = MaterialTheme.typography.labelMedium, color = Color.White,
-                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp)
-                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                    )
-                }
-                Text(stringResource(if (includeWatched) Res.string.random_episode_include_watched else Res.string.random_episode_unwatched),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(stringResource(Res.string.shuffle_preview_title), style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary)
-                Text(localizedSeasonEpisodeCode(preview.season, preview.episode).orEmpty(),
-                    style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(preview.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                preview.overview?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                val resume = progress[preview.season to preview.episode]?.let {
-                    !it.isEffectivelyCompleted && (it.lastPositionMs > 0 || it.progressFraction > 0)
-                } == true
-                val canPlay = availability.canPlay(meta.type, preview.id, meta.id, preview.season, preview.episode)
-                NuvioPrimaryButton(
-                    text = stringResource(when {
-                        starting -> Res.string.shuffle_starting
-                        !canPlay -> Res.string.playback_unavailable
-                        resume -> Res.string.action_resume
-                        else -> Res.string.shuffle_play_episode
-                    }), enabled = !starting && canPlay, onClick = { play(onPlay) },
-                )
-                if ((readyPicker?.count(includeWatched) ?: 0) > 1) {
-                    OutlinedButton(enabled = !starting, onClick = { selected = readyPicker?.pick(includeWatched) },
-                        modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                        Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(stringResource(Res.string.shuffle_again), modifier = Modifier.padding(start = 8.dp))
+                    if (resume) TextButton(enabled = !starting && canPlay, onClick = { play(onStartFromBeginning) }, modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                        Text(stringResource(Res.string.cw_action_start_from_beginning))
                     }
-                } else Text(stringResource(Res.string.shuffle_only_episode), style = MaterialTheme.typography.bodySmall)
-                if (onPlayManually != null && availability.canStream(meta.type, preview.id)) {
-                    TextButton(enabled = !starting, onClick = { play(onPlayManually) }, modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                        Text(stringResource(Res.string.play_manually))
-                    }
-                }
-                if (resume) TextButton(enabled = !starting && canPlay, onClick = { play(onStartFromBeginning) }, modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                    Text(stringResource(Res.string.cw_action_start_from_beginning))
                 }
             }
         }
     }
+
 }
 
 @Composable

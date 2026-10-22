@@ -1,5 +1,13 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+
+import com.nuvio.app.core.ui.desktopBackButtonSize
+
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+
+import com.nuvio.app.core.ui.NuvioBackButton
+
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
 import com.nuvio.app.AppScreenTab
@@ -1020,7 +1028,7 @@ private fun TabletSettingsScreen(
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.General.name) }
     val activeCategory = SettingsCategory.valueOf(selectedCategory)
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val effectiveTopOffset = topChromePadding ?: (statusBarPadding + 24.dp)
+    val effectiveTopOffset = topChromePadding ?: (statusBarPadding + if (isDesktop) desktopBackButtonTopPadding else 24.dp)
 
     val navBarScrollState = LocalNuvioNavBarScrollState.current
 
@@ -1038,376 +1046,390 @@ private fun TabletSettingsScreen(
 
     val saveableStateHolder = rememberSaveableStateHolder()
 
-    Row(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier
-                .width(240.dp)
-                .fillMaxSize(),
-            color = if (auraBackgroundEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surface,
-        ) {
-            Column(
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val desktopBackVisible = isDesktop && showInternalHeader && page.previousPage() != null && page != SettingsPage.CodeineXO
+        Row(modifier = Modifier.fillMaxSize()) {
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = effectiveTopOffset),
+                    .width(240.dp)
+                    .fillMaxSize(),
+                color = if (auraBackgroundEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surface,
             ) {
-                Text(
-                    text = stringResource(Res.string.compose_settings_page_root),
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 16.dp),
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-                SettingsCategory.entries.forEach { category ->
-                    SettingsSidebarItem(
-                        label = stringResource(category.labelRes),
-                        icon = category.icon,
-                        selected = category == activeCategory && page != SettingsPage.CodeineXO,
-                        onClick = {
-                            if (category != activeCategory || page != SettingsPage.Root) {
-                                selectedCategory = category.name
-                                navBarScrollState?.expand()
-                                if (page != SettingsPage.Root) {
-                                    onPageChange(SettingsPage.Root)
+                        .fillMaxSize()
+                        .padding(top = effectiveTopOffset + if (desktopBackVisible) 64.dp else 0.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.compose_settings_page_root),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 16.dp),
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                    SettingsCategory.entries.forEach { category ->
+                        SettingsSidebarItem(
+                            label = stringResource(category.labelRes),
+                            icon = category.icon,
+                            selected = category == activeCategory && page != SettingsPage.CodeineXO,
+                            onClick = {
+                                if (category != activeCategory || page != SettingsPage.Root) {
+                                    selectedCategory = category.name
+                                    navBarScrollState?.expand()
+                                    if (page != SettingsPage.Root) {
+                                        onPageChange(SettingsPage.Root)
+                                    }
+                                }
+                            },
+                        )
+                        if (category == SettingsCategory.Advanced) {
+                            SettingsSidebarItem(
+                                label = stringResource(Res.string.compose_settings_page_codeine_xo),
+                                icon = Icons.Rounded.AutoAwesome,
+                                selected = page == SettingsPage.CodeineXO,
+                                onClick = {
+                                    openInlinePage(SettingsPage.CodeineXO)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                saveableStateHolder.SaveableStateProvider(page.name) {
+                    var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
+                    var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
+                    var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
+                    val hapticFeedback = LocalHapticFeedback.current
+                    val hapticScope = rememberCoroutineScope()
+                    val searchEntries: @Composable () -> List<SettingsSearchEntry> = {
+                        settingsSearchEntries(
+                            isTablet = true,
+                            pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
+                            notificationsEnabled = AppFeaturePolicy.notificationsEnabled,
+                            externalPlayerSupported = AppFeaturePolicy.externalPlayerSupported,
+                            supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
+                            accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
+                            personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
+                            liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                            switchProfileAvailable = onSwitchProfile != null,
+                            checkForUpdatesAvailable = onCheckForUpdatesClick != null,
+                        )
+                    }
+                    fun openSearchTarget(target: SettingsSearchTarget) {
+                        when (target) {
+                            is SettingsSearchTarget.Page -> {
+                                if (target.page.isEnabledByPolicy()) {
+                                    openInlinePage(target.page)
                                 }
                             }
-                        },
-                    )
-                    if (category == SettingsCategory.Advanced) {
-                        SettingsSidebarItem(
-                            label = stringResource(Res.string.compose_settings_page_codeine_xo),
-                            icon = Icons.Rounded.AutoAwesome,
-                            selected = page == SettingsPage.CodeineXO,
-                            onClick = {
-                                openInlinePage(SettingsPage.CodeineXO)
-                            },
+                            SettingsSearchTarget.Collections -> onCollectionsClick()
+                            SettingsSearchTarget.SwitchProfile -> onSwitchProfile?.invoke()
+                            SettingsSearchTarget.CheckForUpdates -> onCheckForUpdatesClick?.invoke()
+                        }
+                    }
+
+                    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+                    ScreenActivityEffect(listState) { active ->
+                        if (!active) listState.stopScroll()
+                    }
+                    val bottomOverlayPadding = LocalNuvioBottomNavigationOverlayPadding.current
+                    val rootSearchRevealConnection = rememberSettingsRootSearchRevealConnection(
+                        page = page,
+                        listState = listState,
+                        query = settingsSearchQuery,
+                        searchVisible = rootSearchVisible,
+                    ) {
+                        rootSearchVisible = true
+                        rootSearchRevealAnimating = true
+                        hapticScope.launch {
+                            delay(SettingsSearchRevealHapticDelayMillis)
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    }
+                    LaunchedEffect(rootSearchRevealAnimating) {
+                        if (rootSearchRevealAnimating) {
+                            delay(SettingsSearchRevealAnimationMillis)
+                            rootSearchRevealAnimating = false
+                        }
+                    }
+                    LaunchedEffect(scrollToTopRequests) {
+                        scrollToTopRequests.collect {
+                            listState.animateScrollToItem(0)
+                            navBarScrollState?.expand()
+                        }
+                    }
+                    LaunchedEffect(listState, navBarScrollState) {
+                        snapshotFlow {
+                            (listState.firstVisibleItemIndex * 80f) + listState.firstVisibleItemScrollOffset.toFloat()
+                        }.collect { calculatedOffset ->
+                            if (calculatedOffset > 0f || listState.isScrollInProgress || listState.layoutInfo.totalItemsCount > 0) {
+                                navBarScrollState?.updateScrollOffset(AppScreenTab.Settings, calculatedOffset)
+                            }
+                        }
+                    }
+                        val watchPartyRowClick = watchPartyRow(onWatchPartyClick)
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
+                        val horizontalPadding = if (isDesktop && maxWidth > 800.dp) {
+                            ((maxWidth - 800.dp) / 2) + 40.dp
+                        } else {
+                            40.dp
+                        }
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.remoteNavigationGroup().then(Modifier
+                                .fillMaxSize()
+                                .nestedScroll(rootSearchRevealConnection)),
+                            contentPadding = PaddingValues(
+                                start = horizontalPadding,
+                                top = effectiveTopOffset,
+                                end = horizontalPadding,
+                                bottom = 40.dp + bottomOverlayPadding,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(18.dp),
+                        ) {
+                            if (showInternalHeader) {
+                                item {
+                                    val previousPage = page.previousPage()
+                                    TabletPageHeader(
+                                        title = if (page == SettingsPage.Root) {
+                                            if (settingsSearchQuery.isBlank()) {
+                                                stringResource(activeCategory.labelRes)
+                                            } else {
+                                                stringResource(Res.string.compose_settings_page_root)
+                                            }
+                                        } else {
+                                            stringResource(page.titleRes)
+                                        },
+                                        showBack = previousPage != null && page != SettingsPage.CodeineXO && !isDesktop,
+                                        onBack = { if (previousPage != null) onNavigateBack() },
+                                    )
+                                }
+                            }
+                            when (page) {
+                                SettingsPage.Root -> {
+                                    settingsSearchRootContent(
+                                        query = settingsSearchQuery,
+                                        entries = searchEntries,
+                                        isTablet = true,
+                                        showSearchField = rootSearchVisible,
+                                        animateSearchField = rootSearchRevealAnimating,
+                                        onQueryChange = { settingsSearchQuery = it },
+                                        onTargetClick = { openSearchTarget(it) },
+                                    )
+                                    if (settingsSearchQuery.isBlank()) {
+                                        settingsRootContent(
+                                            isTablet = true,
+                                            onPlaybackClick = { openInlinePage(SettingsPage.Playback) },
+                                            onAppearanceClick = { openInlinePage(SettingsPage.Appearance) },
+                                            onAdvancedClick = { openInlinePage(SettingsPage.Advanced) },
+                                            onNotificationsClick = { openInlinePage(SettingsPage.Notifications) },
+                                            onContentDiscoveryClick = { openInlinePage(SettingsPage.ContentDiscovery) },
+                                            onIntegrationsClick = { openInlinePage(SettingsPage.Integrations) },
+                                            onTrackingClick = { openInlinePage(SettingsPage.TraktAuthentication) },
+                                            onSupportersContributorsClick = { openInlinePage(SettingsPage.SupportersContributors) },
+                                            onLicensesAttributionsClick = { openInlinePage(SettingsPage.LicensesAttributions) },
+                                            onCheckForUpdatesClick = onCheckForUpdatesClick,
+                                            onTestUpdateBannerClick = onTestUpdateBannerClick,
+                                            onAccountClick = { openInlinePage(SettingsPage.Account) },
+                                            onSwitchProfileClick = onSwitchProfile,
+                                            onOnboardingClick = onOnboardingClick,
+                                            onWatchPartyClick = watchPartyRowClick,
+                                            showNotificationsEntry = AppFeaturePolicy.notificationsEnabled,
+                                            showAccountSection = activeCategory == SettingsCategory.Account,
+                                            showGeneralSection = activeCategory == SettingsCategory.General,
+                                            showAboutSection = activeCategory == SettingsCategory.About,
+                                            showAttribution = false,
+                                            showAdvancedSection = activeCategory == SettingsCategory.Advanced,
+                                            showSupportersContributorsPage = AppFeaturePolicy.supportersContributorsPageEnabled,
+                                        )
+                                    }
+                                }
+                                SettingsPage.Account -> accountSettingsContent(
+                                    isTablet = true,
+                                )
+                                SettingsPage.CodeineXO -> codeineXOSettingsContent(
+                                    isTablet = true,
+                                    onOnboardingClick = onOnboardingClick,
+                                )
+                                SettingsPage.SupportersContributors -> {
+                                    if (AppFeaturePolicy.supportersContributorsPageEnabled) {
+                                        supportersContributorsContent(isTablet = true)
+                                    }
+                                }
+                                SettingsPage.LicensesAttributions -> licensesAttributionsContent(
+                                    isTablet = true,
+                                )
+                                SettingsPage.Playback -> playbackSettingsContent(
+                                    isTablet = true,
+                                    showLoadingOverlay = showLoadingOverlay,
+                                    holdToSpeedEnabled = holdToSpeedEnabled,
+                                    holdToSpeedValue = holdToSpeedValue,
+                                    touchGesturesEnabled = touchGesturesEnabled,
+                                    preferredAudioLanguage = preferredAudioLanguage,
+                                    secondaryPreferredAudioLanguage = secondaryPreferredAudioLanguage,
+                                    preferredSubtitleLanguage = preferredSubtitleLanguage,
+                                    secondaryPreferredSubtitleLanguage = secondaryPreferredSubtitleLanguage,
+                                    streamReuseLastLinkEnabled = streamReuseLastLinkEnabled,
+                                    streamReuseLastLinkCacheHours = streamReuseLastLinkCacheHours,
+                                    androidPlaybackEngine = androidPlaybackEngine,
+                                    androidLibmpvVideoOutput = androidLibmpvVideoOutput,
+                                    androidLibmpvHardwareDecodingEnabled = androidLibmpvHardwareDecodingEnabled,
+                                    androidLibmpvYuv420pEnabled = androidLibmpvYuv420pEnabled,
+                                    decoderPriority = decoderPriority,
+                                    mapDV7ToHevc = mapDV7ToHevc,
+                                    tunnelingEnabled = tunnelingEnabled,
+                                    useLibass = useLibass,
+                                    libassRenderType = libassRenderType,
+                                )
+                                SettingsPage.Streams -> streamsSettingsContent(
+                                    isTablet = true,
+                                )
+                                SettingsPage.Appearance -> appearanceSettingsContent(
+                                    isTablet = true,
+                                    selectedTheme = selectedTheme,
+                                    onThemeSelected = onThemeSelected,
+                                    amoledEnabled = amoledEnabled,
+                                    onAmoledToggle = onAmoledToggle,
+                                    liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                                    liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
+                                    onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
+                                    appIconState = appIconState,
+                                    onAppIconSelected = onAppIconSelected,
+                                    onAppIconFailureDismissed = onAppIconFailureDismissed,
+                                    selectedAppLanguage = selectedAppLanguage,
+                                    onAppLanguageSelected = onAppLanguageSelected,
+                                    selectedNavBarStyle = navBarStyle,
+                                    onNavBarStyleSelected = onNavBarStyleSelected,
+                                    onHomescreenClick = { openInlinePage(SettingsPage.Homescreen) },
+                                    onMetaScreenClick = { openInlinePage(SettingsPage.MetaScreen) },
+                                    onStreamsClick = { openInlinePage(SettingsPage.Streams) },
+                                    onCollectionsClick = onCollectionsClick,
+                                    onContinueWatchingClick = { openInlinePage(SettingsPage.ContinueWatching) },
+                                    onPosterCustomizationClick = { openInlinePage(SettingsPage.PosterCustomization) },
+                                    onHoverPreviewClick = { openInlinePage(SettingsPage.HoverPreview) },
+                                )
+                                SettingsPage.HoverPreview -> hoverPreviewSettingsContent(
+                                    isTablet = true,
+                                    uiState = posterCardStyleUiState,
+                                )
+                                SettingsPage.Advanced -> advancedSettingsContent(
+                                    isTablet = true,
+                                    rememberLastProfileEnabled = rememberLastProfileEnabled,
+                                )
+                                SettingsPage.Notifications -> if (AppFeaturePolicy.notificationsEnabled) {
+                                    notificationsSettingsContent(
+                                        isTablet = true,
+                                        uiState = episodeReleaseNotificationsUiState,
+                                    )
+                                }
+                                SettingsPage.ContinueWatching -> continueWatchingSettingsContent(
+                                    isTablet = true,
+                                    isVisible = continueWatchingPreferencesUiState.isVisible,
+                                    style = continueWatchingPreferencesUiState.style,
+                                    upNextFromFurthestEpisode = continueWatchingPreferencesUiState.upNextFromFurthestEpisode,
+                                    useEpisodeThumbnails = continueWatchingPreferencesUiState.useEpisodeThumbnails,
+                                    showUnairedNextUp = continueWatchingPreferencesUiState.showUnairedNextUp,
+                                    blurNextUp = continueWatchingPreferencesUiState.blurNextUp,
+                                    showResumePromptOnLaunch = continueWatchingPreferencesUiState.showResumePromptOnLaunch,
+                                    sortMode = continueWatchingPreferencesUiState.sortMode,
+                                )
+                                SettingsPage.PosterCustomization -> posterCustomizationSettingsContent(
+                                    isTablet = true,
+                                    uiState = posterCardStyleUiState,
+                                )
+                                SettingsPage.ContentDiscovery -> contentDiscoveryContent(
+                                    isTablet = true,
+                                    showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
+                                    onAddonsClick = { openInlinePage(SettingsPage.Addons) },
+                                    onPluginsClick = { openInlinePage(SettingsPage.Plugins) },
+                                    onMediaServersClick = { openInlinePage(SettingsPage.MediaServers) },
+                                )
+                                SettingsPage.Addons -> addonsSettingsContent()
+                                SettingsPage.MediaServers -> mediaServersSettingsContent(
+                                    isTablet = true,
+                                    onServerClick = { openInlinePage(SettingsPage.MediaServer) },
+                                )
+                                SettingsPage.MediaServer -> mediaServerSettingsContent(
+                                    isTablet = true,
+                                    onBack = onNavigateBack,
+                                )
+                                SettingsPage.Plugins -> if (AppFeaturePolicy.pluginsEnabled) pluginsSettingsContent() else addonsSettingsContent()
+                                SettingsPage.Homescreen -> homescreenSettingsContent(
+                                    isTablet = true,
+                                    heroEnabled = homescreenHeroEnabled,
+                                    showCatalogType = homescreenShowCatalogType,
+                                    hideUnreleasedContent = homescreenHideUnreleasedContent,
+                                    scrollPostersLayoutEnabled = homescreenScrollPostersLayoutEnabled,
+                                    alwaysAnimateCollectionCards = homescreenAlwaysAnimateCollectionCards,
+                                    items = homescreenItems,
+                                    isCatalogLoading = homescreenCatalogLoading,
+                                    catalogErrorMessage = homescreenCatalogErrorMessage,
+                                )
+                                SettingsPage.MetaScreen -> metaScreenSettingsContent(
+                                    isTablet = true,
+                                    uiState = metaScreenSettingsUiState,
+                                )
+                                SettingsPage.Integrations -> integrationsContent(
+                                    isTablet = true,
+                                    onTmdbClick = { onPageChange(SettingsPage.TmdbEnrichment) },
+                                    onMdbListClick = { onPageChange(SettingsPage.MdbListRatings) },
+                                    onDebridClick = { onPageChange(SettingsPage.Debrid) },
+                                )
+                                SettingsPage.TmdbEnrichment -> tmdbSettingsContent(
+                                    isTablet = true,
+                                    settings = tmdbSettings,
+                                )
+                                SettingsPage.MdbListRatings -> mdbListSettingsContent(
+                                    isTablet = true,
+                                    settings = mdbListSettings,
+                                )
+                                SettingsPage.Debrid -> debridSettingsContent(
+                                    isTablet = true,
+                                    settings = debridSettings,
+                                )
+                                SettingsPage.TraktAuthentication -> trackingSettingsContent(
+                                    isTablet = true,
+                                    traktUiState = traktAuthUiState,
+                                    simklUiState = simklAuthUiState,
+                                    settingsUiState = trackingSettingsUiState,
+                                    commentsEnabled = traktCommentsEnabled,
+                                    mdbListConnected = mdbListConnected,
+                                    onCommentsEnabledChange = TraktCommentsSettings::setEnabled,
+                                )
+                            }
+                        }
+                        NuvioDesktopVerticalScrollbar(
+                            state = listState,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(top = effectiveTopOffset, bottom = 8.dp, end = 4.dp),
                         )
                     }
                 }
             }
         }
-
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-            saveableStateHolder.SaveableStateProvider(page.name) {
-                var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
-                var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
-                var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
-                val hapticFeedback = LocalHapticFeedback.current
-                val hapticScope = rememberCoroutineScope()
-                val searchEntries: @Composable () -> List<SettingsSearchEntry> = {
-                    settingsSearchEntries(
-                        isTablet = true,
-                        pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
-                        notificationsEnabled = AppFeaturePolicy.notificationsEnabled,
-                        externalPlayerSupported = AppFeaturePolicy.externalPlayerSupported,
-                        supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
-                        accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
-                        personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
-                        liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                        switchProfileAvailable = onSwitchProfile != null,
-                        checkForUpdatesAvailable = onCheckForUpdatesClick != null,
-                    )
-                }
-                fun openSearchTarget(target: SettingsSearchTarget) {
-                    when (target) {
-                        is SettingsSearchTarget.Page -> {
-                            if (target.page.isEnabledByPolicy()) {
-                                openInlinePage(target.page)
-                            }
-                        }
-                        SettingsSearchTarget.Collections -> onCollectionsClick()
-                        SettingsSearchTarget.SwitchProfile -> onSwitchProfile?.invoke()
-                        SettingsSearchTarget.CheckForUpdates -> onCheckForUpdatesClick?.invoke()
-                    }
-                }
-
-                val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
-                ScreenActivityEffect(listState) { active ->
-                    if (!active) listState.stopScroll()
-                }
-                val bottomOverlayPadding = LocalNuvioBottomNavigationOverlayPadding.current
-                val rootSearchRevealConnection = rememberSettingsRootSearchRevealConnection(
-                    page = page,
-                    listState = listState,
-                    query = settingsSearchQuery,
-                    searchVisible = rootSearchVisible,
-                ) {
-                    rootSearchVisible = true
-                    rootSearchRevealAnimating = true
-                    hapticScope.launch {
-                        delay(SettingsSearchRevealHapticDelayMillis)
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    }
-                }
-                LaunchedEffect(rootSearchRevealAnimating) {
-                    if (rootSearchRevealAnimating) {
-                        delay(SettingsSearchRevealAnimationMillis)
-                        rootSearchRevealAnimating = false
-                    }
-                }
-                LaunchedEffect(scrollToTopRequests) {
-                    scrollToTopRequests.collect {
-                        listState.animateScrollToItem(0)
-                        navBarScrollState?.expand()
-                    }
-                }
-                LaunchedEffect(listState, navBarScrollState) {
-                    snapshotFlow {
-                        (listState.firstVisibleItemIndex * 80f) + listState.firstVisibleItemScrollOffset.toFloat()
-                    }.collect { calculatedOffset ->
-                        if (calculatedOffset > 0f || listState.isScrollInProgress || listState.layoutInfo.totalItemsCount > 0) {
-                            navBarScrollState?.updateScrollOffset(AppScreenTab.Settings, calculatedOffset)
-                        }
-                    }
-                }
-                    val watchPartyRowClick = watchPartyRow(onWatchPartyClick)
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                ) {
-                    val horizontalPadding = if (isDesktop && maxWidth > 800.dp) {
-                        ((maxWidth - 800.dp) / 2) + 40.dp
-                    } else {
-                        40.dp
-                    }
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.remoteNavigationGroup().then(Modifier
-                            .fillMaxSize()
-                            .nestedScroll(rootSearchRevealConnection)),
-                        contentPadding = PaddingValues(
-                            start = horizontalPadding,
-                            top = effectiveTopOffset,
-                            end = horizontalPadding,
-                            bottom = 40.dp + bottomOverlayPadding,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
-                    ) {
-                        if (showInternalHeader) {
-                            item {
-                                val previousPage = page.previousPage()
-                                TabletPageHeader(
-                                    title = if (page == SettingsPage.Root) {
-                                        if (settingsSearchQuery.isBlank()) {
-                                            stringResource(activeCategory.labelRes)
-                                        } else {
-                                            stringResource(Res.string.compose_settings_page_root)
-                                        }
-                                    } else {
-                                        stringResource(page.titleRes)
-                                    },
-                                    showBack = previousPage != null && page != SettingsPage.CodeineXO,
-                                    onBack = { if (previousPage != null) onNavigateBack() },
-                                )
-                            }
-                        }
-                        when (page) {
-                            SettingsPage.Root -> {
-                                settingsSearchRootContent(
-                                    query = settingsSearchQuery,
-                                    entries = searchEntries,
-                                    isTablet = true,
-                                    showSearchField = rootSearchVisible,
-                                    animateSearchField = rootSearchRevealAnimating,
-                                    onQueryChange = { settingsSearchQuery = it },
-                                    onTargetClick = { openSearchTarget(it) },
-                                )
-                                if (settingsSearchQuery.isBlank()) {
-                                    settingsRootContent(
-                                        isTablet = true,
-                                        onPlaybackClick = { openInlinePage(SettingsPage.Playback) },
-                                        onAppearanceClick = { openInlinePage(SettingsPage.Appearance) },
-                                        onAdvancedClick = { openInlinePage(SettingsPage.Advanced) },
-                                        onNotificationsClick = { openInlinePage(SettingsPage.Notifications) },
-                                        onContentDiscoveryClick = { openInlinePage(SettingsPage.ContentDiscovery) },
-                                        onIntegrationsClick = { openInlinePage(SettingsPage.Integrations) },
-                                        onTrackingClick = { openInlinePage(SettingsPage.TraktAuthentication) },
-                                        onSupportersContributorsClick = { openInlinePage(SettingsPage.SupportersContributors) },
-                                        onLicensesAttributionsClick = { openInlinePage(SettingsPage.LicensesAttributions) },
-                                        onCheckForUpdatesClick = onCheckForUpdatesClick,
-                                        onTestUpdateBannerClick = onTestUpdateBannerClick,
-                                        onAccountClick = { openInlinePage(SettingsPage.Account) },
-                                        onSwitchProfileClick = onSwitchProfile,
-                                        onOnboardingClick = onOnboardingClick,
-                                        onWatchPartyClick = watchPartyRowClick,
-                                        showNotificationsEntry = AppFeaturePolicy.notificationsEnabled,
-                                        showAccountSection = activeCategory == SettingsCategory.Account,
-                                        showGeneralSection = activeCategory == SettingsCategory.General,
-                                        showAboutSection = activeCategory == SettingsCategory.About,
-                                        showAttribution = false,
-                                        showAdvancedSection = activeCategory == SettingsCategory.Advanced,
-                                        showSupportersContributorsPage = AppFeaturePolicy.supportersContributorsPageEnabled,
-                                    )
-                                }
-                            }
-                            SettingsPage.Account -> accountSettingsContent(
-                                isTablet = true,
-                            )
-                            SettingsPage.CodeineXO -> codeineXOSettingsContent(
-                                isTablet = true,
-                                onOnboardingClick = onOnboardingClick,
-                            )
-                            SettingsPage.SupportersContributors -> {
-                                if (AppFeaturePolicy.supportersContributorsPageEnabled) {
-                                    supportersContributorsContent(isTablet = true)
-                                }
-                            }
-                            SettingsPage.LicensesAttributions -> licensesAttributionsContent(
-                                isTablet = true,
-                            )
-                            SettingsPage.Playback -> playbackSettingsContent(
-                                isTablet = true,
-                                showLoadingOverlay = showLoadingOverlay,
-                                holdToSpeedEnabled = holdToSpeedEnabled,
-                                holdToSpeedValue = holdToSpeedValue,
-                                touchGesturesEnabled = touchGesturesEnabled,
-                                preferredAudioLanguage = preferredAudioLanguage,
-                                secondaryPreferredAudioLanguage = secondaryPreferredAudioLanguage,
-                                preferredSubtitleLanguage = preferredSubtitleLanguage,
-                                secondaryPreferredSubtitleLanguage = secondaryPreferredSubtitleLanguage,
-                                streamReuseLastLinkEnabled = streamReuseLastLinkEnabled,
-                                streamReuseLastLinkCacheHours = streamReuseLastLinkCacheHours,
-                                androidPlaybackEngine = androidPlaybackEngine,
-                                androidLibmpvVideoOutput = androidLibmpvVideoOutput,
-                                androidLibmpvHardwareDecodingEnabled = androidLibmpvHardwareDecodingEnabled,
-                                androidLibmpvYuv420pEnabled = androidLibmpvYuv420pEnabled,
-                                decoderPriority = decoderPriority,
-                                mapDV7ToHevc = mapDV7ToHevc,
-                                tunnelingEnabled = tunnelingEnabled,
-                                useLibass = useLibass,
-                                libassRenderType = libassRenderType,
-                            )
-                            SettingsPage.Streams -> streamsSettingsContent(
-                                isTablet = true,
-                            )
-                            SettingsPage.Appearance -> appearanceSettingsContent(
-                                isTablet = true,
-                                selectedTheme = selectedTheme,
-                                onThemeSelected = onThemeSelected,
-                                amoledEnabled = amoledEnabled,
-                                onAmoledToggle = onAmoledToggle,
-                                liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                                liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
-                                onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
-                                appIconState = appIconState,
-                                onAppIconSelected = onAppIconSelected,
-                                onAppIconFailureDismissed = onAppIconFailureDismissed,
-                                selectedAppLanguage = selectedAppLanguage,
-                                onAppLanguageSelected = onAppLanguageSelected,
-                                selectedNavBarStyle = navBarStyle,
-                                onNavBarStyleSelected = onNavBarStyleSelected,
-                                onHomescreenClick = { openInlinePage(SettingsPage.Homescreen) },
-                                onMetaScreenClick = { openInlinePage(SettingsPage.MetaScreen) },
-                                onStreamsClick = { openInlinePage(SettingsPage.Streams) },
-                                onCollectionsClick = onCollectionsClick,
-                                onContinueWatchingClick = { openInlinePage(SettingsPage.ContinueWatching) },
-                                onPosterCustomizationClick = { openInlinePage(SettingsPage.PosterCustomization) },
-                                onHoverPreviewClick = { openInlinePage(SettingsPage.HoverPreview) },
-                            )
-                            SettingsPage.HoverPreview -> hoverPreviewSettingsContent(
-                                isTablet = true,
-                                uiState = posterCardStyleUiState,
-                            )
-                            SettingsPage.Advanced -> advancedSettingsContent(
-                                isTablet = true,
-                                rememberLastProfileEnabled = rememberLastProfileEnabled,
-                            )
-                            SettingsPage.Notifications -> if (AppFeaturePolicy.notificationsEnabled) {
-                                notificationsSettingsContent(
-                                    isTablet = true,
-                                    uiState = episodeReleaseNotificationsUiState,
-                                )
-                            }
-                            SettingsPage.ContinueWatching -> continueWatchingSettingsContent(
-                                isTablet = true,
-                                isVisible = continueWatchingPreferencesUiState.isVisible,
-                                style = continueWatchingPreferencesUiState.style,
-                                upNextFromFurthestEpisode = continueWatchingPreferencesUiState.upNextFromFurthestEpisode,
-                                useEpisodeThumbnails = continueWatchingPreferencesUiState.useEpisodeThumbnails,
-                                showUnairedNextUp = continueWatchingPreferencesUiState.showUnairedNextUp,
-                                blurNextUp = continueWatchingPreferencesUiState.blurNextUp,
-                                showResumePromptOnLaunch = continueWatchingPreferencesUiState.showResumePromptOnLaunch,
-                                sortMode = continueWatchingPreferencesUiState.sortMode,
-                            )
-                            SettingsPage.PosterCustomization -> posterCustomizationSettingsContent(
-                                isTablet = true,
-                                uiState = posterCardStyleUiState,
-                            )
-                            SettingsPage.ContentDiscovery -> contentDiscoveryContent(
-                                isTablet = true,
-                                showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
-                                onAddonsClick = { openInlinePage(SettingsPage.Addons) },
-                                onPluginsClick = { openInlinePage(SettingsPage.Plugins) },
-                                onMediaServersClick = { openInlinePage(SettingsPage.MediaServers) },
-                            )
-                            SettingsPage.Addons -> addonsSettingsContent()
-                            SettingsPage.MediaServers -> mediaServersSettingsContent(
-                                isTablet = true,
-                                onServerClick = { openInlinePage(SettingsPage.MediaServer) },
-                            )
-                            SettingsPage.MediaServer -> mediaServerSettingsContent(
-                                isTablet = true,
-                                onBack = onNavigateBack,
-                            )
-                            SettingsPage.Plugins -> if (AppFeaturePolicy.pluginsEnabled) pluginsSettingsContent() else addonsSettingsContent()
-                            SettingsPage.Homescreen -> homescreenSettingsContent(
-                                isTablet = true,
-                                heroEnabled = homescreenHeroEnabled,
-                                showCatalogType = homescreenShowCatalogType,
-                                hideUnreleasedContent = homescreenHideUnreleasedContent,
-                                scrollPostersLayoutEnabled = homescreenScrollPostersLayoutEnabled,
-                                alwaysAnimateCollectionCards = homescreenAlwaysAnimateCollectionCards,
-                                items = homescreenItems,
-                                isCatalogLoading = homescreenCatalogLoading,
-                                catalogErrorMessage = homescreenCatalogErrorMessage,
-                            )
-                            SettingsPage.MetaScreen -> metaScreenSettingsContent(
-                                isTablet = true,
-                                uiState = metaScreenSettingsUiState,
-                            )
-                            SettingsPage.Integrations -> integrationsContent(
-                                isTablet = true,
-                                onTmdbClick = { onPageChange(SettingsPage.TmdbEnrichment) },
-                                onMdbListClick = { onPageChange(SettingsPage.MdbListRatings) },
-                                onDebridClick = { onPageChange(SettingsPage.Debrid) },
-                            )
-                            SettingsPage.TmdbEnrichment -> tmdbSettingsContent(
-                                isTablet = true,
-                                settings = tmdbSettings,
-                            )
-                            SettingsPage.MdbListRatings -> mdbListSettingsContent(
-                                isTablet = true,
-                                settings = mdbListSettings,
-                            )
-                            SettingsPage.Debrid -> debridSettingsContent(
-                                isTablet = true,
-                                settings = debridSettings,
-                            )
-                            SettingsPage.TraktAuthentication -> trackingSettingsContent(
-                                isTablet = true,
-                                traktUiState = traktAuthUiState,
-                                simklUiState = simklAuthUiState,
-                                settingsUiState = trackingSettingsUiState,
-                                commentsEnabled = traktCommentsEnabled,
-                                mdbListConnected = mdbListConnected,
-                                onCommentsEnabledChange = TraktCommentsSettings::setEnabled,
-                            )
-                        }
-                    }
-                    NuvioDesktopVerticalScrollbar(
-                        state = listState,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight()
-                            .padding(top = effectiveTopOffset, bottom = 8.dp, end = 4.dp),
-                    )
-                }
-            }
+        if (desktopBackVisible) {
+            NuvioBackButton(
+                usePageStyle = true,
+                onClick = onNavigateBack,
+                modifier = Modifier.padding(
+                    start = desktopPageHorizontalPaddingForWidth(maxWidth.value),
+                    top = statusBarPadding + desktopBackButtonTopPadding,
+                ),
+                buttonSize = desktopBackButtonSize,
+            )
         }
     }
 }

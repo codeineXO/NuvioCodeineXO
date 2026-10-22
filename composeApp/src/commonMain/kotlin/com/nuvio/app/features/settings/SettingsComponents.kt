@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.NuvioActionLabel
+import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.nuvio
@@ -142,13 +143,14 @@ internal fun TabletPageHeader(
         ) {
             if (showBack) {
                 NuvioBackButton(
+                    usePageStyle = true,
                     onClick = onBack,
                     modifier = Modifier
-                        .size(36.dp),
+                        .size(if (isDesktop) 48.dp else 36.dp),
                     shape = tokens.shapes.compactCard,
                     containerColor = tokens.colors.surface,
                     contentColor = tokens.colors.textPrimary,
-                    buttonSize = NuvioTokens.Space.s36,
+                    buttonSize = if (isDesktop) 48.dp else NuvioTokens.Space.s36,
                     iconSize = tokens.icons.md,
                 )
             }

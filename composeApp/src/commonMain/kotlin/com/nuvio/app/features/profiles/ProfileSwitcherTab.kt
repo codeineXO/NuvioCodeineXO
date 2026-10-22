@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.isDesktop
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteTextInputGuard
 
@@ -583,7 +585,7 @@ private fun SidebarCompactPinEntry(
                     else -> false
                 }
             }
-            .padding(vertical = 4.dp),
+            .padding(horizontal = if (isDesktop) 16.dp else 0.dp, vertical = if (isDesktop) 16.dp else 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(
@@ -593,7 +595,7 @@ private fun SidebarCompactPinEntry(
         ) {
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(if (isDesktop) 48.dp else 30.dp)
                     .clip(tokens.shapes.avatar)
                     .background(tokens.colors.surfaceCard)
                     .remoteNavigationTarget(shape = tokens.shapes.avatar).clickable(onClick = onCancel),
@@ -603,7 +605,7 @@ private fun SidebarCompactPinEntry(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = stringResource(Res.string.action_back),
                     tint = tokens.colors.textPrimary,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(if (isDesktop) 24.dp else 16.dp),
                 )
             }
             Text(

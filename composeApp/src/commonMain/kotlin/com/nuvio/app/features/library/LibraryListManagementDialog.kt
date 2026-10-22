@@ -3,6 +3,8 @@ package com.nuvio.app.features.library
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +34,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.nuvio.app.isDesktop
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
 import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.dismissNuvioBottomSheet
@@ -75,104 +79,107 @@ fun LibraryListManagementDialog(
             keyboard?.hide()
             scope.launch { dismissNuvioBottomSheet(sheetState, onDismiss) }
         }
-        Column(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp).imePadding().navigationBarsPadding()
-                .padding(horizontal = tokens.spacing.sheetPadding)
-                .padding(bottom = tokens.spacing.sheetPadding),
-            verticalArrangement = Arrangement.spacedBy(tokens.spacing.listGap),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (state.key != null) {
-                    IconButton(onClick = back, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(Res.string.action_back))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val backInset = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else tokens.spacing.sheetPadding
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp).imePadding().navigationBarsPadding()
+                    .padding(horizontal = backInset, vertical = if (isDesktop) 16.dp else 0.dp)
+                    .padding(bottom = tokens.spacing.sheetPadding),
+                verticalArrangement = Arrangement.spacedBy(tokens.spacing.listGap),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    if (state.key != null) {
+                        IconButton(onClick = back, enabled = !state.isPending, modifier = Modifier.then(if (isDesktop) Modifier.size(48.dp) else Modifier).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(Res.string.action_back), modifier = Modifier.size(24.dp))
+                        }
+                    }
+                    Text(
+                        text = stringResource(when (state.mode) {
+                            LibraryListDialogMode.MANAGE -> Res.string.library_manage_lists
+                            LibraryListDialogMode.DELETE -> Res.string.library_list_delete
+                            LibraryListDialogMode.EDIT -> if (creating) Res.string.library_create_list else Res.string.library_edit_list
+                        }),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    IconButton(onClick = dismiss, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                        Icon(Icons.Rounded.Close, stringResource(Res.string.action_close), tint = tokens.colors.textMuted)
                     }
                 }
-                Text(
-                    text = stringResource(when (state.mode) {
-                        LibraryListDialogMode.MANAGE -> Res.string.library_manage_lists
-                        LibraryListDialogMode.DELETE -> Res.string.library_list_delete
-                        LibraryListDialogMode.EDIT -> if (creating) Res.string.library_create_list else Res.string.library_edit_list
-                    }),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                IconButton(onClick = dismiss, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-                    Icon(Icons.Rounded.Close, stringResource(Res.string.action_close), tint = tokens.colors.textMuted)
-                }
-            }
-            when (state.mode) {
-                LibraryListDialogMode.MANAGE -> LibraryListRows(
-                    tabs = personal,
-                    onEdit = onEdit,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                LibraryListDialogMode.EDIT -> LibraryListEditor(
-                    state = state,
-                    capabilities = capabilities,
-                    onNameChange = onNameChange,
-                    onDescriptionChange = onDescriptionChange,
-                    onPrivacyChange = onPrivacyChange,
-                    onSubmit = submit,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                LibraryListDialogMode.DELETE -> Text(
-                    text = stringResource(Res.string.library_list_delete_message, state.name),
-                    modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = tokens.colors.textMuted,
-                )
-            }
-            state.error?.let {
-                Text(
-                    text = errorMessage ?: stringResource(if (state.mode == LibraryListDialogMode.DELETE)
-                        Res.string.library_list_delete_failed else Res.string.library_list_save_failed),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = tokens.colors.danger,
-                )
-            }
-            when (state.mode) {
-                LibraryListDialogMode.MANAGE -> NuvioPrimaryButton(
-                    text = stringResource(Res.string.library_create_list),
-                    onClick = onCreate,
-                )
-                LibraryListDialogMode.EDIT -> {
-                    NuvioPrimaryButton(
-                        text = stringResource(when {
-                            state.isPending -> Res.string.action_saving
-                            creating -> Res.string.library_create_list_action
-                            else -> Res.string.action_save
-                        }),
-                        enabled = !state.isPending && state.name.isNotBlank(),
-                        onClick = submit,
+                when (state.mode) {
+                    LibraryListDialogMode.MANAGE -> LibraryListRows(
+                        tabs = personal,
+                        onEdit = onEdit,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                        if (creating) {
-                            TextButton(onClick = back, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                                Text(stringResource(Res.string.library_manage_lists))
-                            }
-                        } else if (editing != null) {
-                            TextButton(onClick = { keyboard?.hide(); onDelete(editing) }, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                                Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = tokens.colors.danger)
-                                Text(stringResource(Res.string.library_list_delete_action), color = tokens.colors.danger,
-                                    modifier = Modifier.padding(start = 6.dp))
+                    LibraryListDialogMode.EDIT -> LibraryListEditor(
+                        state = state,
+                        capabilities = capabilities,
+                        onNameChange = onNameChange,
+                        onDescriptionChange = onDescriptionChange,
+                        onPrivacyChange = onPrivacyChange,
+                        onSubmit = submit,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    LibraryListDialogMode.DELETE -> Text(
+                        text = stringResource(Res.string.library_list_delete_message, state.name),
+                        modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = tokens.colors.textMuted,
+                    )
+                }
+                state.error?.let {
+                    Text(
+                        text = errorMessage ?: stringResource(if (state.mode == LibraryListDialogMode.DELETE)
+                            Res.string.library_list_delete_failed else Res.string.library_list_save_failed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = tokens.colors.danger,
+                    )
+                }
+                when (state.mode) {
+                    LibraryListDialogMode.MANAGE -> NuvioPrimaryButton(
+                        text = stringResource(Res.string.library_create_list),
+                        onClick = onCreate,
+                    )
+                    LibraryListDialogMode.EDIT -> {
+                        NuvioPrimaryButton(
+                            text = stringResource(when {
+                                state.isPending -> Res.string.action_saving
+                                creating -> Res.string.library_create_list_action
+                                else -> Res.string.action_save
+                            }),
+                            enabled = !state.isPending && state.name.isNotBlank(),
+                            onClick = submit,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                            if (creating) {
+                                TextButton(onClick = back, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                                    Text(stringResource(Res.string.library_manage_lists))
+                                }
+                            } else if (editing != null) {
+                                TextButton(onClick = { keyboard?.hide(); onDelete(editing) }, enabled = !state.isPending, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = tokens.colors.danger)
+                                    Text(stringResource(Res.string.library_list_delete_action), color = tokens.colors.danger,
+                                        modifier = Modifier.padding(start = 6.dp))
+                                }
                             }
                         }
                     }
-                }
-                LibraryListDialogMode.DELETE -> Row(
-                    Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
-                ) {
-                    TextButton(onClick = back, enabled = !state.isPending, modifier = (Modifier.weight(1f)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
-                        Text(stringResource(Res.string.action_cancel))
+                    LibraryListDialogMode.DELETE -> Row(
+                        Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
+                    ) {
+                        TextButton(onClick = back, enabled = !state.isPending, modifier = (Modifier.weight(1f)).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {
+                            Text(stringResource(Res.string.action_cancel))
+                        }
+                        Button(
+                            onClick = submit,
+                            enabled = !state.isPending,
+                            modifier = (Modifier.weight(1f).heightIn(min = 52.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
+                            shape = tokens.shapes.button,
+                            colors = ButtonDefaults.buttonColors(containerColor = tokens.colors.danger, contentColor = tokens.colors.onAccent),
+                        ) { Text(stringResource(Res.string.library_list_delete_action)) }
                     }
-                    Button(
-                        onClick = submit,
-                        enabled = !state.isPending,
-                        modifier = (Modifier.weight(1f).heightIn(min = 52.dp)).remoteNavigationTarget(shape = tokens.shapes.button),
-                        shape = tokens.shapes.button,
-                        colors = ButtonDefaults.buttonColors(containerColor = tokens.colors.danger, contentColor = tokens.colors.onAccent),
-                    ) { Text(stringResource(Res.string.library_list_delete_action)) }
                 }
             }
         }

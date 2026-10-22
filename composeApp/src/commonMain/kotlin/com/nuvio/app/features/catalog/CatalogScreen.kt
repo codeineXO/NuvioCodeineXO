@@ -1,5 +1,10 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.core.ui.desktopBackButtonSize
+import com.nuvio.app.core.ui.desktopBackButtonContainerColor
+import com.nuvio.app.core.ui.desktopBackButtonIconSize
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
@@ -359,7 +364,7 @@ private fun CatalogHeader(
 
     val tokens = MaterialTheme.nuvio
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val effectiveTopPadding = statusBarTop + tokens.spacing.screenTop
+    val effectiveTopPadding = statusBarTop + if (isDesktop) desktopBackButtonTopPadding else tokens.spacing.screenTop
 
     Row(
         modifier = modifier
@@ -368,14 +373,15 @@ private fun CatalogHeader(
             .nuvioConsumePointerEvents()
             .padding(horizontal = pageHorizontalPadding)
             .padding(top = effectiveTopPadding, bottom = NuvioTokens.Space.s4),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = if (isDesktop) Alignment.Top else Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        IconButton(onClick = onBack, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+        IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize).background(desktopBackButtonContainerColor, androidx.compose.foundation.shape.CircleShape) else Modifier).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(Res.string.action_back),
-                tint = tokens.colors.textPrimary,
+                tint = if (isDesktop) MaterialTheme.colorScheme.onBackground else tokens.colors.textPrimary,
+                modifier = if (isDesktop) Modifier.size(desktopBackButtonIconSize) else Modifier,
             )
         }
         var headerTitle by remember { mutableStateOf("") }

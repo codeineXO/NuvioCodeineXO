@@ -14,6 +14,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import com.nuvio.app.isDesktop
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -176,12 +179,13 @@ fun OnboardingScreen(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(tokens.colors.background),
     ) {
         HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
+        val backButtonStartPadding = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 24.dp
 
         Column(
             modifier = Modifier
@@ -193,32 +197,34 @@ fun OnboardingScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = backButtonStartPadding, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 if (isReviewMode && onBack != null) {
                     NuvioBackButton(
+                        usePageStyle = true,
                         onClick = onBack,
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(if (isDesktop) 48.dp else 36.dp),
                         shape = tokens.shapes.compactCard,
                         containerColor = tokens.colors.surface,
                         contentColor = tokens.colors.textPrimary,
-                        buttonSize = NuvioTokens.Space.s36,
+                        buttonSize = if (isDesktop) 48.dp else NuvioTokens.Space.s36,
                         iconSize = tokens.icons.md,
                     )
                 } else if (currentStep > 0) {
                     NuvioBackButton(
+                        usePageStyle = true,
                         onClick = { currentStep-- },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(if (isDesktop) 48.dp else 36.dp),
                         shape = tokens.shapes.compactCard,
                         containerColor = tokens.colors.surface,
                         contentColor = tokens.colors.textPrimary,
-                        buttonSize = NuvioTokens.Space.s36,
+                        buttonSize = if (isDesktop) 48.dp else NuvioTokens.Space.s36,
                         iconSize = tokens.icons.md,
                     )
                 } else {
-                    Spacer(modifier = Modifier.size(36.dp))
+                    Spacer(modifier = Modifier.size(if (isDesktop) 48.dp else 36.dp))
                 }
 
                 // Step dots

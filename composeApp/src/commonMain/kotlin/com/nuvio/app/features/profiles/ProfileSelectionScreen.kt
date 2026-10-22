@@ -66,6 +66,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioToastHost
 import com.nuvio.app.features.membership.CosmeticEntitlement
@@ -328,10 +330,12 @@ fun ProfileSelectionScreen(
 
         if (onBack != null && interactionEnabled && contentVisible) {
             NuvioBackButton(
+                usePageStyle = true,
                 onClick = onBack,
+                buttonSize = if (isDesktop) 48.dp else 40.dp,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = statusBarTop + 8.dp),
+                    .padding(start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 16.dp, top = statusBarTop + if (isDesktop) desktopBackButtonTopPadding else 8.dp),
             )
         }
 

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.library
 
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.animation.Crossfade
@@ -1007,69 +1009,72 @@ private fun CloudLibraryFilePicker(
     onFileSelected: (CloudLibraryFile) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Column(
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val backInset = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 14.dp
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = if (isDesktop) 0.dp else 12.dp, vertical = if (isDesktop) 0.dp else 6.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = backInset, vertical = if (isDesktop) 16.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                IconButton(onClick = onBack, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(Res.string.action_back),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(Res.string.cloud_library_file_picker_title),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            val files = item.playableFiles
-            if (files.isEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        text = stringResource(Res.string.cloud_library_no_files_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(Res.string.cloud_library_no_files_message),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    IconButton(onClick = onBack, modifier = Modifier.then(if (isDesktop) Modifier.size(48.dp) else Modifier).remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(Res.string.action_back),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = stringResource(Res.string.cloud_library_file_picker_title),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-            } else {
-                files.forEach { file ->
-                    CloudLibraryFileRow(
-                        file = file,
-                        onClick = { onFileSelected(file) },
-                    )
+
+                val files = item.playableFiles
+                if (files.isEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.cloud_library_no_files_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = stringResource(Res.string.cloud_library_no_files_message),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    files.forEach { file ->
+                        CloudLibraryFileRow(
+                            file = file,
+                            onClick = { onFileSelected(file) },
+                        )
+                    }
                 }
             }
         }

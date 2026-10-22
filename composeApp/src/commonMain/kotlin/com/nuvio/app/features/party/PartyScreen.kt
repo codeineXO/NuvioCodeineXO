@@ -1,5 +1,7 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.isDesktop
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -238,8 +240,8 @@ internal fun PartyPage(
         modifier = Modifier
             .fillMaxSize()
             .background(tokens.colors.background)
-            .padding(top = tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding)
-            .padding(horizontal = tokens.spacing.screenHorizontal),
+            .padding(top = if (isDesktop) 0.dp else tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding)
+            .padding(horizontal = if (isDesktop) 0.dp else tokens.spacing.screenHorizontal),
     ) {
         NuvioScreenHeader(
             title = stringResource(Res.string.party_title),

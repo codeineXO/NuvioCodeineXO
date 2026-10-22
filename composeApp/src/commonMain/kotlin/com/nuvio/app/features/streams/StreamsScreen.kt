@@ -81,6 +81,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
@@ -328,11 +329,12 @@ fun StreamsScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
                 .padding(
                     start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 12.dp,
-                    top = if (isDesktop) 32.dp else 8.dp,
+                    top = if (isDesktop) desktopBackButtonTopPadding else 8.dp,
                 ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             NuvioBackButton(
+                usePageStyle = true,
                 onClick = onBack,
                 modifier = if (isDesktop) Modifier else Modifier.size(40.dp),
                 containerColor = if (isDesktop) {

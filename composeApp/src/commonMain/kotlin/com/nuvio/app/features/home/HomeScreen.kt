@@ -63,6 +63,7 @@ import com.nuvio.app.features.cloud.CloudLibraryUiState
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.isFullscreenActionSupported
@@ -1338,7 +1339,8 @@ fun HomeScreen(
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(
-                        top = if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
+                        top = if (isDesktop) desktopBackButtonTopPadding
+                            else if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
                         end = actionHorizontalInset,
                     ),
                 buttonSize = 48.dp,

@@ -132,6 +132,7 @@ import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
@@ -2067,6 +2068,7 @@ fun MetaDetailsScreen(
 
                         if (!isDesktop && !useDesktopDetailLayout && showHeroBackButton) {
                             NuvioBackButton(
+                                usePageStyle = true,
                                 onClick = onBackFromDetails,
                                 modifier = Modifier.padding(
                                     start = 12.dp,
@@ -2079,15 +2081,12 @@ fun MetaDetailsScreen(
 
                         if (isDesktop) {
                             NuvioBackButton(
+                                usePageStyle = true,
                                 onClick = onBackFromDetails,
                                 modifier = Modifier.remoteNavigationScrollToTop(listState)
                                     .then(if (useEnhancedLayout) Modifier.excludeFromRemoteNavigation() else Modifier)
                                     .statusBarsPadding()
-                                    .padding(start = desktopPageHorizontalPadding, top = if (useEnhancedLayout) 16.dp else 32.dp)
-                                    .then(if (useEnhancedLayout) Modifier
-                                        .shadow(NuvioTokens.Elevation.raised, MaterialTheme.nuvio.shapes.avatar)
-                                        .border(1.dp, MaterialTheme.nuvio.colors.borderDefault, MaterialTheme.nuvio.shapes.avatar)
-                                    else Modifier)
+                                    .padding(start = desktopPageHorizontalPadding, top = desktopBackButtonTopPadding)
                                     .zIndex(2f),
                                 containerColor = if (useEnhancedLayout) MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 0.88f)
                                     else Color.Black.copy(alpha = 0.34f),
@@ -2385,11 +2384,12 @@ fun MetaDetailsScreen(
                     12.dp
                 }
                 val loadingBackButtonTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + if (isDesktop) {
-                    32.dp
+                    desktopBackButtonTopPadding
                 } else {
                     8.dp
                 }
                 NuvioBackButton(
+                    usePageStyle = true,
                     onClick = onBack,
                     modifier = Modifier.padding(
                         start = loadingBackButtonStartPadding,

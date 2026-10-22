@@ -68,6 +68,7 @@ import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
@@ -421,7 +422,7 @@ fun DesktopDetailHero(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = if (compact) space.s16 else space.s32, end = actionHorizontalInset),
+                    .padding(top = desktopBackButtonTopPadding, end = actionHorizontalInset),
                 buttonSize = 48.dp,
                 iconSize = 24.dp,
                 containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),

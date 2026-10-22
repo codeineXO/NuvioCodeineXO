@@ -1,5 +1,11 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+
+import com.nuvio.app.isDesktop
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.foundation.background
@@ -62,7 +68,7 @@ fun DetailFloatingHeader(
     modifier: Modifier = Modifier,
 ) {
     val safeAreaTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val headerTopPadding = (safeAreaTop - 6.dp).coerceAtLeast(safeAreaTop * 0.8f)
+    val headerTopPadding = if (isDesktop) safeAreaTop + desktopBackButtonTopPadding else (safeAreaTop - 6.dp).coerceAtLeast(safeAreaTop * 0.8f)
     val surfaceColor = backgroundColor ?: if (isIos) {
         MaterialTheme.colorScheme.surface.copy(alpha = 1.0f)
     } else {
@@ -85,7 +91,7 @@ fun DetailFloatingHeader(
     ) {
         val logoWidth = (maxWidth * 0.6f).coerceAtMost(240.dp)
         val rightActionsWidth = if (isFullscreenActionSupported) 84.dp else 40.dp
-        val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
+        val actionHorizontalInset = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else fullscreenActionHorizontalInsetForWidth(maxWidth.value)
 
         Box(
             modifier = Modifier
@@ -97,7 +103,7 @@ fun DetailFloatingHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = headerTopPadding, start = actionHorizontalInset, end = actionHorizontalInset)
-                    .height(56.dp)
+                    .height(if (isDesktop) 48.dp else 56.dp)
                     .graphicsLayer { alpha = progressProvider() },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -105,16 +111,17 @@ fun DetailFloatingHeader(
                 Box(
                     modifier = Modifier
                         .width(rightActionsWidth)
-                        .height(40.dp),
+                        .height(if (isDesktop) 48.dp else 40.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     if (interactive) {
                         NuvioBackButton(
+                            usePageStyle = true,
                             onClick = onBack,
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(if (isDesktop) 48.dp else 40.dp),
                             containerColor = Color.Transparent,
                             contentColor = MaterialTheme.colorScheme.onBackground,
-                            buttonSize = 40.dp,
+                            buttonSize = if (isDesktop) 48.dp else 40.dp,
                             iconSize = 24.dp,
                         )
                     }

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.collection
 
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.BindPosterNavigationPage
 import com.nuvio.app.core.ui.PosterNavigationRow
@@ -168,10 +170,10 @@ fun FolderDetailScreen(
                 if (!useNativeNavigation) {
                     NuvioScreenHeader(
                         title = folder?.title ?: uiState.collectionTitle,
-                        modifier = Modifier.padding(horizontal = desktopPagePadding),
+                        modifier = Modifier,
                         backgroundColor = Color.Transparent,
                         includeStatusBarPadding = false,
-                        topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 32.dp,
+                        topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + desktopBackButtonTopPadding,
                         onBack = onBack,
                         backButtonKeyboardNavigationEnabled = false,
                     )
