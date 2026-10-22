@@ -47,6 +47,7 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import com.nuvio.app.isDesktop
 
 internal class RemoteNavigationSession {
+    var activeShelf: PosterShelfController? = null
     var keyboard by mutableStateOf(false)
     var enterHeld = false
     var leftHeld = false
@@ -75,6 +76,8 @@ internal class RemoteNavigationSession {
     fun canEnterSidebar(): Boolean = !leftMovedDuringHold
 
     fun resetHoldState() {
+        activeShelf?.stop()
+        activeShelf = null
         cancelPosterNavigation()
         leftHeld = false
         leftMovedDuringHold = false
@@ -83,7 +86,11 @@ internal class RemoteNavigationSession {
     }
 
     fun onPreviewKeyEvent(event: KeyEvent): Boolean {
-        if (event.type == KeyEventType.KeyUp) remoteDirection(event.key)?.let { releasePosterDirection(it) }
+        if (event.type == KeyEventType.KeyDown && event.key != Key.DirectionLeft && event.key != Key.DirectionRight) {
+            activeShelf?.stop()
+            activeShelf = null
+        }
+        if (event.type == KeyEventType.KeyUp) remoteDirection(event.key)?.let { releasePosterDirection(it); activeShelf?.release(it) }
         if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && !RemoteTextEditing.isTextInputFocused) {
             if (event.type == KeyEventType.KeyDown) {
                 if (enterHeld) return true
@@ -271,6 +278,7 @@ internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource,
 
 internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager, val sidebarEntry: Boolean = false) {
     var pageBoundary: RemoteNavigationPageBoundary? = null
+    var shelfItem: PosterShelfItem? = null
     var poster: PosterNavigationItem? = null
     var bounds by mutableStateOf<Rect?>(null)
     var focused by mutableStateOf(false)
@@ -310,12 +318,15 @@ internal fun Modifier.excludeFromRemoteNavigation(): Modifier = composed {
 
 /** The desktop key entry point can recover even when no Compose target owns focus. */
 internal object RemoteNavigationDispatcher {
-    private data class Registration(val recover: (Boolean) -> Boolean, val mouseMoved: () -> Unit)
+    private data class Registration(val recover: (Boolean) -> Boolean, val mouseMoved: () -> Unit, val cancelHeld: () -> Unit)
     private val handlers = mutableListOf<Registration>()
-    fun register(handler: (Boolean) -> Boolean, mouseMoved: () -> Unit) { handlers += Registration(handler, mouseMoved) }
+    fun register(handler: (Boolean) -> Boolean, mouseMoved: () -> Unit, cancelHeld: () -> Unit) {
+        handlers += Registration(handler, mouseMoved, cancelHeld)
+    }
     fun unregister(handler: (Boolean) -> Boolean) { handlers.removeAll { it.recover === handler } }
     fun recoverFocus(force: Boolean = false): Boolean = handlers.lastOrNull()?.recover?.invoke(force) ?: false
     fun mouseMoved() { handlers.lastOrNull()?.mouseMoved?.invoke() }
+    fun focusLost() { handlers.lastOrNull()?.cancelHeld?.invoke() }
     val isEnabled: Boolean get() = handlers.isNotEmpty()
     fun dispatchBackspace(): Boolean = isEnabled && !RemoteTextEditing.isTextInputFocused && PlatformBackDispatcher.dispatch()
 }
@@ -406,10 +417,10 @@ internal fun RemoteNavigationHost(
         session.resetHoldState()
         session.enterHeld = false
         val handler: (Boolean) -> Boolean = { recoverFocus(it) }
-        if (navigationEnabled) RemoteNavigationDispatcher.register(handler) {
+        if (navigationEnabled) RemoteNavigationDispatcher.register(handler, mouseMoved = {
             session.keyboard = false
             session.resetHoldState()
-        }
+        }, cancelHeld = session::resetHoldState)
         onDispose { session.cancelPosterNavigation(); RemoteNavigationDispatcher.unregister(handler) }
     }
     LaunchedEffect(navigationEnabled, restorationKey) {
@@ -492,9 +503,10 @@ internal fun Modifier.remoteNavigationTarget(
     val requester = remember { FocusRequester() }
     val effectiveRole = role ?: LocalRemoteNavigationRole.current
     val target = remember(route, identity, initialFocus, effectiveRole, focusManager, sidebarEntry) { RemoteFocusTarget(route, identity, requester, initialFocus, effectiveRole, focusManager, sidebarEntry) }
+    val shelfItem = LocalPosterShelfItem.current
     val poster = LocalPosterNavigationItem.current
     val pageBoundary = LocalRemoteNavigationPageBoundary.current
-    SideEffect { target.poster = poster; target.pageBoundary = pageBoundary }
+    SideEffect { target.poster = poster; target.pageBoundary = pageBoundary; target.shelfItem = shelfItem }
     val bringIntoView = remember { BringIntoViewRequester() }
     SideEffect { target.reveal = { bringIntoView.bringIntoView() } }
     val scope = rememberCoroutineScope()
@@ -545,7 +557,15 @@ internal fun Modifier.remoteNavigationTarget(
     }
     LaunchedEffect(focused, session.keyboard) {
         if (focused && session.keyboard && !session.explicitFocusTransfer && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
-            if (poster?.role == PosterTargetRole.Poster && (poster.page == "home" || poster.page == "collection")) {
+            if (shelfItem != null) {
+                // Horizontal reveal belongs to the shelf; retain page-level vertical reveal.
+                if (poster == null) {
+                    bringIntoView.bringIntoView(target.bounds?.let { Rect(0f, -margin, it.width, it.height + margin) })
+                }
+                session.posterPages[poster?.page]?.let { page ->
+                    page.rows.firstOrNull { it.key == poster?.row }?.let { session.revealPosterRow(poster!!.page, it) }
+                }
+            } else if (poster?.role == PosterTargetRole.Poster && (poster.page == "home" || poster.page == "collection")) {
                 // Let native focus scrolling retain its velocity across key repeats.
                 // Correct the padded edge only after that reveal completes.
                 bringIntoView.bringIntoView()
@@ -665,6 +685,10 @@ internal fun Modifier.remoteNavigationTarget(
                 }
                 textField && editing -> false
                 adjustable && (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) -> false
+                shelfItem != null && (direction == FocusDirection.Left || direction == FocusDirection.Right) -> {
+                    if (event.type == KeyEventType.KeyDown) shelfItem.controller.press(target, direction)
+                    true
+                }
                 (direction == FocusDirection.Left || direction == FocusDirection.Right) &&
                     poster != null && (poster.page == "home" || poster.page == "collection") -> {
                     if (event.type == KeyEventType.KeyDown) session.movePosterHorizontally(target, direction)

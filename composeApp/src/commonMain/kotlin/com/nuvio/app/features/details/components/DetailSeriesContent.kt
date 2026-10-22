@@ -9,6 +9,11 @@ import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationUp
 import com.nuvio.app.core.ui.remoteNavigationDown
+import com.nuvio.app.core.ui.LocalPosterShelfItem
+import com.nuvio.app.core.ui.PosterShelfItem
+import com.nuvio.app.core.ui.PosterShelfScrollOwner
+import com.nuvio.app.core.ui.rememberPosterShelfController
+import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
@@ -1487,7 +1492,10 @@ private fun EpisodeHorizontalRow(
         reduceSize = scrollPostersLayoutEnabled,
     )
     val listState = rememberLazyListState()
-    val rowNavigation = rememberSeriesRowNavigation(listState, episodes)
+    val episodeKeys = remember(episodes) {
+        episodes.mapIndexed { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" }
+    }
+    val shelfController = rememberPosterShelfController(listState, episodeKeys, allowSidebarEntry = false)
     var entryIndex by remember { mutableStateOf(0) }
     var hasPositioned by rememberSaveable(parentMetaId, episodes.firstOrNull()?.season) { mutableStateOf(false) }
     BindRemoteNavigationFocusDestination(firstEpisodeFocus) {
@@ -1579,42 +1587,46 @@ private fun EpisodeHorizontalRow(
     Box(
         modifier = containerModifier,
     ) {
-        LazyRow(
-            state = listState,
-            modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.then(rowNavigation.modifier).then(rowModifier),
-            contentPadding = rowContentPadding,
-            horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
-        ) {
-            itemsIndexed(
-                items = episodes,
-                key = { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" },
-            ) { index, episode ->
-                val episodeVideoId = buildPlaybackVideoId(
-                    parentMetaId = parentMetaId,
-                    seasonNumber = episode.season,
-                    episodeNumber = episode.episode,
-                    fallbackVideoId = episode.id,
-                )
-                EpisodeHorizontalCard(
-                    modifier = rowNavigation.itemModifier(index).remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
-                        .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
-                    video = episode,
-                    fallbackImage = fallbackImage,
-                    progressEntry = progressByVideoId[episodeVideoId],
-                    imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
-                    isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
-                        WatchingState.isEpisodeWatched(
-                            watchedKeys = watchedKeys,
-                            metaType = metaType,
-                            metaId = parentMetaId,
-                            episode = episode,
-                        ),
-                    episodeRatingsVisibility = episodeRatingsVisibility,
-                    blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                    metrics = rowMetrics,
-                    onClick = { onEpisodeClick?.invoke(episode) },
-                    onLongPress = { onEpisodeLongPress?.invoke(episode) },
-                )
+        PosterShelfScrollOwner(shelfController) {
+            LazyRow(
+                state = listState,
+                modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.remoteNavigationGroup().then(rowModifier),
+                contentPadding = rowContentPadding,
+                horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
+            ) {
+                itemsIndexed(
+                    items = episodes,
+                    key = { index, _ -> episodeKeys[index] },
+                ) { index, episode ->
+                    val episodeVideoId = buildPlaybackVideoId(
+                        parentMetaId = parentMetaId,
+                        seasonNumber = episode.season,
+                        episodeNumber = episode.episode,
+                        fallbackVideoId = episode.id,
+                    )
+                    CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, episodeKeys[index], index) }) {
+                        EpisodeHorizontalCard(
+                            modifier = Modifier.remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
+                                .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
+                            video = episode,
+                            fallbackImage = fallbackImage,
+                            progressEntry = progressByVideoId[episodeVideoId],
+                            imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
+                            isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+                                WatchingState.isEpisodeWatched(
+                                    watchedKeys = watchedKeys,
+                                    metaType = metaType,
+                                    metaId = parentMetaId,
+                                    episode = episode,
+                                ),
+                            episodeRatingsVisibility = episodeRatingsVisibility,
+                            blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+                            metrics = rowMetrics,
+                            onClick = { onEpisodeClick?.invoke(episode) },
+                            onLongPress = { onEpisodeLongPress?.invoke(episode) },
+                        )
+                    }
+                }
             }
         }
 

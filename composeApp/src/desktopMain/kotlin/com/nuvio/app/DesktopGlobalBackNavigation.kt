@@ -14,6 +14,8 @@ import java.awt.Window
 import java.awt.event.AWTEventListener
 import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import javax.swing.SwingUtilities
 import androidx.compose.ui.input.pointer.PointerIcon
 import java.awt.MouseInfo
@@ -42,6 +44,12 @@ private const val AWT_MOUSE_BACK_BUTTON = 4
 
 /** Recover native focus and forward mouse Back once for the window and its dialogs. */
 internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
+    val focusListener = object : WindowAdapter() {
+        override fun windowLostFocus(event: WindowEvent) {
+            RemoteNavigationDispatcher.focusLost()
+        }
+    }
+    window.addWindowFocusListener(focusListener)
     var lastMousePosition = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull()
     val keyDispatcher = KeyEventDispatcher { event ->
         val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
@@ -112,6 +120,7 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
     }
 
     return {
+        window.removeWindowFocusListener(focusListener)
         KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(keyDispatcher)
         runCatching {
             Toolkit.getDefaultToolkit().removeAWTEventListener(mouseListener)

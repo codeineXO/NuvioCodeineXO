@@ -26,7 +26,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.stopScroll
@@ -122,6 +122,7 @@ fun <T> NuvioShelfSection(
         key?.let { entries.withDuplicateSafeLazyKeys(it) }
     }
     BindPosterShelf(state)
+    val shelfController = rememberPosterShelfController(state, duplicateSafeEntries?.map { it.lazyKey } ?: entries.mapIndexed { index, entry -> key?.invoke(entry) ?: index })
 
     ScreenActivityEffect(state) { active ->
         if (!active) state.stopScroll()
@@ -179,37 +180,41 @@ fun <T> NuvioShelfSection(
                 },
             )
         }
-        LazyRow(
-            state = state,
-            modifier = Modifier.remoteNavigationGroup().then(effectiveRowModifier),
-            contentPadding = effectiveRowContentPadding,
-            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-        ) {
-            if (duplicateSafeEntries != null) {
-                items(
-                    items = duplicateSafeEntries,
-                    key = { entry -> entry.lazyKey },
-                    contentType = { "poster" },
-                ) { keyedEntry ->
-                    PosterRowItem(
-                        viewport = if (useGutterLayout) hoverViewport else null,
-                        modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
-                    ) {
-                        RemotePosterItem(key?.invoke(keyedEntry.value), duplicateSafeEntries.indexOf(keyedEntry)) {
-                            itemContent(keyedEntry.value)
+        PosterShelfScrollOwner(shelfController) {
+            LazyRow(
+                state = state,
+                modifier = Modifier.remoteNavigationGroup().then(effectiveRowModifier),
+                contentPadding = effectiveRowContentPadding,
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing),
+            ) {
+                if (duplicateSafeEntries != null) {
+                    itemsIndexed(
+                        items = duplicateSafeEntries,
+                        key = { _, entry -> entry.lazyKey },
+                        contentType = { _, _ -> "poster" },
+                    ) { index, keyedEntry ->
+                        PosterRowItem(
+                            viewport = if (useGutterLayout) hoverViewport else null,
+                            modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
+                        ) {
+                            CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, keyedEntry.lazyKey, index) }) {
+                                RemotePosterItem(key?.invoke(keyedEntry.value), index) { itemContent(keyedEntry.value) }
+                            }
                         }
                     }
-                }
-            } else {
-                items(
-                    items = entries,
-                    contentType = { "poster" },
-                ) { entry ->
-                    PosterRowItem(
-                        viewport = if (useGutterLayout) hoverViewport else null,
-                        modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
-                    ) {
-                        RemotePosterItem(key?.invoke(entry), entries.indexOf(entry)) { itemContent(entry) }
+                } else {
+                    itemsIndexed(
+                        items = entries,
+                        contentType = { _, _ -> "poster" },
+                    ) { index, entry ->
+                        PosterRowItem(
+                            viewport = if (useGutterLayout) hoverViewport else null,
+                            modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
+                        ) {
+                            CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, key?.invoke(entry) ?: index, index) }) {
+                                RemotePosterItem(key?.invoke(entry), index) { itemContent(entry) }
+                            }
+                        }
                     }
                 }
             }
