@@ -1002,15 +1002,35 @@ internal fun Modifier.remoteNavigationScrollToTop(state: LazyListState): Modifie
 }
 
 /** Keep directional movement inside an overlay and return to its opener on dismissal. */
-internal fun Modifier.remoteNavigationModal(): Modifier = composed {
+internal fun Modifier.remoteNavigationModal(onDismissRequest: (() -> Unit)? = null): Modifier = composed {
     val session = LocalRemoteNavigation.current ?: return@composed this
     val requester = remember { FocusRequester() }
     val opener = remember { session.lastFocused }
+    val dismiss by rememberUpdatedState(onDismissRequest)
+    var consumeOpeningEnter by remember { mutableStateOf(session.enterHeld) }
     LaunchedEffect(Unit) { requester.requestFocus() }
     DisposableEffect(Unit) {
         onDispose { if (session.keyboard) runCatching { opener?.requestFocus() } }
     }
     this.remoteNavigationPointerIcon().focusRequester(requester)
+        .onPreviewKeyEvent { event ->
+            // A modal can receive repeats in a separate window after its opener loses focus.
+            // Keep the opening press out of its actions, including the final key-up.
+            if (consumeOpeningEnter && (event.key == Key.Enter || event.key == Key.NumPadEnter)) {
+                if (event.type == KeyEventType.KeyUp) {
+                    consumeOpeningEnter = false
+                    session.enterHeld = false
+                }
+                true
+            } else false
+        }
+        .onKeyEvent { event ->
+            // Popup windows do not bubble Backspace to the screen's navigation host.
+            if (event.key == Key.Backspace && !RemoteTextEditing.isTextInputFocused && dismiss != null) {
+                if (event.type == KeyEventType.KeyDown) dismiss?.invoke()
+                true
+            } else false
+        }
         .focusProperties { onExit = { cancelFocusChange() } }
         .focusGroup()
 }

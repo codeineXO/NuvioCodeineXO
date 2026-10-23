@@ -1000,7 +1000,11 @@ private fun SeasonTextChipScrollRow(
                             .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
                             .remoteNavigationDown(onSeasonDown)
                             .remoteNavigationUp(onSeasonUp)
-                            .remoteNavigationTarget(shape = RoundedCornerShape(sizing.seasonChipRadius)).combinedClickable(
+                            .remoteNavigationTarget(
+                                shape = RoundedCornerShape(sizing.seasonChipRadius),
+                                onSelect = { onSelect(season) },
+                                onContext = onSecondaryClick,
+                            ).combinedClickable(
                                 onClick = { onSelect(season) },
                                 onLongClick = onSecondaryClick,
                             )

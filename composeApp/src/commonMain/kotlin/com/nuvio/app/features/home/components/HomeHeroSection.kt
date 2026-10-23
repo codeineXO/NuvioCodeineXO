@@ -50,6 +50,7 @@ import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -348,7 +349,7 @@ private fun HeroBackgroundLayers(
         AsyncImage(
             model = if (desktopFrame) originalTmdbImageUrl(imageUrl) else imageUrl,
             contentDescription = item.name,
-            modifier = backgroundModifier.navigationGlassSource()
+            modifier = backgroundModifier
                 .graphicsLayer {
                     val pageOffset = heroPageOffset(pagerState, page)
                     val scrollOffsetPx = heroScrollOffsetPx(listState, heroHeightPx)
@@ -521,6 +522,9 @@ private fun DefaultHomeHeroFrame(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                // Capture the finished backdrop, including scrims and the bottom fade.
+                .navigationGlassSource()
+                .clipToBounds()
                 .heroBottomFeather(bottomFadeRatio = 0.42f),
         ) {
             HeroBackgroundLayers(
@@ -653,6 +657,9 @@ private fun DesktopHomeHeroFrame(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                // Keep glass sampling inside the hero and include all backdrop scrims.
+                .navigationGlassSource()
+                .clipToBounds()
                 .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
         ) {
             HeroBackgroundLayers(

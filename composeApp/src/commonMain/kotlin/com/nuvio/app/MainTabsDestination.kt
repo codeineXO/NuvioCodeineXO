@@ -33,6 +33,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +48,7 @@ import com.nuvio.app.core.ui.DesktopNavigationBar
 import com.nuvio.app.core.ui.FloatingNavigationBar
 import com.nuvio.app.core.ui.FloatingNavigationItem
 import com.nuvio.app.core.ui.PlatformBackHandler
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.rememberNuvioNavBarScrollState
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.profiles.NuvioProfile
@@ -122,11 +126,12 @@ internal fun MainTabsDestination(
         val isSidebarHovered by sidebarHoverSource.collectIsRemoteHoveredAsState()
         var isProfileStackVisible by remember { mutableStateOf(false) }
         var isSidebarFocused by remember { mutableStateOf(false) }
+        val isKeyboardNavigationActive = isRemoteKeyboardNavigationActive
 
         val isSidebarExpanded = when (navBarStyleSetting) {
             NavBarStyle.EXPANDED -> true
             NavBarStyle.COMPACT -> isProfileStackVisible
-            else -> isSidebarHovered || isSidebarFocused || isProfileStackVisible // ADAPTIVE
+            else -> isSidebarHovered || (isKeyboardNavigationActive && isSidebarFocused) || isProfileStackVisible // ADAPTIVE
         }
 
         val animatedSidebarWidth by animateDpAsState(
@@ -276,7 +281,20 @@ internal fun MainTabsDestination(
                         onProfileStackVisibleChange = { isProfileStackVisible = it },
                         hazeState = navBarHazeState,
                         onFocusWithinChanged = { isSidebarFocused = it },
-                        modifier = Modifier.align(Alignment.CenterStart),
+                        modifier = Modifier.align(Alignment.CenterStart)
+                            .pointerInput(navBarStyleSetting) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        if (event.type == PointerEventType.Exit &&
+                                            navBarStyleSetting != NavBarStyle.EXPANDED &&
+                                            navBarStyleSetting != NavBarStyle.COMPACT
+                                        ) {
+                                            isProfileStackVisible = false
+                                        }
+                                    }
+                                }
+                            },
                     )
                 }
 

@@ -72,7 +72,7 @@ fun NuvioModalBottomSheet(
             CompositionLocalProvider(LocalBottomInsetsConsumed provides true) {
                 Column(
                     modifier = modifier
-                        .remoteNavigationModal()
+                        .remoteNavigationModal(onDismissRequest = onDismissRequest)
                         .padding(NuvioTokens.Space.s10)
                         .clip(SheetShape)
                         .background(containerColor)

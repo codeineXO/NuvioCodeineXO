@@ -4549,11 +4549,11 @@ customSubtitleStyleToggle.addEventListener("click", event => {
 });
 fontSizeMinus.addEventListener("click", event => {
   event.stopPropagation();
-  send("subtitleFontSizeDelta", -2);
+  send("subtitleFontSizeDelta", -1);
 });
 fontSizePlus.addEventListener("click", event => {
   event.stopPropagation();
-  send("subtitleFontSizeDelta", 2);
+  send("subtitleFontSizeDelta", 1);
 });
 if (fontMinus) {
   fontMinus.addEventListener("click", event => {

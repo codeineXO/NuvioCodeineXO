@@ -706,7 +706,7 @@ private fun PlaybackSettingsSection(
                     value = subtitleStyle.fontSizeSp,
                     valueText = { size -> stringResource(Res.string.compose_player_font_size_value, size) },
                     valueRange = subtitleFontSizeRangeSp,
-                    step = 2,
+                    step = 1,
                     isTablet = isTablet,
                     enabled = subtitleRenderingEnabled,
                     onValueChange = { value ->

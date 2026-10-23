@@ -30,12 +30,14 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.stopScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -93,10 +95,7 @@ enum class NuvioPosterShape {
     Landscape,
 }
 
-enum class NuvioViewAllPillSize {
-    Default,
-    Compact,
-}
+private val ShelfHeaderControlSize = NuvioTokens.Space.s40
 
 @Composable
 fun <T> NuvioShelfSection(
@@ -110,7 +109,6 @@ fun <T> NuvioShelfSection(
     itemSpacing: Dp = 10.dp,
     onViewAllClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
-    viewAllPillSize: NuvioViewAllPillSize = NuvioViewAllPillSize.Default,
     showRowNavigationControls: Boolean = false,
     key: ((T) -> Any)? = null,
     animatePlacement: Boolean = false,
@@ -172,7 +170,6 @@ fun <T> NuvioShelfSection(
                 modifier = Modifier.padding(horizontal = headerHorizontalPadding),
                 onViewAllClick = onViewAllClick,
                 onTitleClick = onTitleClick,
-                viewAllPillSize = viewAllPillSize,
                 showRowNavigationControls = showRowNavigationControls,
                 state = state,
                 viewportInset = if (useGutterLayout) {
@@ -611,7 +608,6 @@ private fun NuvioShelfSectionHeader(
     modifier: Modifier = Modifier,
     onViewAllClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
-    viewAllPillSize: NuvioViewAllPillSize = NuvioViewAllPillSize.Default,
     showRowNavigationControls: Boolean = false,
     state: LazyListState,
     viewportInset: Dp,
@@ -625,19 +621,20 @@ private fun NuvioShelfSectionHeader(
             horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = title,
-                modifier = Modifier
-                    .weight(1f)
-                    .then(if (onTitleClick != null) {
-                        (if (LocalPosterNavigationRow.current != null) Modifier.excludeFromRemoteNavigation()
-                        else Modifier.remoteNavigationTarget()).clickable(onClick = onTitleClick)
-                    } else Modifier),
-                style = MaterialTheme.typography.titleLarge,
-                color = tokens.colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    modifier = Modifier
+                        .then(if (onTitleClick != null) {
+                            (if (LocalPosterNavigationRow.current != null) Modifier.excludeFromRemoteNavigation()
+                            else Modifier.remoteNavigationTarget()).clickable(onClick = onTitleClick)
+                        } else Modifier),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = tokens.colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (showRowNavigationControls) {
                 ShelfRowNavigationButton(
                     state = state,
@@ -661,7 +658,6 @@ private fun NuvioShelfSectionHeader(
             RemotePosterItem(null, Int.MAX_VALUE, PosterTargetRole.EndAction) {
             NuvioViewAllPill(
                 onClick = onViewAllClick,
-                size = viewAllPillSize,
                 modifier = viewAllPlaceholderModifier,
             )
             }
@@ -688,29 +684,33 @@ private fun ShelfRowNavigationButton(
         else Res.string.home_scroll_right,
     )
 
-    IconButton(
-        onClick = {
-            val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx)
-            if (scrollDistance != 0f) {
-                scope.launch {
-                    state.animateScrollBy(scrollDistance)
+    // Prevent Material minimum sizing from enlarging the glass background.
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides NuvioTokens.Space.none) {
+        IconButton(
+            onClick = {
+                val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx)
+                if (scrollDistance != 0f) {
+                    scope.launch {
+                        state.animateScrollBy(scrollDistance)
+                    }
                 }
-            }
-        },
-        enabled = enabled,
-        modifier = Modifier
-            .navigationGlass(backgroundOnly = true)
-            .focusProperties { canFocus = false },
-    ) {
-        Icon(
-            imageVector = if (direction == ShelfScrollDirection.Backward) {
-                Icons.AutoMirrored.Rounded.KeyboardArrowLeft
-            } else {
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight
             },
-            contentDescription = contentDescription,
-            tint = MaterialTheme.nuvio.colors.textMuted,
-        )
+            enabled = enabled,
+            modifier = Modifier
+                .size(ShelfHeaderControlSize)
+                .navigationGlass(shape = CircleShape, backgroundOnly = true)
+                .focusProperties { canFocus = false },
+        ) {
+            Icon(
+                imageVector = if (direction == ShelfScrollDirection.Backward) {
+                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft
+                } else {
+                    Icons.AutoMirrored.Rounded.KeyboardArrowRight
+                },
+                contentDescription = contentDescription,
+                tint = MaterialTheme.nuvio.colors.textMuted,
+            )
+        }
     }
 }
 
@@ -762,21 +762,22 @@ private fun shelfViewportScrollDistance(
 @Composable
 private fun NuvioViewAllPill(
     onClick: (() -> Unit)?,
-    size: NuvioViewAllPillSize,
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
     val viewAllText = stringResource(Res.string.home_view_all)
-    val actionSize = if (size == NuvioViewAllPillSize.Compact) NuvioTokens.Space.s32 else NuvioTokens.Space.s40
+    val pillShape = RoundedCornerShape(NuvioTokens.Radius.full)
 
     Box(
         modifier = modifier
-            .height(actionSize)
-            .widthIn(min = actionSize)
+            .height(ShelfHeaderControlSize)
+            .widthIn(min = ShelfHeaderControlSize)
+            // Draw the matching focus outline outside the glass clip.
+            .then(if (onClick != null) Modifier.remoteNavigationTarget(shape = pillShape) else Modifier)
             .then(if (onClick != null) {
-                Modifier.navigationGlass(shape = RoundedCornerShape(NuvioTokens.Radius.xl), backgroundOnly = true)
+                Modifier.navigationGlass(shape = pillShape, backgroundOnly = true)
             } else Modifier)
-            .then(if (onClick != null) Modifier.remoteNavigationTarget().clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = NuvioTokens.Space.s10),
         contentAlignment = Alignment.Center,
     ) {
