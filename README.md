@@ -40,7 +40,8 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Typography & Outline Styles:** 10 curated clean fonts, outline thickness stepper, and selectable outline effects (`Classic Outline`, `Glow`, `Halo`, `Background Box`, and `None`) that update live without player reload.
 
 ### ✨ Visuals, UX & Settings
-* **CodeineXO Aura & Glass Aesthetics:** Ambient interactive background glow with dark translucent glass styling across cards and surfaces.
+* **CodeineXO Aura & Frosted Glass Aesthetics:** Ambient interactive background glow with frosted glass styling across panels, cards and surfaces.
+* **Redesigned the Sidebar:** Floating sidebar with frosted glass style. 
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc. 
 * **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
