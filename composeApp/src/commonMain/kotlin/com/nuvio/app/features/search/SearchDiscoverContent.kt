@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationDown
+import com.nuvio.app.core.ui.remoteNavigationUp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +49,7 @@ internal fun LazyListScope.discoverContent(
     firstEnabledFilter: Int? = null,
     posterFocus: RemoteNavigationFocusDestination? = null,
     onFilterDown: (suspend () -> Unit)? = null,
+    onFilterUp: (suspend () -> Unit)? = null,
     isSourceLoading: Boolean,
     columns: Int,
     networkCondition: NetworkCondition,
@@ -69,6 +71,7 @@ internal fun LazyListScope.discoverContent(
             filterFocus = filterFocus,
             firstEnabledFilter = firstEnabledFilter,
             onFilterDown = onFilterDown,
+            onFilterUp = onFilterUp,
             modifier = Modifier.padding(horizontal = 16.dp),
             onTypeSelected = onTypeSelected,
             onCatalogSelected = onCatalogSelected,
@@ -158,6 +161,7 @@ private fun DiscoverFilterRow(
     filterFocus: RemoteNavigationFocusDestination?,
     firstEnabledFilter: Int?,
     onFilterDown: (suspend () -> Unit)?,
+    onFilterUp: (suspend () -> Unit)?,
     onTypeSelected: (String) -> Unit,
     onCatalogSelected: (String) -> Unit,
     onGenreSelected: (String?) -> Unit,
@@ -169,7 +173,7 @@ private fun DiscoverFilterRow(
     ) {
         NuvioDropdownChip(
             title = stringResource(Res.string.discover_select_type),
-            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 0 }).remoteNavigationDown(onFilterDown),
+            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 0 }).remoteNavigationDown(onFilterDown).remoteNavigationUp(onFilterUp),
             label = state.selectedType?.displayTypeLabel() ?: stringResource(Res.string.discover_type),
             selectedKey = state.selectedType,
             options = state.typeOptions.map { NuvioDropdownOption(key = it, label = it.displayTypeLabel()) },
@@ -178,7 +182,7 @@ private fun DiscoverFilterRow(
         )
         NuvioDropdownChip(
             title = stringResource(Res.string.discover_select_catalog),
-            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 1 }).remoteNavigationDown(onFilterDown),
+            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 1 }).remoteNavigationDown(onFilterDown).remoteNavigationUp(onFilterUp),
             label = state.selectedCatalog?.catalogName ?: stringResource(Res.string.discover_catalog),
             selectedKey = state.selectedCatalogKey,
             options = state.catalogOptions.map { option -> NuvioDropdownOption(key = option.key, label = option.catalogName) },
@@ -195,7 +199,7 @@ private fun DiscoverFilterRow(
         }
         NuvioDropdownChip(
             title = stringResource(Res.string.discover_select_genre),
-            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 2 }).remoteNavigationDown(onFilterDown),
+            modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 2 }).remoteNavigationDown(onFilterDown).remoteNavigationUp(onFilterUp),
             label = state.selectedGenre ?: stringResource(Res.string.discover_all_genres),
             selectedKey = state.selectedGenre ?: "",
             options = genreOptions,

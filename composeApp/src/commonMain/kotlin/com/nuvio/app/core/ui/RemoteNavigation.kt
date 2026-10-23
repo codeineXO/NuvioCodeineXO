@@ -637,6 +637,10 @@ internal fun Modifier.remoteNavigationTarget(
             }
             if (!editing && event.type == KeyEventType.KeyDown &&
                 (direction != null || event.key == Key.Enter || event.key == Key.NumPadEnter || event.key == Key.Tab)) session.keyboard = true
+            if (textField && focused && session.focusedTarget === target && editing &&
+                event.type == KeyEventType.KeyDown && (direction == FocusDirection.Up || direction == FocusDirection.Down)) {
+                exitEditing()
+            }
             when {
                 !textField && onSelect != null && (event.key == Key.Enter || event.key == Key.NumPadEnter) -> {
                     if (event.type == KeyEventType.KeyDown && !held) {
@@ -674,16 +678,29 @@ internal fun Modifier.remoteNavigationTarget(
                     }
                     false
                 }
-                textField && (event.key == Key.Enter || event.key == Key.NumPadEnter) && (!editing || enteringEdit) -> {
-                    if (event.type == KeyEventType.KeyDown) {
-                        editing = true
-                        editingCallback?.invoke(true)
+                textField && (event.key == Key.Enter || event.key == Key.NumPadEnter) -> {
+                    if (event.type == KeyEventType.KeyDown && !enteringEdit) {
+                        if (editing) exitEditing() else {
+                            editing = true
+                            editingCallback?.invoke(true)
+                        }
+                        session.enterHeld = true
                         enteringEdit = true
                     }
-                    else enteringEdit = false
+                    else if (event.type == KeyEventType.KeyUp) enteringEdit = false
                     true
                 }
                 textField && editing -> false
+                textField && direction == FocusDirection.Right && session.targets.any {
+                    it !== target && it.route == route && it.manager === focusManager &&
+                        it.bounds?.let { child -> target.bounds?.contains(child.center) } == true
+                } -> {
+                    if (event.type == KeyEventType.KeyDown) session.targets.firstOrNull {
+                        it !== target && it.route == route && it.manager === focusManager &&
+                            it.bounds?.let { child -> target.bounds?.contains(child.center) } == true
+                    }?.requester?.requestFocus()
+                    true
+                }
                 adjustable && (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) -> false
                 shelfItem != null && (direction == FocusDirection.Left || direction == FocusDirection.Right) -> {
                     if (event.type == KeyEventType.KeyDown) shelfItem.controller.press(target, direction)
@@ -957,8 +974,9 @@ private fun Modifier.remoteNavigationDirection(key: Key, onDown: (suspend () -> 
     var moveJob by remember { mutableStateOf<Job?>(null) }
     DisposableEffect(active, onDown != null) { onDispose { moveJob?.cancel() } }
     if (session == null || !active || onDown == null) this else onPreviewKeyEvent { event ->
-        if (event.key != key || RemoteTextEditing.isEditing) false
+        if (event.key != key) false
         else {
+            if (event.type == KeyEventType.KeyDown && RemoteTextEditing.isEditing) RemoteTextEditing.dispatchBack()
             session.keyboard = true
             session.onPreviewKeyEvent(event)
             if (event.type == KeyEventType.KeyDown && moveJob?.isActive != true) {

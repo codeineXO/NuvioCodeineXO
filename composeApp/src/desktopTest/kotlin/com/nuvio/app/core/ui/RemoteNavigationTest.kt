@@ -17,6 +17,7 @@ import com.nuvio.app.AppScreenTab
 import com.nuvio.app.RootTabHost
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
@@ -376,6 +377,83 @@ class RemoteNavigationTest {
         focus("visibility")
         compose.onNodeWithTag("visibility").performKeyInput { pressKey(Key.Enter) }
         compose.runOnIdle { assertEquals(1, clicks) }
+    }
+
+    @Test
+    fun enterAndVerticalArrowsExitEditing() {
+        var value by mutableStateOf("hello")
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(enabled = true) {
+                    Column {
+                        BasicText("Above", Modifier.size(80.dp).testTag("above").remoteNavigationTarget().clickable {})
+                        NuvioInputField(value, { value = it }, "Search", Modifier.testTag("field"))
+                        BasicText("Below", Modifier.size(80.dp).testTag("below").remoteNavigationTarget().clickable {})
+                    }
+                }
+            }
+        }
+        for (key in listOf(Key.Enter, Key.NumPadEnter)) {
+            focus("field")
+            compose.onNodeWithTag("field").performKeyInput { pressKey(key) }
+            compose.runOnIdle { assertTrue(RemoteTextEditing.isEditing) }
+            compose.onNodeWithTag("field").performKeyInput { pressKey(key) }
+            compose.onNodeWithTag("field").assertIsFocused()
+            compose.runOnIdle { assertFalse(RemoteTextEditing.isEditing); assertEquals("hello", value) }
+        }
+        for ((key, destination) in listOf(Key.DirectionUp to "above", Key.DirectionDown to "below")) {
+            compose.onNodeWithTag("field").performClick()
+            compose.onNodeWithTag("field").performKeyInput { pressKey(key) }
+            compose.onNodeWithTag(destination).assertIsFocused()
+            compose.runOnIdle { assertFalse(RemoteTextEditing.isEditing) }
+        }
+    }
+
+    @Test
+    fun customDownExitsEditingAndNoDestinationStillEndsEditing() {
+        var customMoves = 0
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(enabled = true) {
+                    NuvioInputField("hello", {}, "Search", Modifier.testTag("field")
+                        .remoteNavigationDown { customMoves++ })
+                }
+            }
+        }
+        compose.onNodeWithTag("field").performClick()
+        compose.onNodeWithTag("field").performKeyInput { pressKey(Key.DirectionDown) }
+        compose.runOnIdle { assertEquals(1, customMoves); assertFalse(RemoteTextEditing.isEditing) }
+        compose.onNodeWithTag("field").assertIsFocused()
+        compose.onNodeWithTag("field").performClick()
+        compose.onNodeWithTag("field").performKeyInput { pressKey(Key.DirectionUp) }
+        compose.runOnIdle { assertFalse(RemoteTextEditing.isEditing) }
+        compose.onNodeWithTag("field").assertIsFocused()
+    }
+
+    @Test
+    fun fieldClearButtonIsReachedByRightAndRestoresFieldAfterClearing() {
+        var value by mutableStateOf("query")
+        var clicks = 0
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(enabled = true) {
+                    val requester = remember { androidx.compose.ui.focus.FocusRequester() }
+                    NuvioInputField(value, { value = it }, "Search",
+                        Modifier.testTag("field").focusRequester(requester),
+                        trailingContent = if (value.isNotEmpty()) ({
+                            IconButton(onClick = { value = ""; clicks++; requester.requestFocus() },
+                                modifier = Modifier.testTag("clear").remoteNavigationTarget()) { BasicText("Clear") }
+                        }) else null,
+                    )
+                }
+            }
+        }
+        focus("field")
+        compose.onNodeWithTag("field").performKeyInput { pressKey(Key.DirectionRight) }
+        compose.onNodeWithTag("clear").assertIsFocused()
+        compose.onNodeWithTag("clear").performKeyInput { pressKey(Key.Enter) }
+        compose.runOnIdle { assertEquals("", value); assertEquals(1, clicks) }
+        compose.onNodeWithTag("field").assertIsFocused()
     }
 
     @Test

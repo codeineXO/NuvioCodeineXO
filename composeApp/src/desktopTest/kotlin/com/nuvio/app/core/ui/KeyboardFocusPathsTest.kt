@@ -304,14 +304,15 @@ class KeyboardFocusPathsTest {
                 RemoteNavigationHost(true, modifier = Modifier.size(600.dp, 500.dp)) {
                     val search = remember { RemoteNavigationFocusDestination() }
                     val recent = remember { mutableMapOf<String, RemoteNavigationFocusDestination>() }
+                    val clearAll = remember { RemoteNavigationFocusDestination() }
                     Column {
                         NuvioInputField("", {}, "Search", Modifier.testTag("search")
                             .remoteNavigationFocusDestination(search)
-                            .remoteNavigationDown { recent[history.firstOrNull()]?.requestFocus() })
+                            .remoteNavigationDown { clearAll.requestFocus() })
                         if (history.isNotEmpty()) SearchRecentSection(
                             history, false, {}, { removed -> history = history.filterNot { it == removed } },
                             onClearSearches = { history = emptyList() },
-                            focusDestinations = recent, onExitUp = { search.requestFocus() },
+                            focusDestinations = recent, clearAllFocus = clearAll, onExitUp = { search.requestFocus() },
                         )
                     }
                 }
@@ -319,12 +320,62 @@ class KeyboardFocusPathsTest {
         }
         focus("search")
         down("search")
+        compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionDown) }
         compose.onNodeWithText("First").assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
         compose.onNode(isFocused()).performKeyInput { pressKey(Key.Enter) }
         compose.onNodeWithText("First").assertDoesNotExist()
         compose.onNodeWithText("Second").assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
         compose.onNode(isFocused()).performKeyInput { pressKey(Key.Enter) }
         compose.onNodeWithText("Second").assertDoesNotExist()
+        compose.onNodeWithTag("search").assertIsFocused()
+    }
+
+    @Test fun clearAllParticipatesInBothDirectionsAndReturnsFocusBeforeClearing() {
+        var history by mutableStateOf(listOf("First", "Second"))
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(true, modifier = Modifier.size(600.dp, 700.dp)) {
+                    val search = remember { RemoteNavigationFocusDestination() }
+                    val clearAll = remember { RemoteNavigationFocusDestination() }
+                    val filters = remember { RemoteNavigationFocusDestination() }
+                    val recent = remember { mutableMapOf<String, RemoteNavigationFocusDestination>() }
+                    Column {
+                        NuvioInputField("", {}, "Search", Modifier.testTag("search")
+                            .remoteNavigationFocusDestination(search)
+                            .remoteNavigationDown {
+                                if (history.isEmpty()) filters.requestFocus() else clearAll.requestFocus()
+                            })
+                        if (history.isNotEmpty()) SearchRecentSection(
+                            history, false, {}, {}, onClearSearches = { history = emptyList() },
+                            focusDestinations = recent, clearAllFocus = clearAll,
+                            onExitUp = { search.requestFocus() }, onExitDown = { filters.requestFocus() },
+                        )
+                        BasicText("Filters", Modifier.testTag("filters")
+                            .remoteNavigationFocusDestination(filters)
+                            .remoteNavigationUp {
+                                if (history.isEmpty()) search.requestFocus() else recent[history.last()]?.requestFocus()
+                                Unit
+                            }.remoteNavigationTarget().clickable {})
+                    }
+                }
+            }
+        }
+        focus("search")
+        down("search")
+        compose.onNode(isFocused()).assert(hasText("First").not()).performKeyInput { pressKey(Key.DirectionUp) }
+        compose.onNodeWithTag("search").assertIsFocused()
+        down("search")
+        compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithText("First").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithText("Second").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithTag("filters").assertIsFocused().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.onNodeWithText("Second").assertIsFocused().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.onNodeWithText("First").assertIsFocused().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.onNode(isFocused()).assert(hasText("First").not()).performKeyInput { pressKey(Key.Enter) }
+        compose.onNodeWithText("First").assertDoesNotExist()
+        compose.onNodeWithTag("search").assertIsFocused()
+        down("search")
+        compose.onNodeWithTag("filters").assertIsFocused().performKeyInput { pressKey(Key.DirectionUp) }
         compose.onNodeWithTag("search").assertIsFocused()
     }
 

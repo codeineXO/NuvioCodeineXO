@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -67,6 +68,11 @@ import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
+import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.aspectRatio
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
+import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
@@ -502,23 +508,22 @@ private fun TabbedGridContent(
 }
 
 @Composable
-private fun RowsContent(
+internal fun RowsContent(
     uiState: FolderDetailUiState,
     watchedKeys: Set<String>,
     modifier: Modifier = Modifier,
     homeCatalogSettings: HomeCatalogSettingsUiState = HomeCatalogSettingsRepository.settings.collectAsState().value,
     onCatalogClick: (HomeCatalogSection) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
+    slots: List<FolderRowSlot> = FolderDetailRepository.getRowSlots(uiState),
+    listState: LazyListState = rememberLazyListState(),
 ) {
-    val sections = FolderDetailRepository.getCatalogSectionsForRows()
-    val listState = rememberLazyListState()
-
-    if (uiState.isLoading && sections.isEmpty()) {
+    if (uiState.isLoading && slots.isEmpty()) {
         LoadingIndicator()
         return
     }
 
-    if (sections.isEmpty() && !uiState.isLoading) {
+    if (slots.isEmpty() && !uiState.isLoading) {
         EmptyMessage()
         return
     }
@@ -549,11 +554,24 @@ private fun RowsContent(
         } else {
             18
         }
-        val keyedSections = sections.withDuplicateSafeLazyKeys { it.key }
+        // Use the same reserved geometry for loading, populated, empty and failed rows.
+        // In particular, loading a row above the viewport must not move the visible content.
+        val density = LocalDensity.current
+        val typography = MaterialTheme.typography
+        val labelsHeight = with(density) {
+            if (posterCardStyle.hideLabelsEnabled) NuvioTokens.Space.s6 else
+                typography.bodyMedium.lineHeight.toDp() + typography.labelSmall.lineHeight.toDp() + NuvioTokens.Space.s6 * 2
+        }
+        val imageHeight = effectivePosterWidth / if (posterCardStyle.catalogLandscapeModeEnabled) {
+            PosterLandscapeAspectRatio
+        } else NuvioPosterShape.Poster.aspectRatio
+        val headerHeight = with(density) { maxOf(48.dp, typography.titleLarge.lineHeight.toDp()) }
+        val slotHeight = headerHeight + MaterialTheme.nuvio.spacing.controlGap + NuvioTokens.Space.s2 +
+            imageHeight + labelsHeight + sectionBottomPadding
         BindPosterNavigationPage(
             "collection", uiState.collectionTitle to uiState.folder?.id,
-            keyedSections.mapIndexed { index, section ->
-                PosterNavigationRow(section.lazyKey, section.value.items.map { it.stableKey() }, index)
+            slots.mapIndexed { index, slot ->
+                PosterNavigationRow(slot.key, slot.section?.items.orEmpty().map { it.stableKey() }, index)
             },
             listState, uiState.isLoading,
         )
@@ -566,31 +584,46 @@ private fun RowsContent(
             verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(16.dp),
         ) {
             items(
-                items = keyedSections,
-                key = { it.lazyKey },
-            ) { keyedSection ->
-                val section = keyedSection.value
-                RemotePosterRow("collection", keyedSection.lazyKey) {
-                HomeCatalogRowSection(
-                    section = section,
-                    entries = if (isDesktop) {
-                        // Match desktop home rows: the lazy row exposes every fetched item so the
-                        // catalog remains horizontally scrollable without opening the expanded view.
-                        section.items
-                    } else {
-                        section.items.take(catalogPreviewLimit)
-                    },
-                    modifier = Modifier.padding(bottom = sectionBottomPadding),
-                    sectionPadding = effectivePosterSectionPadding,
-                    useGutterLayout = useGutterLayout,
-                    onViewAllClick = if (section.canOpenCatalog(catalogPreviewLimit)) {
-                        { onCatalogClick(section) }
-                    } else {
-                        null
-                    },
-                    watchedKeys = watchedKeys,
-                    onPosterClick = { onPosterClick(it) },
-                )
+                items = slots,
+                key = { it.key },
+            ) { slot ->
+                val section = slot.section
+                Box(Modifier.fillMaxWidth().height(slotHeight)) {
+                    if (section == null || section.items.isEmpty()) {
+                        if (slot.tab.isLoading) {
+                            HomeSkeletonRow(horizontalPadding = effectivePosterSectionPadding)
+                        } else {
+                            Column(Modifier.fillMaxSize().padding(horizontal = effectivePosterSectionPadding ?: 16.dp)) {
+                                Box(Modifier.fillMaxWidth().height(headerHeight), contentAlignment = Alignment.CenterStart) {
+                                    Text(slot.tab.label, style = MaterialTheme.typography.titleLarge, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis)
+                                }
+                                Box(Modifier.fillMaxWidth().weight(1f)) {
+                                    if (slot.tab.error != null) ErrorMessage(slot.tab.error) else EmptyMessage()
+                                }
+                            }
+                        }
+                    } else RemotePosterRow("collection", slot.key) {
+                        HomeCatalogRowSection(
+                            section = section,
+                            entries = if (isDesktop) {
+                                // Keep every fetched poster available for horizontal scrolling.
+                                section.items
+                            } else {
+                                section.items.take(catalogPreviewLimit)
+                            },
+                            modifier = Modifier.padding(bottom = sectionBottomPadding),
+                            sectionPadding = effectivePosterSectionPadding,
+                            useGutterLayout = useGutterLayout,
+                            onViewAllClick = if (section.canOpenCatalog(catalogPreviewLimit)) {
+                                { onCatalogClick(section) }
+                            } else {
+                                null
+                            },
+                            watchedKeys = watchedKeys,
+                            onPosterClick = { onPosterClick(it) },
+                        )
+                    }
                 }
             }
         }

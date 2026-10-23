@@ -843,7 +843,7 @@ internal fun Modifier.nuvioShelfHoverOverdraw(inset: Dp): Modifier {
     }
 }
 
-private val NuvioPosterShape.aspectRatio: Float
+internal val NuvioPosterShape.aspectRatio: Float
     get() = when (this) {
         NuvioPosterShape.Poster -> 0.675f
         NuvioPosterShape.Square -> 1f

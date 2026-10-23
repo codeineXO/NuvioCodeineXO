@@ -168,6 +168,7 @@ fun SearchScreen(
     val discoverPosterFocus = remember { RemoteNavigationFocusDestination() }
     val showRecent = query.isBlank() && (isDesktop || isSearchFocused || isRecentSearchesFocused) && recentSearches.isNotEmpty()
     val recentFocus = remember { mutableMapOf<String, RemoteNavigationFocusDestination>() }
+    val clearRecentFocus = remember { RemoteNavigationFocusDestination() }
     val discoverKeys = buildList<Any> {
         add("search_header")
         if (showRecent) add("recent_searches")
@@ -177,6 +178,9 @@ fun SearchScreen(
         add("discover_posters_0")
     }
     val firstEnabledFilter = discoverUiState.firstEnabledFilterIndex
+    BindRemoteNavigationFocusDestination(clearRecentFocus) {
+        if (showRecent) listState.revealNavigationItem("recent_searches", discoverKeys, stickyHeader = true)
+    }
     BindRemoteNavigationFocusDestination(discoverFiltersFocus) {
         if (query.isBlank() && firstEnabledFilter != null)
             listState.revealNavigationItem("discover_filters", discoverKeys, stickyHeader = true)
@@ -390,8 +394,7 @@ fun SearchScreen(
                             placeholder = stringResource(Res.string.compose_search_placeholder),
                             modifier = Modifier
                                 .remoteNavigationDown((suspend {
-                                    val first = recentSearches.firstOrNull()?.let { recentFocus[it] }
-                                    if (first != null) first.requestFocus() else focusDiscoverFilters()
+                                    if (showRecent) clearRecentFocus.requestFocus() else focusDiscoverFilters()
                                     Unit
                                 }).takeIf { isDesktop && query.isBlank() })
                                 .focusRequester(focusRequester)
@@ -401,7 +404,7 @@ fun SearchScreen(
                                 },
                             trailingContent = if (query.isNotBlank()) {
                                 {
-                                    IconButton(onClick = { query = "" }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                                    IconButton(onClick = { query = ""; focusRequester.requestFocus() }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
                                         Icon(
                                             imageVector = Icons.Rounded.Close,
                                             contentDescription = stringResource(Res.string.compose_search_clear),
@@ -430,6 +433,7 @@ fun SearchScreen(
                         onRemoveSearch = SearchHistoryRepository::removeSearch,
                         onClearSearches = SearchHistoryRepository::clearSearches,
                         focusDestinations = recentFocus,
+                        clearAllFocus = clearRecentFocus,
                         onExitDown = focusDiscoverFilters,
                         onExitUp = { focusRequester.requestFocus(); Unit },
                         modifier = Modifier
@@ -443,6 +447,14 @@ fun SearchScreen(
                     firstEnabledFilter = firstEnabledFilter,
                     posterFocus = discoverPosterFocus,
                     onFilterDown = focusDiscoverPoster.takeIf { isDesktop },
+                    onFilterUp = (suspend {
+                        val last = recentSearches.lastOrNull()?.let { recentFocus[it] }
+                        if (showRecent && last != null) {
+                            listState.revealNavigationItem("recent_searches", discoverKeys, stickyHeader = true)
+                            last.requestFocus()
+                        } else focusRequester.requestFocus()
+                        Unit
+                    }).takeIf { isDesktop },
                     isSourceLoading = addonManifestsLoading,
                     columns = discoverColumns,
                     networkCondition = networkStatusUiState.condition,
@@ -610,6 +622,7 @@ internal fun SearchRecentSection(
     onClearSearches: () -> Unit,
     modifier: Modifier = Modifier,
     focusDestinations: MutableMap<String, RemoteNavigationFocusDestination> = remember { mutableMapOf() },
+    clearAllFocus: RemoteNavigationFocusDestination = remember { RemoteNavigationFocusDestination() },
     onExitDown: (suspend () -> Unit)? = null,
     onExitUp: (suspend () -> Unit)? = null,
 ) {
@@ -636,6 +649,7 @@ internal fun SearchRecentSection(
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
+                    .remoteNavigationFocusDestination(clearAllFocus)
                     .remoteNavigationDown {
                         recentSearches.firstOrNull()?.let { focusDestinations[it]?.requestFocus() }
                     }
@@ -679,7 +693,7 @@ internal fun SearchRecentSection(
                     }
                     .remoteNavigationUp {
                         val previous = recentSearches.getOrNull(index - 1)?.let { focusDestinations[it] }
-                        if (previous != null) previous.requestFocus() else onExitUp?.invoke()
+                        if (previous != null) previous.requestFocus() else clearAllFocus.requestFocus()
                     },
             )
             }
