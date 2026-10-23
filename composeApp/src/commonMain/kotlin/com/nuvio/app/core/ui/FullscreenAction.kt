@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_exit_fullscreen
 import nuvio.composeapp.generated.resources.action_fullscreen
@@ -45,6 +46,7 @@ internal fun FullscreenActionButton(
     buttonSize: Dp = 40.dp,
     iconSize: Dp = 24.dp,
     contentColor: Color = MaterialTheme.colorScheme.onBackground,
+    hazeState: HazeState? = LocalNavigationGlassState.current,
 ) {
     if (!isFullscreenActionSupported) return
 
@@ -60,7 +62,7 @@ internal fun FullscreenActionButton(
     Box(
         modifier = modifier
             .size(buttonSize)
-            .navigationGlass(CircleShape)
+            .navigationGlass(CircleShape, hazeState = hazeState)
             .excludeFromRemoteNavigation().clickable(
                 enabled = enabled,
                 role = Role.Button,

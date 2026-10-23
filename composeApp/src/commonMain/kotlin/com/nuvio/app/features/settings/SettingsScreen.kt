@@ -700,6 +700,7 @@ private fun MobileSettingsScreen(
                     NuvioScreenHeader(
                         title = stringResource(page.titleRes),
                         topPadding = topChromePadding,
+                        backButtonKeyboardNavigationEnabled = false,
                         onBack = if (page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
                     )
                 }
@@ -1045,7 +1046,6 @@ private fun TabletSettingsScreen(
     val saveableStateHolder = rememberSaveableStateHolder()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val desktopBackVisible = isDesktop && showInternalHeader && page.previousPage() != null && page != SettingsPage.CodeineXO
         Row(modifier = Modifier.fillMaxSize()) {
             Surface(
                 modifier = Modifier
@@ -1061,18 +1061,11 @@ private fun TabletSettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = if (desktopBackVisible) 12.dp else 24.dp)
+                            .padding(horizontal = 24.dp)
                             .padding(bottom = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
                     ) {
-                        if (desktopBackVisible) {
-                            NuvioBackButton(
-                                usePageStyle = true,
-                                onClick = onNavigateBack,
-                                buttonSize = desktopBackButtonSize,
-                            )
-                        }
                         Text(
                             text = stringResource(Res.string.compose_settings_page_root),
                             modifier = Modifier.weight(1f),
@@ -1222,7 +1215,7 @@ private fun TabletSettingsScreen(
                                         } else {
                                             stringResource(page.titleRes)
                                         },
-                                        showBack = previousPage != null && page != SettingsPage.CodeineXO && !isDesktop,
+                                        showBack = previousPage != null && page != SettingsPage.CodeineXO,
                                         onBack = { if (previousPage != null) onNavigateBack() },
                                     )
                                 }

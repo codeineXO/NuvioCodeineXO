@@ -12,10 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.nuvio.app.isDesktop
 import androidx.compose.runtime.Composable
 import com.nuvio.app.core.ui.RemotePosterRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationDown
@@ -61,6 +63,7 @@ internal fun LazyListScope.discoverContent(
     fullyWatchedSeriesKeys: Set<String> = emptySet(),
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
+    posterContentModifier: Modifier = Modifier,
 ) {
     item(key = "discover_header") {
         DiscoverSectionHeader(modifier = Modifier.padding(horizontal = 16.dp))
@@ -101,7 +104,7 @@ internal fun LazyListScope.discoverContent(
             items(2) {
                 PosterGridSkeletonRow(
                     columns = columns,
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp).then(posterContentModifier),
                 )
             }
         }
@@ -126,7 +129,8 @@ internal fun LazyListScope.discoverContent(
                     items = state.items.subList(firstIndex, minOf(firstIndex + columns, state.items.size)),
                     columns = columns,
                     firstPosterFocus = posterFocus.takeIf { rowIndex == 0 },
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    posterBackgroundColor = Color.Transparent,
+                    modifier = Modifier.padding(horizontal = 16.dp).then(posterContentModifier),
                     watchedKeys = watchedKeys,
                     fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     onPosterClick = onPosterClick,
@@ -172,6 +176,7 @@ private fun DiscoverFilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         NuvioDropdownChip(
+            useGlass = isDesktop,
             title = stringResource(Res.string.discover_select_type),
             modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 0 }).remoteNavigationDown(onFilterDown).remoteNavigationUp(onFilterUp),
             label = state.selectedType?.displayTypeLabel() ?: stringResource(Res.string.discover_type),
@@ -181,6 +186,7 @@ private fun DiscoverFilterRow(
             onSelected = { onTypeSelected(it.key) },
         )
         NuvioDropdownChip(
+            useGlass = isDesktop,
             title = stringResource(Res.string.discover_select_catalog),
             modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 1 }).remoteNavigationDown(onFilterDown).remoteNavigationUp(onFilterUp),
             label = state.selectedCatalog?.catalogName ?: stringResource(Res.string.discover_catalog),
@@ -198,6 +204,7 @@ private fun DiscoverFilterRow(
             addAll(state.genreOptions.map { genre -> NuvioDropdownOption(key = genre, label = genre) })
         }
         NuvioDropdownChip(
+            useGlass = isDesktop,
             title = stringResource(Res.string.discover_select_genre),
             modifier = Modifier.remoteNavigationFocusDestination(filterFocus.takeIf { firstEnabledFilter == 2 }).remoteNavigationDown(onFilterDown).remoteNavigationUp(onFilterUp),
             label = state.selectedGenre ?: stringResource(Res.string.discover_all_genres),

@@ -6,6 +6,8 @@ import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +30,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -60,6 +64,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassFeedback
+import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,6 +116,8 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+
+internal val LocalLibraryListState = staticCompositionLocalOf<LazyListState?> { null }
 
 @Composable
 fun LibraryScreen(
@@ -178,7 +186,7 @@ fun LibraryScreen(
     var selectedLibrarySectionKey by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedLibraryType by rememberSaveable { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
+    val listState = LocalLibraryListState.current ?: rememberLazyListState()
     ScreenActivityEffect(listState) { screenActive ->
         if (!screenActive) listState.stopScroll()
     }
@@ -312,7 +320,7 @@ fun LibraryScreen(
     val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        if (auraBackgroundEnabled) {
+        if (auraBackgroundEnabled && !isDesktop) {
             com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
                 modifier = Modifier.fillMaxSize(),
                 listState = listState,
@@ -336,20 +344,14 @@ fun LibraryScreen(
             horizontalPadding = 0.dp,
             topPadding = 0.dp,
             listState = listState,
-            backgroundColor = if (auraBackgroundEnabled) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.nuvio.colors.background,
+            backgroundColor = if (isDesktop || auraBackgroundEnabled) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
             stickyHeader {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(
-                                if (auraBackgroundEnabled) {
-                                    MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
-                                } else {
-                                    MaterialTheme.colorScheme.background
-                                }
-                            )
+                            .background(androidx.compose.ui.graphics.Color.Transparent)
                             .nuvioConsumePointerEvents(),
                     )
                     androidx.compose.foundation.layout.Column(
@@ -368,6 +370,8 @@ fun LibraryScreen(
                             },
                             modifier = Modifier.padding(horizontal = 16.dp),
                             topPadding = effectiveHeaderTopPadding,
+                            backgroundColor = androidx.compose.ui.graphics.Color.Transparent,
+                            showFullscreenAction = false,
                             actions = {
                                 if (sourceMode == LibraryViewMode.Saved) {
                                     LibraryListManagementButton()
@@ -859,6 +863,7 @@ private fun CloudLibraryToolbar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 NuvioDropdownChip(
+                    useGlass = isDesktop,
                     title = stringResource(Res.string.cloud_library_select_provider),
                     label = selectedProviderName,
                     selectedKey = selectedProviderId.orEmpty(),
@@ -869,6 +874,7 @@ private fun CloudLibraryToolbar(
                     },
                 )
                 NuvioDropdownChip(
+                    useGlass = isDesktop,
                     title = stringResource(Res.string.cloud_library_select_type),
                     label = selectedTypeLabel,
                     selectedKey = selectedType?.name.orEmpty(),
@@ -902,22 +908,32 @@ private fun LibraryChip(
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val tokens = MaterialTheme.nuvio
+    val shape = if (isDesktop) tokens.shapes.compactCard else RoundedCornerShape(18.dp)
+    val interactionSource = remember { MutableInteractionSource() }
     Surface(
         modifier = Modifier
-            .clip(RoundedCornerShape(18.dp))
-            .remoteNavigationTarget(shape = RoundedCornerShape(18.dp)).clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = if (selected) colorScheme.primaryContainer else colorScheme.surfaceContainerLow,
+            .remoteNavigationTarget(shape = shape)
+            .then(
+                if (isDesktop) Modifier.navigationGlass(shape = shape, backgroundOnly = true)
+                    .navigationGlassFeedback(interactionSource, shape, selected = selected)
+                else Modifier.clip(shape),
+            )
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current, onClick = onClick),
+        shape = shape,
+        color = if (isDesktop) androidx.compose.ui.graphics.Color.Transparent
+            else if (selected) colorScheme.primaryContainer else colorScheme.surfaceContainerLow,
         border = if (selected) BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.45f)) else null,
     ) {
         Text(
             text = label,
             modifier = Modifier
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(horizontal = if (isDesktop) 12.dp else 14.dp, vertical = if (isDesktop) tokens.components.chipVerticalPadding else 8.dp)
                 .shimmer(loading),
-            style = MaterialTheme.typography.labelMedium,
+            style = if (isDesktop) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
             color = when {
                 error -> colorScheme.error
+                isDesktop -> tokens.colors.textPrimary
                 selected -> colorScheme.onPrimaryContainer
                 else -> colorScheme.onSurfaceVariant
             },

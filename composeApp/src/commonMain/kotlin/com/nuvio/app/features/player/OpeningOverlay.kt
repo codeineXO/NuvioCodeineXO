@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,9 +51,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioBackButton
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.nuvioTypeScale
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_close
+import nuvio.composeapp.generated.resources.action_back
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -64,6 +71,7 @@ internal fun OpeningOverlay(
     modifier: Modifier = Modifier,
     message: String? = null,
     progress: Float? = null,
+    usePageBackButton: Boolean = false,
 ) {
     val contentAlpha by animateFloatAsState(
         targetValue = 1f,
@@ -91,41 +99,58 @@ internal fun OpeningOverlay(
         val logoWidth = minOf(320.dp, maxWidth - 48.dp)
         val logoHeight = minOf(180.dp, maxHeight * 0.4f)
         val titleFontSize = if (maxWidth < 600.dp) 30.sp else 42.sp
-        if (artwork != null) {
-            AsyncImage(
-                model = artwork,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopEnd,
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0f to Color.Black.copy(alpha = 0.3f),
-                                0.35f to Color.Black.copy(alpha = 0.6f),
-                                0.7f to Color.Black.copy(alpha = 0.8f),
-                                1f to Color.Black.copy(alpha = 0.9f),
+        Box(
+            modifier = Modifier.matchParentSize().then(
+                if (usePageBackButton) Modifier.navigationGlassSource(zIndex = -1f) else Modifier,
+            ).background(Color.Black),
+        ) {
+            if (artwork != null) {
+                AsyncImage(
+                    model = artwork,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopEnd,
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color.Black.copy(alpha = 0.3f),
+                                    0.35f to Color.Black.copy(alpha = 0.6f),
+                                    0.7f to Color.Black.copy(alpha = 0.8f),
+                                    1f to Color.Black.copy(alpha = 0.9f),
+                                ),
                             ),
                         ),
-                    ),
-            )
+                )
+            }
         }
 
         NuvioBackButton(
+            usePageStyle = usePageBackButton,
             onClick = onBack,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
-                .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp),
-            containerColor = Color.Black.copy(alpha = 0.3f),
-            contentColor = Color.White,
-            buttonSize = 44.dp,
+            modifier = if (usePageBackButton) {
+                Modifier.align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(
+                        start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 12.dp,
+                        top = if (isDesktop) desktopBackButtonTopPadding else 8.dp,
+                    )
+                    .zIndex(2f)
+            } else {
+                Modifier.align(Alignment.TopEnd)
+                    .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
+                    .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp)
+            },
+            containerColor = Color.Black.copy(alpha = if (usePageBackButton) 0.34f else 0.3f),
+            showContainerOnDesktop = usePageBackButton,
+            contentColor = if (usePageBackButton) MaterialTheme.colorScheme.onBackground else Color.White,
+            buttonSize = if (usePageBackButton && isDesktop) 48.dp else 44.dp,
             iconSize = 24.dp,
-            contentDescription = stringResource(Res.string.compose_player_close),
+            contentDescription = stringResource(if (usePageBackButton) Res.string.action_back else Res.string.compose_player_close),
         )
 
         val targetProgress = progress?.coerceIn(0f, 1f)

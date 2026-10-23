@@ -12,6 +12,12 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
@@ -57,6 +63,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalFocusManager
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassFeedback
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -118,6 +136,8 @@ import nuvio.composeapp.generated.resources.compose_search_recent_searches
 import nuvio.composeapp.generated.resources.compose_search_remove_recent_search
 import org.jetbrains.compose.resources.stringResource
 
+internal val LocalSearchBackdropState = staticCompositionLocalOf<HazeState?> { null }
+
 @Composable
 fun SearchScreen(
     modifier: Modifier = Modifier,
@@ -131,6 +151,13 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     var isSearchFocused by remember { mutableStateOf(false) }
     var isRecentSearchesFocused by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    var searchBarBounds by remember { mutableStateOf<Rect?>(null) }
+    var pageOrigin by remember { mutableStateOf(Offset.Zero) }
+    // The shell supplies the aura beneath the scrolling sources, including at scroll position zero.
+    // The pinned search field is never captured in its own backdrop.
+    val searchBackdropState = LocalSearchBackdropState.current ?: rememberHazeState()
+    val searchBackdropModifier = if (isDesktop) Modifier.hazeSource(searchBackdropState) else Modifier
 
     ScreenActivityEffect(listState) { screenActive ->
         if (!screenActive) {
@@ -298,9 +325,23 @@ fun SearchScreen(
     val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
 
     BoxWithConstraints(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize()
+            .onGloballyPositioned { pageOrigin = it.boundsInRoot().topLeft }
+            .pointerInput(focusManager) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (isSearchFocused && event.changes.any {
+                                it.pressed && !it.previousPressed &&
+                                    searchBarBounds?.contains(it.position + pageOrigin) == false
+                            }) {
+                            focusManager.clearFocus(force = true)
+                        }
+                    }
+                }
+            },
     ) {
-        if (auraBackgroundEnabled) {
+        if (auraBackgroundEnabled && !isDesktop) {
             com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
                 modifier = Modifier.fillMaxSize(),
                 listState = listState,
@@ -354,11 +395,12 @@ fun SearchScreen(
         BindPosterNavigationPage("search", listOf(profile.activeProfile?.profileIndex, query.trim(), resultGeneration), navigationRows, listState,
             if (query.isBlank()) discoverUiState.isLoading || addonManifestsLoading else uiState.isLoading || lastRequestedQuery != query.trim())
 
+        SearchFocusScrollOwner(suppressReveal = { isDesktop && isSearchFocused }) {
         NuvioScreen(
             horizontalPadding = 0.dp,
             topPadding = 0.dp,
             listState = listState,
-            backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
+            backgroundColor = if (isDesktop || auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
             modifier = Modifier.fillMaxSize(),
         ) {
         stickyHeader(key = "search_header") {
@@ -366,13 +408,7 @@ fun SearchScreen(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(
-                            if (auraBackgroundEnabled) {
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.85f)
-                            } else {
-                                MaterialTheme.colorScheme.background
-                            }
-                        )
+                        .background(Color.Transparent)
                         .nuvioConsumePointerEvents(),
                 )
                 androidx.compose.foundation.layout.Column(
@@ -382,10 +418,14 @@ fun SearchScreen(
                         title = headerTitle,
                         modifier = Modifier.padding(horizontal = 16.dp),
                         topPadding = effectiveHeaderTopPadding,
+                        backgroundColor = Color.Transparent,
+                        showFullscreenAction = false,
                     )
                     androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(6.dp))
                     androidx.compose.foundation.layout.Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                         NuvioInputField(
+                            useGlass = isDesktop,
+                            glassBackdropState = searchBackdropState.takeIf { isDesktop },
                             value = query,
                             onValueChange = {
                                 if (!isDesktop) focusRequester.captureFocus()
@@ -393,6 +433,7 @@ fun SearchScreen(
                             },
                             placeholder = stringResource(Res.string.compose_search_placeholder),
                             modifier = Modifier
+                                .onGloballyPositioned { searchBarBounds = it.boundsInRoot() }
                                 .remoteNavigationDown((suspend {
                                     if (showRecent) clearRecentFocus.requestFocus() else focusDiscoverFilters()
                                     Unit
@@ -437,6 +478,7 @@ fun SearchScreen(
                         onExitDown = focusDiscoverFilters,
                         onExitUp = { focusRequester.requestFocus(); Unit },
                         modifier = Modifier
+                            .then(searchBackdropModifier)
                             .onFocusChanged { isRecentSearchesFocused = it.hasFocus },
                     )
                 }
@@ -476,6 +518,7 @@ fun SearchScreen(
                     fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     onPosterClick = onPosterClick,
                     onPosterLongClick = onPosterLongClick,
+                    posterContentModifier = searchBackdropModifier,
                 )
             } else {
                 val normalizedQuery = query.trim()
@@ -529,16 +572,25 @@ fun SearchScreen(
                         ) { keyedSection ->
                             val section = keyedSection.value
                             RemotePosterRow("search", keyedSection.lazyKey) {
-                            HomeCatalogRowSection(
-                                section = section,
-                                modifier = Modifier.padding(bottom = sectionBottomPadding),
-                                sectionPadding = effectivePosterSectionPadding,
-                                useGutterLayout = useGutterLayout,
-                                watchedKeys = watchedUiState.watchedKeys,
-                                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                                onPosterClick = onPosterClick,
-                                onPosterLongClick = onPosterLongClick,
-                            )
+                                Box(modifier = Modifier.padding(bottom = sectionBottomPadding).then(searchBackdropModifier)) {
+                                    if (isDesktop) {
+                                        Box(
+                                            modifier = Modifier.matchParentSize().navigationGlass(
+                                                shape = MaterialTheme.nuvio.shapes.compactCard,
+                                                backgroundOnly = true,
+                                            ),
+                                        )
+                                    }
+                                    HomeCatalogRowSection(
+                                        section = section,
+                                        sectionPadding = effectivePosterSectionPadding,
+                                        useGutterLayout = useGutterLayout,
+                                        watchedKeys = watchedUiState.watchedKeys,
+                                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                                        onPosterClick = onPosterClick,
+                                        onPosterLongClick = onPosterLongClick,
+                                    )
+                                }
                             }
                         }
                         if (uiState.isLoading) {
@@ -553,6 +605,22 @@ fun SearchScreen(
             }
         }
     }
+    }
+}
+
+/** A pinned input is already visible; its original lazy-item position must not be revealed. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun SearchFocusScrollOwner(suppressReveal: () -> Boolean, content: @Composable () -> Unit) {
+    val defaultReveal = LocalBringIntoViewSpec.current
+    val suppressed by rememberUpdatedState(suppressReveal)
+    val reveal = remember(defaultReveal) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+                if (suppressed()) 0f else defaultReveal.calculateScrollDistance(offset, size, containerSize)
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides reveal, content = content)
 }
 
 @Composable
@@ -715,14 +783,20 @@ private fun SearchRecentRow(
     } else {
         MaterialTheme.nuvio.colors.surfaceCard
     }
+    val shape = RoundedCornerShape(16.dp)
+    val interactionSource = remember { MutableInteractionSource() }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 2.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(cardColor)
-            .remoteNavigationTarget(shape = RoundedCornerShape(16.dp)).clickable(onClick = onSearchPress)
+            .then(
+                if (isDesktop) Modifier.navigationGlass(shape = shape, backgroundOnly = true)
+                    .navigationGlassFeedback(interactionSource, shape)
+                else Modifier.clip(shape).background(cardColor),
+            )
+            .remoteNavigationTarget(shape = shape)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onSearchPress)
             .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

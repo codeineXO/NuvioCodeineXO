@@ -131,6 +131,11 @@ class PosterNavigationContinuityTest {
                     "Poster $index enters the clipped left gutter")
                 assertTrue(item.offset + item.size <= layout.viewportEndOffset - layout.afterContentPadding,
                     "Poster $index enters the clipped right gutter")
+                if (index > 0) {
+                    val previous = layout.visibleItemsInfo.single { it.index == index - 1 }
+                    assertTrue(previous.offset >= layout.viewportStartOffset + layout.beforeContentPadding,
+                        "Preceding poster clipped at $index")
+                }
             }
         }
         assertUnclipped(0)
@@ -138,11 +143,11 @@ class PosterNavigationContinuityTest {
         (11 downTo 0).forEach { index -> key(Key.DirectionLeft); assertUnclipped(index) }
     }
 
-    private fun assertFocusedAndFollowingVisible(index: Int) {
+    private fun assertFocusedAndPrecedingVisible(index: Int) {
         compose.onNodeWithTag("0-$index").assertIsFocused()
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-            listOf(index, index + 1).forEach { position ->
+            listOf(index - 1, index).forEach { position ->
                 val item = layout.visibleItemsInfo.single { it.index == position }
                 assertTrue(item.offset >= layout.viewportStartOffset, "Poster $position clipped on left")
                 assertTrue(item.offset + item.size <= layout.viewportEndOffset, "Poster $position clipped on right")
@@ -150,30 +155,36 @@ class PosterNavigationContinuityTest {
         }
     }
 
-    @Test fun rightScrollsEarlyEnoughToLeaveOneAdditionalPosterFullyVisible() {
+    @Test fun rightNavigationKeepsOnePrecedingPosterFullyVisible() {
         shelves(listOf((0..12).map(Int::toString)))
         focus("0-0")
         repeat(2) { key(Key.DirectionRight) }
         compose.runOnIdle {
             val shelf = session.posterPages.getValue("test").shelves.getValue("row0")
-            assertEquals(2, shelf.firstVisibleItemIndex)
+            assertEquals(1, shelf.firstVisibleItemIndex)
             assertTrue(shelf.firstVisibleItemScrollOffset <= 1)
         }
         key(Key.DirectionRight)
-        assertFocusedAndFollowingVisible(3)
+        assertFocusedAndPrecedingVisible(3)
         repeat(3) { step ->
             key(Key.DirectionRight)
-            assertFocusedAndFollowingVisible(4 + step)
+            assertFocusedAndPrecedingVisible(4 + step)
         }
     }
 
-    @Test fun rightLookAheadUsesMeasuredWidthsForLazyPosters() {
+    @Test fun precedingPosterAnchorUsesMeasuredWidthsInBothDirections() {
         shelves(listOf((0..12).map(Int::toString)), posterWidths = mapOf("4" to 140, "5" to 80, "6" to 160))
         focus("0-3")
         key(Key.DirectionRight)
-        assertFocusedAndFollowingVisible(4)
+        assertFocusedAndPrecedingVisible(4)
         key(Key.DirectionRight)
-        assertFocusedAndFollowingVisible(5)
+        assertFocusedAndPrecedingVisible(5)
+        key(Key.DirectionRight)
+        assertFocusedAndPrecedingVisible(6)
+        key(Key.DirectionLeft)
+        assertFocusedAndPrecedingVisible(5)
+        key(Key.DirectionLeft)
+        assertFocusedAndPrecedingVisible(4)
     }
 
     @Test fun narrowShelfKeepsFocusedPosterVisibleWhenTwoPostersCannotFit() {
@@ -227,8 +238,8 @@ class PosterNavigationContinuityTest {
         compose.mainClock.advanceTimeBy(112)
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-            val card = layout.visibleItemsInfo.single { it.index == 5 }
-            assertEquals(layout.viewportEndOffset, card.offset + card.size)
+            val previous = layout.visibleItemsInfo.single { it.index == 3 }
+            assertTrue(abs(previous.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
             assertTrue(session.fastPosterScroll)
             session.releasePosterDirection(FocusDirection.Right)
         }
@@ -243,8 +254,8 @@ class PosterNavigationContinuityTest {
         compose.mainClock.advanceTimeBy(80)
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-            val card = layout.visibleItemsInfo.single { it.index == 6 }
-            assertTrue(card.offset + card.size > layout.viewportEndOffset)
+            val previous = layout.visibleItemsInfo.single { it.index == 4 }
+            assertTrue(previous.offset > layout.viewportStartOffset + layout.beforeContentPadding + 1)
         }
         compose.mainClock.advanceTimeBy(500)
         compose.onNodeWithTag("0-5").assertIsFocused()
@@ -380,8 +391,8 @@ class PosterNavigationContinuityTest {
         compose.runOnIdle {
             assertEquals(heldIndex - 1, session.focusedTarget!!.shelfItem!!.index)
             val layout = session.posterPages.getValue(pageId).shelves.getValue("row0").layoutInfo
-            val selected = layout.visibleItemsInfo.single { it.index == heldIndex - 1 }
-            assertTrue(abs(selected.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
+            val previous = layout.visibleItemsInfo.single { it.index == heldIndex - 2 }
+            assertTrue(abs(previous.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
         }
         compose.mainClock.autoAdvance = true
     }
@@ -400,8 +411,8 @@ class PosterNavigationContinuityTest {
         compose.mainClock.advanceTimeBy(64)
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-            val card = layout.visibleItemsInfo.single { it.index == 5 }
-            assertEquals(layout.viewportEndOffset, card.offset + card.size)
+            val previous = layout.visibleItemsInfo.single { it.index == 3 }
+            assertTrue(abs(previous.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
             session.releasePosterDirection(FocusDirection.Right)
         }
         compose.mainClock.advanceTimeBy(500)
@@ -420,16 +431,16 @@ class PosterNavigationContinuityTest {
         compose.runOnIdle {
             val shelf = session.posterPages.getValue("test").shelves.getValue("row0")
             val layout = shelf.layoutInfo
-            val selected = layout.visibleItemsInfo.single { it.index == 4 }
-            val remaining = selected.offset - layout.viewportStartOffset - layout.beforeContentPadding
+            val previous = layout.visibleItemsInfo.single { it.index == 3 }
+            val remaining = previous.offset - layout.viewportStartOffset - layout.beforeContentPadding
             assertTrue(remaining in 1..439, "Anchor reveal jumped: $remaining remaining")
         }
         compose.mainClock.advanceTimeBy(500)
         compose.onNodeWithTag("0-4").assertIsFocused().assertIsDisplayed()
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-            val card = layout.visibleItemsInfo.single { it.index == 4 }
-            assertTrue(abs(card.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
+            val previous = layout.visibleItemsInfo.single { it.index == 3 }
+            assertTrue(abs(previous.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
         }
         compose.mainClock.autoAdvance = true
     }
@@ -474,8 +485,8 @@ class PosterNavigationContinuityTest {
         compose.onNodeWithTag("0-3").assertIsFocused()
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-            val selected = layout.visibleItemsInfo.single { it.index == 3 }
-            assertTrue(abs(selected.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
+            val previous = layout.visibleItemsInfo.single { it.index == 2 }
+            assertTrue(abs(previous.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
             assertNull(session.pendingPosterMove)
             assertEquals(0, session.explicitFocusTransfers)
         }
@@ -667,15 +678,17 @@ class PosterNavigationContinuityTest {
         compose.mainClock.autoAdvance = true
     }
 
-    @Test fun horizontalMovesAnchorSelectedPosterAtTheBeginningInBothDirections() {
+    @Test fun horizontalMovesAnchorSelectedPosterInSecondSlotInBothDirections() {
         shelves(listOf((0..20).map(Int::toString)))
         focus("0-0")
         fun assertAnchor(index: Int) {
             compose.onNodeWithTag("0-$index").assertIsFocused().assertIsDisplayed()
             compose.runOnIdle {
                 val layout = session.posterPages.getValue("test").shelves.getValue("row0").layoutInfo
-                val item = layout.visibleItemsInfo.single { it.index == index }
-                assertTrue(abs(item.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
+                val previous = layout.visibleItemsInfo.single { it.index == (index - 1).coerceAtLeast(0) }
+                val selected = layout.visibleItemsInfo.single { it.index == index }
+                assertTrue(abs(previous.offset - layout.viewportStartOffset - layout.beforeContentPadding) <= 1)
+                if (index > 0) assertEquals(previous.offset + previous.size + layout.mainAxisItemSpacing, selected.offset)
             }
         }
         (1..6).forEach { key(Key.DirectionRight); assertAnchor(it) }
@@ -911,9 +924,9 @@ class PosterNavigationContinuityTest {
         }
     }
 
-    @Test fun horizontalEpisodeCardsShareSmoothHoldNavigation() = episodeHoldNavigation(com.nuvio.app.features.details.MetaEpisodeCardStyle.Horizontal)
+    @Test fun horizontalEpisodeCardsKeepPrecedingCardDuringSmoothHoldNavigation() = episodeHoldNavigation(com.nuvio.app.features.details.MetaEpisodeCardStyle.Horizontal)
 
-    @Test fun enhancedEpisodeCardsShareSmoothHoldNavigation() = episodeHoldNavigation(com.nuvio.app.features.details.MetaEpisodeCardStyle.Enhanced)
+    @Test fun enhancedEpisodeCardsKeepPrecedingCardDuringSmoothHoldNavigation() = episodeHoldNavigation(com.nuvio.app.features.details.MetaEpisodeCardStyle.Enhanced)
 
     private fun episodeHoldNavigation(style: com.nuvio.app.features.details.MetaEpisodeCardStyle) {
         var opened: String? = null
@@ -954,7 +967,11 @@ class PosterNavigationContinuityTest {
         val selectedIndex = compose.runOnIdle {
             val target = session.focusedTarget!!
             assertTrue(target.shelfItem!!.index in 8..10, "Episode hold stalled at ${target.shelfItem!!.index}")
-            assertTrue(abs(target.bounds!!.left - initialLeft) <= 2, "Episode is not anchored at the beginning")
+            val previous = session.targets.single { it.shelfItem?.let { slot ->
+                slot.controller === target.shelfItem!!.controller && slot.index == target.shelfItem!!.index - 1
+            } == true }
+            assertTrue(abs(previous.bounds!!.left - initialLeft) <= 2, "Preceding episode is not fully visible at the row start")
+            assertTrue(target.bounds!!.left > previous.bounds!!.right, "Focused episode is not in the second slot")
             target.shelfItem!!.index
         }
         compose.mainClock.advanceTimeBy(500)
@@ -963,7 +980,12 @@ class PosterNavigationContinuityTest {
         compose.mainClock.advanceTimeBy(500)
         compose.runOnIdle {
             assertEquals(selectedIndex - 1, session.focusedTarget!!.shelfItem!!.index)
-            assertTrue(abs(session.focusedTarget!!.bounds!!.left - initialLeft) <= 2)
+            val target = session.focusedTarget!!
+            val previous = session.targets.single { it.shelfItem?.let { slot ->
+                slot.controller === target.shelfItem!!.controller && slot.index == target.shelfItem!!.index - 1
+            } == true }
+            assertTrue(abs(previous.bounds!!.left - initialLeft) <= 2)
+            assertTrue(target.bounds!!.left > previous.bounds!!.right)
         }
         compose.mainClock.autoAdvance = true
         key(Key.Enter)
@@ -974,6 +996,65 @@ class PosterNavigationContinuityTest {
         compose.onNode(isFocused()).assert(hasText("Episode 1").not())
         key(Key.DirectionDown)
         compose.onNodeWithTag("below").assertIsFocused()
+    }
+
+    @Test fun horizontalSeasonsKeepPrecedingSeasonDuringKeyboardNavigation() =
+        seasonHoldNavigation(com.nuvio.app.features.details.MetaEpisodeCardStyle.Horizontal)
+
+    @Test fun enhancedSeasonsKeepPrecedingSeasonDuringKeyboardNavigation() =
+        seasonHoldNavigation(com.nuvio.app.features.details.MetaEpisodeCardStyle.Enhanced)
+
+    private fun seasonHoldNavigation(style: com.nuvio.app.features.details.MetaEpisodeCardStyle) {
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(true, modifier = Modifier.size(900.dp, 600.dp).testTag("host")) {
+                    session = LocalRemoteNavigation.current!!
+                    val entry = remember { RemoteNavigationFocusDestination() }
+                    Column {
+                        BasicText("Enter seasons", Modifier.testTag("entry")
+                            .remoteNavigationDown { entry.requestFocus() }.remoteNavigationTarget().clickable {})
+                        DetailSeriesContent(
+                            MetaDetails("series", "series", "Series", videos = (1..25).flatMap { season ->
+                                (1..3).map { episode -> MetaVideo("$season:$episode", "Episode $season-$episode", season = season, episode = episode) }
+                            }),
+                            episodeCardStyle = style, navigationEntry = entry,
+                            onEntryUp = {}, onEpisodeClick = {},
+                        )
+                    }
+                }
+            }
+        }
+        focus("entry")
+        key(Key.DirectionDown)
+        compose.onNodeWithText("Season 1").assertIsFocused()
+        val initialLeft = compose.runOnIdle { session.focusedTarget!!.bounds!!.left }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("host").performKeyInput { keyDown(Key.DirectionRight) }
+        compose.mainClock.advanceTimeBy(1100)
+        compose.onNodeWithTag("host").performKeyInput { keyUp(Key.DirectionRight) }
+        compose.mainClock.advanceTimeBy(500)
+        fun assertSecondSlot(): Int = compose.runOnIdle {
+            val target = session.focusedTarget!!
+            val index = target.shelfItem!!.index
+            val previous = session.targets.single { it.shelfItem?.let { slot ->
+                slot.controller === target.shelfItem!!.controller && slot.index == index - 1
+            } == true }
+            assertTrue(abs(previous.bounds!!.left - initialLeft) <= 2, "Preceding season is not aligned with the row start")
+            assertTrue(target.bounds!!.left > previous.bounds!!.right)
+            index
+        }
+        val heldIndex = assertSecondSlot()
+        assertTrue(heldIndex in 8..10, "Season hold stalled at $heldIndex")
+        compose.onNodeWithTag("host").performKeyInput { pressKey(Key.DirectionLeft) }
+        compose.mainClock.advanceTimeBy(500)
+        assertEquals(heldIndex - 1, assertSecondSlot())
+        compose.mainClock.autoAdvance = true
+        key(Key.Enter)
+        assertEquals(heldIndex - 1, assertSecondSlot())
+        key(Key.DirectionDown)
+        compose.runOnIdle { assertTrue(session.focusedTarget!!.shelfItem!!.key is String, "Down must enter the episode row") }
+        key(Key.DirectionUp)
+        compose.onNodeWithText("Season $heldIndex").assertIsFocused()
     }
 
     @Test fun episodeReentryAndProgressMetadataRefreshKeepBrowsedPosition() {

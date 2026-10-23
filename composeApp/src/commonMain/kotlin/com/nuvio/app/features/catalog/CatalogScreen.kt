@@ -5,6 +5,7 @@ import com.nuvio.app.core.ui.desktopBackButtonContainerColor
 import com.nuvio.app.core.ui.desktopBackButtonIconSize
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 
+import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
@@ -377,7 +378,7 @@ private fun CatalogHeader(
         verticalAlignment = if (isDesktop) Alignment.Top else Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize) else Modifier).navigationGlass().remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+        IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize) else Modifier).navigationGlass().excludeFromRemoteNavigation()) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(Res.string.action_back),

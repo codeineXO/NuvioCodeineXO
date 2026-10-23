@@ -142,6 +142,8 @@ import com.nuvio.app.features.home.components.homePosterGutterPaddingForWidth
 import com.nuvio.app.features.home.components.homeSectionHorizontalPaddingForWidth
 import com.nuvio.app.features.home.components.rememberContinueWatchingLayout
 import kotlinx.coroutines.CancellationException
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -961,11 +963,14 @@ fun HomeScreen(
     )
 
     val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+    // Sample the rendered viewport, not the independently captured hero artwork.
+    // Keep the fullscreen button outside these sources to avoid blur feedback.
+    val fullscreenBackdropState = rememberHazeState()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         if (auraBackgroundEnabled) {
             HomeInteractiveGradientBackground(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().hazeSource(fullscreenBackdropState, zIndex = -1f),
                 listState = homeListState,
             )
         }
@@ -1064,7 +1069,9 @@ fun HomeScreen(
         BindPosterNavigationPage("home", activeProfileId, navigationRows, homeListState, homeUiState.isLoading || addonManifestsLoading)
 
         NuvioScreen(
-            modifier = Modifier.fillMaxSize().then(heroStretchModifier),
+            modifier = Modifier.fillMaxSize()
+                .hazeSource(fullscreenBackdropState)
+                .then(heroStretchModifier),
             horizontalPadding = 0.dp,
             topPadding = effectiveTopPadding,
             verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
@@ -1350,6 +1357,7 @@ fun HomeScreen(
                 buttonSize = 48.dp,
                 iconSize = 24.dp,
                 contentColor = colorScheme.onSurface,
+                hazeState = fullscreenBackdropState,
             )
         }
     }

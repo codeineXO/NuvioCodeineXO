@@ -68,12 +68,9 @@ import com.nuvio.app.core.ui.NuvioDesktopImageScaling
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
-import com.nuvio.app.core.ui.FullscreenActionButton
-import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
-import com.nuvio.app.core.ui.isFullscreenActionSupported
 import com.nuvio.app.core.ui.WideDesktopViewportAspectRatio
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.formatRuntimeForDisplay
@@ -394,7 +391,7 @@ fun DesktopDetailHero(
                     .statusBarsPadding()
                     .padding(
                         top = if (compact) space.s16 else space.s32,
-                        end = actionHorizontalInset + if (isFullscreenActionSupported) 60.dp else 0.dp,
+                        end = actionHorizontalInset,
                     )
                     .size(48.dp)
                     .graphicsLayer { alpha = trailerAlpha }).remoteNavigationTarget(shape = CircleShape),
@@ -419,17 +416,6 @@ fun DesktopDetailHero(
             }
         }
 
-        if (isFullscreenActionSupported) {
-            FullscreenActionButton(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = desktopBackButtonTopPadding, end = actionHorizontalInset),
-                buttonSize = 48.dp,
-                iconSize = 24.dp,
-                contentColor = colorScheme.onSurface,
-            )
-        }
     }
 }
 

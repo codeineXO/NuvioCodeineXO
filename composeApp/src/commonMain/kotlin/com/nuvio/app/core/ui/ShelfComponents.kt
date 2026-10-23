@@ -120,7 +120,11 @@ fun <T> NuvioShelfSection(
         key?.let { entries.withDuplicateSafeLazyKeys(it) }
     }
     BindPosterShelf(state)
-    val shelfController = rememberPosterShelfController(state, duplicateSafeEntries?.map { it.lazyKey } ?: entries.mapIndexed { index, entry -> key?.invoke(entry) ?: index })
+    val shelfController = rememberPosterShelfController(
+        state,
+        duplicateSafeEntries?.map { it.lazyKey } ?: entries.mapIndexed { index, entry -> key?.invoke(entry) ?: index },
+        precedingPosterVisible = true,
+    )
 
     ScreenActivityEffect(state) { active ->
         if (!active) state.stopScroll()

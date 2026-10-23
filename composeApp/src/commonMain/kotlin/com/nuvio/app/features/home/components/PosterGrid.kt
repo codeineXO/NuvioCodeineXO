@@ -21,6 +21,7 @@ import com.nuvio.app.features.home.stableKey
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +57,7 @@ internal fun PosterGridRow(
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     firstPosterFocus: RemoteNavigationFocusDestination? = null,
+    posterBackgroundColor: Color = MaterialTheme.colorScheme.surface,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
 
@@ -70,6 +72,7 @@ internal fun PosterGridRow(
                 item = item,
                 cornerRadiusDp = posterCardStyle.cornerRadiusDp,
                 hideLabels = posterCardStyle.hideLabelsEnabled,
+                backgroundColor = posterBackgroundColor,
                 modifier = Modifier.weight(1f).remoteNavigationFocusDestination(firstPosterFocus.takeIf { index == 0 }),
                 isWatched = WatchingState.isPosterWatched(
                     watchedKeys = watchedKeys,
@@ -114,6 +117,7 @@ private fun PosterGridTile(
     item: MetaPreview,
     cornerRadiusDp: Int,
     hideLabels: Boolean,
+    backgroundColor: Color,
     modifier: Modifier = Modifier,
     isWatched: Boolean = false,
     onClick: (() -> Unit)? = null,
@@ -138,7 +142,7 @@ private fun PosterGridTile(
                     .fillMaxWidth()
                     .aspectRatio(item.posterShape.posterGridAspectRatio())
                     .clip(RoundedCornerShape(cornerRadiusDp.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(backgroundColor)
                     .nuvioCardDepth(
                         shape = RoundedCornerShape(cornerRadiusDp.dp),
                         surface = NuvioCardDepthSurface.Posters,

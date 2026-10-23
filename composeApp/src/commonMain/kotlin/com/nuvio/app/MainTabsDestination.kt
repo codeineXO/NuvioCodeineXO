@@ -4,6 +4,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
 import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +52,12 @@ import com.nuvio.app.core.ui.FloatingNavigationItem
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.rememberNuvioNavBarScrollState
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
+import com.nuvio.app.features.search.LocalSearchBackdropState
+import com.nuvio.app.features.library.LocalLibraryListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileSwitcherTab
@@ -119,6 +127,8 @@ internal fun MainTabsDestination(
             navBarScrollState.switchToTab(selectedTab)
         }
         val navBarHazeState = rememberHazeState()
+        val searchBackdropState = rememberHazeState()
+        val libraryListState = rememberLazyListState()
         val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
         val homeCatalogSettingsUiState by remember { HomeCatalogSettingsRepository.uiState }.collectAsStateWithLifecycle()
 
@@ -191,6 +201,26 @@ internal fun MainTabsDestination(
             ),
         )
 
+        // Poster pages share a full-window background, without a rectangle at the sidebar inset.
+        if (isDesktop && (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library)) {
+            val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+            val backgroundModifier = Modifier.fillMaxSize()
+                .hazeSource(navBarHazeState, zIndex = -1f)
+                .then(if (selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
+            if (auraBackgroundEnabled) {
+                HomeInteractiveGradientBackground(
+                    modifier = backgroundModifier,
+                    listState = if (selectedTab == AppScreenTab.Search) state.searchListState else libraryListState,
+                )
+            } else {
+                Box(
+                    modifier = backgroundModifier
+                        .navigationGlassSource(zIndex = -1f)
+                        .background(MaterialTheme.nuvio.colors.background),
+                )
+            }
+        }
+
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -247,6 +277,8 @@ internal fun MainTabsDestination(
                     navBarStyleSetting == NavBarStyle.ADAPTIVE
                 }
                 CompositionLocalProvider(
+                    LocalSearchBackdropState provides searchBackdropState.takeIf { isDesktop },
+                    LocalLibraryListState provides libraryListState.takeIf { isDesktop },
                     LocalDesktopSidebarContentInset provides if (useDesktopSidebar && selectedTab == AppScreenTab.Home) contentStartPadding else 0.dp,
                     LocalNuvioBottomNavigationOverlayPadding provides if (useNativeBottomTabs) 49.dp else if (!isDesktop && !isTabletLayout && navBarStyleSetting != NavBarStyle.CLASSIC) 72.dp else 0.dp,
                     LocalNuvioNavBarScrollState provides navBarScrollState,

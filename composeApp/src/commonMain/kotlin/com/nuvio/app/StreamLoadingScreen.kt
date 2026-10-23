@@ -39,6 +39,7 @@ internal fun StreamLoadingScreen(
         logo = launch.logo,
         title = launch.title,
         onBack = onBack,
+        usePageBackButton = true,
         horizontalSafePadding = 0.dp,
         message = message,
     )

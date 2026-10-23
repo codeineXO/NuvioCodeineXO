@@ -12,6 +12,7 @@ import com.nuvio.app.core.ui.remoteNavigationUp
 import com.nuvio.app.core.ui.remoteNavigationDown
 import com.nuvio.app.core.ui.LocalPosterShelfItem
 import com.nuvio.app.core.ui.PosterShelfItem
+import com.nuvio.app.core.ui.PosterShelfController
 import com.nuvio.app.core.ui.PosterShelfScrollOwner
 import com.nuvio.app.core.ui.rememberPosterShelfController
 import androidx.compose.runtime.CompositionLocalProvider
@@ -168,10 +169,17 @@ private val SeriesScrollPostersExtraGutter = 20.dp
 private class SeriesRowNavigation(
     val modifier: Modifier,
     val itemModifier: (Int) -> Modifier,
+    val controller: PosterShelfController? = null,
 )
 
 @Composable
-private fun rememberSeriesRowNavigation(state: LazyListState, items: List<*>): SeriesRowNavigation {
+private fun rememberSeriesRowNavigation(state: LazyListState, items: List<Int>): SeriesRowNavigation {
+    val controller = rememberPosterShelfController(
+        state, items, allowSidebarEntry = false, precedingPosterVisible = true,
+    )
+    if (controller != null) {
+        return SeriesRowNavigation(Modifier.remoteNavigationGroup(), { Modifier }, controller)
+    }
     val requesters = remember(items) { List(items.size) { FocusRequester() } }
     var focusedIndex by remember(items) { mutableStateOf(0) }
     var moving by remember(items) { mutableStateOf(false) }
@@ -678,6 +686,9 @@ private fun SeriesSeasonSelector(
             ) { mode ->
                 when (mode) {
                     SeasonViewMode.Posters -> SeasonPosterScrollRow(
+                        navigationEntry = navigationEntry,
+                        onSeasonDown = onSeasonDown,
+                        onSeasonUp = onSeasonUp,
                         seasons = seasons,
                         groupedEpisodes = groupedEpisodes,
                         meta = meta,
@@ -689,6 +700,9 @@ private fun SeriesSeasonSelector(
                         onLongPress = onLongPress,
                     )
                     SeasonViewMode.Text -> SeasonTextChipScrollRow(
+                        navigationEntry = navigationEntry,
+                        onSeasonDown = onSeasonDown,
+                        onSeasonUp = onSeasonUp,
                         seasons = seasons,
                         currentSeason = currentSeason,
                         sizing = sizing,
@@ -701,6 +715,9 @@ private fun SeriesSeasonSelector(
             }
         } else {
             SeasonTextChipScrollRow(
+                navigationEntry = navigationEntry,
+                onSeasonDown = onSeasonDown,
+                onSeasonUp = onSeasonUp,
                 seasons = seasons,
                 currentSeason = currentSeason,
                 sizing = sizing,
@@ -891,7 +908,7 @@ private fun SeasonTextChipScrollRow(
     BindRemoteNavigationFocusDestination(navigationEntry) {
         val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
         val visible = seasonListState.layoutInfo.visibleItemsInfo.any { it.index == index }
-        if (!visible) seasonListState.animateScrollToItem(index)
+        if (!visible) seasonListState.animateScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
     }
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -907,10 +924,11 @@ private fun SeasonTextChipScrollRow(
     LaunchedEffect(seasons, currentSeason) {
         val currentIndex = seasons.indexOf(currentSeason)
         if (currentIndex >= 0) {
+            val anchorIndex = (currentIndex - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0)
             if (hasPositionedSeasonRow) {
-                seasonListState.animateScrollToItem(currentIndex)
+                seasonListState.animateScrollToItem(anchorIndex)
             } else {
-                seasonListState.scrollToItem(currentIndex)
+                seasonListState.scrollToItem(anchorIndex)
                 hasPositionedSeasonRow = true
             }
         }
@@ -970,70 +988,74 @@ private fun SeasonTextChipScrollRow(
     Box(
         modifier = containerModifier,
     ) {
-        LazyRow(
-            state = seasonListState,
-            modifier = rowNavigation.modifier.then(rowModifier),
-            contentPadding = rowContentPadding,
-            horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
-        ) {
-            itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
-                val isSelected = season == currentSeason
-                val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
-                val chipInteractionSource = remember { MutableInteractionSource() }
-                val isChipHovered by chipInteractionSource.collectIsRemoteHoveredAsState()
-                val posterUrl = remember(season) { seasonPosterForSeason?.invoke(season) }
+        PosterShelfScrollOwner(rowNavigation.controller) {
+            LazyRow(
+                state = seasonListState,
+                modifier = rowNavigation.modifier.then(rowModifier),
+                contentPadding = rowContentPadding,
+                horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+            ) {
+                itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
+                    CompositionLocalProvider(LocalPosterShelfItem provides rowNavigation.controller?.let { PosterShelfItem(it, season, index) }) {
+                        val isSelected = season == currentSeason
+                        val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
+                        val chipInteractionSource = remember { MutableInteractionSource() }
+                        val isChipHovered by chipInteractionSource.collectIsRemoteHoveredAsState()
+                        val posterUrl = remember(season) { seasonPosterForSeason?.invoke(season) }
 
-                Box(
-                    modifier = Modifier.wrapContentSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .then(if (isSelected) {
-                                Modifier.navigationGlass(
-                                    shape = RoundedCornerShape(sizing.seasonChipRadius),
-                                    backgroundOnly = true,
+                        Box(
+                            modifier = Modifier.wrapContentSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .then(if (isSelected) {
+                                        Modifier.navigationGlass(
+                                            shape = RoundedCornerShape(sizing.seasonChipRadius),
+                                            backgroundOnly = true,
+                                        )
+                                    } else Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius)))
+                                    .hoverable(chipInteractionSource)
+                                    .then(rowNavigation.itemModifier(index))
+                                    .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
+                                    .remoteNavigationDown(onSeasonDown)
+                                    .remoteNavigationUp(onSeasonUp)
+                                    .remoteNavigationTarget(
+                                        shape = RoundedCornerShape(sizing.seasonChipRadius),
+                                        onSelect = { onSelect(season) },
+                                        onContext = onSecondaryClick,
+                                    ).combinedClickable(
+                                        onClick = { onSelect(season) },
+                                        onLongClick = onSecondaryClick,
+                                    )
+                                    .secondaryClick(onSecondaryClick)
+                                    .padding(
+                                        horizontal = sizing.seasonChipHorizontalPadding,
+                                        vertical = sizing.seasonChipVerticalPadding,
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = season.label(),
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = sizing.seasonChipTextSize,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    ),
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onBackground
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                                 )
-                            } else Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius)))
-                            .hoverable(chipInteractionSource)
-                            .then(rowNavigation.itemModifier(index))
-                            .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
-                            .remoteNavigationDown(onSeasonDown)
-                            .remoteNavigationUp(onSeasonUp)
-                            .remoteNavigationTarget(
-                                shape = RoundedCornerShape(sizing.seasonChipRadius),
-                                onSelect = { onSelect(season) },
-                                onContext = onSecondaryClick,
-                            ).combinedClickable(
-                                onClick = { onSelect(season) },
-                                onLongClick = onSecondaryClick,
-                            )
-                            .secondaryClick(onSecondaryClick)
-                            .padding(
-                                horizontal = sizing.seasonChipHorizontalPadding,
-                                vertical = sizing.seasonChipVerticalPadding,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = season.label(),
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = sizing.seasonChipTextSize,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            ),
-                            color = if (isSelected) {
-                                MaterialTheme.colorScheme.onBackground
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
+                            }
 
-                    if (showHoverPosterPreview && !posterUrl.isNullOrBlank()) {
-                        SeasonPosterHoverPreviewOverlay(
-                            isHovered = isChipHovered,
-                            posterUrl = posterUrl,
-                        )
+                            if (showHoverPosterPreview && !posterUrl.isNullOrBlank()) {
+                                SeasonPosterHoverPreviewOverlay(
+                                    isHovered = isChipHovered,
+                                    posterUrl = posterUrl,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1158,6 +1180,9 @@ private fun SeasonPosterHoverPreviewOverlay(
 @Composable
 private fun SeasonPosterScrollRow(
     seasons: List<Int>,
+    navigationEntry: RemoteNavigationFocusDestination? = null,
+    onSeasonDown: (suspend () -> Unit)? = null,
+    onSeasonUp: (suspend () -> Unit)? = null,
     groupedEpisodes: Map<Int, List<MetaVideo>>,
     meta: MetaDetails,
     currentSeason: Int,
@@ -1169,6 +1194,12 @@ private fun SeasonPosterScrollRow(
 ) {
     val seasonListState = rememberLazyListState()
     val rowNavigation = rememberSeriesRowNavigation(seasonListState, seasons)
+    BindRemoteNavigationFocusDestination(navigationEntry) {
+        val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
+        if (seasonListState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
+            seasonListState.animateScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
@@ -1183,10 +1214,11 @@ private fun SeasonPosterScrollRow(
     LaunchedEffect(seasons, currentSeason) {
         val currentIndex = seasons.indexOf(currentSeason)
         if (currentIndex >= 0) {
+            val anchorIndex = (currentIndex - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0)
             if (hasPositionedSeasonRow) {
-                seasonListState.animateScrollToItem(currentIndex)
+                seasonListState.animateScrollToItem(anchorIndex)
             } else {
-                seasonListState.scrollToItem(currentIndex)
+                seasonListState.scrollToItem(anchorIndex)
                 hasPositionedSeasonRow = true
             }
         }
@@ -1246,28 +1278,34 @@ private fun SeasonPosterScrollRow(
     Box(
         modifier = containerModifier,
     ) {
-        LazyRow(
-            state = seasonListState,
-            modifier = rowNavigation.modifier.then(rowModifier),
-            contentPadding = rowContentPadding,
-            horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
-        ) {
-            itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
-                SeasonPosterButton(
-                    modifier = rowNavigation.itemModifier(index),
-                    label = season.label(),
-                    imageUrl = resolveSeasonPoster(
-                        season = season,
-                        groupedEpisodes = groupedEpisodes,
-                        meta = meta,
-                    )
-                        ?: meta.poster
-                        ?: meta.background,
-                    isSelected = season == currentSeason,
-                    sizing = sizing,
-                    onClick = { onSelect(season) },
-                    onLongClick = onLongPress?.let { handler -> { handler(season) } },
-                )
+        PosterShelfScrollOwner(rowNavigation.controller) {
+            LazyRow(
+                state = seasonListState,
+                modifier = rowNavigation.modifier.then(rowModifier),
+                contentPadding = rowContentPadding,
+                horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
+            ) {
+                itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
+                    CompositionLocalProvider(LocalPosterShelfItem provides rowNavigation.controller?.let { PosterShelfItem(it, season, index) }) {
+                        SeasonPosterButton(
+                            modifier = rowNavigation.itemModifier(index)
+                                .remoteNavigationFocusDestination(navigationEntry.takeIf { season == currentSeason })
+                                .remoteNavigationDown(onSeasonDown).remoteNavigationUp(onSeasonUp),
+                            label = season.label(),
+                            imageUrl = resolveSeasonPoster(
+                                season = season,
+                                groupedEpisodes = groupedEpisodes,
+                                meta = meta,
+                            )
+                                ?: meta.poster
+                                ?: meta.background,
+                            isSelected = season == currentSeason,
+                            sizing = sizing,
+                            onClick = { onSelect(season) },
+                            onLongClick = onLongPress?.let { handler -> { handler(season) } },
+                        )
+                    }
+                }
             }
         }
 
@@ -1498,7 +1536,9 @@ private fun EpisodeHorizontalRow(
     val episodeKeys = remember(episodes) {
         episodes.mapIndexed { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" }
     }
-    val shelfController = rememberPosterShelfController(listState, episodeKeys, allowSidebarEntry = false)
+    val shelfController = rememberPosterShelfController(
+        listState, episodeKeys, allowSidebarEntry = false, precedingPosterVisible = true,
+    )
     var entryIndex by remember { mutableStateOf(0) }
     var hasPositioned by rememberSaveable(parentMetaId, episodes.firstOrNull()?.season) { mutableStateOf(false) }
     BindRemoteNavigationFocusDestination(firstEpisodeFocus) {

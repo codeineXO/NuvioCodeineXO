@@ -4457,11 +4457,11 @@ svg {
 }
 
 .player.ui-codeinexo .codeine-player-badges .player-badge {
-  background: rgba(22, 22, 26, 0.65);
+  background: rgba(0, 0, 0, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* CodeineXO Seekbar Row: flanking time & buffer fill */
@@ -5129,15 +5129,13 @@ svg {
    (Playback Speed, Anime Upscaler, Audio Tracks, Subtitles, Episodes, Sources)
    ========================================================================== */
 
-/* All 6 Right-Side Drawers Satin Frosted Glass Base */
+/* All 6 Right-Side Drawers: 90% Black Base */
 .player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
 .player.ui-codeinexo .player-rail-modal .track-panel,
 .player.ui-codeinexo .player-side-modal .player-side-panel {
-  background:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(0, 0, 0, 0.22) 100%),
-    rgba(15, 17, 24, 0.92) !important;
-  backdrop-filter: blur(48px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(48px) saturate(190%) !important;
+  background: rgba(0, 0, 0, 0.90) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border: 0 !important;
   border-left: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 16px 0 0 16px !important;
@@ -5223,9 +5221,9 @@ svg {
 }
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button {
-  background: rgba(0, 0, 0, .58);
-  backdrop-filter: blur(120px) saturate(160%);
-  -webkit-backdrop-filter: blur(120px) saturate(160%);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, .14);
   color: rgba(255, 255, 255, .88);
   min-height: 40px;
@@ -5294,9 +5292,9 @@ svg {
   border-radius: 14px;
   min-height: 48px;
   font-size: 15px;
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(160px) saturate(160%);
-  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
@@ -5337,9 +5335,9 @@ svg {
   padding: 14px 16px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(160px) saturate(160%);
-  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   flex: 0 0 auto;
 }
@@ -5411,13 +5409,14 @@ svg {
   flex: 0 0 auto;
 }
 
-.player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip {
+.player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip,
+.player.ui-codeinexo .player-side-panel .filter-chip {
   padding: 8px 18px;
   font-size: 13px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, .58);
-  backdrop-filter: blur(120px) saturate(160%);
-  -webkit-backdrop-filter: blur(120px) saturate(160%);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, .14);
   color: rgba(255, 255, 255, .88);
   cursor: pointer;
@@ -5591,9 +5590,9 @@ svg {
 
 .player.ui-codeinexo #subtitleModal .style-section {
   width: 100%;
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(160px) saturate(160%);
-  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   padding: 12px 14px;
@@ -5607,7 +5606,9 @@ svg {
 /* Elevated Source and Episode Card Rows */
 .player.ui-codeinexo #sourceModal .track-row.source-row,
 .player.ui-codeinexo #episodesModal .track-row.episode-row {
-  background: rgba(0, 0, 0, 0.60);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
@@ -5651,9 +5652,9 @@ svg {
 }
 
 .player.ui-codeinexo #shaderModal .enhancement-stepper-card {
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(160px) saturate(160%);
-  -webkit-backdrop-filter: blur(160px) saturate(160%);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -5749,9 +5750,9 @@ svg {
   min-width: 180px;
   height: 80%;
   max-height: 80%;
-  background: rgba(0, 0, 0, 0.80);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   z-index: 60;
   display: flex;
   flex-direction: column;

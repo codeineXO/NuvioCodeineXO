@@ -277,7 +277,8 @@ private suspend fun RemoteNavigationSession.movePosterInPage(source: RemoteFocus
         if (next in row.items.indices) {
             val nativeHorizontal = item.page == "home" || item.page == "collection"
             if (focusPoster(item.page, row, next, animated = !nativeHorizontal,
-                    rightLookAhead = !nativeHorizontal && direction == FocusDirection.Right) &&
+                    rightLookAhead = !nativeHorizontal && direction == FocusDirection.Right,
+                    anchorPrecedingPoster = !row.grid) &&
                 direction == FocusDirection.Left && leftHeld) leftMovedDuringHold = true
         } else if (direction == FocusDirection.Right && item.role == PosterTargetRole.Poster) {
             targets.firstOrNull { it.poster?.let { p -> p.page == item.page && p.row == item.row && p.role == PosterTargetRole.EndAction } == true }
@@ -365,12 +366,14 @@ internal suspend fun RemoteNavigationSession.focusPoster(
     index: Int,
     animated: Boolean = false,
     rightLookAhead: Boolean = false,
+    anchorPrecedingPoster: Boolean = false,
 ): Boolean {
     explicitFocusTransfers++
     return try {
         val shelf = posterPages[pageId]?.shelves?.get(row.key)
         val followingIndex = (index + 1).takeIf { rightLookAhead && it in row.items.indices }
-        if (shelf != null && !shelf.revealPosterEdge(index, animated, fast = { fastPosterScroll }, followingIndex = followingIndex)) return false
+        if (shelf != null && !shelf.revealPosterEdge(index, animated, fast = { fastPosterScroll },
+                followingIndex = followingIndex, anchorPrecedingPoster = anchorPrecedingPoster)) return false
         val target = withTimeoutOrNull(1500) {
             snapshotFlow { targets.firstOrNull { it.poster?.let { p -> p.page == pageId && p.row == row.key && p.index == index && p.role == PosterTargetRole.Poster } == true && it.bounds != null } }.first { it != null }
         }
@@ -387,7 +390,20 @@ private suspend fun LazyListState.revealPosterEdge(
     animated: Boolean,
     fast: () -> Boolean,
     followingIndex: Int?,
+    anchorPrecedingPoster: Boolean = false,
 ): Boolean = withTimeoutOrNull(1500) {
+    if (anchorPrecedingPoster) {
+        if (animated) {
+            animatePosterScroll(fast) { it.posterShelfAnchorDistance(index, precedingPosterVisible = true) }
+        } else {
+            while (true) {
+                val delta = layoutInfo.posterShelfAnchorDistance(index, precedingPosterVisible = true)
+                if (abs(delta) < 0.5f || abs(scrollBy(delta)) < 0.5f) break
+                withFrameNanos { }
+            }
+        }
+        return@withTimeoutOrNull layoutInfo.visibleItemsInfo.any { it.index == index }
+    }
     if (animated) {
         animatePosterScroll(fast) { layout ->
             val start = layout.viewportStartOffset + layout.beforeContentPadding

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import com.nuvio.app.isDesktop
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -56,6 +57,7 @@ internal fun LibrarySavedControls(
             val selectedSection = verticalProjection.availableSections
                 .firstOrNull { section -> section.type == verticalProjection.selectedSectionKey }
             NuvioDropdownChip(
+                useGlass = isDesktop,
                 title = stringResource(Res.string.library_filter_list),
                 label = selectedSection?.let { section -> localizedLibrarySectionTitle(section.type, section.displayTitle) }.orEmpty(),
                 selectedKey = verticalProjection.selectedSectionKey,
@@ -77,6 +79,7 @@ internal fun LibrarySavedControls(
                 )
             }
             NuvioDropdownChip(
+                useGlass = isDesktop,
                 title = stringResource(Res.string.library_filter_type),
                 label = verticalProjection.selectedType
                     ?.let(::localizedMediaTypeLabel)
@@ -89,6 +92,7 @@ internal fun LibrarySavedControls(
         }
 
         NuvioDropdownChip(
+            useGlass = isDesktop,
             title = stringResource(Res.string.library_filter_sort),
             label = librarySortOptionLabel(sortOption),
             selectedKey = sortOption.name,
@@ -131,6 +135,7 @@ internal fun LazyListScope.libraryVerticalContent(
         PosterGridRow(
             items = resolvedItems,
             columns = columns,
+            posterBackgroundColor = androidx.compose.ui.graphics.Color.Transparent,
             modifier = libraryContentTransitionModifier()
                 .padding(horizontal = 16.dp),
             watchedKeys = watchedKeys,

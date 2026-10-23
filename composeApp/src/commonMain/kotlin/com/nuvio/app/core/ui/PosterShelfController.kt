@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -24,6 +25,7 @@ internal class PosterShelfController(
     private val session: RemoteNavigationSession,
     private val scope: CoroutineScope,
     private val allowSidebarEntry: Boolean = true,
+    private val precedingPosterVisible: Boolean = false,
 ) {
     var keys: List<Any> by mutableStateOf(emptyList())
         private set
@@ -142,11 +144,8 @@ internal class PosterShelfController(
                     val index = keys.indexOf(anchor)
                     if (index < 0) break
                     val layout = state.layoutInfo
-                    val nearest = layout.visibleItemsInfo.minByOrNull { abs(it.index - index) } ?: break
-                    val measured = layout.visibleItemsInfo.firstOrNull { it.index == index }
-                    val offset = measured?.offset?.toFloat() ?: (nearest.offset +
-                        (index - nearest.index) * (nearest.size + layout.mainAxisItemSpacing)).toFloat()
-                    val delta = offset - layout.viewportStartOffset - layout.beforeContentPadding
+                    if (layout.visibleItemsInfo.isEmpty()) break
+                    val delta = layout.posterShelfAnchorDistance(index, precedingPosterVisible)
                     if (abs(delta) < 0.75f || (delta > 0 && !state.canScrollForward) || (delta < 0 && !state.canScrollBackward)) {
                         if (abs(delta) < 0.75f) scrollBy(delta)
                         break
@@ -170,11 +169,14 @@ internal fun rememberPosterShelfController(
     state: LazyListState,
     keys: List<Any>,
     allowSidebarEntry: Boolean = true,
+    precedingPosterVisible: Boolean = false,
 ): PosterShelfController? {
     val session = LocalRemoteNavigation.current ?: return null
     val active = LocalScreenActive.current
     val scope = rememberCoroutineScope()
-    val controller = remember(state, session, allowSidebarEntry) { PosterShelfController(state, session, scope, allowSidebarEntry) }
+    val controller = remember(state, session, allowSidebarEntry, precedingPosterVisible) {
+        PosterShelfController(state, session, scope, allowSidebarEntry, precedingPosterVisible)
+    }
     SideEffect { controller.updateKeys(keys) }
     DisposableEffect(controller, active) {
         if (!active) controller.stop()
@@ -192,6 +194,24 @@ internal fun rememberPosterShelfController(
         }
     }
     return controller
+}
+
+/** Keep a full preceding poster at the content edge, clamping to keep the selected card visible. */
+internal fun LazyListLayoutInfo.posterShelfAnchorDistance(index: Int, precedingPosterVisible: Boolean): Float {
+    val nearest = visibleItemsInfo.minByOrNull { abs(it.index - index) } ?: return 0f
+    val selected = visibleItemsInfo.firstOrNull { it.index == index }
+    val size = selected?.size ?: nearest.size
+    val offset = selected?.offset?.toFloat() ?: (nearest.offset +
+        (index - nearest.index) * (nearest.size + mainAxisItemSpacing)).toFloat()
+    val start = viewportStartOffset + beforeContentPadding
+    if (!precedingPosterVisible) return offset - start
+    val end = viewportEndOffset - afterContentPadding
+    if (size >= end - start) return offset - start
+    val previous = visibleItemsInfo.firstOrNull { it.index == index - 1 }
+    val anchorOffset = if (index == 0) offset else previous?.offset?.toFloat()
+        ?: (offset - (previous?.size ?: nearest.size) - mainAxisItemSpacing)
+    // A viewport narrower than the pair gives the selected poster priority.
+    return (anchorOffset - start).coerceIn(offset + size - end, offset - start)
 }
 
 /** Limit automatic horizontal reveal to the same owner for posters and episode cards. */
