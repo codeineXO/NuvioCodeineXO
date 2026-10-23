@@ -20,7 +20,7 @@ internal fun resolveDesktopAppLocale(
     Locale.forLanguageTag(languageCode)
 }
 
-internal actual object ThemeSettingsStorage {
+internal actual object ThemeSettingsStorage : AuraSettingsStore {
     private const val selectedThemeKey = "selected_theme"
     private const val customThemeColorsKey = "custom_theme_colors"
     private const val amoledEnabledKey = "amoled_enabled"
@@ -29,6 +29,7 @@ internal actual object ThemeSettingsStorage {
     private const val selectedAppLanguageKey = "selected_app_language"
     private const val navBarStyleKey = "nav_bar_style"
     private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
+    private const val auraSettingsKey = "aura_settings"
     private const val auraBackgroundEnabledKey = "aura_background_enabled"
     private val profileScopedSyncKeys = listOf(
         selectedThemeKey,
@@ -39,6 +40,7 @@ internal actual object ThemeSettingsStorage {
         navBarStyleKey,
         navBarGlowEnabledKey,
         auraBackgroundEnabledKey,
+        auraSettingsKey,
     )
     private val deviceLocale = Locale.getDefault()
     private val store = DesktopStorage.store("nuvio_theme_settings")
@@ -111,6 +113,10 @@ internal actual object ThemeSettingsStorage {
         store.putBoolean(ProfileScopedKey.of(auraBackgroundEnabledKey), enabled)
     }
 
+    private val auraStorage = DesktopAuraSettingsStorage(store) { ProfileScopedKey.of(auraSettingsKey) }
+    override fun loadAuraSettings(): String? = auraStorage.loadAuraSettings()
+    override fun saveAuraSettings(value: String) = auraStorage.saveAuraSettings(value)
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadSelectedTheme()?.let { put(selectedThemeKey, encodeSyncString(it)) }
         loadCustomThemeColors()?.let { put(customThemeColorsKey, encodeSyncString(it)) }
@@ -119,6 +125,7 @@ internal actual object ThemeSettingsStorage {
         loadDesktopNavigationLayout()?.let { put(desktopNavigationLayoutKey, encodeSyncString(it)) }
         loadNavBarStyle()?.let { put(navBarStyleKey, encodeSyncString(it)) }
         loadNavBarGlowEnabled()?.let { put(navBarGlowEnabledKey, encodeSyncBoolean(it)) }
+        auraStorage.exportValue()?.let { put(auraSettingsKey, it) }
         loadAuraBackgroundEnabled()?.let { put(auraBackgroundEnabledKey, encodeSyncBoolean(it)) }
     }
 
@@ -131,7 +138,20 @@ internal actual object ThemeSettingsStorage {
         payload.decodeSyncString(desktopNavigationLayoutKey)?.let(::saveDesktopNavigationLayout)
         payload.decodeSyncString(navBarStyleKey)?.let(::saveNavBarStyle)
         payload.decodeSyncBoolean(navBarGlowEnabledKey)?.let(::saveNavBarGlowEnabled)
+        auraStorage.restore(payload)
         payload.decodeSyncBoolean(auraBackgroundEnabledKey)?.let(::saveAuraBackgroundEnabled)
         applySelectedAppLanguage(loadSelectedAppLanguage() ?: AppLanguage.ENGLISH.code)
+    }
+}
+
+internal class DesktopAuraSettingsStorage(
+    private val store: DesktopStorage.Store,
+    private val scopedKey: () -> String,
+) : AuraSettingsStore {
+    override fun loadAuraSettings(): String? = store.getString(scopedKey())
+    override fun saveAuraSettings(value: String) { store.putString(scopedKey(), value) }
+    fun exportValue() = loadAuraSettings()?.let(::encodeSyncString)
+    fun restore(payload: JsonObject) {
+        payload.decodeSyncString("aura_settings")?.let(::saveAuraSettings)
     }
 }

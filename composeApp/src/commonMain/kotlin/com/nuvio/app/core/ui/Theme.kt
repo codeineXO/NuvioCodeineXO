@@ -230,6 +230,7 @@ fun NuvioTheme(
     desktopUiScale: Float = NuvioDesktopMinUiScale,
     customThemeColors: CustomThemeColors = CustomThemeColors.Default,
     auraEnabled: Boolean = false,
+    auraSettings: AuraSettings = AuraSettings(),
     content: @Composable () -> Unit,
 ) {
     val palette = remember(appTheme, customThemeColors) {
@@ -255,6 +256,7 @@ fun NuvioTheme(
         LocalRippleConfiguration provides NuvioRippleConfiguration,
         LocalAppTheme provides appTheme,
         LocalThemePalette provides palette,
+        LocalAuraSettings provides auraSettings,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

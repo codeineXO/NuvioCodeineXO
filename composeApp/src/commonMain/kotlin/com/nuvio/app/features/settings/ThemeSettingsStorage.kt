@@ -2,7 +2,12 @@ package com.nuvio.app.features.settings
 
 import kotlinx.serialization.json.JsonObject
 
-internal expect object ThemeSettingsStorage {
+internal interface AuraSettingsStore {
+    fun loadAuraSettings(): String? = null
+    fun saveAuraSettings(value: String) {}
+}
+
+internal expect object ThemeSettingsStorage : AuraSettingsStore {
     fun loadSelectedTheme(): String?
     fun saveSelectedTheme(themeName: String)
     fun loadCustomThemeColors(): String?

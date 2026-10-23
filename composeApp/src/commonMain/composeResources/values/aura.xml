@@ -1,0 +1,24 @@
+<resources>
+    <string name="aura_customize">Customize Aura</string>
+    <string name="aura_enable_hint">Enable Aura to customize</string>
+    <string name="aura_preview">Aura preview</string>
+    <string name="aura_palette">Palette</string>
+    <string name="aura_original">Original</string>
+    <string name="aura_arctic">Arctic</string>
+    <string name="aura_northern_lights">Northern Lights</string>
+    <string name="aura_sunset">Sunset</string>
+    <string name="aura_rose_quartz">Rose Quartz</string>
+    <string name="aura_golden_hour">Golden Hour</string>
+    <string name="aura_deep_space">Deep Space</string>
+    <string name="aura_match_theme">Match App Theme</string>
+    <string name="aura_custom">Custom</string>
+    <string name="aura_intensity">Intensity</string>
+    <string name="aura_subtle">Subtle</string>
+    <string name="aura_balanced">Balanced</string>
+    <string name="aura_vivid">Vivid</string>
+    <string name="aura_animation">Animation</string>
+    <string name="aura_animation_description">Animate glows and respond to scrolling</string>
+    <string name="aura_custom_title">Custom Aura colors</string>
+    <string name="aura_custom_subtitle">Choose three colors for your Aura. Select a color to edit it.</string>
+    <string name="aura_custom_save">Save Aura colors</string>
+</resources>

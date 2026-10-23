@@ -111,6 +111,7 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
         ThemeSettingsRepository.auraBackgroundEnabled
     }.collectAsStateWithLifecycle()
 
+    val auraSettings by ThemeSettingsRepository.auraSettings.collectAsStateWithLifecycle()
     val customThemeColors by ThemeSettingsRepository.customThemeColors.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -120,6 +121,7 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
             customThemeColors = customThemeColors,
             desktopUiScale = desktopUiScaleForWindow(maxWidth.value, maxHeight.value),
             auraEnabled = auraBackgroundEnabled,
+            auraSettings = auraSettings,
         ) {
             CompositionLocalProvider(LocalNavigationGlassState provides rememberHazeState()) {
                 content()

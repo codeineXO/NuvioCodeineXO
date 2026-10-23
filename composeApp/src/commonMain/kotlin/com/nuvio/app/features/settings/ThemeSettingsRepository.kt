@@ -1,5 +1,6 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.AuraSettings
 import com.nuvio.app.core.ui.AppTheme
 import com.nuvio.app.core.ui.CustomThemeColors
 import com.nuvio.app.core.ui.NativeTabBridge
@@ -49,6 +50,16 @@ object ThemeSettingsRepository {
     private val _auraBackgroundEnabled = MutableStateFlow(true)
     val auraBackgroundEnabled: StateFlow<Boolean> = _auraBackgroundEnabled.asStateFlow()
 
+    private val _auraSettings = MutableStateFlow(AuraSettings())
+    val auraSettings: StateFlow<AuraSettings> = _auraSettings.asStateFlow()
+
+    fun setAuraSettings(settings: AuraSettings) {
+        ensureLoaded()
+        if (_auraSettings.value == settings) return
+        _auraSettings.value = settings
+        ThemeSettingsStorage.saveAuraSettings(settings.encode())
+    }
+
     private var hasLoaded = false
     private var observesMembership = false
 
@@ -77,6 +88,7 @@ object ThemeSettingsRepository {
         _navBarGlowEnabled.value = true
         _navBarStyle.value = NavBarStyle.ADAPTIVE
         _auraBackgroundEnabled.value = true
+        _auraSettings.value = AuraSettings()
     }
 
     private fun loadFromDisk() {
@@ -107,6 +119,7 @@ object ThemeSettingsRepository {
         _navBarGlowEnabled.value = ThemeSettingsStorage.loadNavBarGlowEnabled() ?: true
         _navBarStyle.value = NavBarStyle.fromKey(ThemeSettingsStorage.loadNavBarStyle())
         _auraBackgroundEnabled.value = ThemeSettingsStorage.loadAuraBackgroundEnabled() ?: true
+        _auraSettings.value = AuraSettings.decode(ThemeSettingsStorage.loadAuraSettings())
     }
 
     fun setTheme(theme: AppTheme) {

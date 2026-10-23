@@ -137,6 +137,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = ThemeSettingsRepository::setAuraBackgroundEnabled,
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                AuraCustomizationRow(isTablet = isTablet)
                 if (isDesktop) {
                     SettingsGroupDivider(isTablet = isTablet)
                     KeyboardNavigationSettingsRow(isTablet)

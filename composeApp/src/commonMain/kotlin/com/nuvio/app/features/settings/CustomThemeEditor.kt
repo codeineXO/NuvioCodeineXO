@@ -71,13 +71,18 @@ internal fun CustomThemeEditor(
     allowGradient: Boolean,
     onSave: (CustomThemeColors) -> Unit,
     onDismiss: () -> Unit,
+    title: String? = null,
+    subtitle: String? = null,
+    saveLabel: String? = null,
+    forceThreeColors: Boolean = false,
+    preview: (@Composable (CustomThemeColors) -> Unit)? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var encodedColors by rememberSaveable(allowGradient) { mutableStateOf(initialColors.encode()) }
     var gradientEnabled by rememberSaveable(allowGradient) {
-        mutableStateOf(allowGradient && !initialColors.isSolid)
+        mutableStateOf(forceThreeColors || (allowGradient && !initialColors.isSolid))
     }
     var selectedIndex by rememberSaveable(gradientEnabled) { mutableStateOf(0) }
     val draftColors = CustomThemeColors.decode(encodedColors)
@@ -105,7 +110,7 @@ internal fun CustomThemeEditor(
             verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
         ) {
             Text(
-                text = stringResource(
+                text = title ?: stringResource(
                     if (gradientEnabled) Res.string.custom_theme_title else Res.string.custom_theme_solid_title,
                 ),
                 style = MaterialTheme.typography.titleLarge,
@@ -115,7 +120,7 @@ internal fun CustomThemeEditor(
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s16),
             ) {
-                if (allowGradient) {
+                if (allowGradient && !forceThreeColors) {
                     FlowRow(
                         modifier = Modifier.selectableGroup(),
                         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8),
@@ -139,13 +144,13 @@ internal fun CustomThemeEditor(
                     }
                 }
                 Text(
-                    text = stringResource(
+                    text = subtitle ?: stringResource(
                         if (gradientEnabled) Res.string.custom_theme_subtitle else Res.string.custom_theme_solid_subtitle,
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = tokens.colors.textSecondary,
                 )
-                CustomThemePreview(colors)
+                if (preview != null) preview(colors) else CustomThemePreview(colors)
                 if (gradientEnabled) {
                     Row(horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8)) {
                         colors.colors.forEachIndexed { index, color ->
@@ -200,7 +205,7 @@ internal fun CustomThemeEditor(
                     Text(stringResource(Res.string.action_cancel))
                 }
                 NuvioPrimaryButton(
-                    text = stringResource(Res.string.custom_theme_save),
+                    text = saveLabel ?: stringResource(Res.string.custom_theme_save),
                     modifier = Modifier.weight(1f),
                     enabled = validHex,
                     onClick = {

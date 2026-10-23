@@ -151,6 +151,8 @@ internal fun LazyListScope.appearanceSettingsContent(
                     onCheckedChange = ThemeSettingsRepository::setAuraBackgroundEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                AuraCustomizationRow(isTablet = isTablet)
+                SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_appearance_amoled_black),
                     description = stringResource(Res.string.settings_appearance_amoled_description),
