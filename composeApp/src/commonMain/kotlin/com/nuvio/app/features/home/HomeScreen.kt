@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationScrollToTop
 import com.nuvio.app.core.ui.BindPosterNavigationPage
 import com.nuvio.app.core.ui.PosterNavigationRow
@@ -970,7 +971,7 @@ fun HomeScreen(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         if (auraBackgroundEnabled) {
             HomeInteractiveGradientBackground(
-                modifier = Modifier.fillMaxSize().hazeSource(fullscreenBackdropState, zIndex = -1f),
+                modifier = Modifier.fillMaxSize().then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(fullscreenBackdropState, zIndex = -1f) else Modifier),
                 listState = homeListState,
             )
         }
@@ -1070,7 +1071,7 @@ fun HomeScreen(
 
         NuvioScreen(
             modifier = Modifier.fillMaxSize()
-                .hazeSource(fullscreenBackdropState)
+                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(fullscreenBackdropState) else Modifier)
                 .then(heroStretchModifier),
             horizontalPadding = 0.dp,
             topPadding = effectiveTopPadding,

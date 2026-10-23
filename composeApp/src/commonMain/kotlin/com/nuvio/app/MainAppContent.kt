@@ -1,5 +1,6 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.MutableTransitionState
@@ -1394,7 +1395,7 @@ internal fun MainAppContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (selectedPosterActionTarget != null || selectedContinueWatchingZoomAnchor != null) {
+                        if (LocalFrostedGlassEnabled.current && (selectedPosterActionTarget != null || selectedContinueWatchingZoomAnchor != null)) {
                             Modifier.hazeSource(state = posterOverlayHazeState)
                         } else {
                             Modifier

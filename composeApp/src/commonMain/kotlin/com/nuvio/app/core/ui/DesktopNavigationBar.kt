@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -96,18 +97,18 @@ internal fun DesktopNavigationBar(
                 modifier = Modifier.matchParentSize()
                     .clip(RoundedCornerShape(50))
                     .then(
-                        if (isFrosted && hazeState != null) {
+                        if (LocalFrostedGlassEnabled.current && isFrosted && hazeState != null) {
                             Modifier.hazeEffect(state = hazeState) { blurRadius = 14.dp }
                         } else {
                             Modifier
                         },
                     )
-                    .background(surfaceColor)
+                    .background(if (LocalFrostedGlassEnabled.current) surfaceColor else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color.White.copy(alpha = 0.14f * sheenAlpha),
-                                Color.White.copy(alpha = 0.03f * sheenAlpha),
+                                Color.White.copy(alpha = 0.14f * (if (LocalFrostedGlassEnabled.current) sheenAlpha else 0f)),
+                                Color.White.copy(alpha = 0.03f * (if (LocalFrostedGlassEnabled.current) sheenAlpha else 0f)),
                                 Color.Transparent,
                             ),
                         ),

@@ -1,5 +1,6 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.focus.FocusDirection
@@ -488,7 +489,7 @@ internal fun TabletFloatingTopBar(
         val pillModifier = Modifier
             .clip(chipShape)
             .then(
-                if (isFrosted && hazeState != null) {
+                if (LocalFrostedGlassEnabled.current && isFrosted && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         blurRadius = 14.dp
                     }
@@ -499,14 +500,14 @@ internal fun TabletFloatingTopBar(
             .hoverable(interactionSource)
 
         Surface(
-            color = surfaceColor,
+            color = if (LocalFrostedGlassEnabled.current) surfaceColor else tokens.colors.surfacePopover.copy(alpha = 1f),
             shape = chipShape,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             modifier = pillModifier,
         ) {
             Box {
-                if (frostedSheenAlpha > 0.01f) {
+                if (LocalFrostedGlassEnabled.current && frostedSheenAlpha > 0.01f) {
                     Box(
                         modifier = Modifier
                             .matchParentSize()
@@ -548,7 +549,7 @@ internal fun TabletFloatingTopBar(
                                 tint = if (selectedTab == AppScreenTab.Home) {
                                     tokens.colors.textPrimary
                                 } else {
-                                    Color.White.copy(alpha = 0.70f)
+                                    if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.70f) else tokens.colors.textSecondary
                                 },
                             )
                         },
@@ -570,7 +571,7 @@ internal fun TabletFloatingTopBar(
                                 tint = if (selectedTab == AppScreenTab.Search) {
                                     tokens.colors.textPrimary
                                 } else {
-                                    Color.White.copy(alpha = 0.70f)
+                                    if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.70f) else tokens.colors.textSecondary
                                 },
                             )
                         },
@@ -592,7 +593,7 @@ internal fun TabletFloatingTopBar(
                                 tint = if (selectedTab == AppScreenTab.Library) {
                                     tokens.colors.textPrimary
                                 } else {
-                                    Color.White.copy(alpha = 0.70f)
+                                    if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.70f) else tokens.colors.textSecondary
                                 },
                             )
                         },
@@ -688,7 +689,7 @@ private fun TabletTopPillItem(
                     color = if (selected) {
                         tokens.colors.textPrimary
                     } else {
-                        Color.White.copy(alpha = 0.75f)
+                        if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.75f) else tokens.colors.textSecondary
                     },
                     maxLines = 1,
                     softWrap = false,

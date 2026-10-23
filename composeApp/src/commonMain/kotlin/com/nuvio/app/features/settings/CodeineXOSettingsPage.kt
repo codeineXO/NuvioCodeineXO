@@ -116,6 +116,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
             ThemeSettingsRepository.ensureLoaded()
             ThemeSettingsRepository.auraBackgroundEnabled
         }.collectAsStateWithLifecycle()
+        val frostedGlassEnabled by ThemeSettingsRepository.frostedGlassEnabled.collectAsStateWithLifecycle()
         val homeCatalogSettings by remember {
             HomeCatalogSettingsRepository.snapshot()
             HomeCatalogSettingsRepository.uiState
@@ -139,6 +140,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 AuraCustomizationRow(isTablet = isTablet)
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_appearance_frosted_glass),
+                    description = stringResource(Res.string.settings_appearance_frosted_glass_description),
+                    checked = frostedGlassEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = ThemeSettingsRepository::setFrostedGlassEnabled,
+                )
                 if (isDesktop) {
                     SettingsGroupDivider(isTablet = isTablet)
                     KeyboardNavigationSettingsRow(isTablet)

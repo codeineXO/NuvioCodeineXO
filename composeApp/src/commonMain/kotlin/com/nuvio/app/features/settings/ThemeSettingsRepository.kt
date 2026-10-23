@@ -29,6 +29,9 @@ object ThemeSettingsRepository {
     private val _customThemeColors = MutableStateFlow(CustomThemeColors.solid(CustomThemeColors.Default.second))
     val customThemeColors: StateFlow<CustomThemeColors> = _customThemeColors.asStateFlow()
 
+    private val _frostedGlassEnabled = MutableStateFlow(true)
+    val frostedGlassEnabled: StateFlow<Boolean> = _frostedGlassEnabled.asStateFlow()
+
     private val _amoledEnabled = MutableStateFlow(false)
     val amoledEnabled: StateFlow<Boolean> = _amoledEnabled.asStateFlow()
 
@@ -79,6 +82,7 @@ object ThemeSettingsRepository {
         _selectedTheme.value = AppTheme.WHITE
         _customThemePreference.value = CustomThemeColors.Default
         _customThemeColors.value = CustomThemeColors.solid(CustomThemeColors.Default.second)
+        _frostedGlassEnabled.value = true
         _amoledEnabled.value = false
         _liquidGlassNativeTabBarEnabled.value = false
         _desktopNavigationLayout.value = DesktopNavigationLayout.Default
@@ -106,6 +110,7 @@ object ThemeSettingsRepository {
         _selectedThemePreference.value = theme
         _customThemePreference.value = CustomThemeColors.decode(ThemeSettingsStorage.loadCustomThemeColors())
         applyEffectiveTheme()
+        _frostedGlassEnabled.value = ThemeSettingsStorage.loadFrostedGlassEnabled() ?: true
         _amoledEnabled.value = ThemeSettingsStorage.loadAmoledEnabled() ?: false
         val liquidGlassEnabled = ThemeSettingsStorage.loadLiquidGlassNativeTabBarEnabled() ?: false
         _liquidGlassNativeTabBarEnabled.value = liquidGlassEnabled
@@ -141,6 +146,13 @@ object ThemeSettingsRepository {
         _customThemePreference.value = selectedColors
         _selectedThemePreference.value = AppTheme.CUSTOM
         applyEffectiveTheme()
+    }
+
+    fun setFrostedGlassEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (_frostedGlassEnabled.value == enabled) return
+        _frostedGlassEnabled.value = enabled
+        ThemeSettingsStorage.saveFrostedGlassEnabled(enabled)
     }
 
     fun setAmoled(enabled: Boolean) {

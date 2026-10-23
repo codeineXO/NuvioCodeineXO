@@ -178,7 +178,7 @@ fun NuvioNavigationBar(
             .fillMaxWidth()
             .clip(RoundedCornerShape(NuvioTokens.Radius.full))
             .then(
-                if (hazeState != null) {
+                if (LocalFrostedGlassEnabled.current && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         blurRadius = 24.dp
                     }
@@ -186,7 +186,7 @@ fun NuvioNavigationBar(
                     Modifier
                 },
             )
-            .background(Color(0xFF1C1C1E).copy(alpha = if (hazeState != null) 0.55f else 0.82f))
+            .background(if (LocalFrostedGlassEnabled.current) Color(0xFF1C1C1E).copy(alpha = if (hazeState != null) 0.55f else 0.82f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
 
         Box(modifier = pillModifier) {
             Row(

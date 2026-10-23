@@ -20,6 +20,9 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 
+/** App-scoped glass policy, inherited by screen content, dialogs, and popups. */
+internal val LocalFrostedGlassEnabled = staticCompositionLocalOf { true }
+
 /** Only Compose page content is registered here; never a video surface or player UI. */
 internal val LocalNavigationGlassState = staticCompositionLocalOf<HazeState?> { null }
 internal val LocalDesktopSidebarContentInset = staticCompositionLocalOf { 0.dp }
@@ -27,6 +30,7 @@ internal val LocalDesktopSidebarContentInset = staticCompositionLocalOf { 0.dp }
 /** Attach to artwork or scrolling content, with glass controls in a sibling layer. */
 @Composable
 internal fun Modifier.navigationGlassSource(zIndex: Float = 0f): Modifier {
+    if (!LocalFrostedGlassEnabled.current) return this
     val state = LocalNavigationGlassState.current ?: return this
     return hazeSource(state, zIndex = zIndex)
 }
@@ -41,10 +45,11 @@ internal fun Modifier.navigationGlass(
     backgroundOnly: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
+    val frostedGlassEnabled = LocalFrostedGlassEnabled.current
     // In-page effects must not sample the z=1 scrolling source which contains them.
     // Navigation overlays retain their existing full-page backdrop behavior.
     val backdropState = hazeState?.takeIf { state ->
-        !backgroundOnly || state.areas.any { it.zIndex < 1f }
+        frostedGlassEnabled && (!backgroundOnly || state.areas.any { it.zIndex < 1f })
     }
     // The same light, theme-neutral tint for controls and panels, without a gray surface wash.
     val tint = tokens.colors.background.copy(alpha = tokens.opacity.pressed)
@@ -52,7 +57,11 @@ internal fun Modifier.navigationGlass(
     return this
         .shadow(if (panel) tokens.elevation.modal else tokens.elevation.raised, shape, clip = false)
         .clip(shape)
-        .background(if (backdropState == null) fallback else tint)
+        .background(
+            if (!frostedGlassEnabled) {
+                (if (panel) tokens.colors.surfacePopover else tokens.colors.surfaceCard).copy(alpha = 1f)
+            } else if (backdropState == null) fallback else tint,
+        )
         .then(
             if (backdropState != null) {
                 Modifier.hazeEffect(backdropState) {

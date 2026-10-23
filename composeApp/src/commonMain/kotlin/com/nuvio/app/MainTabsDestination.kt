@@ -1,5 +1,6 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -205,8 +206,8 @@ internal fun MainTabsDestination(
         if (isDesktop && (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library)) {
             val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
             val backgroundModifier = Modifier.fillMaxSize()
-                .hazeSource(navBarHazeState, zIndex = -1f)
-                .then(if (selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
+                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(navBarHazeState, zIndex = -1f) else Modifier)
+                .then(if (LocalFrostedGlassEnabled.current && selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
             if (auraBackgroundEnabled) {
                 HomeInteractiveGradientBackground(
                     modifier = backgroundModifier,
@@ -293,7 +294,7 @@ internal fun MainTabsDestination(
                         actions = tabActions,
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (requiresNavBarHaze) Modifier.hazeSource(state = navBarHazeState) else Modifier)
+                            .then(if (LocalFrostedGlassEnabled.current && requiresNavBarHaze) Modifier.hazeSource(state = navBarHazeState) else Modifier)
                             .then(if (shouldAttachNestedScroll) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                             .padding(innerPadding)
                             .padding(start = if (selectedTab == AppScreenTab.Home) 0.dp else contentStartPadding),

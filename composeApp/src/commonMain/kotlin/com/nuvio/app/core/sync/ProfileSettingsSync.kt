@@ -188,6 +188,7 @@ object ProfileSettingsSync {
         val signatureFlows = listOf(
             ThemeSettingsRepository.selectedThemePreference.map { "theme" },
             ThemeSettingsRepository.customThemePreference.map { "custom_theme_colors" },
+            ThemeSettingsRepository.frostedGlassEnabled.map { "frosted_glass_enabled" },
             ThemeSettingsRepository.amoledEnabled.map { "amoled" },
             ThemeSettingsRepository.liquidGlassNativeTabBarEnabled.map { "liquid_glass_tab_bar" },
             ThemeSettingsRepository.desktopNavigationLayout.map { "desktop_navigation_layout" },
@@ -383,6 +384,7 @@ object ProfileSettingsSync {
     private fun currentObservedStateSignature(): String = listOf(
         "theme=${ThemeSettingsRepository.selectedThemePreference.value?.name}",
         "custom_theme_colors=${ThemeSettingsRepository.customThemePreference.value}",
+        "frosted_glass_enabled=${ThemeSettingsRepository.frostedGlassEnabled.value}",
         "amoled=${ThemeSettingsRepository.amoledEnabled.value}",
         "liquid_glass_tab_bar=${ThemeSettingsRepository.liquidGlassNativeTabBarEnabled.value}",
         "desktop_navigation_layout=${ThemeSettingsRepository.desktopNavigationLayout.value.name}",

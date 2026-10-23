@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -109,7 +110,7 @@ internal fun PlayerSidePanel(
                             .fillMaxHeight()
                             .clip(shape)
                             .then(
-                                if (hazeState != null) {
+                                if (LocalFrostedGlassEnabled.current && hazeState != null) {
                                     Modifier.hazeEffect(state = hazeState) {
                                         blurRadius = 100.dp
                                         noiseFactor = 0f
@@ -118,12 +119,12 @@ internal fun PlayerSidePanel(
                                         fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
                                     }
                                 } else {
-                                    Modifier.background(Color.Black.copy(alpha = 0.90f))
+                                    Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.90f) else tokens.colors.surfacePopover.copy(alpha = 1f))
                                 },
                             )
                             .border(
                                 width = 1.dp,
-                                color = Color.White.copy(alpha = 0.10f),
+                                color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
                                 shape = shape,
                             )
                             .clickable(
@@ -184,7 +185,7 @@ internal fun PlayerDialogButton(
             .alpha(if (enabled) 1f else tokens.opacity.disabled)
             .clip(RoundedCornerShape(12.dp))
             .then(
-                if (hazeState != null) {
+                if (LocalFrostedGlassEnabled.current && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         blurRadius = 120.dp
                         noiseFactor = 0f
@@ -193,12 +194,12 @@ internal fun PlayerDialogButton(
                         fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
                     }
                 } else {
-                    Modifier.background(Color.Black.copy(alpha = 0.88f))
+                    Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.88f) else MaterialTheme.nuvio.colors.surfaceCard.copy(alpha = 1f))
                 },
             )
             .border(
                 width = 1.dp,
-                color = if (hazeState != null) Color.White.copy(alpha = 0.10f) else Color.Transparent,
+                color = if (!LocalFrostedGlassEnabled.current) tokens.colors.borderDefault else if (hazeState != null) Color.White.copy(alpha = 0.10f) else Color.Transparent,
                 shape = RoundedCornerShape(12.dp),
             )
             .clickable(enabled = enabled, onClick = onClick)
@@ -294,7 +295,7 @@ private fun AddonFilterChip(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .then(
-                if (!isSelected && !hasError && hazeState != null) {
+                if (LocalFrostedGlassEnabled.current && !isSelected && !hasError && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         blurRadius = 120.dp
                         noiseFactor = 0f
@@ -303,7 +304,7 @@ private fun AddonFilterChip(
                         fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
                     }
                 } else {
-                    Modifier.background(if (hasError || isSelected) containerColor else Color.Black.copy(alpha = 0.88f))
+                    Modifier.background(if (!LocalFrostedGlassEnabled.current && !isSelected) tokens.colors.surfaceCard.copy(alpha = 1f) else if (hasError || isSelected) containerColor else Color.Black.copy(alpha = 0.88f))
                 },
             )
             .border(
@@ -311,7 +312,7 @@ private fun AddonFilterChip(
                 when {
                     hasError -> tokens.colors.danger.copy(alpha = 0.7f)
                     isSelected -> Color.Transparent
-                    hazeState != null -> Color.White.copy(alpha = 0.10f)
+                    LocalFrostedGlassEnabled.current && hazeState != null -> Color.White.copy(alpha = 0.10f)
                     else -> tokens.colors.borderDefault
                 },
                 RoundedCornerShape(20.dp),

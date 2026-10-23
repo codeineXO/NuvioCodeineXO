@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -410,7 +411,7 @@ private fun EpisodeSeasonChip(
             .then(
                 if (isSelected) {
                     Modifier.background(Color(0xFFF5F5F5))
-                } else if (hazeState != null) {
+                } else if (LocalFrostedGlassEnabled.current && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         blurRadius = 120.dp
                         noiseFactor = 0f
@@ -419,12 +420,12 @@ private fun EpisodeSeasonChip(
                         fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
                     }
                 } else {
-                    Modifier.background(Color.Black.copy(alpha = 0.88f))
+                    Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.88f) else MaterialTheme.nuvio.colors.surfaceCard.copy(alpha = 1f))
                 },
             )
             .border(
                 1.dp,
-                if (isSelected) Color.Transparent else if (hazeState != null) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
+                if (isSelected) Color.Transparent else if (LocalFrostedGlassEnabled.current && hazeState != null) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
                 shape,
             )
             .clickable(onClick = onClick)
@@ -479,7 +480,7 @@ private fun EpisodeRow(
             .fillMaxWidth()
             .clip(cardShape)
             .then(
-                if (hazeState != null) {
+                if (LocalFrostedGlassEnabled.current && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
                         blurRadius = 160.dp
                         noiseFactor = 0f
@@ -488,14 +489,18 @@ private fun EpisodeRow(
                         fallbackTint = HazeTint(Color.Black.copy(alpha = 0.95f))
                     }
                 } else {
-                    Modifier.background(Color.Black.copy(alpha = 0.88f))
+                    Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.88f) else MaterialTheme.nuvio.colors.surfaceCard.copy(alpha = 1f))
                 },
             )
             .then(
                 if (isCurrent) {
                     Modifier.border(width = 2.dp, color = tokens.colors.focusRing, shape = cardShape)
                 } else if (hazeState != null) {
-                    Modifier.border(width = 1.dp, color = Color.White.copy(alpha = 0.10f), shape = cardShape)
+                    Modifier.border(
+                        width = 1.dp,
+                        color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
+                        shape = cardShape,
+                    )
                 } else {
                     Modifier
                 },

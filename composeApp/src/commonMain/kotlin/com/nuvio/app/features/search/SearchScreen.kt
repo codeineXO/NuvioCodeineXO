@@ -1,5 +1,6 @@
 package com.nuvio.app.features.search
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
@@ -157,7 +158,7 @@ fun SearchScreen(
     // The shell supplies the aura beneath the scrolling sources, including at scroll position zero.
     // The pinned search field is never captured in its own backdrop.
     val searchBackdropState = LocalSearchBackdropState.current ?: rememberHazeState()
-    val searchBackdropModifier = if (isDesktop) Modifier.hazeSource(searchBackdropState) else Modifier
+    val searchBackdropModifier = if (isDesktop && LocalFrostedGlassEnabled.current) Modifier.hazeSource(searchBackdropState) else Modifier
 
     ScreenActivityEffect(listState) { screenActive ->
         if (!screenActive) {

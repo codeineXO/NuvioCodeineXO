@@ -1,5 +1,6 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.animation.AnimatedContent
@@ -111,7 +112,7 @@ internal fun ProfilePopupContent(
                     .shadow(12.dp, shape)
                     .clip(shape)
                     .then(
-                        if (hazeState != null) {
+                        if (LocalFrostedGlassEnabled.current && hazeState != null) {
                             Modifier.hazeEffect(hazeState) {
                                 blurRadius = 24.dp
                                 backgroundColor = Color(0xFF1C1C1E)
@@ -120,7 +121,7 @@ internal fun ProfilePopupContent(
                                 noiseFactor = 0f
                             }
                         } else {
-                            Modifier.background(tokens.colors.background)
+                            Modifier.background(if (LocalFrostedGlassEnabled.current) tokens.colors.background else tokens.colors.surfacePopover.copy(alpha = 1f))
                         },
                     )
                     .border(0.5.dp, tokens.colors.borderDefault, shape)

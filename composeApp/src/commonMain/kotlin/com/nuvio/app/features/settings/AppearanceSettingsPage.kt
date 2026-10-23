@@ -38,6 +38,8 @@ import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.dismissNuvioBottomSheet
 import com.nuvio.app.core.ui.labelRes
 import kotlinx.coroutines.launch
+import nuvio.composeapp.generated.resources.settings_appearance_frosted_glass
+import nuvio.composeapp.generated.resources.settings_appearance_frosted_glass_description
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.cd_selected
 import nuvio.composeapp.generated.resources.collections_header
@@ -92,6 +94,8 @@ internal fun LazyListScope.appearanceSettingsContent(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
+    frostedGlassEnabled: Boolean,
+    onFrostedGlassToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarEnabled: Boolean,
     onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -159,6 +163,14 @@ internal fun LazyListScope.appearanceSettingsContent(
                     checked = amoledEnabled,
                     isTablet = isTablet,
                     onCheckedChange = onAmoledToggle,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_appearance_frosted_glass),
+                    description = stringResource(Res.string.settings_appearance_frosted_glass_description),
+                    checked = frostedGlassEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = onFrostedGlassToggle,
                 )
                 if (liquidGlassNativeTabBarSupported) {
                     SettingsGroupDivider(isTablet = isTablet)

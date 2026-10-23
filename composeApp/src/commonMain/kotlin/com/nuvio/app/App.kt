@@ -18,6 +18,7 @@ import coil3.svg.SvgDecoder
 import com.nuvio.app.core.poster.CustomPosterFallbackInterceptor
 import com.nuvio.app.core.ui.NativeProfileSwitcherController
 import com.nuvio.app.core.ui.NuvioTheme
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.LocalNavigationGlassState
 import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.core.ui.addPlatformDecoders
@@ -102,6 +103,7 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
         ThemeSettingsRepository.ensureLoaded()
         ThemeSettingsRepository.selectedTheme
     }.collectAsStateWithLifecycle()
+    val frostedGlassEnabled by ThemeSettingsRepository.frostedGlassEnabled.collectAsStateWithLifecycle()
     val amoledEnabled by remember {
         ThemeSettingsRepository.amoledEnabled
     }.collectAsStateWithLifecycle()
@@ -123,7 +125,10 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
             auraEnabled = auraBackgroundEnabled,
             auraSettings = auraSettings,
         ) {
-            CompositionLocalProvider(LocalNavigationGlassState provides rememberHazeState()) {
+            CompositionLocalProvider(
+                LocalFrostedGlassEnabled provides frostedGlassEnabled,
+                LocalNavigationGlassState provides rememberHazeState(),
+            ) {
                 content()
             }
         }

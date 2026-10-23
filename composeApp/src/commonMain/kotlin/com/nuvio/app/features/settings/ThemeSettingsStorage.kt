@@ -2,7 +2,13 @@ package com.nuvio.app.features.settings
 
 import kotlinx.serialization.json.JsonObject
 
-internal interface AuraSettingsStore {
+/** Optional capability; platforms without frosted glass storage retain the enabled default. */
+internal interface FrostedGlassSettingsStore {
+    fun loadFrostedGlassEnabled(): Boolean? = null
+    fun saveFrostedGlassEnabled(enabled: Boolean) {}
+}
+
+internal interface AuraSettingsStore : FrostedGlassSettingsStore {
     fun loadAuraSettings(): String? = null
     fun saveAuraSettings(value: String) {}
 }

@@ -200,6 +200,7 @@ fun SettingsScreen(
             ThemeSettingsRepository.selectedTheme
         }.collectAsStateWithLifecycle()
         val amoledEnabled by remember { ThemeSettingsRepository.amoledEnabled }.collectAsStateWithLifecycle()
+        val frostedGlassEnabled by ThemeSettingsRepository.frostedGlassEnabled.collectAsStateWithLifecycle()
         val liquidGlassNativeTabBarEnabled by remember {
             ThemeSettingsRepository.liquidGlassNativeTabBarEnabled
         }.collectAsStateWithLifecycle()
@@ -414,6 +415,8 @@ fun SettingsScreen(
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = ThemeSettingsRepository::setAmoled,
                 liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                frostedGlassEnabled = frostedGlassEnabled,
+                onFrostedGlassToggle = ThemeSettingsRepository::setFrostedGlassEnabled,
                 liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                 onLiquidGlassNativeTabBarToggle = ThemeSettingsRepository::setLiquidGlassNativeTabBar,
                 appIconState = appIconState,
@@ -487,6 +490,8 @@ fun SettingsScreen(
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = ThemeSettingsRepository::setAmoled,
                 liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                frostedGlassEnabled = frostedGlassEnabled,
+                onFrostedGlassToggle = ThemeSettingsRepository::setFrostedGlassEnabled,
                 liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                 onLiquidGlassNativeTabBarToggle = ThemeSettingsRepository::setLiquidGlassNativeTabBar,
                 appIconState = appIconState,
@@ -572,6 +577,8 @@ private fun MobileSettingsScreen(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
+    frostedGlassEnabled: Boolean,
+    onFrostedGlassToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarEnabled: Boolean,
     onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -800,6 +807,8 @@ private fun MobileSettingsScreen(
                     amoledEnabled = amoledEnabled,
                     onAmoledToggle = onAmoledToggle,
                     liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                    frostedGlassEnabled = frostedGlassEnabled,
+                    onFrostedGlassToggle = onFrostedGlassToggle,
                     liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                     onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
                     appIconState = appIconState,
@@ -985,6 +994,8 @@ private fun TabletSettingsScreen(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
+    frostedGlassEnabled: Boolean,
+    onFrostedGlassToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarEnabled: Boolean,
     onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -1306,6 +1317,8 @@ private fun TabletSettingsScreen(
                                     amoledEnabled = amoledEnabled,
                                     onAmoledToggle = onAmoledToggle,
                                     liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                                    frostedGlassEnabled = frostedGlassEnabled,
+                                    onFrostedGlassToggle = onFrostedGlassToggle,
                                     liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
                                     onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
                                     appIconState = appIconState,

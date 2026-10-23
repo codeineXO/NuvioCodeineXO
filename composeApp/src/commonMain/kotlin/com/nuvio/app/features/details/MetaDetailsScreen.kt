@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationScrollToTop
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
@@ -618,7 +619,7 @@ fun MetaDetailsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    if (selectedEpisodeZoomAnchor != null) {
+                    if (LocalFrostedGlassEnabled.current && selectedEpisodeZoomAnchor != null) {
                         Modifier.hazeSource(state = episodeOverlayHazeState)
                     } else {
                         Modifier

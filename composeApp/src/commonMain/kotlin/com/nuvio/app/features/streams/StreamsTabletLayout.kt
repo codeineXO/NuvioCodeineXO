@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.nuvio
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateColorAsState
@@ -165,7 +167,7 @@ internal fun TabletStreamsLayout(
                 .fillMaxSize()
                 .navigationGlassSource()
                 .background(if (useWideArtworkFrame) wideFadeColor else colorScheme.background)
-                .hazeSource(state = hazeState),
+                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(state = hazeState) else Modifier),
         ) {
             if (tabletBackdrop != null) {
                 AsyncImage(
@@ -252,12 +254,16 @@ internal fun TabletStreamsLayout(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(24.dp))
-                    .hazeEffect(state = hazeState) {
-                        inputScale = HazeInputScale.Fixed(0.66f)
-                        blurRadius = 56.dp
-                        noiseFactor = 0f
-                    }
-                    .background(Color.Black.copy(alpha = 0.36f)),
+                    .then(
+                        if (LocalFrostedGlassEnabled.current) {
+                            Modifier.hazeEffect(state = hazeState) {
+                                inputScale = HazeInputScale.Fixed(0.66f)
+                                blurRadius = 56.dp
+                                noiseFactor = 0f
+                            }
+                        } else Modifier,
+                    )
+                    .background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.36f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
             ) {
                 Column(
                     modifier = Modifier
@@ -353,7 +359,7 @@ private fun LegacyTabletStreamsLayout(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationGlassSource()
-                .hazeSource(state = hazeState),
+                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(state = hazeState) else Modifier),
         ) {
             if (tabletBackdrop != null) {
                 AsyncImage(
@@ -431,12 +437,16 @@ private fun LegacyTabletStreamsLayout(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(24.dp))
-                        .hazeEffect(state = hazeState) {
-                            inputScale = HazeInputScale.Fixed(0.66f)
-                            blurRadius = 56.dp
-                            noiseFactor = 0f
-                        }
-                        .background(Color.Black.copy(alpha = 0.36f)),
+                        .then(
+                            if (LocalFrostedGlassEnabled.current) {
+                                Modifier.hazeEffect(state = hazeState) {
+                                    inputScale = HazeInputScale.Fixed(0.66f)
+                                    blurRadius = 56.dp
+                                    noiseFactor = 0f
+                                }
+                            } else Modifier,
+                        )
+                        .background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.36f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
                 ) {
                     Column(
                         modifier = Modifier

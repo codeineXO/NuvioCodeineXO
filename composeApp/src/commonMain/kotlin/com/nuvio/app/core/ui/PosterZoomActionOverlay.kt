@@ -282,15 +282,19 @@ fun NuvioPosterZoomActionOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeEffect(state = hazeState) {
-                    blurRadius = 36.dp
-                    inputScale = HazeInputScale.Auto
-                    noiseFactor = 0f
-                    blurredEdgeTreatment = BlurredEdgeTreatment.Rectangle
-                    clipToAreasBounds = false
-                    expandLayerBounds = true
-                    alpha = scrim.value.coerceIn(0f, 1f)
-                },
+                .then(
+                    if (LocalFrostedGlassEnabled.current) {
+                        Modifier.hazeEffect(state = hazeState) {
+                            blurRadius = 36.dp
+                            inputScale = HazeInputScale.Auto
+                            noiseFactor = 0f
+                            blurredEdgeTreatment = BlurredEdgeTreatment.Rectangle
+                            clipToAreasBounds = false
+                            expandLayerBounds = true
+                            alpha = scrim.value.coerceIn(0f, 1f)
+                        }
+                    } else Modifier.background(tokens.colors.surfacePopover.copy(alpha = 1f)),
+                ),
         )
         Box(
             modifier = Modifier

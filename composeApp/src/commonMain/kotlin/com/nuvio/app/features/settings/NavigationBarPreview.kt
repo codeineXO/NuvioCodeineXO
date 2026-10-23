@@ -1,5 +1,6 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,7 +59,7 @@ internal fun NavigationBarPreview(style: NavBarStyle, isTablet: Boolean, glowEna
         Box(Modifier.fillMaxWidth().height(156.dp).clip(tokens.shapes.card)) {
             Column(
                 Modifier.matchParentSize()
-                    .hazeSource(hazeState)
+                    .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(hazeState) else Modifier)
                     .then(if (!isTablet && style == NavBarStyle.ADAPTIVE) Modifier.nestedScroll(barScrollState.nestedScrollConnection) else Modifier)
                     .verticalScroll(rememberScrollState())
                     .background(tokens.colors.surfaceCard)
