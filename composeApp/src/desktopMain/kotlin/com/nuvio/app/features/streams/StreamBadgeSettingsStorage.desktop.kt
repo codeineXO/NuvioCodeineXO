@@ -10,17 +10,20 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
+private const val showInPlayerKey = "show_badges_in_player"
+private const val playerBadgeSourceKey = "player_badge_source"
+
 internal actual object StreamBadgeSettingsStorage {
     private const val streamBadgeRulesKey = "stream_badge_rules"
     private const val showFileSizeBadgesKey = "show_file_size_badges"
     private const val showAddonLogoKey = "show_addon_logo"
-    private const val showInPlayerKey = "show_badges_in_player"
     private const val streamBackgroundModeKey = "stream_background_mode"
     private const val streamBadgePlacementKey = "stream_badge_placement"
     private const val legacyDebridStreamBadgeRulesKey = "debrid_stream_badge_rules"
-    private val syncKeys = listOf(streamBadgeRulesKey, showFileSizeBadgesKey, showInPlayerKey, streamBadgePlacementKey, streamBackgroundModeKey)
+    private val syncKeys = listOf(streamBadgeRulesKey, showFileSizeBadgesKey, streamBadgePlacementKey, streamBackgroundModeKey)
     private val store = DesktopStorage.store("nuvio_stream_badge_settings")
     private val legacyDebridStore = DesktopStorage.store("nuvio_debrid_settings")
+    private val playerPreferences = DesktopPlayerBadgePreferences(store)
 
     actual fun loadStreamBadgeRules(): String? = loadString(streamBadgeRulesKey)
     actual fun saveStreamBadgeRules(rules: String) = saveString(streamBadgeRulesKey, rules)
@@ -28,8 +31,10 @@ internal actual object StreamBadgeSettingsStorage {
     actual fun saveShowFileSizeBadges(enabled: Boolean) = saveBoolean(showFileSizeBadgesKey, enabled)
     actual fun loadShowAddonLogo(): Boolean? = loadBoolean(showAddonLogoKey)
     actual fun saveShowAddonLogo(enabled: Boolean) = saveBoolean(showAddonLogoKey, enabled)
-    actual fun loadShowInPlayer(): Boolean? = loadBoolean(showInPlayerKey)
-    actual fun saveShowInPlayer(enabled: Boolean) = saveBoolean(showInPlayerKey, enabled)
+    actual fun loadShowInPlayer(): Boolean? = playerPreferences.loadEnabled()
+    actual fun saveShowInPlayer(enabled: Boolean) = playerPreferences.saveEnabled(enabled)
+    actual fun loadPlayerBadgeSource(): String? = playerPreferences.loadSource()
+    actual fun savePlayerBadgeSource(source: String) = playerPreferences.saveSource(source)
     actual fun loadStreamBackgroundMode(): String? = loadString(streamBackgroundModeKey)
     actual fun saveStreamBackgroundMode(mode: String) = saveString(streamBackgroundModeKey, mode)
     actual fun loadStreamBadgePlacement(): String? = loadString(streamBadgePlacementKey)
@@ -50,7 +55,7 @@ internal actual object StreamBadgeSettingsStorage {
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadStreamBadgeRules()?.let { put(streamBadgeRulesKey, encodeSyncString(it)) }
         loadShowFileSizeBadges()?.let { put(showFileSizeBadgesKey, encodeSyncBoolean(it)) }
-        loadShowInPlayer()?.let { put(showInPlayerKey, encodeSyncBoolean(it)) }
+        playerPreferences.exportToSyncPayload().forEach { (key, value) -> put(key, value) }
         loadStreamBackgroundMode()?.let { put(streamBackgroundModeKey, encodeSyncString(it)) }
         loadStreamBadgePlacement()?.let { put(streamBadgePlacementKey, encodeSyncString(it)) }
     }
@@ -59,8 +64,29 @@ internal actual object StreamBadgeSettingsStorage {
         store.removeAll(syncKeys.map(ProfileScopedKey::of))
         payload.decodeSyncString(streamBadgeRulesKey)?.let(::saveStreamBadgeRules)
         payload.decodeSyncBoolean(showFileSizeBadgesKey)?.let(::saveShowFileSizeBadges)
-        payload.decodeSyncBoolean(showInPlayerKey)?.let(::saveShowInPlayer)
+        playerPreferences.replaceFromSyncPayload(payload)
         payload.decodeSyncString(streamBackgroundModeKey)?.let(::saveStreamBackgroundMode)
         payload.decodeSyncString(streamBadgePlacementKey)?.let(::saveStreamBadgePlacement)
+    }
+}
+
+internal class DesktopPlayerBadgePreferences(
+    private val store: DesktopStorage.Store,
+    private val profileKey: (String) -> String = ProfileScopedKey::of,
+) {
+    fun loadEnabled(): Boolean? = store.getBoolean(profileKey(showInPlayerKey))
+    fun saveEnabled(enabled: Boolean) = store.putBoolean(profileKey(showInPlayerKey), enabled)
+    fun loadSource(): String? = store.getString(profileKey(playerBadgeSourceKey))
+    fun saveSource(source: String) = store.putString(profileKey(playerBadgeSourceKey), source)
+
+    fun exportToSyncPayload(): JsonObject = buildJsonObject {
+        loadEnabled()?.let { put(showInPlayerKey, encodeSyncBoolean(it)) }
+        loadSource()?.let { put(playerBadgeSourceKey, encodeSyncString(it)) }
+    }
+
+    fun replaceFromSyncPayload(payload: JsonObject) {
+        store.removeAll(listOf(profileKey(showInPlayerKey), profileKey(playerBadgeSourceKey)))
+        payload.decodeSyncBoolean(showInPlayerKey)?.let(::saveEnabled)
+        payload.decodeSyncString(playerBadgeSourceKey)?.let(::saveSource)
     }
 }

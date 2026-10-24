@@ -186,8 +186,10 @@ fun <T> NuvioShelfSection(
         PosterShelfScrollOwner(shelfController) {
             LazyRow(
                 state = state,
-                modifier = Modifier.remoteNavigationGroup().then(effectiveRowModifier),
-                contentPadding = effectiveRowContentPadding,
+                modifier = Modifier.remoteNavigationGroup()
+                    .nuvioHorizontalScrollBleed(LocalVerticalBarPadding.current)
+                    .then(effectiveRowModifier),
+                contentPadding = effectiveRowContentPadding.withVerticalBar(),
                 horizontalArrangement = Arrangement.spacedBy(itemSpacing),
             ) {
                 if (duplicateSafeEntries != null) {

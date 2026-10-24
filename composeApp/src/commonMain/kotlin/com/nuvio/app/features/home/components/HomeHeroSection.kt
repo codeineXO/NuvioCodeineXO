@@ -3,6 +3,7 @@ package com.nuvio.app.features.home.components
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.MutatePriority
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
@@ -79,7 +81,11 @@ import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.onViewportVisibilityChanged
 import com.nuvio.app.core.ui.heroStretchZoom
 import com.nuvio.app.core.ui.ultrawideViewportProgress
+import com.nuvio.app.core.ui.centeredVerticalBarPadding
+import com.nuvio.app.core.ui.withVerticalBar
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.home.heroRatings
+import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.tmdb.originalTmdbImageUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -87,17 +93,10 @@ import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.Image
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.build.AppFeaturePolicy
-import com.nuvio.app.features.details.MetaExternalRating
-import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.details.components.DetailRatingsRow
-import com.nuvio.app.features.home.stableKey
-import com.nuvio.app.features.mdblist.MdbListMetadataService
-import com.nuvio.app.features.mdblist.MdbListSettingsRepository
-import kotlinx.coroutines.coroutineScope
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -164,6 +163,8 @@ fun HomeHeroSection(
     sectionPadding: Dp? = null,
     listState: LazyListState? = null,
     stretchPx: () -> Float = { 0f },
+    showImdbRating: Boolean = true,
+    showMdbListRatings: Boolean = false,
     onItemClick: ((MetaPreview) -> Unit)? = null,
     containerMode: Boolean = false,
 ) {
@@ -205,36 +206,6 @@ fun HomeHeroSection(
 
         val nextPage = pagerState.currentPage + 1
         pagerState.animateScrollToPage(nextPage)
-    }
-
-    val mdbListSettings by MdbListSettingsRepository.uiState.collectAsState()
-    val metaScreenSettingsUiState by MetaScreenSettingsRepository.uiState.collectAsState()
-    var ratingsByItemKey by remember { mutableStateOf<Map<String, List<MetaExternalRating>>>(emptyMap()) }
-
-    LaunchedEffect(Unit) {
-        MdbListSettingsRepository.ensureLoaded()
-        MetaScreenSettingsRepository.ensureLoaded()
-    }
-
-    LaunchedEffect(items, mdbListSettings) {
-        if (!mdbListSettings.isActive) {
-            ratingsByItemKey = emptyMap()
-            return@LaunchedEffect
-        }
-        coroutineScope {
-            items.forEach { item ->
-                launch {
-                    val ratings = MdbListMetadataService.getRatings(
-                        itemId = item.id,
-                        mediaType = item.type,
-                        settings = mdbListSettings,
-                    )
-                    if (ratings.isNotEmpty()) {
-                        ratingsByItemKey = ratingsByItemKey + (item.stableKey() to ratings)
-                    }
-                }
-            }
-        }
     }
 
     BoxWithConstraints(
@@ -287,9 +258,8 @@ fun HomeHeroSection(
                         sectionPadding ?: layout.contentHorizontalPadding,
                         layout.contentHorizontalPadding,
                     ),
-                    ratingsByItemKey = ratingsByItemKey,
-                    isMdbListActive = mdbListSettings.isActive,
-                    showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
+                    isMdbListActive = showMdbListRatings,
+                    showOverallRatings = showImdbRating,
                     coroutineScope = coroutineScope,
                     onItemClick = onItemClick,
                 )
@@ -303,10 +273,9 @@ fun HomeHeroSection(
                     heroHeightPx = heroHeightPx,
                     stretchPx = stretchPx,
                     includePagerNeighbors = pagerDragActive,
-                    ratingsByItemKey = ratingsByItemKey,
-                    isMdbListActive = mdbListSettings.isActive,
-                    showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
                     coroutineScope = coroutineScope,
+                    showImdbRating = showImdbRating,
+                    showMdbListRatings = showMdbListRatings,
                     onItemClick = onItemClick,
                 )
             }
@@ -390,9 +359,8 @@ private fun HeroContentLayers(
     pagerState: PagerState,
     layout: HomeHeroLayout,
     heroWidthPx: Float,
-    ratingsByItemKey: Map<String, List<MetaExternalRating>>,
-    isMdbListActive: Boolean,
-    showOverallRatings: Boolean,
+    showImdbRating: Boolean,
+    showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
     includePagerNeighbors: Boolean,
 ) {
@@ -404,22 +372,23 @@ private fun HeroContentLayers(
 
     layerPages.forEach { page ->
         val item = items[page % items.size]
-        Box(
-            modifier = Modifier.focusProperties { canFocus = page == pagerState.currentPage }.graphicsLayer {
-                val pageOffset = heroPageOffset(pagerState, page)
+        key(item.stableKey()) {
+            Box(
+                modifier = Modifier.focusProperties { canFocus = page == pagerState.currentPage }.graphicsLayer {
+                    val pageOffset = heroPageOffset(pagerState, page)
 
-                alpha = heroPageVisibility(pageOffset)
-                translationX = -pageOffset * heroWidthPx * HERO_CONTENT_PARALLAX
-            },
-        ) {
-            HeroContentBlock(
-                item = item,
-                layout = layout,
-                ratings = ratingsByItemKey[item.stableKey()].orEmpty(),
-                isMdbListActive = isMdbListActive,
-                showOverallRatings = showOverallRatings,
-                onItemClick = onItemClick,
-            )
+                    alpha = heroPageVisibility(pageOffset)
+                    translationX = -pageOffset * heroWidthPx * HERO_CONTENT_PARALLAX
+                },
+            ) {
+                HeroContentBlock(
+                    item = item,
+                    layout = layout,
+                    showImdbRating = showImdbRating,
+                    showMdbListRatings = showMdbListRatings,
+                    onItemClick = onItemClick,
+                )
+            }
         }
     }
 }
@@ -463,7 +432,6 @@ private fun HeroDesktopContentLayers(
     pagerState: PagerState,
     layout: HomeHeroLayout,
     heroWidthPx: Float,
-    ratingsByItemKey: Map<String, List<MetaExternalRating>>,
     isMdbListActive: Boolean,
     showOverallRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
@@ -491,7 +459,6 @@ private fun HeroDesktopContentLayers(
             DesktopHeroContentBlock(
                 item = item,
                 layout = layout,
-                ratings = ratingsByItemKey[item.stableKey()].orEmpty(),
                 isMdbListActive = isMdbListActive,
                 showOverallRatings = showOverallRatings,
                 onItemClick = onItemClick,
@@ -510,10 +477,9 @@ private fun DefaultHomeHeroFrame(
     heroHeightPx: Float,
     stretchPx: () -> Float,
     includePagerNeighbors: Boolean,
-    ratingsByItemKey: Map<String, List<MetaExternalRating>> = emptyMap(),
-    isMdbListActive: Boolean = false,
-    showOverallRatings: Boolean = true,
     coroutineScope: CoroutineScope,
+    showImdbRating: Boolean,
+    showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
     Box(
@@ -575,9 +541,13 @@ private fun DefaultHomeHeroFrame(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(
-                    horizontal = layout.contentHorizontalPadding,
-                    vertical = layout.contentVerticalPadding,
-                ),
+                    if (layout.isTablet) {
+                        PaddingValues(horizontal = layout.contentHorizontalPadding).withVerticalBar()
+                    } else {
+                        centeredVerticalBarPadding(layout.contentHorizontalPadding)
+                    },
+                )
+                .padding(vertical = layout.contentVerticalPadding),
             horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally,
         ) {
             Box(
@@ -591,9 +561,8 @@ private fun DefaultHomeHeroFrame(
                     pagerState = pagerState,
                     layout = layout,
                     heroWidthPx = heroWidthPx,
-                    ratingsByItemKey = ratingsByItemKey,
-                    isMdbListActive = isMdbListActive,
-                    showOverallRatings = showOverallRatings,
+                    showImdbRating = showImdbRating,
+                    showMdbListRatings = showMdbListRatings,
                     onItemClick = onItemClick,
                     includePagerNeighbors = includePagerNeighbors,
                 )
@@ -640,7 +609,6 @@ private fun DesktopHomeHeroFrame(
     stretchPx: () -> Float,
     includePagerNeighbors: Boolean,
     contentHorizontalPadding: Dp,
-    ratingsByItemKey: Map<String, List<MetaExternalRating>> = emptyMap(),
     isMdbListActive: Boolean = false,
     showOverallRatings: Boolean = true,
     coroutineScope: CoroutineScope,
@@ -747,7 +715,6 @@ private fun DesktopHomeHeroFrame(
                     pagerState = pagerState,
                     layout = layout,
                     heroWidthPx = heroWidthPx,
-                    ratingsByItemKey = ratingsByItemKey,
                     isMdbListActive = isMdbListActive,
                     showOverallRatings = showOverallRatings,
                     onItemClick = onItemClick,
@@ -915,9 +882,8 @@ fun HomeHeroReservedSpace(
 private fun HeroContentBlock(
     item: MetaPreview,
     layout: HomeHeroLayout,
-    ratings: List<MetaExternalRating> = emptyList(),
-    isMdbListActive: Boolean = false,
-    showOverallRatings: Boolean = true,
+    showImdbRating: Boolean,
+    showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
     var logoLoadError by remember(item.type, item.id, item.logo) {
@@ -926,7 +892,9 @@ private fun HeroContentBlock(
     val logoUrl = item.logo?.takeIf { it.isNotBlank() }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
         horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally,
     ) {
         if (logoUrl != null && !logoLoadError) {
@@ -964,61 +932,13 @@ private fun HeroContentBlock(
             )
         }
 
-        val validImdbRating = item.imdbRating
-            ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
-
-        if (isMdbListActive && ratings.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            DetailRatingsRow(
-                ratings = ratings,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else if (validImdbRating != null && showOverallRatings) {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = if (layout.isTablet) Arrangement.Start else Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ImdbRatingSourceLabel(
-                    storeTextStyle = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.sp,
-                    ),
-                    storeTextColor = ImdbYellow,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = validImdbRating,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.sp,
-                    ),
-                    color = ImdbYellow,
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (layout.isTablet) {
-                Arrangement.spacedBy(8.dp, Alignment.Start)
-            } else {
-                Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-            },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HeroMetaText(text = item.type.replaceFirstChar(Char::uppercase))
-            item.genres.firstOrNull()?.let { genre ->
-                HeroMetaDot()
-                HeroMetaText(text = genre)
-            }
-            item.releaseInfo?.takeIf { it.isNotBlank() }?.let { info ->
-                HeroMetaDot()
-                HeroMetaText(text = formatReleaseDateForDisplay(info))
-            }
-        }
+        HomeHeroMetaRows(
+            item = item,
+            isTablet = layout.isTablet,
+            showImdbRating = showImdbRating,
+            showMdbListRatings = showMdbListRatings,
+        )
     }
 }
 
@@ -1026,7 +946,6 @@ private fun HeroContentBlock(
 private fun DesktopHeroContentBlock(
     item: MetaPreview,
     layout: HomeHeroLayout,
-    ratings: List<MetaExternalRating> = emptyList(),
     isMdbListActive: Boolean = false,
     showOverallRatings: Boolean = true,
     onItemClick: ((MetaPreview) -> Unit)?,
@@ -1085,13 +1004,13 @@ private fun DesktopHeroContentBlock(
             )
         }
 
-        val validImdbRating = item.imdbRating
-            ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+        val heroRatings = item.heroRatings(showOverallRatings, isMdbListActive)
+        val validImdbRating = heroRatings.imdb
 
-        if (isMdbListActive && ratings.isNotEmpty()) {
+        if (heroRatings.external.isNotEmpty()) {
             Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
             DetailRatingsRow(
-                ratings = ratings,
+                ratings = heroRatings.external,
                 modifier = Modifier.widthIn(max = 520.dp),
             )
         } else if (validImdbRating != null && showOverallRatings) {

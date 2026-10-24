@@ -21,6 +21,7 @@ internal actual object MdbListSettingsStorage {
     private const val useLetterboxdKey = "mdblist_use_letterboxd"
     private const val useAudienceKey = "mdblist_use_audience"
     private const val useMalKey = "mdblist_use_mal"
+    private const val showOnHeroKey = "mdblist_show_on_hero"
     private val syncKeys = listOf(
         enabledKey,
         apiKey,
@@ -32,8 +33,10 @@ internal actual object MdbListSettingsStorage {
         useLetterboxdKey,
         useAudienceKey,
         useMalKey,
+        showOnHeroKey,
     )
     private val store = DesktopStorage.store("nuvio_mdblist_settings")
+    private val heroPreference = DesktopHeroRatingPreference(store)
 
     actual fun loadEnabled(): Boolean? = loadBoolean(enabledKey)
     actual fun saveEnabled(enabled: Boolean) = saveBoolean(enabledKey, enabled)
@@ -55,6 +58,8 @@ internal actual object MdbListSettingsStorage {
     actual fun saveUseAudience(enabled: Boolean) = saveBoolean(useAudienceKey, enabled)
     actual fun loadUseMal(): Boolean? = loadBoolean(useMalKey)
     actual fun saveUseMal(enabled: Boolean) = saveBoolean(useMalKey, enabled)
+    actual fun loadShowOnHero(): Boolean? = heroPreference.load()
+    actual fun saveShowOnHero(enabled: Boolean) = heroPreference.save(enabled)
 
     private fun loadString(key: String): String? = store.getString(ProfileScopedKey.of(key))
     private fun saveString(key: String, value: String) = store.putString(ProfileScopedKey.of(key), value)
@@ -72,6 +77,7 @@ internal actual object MdbListSettingsStorage {
         loadUseLetterboxd()?.let { put(useLetterboxdKey, encodeSyncBoolean(it)) }
         loadUseAudience()?.let { put(useAudienceKey, encodeSyncBoolean(it)) }
         loadUseMal()?.let { put(useMalKey, encodeSyncBoolean(it)) }
+        loadShowOnHero()?.let { put(showOnHeroKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -86,5 +92,14 @@ internal actual object MdbListSettingsStorage {
         payload.decodeSyncBoolean(useLetterboxdKey)?.let(::saveUseLetterboxd)
         payload.decodeSyncBoolean(useAudienceKey)?.let(::saveUseAudience)
         payload.decodeSyncBoolean(useMalKey)?.let(::saveUseMal)
+        payload.decodeSyncBoolean(showOnHeroKey)?.let(::saveShowOnHero)
     }
+}
+
+internal class DesktopHeroRatingPreference(
+    private val store: DesktopStorage.Store,
+    private val profileKey: (String) -> String = ProfileScopedKey::of,
+) {
+    fun load(): Boolean? = store.getBoolean(profileKey("mdblist_show_on_hero"))
+    fun save(enabled: Boolean) = store.putBoolean(profileKey("mdblist_show_on_hero"), enabled)
 }

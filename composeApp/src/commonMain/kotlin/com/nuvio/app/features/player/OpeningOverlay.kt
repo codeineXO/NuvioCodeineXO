@@ -56,6 +56,8 @@ import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.nuvioTypeScale
+import com.nuvio.app.core.ui.LocalVerticalBarPadding
+import com.nuvio.app.core.ui.centeredVerticalBarPadding
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_close
 import nuvio.composeapp.generated.resources.action_back
@@ -134,6 +136,7 @@ internal fun OpeningOverlay(
             onClick = onBack,
             modifier = if (usePageBackButton) {
                 Modifier.align(Alignment.TopStart)
+                    .padding(LocalVerticalBarPadding.current)
                     .statusBarsPadding()
                     .padding(
                         start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 12.dp,
@@ -142,6 +145,7 @@ internal fun OpeningOverlay(
                     .zIndex(2f)
             } else {
                 Modifier.align(Alignment.TopEnd)
+                    .padding(LocalVerticalBarPadding.current)
                     .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
                     .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp)
             },
@@ -166,7 +170,7 @@ internal fun OpeningOverlay(
         Layout(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(centeredVerticalBarPadding(24.dp)),
             content = {
                 Box(contentAlignment = Alignment.Center) {
                     if (logoUrl != null && !logoLoadError) {

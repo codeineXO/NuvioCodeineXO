@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -126,16 +127,17 @@ private fun ColorChannelSlider(
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
 ) {
     val tokens = MaterialTheme.nuvio
+    val sliderState = remember(valueRange) { SliderState(trackRange = valueRange) }
+    sliderState.value = value
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = tokens.colors.textPrimary)
             Text(valueLabel, style = MaterialTheme.typography.labelLarge, color = tokens.colors.textSecondary)
         }
         Slider(
-            value = value,
+            state = sliderState,
             onValueChange = onValueChange,
-            valueRange = valueRange,
-            modifier = (Modifier.fillMaxWidth().semantics { contentDescription = title }).remoteNavigationTarget(adjustable = true),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = title }.remoteNavigationTarget(adjustable = true),
             track = {
                 Box(
                     Modifier.fillMaxWidth().height(NuvioTokens.Space.s8)

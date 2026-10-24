@@ -1,5 +1,7 @@
 package com.nuvio.app.features.mdblist
 
+import com.nuvio.app.isDesktop
+
 data class MdbListSettings(
     val enabled: Boolean = false,
     val apiKey: String = "",
@@ -11,6 +13,7 @@ data class MdbListSettings(
     val useLetterboxd: Boolean = true,
     val useAudience: Boolean = true,
     val useMal: Boolean = true,
+    val showOnHero: Boolean = isDesktop,
     val accountScope: MdbListAuthScope? = null,
 ) {
     val hasApiKey: Boolean

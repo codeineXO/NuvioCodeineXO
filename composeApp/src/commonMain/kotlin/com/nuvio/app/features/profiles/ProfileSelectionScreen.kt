@@ -70,6 +70,7 @@ import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioToastHost
+import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.features.membership.CosmeticEntitlement
 import com.nuvio.app.features.settings.MemberBrandWordmark
 import kotlinx.coroutines.delay
@@ -335,6 +336,7 @@ fun ProfileSelectionScreen(
                 buttonSize = if (isDesktop) 48.dp else 40.dp,
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    .padding(LocalVerticalBarPadding.current)
                     .padding(start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 16.dp, top = statusBarTop + if (isDesktop) desktopBackButtonTopPadding else 8.dp),
             )
         }
