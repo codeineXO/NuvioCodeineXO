@@ -404,7 +404,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     val playerBadges = if (isDesktop) rememberPlayerBadges() else emptyList()
     val playerControlsState = PlayerControlsState(
         title = title,
-        mediaContentType = args.mediaContentType,
+        mediaContentType = mediaClassification.type,
         isMiniPlayer = args.isMiniPlayer,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
         seekPreviewEnabled = playerSettingsUiState.seekPreviewEnabled,

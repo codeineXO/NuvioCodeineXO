@@ -154,6 +154,19 @@ internal class PlayerScreenRuntime(
     var activeTorrentFileIdx by mutableStateOf(torrentFileIdx)
     var activeTorrentFilename by mutableStateOf(torrentFilename)
     var activeSourceFilename by mutableStateOf(args.sourceFilename ?: torrentFilename)
+    var activeClassificationHint by mutableStateOf(args.classificationHint)
+    val contentClassifier = PlaybackContentClassifier()
+    var lastLoggedClassification: Triple<ClassificationContentKey, MediaClassification, String>? = null
+    var mediaClassification by mutableStateOf(MediaClassifier.detectPlayback(
+        meta = null,
+        fallbackItemType = args.parentMetaType,
+        fallbackItemId = args.parentMetaId,
+        stream = args.stream,
+        filename = args.sourceFilename ?: args.torrentFilename,
+        streamTitle = args.streamTitle,
+        streamSubtitle = args.streamSubtitle,
+        hint = args.classificationHint,
+    ))
     var activeTorrentTrackers by mutableStateOf(torrentTrackers)
     var p2pResolvedSourceUrl by mutableStateOf<String?>(null)
     var activeSourceIdentityKey by mutableStateOf(
@@ -234,6 +247,7 @@ internal class PlayerScreenRuntime(
     var episodeStreamsPanelState by mutableStateOf(EpisodeStreamsPanelState())
     var playerMetaVideos by mutableStateOf<List<MetaVideo>>(emptyList())
     var playerMeta by mutableStateOf<MetaDetails?>(null)
+    var playerMetaContentKey by mutableStateOf<ClassificationContentKey?>(null)
     var skipIntervals by mutableStateOf<List<SkipInterval>>(emptyList())
     val autoSkippedIntervals = mutableSetOf<SkipInterval>()
     var lastManualSkipSeekPositions by mutableStateOf<Pair<Long, Long>?>(null)

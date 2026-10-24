@@ -63,12 +63,17 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
-    LaunchedEffect(parentMetaType, parentMetaId) {
+    LaunchedEffect(profileId, parentMetaType, parentMetaId) {
+        if (parentMetaType == com.nuvio.app.features.cloud.CloudLibraryContentType) return@LaunchedEffect
+        val requestedContent = classificationContentKey
         playerMeta = MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+        playerMetaContentKey = requestedContent
         playerMetaVideos = playerMeta?.videos.orEmpty()
-        if (playerMetaVideos.isEmpty()) {
+        if (playerMetaVideos.isEmpty() || !detectContentClassification().isConfirmed) {
             MetaDetailsRepository.fetch(parentMetaType, parentMetaId)?.let { meta ->
+                if (!acceptsClassificationMetadata(requestedContent, classificationContentKey)) return@LaunchedEffect
                 playerMeta = meta
+                playerMetaContentKey = requestedContent
                 playerMetaVideos = meta.videos
             }
         }
@@ -78,8 +83,17 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         val currentMeta = metaUiState.meta ?: return@LaunchedEffect
         if (currentMeta.type == parentMetaType && currentMeta.id == parentMetaId) {
             playerMeta = currentMeta
+            playerMetaContentKey = classificationContentKey
             playerMetaVideos = currentMeta.videos
         }
+    }
+
+    LaunchedEffect(
+        classificationContentKey, activePlaybackIdentity, activeVideoId, classificationMeta, p2pResolvedSourceUrl,
+        activeStream, activeSourceFilename, activeTorrentFilename,
+        activeStreamTitle, activeStreamSubtitle, activeClassificationHint, playerSettingsUiState.streamReuseLastLinkEnabled,
+    ) {
+        refreshContentClassification()
     }
 
     LaunchedEffect(
@@ -1059,8 +1073,10 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
             activeProviderName = stream.addonName
             activeProviderAddonId = stream.addonId
             activeStream = stream
+            activeSourceFilename = stream.classificationFilename
+            activeClassificationHint = stream.classificationHint
             currentStreamBingeGroup = stream.behaviorHints.bingeGroup
-            currentStreamFilename = stream.behaviorHints.filename
+            currentStreamFilename = stream.classificationFilename
             currentStreamInfoHash = stream.infoHash
             activeInitialPositionMs = savedPositionMs
             activeInitialProgressFraction = null

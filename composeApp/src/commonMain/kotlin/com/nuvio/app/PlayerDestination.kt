@@ -116,6 +116,8 @@ internal fun PlayerDestination(
         onBack = effectiveOnBack,
         sourceFilename = launch.sourceFilename,
         stream = launch.stream,
+        classificationHint = launch.classificationHint,
+        playbackOrigin = launch.playbackOrigin,
         onSystemBackHandlerChanged = registerSystemBack,
         onOpenInExternalPlayer = if (externalPlayerSupported) { { request ->
             val playerLaunch = PlayerLaunch(

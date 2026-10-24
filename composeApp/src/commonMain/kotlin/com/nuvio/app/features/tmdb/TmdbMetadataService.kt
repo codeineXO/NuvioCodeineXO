@@ -775,6 +775,11 @@ object TmdbMetadataService {
             ageRating = enrichment.ageRating,
             runtime = enrichment.runtimeMinutes?.formatRuntime(),
             genres = enrichment.genres,
+            classificationHints = com.nuvio.app.features.details.MetaClassificationHints(
+                isAnimation = enrichment.isAnimation,
+                country = enrichment.countries.joinToString(", ").takeIf(String::isNotBlank),
+                language = enrichment.language,
+            ),
             director = enrichment.director,
             writer = enrichment.writer,
             cast = enrichment.people,
@@ -798,6 +803,17 @@ object TmdbMetadataService {
         if (enrichment == null && episodeMap.isEmpty()) return meta
 
         var updated = meta
+
+        if (enrichment != null && settings.enabled) {
+            updated = updated.copy(classificationHints = com.nuvio.app.features.details.MetaClassificationHints(
+                isAnimation = enrichment.isAnimation ?: meta.classificationHints?.isAnimation
+                    ?: true.takeIf { meta.genres.any { it.trim().equals("animation", true) } },
+                isAnime = meta.classificationHints?.isAnime == true || meta.genres.any { it.trim().equals("anime", true) },
+                country = enrichment.countries.joinToString(", ").takeIf(String::isNotBlank)
+                    ?: meta.classificationHints?.country ?: meta.country,
+                language = enrichment.language ?: meta.classificationHints?.language ?: meta.language,
+            ))
+        }
 
         if (enrichment != null && settings.useArtwork) {
             updated = updated.copy(
@@ -1039,6 +1055,7 @@ object TmdbMetadataService {
             localizedTitle = localizedTitle,
             description = description,
             genres = genres,
+            isAnimation = details.genres.mapNotNull { it.id }.takeIf { it.isNotEmpty() }?.contains(16),
             backdrop = buildImageUrl(details.backdropPath, "w1280"),
             logo = buildImageUrl(images?.logos.orEmpty().selectBestLocalizedImagePath(normalizedLanguage), "w500"),
             poster = buildImageUrl(details.posterPath, "w500"),
@@ -1453,6 +1470,7 @@ internal data class TmdbEnrichment(
     val collectionItems: List<MetaPreview> = emptyList(),
     val moreLikeThis: List<MetaPreview> = emptyList(),
     val trailers: List<MetaTrailer> = emptyList(),
+    val isAnimation: Boolean? = null,
 ) {
     fun hasContent(): Boolean =
         localizedTitle != null ||
@@ -1916,6 +1934,7 @@ private fun TmdbVideoResult.toMetaTrailer(
 @Serializable
 private data class TmdbNamedItem(
     val name: String? = null,
+    val id: Int? = null,
 )
 
 @Serializable

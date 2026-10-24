@@ -128,6 +128,9 @@ internal fun PlayerScreenRuntime.currentLaunch(launch: PlayerLaunch): PlayerLaun
         torrentFilename = activeTorrentFilename,
         torrentTrackers = activeTorrentTrackers,
         sourceFilename = activeSourceFilename,
+        mediaContentType = mediaClassification.type,
+        classificationHint = mediaClassification.toHint(),
+        stream = activeStream,
         initialPositionMs = positionMs ?: activeInitialPositionMs,
         initialProgressFraction = activeInitialProgressFraction.takeIf { positionMs == null },
     )

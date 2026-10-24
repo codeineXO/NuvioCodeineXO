@@ -40,6 +40,15 @@ data class MetaDetails(
     val links: List<MetaLink> = emptyList(),
     val seasonPosters: Map<Int, String> = emptyMap(),
     val videos: List<MetaVideo> = emptyList(),
+    val classificationHints: MetaClassificationHints? = null,
+)
+
+/** Provider evidence kept independently of localized display fields. */
+data class MetaClassificationHints(
+    val isAnimation: Boolean? = null,
+    val isAnime: Boolean = false,
+    val country: String? = null,
+    val language: String? = null,
 )
 
 enum class MoreLikeThisSource {

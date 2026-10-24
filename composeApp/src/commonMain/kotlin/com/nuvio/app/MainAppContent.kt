@@ -938,6 +938,15 @@ internal fun MainAppContent(
                 ?.let(WatchProgressRepository::progressForVideo)
                 ?.takeIf { it.isResumable }
 
+            val classification = com.nuvio.app.features.player.MediaClassifier.detectPlayback(
+                meta = MetaDetailsRepository.peek(item.parentMetaType, item.parentMetaId),
+                fallbackItemType = item.parentMetaType,
+                fallbackItemId = item.parentMetaId,
+                filename = item.originalFilename ?: item.fileName,
+                streamTitle = item.streamTitle,
+                streamSubtitle = item.streamSubtitle,
+                hint = item.classificationHint,
+            )
             val playerLaunch = PlayerLaunch(
                 profileId = activePlaybackProfileId,
                 title = item.title,
@@ -963,6 +972,10 @@ internal fun MainAppContent(
                 parentMetaType = item.parentMetaType,
                 initialPositionMs = resumeEntry?.lastPositionMs?.takeIf { it > 0L } ?: 0L,
                 initialProgressFraction = resumeEntry?.progressFraction?.takeIf { it > 0f },
+                sourceFilename = item.originalFilename ?: item.fileName,
+                mediaContentType = classification.type,
+                classificationHint = classification.toHint(),
+                playbackOrigin = "download",
             )
             if (playerSettingsUiState.externalPlayerEnabled) {
                 coroutineScope.launch { openExternalPlayback(playerLaunch) }
@@ -999,6 +1012,13 @@ internal fun MainAppContent(
                     val playbackTitle = resolved.filename
                         ?.takeIf { it.isNotBlank() }
                         ?: file.name.ifBlank { item.name }
+                    val classification = com.nuvio.app.features.player.MediaClassifier.detectPlayback(
+                        meta = null,
+                        fallbackItemType = CloudLibraryContentType,
+                        filename = playbackTitle,
+                        streamTitle = file.name,
+                        streamSubtitle = item.name,
+                    )
                     val playerLaunch = PlayerLaunch(
                         profileId = activePlaybackProfileId,
                         title = playbackTitle,
@@ -1014,6 +1034,10 @@ internal fun MainAppContent(
                         parentMetaType = CloudLibraryContentType,
                         initialPositionMs = if (startFromBeginning) 0L else (resumePositionMs ?: 0L),
                         initialProgressFraction = if (startFromBeginning) null else resumeProgressFraction,
+                        sourceFilename = playbackTitle,
+                        mediaContentType = classification.type,
+                        classificationHint = classification.toHint(),
+                        playbackOrigin = "cloud",
                     )
                     if (externalPlayerSupported && playerSettingsUiState.externalPlayerEnabled) {
                         openExternalPlayback(playerLaunch)
@@ -1060,6 +1084,15 @@ internal fun MainAppContent(
                 )
                 val localSourceUrl = downloadedItem?.let(DownloadsRepository::playableLocalFileUri)
                 if (!localSourceUrl.isNullOrBlank()) {
+                    val classification = com.nuvio.app.features.player.MediaClassifier.detectPlayback(
+                        meta = MetaDetailsRepository.peek(parentMetaType, parentMetaId),
+                        fallbackItemType = parentMetaType,
+                        fallbackItemId = parentMetaId,
+                        filename = downloadedItem.originalFilename ?: downloadedItem.fileName,
+                        streamTitle = downloadedItem.streamTitle,
+                        streamSubtitle = downloadedItem.streamSubtitle,
+                        hint = downloadedItem.classificationHint,
+                    )
                     val playerLaunch = PlayerLaunch(
                         profileId = activePlaybackProfileId,
                         title = title,
@@ -1085,6 +1118,10 @@ internal fun MainAppContent(
                         parentMetaType = parentMetaType,
                         initialPositionMs = targetResumePositionMs,
                         initialProgressFraction = targetResumeProgressFraction,
+                        sourceFilename = downloadedItem.originalFilename ?: downloadedItem.fileName,
+                        mediaContentType = classification.type,
+                        classificationHint = classification.toHint(),
+                        playbackOrigin = "download_resume",
                     )
                     if (externalPlayerSupported && playerSettingsUiState.externalPlayerEnabled) {
                         coroutineScope.launch { openExternalPlayback(playerLaunch) }
