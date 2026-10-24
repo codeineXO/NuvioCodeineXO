@@ -53,8 +53,11 @@ internal fun PlayerScreen(
     mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
     sourceFilename: String? = null,
     stream: com.nuvio.app.features.streams.StreamItem? = null,
+    classificationHint: MediaClassificationHint? = null,
+    playbackOrigin: String = "player",
 ) {
     com.nuvio.app.core.ui.RemoteNavigationDisabled {
+    androidx.compose.runtime.key(profileId, parentMetaType, parentMetaId, launchId) {
     PlayerScreenContent(
         PlayerScreenArgs(
             profileId = profileId,
@@ -104,7 +107,10 @@ internal fun PlayerScreen(
             sourceFilename = sourceFilename,
             onOpenPartyMedia = onOpenPartyMedia,
             stream = stream,
+            classificationHint = classificationHint,
+            playbackOrigin = playbackOrigin,
         )
     )
+    }
     }
 }

@@ -46,13 +46,13 @@ internal object MetaDetailsParser {
             imdbRating = meta.string("imdbRating"),
             ageRating = meta.ageRating(),
             runtime = meta.string("runtime"),
-            genres = meta.stringList("genres"),
+            genres = meta.stringListOrCsv("genres"),
             director = meta.directors(links),
             writer = meta.writers(links),
             cast = meta.cast(links),
-            country = meta.string("country"),
+            country = meta.stringListOrCsv("country").joinToString(", ").takeIf(String::isNotBlank),
             awards = meta.string("awards"),
-            language = meta.string("language"),
+            language = meta.stringListOrCsv("language").joinToString(", ").takeIf(String::isNotBlank),
             website = meta.string("website"),
             hasScheduledVideos = meta.behaviorHints().boolean("hasScheduledVideos") == true,
             defaultVideoId = meta.behaviorHints().string("defaultVideoId"),
@@ -78,7 +78,7 @@ internal object MetaDetailsParser {
     private fun JsonObject.stringListOrCsv(name: String): List<String> {
         val value = this[name] ?: return emptyList()
         return when (value) {
-            is JsonArray -> value.mapNotNull { it.jsonPrimitive.contentOrNull?.takeIf(String::isNotBlank) }
+            is JsonArray -> value.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf(String::isNotBlank) }
             is JsonPrimitive -> value.contentOrNull
                 ?.split(',')
                 ?.map(String::trim)

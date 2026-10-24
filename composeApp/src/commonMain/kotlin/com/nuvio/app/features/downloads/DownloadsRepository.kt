@@ -1,6 +1,9 @@
 package com.nuvio.app.features.downloads
 
 import com.nuvio.app.features.player.addonSubtitleRequests
+import com.nuvio.app.features.player.MediaClassifier
+import com.nuvio.app.features.player.classificationFilename
+import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.streams.StreamItem
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +59,12 @@ object DownloadsRepository {
         return _uiState.value.items.firstOrNull { item ->
             item.videoId == normalizedVideoId && item.hasPlayableLocalFile()
         }
+    }
+
+    internal fun updatePlaybackClassification(localFileUri: String, hint: com.nuvio.app.features.player.MediaClassificationHint) {
+        val validated = com.nuvio.app.features.player.MediaClassification.fromHint(hint)?.toHint() ?: return
+        val item = _uiState.value.items.firstOrNull { it.localFileUri == localFileUri } ?: return
+        if (item.classificationHint != validated) mutateItem(item.id) { it.copy(classificationHint = validated) }
     }
 
     fun findPlayableDownload(
@@ -191,6 +200,13 @@ object DownloadsRepository {
             sourceSubtitles = stream.externalSubtitles,
             localFileUri = null,
             fileName = fileName,
+            originalFilename = stream.classificationFilename,
+            classificationHint = MediaClassifier.detectPlayback(
+                meta = MetaDetailsRepository.peek(parentMetaType, parentMetaId),
+                fallbackItemType = parentMetaType,
+                fallbackItemId = parentMetaId,
+                stream = stream,
+            ).toHint(),
             status = DownloadStatus.Downloading,
             downloadedBytes = 0L,
             totalBytes = null,

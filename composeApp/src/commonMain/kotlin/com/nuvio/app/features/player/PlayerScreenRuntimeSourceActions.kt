@@ -188,12 +188,14 @@ internal fun PlayerScreenRuntime.saveP2pStreamForReuse(
         addonId = stream.addonId,
         requestHeaders = emptyMap(),
         responseHeaders = emptyMap(),
-        filename = stream.behaviorHints.filename,
+        filename = stream.classificationFilename,
         videoSize = stream.behaviorHints.videoSize,
         infoHash = infoHash,
         fileIdx = stream.p2pFileIdx,
         sources = stream.sources,
         bingeGroup = stream.behaviorHints.bingeGroup,
+        releaseText = stream.classificationReleaseText,
+        classificationHint = detectContentClassification(stream).toHint(),
     )
 }
 
@@ -221,8 +223,9 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     activeStreamType = null
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = stream.p2pFileIdx
-    activeTorrentFilename = stream.behaviorHints.filename
-    activeSourceFilename = stream.behaviorHints.filename
+    activeTorrentFilename = stream.classificationFilename
+    activeSourceFilename = stream.classificationFilename
+    activeClassificationHint = stream.classificationHint
     activeTorrentTrackers = stream.p2pTrackers
     activeSourceIdentityKey = stream.playerSourceIdentityKey()
     activeStreamTitle = stream.streamLabel
@@ -231,7 +234,7 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     activeProviderAddonId = stream.addonId
     activeStream = stream
     currentStreamBingeGroup = stream.behaviorHints.bingeGroup
-    currentStreamFilename = stream.behaviorHints.filename
+    currentStreamFilename = stream.classificationFilename
     currentStreamInfoHash = stream.infoHash
     activeInitialPositionMs = currentPositionMs
     activeInitialProgressFraction = null
@@ -270,7 +273,7 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
     activeStreamType = null
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = stream.p2pFileIdx
-    activeTorrentFilename = stream.behaviorHints.filename
+    activeTorrentFilename = stream.classificationFilename
     activeTorrentTrackers = stream.p2pTrackers
     applyEpisodeStreamMetadata(stream, episode, resume)
 }
@@ -311,6 +314,11 @@ internal fun PlayerScreenRuntime.switchToSource(
     val sourceIdentityKey = stream.playerSourceIdentityKey()
     if (url == activeSourceUrl) {
         activeSourceIdentityKey = sourceIdentityKey ?: activeSourceIdentityKey
+        activeStream = stream
+        activeSourceFilename = stream.classificationFilename
+        activeClassificationHint = stream.classificationHint
+        activeStreamTitle = stream.streamLabel
+        activeStreamSubtitle = stream.streamSubtitle
         return
     }
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
@@ -327,14 +335,15 @@ internal fun PlayerScreenRuntime.switchToSource(
     activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
     activeStreamType = stream.streamType
     activeSourceIdentityKey = sourceIdentityKey
-    activeSourceFilename = stream.behaviorHints.filename
+    activeSourceFilename = stream.classificationFilename
+    activeClassificationHint = stream.classificationHint
     activeStreamTitle = stream.streamLabel
     activeStreamSubtitle = stream.streamSubtitle
     activeProviderName = stream.addonName
     activeProviderAddonId = stream.addonId
     activeStream = stream
     currentStreamBingeGroup = stream.behaviorHints.bingeGroup
-    currentStreamFilename = stream.behaviorHints.filename
+    currentStreamFilename = stream.classificationFilename
     currentStreamInfoHash = stream.infoHash
     activeInitialPositionMs = currentPositionMs
     activeInitialProgressFraction = null
@@ -427,7 +436,8 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeSourceResponseHeaders = emptyMap()
     activeStreamType = null
     activeSourceIdentityKey = null
-    activeSourceFilename = null
+    activeSourceFilename = downloadItem.originalFilename ?: downloadItem.fileName
+    activeClassificationHint = downloadItem.classificationHint
     activeStreamTitle = downloadItem.streamTitle.ifBlank {
         episode.title.ifBlank { title }
     }
@@ -436,7 +446,7 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeProviderAddonId = downloadItem.providerAddonId
     activeStream = null
     currentStreamBingeGroup = null
-    currentStreamFilename = null
+    currentStreamFilename = downloadItem.originalFilename
     currentStreamInfoHash = null
     activeSeasonNumber = episode.season
     activeEpisodeNumber = episode.episode
@@ -637,14 +647,15 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     resume: EpisodeResume,
 ) {
     activeSourceIdentityKey = stream.playerSourceIdentityKey()
-    activeSourceFilename = stream.behaviorHints.filename
+    activeSourceFilename = stream.classificationFilename
+    activeClassificationHint = stream.classificationHint
     activeStreamTitle = stream.streamLabel
     activeStreamSubtitle = stream.streamSubtitle
     activeProviderName = stream.addonName
     activeProviderAddonId = stream.addonId
     activeStream = stream
     currentStreamBingeGroup = stream.behaviorHints.bingeGroup
-    currentStreamFilename = stream.behaviorHints.filename
+    currentStreamFilename = stream.classificationFilename
     currentStreamInfoHash = stream.infoHash
     activeSeasonNumber = episode.season
     activeEpisodeNumber = episode.episode
@@ -682,10 +693,12 @@ private fun PlayerScreenRuntime.saveDirectStreamForReuse(
         addonId = stream.addonId,
         requestHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request),
         responseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
-        filename = stream.behaviorHints.filename,
+        filename = stream.classificationFilename,
         videoSize = stream.behaviorHints.videoSize,
         bingeGroup = stream.behaviorHints.bingeGroup,
         streamType = stream.streamType,
         contentLanguage = contentLanguage,
+        releaseText = stream.classificationReleaseText,
+        classificationHint = detectContentClassification(stream).toHint(),
     )
 }

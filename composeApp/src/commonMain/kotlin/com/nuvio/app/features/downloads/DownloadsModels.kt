@@ -51,6 +51,8 @@ data class DownloadItem(
     val errorMessage: String? = null,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val originalFilename: String? = null,
+    val classificationHint: com.nuvio.app.features.player.MediaClassificationHint? = null,
 ) {
     val isEpisode: Boolean
         get() = seasonNumber != null && episodeNumber != null

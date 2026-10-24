@@ -50,6 +50,8 @@ data class PlayerLaunch(
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
     val sourceFilename: String? = null,
     val stream: com.nuvio.app.features.streams.StreamItem? = null,
+    val classificationHint: MediaClassificationHint? = null,
+    val playbackOrigin: String = "player",
 )
 
 object PlayerLaunchStore {

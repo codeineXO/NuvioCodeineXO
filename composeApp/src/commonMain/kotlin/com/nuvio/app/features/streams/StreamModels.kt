@@ -33,6 +33,7 @@ data class StreamItem(
     val externalSubtitles: List<StreamSubtitle> = emptyList(),
     val badges: List<StreamBadge> = emptyList(),
     val serverTarget: ServerPlaybackTarget? = null,
+    val classificationHint: com.nuvio.app.features.player.MediaClassificationHint? = null,
 ) {
     val streamLabel: String
         get() = name?.takeIf { it.isNotBlank() } ?: "Stream"
