@@ -124,7 +124,7 @@ fun NuvioScreen(
                     top = topPadding ?: if (isDesktop) 0.dp else tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding,
                     end = pagePadding,
                     bottom = nuvioSafeBottomPadding(tokens.spacing.screenBottom),
-                ),
+                ).withVerticalBar(),
                 verticalArrangement = verticalArrangement,
                 content = content,
             )
