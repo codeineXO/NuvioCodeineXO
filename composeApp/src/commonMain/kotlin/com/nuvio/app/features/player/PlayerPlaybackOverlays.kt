@@ -93,9 +93,9 @@ internal fun BoxScope.PlayerPlaybackOverlays(
             modifier = Modifier.fillMaxSize(),
             message = openingLoadingMessage,
             progress = initialLoadingProgress,
+            usePageBackButton = true,
         )
     }
-
     P2pLoadingStatus(
         visible = showP2pRebufferStats && errorMessage == null,
         message = p2pRebufferMessage,

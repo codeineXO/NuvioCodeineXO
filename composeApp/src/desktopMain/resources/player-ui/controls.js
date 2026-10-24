@@ -3502,7 +3502,7 @@ const renderOpeningOverlay = suppress => {
   openingOverlay.classList.toggle("has-artwork", Boolean(artworkUrl));
   openingOverlay.classList.toggle("has-progress", hasProgress);
   openingOverlay.setAttribute("aria-hidden", showOpening ? "false" : "true");
-  openingBackButton.setAttribute("aria-label", state.closeLabel || "Close player");
+  openingBackButton.setAttribute("aria-label", state.backLabel || "Go back");
   syncFullscreenButtons();
 
   openingLogoSlot.hidden = !logoUrl;
