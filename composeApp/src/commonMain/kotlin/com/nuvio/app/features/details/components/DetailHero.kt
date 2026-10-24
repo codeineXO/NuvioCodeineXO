@@ -3,6 +3,7 @@ package com.nuvio.app.features.details.components
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.navigationGlassSource
 
+import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -134,6 +135,7 @@ fun DetailHero(
                     AsyncImage(
                         model = if (isDesktop) originalTmdbImageUrl(imageUrl) else imageUrl,
                         contentDescription = meta.name,
+                        desktopAnimation = NuvioDesktopAnimation.Always,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()

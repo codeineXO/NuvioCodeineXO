@@ -808,6 +808,7 @@ internal fun settingsSearchEntries(
         PlaybackSearchRow("poster-radius", stringResource(Res.string.settings_poster_card_radius)),
         PlaybackSearchRow("poster-landscape", stringResource(Res.string.settings_poster_landscape_mode)),
         PlaybackSearchRow("poster-hide-labels", stringResource(Res.string.settings_poster_hide_labels)),
+        PlaybackSearchRow("poster-animated-artwork", stringResource(Res.string.settings_poster_animated_artwork)),
     ).forEach { row ->
         addRow(
             page = SettingsPage.PosterCustomization,

@@ -2,6 +2,7 @@ package com.nuvio.app.features.home.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
+import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -412,6 +413,7 @@ private fun HomePosterPreviewCard(
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
+                    desktopAnimation = NuvioDesktopAnimation.Always,
                 )
             }
 

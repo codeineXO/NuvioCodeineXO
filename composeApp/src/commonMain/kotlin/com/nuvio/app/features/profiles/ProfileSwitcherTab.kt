@@ -91,6 +91,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeEffect
+import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
@@ -1105,6 +1106,7 @@ private fun PopupProfileBubble(
                         contentDescription = profile.name,
                         modifier = Modifier.size(48.dp).clip(tokens.shapes.avatar),
                         contentScale = ContentScale.Crop,
+                        desktopAnimation = NuvioDesktopAnimation.Always,
                     )
                 } else if (profile.name.isNotBlank()) {
                     Text(
@@ -1223,6 +1225,7 @@ fun ActiveProfileMiniAvatar(
                 contentDescription = profile.name,
                 modifier = Modifier.size(size.dp).clip(tokens.shapes.avatar),
                 contentScale = ContentScale.Crop,
+                desktopAnimation = NuvioDesktopAnimation.Always,
             )
         } else if (profile.name.isNotBlank()) {
             Text(
