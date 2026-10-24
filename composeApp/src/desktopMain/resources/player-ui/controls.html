@@ -456,33 +456,6 @@
             <div class="codeine-time-label" id="codeineTimeLabel">0:00 / 0:00</div>
           </div>
           <div class="codeine-controls-right">
-            <div class="codeine-quick-drawer" id="codeineQuickDrawer">
-              <button class="codeine-control-btn codeine-action-btn codeine-drawer-btn" id="codeineDrawerButton" type="button" aria-label="More playback controls" title="More playback controls">
-                <svg class="codeine-drawer-icon-arrow"><use href="#icon-arrow-left"></use></svg>
-                <svg class="codeine-drawer-icon-pin"><use href="#icon-pin"></use></svg>
-              </button>
-              <div class="codeine-drawer-items" id="codeineDrawerItems">
-                <button class="codeine-control-btn codeine-action-btn codeine-stats-btn" id="codeineStatsButton" type="button" aria-label="Playback statistics" title="Playback statistics (i)">
-                  <svg><use href="#icon-info-circle"></use></svg>
-                </button>
-                <button class="codeine-control-btn codeine-action-btn codeine-speed-btn" id="codeineSpeedButton" data-command="speed" aria-label="Playback speed">
-                  <svg><use href="#icon-speed"></use></svg>
-                  <span class="codeine-speed-text" id="codeineSpeedText">1x</span>
-                </button>
-                <button class="codeine-control-btn codeine-action-btn" id="codeinePartyButton" data-command="party" aria-label="Watch party" title="Watch party">
-                  <svg><use href="#icon-party"></use></svg>
-                </button>
-                <button class="codeine-control-btn codeine-action-btn" id="codeinePipButton" data-command="pictureInPicture" aria-label="Picture in Picture">
-                  <svg><use href="#icon-pip"></use></svg>
-                </button>
-                <button class="codeine-control-btn codeine-action-btn" id="codeineMiniPlayerButton" data-command="minimize" aria-label="Mini player" title="Mini player">
-                  <svg><use href="#icon-miniplayer"></use></svg>
-                </button>
-                <button class="codeine-control-btn codeine-action-btn" id="codeineResizeButton" data-command="resize" aria-label="Aspect ratio">
-                  <svg><use href="#icon-aspect"></use></svg>
-                </button>
-              </div>
-            </div>
             <button class="codeine-control-btn codeine-action-btn optional" id="codeineEpisodesButton" data-command="episodes" aria-label="Episodes">
               <svg><use href="#icon-episodes"></use></svg>
             </button>
@@ -498,6 +471,31 @@
             <button class="codeine-control-btn codeine-action-btn" id="codeineShadersButton" data-command="shaders" aria-label="Enhancements" title="Enhancements">
               <svg><use href="#icon-wand"></use></svg>
             </button>
+            <div class="codeine-quick-menu" id="codeineQuickDrawer">
+              <button class="codeine-control-btn codeine-action-btn" id="codeineDrawerButton" type="button" tabindex="-1" aria-label="More playback controls" title="More playback controls" aria-expanded="false" aria-controls="codeineDrawerItems">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
+              </button>
+              <div class="codeine-menu-items" id="codeineDrawerItems" role="group" aria-label="More playback controls" aria-hidden="true" inert>
+                <button class="codeine-menu-action" id="codeineSpeedButton" data-command="speed" type="button" tabindex="-1" aria-label="Playback speed">
+                  <svg><use href="#icon-speed"></use></svg><span>Playback speed</span>
+                </button>
+                <button class="codeine-menu-action" id="codeineResizeButton" data-command="resize" type="button" tabindex="-1" aria-label="Aspect ratio">
+                  <svg><use href="#icon-aspect"></use></svg><span>Aspect ratio</span>
+                </button>
+                <button class="codeine-menu-action" id="codeinePipButton" data-command="pictureInPicture" type="button" tabindex="-1" aria-label="Picture in Picture">
+                  <svg><use href="#icon-pip"></use></svg><span id="codeinePipLabel">Picture in Picture</span>
+                </button>
+                <button class="codeine-menu-action" id="codeineMiniPlayerButton" data-command="minimize" type="button" tabindex="-1" aria-label="Mini player" title="Mini player">
+                  <svg><use href="#icon-miniplayer"></use></svg><span id="codeineMiniPlayerLabel">Mini player</span>
+                </button>
+                <button class="codeine-menu-action" id="codeinePartyButton" data-command="party" type="button" tabindex="-1" aria-label="Watch party" title="Watch party">
+                  <svg><use href="#icon-party"></use></svg><span>Watch party</span>
+                </button>
+                <button class="codeine-menu-action codeine-stats-btn" id="codeineStatsButton" type="button" tabindex="-1" aria-label="Playback statistics" title="Playback statistics (i)">
+                  <svg><use href="#icon-info-circle"></use></svg><span>Playback statistics</span>
+                </button>
+              </div>
+            </div>
             <button class="codeine-control-btn codeine-action-btn" id="codeineFullscreenButton" data-command="toggleFullscreen" aria-label="Toggle fullscreen">
               <svg><use id="codeineFullscreenIcon" href="#icon-fullscreen"></use></svg>
             </button>

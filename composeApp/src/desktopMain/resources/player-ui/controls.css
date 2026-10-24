@@ -4909,88 +4909,84 @@ svg {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* CodeineXO Quick Drawer (Speed, PiP, Mini Player, Aspect Ratio) */
-.player.ui-codeinexo .codeine-quick-drawer {
+/* CodeineXO mouse-operated quick controls popup. */
+.player.ui-codeinexo .codeine-quick-menu {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 0;
-  position: relative;
 }
 
-.player.ui-codeinexo .codeine-drawer-items {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 0;
+.player.ui-codeinexo .codeine-menu-items {
+  position: absolute;
+  bottom: calc(100% + 24px);
+  right: -46px;
+  z-index: 110;
+  box-sizing: border-box;
+  width: min(336px, calc(100vw - 24px));
+  max-height: var(--quick-menu-max-height, calc(100vh - 80px));
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  border-radius: 24px;
+  border: 1px solid var(--theme-border-default);
+  background: var(--theme-surface-elevated);
+  color: var(--theme-control-foreground);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, .45);
+  visibility: hidden;
   opacity: 0;
   pointer-events: none;
-  overflow: hidden;
-  margin-left: 0;
-  transition:
-    max-width 240ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 180ms ease,
-    margin-left 240ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: max-width, opacity;
+  transform: translateY(6px);
 }
 
-.player.ui-codeinexo .codeine-drawer-btn .codeine-drawer-icon-pin {
-  display: none;
-  width: 16px;
-  height: 16px;
-}
-
-.player.ui-codeinexo .codeine-drawer-btn .codeine-drawer-icon-arrow {
-  display: block;
-}
-
-.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-items,
-.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
-.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items,
-.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-items {
-  max-width: 280px;
+.player.ui-codeinexo .codeine-menu-items.is-open {
+  visibility: visible;
   opacity: 1;
   pointer-events: auto;
-  margin-left: 6px;
+  transform: translateY(0);
+  animation: codeine-menu-enter 140ms ease-out;
 }
 
-.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-btn .codeine-drawer-icon-arrow,
-.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-btn .codeine-drawer-icon-arrow,
-.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-btn .codeine-drawer-icon-arrow,
-.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn .codeine-drawer-icon-arrow {
-  display: none;
+@keyframes codeine-menu-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-btn .codeine-drawer-icon-pin,
-.player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-btn .codeine-drawer-icon-pin,
-.player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-btn .codeine-drawer-icon-pin,
-.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn .codeine-drawer-icon-pin {
-  display: block;
+.player.ui-codeinexo .codeine-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn,
-.player.ui-codeinexo .codeine-drawer-btn.is-pinned {
+.player.ui-codeinexo .codeine-menu-action[hidden] { display: none; }
+.player.ui-codeinexo .codeine-menu-action:hover {
+  background: var(--theme-surface-card);
+}
+.player.ui-codeinexo .codeine-menu-action.is-active,
+.player.ui-codeinexo .codeine-menu-action.active,
+.player.ui-codeinexo #codeineDrawerButton.active {
   color: var(--theme-accent);
 }
-
-.player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-btn svg,
-.player.ui-codeinexo .codeine-drawer-btn.is-pinned svg {
-  color: var(--theme-accent);
-  filter: drop-shadow(0 0 6px var(--theme-accent)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+.player.ui-codeinexo .codeine-menu-action svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
 }
-
-.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-items {
-  max-width: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  margin-left: 0 !important;
-}
-
-.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-btn .codeine-drawer-icon-arrow {
-  display: block !important;
-}
-
-.player.ui-codeinexo .codeine-quick-drawer.is-collapsed .codeine-drawer-btn .codeine-drawer-icon-pin {
-  display: none !important;
+@media (prefers-reduced-motion: reduce) {
+  .player.ui-codeinexo .codeine-menu-items.is-open { animation: none; }
 }
 
 .player.ui-codeinexo .codeine-time-label {
@@ -5027,15 +5023,29 @@ svg {
 .player.ui-codeinexo.pip-mode #codeineDrawerButton {
   display: none !important;
 }
-.player.ui-codeinexo.pip-mode .codeine-drawer-items {
-  max-width: none !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  margin-left: 0 !important;
+.player.ui-codeinexo.pip-mode .codeine-menu-items {
+  position: static;
+  display: flex;
+  width: auto;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
 }
 .player.ui-codeinexo.pip-mode #codeinePipButton {
   display: grid !important;
+  place-items: center;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 999px;
 }
+.player.ui-codeinexo.pip-mode #codeinePipLabel { display: none; }
 .player.ui-codeinexo.pip-mode .codeine-volume-slider {
   display: none !important;
 }
@@ -5047,7 +5057,7 @@ svg {
 .player.mini-player-mode .codeine-center-controls,
 .player.mini-player-mode .codeine-bottom-bar,
 .player.mini-player-mode .codeine-top-header,
-.player.mini-player-mode .codeine-quick-drawer,
+.player.mini-player-mode .codeine-quick-menu,
 .player.mini-player-mode .header,
 .player.mini-player-mode .footer,
 .player.mini-player-mode .center-controls,
@@ -5118,26 +5128,12 @@ svg {
     width: 18px;
     height: 18px;
   }
-  .player.ui-codeinexo .codeine-drawer-btn .codeine-drawer-icon-pin {
-    width: 14px;
-    height: 14px;
-  }
   .player.ui-codeinexo .codeine-volume-control:hover .codeine-volume-slider,
   .player.ui-codeinexo .codeine-volume-control:focus-within .codeine-volume-slider,
   .player.ui-codeinexo .codeine-volume-control.is-active .codeine-volume-slider {
     width: 64px;
     max-width: 64px;
     margin-left: 4px;
-  }
-  .player.ui-codeinexo .codeine-quick-drawer:hover .codeine-drawer-items,
-  .player.ui-codeinexo .codeine-quick-drawer:focus-within .codeine-drawer-items,
-  .player.ui-codeinexo .codeine-quick-drawer.is-active .codeine-drawer-items,
-  .player.ui-codeinexo .codeine-quick-drawer.is-pinned .codeine-drawer-items {
-    max-width: 246px;
-    margin-left: 4px;
-  }
-  .player.ui-codeinexo .codeine-drawer-items {
-    gap: 4px;
   }
   .player.ui-codeinexo .header-center {
     max-width: calc(100% - 120px);

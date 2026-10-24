@@ -72,6 +72,7 @@ const previewTiles = [
 const seekPreviewPill = document.getElementById("seekPreviewPill");
 const codeineNextEpisodeButton = document.getElementById("codeineNextEpisodeButton");
 const codeineQuickDrawer = document.getElementById("codeineQuickDrawer");
+const codeineDrawerItems = document.getElementById("codeineDrawerItems");
 const codeineDrawerButton = document.getElementById("codeineDrawerButton");
 const codeineEpisodesButton = document.getElementById("codeineEpisodesButton");
 const codeinePipButton = document.getElementById("codeinePipButton");
@@ -85,7 +86,6 @@ const playbackStatsOverlay = document.getElementById("playbackStatsOverlay");
 const playbackStatsCloseBtn = document.getElementById("playbackStatsCloseBtn");
 const playbackStatsContent = document.getElementById("playbackStatsContent");
 const codeineSpeedButton = document.getElementById("codeineSpeedButton");
-const codeineSpeedText = document.getElementById("codeineSpeedText");
 const codeineResizeButton = document.getElementById("codeineResizeButton");
 const codeineFullscreenButton = document.getElementById("codeineFullscreenButton");
 const codeineFullscreenIcon = document.getElementById("codeineFullscreenIcon");
@@ -568,6 +568,7 @@ const markSeek = targetPosMs => {
 };
 let tapTimer = 0;
 let activeModal = "";
+let isQuickMenuOpen = false;
 let pressedButton = null;
 let focusedActionCommand = "";
 let sourceFilterId = "";
@@ -1649,6 +1650,7 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
 };
 
 const openPlayerModal = modal => {
+  closeQuickMenu();
   if (state.isInPip) return;
   const targetModal = modalByName[modal];
   if (!targetModal) {
@@ -3658,6 +3660,7 @@ const isInteractingWithChrome = () =>
 const canAutoHideChrome = showOpening => Boolean(
   state.controlsVisible &&
   !chromeAutoHidePinned &&
+  !isQuickMenuOpen &&
   !state.isLoading &&
   !state.nextEpisodeStatus &&
   !activeModal &&
@@ -3794,6 +3797,11 @@ const renderChrome = () => {
   const isPlaying = Boolean(state.isPlaying);
   const showError = renderPlaybackError();
   const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
+  if (isQuickMenuOpen && (!isCodeineXo || state.isInPip || state.isMiniPlayer || showError || activeModal || !state.controlsVisible)) {
+    closeQuickMenu();
+  }
+  codeineDrawerItems.inert = !isQuickMenuOpen && !state.isInPip;
+  codeineDrawerItems.setAttribute("aria-hidden", String(!isQuickMenuOpen && !state.isInPip));
   root.classList.toggle("ui-codeinexo", isCodeineXo);
   root.classList.toggle("ui-official", !isCodeineXo);
   root.dataset.playerUi = isCodeineXo ? "codeinexo" : "official";
@@ -3915,9 +3923,6 @@ const renderChrome = () => {
     if (codeineToggleIcon) {
       codeineToggleIcon.setAttribute("href", isPlaying ? "#icon-pause" : "#icon-play");
     }
-    if (codeineSpeedText) {
-      codeineSpeedText.textContent = state.playbackSpeedLabel || "1x";
-    }
     if (codeineNextEpisodeButton) {
       codeineNextEpisodeButton.hidden = !state.nextEpisodePlayable;
       const nextLabel = state.nextEpisodeHeaderLabel || "Next episode";
@@ -3929,10 +3934,12 @@ const renderChrome = () => {
       codeinePipButton.setAttribute("aria-label", pipLabel);
       codeinePipButton.setAttribute("title", pipLabel);
       codeinePipButton.hidden = !pipLabel;
+      document.getElementById("codeinePipLabel").textContent = pipLabel;
     }
     if (codeineMiniPlayerButton) {
       codeineMiniPlayerButton.setAttribute("aria-label", miniLabel);
       codeineMiniPlayerButton.setAttribute("title", miniLabel);
+      document.getElementById("codeineMiniPlayerLabel").textContent = miniLabel;
     }
     if (codeineBackButton) {
       codeineBackButton.setAttribute("aria-label", state.closeLabel || "Close player");
@@ -4438,6 +4445,8 @@ document.querySelectorAll("[data-command]").forEach(button => {
       return;
     }
     if (command === "party") {
+      // The CodeineXO party button already has its handler in party.js.
+      if (button.id === "codeinePartyButton") return;
       openPlayerModal("party");
       return;
     }
@@ -5215,51 +5224,97 @@ if (codeineVolumeButton) {
   });
 }
 
-if (codeineDrawerButton && codeineQuickDrawer) {
-  const updateDrawerPinned = pinned => {
-    codeineQuickDrawer.classList.toggle("is-pinned", pinned);
-    codeineQuickDrawer.classList.toggle("is-active", pinned);
-    if (pinned) {
-      codeineQuickDrawer.classList.remove("is-collapsed");
-    }
-    codeineDrawerButton.classList.toggle("active", pinned);
-    codeineDrawerButton.classList.toggle("is-pinned", pinned);
-    codeineDrawerButton.setAttribute("aria-pressed", pinned ? "true" : "false");
-    const label = pinned ? "Unpin quick drawer" : "Pin quick drawer";
-    codeineDrawerButton.setAttribute("title", label);
-    codeineDrawerButton.setAttribute("aria-label", label);
-  };
+const closeQuickMenu = () => {
+  if (!isQuickMenuOpen) return;
+  isQuickMenuOpen = false;
+  codeineDrawerItems.classList.remove("is-open");
+  codeineDrawerItems.inert = true;
+  codeineDrawerItems.setAttribute("aria-hidden", "true");
+  codeineDrawerButton.setAttribute("aria-expanded", "false");
+  codeineDrawerButton.classList.remove("active");
+  noteChromeActivity(true);
+};
 
-  codeineDrawerButton.addEventListener("click", event => {
-    event.stopPropagation();
-    noteChromeActivity();
-    codeineDrawerButton.blur();
-    const isCurrentlyPinned = codeineQuickDrawer.classList.contains("is-pinned");
-    updateDrawerPinned(!isCurrentlyPinned);
-  });
+const positionQuickMenu = () => {
+  if (!isQuickMenuOpen) return;
+  const wrapperRect = codeineQuickDrawer.getBoundingClientRect();
+  const rootRect = root.getBoundingClientRect();
+  const seekRect = document.getElementById("codeineSeekContainer").getBoundingClientRect();
+  const fullscreenRect = document.getElementById("codeineFullscreenButton").getBoundingClientRect();
+  const menuBottom = Math.min(wrapperRect.top, seekRect.top) - 12;
+  const rightOffset = wrapperRect.right - fullscreenRect.right;
+  codeineDrawerItems.style.bottom = (wrapperRect.bottom - menuBottom) + "px";
+  codeineDrawerItems.style.right = rightOffset + "px";
+  codeineDrawerItems.style.setProperty("--quick-menu-max-height", Math.max(0, menuBottom - Math.max(0, rootRect.top) - 12) + "px");
+  const menuRect = codeineDrawerItems.getBoundingClientRect();
+  const shift = Math.max(0, Math.max(0, rootRect.left) + 12 - menuRect.left) - Math.max(0, menuRect.right - window.innerWidth + 12);
+  codeineDrawerItems.style.right = (rightOffset - shift) + "px";
+};
 
-  codeineQuickDrawer.addEventListener("mouseenter", () => {
-    if (codeineQuickDrawer.classList.contains("is-pinned")) return;
-    codeineDrawerButton.setAttribute("title", "Pin quick drawer");
-    codeineDrawerButton.setAttribute("aria-label", "Pin quick drawer");
-  });
+codeineDrawerButton.addEventListener("click", event => {
+  event.stopPropagation();
+  if (event.detail === 0) return;
+  if (isQuickMenuOpen) {
+    closeQuickMenu();
+    return;
+  }
+  if (state.isInPip || state.isMiniPlayer || playbackErrorText() || activeModal) return;
+  isQuickMenuOpen = true;
+  codeineDrawerItems.inert = false;
+  codeineDrawerItems.setAttribute("aria-hidden", "false");
+  codeineDrawerItems.classList.add("is-open");
+  codeineDrawerButton.setAttribute("aria-expanded", "true");
+  codeineDrawerButton.classList.add("active");
+  positionQuickMenu();
+  noteChromeActivity(true);
+});
 
-  codeineQuickDrawer.addEventListener("mouseleave", () => {
-    if (codeineQuickDrawer.classList.contains("is-pinned")) return;
-    codeineQuickDrawer.classList.remove("is-collapsed");
-    codeineQuickDrawer.classList.remove("is-active");
-    codeineDrawerButton.setAttribute("title", "More playback controls");
-    codeineDrawerButton.setAttribute("aria-label", "More playback controls");
-  });
+// Keep mouse interaction from moving keyboard focus into this mouse-only menu.
+codeineQuickDrawer.addEventListener("mousedown", event => event.preventDefault());
+codeineQuickDrawer.addEventListener("keydown", event => {
+  if (event.key === "Escape") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+});
+codeineDrawerItems.addEventListener("click", event => {
+  const action = event.target.closest("button");
+  if (!action) return;
+  if (event.detail === 0) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+  closeQuickMenu();
+}, true);
 
-  window.addEventListener("pointerdown", event => {
-    if (codeineQuickDrawer.classList.contains("is-pinned")) return;
-    if (!codeineQuickDrawer.contains(event.target)) {
-      codeineQuickDrawer.classList.remove("is-active");
-      codeineQuickDrawer.classList.remove("is-collapsed");
-    }
-  });
+// Consume the complete outside pointer gesture before underlying controls see it.
+let swallowQuickMenuGesture = false;
+let quickMenuDismissedAt = 0;
+window.addEventListener("pointerdown", event => {
+  swallowQuickMenuGesture = false;
+  if (!isQuickMenuOpen || codeineQuickDrawer.contains(event.target)) return;
+  swallowQuickMenuGesture = true;
+  quickMenuDismissedAt = Date.now();
+  closeQuickMenu();
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
+for (const type of ["pointerup", "click", "contextmenu"]) {
+  window.addEventListener(type, event => {
+    if (!swallowQuickMenuGesture) return;
+    if (type === "click") swallowQuickMenuGesture = false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
 }
+window.addEventListener("dblclick", event => {
+  if (isQuickMenuOpen || Date.now() - quickMenuDismissedAt < 500) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+window.addEventListener("resize", positionQuickMenu);
+new ResizeObserver(positionQuickMenu).observe(root);
 
 if (codeineStatsButton) {
   codeineStatsButton.addEventListener("click", event => {
@@ -6055,6 +6110,11 @@ document.addEventListener("keyup", event => {
 });
 
 document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && isQuickMenuOpen) {
+    event.preventDefault();
+    closeQuickMenu();
+    return;
+  }
   if (event.key === "Escape" && isPartyConfirmOpen()) {
     event.preventDefault();
     closePartyConfirm();
