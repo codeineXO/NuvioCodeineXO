@@ -84,6 +84,18 @@
       <path d="M4 9.5C4 8.67 4.67 8 5.5 8H8l4.29-4.29A1 1 0 0 1 14 4.41v15.18a1 1 0 0 1-1.71.7L8 16H5.5C4.67 16 4 15.33 4 14.5v-5Z"/>
       <path d="M18 9l4 4m0-4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     </symbol>
+    <!-- Shared 24-unit frames keep the left controls at the right controls' visual scale. -->
+    <symbol id="icon-codeine-next" viewBox="0 0 24 24">
+      <path transform="translate(1.8 1.8) scale(.85)" d="M2 3.1c0-.86.94-1.39 1.68-.94l13.2 8.9a1.13 1.13 0 0 1 0 1.88l-13.2 8.9A1.1 1.1 0 0 1 2 20.9V3.1ZM20 3a1 1 0 0 1 2 0v18a1 1 0 0 1-2 0V3Z"/>
+    </symbol>
+    <symbol id="icon-volume-compact" viewBox="-2 -3 24 24">
+      <path d="M9 0c-.24 0-.47.09-.65.26L4 4.5H1.5C.67 4.5 0 5.17 0 6v6c0 .83.67 1.5 1.5 1.5H4l4.35 4.24c.18.17.41.26.65.26.55 0 1-.45 1-1V1c0-.55-.45-1-1-1Z"/>
+      <path d="M13 5Q17 9 13 13M16 2Q22 9 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-volume-muted-compact" viewBox="-2 -3 24 24">
+      <path d="M9 0c-.24 0-.47.09-.65.26L4 4.5H1.5C.67 4.5 0 5.17 0 6v6c0 .83.67 1.5 1.5 1.5H4l4.35 4.24c.18.17.41.26.65.26.55 0 1-.45 1-1V1c0-.55-.45-1-1-1Z"/>
+      <path d="M14 6l5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
     <symbol id="icon-swap" viewBox="0 0 24 24">
       <path d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3ZM21 9l-3.99-4v3H10v2h7.01v3L21 9Z"/>
     </symbol>
@@ -445,11 +457,11 @@
               <svg><use id="codeineToggleIcon" href="#icon-play"></use></svg>
             </button>
             <button class="codeine-control-btn codeine-action-btn optional" id="codeineNextEpisodeButton" data-command="playNextEpisode" aria-label="Next episode" hidden>
-              <svg><use href="#icon-skip-next"></use></svg>
+              <svg><use href="#icon-codeine-next"></use></svg>
             </button>
             <div class="volume-control codeine-volume-control" id="codeineVolumeControl" aria-label="Volume">
               <button class="volume-button codeine-volume-btn" id="codeineVolumeButton" aria-label="Mute" type="button">
-                <svg><use id="codeineVolumeIcon" href="#icon-volume"></use></svg>
+                <svg><use id="codeineVolumeIcon" href="#icon-volume-compact"></use></svg>
               </button>
               <input id="codeineVolumeSlider" class="volume-slider codeine-volume-slider" type="range" min="0" max="200" value="100" aria-label="Volume">
             </div>

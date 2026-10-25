@@ -815,7 +815,7 @@ const syncVolumeControl = () => {
     codeineVolumeSlider.setAttribute("aria-label", label);
     codeineVolumeSlider.setAttribute("aria-valuetext", percent > 100 ? `${percent}%, boosted` : `${percent}%`);
     codeineVolumeSlider.setAttribute("title", label);
-    codeineVolumeIcon.setAttribute("href", iconHref);
+    codeineVolumeIcon.setAttribute("href", percent === 0 ? "#icon-volume-muted-compact" : "#icon-volume-compact");
     if (codeineVolumeButton) {
       codeineVolumeButton.setAttribute("aria-label", btnLabel);
       codeineVolumeButton.setAttribute("title", btnLabel);

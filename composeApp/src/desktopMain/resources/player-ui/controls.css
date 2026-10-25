@@ -4741,6 +4741,8 @@ svg {
 
 /* CodeineXO Controls Row */
 .player.ui-codeinexo .codeine-action-row {
+  --codeine-control-size: 40px;
+  --codeine-control-gap: 4px;
   margin-top: 4px;
   display: flex;
   align-items: center;
@@ -4753,7 +4755,8 @@ svg {
 .player.ui-codeinexo .codeine-controls-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--codeine-control-gap);
+  height: var(--codeine-control-size);
   flex: 0 0 auto;
 }
 
@@ -4761,22 +4764,27 @@ svg {
 .player.ui-codeinexo .codeine-play-btn,
 .player.ui-codeinexo .codeine-volume-btn,
 .player.ui-codeinexo .codeine-action-btn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  min-height: 40px;
-  max-height: 40px;
+  flex-shrink: 0;
+  width: var(--codeine-control-size);
+  height: var(--codeine-control-size);
+  min-width: var(--codeine-control-size);
+  max-width: var(--codeine-control-size);
+  min-height: var(--codeine-control-size);
+  max-height: var(--codeine-control-size);
   box-sizing: border-box;
   padding: 0;
   margin: 0;
   border-radius: 999px;
   border: none;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  line-height: 1;
   color: var(--theme-control-foreground);
   background: transparent;
   cursor: pointer;
+  transform-origin: center;
   transform: translateZ(0);
   transition:
     transform var(--motion-fast) var(--ease-out),
@@ -4813,6 +4821,7 @@ svg {
 .player.ui-codeinexo .codeine-play-btn svg,
 .player.ui-codeinexo .codeine-volume-btn svg,
 .player.ui-codeinexo .codeine-action-btn svg {
+  flex: 0 0 auto;
   width: 20px;
   height: 20px;
   display: block;
@@ -4854,6 +4863,8 @@ svg {
 }
 
 .player.ui-codeinexo .codeine-volume-control {
+  height: var(--codeine-control-size);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 0;
@@ -4911,6 +4922,8 @@ svg {
 
 /* CodeineXO mouse-operated quick controls popup. */
 .player.ui-codeinexo .codeine-quick-menu {
+  height: var(--codeine-control-size);
+  flex: 0 0 auto;
   position: relative;
   display: flex;
   align-items: center;
@@ -5001,9 +5014,6 @@ svg {
   font-size: 11px;
   min-width: 32px;
 }
-.player.ui-codeinexo.pip-mode .codeine-controls-left {
-  gap: 8px;
-}
 .player.ui-codeinexo.pip-mode #codeineNextEpisodeButton,
 .player.ui-codeinexo.pip-mode #codeineTimeLabel,
 .player.ui-codeinexo.pip-mode #codeineFullscreenButton,
@@ -5092,16 +5102,10 @@ svg {
     line-height: 14px;
   }
   .player.ui-codeinexo .codeine-action-row {
+    --codeine-control-size: 36px;
+    --codeine-control-gap: 2px;
     gap: 8px;
   }
-  .player.ui-codeinexo .codeine-controls-left,
-  .player.ui-codeinexo .codeine-controls-right {
-    gap: 4px;
-  }
-  .player.ui-codeinexo .codeine-control-btn,
-  .player.ui-codeinexo .codeine-play-btn,
-  .player.ui-codeinexo .codeine-volume-btn,
-  .player.ui-codeinexo .codeine-action-btn,
   .player.ui-codeinexo .codeine-back-button {
     width: 36px;
     height: 36px;
