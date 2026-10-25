@@ -2905,6 +2905,45 @@ button:disabled {
   user-select: none;
 }
 
+.enhancement-detected-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
+  margin-top: auto !important;
+  flex-shrink: 0;
+  min-height: 54px;
+}
+
+.enhancement-detected-label {
+  color: var(--theme-text-primary, rgba(255, 255, 255, 0.92));
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.enhancement-detected-value {
+  color: var(--theme-on-accent, #fff);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  background: var(--theme-accent, #3b82f6);
+  border: 1px solid color-mix(in srgb, var(--theme-accent, #3b82f6) 80%, rgba(255, 255, 255, 0.4));
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--theme-accent, #3b82f6) 40%, transparent);
+  padding: 4px 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.02em;
+}
+
 .enhancement-status-banner {
   display: flex;
   align-items: center;
@@ -5683,6 +5722,39 @@ svg {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   min-height: 52px;
   padding: 8px 14px;
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-detected-card {
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  min-height: 54px;
+  padding: 12px 16px;
+  margin-top: auto !important;
+  flex-shrink: 0;
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-detected-label {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-detected-value {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--theme-on-accent, #fff);
+  background: var(--theme-accent, #3b82f6);
+  border: 1px solid color-mix(in srgb, var(--theme-accent, #3b82f6) 75%, rgba(255, 255, 255, 0.4));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--theme-accent, #3b82f6) 45%, transparent),
+              0 2px 8px rgba(0, 0, 0, 0.35);
+  padding: 5px 16px;
+  border-radius: 999px;
 }
 
 .player.ui-codeinexo :is(#subtitleModal, #shaderModal) .stepper-value {

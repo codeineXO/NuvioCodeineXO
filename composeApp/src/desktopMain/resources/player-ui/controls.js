@@ -1919,11 +1919,6 @@ const renderShaderOptionList = () => {
   svpHeader.textContent = "Motion Smoothing (SVP)";
   shaderOptionList.appendChild(svpHeader);
 
-  const detectedContent = document.createElement("div");
-  detectedContent.className = "audio-track-language";
-  const contentLabels = { anime: "Anime", cartoon: "Cartoon", live_action: "Live Action" };
-  detectedContent.textContent = "Detected Content: " + (contentLabels[state.mediaContentType] || "Unknown");
-  shaderOptionList.appendChild(detectedContent);
 
   const svpAvailable = state.svpAvailable !== false;
   if (!svpAvailable) {
@@ -2005,6 +2000,19 @@ const renderShaderOptionList = () => {
     row.appendChild(buildCheckIcon());
     shaderOptionList.appendChild(row);
   });
+
+  const detectedCard = document.createElement("div");
+  detectedCard.className = "enhancement-detected-card";
+  const contentLabels = { anime: "Anime", cartoon: "Cartoon", live_action: "Live Action" };
+  const detectedLabel = document.createElement("span");
+  detectedLabel.className = "enhancement-detected-label";
+  detectedLabel.textContent = "Detected Content:";
+  const detectedValue = document.createElement("span");
+  detectedValue.className = "enhancement-detected-value";
+  detectedValue.textContent = contentLabels[state.mediaContentType] || "Unknown";
+  detectedCard.appendChild(detectedLabel);
+  detectedCard.appendChild(detectedValue);
+  shaderOptionList.appendChild(detectedCard);
 
   lastRenderedModal = "shaders";
   lastRenderedModalSignature = getShaderModalSignature();
