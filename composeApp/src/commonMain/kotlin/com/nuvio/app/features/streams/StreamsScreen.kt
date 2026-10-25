@@ -53,6 +53,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -115,6 +118,8 @@ import com.nuvio.app.features.watched.watchedItemKeys
 import com.nuvio.app.isDesktop
 import com.nuvio.app.navigation.LocalUseNativeNavigation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -856,6 +861,49 @@ internal fun StreamList(
     val checkingMoreAddonsText = stringResource(Res.string.streams_checking_more_addons)
     val formatStreamSize = rememberStreamSizeLabelFormat()
     val sharedStream = LocalSharedStream.current
+    val resultsNavigation = LocalStreamResultsNavigation.current
+    val firstResult = remember(streamSections, sharedStream, debridEnabled, uiState.selectedFilter) {
+        if (sharedStream != null) {
+            "shared_stream" to 0
+        } else {
+            var index = 0
+            var first: Pair<String, Int>? = null
+            streamSections.forEach { section ->
+                if (section.group.streams.isNotEmpty() || section.group.isLoading) {
+                    if (uiState.selectedFilter == null) index++
+                    section.sources.forEach { source ->
+                        if (section.showSourceHeaders) index++
+                        source.streams.forEach { item ->
+                            if (first == null && item.stream.isFocusableStreamResult(debridEnabled)) {
+                                first = item.lazyKey to index
+                            }
+                            index++
+                        }
+                    }
+                }
+            }
+            first
+        }
+    }
+    SideEffect { resultsNavigation?.firstResult = firstResult?.first }
+    val pendingFocus = resultsNavigation?.pending
+    LaunchedEffect(uiState.selectedFilter, pendingFocus, firstResult) {
+        if (resultsNavigation == null || pendingFocus == null || pendingFocus.filter != uiState.selectedFilter) {
+            return@LaunchedEffect
+        }
+        listState.scrollToItem(0)
+        val (key, index) = firstResult ?: return@LaunchedEffect
+        // Materialize the first usable card even when headers or disabled cards fill the viewport.
+        if (index > 0) listState.scrollToItem(index)
+        val requester = snapshotFlow {
+            resultsNavigation.requesters[StreamResultsFocusKey(false, key)]
+        }.filterNotNull().first()
+        withFrameNanos { }
+        if (resultsNavigation.pending === pendingFocus) {
+            requester.requestFocus()
+            resultsNavigation.pending = null
+        }
+    }
     val streamBadgeSettings by remember {
         StreamBadgeSettingsRepository.ensureLoaded()
         StreamBadgeSettingsRepository.uiState
@@ -884,6 +932,7 @@ internal fun StreamList(
                             fetchingText = fetchingText,
                         )
                         StreamCard(
+                            modifier = Modifier.streamResultsFocus(isTab = false, id = "shared_stream"),
                             desktopDragMomentumEnabled = true,
                             stream = shared.stream,
                             enabled = true,
@@ -1055,6 +1104,7 @@ private fun LazyListScope.streamSection(
                     !AppFeaturePolicy.p2pEnabled &&
                     !(debridEnabled && stream.isAddonDebridCandidate)
             StreamCard(
+                modifier = Modifier.streamResultsFocus(isTab = false, id = renderItem.lazyKey),
                 desktopDragMomentumEnabled = true,
                 stream = stream,
                 enabled = isSelectable || isUnsupportedTorrentStream,
@@ -1084,6 +1134,10 @@ private fun LazyListScope.streamSection(
         }
     }
 }
+
+private fun StreamItem.isFocusableStreamResult(debridEnabled: Boolean): Boolean =
+    isSelectableForPlayback(debridEnabled) ||
+        (needsLocalDebridResolve && !AppFeaturePolicy.p2pEnabled && !(debridEnabled && isAddonDebridCandidate))
 
 internal fun streamSectionRenderKey(group: AddonStreamGroup): String = buildString {
     append("stream_section")

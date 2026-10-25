@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -96,6 +97,11 @@ internal fun StreamCard(
     val markedLabel = if (isCurrent) currentLabel else highlightLabel
     val cardShape = RoundedCornerShape(12.dp)
     val resultsGlass = LocalStreamResultsGlass.current
+    val detailColor = if (resultsGlass) {
+        lerp(MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.onSurface, 0.4f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     val interactionSource = remember { MutableInteractionSource() }
     val playerHazeState = LocalPlayerHazeState.current
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -248,7 +254,7 @@ internal fun StreamCard(
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = detailColor,
                 )
             }
 
@@ -282,7 +288,7 @@ internal fun StreamCard(
                 Text(
                     text = stream.addonName,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = detailColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

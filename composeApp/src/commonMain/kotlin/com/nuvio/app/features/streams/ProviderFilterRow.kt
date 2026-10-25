@@ -70,6 +70,7 @@ internal fun ProviderFilterRow(
     },
     filterChip: @Composable (AddonStreamGroup?, Boolean, () -> Unit) -> Unit = { group, isSelected, onClick ->
         FilterChip(
+            modifier = Modifier.streamResultsFocus(isTab = true, id = group?.addonId),
             label = group?.addonName ?: stringResource(Res.string.collections_tab_all),
             isSelected = isSelected,
             onClick = onClick,
@@ -146,6 +147,7 @@ private fun RefreshChip(
 
 @Composable
 private fun FilterChip(
+    modifier: Modifier = Modifier,
     label: String? = null,
     icon: ImageVector? = null,
     contentDescription: String? = null,
@@ -179,7 +181,7 @@ private fun FilterChip(
         label = "filter_chip_content",
     )
     Box(
-        modifier = Modifier
+        modifier = modifier
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale

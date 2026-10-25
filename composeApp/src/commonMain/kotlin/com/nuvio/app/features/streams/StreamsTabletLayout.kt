@@ -122,6 +122,13 @@ internal fun TabletStreamsLayout(
         return
     }
 
+    val resultsNavigation = remember { StreamResultsNavigation() }
+    val resultTabs = listOf<String?>(null) + uiState.groups
+        .filter { it.streams.isNotEmpty() || it.isLoading }
+        .map { it.addonId }
+    LaunchedEffect(uiState.selectedFilter) {
+        if (resultsNavigation.pending?.filter != uiState.selectedFilter) resultsNavigation.pending = null
+    }
     val hazeState = rememberHazeState()
     val opacity = com.nuvio.app.core.ui.NuvioTokens.Opacity
     val tabletBackdrop = remember(background, poster) {
@@ -253,9 +260,9 @@ internal fun TabletStreamsLayout(
                 .width(if (isWideLayout) resultsWidth else maxWidth * 0.6f)
                 .fillMaxHeight()
                 .padding(
-                    top = if (isIos) 20.dp else 60.dp,
+                    top = 36.dp,
                     end = 12.dp,
-                    bottom = 12.dp,
+                    bottom = 36.dp,
                 ),
         ) {
             Box(
@@ -263,9 +270,15 @@ internal fun TabletStreamsLayout(
                     .fillMaxSize()
                     .navigationGlass(shape = RoundedCornerShape(24.dp), panel = true, hazeState = hazeState),
             ) {
-                CompositionLocalProvider(LocalStreamResultsGlass provides true) {
+                CompositionLocalProvider(
+                    LocalStreamResultsGlass provides true,
+                    LocalStreamResultsNavigation provides resultsNavigation,
+                ) {
                     Column(
                         modifier = Modifier
+                            .streamResultsNavigation(resultsNavigation, resultTabs, uiState.selectedFilter) {
+                                StreamsRepository.selectFilter(it)
+                            }
                             .fillMaxSize()
                             .padding(16.dp),
                     ) {
