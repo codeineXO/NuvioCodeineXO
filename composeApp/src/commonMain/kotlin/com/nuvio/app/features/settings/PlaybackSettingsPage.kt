@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.nuvioVerticalScroll
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -2557,7 +2557,7 @@ private fun LanguageSelectionDialog(
         onDismissRequest = onDismiss,
         title = title,
     ) {
-        LazyColumn(
+        NuvioLazyColumn(
             modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
                 .heightIn(max = 420.dp)),
@@ -2842,7 +2842,7 @@ internal fun SubtitleColorDialog(
             Column(
                 modifier = Modifier
                     .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .nuvioVerticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
@@ -2899,7 +2899,7 @@ internal fun SubtitleFontDialog(
             Column(
                 modifier = Modifier
                     .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .nuvioVerticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
@@ -2997,7 +2997,7 @@ internal fun SubtitleOutlineEffectDialog(
             Column(
                 modifier = Modifier
                     .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .nuvioVerticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
@@ -3222,7 +3222,7 @@ private fun StreamAutoPlayProviderSelectionDialog(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            LazyColumn(
+            NuvioLazyColumn(
                 modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
                     .heightIn(max = 340.dp)),

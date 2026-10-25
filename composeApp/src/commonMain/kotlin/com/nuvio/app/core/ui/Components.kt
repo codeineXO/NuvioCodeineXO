@@ -33,7 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -116,7 +116,7 @@ fun NuvioScreen(
             Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(backgroundColor))
         }
         CompositionLocalProvider(LocalScreenHeaderInset provides true) {
-            LazyColumn(
+            NuvioLazyColumn(
                 state = listState,
                 modifier = Modifier.remoteNavigationViewport(listState).remoteNavigationGroup().fillMaxSize().navigationGlassSource(zIndex = 1f),
                 contentPadding = PaddingValues(

@@ -31,7 +31,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -210,6 +210,7 @@ private fun PartyRoom(
         ) { chat ->
             if (chat) {
                 PartyChatContent(
+                    desktopDragEnabled = true,
                     members = party.members,
                     modifier = Modifier
                         .fillMaxSize()
@@ -219,7 +220,7 @@ private fun PartyRoom(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .nuvioVerticalScroll(rememberScrollState())
                         .padding(bottom = nuvioSafeBottomPadding(tokens.spacing.screenBottom)),
                 ) {
                     PartyContent(party, onWatch)

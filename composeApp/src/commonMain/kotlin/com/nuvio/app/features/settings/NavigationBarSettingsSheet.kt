@@ -6,7 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,7 +49,7 @@ internal fun NavigationBarSettingsSheet(
         scope.launch { dismissNuvioBottomSheet(sheetState, onDismiss) }
     }
     NuvioModalBottomSheet(onDismissRequest = dismiss, sheetState = sheetState) {
-        LazyColumn(Modifier.remoteNavigationGroup().fillMaxWidth()) {
+        NuvioLazyColumn(Modifier.remoteNavigationGroup().fillMaxWidth()) {
             item {
                 Text(
                     text = stringResource(Res.string.settings_appearance_nav_bar_style),

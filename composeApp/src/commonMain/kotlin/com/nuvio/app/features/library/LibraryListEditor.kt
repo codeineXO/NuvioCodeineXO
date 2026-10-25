@@ -14,7 +14,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Lock
@@ -56,7 +56,7 @@ internal fun LibraryListEditor(
         focusedContainerColor = tokens.colors.surfaceCard,
         unfocusedContainerColor = tokens.colors.surfaceCard,
     )
-    Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+    Column(modifier.nuvioVerticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         OutlinedTextField(
             value = state.name,
             onValueChange = onNameChange,

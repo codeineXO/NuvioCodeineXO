@@ -53,7 +53,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -2002,7 +2002,7 @@ fun MetaDetailsScreen(
                                 LocalRemoteNavigationPageBoundary provides pageBoundary.takeIf { useEnhancedLayout },
                             ) {
                                 pageStateHolder.SaveableStateProvider("$type:$id:${if (useEnhancedLayout) enhancedSecondPage else "standard"}") {
-                                    LazyColumn(
+                                    NuvioLazyColumn(
                                         state = listState,
                                         flingBehavior = ScrollableDefaults.flingBehavior(),
                                         modifier = Modifier.then(if (heroTrailerSourceUrl == null) Modifier.navigationGlassSource(zIndex = 1f) else Modifier).remoteNavigationGroup()

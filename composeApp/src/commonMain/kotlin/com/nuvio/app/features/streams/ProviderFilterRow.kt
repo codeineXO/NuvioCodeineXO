@@ -62,6 +62,7 @@ internal fun ProviderFilterRow(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     spacing: Dp = 8.dp,
+    desktopDragMomentumEnabled: Boolean = false,
     refreshChip: @Composable (Boolean, () -> Unit) -> Unit = { isLoading, onClick ->
         RefreshChip(isLoading = isLoading, onClick = onClick)
     },
@@ -85,7 +86,7 @@ internal fun ProviderFilterRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .nuvioDesktopDragScroll(scrollState)
+            .nuvioDesktopDragScroll(scrollState, momentumEnabled = desktopDragMomentumEnabled)
             .horizontalScroll(scrollState)
             .padding(contentPadding),
         horizontalArrangement = Arrangement.spacedBy(spacing),

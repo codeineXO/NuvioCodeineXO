@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.BasicAlertDialog
@@ -186,7 +186,7 @@ private fun AppIconPickerContent(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(max = 720.dp)
-            .verticalScroll(rememberScrollState())
+            .nuvioVerticalScroll(rememberScrollState())
             .padding(start = horizontalPadding, top = 10.dp, end = horizontalPadding, bottom = 20.dp),
     ) {
         Text(

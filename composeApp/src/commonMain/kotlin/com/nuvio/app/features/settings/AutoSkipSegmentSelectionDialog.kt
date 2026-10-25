@@ -5,7 +5,7 @@ import com.nuvio.app.core.ui.remoteNavigationGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -30,7 +30,7 @@ internal fun AutoSkipSegmentSelectionDialog(
         modifier = Modifier.heightIn(max = 560.dp),
         title = stringResource(Res.string.settings_playback_auto_skip_segments),
     ) {
-        LazyColumn(
+        NuvioLazyColumn(
             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxWidth().weight(1f, fill = false)),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

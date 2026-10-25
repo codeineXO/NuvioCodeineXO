@@ -23,12 +23,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.nuvio.app.core.ui.NuvioLazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
@@ -443,7 +443,7 @@ private fun TabbedGridContent(
                 selectedTab.items.isEmpty() -> EmptyMessage()
                 else -> {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        LazyVerticalGrid(
+                        NuvioLazyVerticalGrid(
                             columns = gridCells,
                             state = gridState,
                             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
@@ -575,7 +575,7 @@ internal fun RowsContent(
             },
             listState, uiState.isLoading,
         )
-        LazyColumn(
+        NuvioLazyColumn(
             state = listState,
             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
             contentPadding = PaddingValues(

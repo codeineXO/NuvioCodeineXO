@@ -283,6 +283,8 @@ internal fun TabletStreamsLayout(
                     }
 
                     ProviderFilterRow(
+
+                        desktopDragMomentumEnabled = true,
                         groups = uiState.groups,
                         selectedFilter = uiState.selectedFilter,
                         onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },
@@ -470,6 +472,8 @@ private fun LegacyTabletStreamsLayout(
                         }
 
                         ProviderFilterRow(
+
+                            desktopDragMomentumEnabled = true,
                             groups = uiState.groups,
                             selectedFilter = uiState.selectedFilter,
                             onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },

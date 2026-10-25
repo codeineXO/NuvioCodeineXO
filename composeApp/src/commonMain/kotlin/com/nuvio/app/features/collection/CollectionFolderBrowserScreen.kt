@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.nuvio.app.core.ui.NuvioLazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -64,7 +64,7 @@ fun CollectionFolderBrowserScreen(
                 )
             }
         } else {
-            LazyVerticalGrid(
+            NuvioLazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = minGridWidth),
                 modifier = Modifier.fillMaxSize().remoteNavigationGroup(),
                 contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 24.dp),

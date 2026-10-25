@@ -32,7 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.border
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -570,6 +570,7 @@ private fun MobileStreamsLayout(
                         )
                     }
                     ProviderFilterRow(
+                        desktopDragMomentumEnabled = true,
                         groups = uiState.groups,
                         selectedFilter = uiState.selectedFilter,
                         onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },
@@ -865,7 +866,7 @@ internal fun StreamList(
         LocalRemoteNavigationRole provides RemoteNavigationRole.StreamSource,
     ) {
     Box(modifier = modifier.fillMaxWidth()) {
-        LazyColumn(
+        NuvioLazyColumn(
             state = listState,
             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
             contentPadding = PaddingValues(
@@ -883,6 +884,7 @@ internal fun StreamList(
                             fetchingText = fetchingText,
                         )
                         StreamCard(
+                            desktopDragMomentumEnabled = true,
                             stream = shared.stream,
                             enabled = true,
                             appendInstantServiceToDefaultName = false,
@@ -1053,6 +1055,7 @@ private fun LazyListScope.streamSection(
                     !AppFeaturePolicy.p2pEnabled &&
                     !(debridEnabled && stream.isAddonDebridCandidate)
             StreamCard(
+                desktopDragMomentumEnabled = true,
                 stream = stream,
                 enabled = isSelectable || isUnsupportedTorrentStream,
                 appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,

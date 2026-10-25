@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -49,7 +49,7 @@ internal fun LibraryListRows(
         }
         return
     }
-    LazyColumn(modifier.remoteNavigationGroup().fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    NuvioLazyColumn(modifier.remoteNavigationGroup().fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(tabs, key = { it.key }) { tab ->
             Surface(onClick = { onEdit(tab) }, shape = tokens.shapes.compactCard,
                 color = tokens.colors.surfaceCard, contentColor = tokens.colors.textPrimary, modifier = Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard)) {

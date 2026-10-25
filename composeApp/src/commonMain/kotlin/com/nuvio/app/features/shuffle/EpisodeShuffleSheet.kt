@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Shuffle
@@ -116,7 +116,7 @@ internal fun EpisodeShuffleSheet(
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val backInset = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 20.dp
             Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                modifier = Modifier.fillMaxWidth().nuvioVerticalScroll(rememberScrollState())
                     .padding(horizontal = backInset).padding(top = if (isDesktop) 16.dp else 0.dp, bottom = nuvioSafeBottomPadding(20.dp)),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {

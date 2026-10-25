@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
@@ -124,7 +124,7 @@ fun LibraryListManagementDialog(
                     )
                     LibraryListDialogMode.DELETE -> Text(
                         text = stringResource(Res.string.library_list_delete_message, state.name),
-                        modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        modifier = Modifier.weight(1f, fill = false).nuvioVerticalScroll(rememberScrollState()),
                         style = MaterialTheme.typography.bodyLarge,
                         color = tokens.colors.textMuted,
                     )

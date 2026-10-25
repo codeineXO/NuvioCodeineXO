@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -65,7 +65,7 @@ internal fun UpdateChannelSettingsRow(isTablet: Boolean) {
             title = stringResource(Res.string.updates_channel_title),
         ) {
             Column(
-                modifier = Modifier.selectableGroup().verticalScroll(rememberScrollState()),
+                modifier = Modifier.selectableGroup().nuvioVerticalScroll(rememberScrollState()),
             ) {
                 UpdateChannel.entries.filter { it != UpdateChannel.ALL_RELEASES }.forEach { option ->
                     Row(

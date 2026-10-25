@@ -32,7 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1129,7 +1129,7 @@ private fun RecommendedPresetReviewDialog(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Scrollable settings list
-            LazyColumn(
+            NuvioLazyColumn(
                 modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .weight(1f)
                     .fillMaxWidth()),

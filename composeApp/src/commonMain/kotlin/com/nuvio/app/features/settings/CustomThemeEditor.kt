@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -117,7 +117,7 @@ internal fun CustomThemeEditor(
                 color = tokens.colors.textPrimary,
             )
             Column(
-                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                modifier = Modifier.weight(1f).nuvioVerticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s16),
             ) {
                 if (allowGradient && !forceThreeColors) {

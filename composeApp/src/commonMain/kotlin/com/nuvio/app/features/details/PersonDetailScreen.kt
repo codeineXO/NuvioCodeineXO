@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
@@ -329,7 +329,7 @@ private fun PersonDetailContent(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .verticalScroll(scrollState)
+                                .nuvioVerticalScroll(scrollState)
                                 .windowInsetsPadding(WindowInsets.statusBars)
                                 .padding(top = 48.dp),
                         ) {
@@ -447,7 +447,7 @@ private fun WidePersonDetailContent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(contentScrollState)
+                    .nuvioVerticalScroll(contentScrollState)
                     .padding(start = 40.dp, bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(34.dp),
             ) {
@@ -542,7 +542,7 @@ private fun PersonIdentitySidebar(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
+                .nuvioVerticalScroll(scrollState)
                 .padding(
                     start = 40.dp,
                     end = 36.dp,
@@ -909,7 +909,7 @@ private fun PersonDetailSkeleton(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .nuvioVerticalScroll(rememberScrollState())
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .padding(top = 48.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1036,7 +1036,7 @@ private fun WidePersonDetailSkeleton(
             modifier = Modifier
                 .width(PERSON_DETAIL_WIDE_SIDEBAR_WIDTH)
                 .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
+                .nuvioVerticalScroll(rememberScrollState())
                 .padding(start = 40.dp, end = 36.dp, top = 40.dp, bottom = 42.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
@@ -1124,7 +1124,7 @@ private fun WidePersonDetailSkeleton(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
+                .nuvioVerticalScroll(rememberScrollState())
                 .padding(start = 40.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(34.dp),
         ) {

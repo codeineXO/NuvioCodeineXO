@@ -30,7 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import com.nuvio.app.core.ui.NuvioLazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -251,7 +251,7 @@ fun CatalogScreen(
                         .fillMaxWidth()
                         .weight(1f),
                 ) {
-                    LazyVerticalGrid(
+                    NuvioLazyVerticalGrid(
                         columns = gridCells,
                         state = gridState,
                         modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),

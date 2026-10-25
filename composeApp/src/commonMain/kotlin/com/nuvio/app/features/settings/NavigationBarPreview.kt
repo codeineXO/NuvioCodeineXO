@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -61,7 +61,7 @@ internal fun NavigationBarPreview(style: NavBarStyle, isTablet: Boolean, glowEna
                 Modifier.matchParentSize()
                     .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(hazeState) else Modifier)
                     .then(if (!isTablet && style == NavBarStyle.ADAPTIVE) Modifier.nestedScroll(barScrollState.nestedScrollConnection) else Modifier)
-                    .verticalScroll(rememberScrollState())
+                    .nuvioVerticalScroll(rememberScrollState())
                     .background(tokens.colors.surfaceCard)
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),

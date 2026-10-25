@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.NuvioLazyColumn
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
@@ -478,7 +480,7 @@ internal fun DiscordActivityModeBottomSheet(
         },
         sheetState = sheetState,
     ) {
-        androidx.compose.foundation.lazy.LazyColumn(
+        NuvioLazyColumn(
             modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)),
@@ -568,7 +570,7 @@ internal fun DiscordActivityTypeBottomSheet(
         },
         sheetState = sheetState,
     ) {
-        androidx.compose.foundation.lazy.LazyColumn(
+        NuvioLazyColumn(
             modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)),

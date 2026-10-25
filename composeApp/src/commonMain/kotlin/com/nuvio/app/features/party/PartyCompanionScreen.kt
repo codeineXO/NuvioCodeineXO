@@ -87,6 +87,7 @@ private fun LinkedChat(link: PartyCompanionLink) {
             }
         }
         PartyChatContent(
+            desktopDragEnabled = true,
             members = link.members,
             modifier = Modifier
                 .weight(1f)

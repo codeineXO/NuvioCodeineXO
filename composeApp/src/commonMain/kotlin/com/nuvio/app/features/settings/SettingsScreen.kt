@@ -30,7 +30,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
@@ -1205,7 +1205,7 @@ private fun TabletSettingsScreen(
                         } else {
                             40.dp
                         }
-                        LazyColumn(
+                        NuvioLazyColumn(
                             state = listState,
                             modifier = Modifier.remoteNavigationGroup().then(Modifier
                                 .fillMaxSize()

@@ -85,6 +85,7 @@ internal fun StreamCard(
     isCurrent: Boolean = false,
     currentLabel: String? = null,
     outlined: Boolean = false,
+    desktopDragMomentumEnabled: Boolean = false,
 ) {
     val highlightLabel = if (isCurrent) null else LocalStreamHighlight.current(stream)
     val partyLabel = highlightLabel
@@ -192,6 +193,7 @@ internal fun StreamCard(
         Column(modifier = Modifier.weight(1f)) {
             if (hasBadges && badgePlacement == StreamBadgePlacement.TOP) {
                 StreamCardBadgeRow(
+                    desktopDragMomentumEnabled = desktopDragMomentumEnabled,
                     badgeImages = badgeImages,
                     stream = stream,
                     showFileSizeBadges = showFileSizeBadges,
@@ -236,6 +238,7 @@ internal fun StreamCard(
             if (hasBadges && badgePlacement == StreamBadgePlacement.BOTTOM) {
                 Spacer(modifier = Modifier.height(5.dp))
                 StreamCardBadgeRow(
+                    desktopDragMomentumEnabled = desktopDragMomentumEnabled,
                     badgeImages = badgeImages,
                     stream = stream,
                     showFileSizeBadges = showFileSizeBadges,
@@ -314,6 +317,7 @@ internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
 
 @Composable
 private fun StreamCardBadgeRow(
+    desktopDragMomentumEnabled: Boolean,
     badgeImages: List<StreamBadge>,
     stream: StreamItem,
     showFileSizeBadges: Boolean,
@@ -323,7 +327,7 @@ private fun StreamCardBadgeRow(
 
     Row(
         modifier = modifier
-            .nuvioDesktopDragScroll(scrollState)
+            .nuvioDesktopDragScroll(scrollState, momentumEnabled = desktopDragMomentumEnabled)
             .horizontalScroll(scrollState),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),

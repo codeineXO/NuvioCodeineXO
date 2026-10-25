@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -125,6 +125,7 @@ private val PartyChatMessage.author: String
 internal fun PartyChatContent(
     members: List<PartyMember>,
     modifier: Modifier = Modifier,
+    desktopDragEnabled: Boolean = false,
 ) {
     val messages by PartyChat.messages.collectAsStateWithLifecycle()
     val rows = remember(messages) { partyChatRows(messages).asReversed() }
@@ -154,7 +155,7 @@ internal fun PartyChatContent(
                     )
                 }
             } else {
-                MessageList(rows = rows, members = members)
+                MessageList(rows = rows, members = members, desktopDragEnabled = desktopDragEnabled)
             }
         }
         Composer()
@@ -164,6 +165,7 @@ internal fun PartyChatContent(
 @Composable
 private fun MessageList(
     rows: List<PartyChatRow>,
+    desktopDragEnabled: Boolean,
     members: List<PartyMember>,
 ) {
     val listState = rememberLazyListState()
@@ -184,7 +186,8 @@ private fun MessageList(
     }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val bubbleWidth = maxWidth * 0.78f
-        LazyColumn(
+        NuvioLazyColumn(
+            desktopDragEnabled = desktopDragEnabled,
             state = listState,
             reverseLayout = true,
             modifier = Modifier.fillMaxSize(),

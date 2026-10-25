@@ -25,7 +25,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -795,7 +795,7 @@ internal fun DesktopHoverSidebar(
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .nuvioVerticalScroll(rememberScrollState())
                     .heightIn(min = maxHeight)
                     .padding(top = profileTopPadding, bottom = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,

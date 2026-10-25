@@ -23,7 +23,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -505,7 +505,7 @@ private fun FolderReorderableList(
         hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
-    LazyColumn(
+    NuvioLazyColumn(
         modifier = Modifier.remoteNavigationGroup().then(Modifier
             .fillMaxWidth()
             .heightIn(max = 720.dp)),
@@ -2079,7 +2079,7 @@ private fun GenrePickerSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        LazyColumn(
+        NuvioLazyColumn(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
          modifier = Modifier.remoteNavigationGroup()) {

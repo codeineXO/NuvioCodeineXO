@@ -34,7 +34,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
@@ -176,7 +176,7 @@ fun ProfileSelectionScreen(
                         if (isTabletLayout) {
                             Modifier
                         } else {
-                            Modifier.verticalScroll(rememberScrollState())
+                            Modifier.nuvioVerticalScroll(rememberScrollState())
                         },
                     )
                     .padding(horizontal = 24.dp),

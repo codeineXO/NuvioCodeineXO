@@ -1,6 +1,8 @@
 package com.nuvio.app.core.ui
 
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -17,7 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
@@ -110,11 +112,14 @@ fun NuvioDropdownChip(
         }
 
         if (isDesktop) {
+            val scrollState = rememberScrollState()
             PlatformBackHandler(enabled = isSheetVisible, onBack = { isSheetVisible = false })
             DropdownMenu(
                 expanded = isSheetVisible,
                 onDismissRequest = { isSheetVisible = false },
-                modifier = Modifier.widthIn(min = 180.dp, max = 360.dp)
+                scrollState = scrollState,
+                modifier = Modifier.nuvioDesktopDragScroll(scrollState, Orientation.Vertical)
+                    .widthIn(min = 180.dp, max = 360.dp)
                     .then(
                         if (useGlass) Modifier.navigationGlass(
                             shape = tokens.shapes.compactCard,
@@ -248,7 +253,7 @@ private fun NuvioDropdownOptionsSheet(
                 color = tokens.colors.textPrimary,
             )
             NuvioBottomSheetDivider()
-            LazyColumn(
+            NuvioLazyColumn(
                 modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
                     .heightIn(max = tokens.breakpoints.largePhone)),

@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -578,7 +578,7 @@ private fun ContributorsCard(
                 onRetry = onRetry,
             )
             contributors.isEmpty() -> EmptyState(label = stringResource(Res.string.community_empty_contributors))
-            else -> LazyColumn(
+            else -> NuvioLazyColumn(
                 modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
                     .heightIn(max = 480.dp)),
@@ -616,7 +616,7 @@ private fun SupportersCard(
                 onRetry = onRetry,
             )
             supporters.isEmpty() -> EmptyState(label = stringResource(Res.string.community_empty_supporters))
-            else -> LazyColumn(
+            else -> NuvioLazyColumn(
                 modifier = Modifier.remoteNavigationGroup().then(Modifier
                     .fillMaxWidth()
                     .heightIn(max = 480.dp)),

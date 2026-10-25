@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1013,7 +1013,7 @@ private fun <T> DebridSingleChoiceDialog(
         onDismissRequest = onDismiss,
         title = title,
     ) {
-        LazyColumn(
+        NuvioLazyColumn(
             modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
                 .heightIn(max = 420.dp)),
@@ -1048,7 +1048,7 @@ private fun <T> DebridMultiChoiceDialog(
         onDismissRequest = onDismiss,
         title = title,
     ) {
-        LazyColumn(
+        NuvioLazyColumn(
             modifier = Modifier.remoteNavigationGroup().then(Modifier
                 .fillMaxWidth()
                 .heightIn(max = 420.dp)),

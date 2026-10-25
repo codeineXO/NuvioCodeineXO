@@ -370,7 +370,9 @@ internal fun Modifier.nuvioCenterScrollConsumer(
 
 internal fun Modifier.nuvioDesktopDragScroll(
     state: LazyListState,
+    momentumEnabled: Boolean = true,
 ): Modifier {
+    if (momentumEnabled) return nuvioDesktopDragScroll(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
     if (!isDesktop) return this
 
     return pointerInput(state) {
@@ -411,7 +413,9 @@ internal fun Modifier.nuvioDesktopDragScroll(
 
 internal fun Modifier.nuvioDesktopDragScroll(
     state: ScrollState,
+    momentumEnabled: Boolean = true,
 ): Modifier {
+    if (momentumEnabled) return nuvioDesktopDragScroll(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
     if (!isDesktop) return this
 
     return pointerInput(state) {
