@@ -43,7 +43,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -139,7 +138,7 @@ import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
 import com.nuvio.app.core.ui.nuvioPosterRowGutterClip
 import com.nuvio.app.core.ui.nuvioPosterRowMouseWheelScroll
 import com.nuvio.app.core.ui.posterCardClickable
-import com.nuvio.app.core.ui.secondaryClick
+import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
@@ -1021,15 +1020,12 @@ private fun SeasonTextChipScrollRow(
                                     .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
                                     .remoteNavigationDown(onSeasonDown)
                                     .remoteNavigationUp(onSeasonUp)
-                                    .remoteNavigationTarget(
-                                        shape = RoundedCornerShape(sizing.seasonChipRadius),
-                                        onSelect = { onSelect(season) },
-                                        onContext = onSecondaryClick,
-                                    ).combinedClickable(
+                                    .posterCardClickable(
                                         onClick = { onSelect(season) },
                                         onLongClick = onSecondaryClick,
+                                        zoomCornerRadius = sizing.seasonChipRadius,
+                                        hoverScaleEnabled = false,
                                     )
-                                    .secondaryClick(onSecondaryClick)
                                     .padding(
                                         horizontal = sizing.seasonChipHorizontalPadding,
                                         vertical = sizing.seasonChipVerticalPadding,
@@ -1050,7 +1046,7 @@ private fun SeasonTextChipScrollRow(
                                 )
                             }
 
-                            if (showHoverPosterPreview && !posterUrl.isNullOrBlank()) {
+                            if (showHoverPosterPreview && !posterUrl.isNullOrBlank() && ActionMenuCoordinator.active == null) {
                                 SeasonPosterHoverPreviewOverlay(
                                     isHovered = isChipHovered,
                                     posterUrl = posterUrl,
@@ -2163,12 +2159,13 @@ private fun EpisodeListCard(
                 color = Color.White.copy(alpha = 0.1f),
                 shape = cardShape,
             )
-            .remoteNavigationTarget(shape = cardShape).combinedClickable(
-                enabled = onClick != null || onLongPress != null,
-                onClick = { onClick?.invoke() },
+            .posterCardClickable(
+                onClick = onClick,
                 onLongClick = onLongPress,
-            )
-            .secondaryClick(onLongPress),
+                zoomImageUrl = video.thumbnail ?: fallbackImage,
+                zoomCornerRadius = cornerRadius,
+                hoverScaleEnabled = false,
+            ),
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),

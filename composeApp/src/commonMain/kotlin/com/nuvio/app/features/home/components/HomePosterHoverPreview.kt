@@ -42,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -77,10 +78,12 @@ import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioAsyncImage
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.NuvioTokens
-import com.nuvio.app.core.ui.PosterZoomOverlayCoordinator
+import com.nuvio.app.core.ui.ActionMenuCoordinator
+import com.nuvio.app.core.ui.ActionMenuSource
+import com.nuvio.app.core.ui.LocalActionMenuSource
+import com.nuvio.app.core.ui.actionMenuSecondaryClick
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
-import com.nuvio.app.core.ui.secondaryClick
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.details.components.DetailIconAction
 import com.nuvio.app.features.library.LibraryRepository
@@ -136,10 +139,8 @@ internal fun HomePosterHoverPreview(
         return
     }
 
-    if (PosterZoomOverlayCoordinator.isVisible) {
-        content(modifier)
-        return
-    }
+    val actionMenuOpen = ActionMenuCoordinator.active != null
+    val actionMenuSource = remember(item.type, item.id) { ActionMenuSource() }
 
     val anchorInteractionSource = remember { MutableInteractionSource() }
     val previewInteractionSource = remember { MutableInteractionSource() }
@@ -171,11 +172,12 @@ internal fun HomePosterHoverPreview(
     LaunchedEffect(
         anchorHovered,
         previewHovered,
+        actionMenuOpen,
         keyboardNavigation,
         posterCardStyle.hoverPreviewOpenDelayMillis,
         previewDismissedByScroll,
     ) {
-        if (keyboardNavigation) {
+        if (keyboardNavigation || actionMenuOpen) {
             previewVisible = false
             popupMounted = false
             return@LaunchedEffect
@@ -292,9 +294,11 @@ internal fun HomePosterHoverPreview(
     }
 
     Box(modifier = modifier) {
-        content(Modifier.hoverable(anchorInteractionSource, enabled = !keyboardNavigation))
+        CompositionLocalProvider(LocalActionMenuSource provides actionMenuSource) {
+            content(Modifier.hoverable(anchorInteractionSource, enabled = !keyboardNavigation))
+        }
 
-        if (popupMounted && !keyboardNavigation) {
+        if (popupMounted && !keyboardNavigation && !actionMenuOpen) {
             Popup(
                 popupPositionProvider = positionProvider,
                 properties = PopupProperties(focusable = false),
@@ -330,6 +334,7 @@ internal fun HomePosterHoverPreview(
                     ),
                 ) {
                     HomePosterPreviewCard(
+                        actionMenuSource = actionMenuSource,
                         item = item,
                         isWatched = isWatched,
                         isSaved = previewIsSaved,
@@ -364,6 +369,7 @@ internal fun HomePosterHoverPreview(
 
 @Composable
 private fun HomePosterPreviewCard(
+    actionMenuSource: ActionMenuSource,
     item: MetaPreview,
     isWatched: Boolean,
     isSaved: Boolean,
@@ -398,7 +404,7 @@ private fun HomePosterPreviewCard(
             ) {
                 onClick?.invoke()
             }
-            .secondaryClick(onLongClick),
+            .actionMenuSecondaryClick(onLongClick, actionMenuSource),
     ) {
         Box(
             modifier = Modifier

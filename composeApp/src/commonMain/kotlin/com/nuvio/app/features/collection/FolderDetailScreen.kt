@@ -114,6 +114,7 @@ fun FolderDetailScreen(
     onBack: () -> Unit,
     onCatalogClick: (HomeCatalogSection) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
+    onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
     val uiState by FolderDetailRepository.uiState.collectAsState()
     val watchedUiState by remember {
@@ -135,6 +136,7 @@ fun FolderDetailScreen(
             onBack = onBack,
             onCatalogClick = onCatalogClick,
             onPosterClick = onPosterClick,
+            onPosterLongClick = onPosterLongClick,
         )
         return
     }
@@ -211,6 +213,7 @@ fun FolderDetailScreen(
                         modifier = Modifier.weight(1f),
                         onTabSelected = { FolderDetailRepository.selectTab(it) },
                         onPosterClick = onPosterClick,
+                        onPosterLongClick = onPosterLongClick,
                     )
                     FolderViewMode.ROWS -> RowsContent(
                         uiState = uiState,
@@ -219,6 +222,7 @@ fun FolderDetailScreen(
                         modifier = Modifier.weight(1f),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,
+                        onPosterLongClick = onPosterLongClick,
                     )
                     FolderViewMode.FOLLOW_LAYOUT -> RowsContent(
                         uiState = uiState,
@@ -227,6 +231,7 @@ fun FolderDetailScreen(
                         modifier = Modifier.weight(1f),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,
+                        onPosterLongClick = onPosterLongClick,
                     )
                 }
             }
@@ -244,6 +249,7 @@ private fun MobileFolderDetailContent(
     onBack: () -> Unit,
     onCatalogClick: (HomeCatalogSection) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
+    onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
     val folder = uiState.folder
     val density = LocalDensity.current
@@ -329,6 +335,7 @@ private fun MobileFolderDetailContent(
                 modifier = Modifier.weight(1f).then(contentModifier),
                 onTabSelected = { FolderDetailRepository.selectTab(it) },
                 onPosterClick = onPosterClick,
+                onPosterLongClick = onPosterLongClick,
             )
             FolderViewMode.ROWS,
             FolderViewMode.FOLLOW_LAYOUT,
@@ -339,6 +346,7 @@ private fun MobileFolderDetailContent(
                 modifier = Modifier.weight(1f).then(contentModifier),
                 onCatalogClick = onCatalogClick,
                 onPosterClick = onPosterClick,
+                onPosterLongClick = onPosterLongClick,
             )
         }
     }
@@ -368,6 +376,7 @@ private fun TabbedGridContent(
     modifier: Modifier = Modifier,
     onTabSelected: (Int) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
+    onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
     val gridState = rememberLazyGridState()
 
@@ -469,7 +478,7 @@ private fun TabbedGridContent(
                                     item = item,
                                     isWatched = isWatched,
                                     onClick = { onPosterClick(item) },
-                                    onLongClick = null,
+                                    onLongClick = onPosterLongClick?.let { { it(item) } },
                                     modifier = if (isDesktop) Modifier.fillMaxWidth() else Modifier,
                                 ) { cardModifier ->
                                     NuvioPosterCard(
@@ -483,6 +492,7 @@ private fun TabbedGridContent(
                                         detailLine = item.releaseInfo,
                                         isWatched = isWatched,
                                         onClick = { onPosterClick(item) },
+                                        onLongClick = onPosterLongClick?.let { { it(item) } },
                                     )
                                 }
                             }
@@ -515,6 +525,7 @@ internal fun RowsContent(
     homeCatalogSettings: HomeCatalogSettingsUiState = HomeCatalogSettingsRepository.settings.collectAsState().value,
     onCatalogClick: (HomeCatalogSection) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
+    onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     slots: List<FolderRowSlot> = FolderDetailRepository.getRowSlots(uiState),
     listState: LazyListState = rememberLazyListState(),
 ) {
@@ -622,6 +633,7 @@ internal fun RowsContent(
                             },
                             watchedKeys = watchedKeys,
                             onPosterClick = { onPosterClick(it) },
+                            onPosterLongClick = onPosterLongClick,
                         )
                     }
                 }

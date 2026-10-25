@@ -13,6 +13,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.nuvio.app.core.ui.ActionMenuAction
+import com.nuvio.app.core.ui.ActionMenuInvocation
+import com.nuvio.app.core.ui.NuvioActionMenu
+import dev.chrisbanes.haze.HazeState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -127,9 +131,10 @@ fun EpisodeWatchedActionSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SeasonWatchedActionSheet(
+internal fun SeasonWatchedActionMenu(
+    invocation: ActionMenuInvocation,
+    hazeState: HazeState,
     seasonLabel: String,
     isSeasonWatched: Boolean,
     canMarkPreviousSeasons: Boolean,
@@ -137,60 +142,29 @@ fun SeasonWatchedActionSheet(
     onToggleSeasonWatched: () -> Unit,
     onMarkPreviousSeasonsWatched: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val coroutineScope = rememberCoroutineScope()
-
-    NuvioModalBottomSheet(
-        onDismissRequest = {
-            coroutineScope.launch {
-                dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
-            }
-        },
-        sheetState = sheetState,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = nuvioSafeBottomPadding(16.dp)),
-        ) {
-            Text(
-                text = seasonLabel,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            )
-            NuvioBottomSheetDivider()
-            NuvioBottomSheetActionRow(
+    NuvioActionMenu(
+        invocation = invocation,
+        hazeState = hazeState,
+        actions = buildList {
+            add(ActionMenuAction(
                 icon = Icons.Default.PlaylistAddCheckCircle,
-                title = if (isSeasonWatched) {
+                label = if (isSeasonWatched) {
                     stringResource(Res.string.episode_mark_season_unwatched, seasonLabel)
                 } else {
                     stringResource(Res.string.episode_mark_season_watched, seasonLabel)
                 },
-                onClick = {
-                    onToggleSeasonWatched()
-                    coroutineScope.launch {
-                        dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
-                    }
-                },
-            )
+                onSelected = onToggleSeasonWatched,
+            ))
             if (canMarkPreviousSeasons) {
-                NuvioBottomSheetActionRow(
+                add(ActionMenuAction(
                     icon = Icons.Default.DoneAll,
-                    title = stringResource(Res.string.episode_mark_previous_seasons_watched),
-                    onClick = {
-                        onMarkPreviousSeasonsWatched()
-                        coroutineScope.launch {
-                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
-                        }
-                    },
-                )
+                    label = stringResource(Res.string.episode_mark_previous_seasons_watched),
+                    onSelected = onMarkPreviousSeasonsWatched,
+                ))
             }
-        }
-    }
+        },
+        onDismissed = onDismiss,
+    )
 }
 
 @Composable

@@ -84,6 +84,7 @@ internal fun Modifier.navigationGlassFeedback(
     interactionSource: MutableInteractionSource,
     shape: Shape,
     selected: Boolean = false,
+    showFocus: Boolean = true,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
@@ -91,7 +92,7 @@ internal fun Modifier.navigationGlassFeedback(
     val pressed by interactionSource.collectIsPressedAsState()
     val alpha = when {
         pressed -> tokens.opacity.pressed
-        focused -> tokens.opacity.selected
+        focused && showFocus -> tokens.opacity.selected
         hovered -> tokens.opacity.hover
         selected -> tokens.opacity.subtle
         else -> 0f

@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -16,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.scale
@@ -33,7 +36,7 @@ internal class PosterLiftSource(private val graphicsContext: GraphicsContext) : 
     var bounds: Rect? = null
     var isLifted by mutableStateOf(false)
         private set
-    private var rememberCount = 0
+    private var rememberCount by mutableStateOf(0)
 
     val canLift: Boolean
         get() = rememberCount > 0 && !layer.isReleased && layer.size.width > 0 && layer.size.height > 0
@@ -78,6 +81,17 @@ internal fun Modifier.posterCardClickable(
 ): Modifier {
     val graphicsContext = LocalGraphicsContext.current
     val source = remember(graphicsContext, zoomImageUrl) { PosterLiftSource(graphicsContext) }
+    val actionOpenerFocus = remember { FocusRequester() }
+    val menuSource = LocalActionMenuSource.current
+    SideEffect {
+        menuSource?.capture = {
+            ActionMenuInvocation(
+                cardBounds = source.bounds,
+                sourceAvailable = { source.canLift },
+                restoreFocus = { actionOpenerFocus.requestFocus() },
+            )
+        }
+    }
     val onPosterClickAnchor = LocalPosterClickAnchor.current
     val navigation = LocalRemoteNavigation.current
     val navigationItem = LocalPosterNavigationItem.current
@@ -98,18 +112,17 @@ internal fun Modifier.posterCardClickable(
         .then(this)
     if (onClick == null && onLongClick == null) return posterModifier
     val interactionSource = remember { MutableInteractionSource() }
-    val handleLongClick = onLongClick?.let { longClick ->
-        {
-            source.bounds?.let { cardBounds ->
-                PosterZoomAnchorHolder.stash(
-                    PosterZoomAnchor(cardBounds, zoomImageUrl, zoomCornerRadius).also {
-                        it.source = source
-                    },
-                )
-            }
-            longClick()
-        }
+    fun invokeActions(pointer: Offset? = null) {
+        ActionMenuInvocationHolder.stash(
+            ActionMenuInvocation(
+                source.bounds, pointer,
+                sourceAvailable = { source.canLift },
+                restoreFocus = { actionOpenerFocus.requestFocus() },
+            ),
+        )
+        onLongClick?.invoke()
     }
+    val handleLongClick = onLongClick?.let { { invokeActions() } }
     val handleClick: () -> Unit = {
                 if (onClick != null) {
                     navigation?.capturePosterOrigin(navigationItem)
@@ -127,13 +140,14 @@ internal fun Modifier.posterCardClickable(
             interactionSource = interactionSource,
         )
         .then(posterModifier)
+        .focusRequester(actionOpenerFocus)
         .remoteNavigationTarget(shape = androidx.compose.foundation.shape.RoundedCornerShape(zoomCornerRadius), onSelect = handleClick, onContext = handleLongClick).combinedClickable(
             interactionSource = interactionSource,
             indication = if (!isDesktop && onPosterClickAnchor == null) LocalIndication.current else null,
             onClick = handleClick,
             onLongClick = handleLongClick,
         )
-        .secondaryClick(handleLongClick)
+        .secondaryClickAt(onLongClick?.let { { local -> invokeActions(source.bounds?.topLeft?.plus(local)) } })
 }
 
 internal fun DrawScope.drawLiftedPoster(source: PosterLiftSource) {

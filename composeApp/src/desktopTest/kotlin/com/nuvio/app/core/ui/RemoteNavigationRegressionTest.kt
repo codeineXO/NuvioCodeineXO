@@ -57,11 +57,11 @@ class RemoteNavigationRegressionTest {
                 RemoteNavigationHost(enabled = true) {
                     Row {
                         listOf(3, 1).forEach { count ->
-                            Column(Modifier.width(240.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
+                            Column(Modifier.width(240.dp).clip(RoundedCornerShape(NuvioTokens.Radius.md)).background(Color.Black)) {
                                 repeat(count) { index ->
-                                    PosterZoomMenuRow(
-                                        action = PosterZoomOverlayAction(Icons.Rounded.Check, "Action $index", onSelected = {}),
-                                        shape = posterZoomMenuRowShape(index, count),
+                                    ActionMenuRow(
+                                        action = ActionMenuAction(Icons.Rounded.Check, "Action $index", onSelected = {}),
+                                        shape = actionMenuRowShape(index, count),
                                         enabled = true,
                                         onSelected = {},
                                         modifier = Modifier.testTag("menu$count-$index"),
@@ -82,7 +82,7 @@ class RemoteNavigationRegressionTest {
                 val scale = pixels.width / 240f
                 listOf(true, false).forEach { top ->
                     val rounded = if (top) index == 0 else index == count - 1
-                    val diagonal = (scale + (if (rounded) 20f * scale else 0f) * (1 - 1 / sqrt(2f))).roundToInt()
+                    val diagonal = (scale + (if (rounded) 8f * scale else 0f) * (1 - 1 / sqrt(2f))).roundToInt()
                     listOf(true, false).forEach { left ->
                         val x = if (left) diagonal else pixels.width - 1 - diagonal
                         val y = if (top) diagonal else pixels.height - 1 - diagonal

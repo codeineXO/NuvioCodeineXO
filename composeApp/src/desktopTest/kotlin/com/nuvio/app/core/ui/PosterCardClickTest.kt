@@ -30,12 +30,12 @@ class PosterCardClickTest {
     private var clicks = 0
     private var actions = 0
     private var clickAnchor: PosterZoomAnchor? = null
-    private var actionAnchor: PosterZoomAnchor? = null
+    private var actionAnchor: ActionMenuInvocation? = null
 
     @After
     fun clearAnchor() {
-        PosterZoomAnchorHolder.consume()
-        PosterZoomOverlayCoordinator.hide()
+        ActionMenuInvocationHolder.consume()
+        ActionMenuCoordinator.active = null
     }
 
     @Test
@@ -48,12 +48,13 @@ class PosterCardClickTest {
             assertEquals(1, actions)
             assertEquals(0, clicks)
             assertNull(clickAnchor)
-            assertPosterAnchor(actionAnchor)
+            assertMenuAnchor(actionAnchor)
+            assertNotNull(actionAnchor?.pointerPosition)
         }
     }
 
     @Test
-    fun rightClickKeepsPosterAnchorWithHoverScaleDisabled() {
+    fun rightClickKeepsMenuAnchorWithHoverScaleDisabled() {
         setContent(hoverScaleEnabled = false)
 
         compose.onNodeWithTag("poster").performMouseInput { click(button = MouseButton.Secondary) }
@@ -61,7 +62,8 @@ class PosterCardClickTest {
         compose.runOnIdle {
             assertEquals(1, actions)
             assertEquals(0, clicks)
-            assertPosterAnchor(actionAnchor)
+            assertMenuAnchor(actionAnchor)
+            assertNotNull(actionAnchor?.pointerPosition)
         }
     }
 
@@ -87,7 +89,8 @@ class PosterCardClickTest {
         compose.runOnIdle {
             assertEquals(1, actions)
             assertEquals(0, clicks)
-            assertPosterAnchor(actionAnchor)
+            assertMenuAnchor(actionAnchor)
+            assertNull(actionAnchor?.pointerPosition)
         }
     }
 
@@ -98,7 +101,7 @@ class PosterCardClickTest {
                 val onClick: () -> Unit = { clicks++ }
                 val onLongClick = {
                     actions++
-                    actionAnchor = PosterZoomAnchorHolder.consume()
+                    actionAnchor = ActionMenuInvocationHolder.consume()
                 }
                 Box(
                     if (hoverScaleEnabled == null) {
@@ -120,6 +123,14 @@ class PosterCardClickTest {
                 )
             }
         }
+    }
+
+    private fun assertMenuAnchor(anchor: ActionMenuInvocation?) {
+        assertNotNull(anchor)
+        val bounds = assertNotNull(anchor.cardBounds)
+        assertTrue(bounds.width > 0f)
+        assertTrue(bounds.height > 0f)
+        assertTrue(anchor.sourceAvailable())
     }
 
     private fun assertPosterAnchor(anchor: PosterZoomAnchor?) {

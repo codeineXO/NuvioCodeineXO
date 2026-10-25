@@ -52,13 +52,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.zIndex
@@ -88,17 +86,15 @@ import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.DisintegrationRequestController
 import com.nuvio.app.core.ui.NativeTabBridge
-import com.nuvio.app.core.ui.NuvioCardDepthSurface
-import com.nuvio.app.core.ui.NuvioContinueWatchingActionSheet
 import com.nuvio.app.core.ui.NuvioFloatingPrompt
-import com.nuvio.app.core.ui.NuvioPosterZoomActionOverlay
+import com.nuvio.app.core.ui.actionMenuInput
+import com.nuvio.app.core.ui.NuvioActionMenu
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.NuvioToastHost
-import com.nuvio.app.core.ui.PosterZoomAnchor
-import com.nuvio.app.core.ui.PosterZoomAnchorHolder
-import com.nuvio.app.core.ui.PosterZoomOverlayAction
-import com.nuvio.app.core.ui.PosterZoomOverlayExitAnimation
+import com.nuvio.app.core.ui.ActionMenuInvocation
+import com.nuvio.app.core.ui.ActionMenuInvocationHolder
+import com.nuvio.app.core.ui.ActionMenuAction
 import com.nuvio.app.core.ui.TrackingListPickerDialog
 import com.nuvio.app.core.ui.isLiquidGlassNativeTabBarSupported
 import com.nuvio.app.core.ui.localizedContinueWatchingSubtitle
@@ -115,7 +111,6 @@ import com.nuvio.app.features.cloud.CloudLibraryItem
 import com.nuvio.app.features.cloud.CloudLibraryPlaybackResult
 import com.nuvio.app.features.cloud.CloudLibraryPlaybackTargetLookupResult
 import com.nuvio.app.features.cloud.CloudLibraryRepository
-import com.nuvio.app.features.cloud.cloudLibraryDisplayArtworkUrl
 import com.nuvio.app.features.cloud.playbackVideoId
 import com.nuvio.app.features.cloud.providerPosterUrl
 import com.nuvio.app.features.collection.CollectionRepository
@@ -129,7 +124,6 @@ import com.nuvio.app.features.home.HomeCatalogSection
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
-import com.nuvio.app.features.home.components.shouldBlurContinueWatchingArtwork
 import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.LibrarySection
@@ -271,7 +265,6 @@ internal fun MainAppContent(
         }
         val appUpdaterController = rememberAppUpdaterController()
         val hapticFeedback = LocalHapticFeedback.current
-        val focusManager = LocalFocusManager.current
         val uriHandler = LocalUriHandler.current
         val coroutineScope = rememberCoroutineScope()
         var selectedTab by rememberSaveable(initialTab) { mutableStateOf(initialTab) }
@@ -311,11 +304,11 @@ internal fun MainAppContent(
         val liquidGlassNativeTabBarSupported = remember { isLiquidGlassNativeTabBarSupported() }
         var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
-        var selectedPosterAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
+        var selectedPosterMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val posterOverlayHazeState = rememberHazeState()
         val navigationGlassState = remember(currentRoute) { dev.chrisbanes.haze.HazeState() }
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
-        var selectedContinueWatchingZoomAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
+        var selectedContinueWatchingMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val libraryDisintegrationRequests = remember { DisintegrationRequestController<String>() }
         val continueWatchingDisintegrationRequests = remember { DisintegrationRequestController<String>() }
         var requestedSettingsPageName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -337,14 +330,18 @@ internal fun MainAppContent(
             LibraryRepository.uiState
         }.collectAsStateWithLifecycle()
         val authState by AuthRepository.state.collectAsStateWithLifecycle()
+        LaunchedEffect(currentRoute, selectedTab) {
+            selectedPosterActionTarget = null
+            selectedPosterMenuInvocation = null
+            selectedContinueWatchingForActions = null
+            selectedContinueWatchingMenuInvocation = null
+        }
         val openPosterActions: (PosterActionTarget) -> Unit = { target ->
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-            focusManager.clearFocus(force = true)
-            selectedPosterAnchor = PosterZoomAnchorHolder.consume()
-            coroutineScope.launch {
-                withFrameNanos { }
-                selectedPosterActionTarget = target
-            }
+            selectedPosterMenuInvocation = ActionMenuInvocationHolder.consume()
+            selectedContinueWatchingForActions = null
+            selectedContinueWatchingMenuInvocation = null
+            selectedPosterActionTarget = target
         }
         val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
         val launchOverlayProfile = profileState.activeProfile ?: profileState.profiles.firstOrNull()
@@ -1399,8 +1396,10 @@ internal fun MainAppContent(
 
         val onContinueWatchingLongPress: (ContinueWatchingItem) -> Unit = { item ->
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-            val zoomAnchor = PosterZoomAnchorHolder.consume()
-            selectedContinueWatchingZoomAnchor = zoomAnchor
+            val zoomAnchor = ActionMenuInvocationHolder.consume()
+            selectedPosterActionTarget = null
+            selectedPosterMenuInvocation = null
+            selectedContinueWatchingMenuInvocation = zoomAnchor
             selectedContinueWatchingForActions = item
         }
 
@@ -1413,6 +1412,7 @@ internal fun MainAppContent(
                 restorationKey = if (currentRoute is TabsRoute) currentRoute to selectedTab else currentRoute ?: TabsRoute,
                 modifier = Modifier
                     .fillMaxSize()
+                    .actionMenuInput()
                     .background(MaterialTheme.nuvio.colors.background)
                     .then(if (isDesktop) Modifier else Modifier.pointerInput(Unit) {
                         awaitPointerEventScope {
@@ -1434,7 +1434,7 @@ internal fun MainAppContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (LocalFrostedGlassEnabled.current && (selectedPosterActionTarget != null || selectedContinueWatchingZoomAnchor != null)) {
+                        if (LocalFrostedGlassEnabled.current && (selectedPosterActionTarget != null || selectedContinueWatchingMenuInvocation != null)) {
                             Modifier.hazeSource(state = posterOverlayHazeState)
                         } else {
                             Modifier
@@ -1879,6 +1879,7 @@ internal fun MainAppContent(
                         route = route,
                         navController = navController,
                         onCatalogClick = onCatalogClick,
+                        onPosterLongClick = { openPosterActions(PosterActionTarget(preview = it)) },
                     )
                 }
                     }.let { provider ->
@@ -1906,7 +1907,7 @@ internal fun MainAppContent(
             }
 
             selectedPosterActionTarget?.let { posterActionTarget ->
-                key(posterActionTarget) {
+                selectedPosterMenuInvocation?.let { invocation ->
                     val preview = posterActionTarget.preview
                     val isSaved = LibraryRepository.isSaved(preview.id, preview.type)
                     val isWatched = WatchingState.isPosterWatched(
@@ -1916,19 +1917,10 @@ internal fun MainAppContent(
                     )
                     val removesFromLibrary = isSaved &&
                         (posterActionTarget.libraryItem != null || !isRemoteLibrarySource)
-                    NuvioPosterZoomActionOverlay(
-                        imageUrl = selectedPosterAnchor?.imageUrl ?: preview.poster,
-                        title = preview.name,
-                        subtitle = preview.releaseInfo
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { formatReleaseDateForDisplay(it) }
-                            ?: preview.type.replaceFirstChar { char ->
-                                if (char.isLowerCase()) char.titlecase() else char.toString()
-                            },
-                        isWatched = isWatched,
-                        anchor = selectedPosterAnchor,
+                    NuvioActionMenu(
+                        invocation = invocation,
                         actions = listOf(
-                            PosterZoomOverlayAction(
+                            ActionMenuAction(
                                 icon = if (isSaved) Icons.Default.DeleteOutline else Icons.Default.Add,
                                 label = if (isSaved) {
                                     stringResource(Res.string.hero_remove_from_library)
@@ -1936,11 +1928,6 @@ internal fun MainAppContent(
                                     stringResource(Res.string.hero_add_to_library)
                                 },
                                 isDestructive = removesFromLibrary,
-                                exitAnimation = if (removesFromLibrary && !isRemoteLibrarySource) {
-                                    PosterZoomOverlayExitAnimation.DISINTEGRATE
-                                } else {
-                                    PosterZoomOverlayExitAnimation.COLLAPSE
-                                },
                                 onSelected = {
                                     val libraryItem = posterActionTarget.libraryItem
                                         ?: preview.toLibraryItem(savedAtEpochMs = 0L)
@@ -2045,7 +2032,7 @@ internal fun MainAppContent(
                                     }
                                 },
                             ),
-                            PosterZoomOverlayAction(
+                            ActionMenuAction(
                                 icon = if (isWatched) Icons.Default.CheckCircle else Icons.Default.CheckCircleOutline,
                                 label = if (isWatched) {
                                     stringResource(Res.string.hero_mark_unwatched)
@@ -2061,33 +2048,26 @@ internal fun MainAppContent(
                         ),
                         hazeState = posterOverlayHazeState,
                         onDismissed = {
-                            selectedPosterActionTarget = null
-                            selectedPosterAnchor = null
+                            if (selectedPosterMenuInvocation === invocation) {
+                                selectedPosterActionTarget = null
+                                selectedPosterMenuInvocation = null
+                            }
                         },
                     )
                 }
             }
 
             selectedContinueWatchingForActions?.let { item ->
-                selectedContinueWatchingZoomAnchor?.let { anchor ->
+                selectedContinueWatchingMenuInvocation?.let { anchor ->
                     key(item.videoId, anchor) {
                         val showManualPlayOption = StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState) && canSelectContinueWatchingStreams(item)
                         val showDetailsOption = !item.isCloudLibraryContinueWatchingItem()
-                        NuvioPosterZoomActionOverlay(
-                            imageUrl = cloudLibraryDisplayArtworkUrl(anchor.imageUrl ?: item.poster ?: item.imageUrl),
-                            title = item.title,
-                            subtitle = localizedContinueWatchingSubtitle(item),
-                            blurred = item.shouldBlurContinueWatchingArtwork(
-                                blurUnwatchedEpisodes = continueWatchingPreferencesUiState.blurNextUp,
-                                useEpisodeThumbnails = continueWatchingPreferencesUiState.useEpisodeThumbnails,
-                                artworkUrl = anchor.imageUrl ?: item.poster ?: item.imageUrl,
-                            ),
-                            depthSurface = NuvioCardDepthSurface.ContinueWatching,
-                            anchor = anchor,
+                        NuvioActionMenu(
+                            invocation = anchor,
                             actions = buildList {
                                 if (showDetailsOption) {
                                     add(
-                                        PosterZoomOverlayAction(
+                                        ActionMenuAction(
                                             icon = Icons.Default.Info,
                                             label = stringResource(Res.string.cw_action_go_to_details),
                                             onSelected = {
@@ -2105,7 +2085,7 @@ internal fun MainAppContent(
                                 }
                                 if (showManualPlayOption) {
                                     add(
-                                        PosterZoomOverlayAction(
+                                        ActionMenuAction(
                                             icon = Icons.Default.PlayArrow,
                                             label = stringResource(Res.string.play_manually),
                                             onSelected = { onContinueWatchingPlayManually(item) },
@@ -2114,7 +2094,7 @@ internal fun MainAppContent(
                                 }
                                 if (!item.isNextUp && canPlayContinueWatching(item)) {
                                     add(
-                                        PosterZoomOverlayAction(
+                                        ActionMenuAction(
                                             icon = Icons.Default.Replay,
                                             label = stringResource(Res.string.cw_action_start_from_beginning),
                                             onSelected = { onContinueWatchingStartFromBeginning(item) },
@@ -2122,7 +2102,7 @@ internal fun MainAppContent(
                                     )
                                 }
                                 add(
-                                    PosterZoomOverlayAction(
+                                    ActionMenuAction(
                                         icon = Icons.Default.DeleteOutline,
                                         label = stringResource(Res.string.cw_action_remove),
                                         isDestructive = true,
@@ -2132,41 +2112,15 @@ internal fun MainAppContent(
                             },
                             hazeState = posterOverlayHazeState,
                             onDismissed = {
-                                selectedContinueWatchingForActions = null
-                                selectedContinueWatchingZoomAnchor = null
+                                if (selectedContinueWatchingMenuInvocation === anchor) {
+                                    selectedContinueWatchingForActions = null
+                                    selectedContinueWatchingMenuInvocation = null
+                                }
                             },
                         )
                     }
                 }
             }
-
-            NuvioContinueWatchingActionSheet(
-                item = selectedContinueWatchingForActions.takeIf { selectedContinueWatchingZoomAnchor == null },
-                showManualPlayOption = StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState) &&
-                    selectedContinueWatchingForActions?.let(::canSelectContinueWatchingStreams) == true,
-                showDetailsOption = selectedContinueWatchingForActions?.isCloudLibraryContinueWatchingItem() != true,
-                onDismiss = { selectedContinueWatchingForActions = null },
-                onOpenDetails = {
-                    selectedContinueWatchingForActions?.let { item ->
-                        navController.navigate(
-                            DetailRoute(
-                                type = item.parentMetaType,
-                                id = item.parentMetaId,
-                                title = item.title,
-                                posterUrl = item.poster,
-                            ),
-                        )
-                    }
-                },
-                onStartFromBeginning = selectedContinueWatchingForActions
-                    ?.takeIf { !it.isNextUp && canPlayContinueWatching(it) }
-                    ?.let { item -> { onContinueWatchingStartFromBeginning(item) } },
-                onPlayManually = selectedContinueWatchingForActions
-                    ?.let { item -> { onContinueWatchingPlayManually(item) } },
-                onRemove = {
-                    selectedContinueWatchingForActions?.let(onContinueWatchingRemove)
-                },
-            )
 
             TrackingListPickerDialog(
                 visible = showLibraryListPicker,
