@@ -3622,11 +3622,25 @@ const renderNativePlaybackPrompts = () => {
   const shouldShowSkip = Boolean(state.skipPromptVisible && (!state.skipPromptDismissed || state.controlsVisible));
   const showSkip = Boolean(shouldShowSkip && (!skipPromptAutoHidden || state.controlsVisible));
   const showSkipProgress = Boolean(showSkip && !state.controlsVisible && !skipPromptAutoHidden && !state.skipPromptDismissed);
+  const skipPromptDisappeared = !showSkip && skipPrompt.classList.contains("visible");
   skipPromptLabel.textContent = state.skipPromptLabel || "Skip";
   skipPrompt.setAttribute("aria-label", state.skipPromptLabel || "Skip");
   skipPrompt.setAttribute("aria-hidden", showSkip ? "false" : "true");
   skipPrompt.classList.toggle("visible", showSkip);
   skipPrompt.classList.toggle("show-progress", showSkipProgress);
+  if (skipPromptDisappeared) {
+    // Hidden prompts no longer receive pointer events, but retain focus and our
+    // cached hover state until another input event arrives.
+    if (skipPrompt.contains(document.activeElement)) {
+      focusShortcutRoot();
+    }
+    isChromeFocusInside = isChromeInteractionTarget(document.activeElement);
+    const targetUnderPointer = (lastPointerClientX >= 0 && lastPointerClientY >= 0)
+      ? document.elementFromPoint(lastPointerClientX, lastPointerClientY)
+      : null;
+    isChromePointerInside = isChromeInteractionTarget(targetUnderPointer);
+    noteChromeActivity(true);
+  }
   syncSkipPromptPlacement(showSkip);
   if (showSkipProgress) {
     startSkipPromptAutoHide();
