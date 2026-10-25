@@ -412,6 +412,7 @@ internal fun RemoteNavigationHost(
     val platformFocus = LocalRemotePlatformFocus.current
     val recoverFocus by rememberUpdatedState<(Boolean) -> Boolean> { force ->
         if (session.modalDepth > 0 || RemoteTextEditing.isTextInputFocused) false
+        else if (session.interruptPosterRestoration(restorationKey, focusManager)) true
         else if (session.enterVisibleViewport(restorationKey, focusManager)) true
         else if (hostHasFocus && !force && session.focusedTarget != null) false else {
             session.keyboard = true
@@ -472,7 +473,9 @@ internal fun RemoteNavigationHost(
                             if (it.type == KeyEventType.KeyDown &&
                                 (remoteDirection(it.key) != null || it.key == Key.Enter || it.key == Key.NumPadEnter || it.key == Key.Tab) &&
                                 session.modalDepth == 0 && !RemoteTextEditing.isTextInputFocused) {
-                                if (remoteDirection(it.key) != null && session.enterVisibleViewport(restorationKey, focusManager)) return@onPreviewKeyEvent true
+                                if (remoteDirection(it.key) != null &&
+                                    (session.interruptPosterRestoration(restorationKey, focusManager) ||
+                                        session.enterVisibleViewport(restorationKey, focusManager))) return@onPreviewKeyEvent true
                                 session.focusTransferReason = RemoteFocusTransferReason.Navigation
                             }
                             if (session.onPreviewKeyEvent(it)) return@onPreviewKeyEvent true

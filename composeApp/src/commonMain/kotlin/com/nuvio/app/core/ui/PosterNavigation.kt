@@ -97,6 +97,7 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
     val active = LocalScreenActive.current
     val page = remember(session, pageId) { session.posterPages.getOrPut(pageId) { PosterNavigationPage() } }
     val currentLoading by rememberUpdatedState(loading)
+    val currentRows by rememberUpdatedState(rows)
     SideEffect {
         if (page.context != context) {
             session.cancelPosterNavigation(pageId)
@@ -129,9 +130,10 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
         var completed = false
         var restored = false
         try {
-            restored = withTimeoutOrNull(5_000) {
+            restored = withTimeoutOrNull(200) {
                 withFrameNanos { }
-                snapshotFlow { currentLoading }.first { !it }
+                // Cached rows are usable while unrelated catalog/add-on refreshes run.
+                snapshotFlow { currentRows.isNotEmpty() || !currentLoading }.first { it }
                 if (origin.context != context || !page.active) return@withTimeoutOrNull false
                 val row = page.rows.firstOrNull { it.grid && origin.content in it.items }
                     ?: page.rows.firstOrNull { it.key == origin.row && it.items.isNotEmpty() }
@@ -142,10 +144,40 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
                     val index = row.items.indexOf(origin.content).takeIf { it >= 0 }
                         ?: row.items.indexOf(neighbor).takeIf { it >= 0 }
                         ?: origin.index.coerceIn(0, row.items.lastIndex)
-                    if (state.layoutInfo.totalItemsCount > origin.pageIndex) state.scrollToItem(origin.pageIndex, origin.pageOffset)
+                    val shelf = page.shelves[row.key]
+                    val pagePositionMatches = state.firstVisibleItemIndex == origin.pageIndex &&
+                        state.firstVisibleItemScrollOffset == origin.pageOffset
+                    val shelfPositionMatches = shelf == null || (shelf.firstVisibleItemIndex == origin.shelfIndex &&
+                        shelf.firstVisibleItemScrollOffset == origin.shelfOffset)
+                    val ready = session.targets.firstOrNull { target ->
+                        target.route == route && target.poster?.let {
+                            it.page == pageId && it.row == row.key && it.index == index && it.role == PosterTargetRole.Poster
+                        } == true && target.bounds?.let { bounds ->
+                            val visible = target.visibleBounds
+                            bounds.width > 0 && bounds.height > 0 && visible != null &&
+                                visible.width >= bounds.width - 1 && visible.height >= bounds.height - 1
+                        } == true
+                    }
+                    if (pagePositionMatches && shelfPositionMatches && ready != null) {
+                        session.explicitFocusTransfers++
+                        try {
+                            if (ready.requester.requestFocus()) {
+                                // Let focus effects settle without revealing an already positioned poster.
+                                withFrameNanos { }
+                                withFrameNanos { }
+                                return@withTimeoutOrNull true
+                            }
+                        } finally { session.explicitFocusTransfers-- }
+                    }
+                    if (!pagePositionMatches && state.layoutInfo.totalItemsCount > origin.pageIndex) {
+                        state.scrollToItem(origin.pageIndex, origin.pageOffset)
+                    }
                     session.revealPosterRow(pageId, row)
                     page.shelves[row.key]?.let { shelf ->
-                        shelf.scrollToItem(origin.shelfIndex.coerceAtMost(row.items.lastIndex), origin.shelfOffset)
+                        val shelfIndex = origin.shelfIndex.coerceAtMost(row.items.lastIndex)
+                        if (shelf.firstVisibleItemIndex != shelfIndex || shelf.firstVisibleItemScrollOffset != origin.shelfOffset) {
+                            shelf.scrollToItem(shelfIndex, origin.shelfOffset)
+                        }
                     }
                     session.focusPoster(pageId, row, index)
                 } else {

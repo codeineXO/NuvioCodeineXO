@@ -30,6 +30,8 @@ class KeyboardFocusRecoveryTest {
     private var available by mutableStateOf(true)
     private var loading by mutableStateOf(false)
     private var unfocusable by mutableStateOf(false)
+    private var originalAvailable by mutableStateOf(true)
+    private var rowsAvailable by mutableStateOf(true)
 
     private fun content(pageId: String = "home", hero: Boolean = false, posterCount: Int = 20, posterHeight: Int = 100) {
         compose.setContent {
@@ -46,14 +48,14 @@ class KeyboardFocusRecoveryTest {
                     } else {
                         RemoteNavigationEntry("home", true) {
                             BindPosterNavigationPage(pageId, Unit,
-                                (0 until posterCount).map { PosterNavigationRow(it, listOf("poster$it"), it + 1) }, list, loading)
+                                (0 until if (rowsAvailable) posterCount else 0).map { PosterNavigationRow(it, listOf("poster$it"), it + 1) }, list, loading)
                             NuvioScreen(listState = list, topPadding = 0.dp, horizontalPadding = 0.dp,
                                 verticalArrangement = Arrangement.Top, modifier = Modifier.testTag("viewport")) {
                                 item { BasicText("Retry", Modifier.height(40.dp).remoteNavigationTarget().clickable {}) }
-                                items(posterCount) { index ->
+                                items(if (rowsAvailable) posterCount else 0) { index ->
                                     RemotePosterRow(pageId, index) {
                                         RemotePosterItem("poster$index", 0) {
-                                            val action = if (available) Modifier.posterCardClickable(
+                                            val action = if (available && (index != 0 || originalAvailable)) Modifier.posterCardClickable(
                                                 onClick = { details = true }, onLongClick = null) else Modifier
                                             Column(if (hero && index == 0) Modifier.remoteNavigationScrollToTop(list) else Modifier) {
                                                 if (hero && index == 0) Spacer(Modifier.height(280.dp))
@@ -149,29 +151,100 @@ class KeyboardFocusRecoveryTest {
         compose.onNodeWithText("Retry").assertIsFocused()
     }
 
-    @Test fun loadingDeadlineReleasesReturnAndLaterArrowsStillWork() {
+    @Test fun cachedPosterRestoresDespiteHomeStillLoading() {
         content()
         openDetails()
         compose.runOnIdle { loading = true; details = false }
         compose.waitForIdle()
-        compose.waitUntil(7_000) { !session.posterRestorationPending("home") }
-        // The deadline runs on wall time; wait for its focus transaction to commit too.
-        compose.waitUntil(2_000) { session.focusedTarget != null }
+        compose.onNodeWithTag("poster0").assertIsFocused()
+        compose.runOnIdle {
+            assertTrue(loading)
+            assertFalse(session.posterRestorationPending("home"))
+            assertNull(session.posterPages.getValue("home").origin)
+        }
+        arrow()
+        compose.onNodeWithTag("poster1").assertIsFocused()
+    }
+
+    @Test fun missingTargetReleasesReturnWithinShortBudget() {
+        content()
+        openDetails()
+        compose.runOnIdle { loading = true; available = false; details = false }
+        compose.waitForIdle()
+        compose.waitUntil(1_000) { !session.posterRestorationPending("home") }
         compose.onNodeWithText("Retry").assertIsFocused()
-        compose.runOnIdle { loading = false }
+        compose.runOnIdle { loading = false; available = true }
         arrow()
         compose.runOnIdle { assertNotNull(session.focusedTarget?.poster) }
+    }
+
+    @Test fun loadingWithoutRowsDoesNotReserveKeyboardForFiveSeconds() {
+        content()
+        openDetails()
+        compose.runOnIdle { loading = true; rowsAvailable = false; details = false }
+        compose.waitForIdle()
+        compose.waitUntil(1_000) { !session.posterRestorationPending("home") }
+        compose.onNodeWithText("Retry").assertIsFocused()
+        compose.runOnIdle { rowsAvailable = true; loading = false }
+        compose.waitForIdle()
+        compose.onNodeWithText("Retry").assertIsFocused()
+        arrow()
+        compose.runOnIdle { assertNotNull(session.focusedTarget?.poster) }
+    }
+
+    @Test fun arrowInterruptsReturnAndLateOriginalCannotStealFocus() {
+        content()
+        openDetails()
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { originalAvailable = false; loading = true; details = false }
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle { assertTrue(session.posterRestorationPending("home")) }
+        arrow()
+        compose.runOnIdle {
+            assertFalse(session.posterRestorationPending("home"))
+            assertNull(session.posterPages.getValue("home").origin)
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNodeWithTag("poster1").assertIsFocused()
+        arrow()
+        compose.onNodeWithTag("poster2").assertIsFocused()
+        val position = compose.runOnIdle { list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset }
+        compose.runOnIdle { originalAvailable = true; loading = false }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag("poster2").assertIsFocused()
+        compose.runOnIdle { assertEquals(position, list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset) }
+    }
+
+    @Test fun desktopRecoveryInterruptsPendingReturnImmediately() {
+        content()
+        openDetails()
+        compose.mainClock.autoAdvance = false
+        compose.runOnIdle { originalAvailable = false; details = false }
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle {
+            assertTrue(session.posterRestorationPending("home"))
+            assertTrue(RemoteNavigationDispatcher.recoverFocus())
+            assertFalse(session.posterRestorationPending("home"))
+            assertNull(session.posterPages.getValue("home").origin)
+        }
+        compose.mainClock.autoAdvance = true
+        compose.onNodeWithTag("poster1").assertIsFocused()
+        arrow()
+        compose.onNodeWithTag("poster2").assertIsFocused()
     }
 
     @Test fun leavingDuringReturnPreservesBookmarkAndCannotStealDetailsFocus() {
         content()
         openDetails()
         val bookmark = compose.runOnIdle { session.posterPages.getValue("home").origin }
-        compose.runOnIdle { loading = true; details = false }
+        compose.runOnIdle { loading = true; originalAvailable = false; details = false }
         compose.waitForIdle()
         compose.runOnIdle { details = true }
         compose.onNodeWithText("Details").performSemanticsAction(SemanticsActions.RequestFocus)
-        compose.runOnIdle { loading = false }
+        compose.runOnIdle { loading = false; originalAvailable = true }
         compose.mainClock.advanceTimeBy(6_000)
         compose.onNodeWithText("Details").assertIsFocused()
         compose.runOnIdle { assertSame(bookmark, session.posterPages.getValue("home").origin); details = false }
@@ -181,7 +254,7 @@ class KeyboardFocusRecoveryTest {
     @Test fun wheelDuringReturnCancelsBookmarkAndKeepsUserViewport() {
         content()
         openDetails()
-        compose.runOnIdle { loading = true; details = false }
+        compose.runOnIdle { loading = true; originalAvailable = false; details = false }
         compose.waitForIdle()
         compose.onNodeWithTag("viewport").performMouseInput { scroll(600f) }
         compose.waitForIdle()
@@ -190,7 +263,7 @@ class KeyboardFocusRecoveryTest {
             assertNull(session.posterPages.getValue("home").origin)
             list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
         }
-        compose.runOnIdle { loading = false }
+        compose.runOnIdle { loading = false; originalAvailable = true }
         arrow()
         compose.mainClock.advanceTimeBy(1_000)
         compose.runOnIdle { assertEquals(position, list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset) }
@@ -256,7 +329,7 @@ class KeyboardFocusRecoveryTest {
     @Test fun newerPosterVisitSurvivesCleanupOfCancelledReturn() {
         content()
         openDetails()
-        compose.runOnIdle { loading = true; details = false }
+        compose.runOnIdle { loading = true; originalAvailable = false; details = false }
         compose.waitForIdle()
         compose.onNodeWithTag("poster2").performSemanticsAction(SemanticsActions.RequestFocus)
         compose.onNodeWithTag("poster2").performKeyInput { pressKey(Key.Enter) }

@@ -32,6 +32,19 @@ internal fun RemoteNavigationSession.manualScroll(route: Any) {
     }
 }
 
+/** Input takes ownership immediately; a delayed return must never steal it back. */
+internal fun RemoteNavigationSession.interruptPosterRestoration(route: Any, manager: FocusManager): Boolean {
+    if (!posterRestorationPending(route) || modalDepth > 0 || RemoteTextEditing.isTextInputFocused) return false
+    posterPages.values.filter { it.route == route && it.active }.forEach {
+        it.cancelRestoration(discardBookmark = true)
+        it.lane = null
+    }
+    pendingViewportRoutes += route
+    keyboard = true
+    if (!enterVisibleViewport(route, manager)) focusAvailableContent(route)
+    return true
+}
+
 /** A successful request and an unavailable layout both consume the entry press. */
 internal fun RemoteNavigationSession.enterVisibleViewport(route: Any, manager: FocusManager): Boolean {
     if (route !in pendingViewportRoutes || modalDepth > 0 || RemoteTextEditing.isTextInputFocused || posterRestorationPending(route)) return false
