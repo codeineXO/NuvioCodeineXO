@@ -5,6 +5,11 @@ import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.unit.TextUnit
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassFeedback
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
@@ -949,6 +954,8 @@ private fun SeasonTextChipScrollRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
+    val rowHazeState = rememberHazeState()
+    val rowGlassSource = if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(rowHazeState) else Modifier
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
         Modifier
@@ -991,7 +998,7 @@ private fun SeasonTextChipScrollRow(
         PosterShelfScrollOwner(rowNavigation.controller) {
             LazyRow(
                 state = seasonListState,
-                modifier = rowNavigation.modifier.then(rowModifier),
+                modifier = rowNavigation.modifier.then(rowModifier).then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
             ) {
@@ -1066,6 +1073,7 @@ private fun SeasonTextChipScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Left,
+                hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
@@ -1086,6 +1094,7 @@ private fun SeasonTextChipScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Right,
+                hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
@@ -1236,6 +1245,8 @@ private fun SeasonPosterScrollRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
+    val rowHazeState = rememberHazeState()
+    val rowGlassSource = if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(rowHazeState) else Modifier
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
         Modifier
@@ -1278,7 +1289,7 @@ private fun SeasonPosterScrollRow(
         PosterShelfScrollOwner(rowNavigation.controller) {
             LazyRow(
                 state = seasonListState,
-                modifier = rowNavigation.modifier.then(rowModifier),
+                modifier = rowNavigation.modifier.then(rowModifier).then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
             ) {
@@ -1314,6 +1325,7 @@ private fun SeasonPosterScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Left,
+                hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
@@ -1334,6 +1346,7 @@ private fun SeasonPosterScrollRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Right,
+                hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
@@ -1354,6 +1367,7 @@ private enum class ScrollNavDirection { Left, Right }
 private fun RowScrollNavButton(
     direction: ScrollNavDirection,
     horizontalScrollPadding: Dp,
+    hazeState: HazeState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1375,24 +1389,8 @@ private fun RowScrollNavButton(
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(elevation = 12.dp, shape = CircleShape)
-            .clip(CircleShape)
-            .background(
-                if (isHovered) {
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                } else {
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
-                },
-            )
-            .border(
-                width = 1.dp,
-                color = if (isHovered) {
-                    Color.White.copy(alpha = 0.35f)
-                } else {
-                    Color.White.copy(alpha = 0.15f)
-                },
-                shape = CircleShape,
-            )
+            .navigationGlass(shape = CircleShape, hazeState = hazeState)
+            .navigationGlassFeedback(interactionSource, CircleShape)
             .hoverable(interactionSource)
             .remoteNavigationTarget(shape = CircleShape).clickable(
                 interactionSource = interactionSource,
@@ -1584,6 +1582,8 @@ private fun EpisodeHorizontalRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
+    val rowHazeState = rememberHazeState()
+    val rowGlassSource = if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(rowHazeState) else Modifier
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
         Modifier
@@ -1630,7 +1630,7 @@ private fun EpisodeHorizontalRow(
         PosterShelfScrollOwner(shelfController) {
             LazyRow(
                 state = listState,
-                modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.remoteNavigationGroup().then(rowModifier),
+                modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.remoteNavigationGroup().then(rowModifier).then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
             ) {
@@ -1678,6 +1678,7 @@ private fun EpisodeHorizontalRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Left,
+                hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
@@ -1698,6 +1699,7 @@ private fun EpisodeHorizontalRow(
         ) {
             RowScrollNavButton(
                 direction = ScrollNavDirection.Right,
+                hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
                     coroutineScope.launch {
