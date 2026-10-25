@@ -72,6 +72,11 @@ internal class RemoteNavigationSession {
     val fastPosterScroll get() = posterMoveDirection != null && posterRepeatingDirection == posterMoveDirection
     var posterMoveGeneration = 0
     var navigationScope: CoroutineScope? = null
+    val contentViewports = mutableListOf<RemoteContentViewport>()
+    val pendingViewportRoutes = mutableSetOf<Any>()
+    var hostBounds: Rect? = null
+    var modalDepth = 0
+    var focusTransferReason by mutableStateOf(RemoteFocusTransferReason.Navigation)
 
     fun canEnterSidebar(): Boolean = !leftMovedDuringHold
 
@@ -132,8 +137,8 @@ internal class RemoteNavigationSession {
         return false
     }
 
-    fun restoreFocus(route: Any, manager: FocusManager): Boolean {
-        if (posterRestorationPending(route)) return true
+    fun restoreFocus(route: Any, manager: FocusManager): RemoteFocusRestoration {
+        if (posterRestorationPending(route)) return RemoteFocusRestoration.Pending
         val bounds = rememberedBounds[route]
         val candidates = targets.filter {
             it.route == route && it.manager === manager && (
@@ -142,7 +147,7 @@ internal class RemoteNavigationSession {
                 it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true
             )
         }
-        return candidates.sortedBy {
+        val restored = candidates.sortedBy {
             when {
                 it.identity == rememberedFocus[route] -> -1f
                 rememberedFocus[route] == null && it.initialFocus -> -0.5f
@@ -150,6 +155,7 @@ internal class RemoteNavigationSession {
                 else -> candidates.indexOf(it).toFloat()
             }
         }.any { it.requester.requestFocus() }
+        return if (restored) RemoteFocusRestoration.Restored else RemoteFocusRestoration.Unavailable
     }
 
     fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager, sourceOverride: RemoteFocusTarget? = null): Boolean {
@@ -281,6 +287,7 @@ internal class RemoteFocusTarget(val route: Any, val identity: Int, val requeste
     var shelfItem: PosterShelfItem? = null
     var poster: PosterNavigationItem? = null
     var bounds by mutableStateOf<Rect?>(null)
+    var visibleBounds: Rect? = null
     var focused by mutableStateOf(false)
     var reveal: suspend () -> Unit = {}
 }
@@ -404,10 +411,12 @@ internal fun RemoteNavigationHost(
     var hostHasFocus by remember { mutableStateOf(false) }
     val platformFocus = LocalRemotePlatformFocus.current
     val recoverFocus by rememberUpdatedState<(Boolean) -> Boolean> { force ->
-        if (hostHasFocus && !force && (session.focusedTarget != null || RemoteTextEditing.isTextInputFocused)) false else {
+        if (session.modalDepth > 0 || RemoteTextEditing.isTextInputFocused) false
+        else if (session.enterVisibleViewport(restorationKey, focusManager)) true
+        else if (hostHasFocus && !force && session.focusedTarget != null) false else {
             session.keyboard = true
             rootFocus.requestFocus()
-            if (!session.restoreFocus(restorationKey, focusManager)) focusManager.moveFocus(FocusDirection.Next)
+            if (session.restoreFocus(restorationKey, focusManager) == RemoteFocusRestoration.Unavailable) focusManager.moveFocus(FocusDirection.Next)
             true
         }
     }
@@ -436,49 +445,64 @@ internal fun RemoteNavigationHost(
         LocalRemoteNavigation provides session.takeIf { navigationEnabled },
         LocalRemoteRoute provides restorationKey,
     ) {
-        Box(
-            modifier = modifier.fillMaxSize().then(
-                if (navigationEnabled) Modifier
-                    .remoteNavigationPointerIcon()
-                    .pointerInput(session) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                if (event.type == PointerEventType.Press || event.type == PointerEventType.Scroll) {
-                                    session.keyboard = false
-                                    session.resetHoldState()
+        RemoteNavigationRevealPolicy {
+            Box(
+                modifier = modifier.fillMaxSize().then(
+                    if (navigationEnabled) Modifier
+                        .onGloballyPositioned { session.hostBounds = it.boundsInRoot() }
+                        .remoteNavigationPointerIcon()
+                        .pointerInput(session, restorationKey) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (event.type == PointerEventType.Press || event.type == PointerEventType.Scroll) {
+                                        session.keyboard = false
+                                        session.resetHoldState()
+                                        if (event.type == PointerEventType.Scroll && session.modalDepth == 0) session.manualScroll(restorationKey)
+                                        if (event.type == PointerEventType.Press && session.modalDepth == 0) {
+                                            session.focusTransferReason = RemoteFocusTransferReason.Navigation
+                                            session.posterPages.values.filter { it.route == restorationKey && it.active }
+                                                .forEach { it.cancelRestoration(discardBookmark = true) }
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                    .onPreviewKeyEvent {
-                        if (session.onPreviewKeyEvent(it)) return@onPreviewKeyEvent true
-                        if (it.type == KeyEventType.KeyDown && !RemoteTextEditing.isEditing &&
-                            (remoteDirection(it.key) != null || it.key == Key.Enter || it.key == Key.NumPadEnter || it.key == Key.Tab)) session.keyboard = true
-                        false
-                    }
-                    .onKeyEvent {
-                        if (it.key == Key.Backspace && !RemoteTextEditing.isTextInputFocused) {
-                            if (it.type == KeyEventType.KeyDown) RemoteNavigationDispatcher.dispatchBackspace()
-                            return@onKeyEvent true
-                        }
-                        val direction = remoteDirection(it.key)
-                        if (direction != null) {
-                            if (it.type == KeyEventType.KeyDown) {
-                                session.keyboard = true
-                                if (!rootFocused || !session.restoreFocus(restorationKey, focusManager)) {
-                                    focusManager.moveFocus(if (rootFocused) FocusDirection.Next else direction)
-                                }
+                        .onPreviewKeyEvent {
+                            if (it.type == KeyEventType.KeyDown &&
+                                (remoteDirection(it.key) != null || it.key == Key.Enter || it.key == Key.NumPadEnter || it.key == Key.Tab) &&
+                                session.modalDepth == 0 && !RemoteTextEditing.isTextInputFocused) {
+                                if (remoteDirection(it.key) != null && session.enterVisibleViewport(restorationKey, focusManager)) return@onPreviewKeyEvent true
+                                session.focusTransferReason = RemoteFocusTransferReason.Navigation
                             }
-                            true
-                        } else false
-                    }
-                    .focusRequester(rootFocus)
-                    .onFocusChanged { rootFocused = it.isFocused; hostHasFocus = it.hasFocus }
-                    .focusable()
-                else Modifier,
-            ),
-        ) { content() }
+                            if (session.onPreviewKeyEvent(it)) return@onPreviewKeyEvent true
+                            if (it.type == KeyEventType.KeyDown && !RemoteTextEditing.isEditing &&
+                                (remoteDirection(it.key) != null || it.key == Key.Enter || it.key == Key.NumPadEnter || it.key == Key.Tab)) session.keyboard = true
+                            false
+                        }
+                        .onKeyEvent {
+                            if (it.key == Key.Backspace && !RemoteTextEditing.isTextInputFocused) {
+                                if (it.type == KeyEventType.KeyDown) RemoteNavigationDispatcher.dispatchBackspace()
+                                return@onKeyEvent true
+                            }
+                            val direction = remoteDirection(it.key)
+                            if (direction != null) {
+                                if (it.type == KeyEventType.KeyDown) {
+                                    session.keyboard = true
+                                    if (!rootFocused || session.restoreFocus(restorationKey, focusManager) == RemoteFocusRestoration.Unavailable) {
+                                        focusManager.moveFocus(if (rootFocused) FocusDirection.Next else direction)
+                                    }
+                                }
+                                true
+                            } else false
+                        }
+                        .focusRequester(rootFocus)
+                        .onFocusChanged { rootFocused = it.isFocused; hostHasFocus = it.hasFocus }
+                        .focusable()
+                    else Modifier,
+                ),
+            ) { content() }
+        }
     }
 }
 
@@ -555,8 +579,9 @@ internal fun Modifier.remoteNavigationTarget(
     LaunchedEffect(route) {
         if (session.keyboard && !session.explicitFocusTransfer && !session.posterRestorationPending(route) && session.rememberedFocus[route] == identity) requester.requestFocus()
     }
-    LaunchedEffect(focused, session.keyboard) {
-        if (focused && session.keyboard && !session.explicitFocusTransfer && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
+    LaunchedEffect(focused, session.keyboard, session.focusTransferReason) {
+        if (focused && session.keyboard && session.focusTransferReason != RemoteFocusTransferReason.ViewportEntry &&
+            !session.explicitFocusTransfer && !initialFocus && effectiveRole != RemoteNavigationRole.Back && effectiveRole != RemoteNavigationRole.Sidebar) {
             if (shelfItem != null) {
                 // Horizontal reveal belongs to the shelf; retain page-level vertical reveal.
                 if (poster == null) {
@@ -582,6 +607,7 @@ internal fun Modifier.remoteNavigationTarget(
         .onGloballyPositioned { coordinates ->
             val position = coordinates.positionInRoot()
             target.bounds = Rect(position.x, position.y, position.x + coordinates.size.width, position.y + coordinates.size.height)
+            target.visibleBounds = coordinates.boundsInRoot()
             if (focused) session.rememberedBounds[route] = target.bounds!!
         }
         .onFocusChanged {
@@ -991,8 +1017,8 @@ private fun Modifier.remoteNavigationDirection(key: Key, onDown: (suspend () -> 
 internal fun Modifier.remoteNavigationScrollToTop(state: LazyListState): Modifier = composed {
     val session = LocalRemoteNavigation.current ?: return@composed this
     var hasFocus by remember { mutableStateOf(false) }
-    LaunchedEffect(hasFocus, session.keyboard, session.focusedTarget) {
-        if (hasFocus && session.keyboard) {
+    LaunchedEffect(hasFocus, session.keyboard, session.focusedTarget, session.focusTransferReason) {
+        if (hasFocus && session.keyboard && session.focusTransferReason != RemoteFocusTransferReason.ViewportEntry) {
             // Let child focus reveal finish before aligning the complete hero.
             delay(300)
             state.animateScrollToItem(0)
@@ -1010,7 +1036,12 @@ internal fun Modifier.remoteNavigationModal(onDismissRequest: (() -> Unit)? = nu
     var consumeOpeningEnter by remember { mutableStateOf(session.enterHeld) }
     LaunchedEffect(Unit) { requester.requestFocus() }
     DisposableEffect(Unit) {
-        onDispose { if (session.keyboard) runCatching { opener?.requestFocus() } }
+        session.modalDepth++
+        session.posterPages.values.filter { it.active }.forEach { it.cancelRestoration(discardBookmark = true) }
+        onDispose {
+            session.modalDepth--
+            if (session.keyboard) runCatching { opener?.requestFocus() }
+        }
     }
     this.remoteNavigationPointerIcon().focusRequester(requester)
         .onPreviewKeyEvent { event ->

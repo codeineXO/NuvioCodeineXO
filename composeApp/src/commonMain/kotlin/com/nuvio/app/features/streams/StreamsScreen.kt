@@ -340,6 +340,7 @@ fun StreamsScreen(
         ) {
             NuvioBackButton(
                 usePageStyle = true,
+                keyboardNavigationEnabled = false,
                 onClick = onBack,
                 modifier = if (isDesktop) Modifier else Modifier.size(40.dp),
                 containerColor = if (isDesktop) {

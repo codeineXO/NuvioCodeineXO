@@ -118,7 +118,7 @@ fun NuvioScreen(
         CompositionLocalProvider(LocalScreenHeaderInset provides true) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.remoteNavigationGroup().fillMaxSize().navigationGlassSource(zIndex = 1f),
+                modifier = Modifier.remoteNavigationViewport(listState).remoteNavigationGroup().fillMaxSize().navigationGlassSource(zIndex = 1f),
                 contentPadding = PaddingValues(
                     start = pagePadding,
                     top = topPadding ?: if (isDesktop) 0.dp else tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding,

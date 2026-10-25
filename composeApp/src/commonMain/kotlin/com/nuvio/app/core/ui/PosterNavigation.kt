@@ -6,12 +6,17 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.*
 import androidx.compose.ui.focus.FocusDirection
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 
 internal enum class PosterTargetRole { Poster, Header, EndAction }
 internal enum class PosterRowReveal { PreservePosition, Centered }
+internal enum class PosterRestorationState { Idle, Pending, Running }
 internal data class PosterMoveCommand(val source: RemoteFocusTarget, val direction: FocusDirection, val repeated: Boolean)
 internal data class PosterNavigationItem(
     val page: String, val row: Any, val content: Any?, val index: Int,
@@ -31,7 +36,16 @@ internal class PosterNavigationPage {
     var active = false
     var origin: PosterOrigin? = null
     var lane: Float? = null
-    var restoring = false
+    var restorationState = PosterRestorationState.Idle
+    var restorationGeneration = 0
+    var restorationJob: Job? = null
+    fun cancelRestoration(discardBookmark: Boolean = false) {
+        restorationGeneration++
+        restorationState = PosterRestorationState.Idle
+        restorationJob?.cancel()
+        restorationJob = null
+        if (discardBookmark) origin = null
+    }
     val shelves = mutableMapOf<Any, LazyListState>()
 }
 internal val LocalPosterNavigationItem = staticCompositionLocalOf<PosterNavigationItem?> { null }
@@ -58,10 +72,20 @@ internal fun RemotePosterItem(id: Any?, index: Int, role: PosterTargetRole = Pos
 internal fun BindPosterShelf(state: LazyListState) {
     val session = LocalRemoteNavigation.current ?: return
     val row = LocalPosterNavigationRow.current ?: return
+    val route = LocalRemoteRoute.current
+    val active = LocalScreenActive.current
     DisposableEffect(session, row, state) {
         val page = session.posterPages.getOrPut(row.first) { PosterNavigationPage() }
         page.shelves[row.second] = state
         onDispose { if (page.shelves[row.second] === state) page.shelves.remove(row.second) }
+    }
+    LaunchedEffect(session, row, state, active) {
+        if (active) snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
+            .drop(1).collect {
+                if (!session.keyboard && !session.explicitFocusTransfer && !session.posterRestorationPending(route)) {
+                    session.manualScroll(route)
+                }
+            }
     }
 }
 
@@ -76,6 +100,7 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
     SideEffect {
         if (page.context != context) {
             session.cancelPosterNavigation(pageId)
+            page.cancelRestoration()
             page.origin = null
             page.lane = null
             page.context = context
@@ -85,41 +110,63 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
         page.rows = rows
         page.state = state
         page.route = route
+        if (active && !page.active && page.origin != null) {
+            page.restorationState = PosterRestorationState.Pending
+        }
         page.active = active
-        if (!active) session.cancelPosterNavigation(pageId)
+        if (!active) {
+            page.cancelRestoration()
+            session.cancelPosterNavigation(pageId)
+        }
     }
-    DisposableEffect(page) { onDispose { page.active = false; session.cancelPosterNavigation(pageId) } }
+    DisposableEffect(page) { onDispose { page.active = false; page.cancelRestoration(); session.cancelPosterNavigation(pageId) } }
     LaunchedEffect(active, context) {
         if (!active || page.origin == null) return@LaunchedEffect
-        page.restoring = true
+        val origin = page.origin ?: return@LaunchedEffect
+        val generation = ++page.restorationGeneration
+        page.restorationState = PosterRestorationState.Running
+        page.restorationJob = currentCoroutineContext()[Job]
+        var completed = false
+        var restored = false
         try {
-            withFrameNanos { }
-            snapshotFlow { currentLoading }.first { !it }
-            val origin = page.origin ?: return@LaunchedEffect
-            if (origin.context != context) return@LaunchedEffect
-            val row = page.rows.firstOrNull { it.grid && origin.content in it.items }
-                ?: page.rows.firstOrNull { it.key == origin.row && it.items.isNotEmpty() }
-                ?: page.rows.filter { it.items.isNotEmpty() }.minByOrNull { abs(page.rows.indexOf(it) - origin.rowIndex) }
-            if (row != null) {
-                val neighbor = origin.neighbors.withIndex().filter { it.value in row.items }
-                    .minByOrNull { abs(it.index - origin.index) }?.value
-                val index = row.items.indexOf(origin.content).takeIf { it >= 0 }
-                    ?: row.items.indexOf(neighbor).takeIf { it >= 0 }
-                    ?: origin.index.coerceIn(0, row.items.lastIndex)
-                if (state.layoutInfo.totalItemsCount > origin.pageIndex) state.scrollToItem(origin.pageIndex, origin.pageOffset)
-                session.revealPosterRow(pageId, row)
-                page.shelves[row.key]?.let { shelf ->
-                    shelf.scrollToItem(origin.shelfIndex.coerceAtMost(row.items.lastIndex), origin.shelfOffset)
-                }
-                if (!session.focusPoster(pageId, row, index)) return@LaunchedEffect
-            } else {
-                // Empty pages retain a useful input, retry or content action.
+            restored = withTimeoutOrNull(5_000) {
                 withFrameNanos { }
-                session.targets.firstOrNull { it.route == route && it.role != RemoteNavigationRole.Sidebar && it.bounds != null }
-                    ?.requester?.requestFocus()
+                snapshotFlow { currentLoading }.first { !it }
+                if (origin.context != context || !page.active) return@withTimeoutOrNull false
+                val row = page.rows.firstOrNull { it.grid && origin.content in it.items }
+                    ?: page.rows.firstOrNull { it.key == origin.row && it.items.isNotEmpty() }
+                    ?: page.rows.filter { it.items.isNotEmpty() }.minByOrNull { abs(page.rows.indexOf(it) - origin.rowIndex) }
+                if (row != null) {
+                    val neighbor = origin.neighbors.withIndex().filter { it.value in row.items }
+                        .minByOrNull { abs(it.index - origin.index) }?.value
+                    val index = row.items.indexOf(origin.content).takeIf { it >= 0 }
+                        ?: row.items.indexOf(neighbor).takeIf { it >= 0 }
+                        ?: origin.index.coerceIn(0, row.items.lastIndex)
+                    if (state.layoutInfo.totalItemsCount > origin.pageIndex) state.scrollToItem(origin.pageIndex, origin.pageOffset)
+                    session.revealPosterRow(pageId, row)
+                    page.shelves[row.key]?.let { shelf ->
+                        shelf.scrollToItem(origin.shelfIndex.coerceAtMost(row.items.lastIndex), origin.shelfOffset)
+                    }
+                    session.focusPoster(pageId, row, index)
+                } else {
+                    // Empty pages retain a useful input, retry or content action.
+                    withFrameNanos { }
+                    session.focusAvailableContent(route)
+                }
+            } == true
+            completed = true
+            if (!restored) {
+                // Commit fallback focus on the scene's frame, never on the timeout timer.
+                withFrameNanos { }
+                if (page.restorationGeneration == generation && page.active) session.focusAvailableContent(route)
             }
-            page.origin = null
-        } finally { page.restoring = false }
+        } finally {
+            if (page.restorationGeneration == generation) {
+                page.restorationState = PosterRestorationState.Idle
+                page.restorationJob = null
+                if (completed && page.origin === origin) page.origin = null
+            }
+        }
     }
 }
 
@@ -128,6 +175,9 @@ internal fun RemoteNavigationSession.capturePosterOrigin(item: PosterNavigationI
     cancelPosterNavigation(item.page)
     val page = posterPages[item.page] ?: return
     val state = page.state ?: return
+    pendingViewportRoutes -= page.route
+    page.cancelRestoration()
+    focusTransferReason = RemoteFocusTransferReason.Navigation
     val shelf = page.shelves[item.row]
     page.origin = PosterOrigin(page.context, item.row, item.content, item.index,
         page.rows.indexOfFirst { it.key == item.row }, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset,
@@ -136,7 +186,7 @@ internal fun RemoteNavigationSession.capturePosterOrigin(item: PosterNavigationI
 }
 
 internal fun RemoteNavigationSession.posterRestorationPending(route: Any): Boolean =
-    posterPages.values.any { it.route == route && it.active && (it.origin != null || it.restoring) }
+    posterPages.values.any { it.route == route && it.active && it.restorationState != PosterRestorationState.Idle }
 
 internal fun RemoteNavigationSession.handlesPosterDirection(item: PosterNavigationItem?, direction: FocusDirection): Boolean {
     if (item == null || item.role == PosterTargetRole.Header) return false
@@ -377,7 +427,9 @@ internal suspend fun RemoteNavigationSession.focusPoster(
         val target = withTimeoutOrNull(1500) {
             snapshotFlow { targets.firstOrNull { it.poster?.let { p -> p.page == pageId && p.row == row.key && p.index == index && p.role == PosterTargetRole.Poster } == true && it.bounds != null } }.first { it != null }
         }
-        val focused = target != null && (focusedTarget === target || target.requester.requestFocus())
+        currentCoroutineContext().ensureActive()
+        val focused = posterPages[pageId]?.active == true && target != null &&
+            (focusedTarget === target || target.requester.requestFocus())
         withFrameNanos { }
         withFrameNanos { }
         focused
