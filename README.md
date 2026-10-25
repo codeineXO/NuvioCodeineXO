@@ -43,7 +43,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **CodeineXO Aura & Frosted Glass Aesthetics:** Ambient interactive background glow with frosted glass styling across panels, cards and surfaces.
 * **Redesigned the Sidebar:** Floating sidebar with frosted glass style. 
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
-* **Touchscreen Navigation:** Supports full touchscreen navigation on windows desktop.
+* **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
 * **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
