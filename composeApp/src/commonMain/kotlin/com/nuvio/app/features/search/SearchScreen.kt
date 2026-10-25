@@ -574,14 +574,6 @@ fun SearchScreen(
                             val section = keyedSection.value
                             RemotePosterRow("search", keyedSection.lazyKey) {
                                 Box(modifier = Modifier.padding(bottom = sectionBottomPadding).then(searchBackdropModifier)) {
-                                    if (isDesktop) {
-                                        Box(
-                                            modifier = Modifier.matchParentSize().navigationGlass(
-                                                shape = MaterialTheme.nuvio.shapes.compactCard,
-                                                backgroundOnly = true,
-                                            ),
-                                        )
-                                    }
                                     HomeCatalogRowSection(
                                         section = section,
                                         sectionPadding = effectivePosterSectionPadding,
