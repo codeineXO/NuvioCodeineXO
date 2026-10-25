@@ -11,6 +11,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.navigationGlassFeedback
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_tab_all
 import nuvio.composeapp.generated.resources.streams_refresh
@@ -184,7 +186,13 @@ private fun FilterChip(
             }
             .height(36.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(containerColor)
+            .then(
+                if (LocalStreamResultsGlass.current) {
+                    (if (isSelected) Modifier.background(containerColor) else Modifier.streamResultsSurface())
+                        .navigationGlassFeedback(interactionSource, RoundedCornerShape(16.dp))
+                        .hoverable(interactionSource)
+                } else Modifier.background(containerColor),
+            )
             .remoteNavigationTarget(
                 shape = RoundedCornerShape(16.dp),
                 focusOutlineColor = if (isSelected) Color.White else null,

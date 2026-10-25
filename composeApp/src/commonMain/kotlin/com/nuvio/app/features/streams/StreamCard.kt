@@ -14,6 +14,8 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.secondaryClickAt
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.navigationGlassFeedback
 import com.nuvio.app.core.ui.SkeletonBlock
 import com.nuvio.app.features.debrid.DebridProviders
 import com.nuvio.app.features.player.LocalPlayerHazeState
@@ -92,6 +95,8 @@ internal fun StreamCard(
     val marked = isCurrent || highlightLabel != null
     val markedLabel = if (isCurrent) currentLabel else highlightLabel
     val cardShape = RoundedCornerShape(12.dp)
+    val resultsGlass = LocalStreamResultsGlass.current
+    val interactionSource = remember { MutableInteractionSource() }
     val playerHazeState = LocalPlayerHazeState.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
@@ -110,7 +115,11 @@ internal fun StreamCard(
             )
             .clip(cardShape)
             .then(
-                if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
+                if (resultsGlass) {
+                    Modifier.streamResultsSurface().then(
+                        if (marked) Modifier.background(primaryColor.copy(alpha = 0.12f)) else Modifier,
+                    )
+                } else if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
                     Modifier.hazeEffect(state = playerHazeState) {
                         blurRadius = 160.dp
                         noiseFactor = 0f
@@ -175,7 +184,15 @@ internal fun StreamCard(
                     Modifier
                 },
             )
+            .then(
+                if (resultsGlass) Modifier
+                    .navigationGlassFeedback(interactionSource, cardShape)
+                    .hoverable(interactionSource)
+                else Modifier,
+            )
             .remoteNavigationTarget(shape = cardShape).combinedClickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
                 enabled = enabled,
                 onClick = onClick,
                 onLongClick = if (isDesktop) null else onLongClick,
@@ -284,7 +301,9 @@ internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
             .heightIn(min = 68.dp)
             .clip(cardShape)
             .then(
-                if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
+                if (LocalStreamResultsGlass.current) {
+                    Modifier.streamResultsSurface()
+                } else if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
                     Modifier.hazeEffect(state = playerHazeState) {
                         blurRadius = 160.dp
                         noiseFactor = 0f

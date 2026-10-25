@@ -57,7 +57,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -73,7 +72,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
@@ -84,6 +82,8 @@ import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassFeedback
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
@@ -634,7 +634,7 @@ internal fun ResumeBanner(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+            .then(if (LocalStreamResultsGlass.current) Modifier.streamResultsSurface() else Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
@@ -1294,9 +1294,7 @@ private fun DesktopStreamActionsMenu(
         Column(
             modifier = Modifier
                 .width(244.dp)
-                .shadow(elevation = 14.dp, shape = menuShape)
-                .clip(menuShape)
-                .background(MaterialTheme.colorScheme.surface)
+                .navigationGlass(shape = menuShape, panel = true)
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
@@ -1323,7 +1321,6 @@ private fun DesktopStreamActionRow(
     onSelected: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     val rowShape = RoundedCornerShape(5.dp)
 
     Row(
@@ -1331,13 +1328,7 @@ private fun DesktopStreamActionRow(
             .fillMaxWidth()
             .height(38.dp)
             .clip(rowShape)
-            .background(
-                if (isHovered) {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.09f)
-                } else {
-                    Color.Transparent
-                },
-            )
+            .navigationGlassFeedback(interactionSource, rowShape)
             .hoverable(interactionSource)
             .remoteNavigationTarget(shape = rowShape).clickable(
                 interactionSource = interactionSource,
