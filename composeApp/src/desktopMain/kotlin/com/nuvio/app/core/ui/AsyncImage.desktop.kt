@@ -9,20 +9,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asComposeImageBitmap
-import androidx.compose.ui.graphics.asSkiaBitmap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
-import coil3.BitmapImage
-import coil3.Image
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -34,23 +25,13 @@ import coil3.request.ImageRequest
 import coil3.request.NullRequestDataException
 import coil3.size.Dimension
 import coil3.size.SizeResolver
+import coil3.size.Scale
+import kotlin.math.ceil
 import coil3.size.Size as CoilSize
-import org.jetbrains.skia.Bitmap
-import org.jetbrains.skia.FilterMipmap
-import org.jetbrains.skia.FilterMode
-import org.jetbrains.skia.Image as SkiaImage
-import org.jetbrains.skia.MipmapMode
-import kotlin.math.max
-import kotlin.math.roundToInt
 
-private const val MinCustomDownscaleRatio = 1.08f
-private const val MaxDesktopSourceSizePx = 1536
-private const val MaxScaledBitmapPixels = 1_250_000L
-
-private val IsWindowsDesktop: Boolean =
-    System.getProperty("os.name")
-        ?.startsWith("Windows", ignoreCase = true)
-        ?: false
+// ConstraintsSizeResolver already reports physical pixels, including fractional display density.
+// Covers the existing hover enlargement and the hero's 1.14x background scale.
+private const val DesktopDecodeHeadroom = 1.25
 
 private val AlwaysPlaying: () -> Boolean = { true }
 private val NeverPlaying: () -> Boolean = { false }
@@ -92,13 +73,11 @@ internal actual fun NuvioAsyncImage(
 
     val context = LocalPlatformContext.current
     val constraintsSizeResolver = remember { ConstraintsSizeResolver() }
-    val effectiveDesktopImageScaling = remember(desktopImageScaling) {
-        if (IsWindowsDesktop) desktopImageScaling else NuvioDesktopImageScaling.Disabled
-    }
-    val requestModel = remember(context, model, effectiveDesktopImageScaling, constraintsSizeResolver, animated) {
+    val requestModel = remember(context, model, desktopImageScaling, constraintsSizeResolver, animated, contentScale) {
         model.withDesktopImageOptions(
             context = context,
-            highQualitySize = effectiveDesktopImageScaling != NuvioDesktopImageScaling.Disabled,
+            highQualitySize = desktopImageScaling != NuvioDesktopImageScaling.Disabled,
+            scale = if (contentScale == ContentScale.Fit || contentScale == ContentScale.Inside) Scale.FIT else Scale.FILL,
             resolver = constraintsSizeResolver,
             animated = animated,
         )
@@ -107,7 +86,6 @@ internal actual fun NuvioAsyncImage(
         placeholder,
         error,
         fallback,
-        effectiveDesktopImageScaling,
         playing,
     ) {
         transform@{ state ->
@@ -120,9 +98,7 @@ internal actual fun NuvioAsyncImage(
                     if (image is AnimatedSkiaImage) {
                         return@transform state.copy(painter = image.painter(playing))
                     }
-                    image.toScaledBitmapPainter(effectiveDesktopImageScaling)
-                        ?.let { state.copy(painter = it) }
-                        ?: state
+                    state
                 }
                 is AsyncImagePainter.State.Error -> {
                     val fallbackPainter = if (state.result.throwable is NullRequestDataException) {
@@ -167,11 +143,12 @@ internal actual fun NuvioAsyncImage(
     )
 }
 
-internal fun Any?.withDesktopHighQualitySize(context: PlatformContext, resolver: SizeResolver): Any? {
+internal fun Any?.withDesktopHighQualitySize(context: PlatformContext, resolver: SizeResolver, scale: Scale = Scale.FIT): Any? {
     if (this == null) return null
     if (this is ImageRequest && defined.sizeResolver != null) return this
 
     val builder = if (this is ImageRequest) newBuilder() else ImageRequest.Builder(context).data(this)
+    if (this !is ImageRequest || defined.scale == null) builder.scale(scale)
     return builder.size(object : SizeResolver {
         override suspend fun size(): CoilSize = desktopDecodeSize(resolver.size())
     }).build()
@@ -179,8 +156,8 @@ internal fun Any?.withDesktopHighQualitySize(context: PlatformContext, resolver:
 
 internal fun desktopDecodeSize(size: CoilSize): CoilSize {
     fun Dimension.withHeadroom(): Dimension = when (this) {
-        is Dimension.Pixels -> Dimension.Pixels((px.toLong() * 5 / 4).coerceIn(1, MaxDesktopSourceSizePx.toLong()).toInt())
-        else -> Dimension.Pixels(MaxDesktopSourceSizePx)
+        is Dimension.Pixels -> Dimension.Pixels(ceil(px * DesktopDecodeHeadroom).toLong().coerceIn(1, Int.MAX_VALUE.toLong()).toInt())
+        else -> this
     }
     return CoilSize(size.width.withHeadroom(), size.height.withHeadroom())
 }
@@ -189,150 +166,15 @@ internal fun desktopDecodeSize(size: CoilSize): CoilSize {
 private fun Any?.withDesktopImageOptions(
     context: PlatformContext,
     highQualitySize: Boolean,
+    scale: Scale,
     resolver: SizeResolver,
     animated: Boolean,
 ): Any? {
-    val sizedModel = if (highQualitySize) withDesktopHighQualitySize(context, resolver) else this
+    val sizedModel = if (highQualitySize) withDesktopHighQualitySize(context, resolver, scale) else this
     if (sizedModel == null || !animated) return sizedModel
     val builder = if (sizedModel is ImageRequest) sizedModel.newBuilder() else ImageRequest.Builder(context).data(sizedModel)
     return builder.apply {
         extras[NuvioAnimatedImageKey] = true
         memoryCacheKeyExtra("nuvio.animated", "true")
     }.build()
-}
-
-private fun Image.toScaledBitmapPainter(desktopImageScaling: NuvioDesktopImageScaling): Painter? {
-    if (desktopImageScaling == NuvioDesktopImageScaling.Disabled) return null
-
-    return (this as? BitmapImage)
-        ?.bitmap
-        ?.asComposeImageBitmap()
-        ?.let { imageBitmap -> ScaledBitmapPainter(imageBitmap) }
-}
-
-private class ScaledBitmapPainter(
-    private val image: ImageBitmap,
-) : Painter() {
-    private var cachedSize: IntSize? = null
-    private var cachedBitmap: ImageBitmap? = null
-    private var alpha: Float = DefaultAlpha
-    private var colorFilter: ColorFilter? = null
-
-    override val intrinsicSize: Size =
-        Size(image.width.toFloat(), image.height.toFloat())
-
-    override fun DrawScope.onDraw() {
-        val drawSize = IntSize(
-            width = size.width.roundToInt().coerceAtLeast(1),
-            height = size.height.roundToInt().coerceAtLeast(1),
-        )
-        if (!shouldUseScaledBitmap(drawSize)) {
-            drawSource(drawSize)
-            return
-        }
-
-        val cacheSize = drawSize.cacheSize()
-        if (cacheSize.pixelCount() > MaxScaledBitmapPixels) {
-            drawSource(drawSize)
-            return
-        }
-
-        val bitmap = scaledBitmap(cacheSize)
-
-        drawImage(
-            image = bitmap,
-            srcOffset = IntOffset.Zero,
-            srcSize = cacheSize,
-            dstOffset = IntOffset.Zero,
-            dstSize = drawSize,
-            alpha = alpha,
-            colorFilter = colorFilter,
-            filterQuality = if (cacheSize == drawSize) FilterQuality.None else FilterQuality.Medium,
-        )
-    }
-
-    override fun applyAlpha(alpha: Float): Boolean {
-        this.alpha = alpha
-        return true
-    }
-
-    override fun applyColorFilter(colorFilter: ColorFilter?): Boolean {
-        this.colorFilter = colorFilter
-        return true
-    }
-
-    private fun scaledBitmap(size: IntSize): ImageBitmap {
-        cachedBitmap?.let { bitmap ->
-            if (cachedSize == size) return bitmap
-        }
-        return image.scale(size.width, size.height).also { bitmap ->
-            cachedSize = size
-            cachedBitmap = bitmap
-        }
-    }
-
-    private fun DrawScope.drawSource(drawSize: IntSize) {
-        drawImage(
-            image = image,
-            srcOffset = IntOffset.Zero,
-            srcSize = IntSize(image.width, image.height),
-            dstOffset = IntOffset.Zero,
-            dstSize = drawSize,
-            alpha = alpha,
-            colorFilter = colorFilter,
-            filterQuality = FilterQuality.High,
-        )
-    }
-
-    private fun shouldUseScaledBitmap(drawSize: IntSize): Boolean {
-        if (drawSize.pixelCount() > MaxScaledBitmapPixels) return false
-
-        val widthScale = image.width.toFloat() / drawSize.width.toFloat()
-        val heightScale = image.height.toFloat() / drawSize.height.toFloat()
-        return max(widthScale, heightScale) >= MinCustomDownscaleRatio
-    }
-
-    private fun IntSize.cacheSize(): IntSize {
-        val quantum = cacheQuantum()
-        return IntSize(
-            width = width.roundUpTo(quantum),
-            height = height.roundUpTo(quantum),
-        )
-    }
-
-    private fun IntSize.cacheQuantum(): Int {
-        val longestSide = max(width, height)
-        return when {
-            longestSide >= 1200 -> 16
-            longestSide >= 600 -> 8
-            longestSide >= 200 -> 4
-            else -> 2
-        }
-    }
-
-    private fun Int.roundUpTo(quantum: Int): Int =
-        ((this + quantum - 1) / quantum) * quantum
-
-    private fun IntSize.pixelCount(): Long =
-        width.toLong() * height.toLong()
-
-    private fun ImageBitmap.scale(width: Int, height: Int): ImageBitmap {
-        val image = SkiaImage.makeFromBitmap(asSkiaBitmap())
-        return try {
-            image.scale(width, height)
-        } finally {
-            image.close()
-        }
-    }
-
-    private fun SkiaImage.scale(width: Int, height: Int): ImageBitmap {
-        val bitmap = Bitmap()
-        bitmap.allocN32Pixels(width, height)
-        scalePixels(
-            bitmap.peekPixels()!!,
-            FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
-            false,
-        )
-        return bitmap.asComposeImageBitmap()
-    }
 }

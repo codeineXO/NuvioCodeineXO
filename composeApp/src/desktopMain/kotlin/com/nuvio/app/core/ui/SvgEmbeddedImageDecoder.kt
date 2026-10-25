@@ -8,7 +8,10 @@ import coil3.fetch.SourceFetchResult
 import coil3.request.ImageRequest
 import coil3.request.Options
 import coil3.request.SuccessResult
+import coil3.size.Dimension
+import coil3.size.Scale
 import coil3.size.Size
+import kotlin.math.ceil
 import coil3.toBitmap
 import java.net.URLDecoder
 import java.util.Base64
@@ -17,16 +20,10 @@ import kotlinx.coroutines.coroutineScope
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Data
-import org.jetbrains.skia.FilterMipmap
-import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
-import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.svg.SVGDOM
-
-private const val TARGET_WIDTH = 800f
-private const val MAX_SCALE = 4f
 
 private val imageTag = Regex("<image\\b[^>]*>", RegexOption.IGNORE_CASE)
 private val rootTag = Regex("<svg\\b[^>]*>", RegexOption.IGNORE_CASE)
@@ -41,7 +38,12 @@ private class EmbeddedImage(
     val preserveAspectRatio: String,
 )
 
-internal suspend fun renderSvgWithImages(svg: String, loadImage: suspend (String) -> Image?): Bitmap? {
+internal suspend fun renderSvgWithImages(
+    svg: String,
+    requestedSize: Size = Size.ORIGINAL,
+    requestedScale: Scale = Scale.FIT,
+    loadImage: suspend (String) -> Image?,
+): Bitmap? {
     val tags = imageTag.findAll(svg).map { it.value }.toList()
     val stripped = svg.replace(imageTag, "").replace("</image>", "", ignoreCase = true)
     val root = rootTag.find(stripped)?.value ?: return null
@@ -73,9 +75,13 @@ internal suspend fun renderSvgWithImages(svg: String, loadImage: suspend (String
         images.map { async { loadImage(it.href) } }.map { it.await() }
     }
 
-    val scale = (TARGET_WIDTH / width).coerceIn(1f, MAX_SCALE)
+    val ratios = listOfNotNull(
+        (requestedSize.width as? Dimension.Pixels)?.px?.div(width),
+        (requestedSize.height as? Dimension.Pixels)?.px?.div(height),
+    )
+    val scale = (if (requestedScale == Scale.FILL) ratios.maxOrNull() else ratios.minOrNull()) ?: 1f
     val bitmap = Bitmap().apply {
-        allocPixels(ImageInfo.makeN32Premul((width * scale).toInt().coerceAtLeast(1), (height * scale).toInt().coerceAtLeast(1)))
+        allocPixels(ImageInfo.makeN32Premul(ceil(width * scale).toInt().coerceAtLeast(1), ceil(height * scale).toInt().coerceAtLeast(1)))
     }
     val dom = SVGDOM(Data.makeFromBytes(stripped.encodeToByteArray()))
     val canvas = Canvas(bitmap)
@@ -94,7 +100,7 @@ internal suspend fun renderSvgWithImages(svg: String, loadImage: suspend (String
                 image,
                 Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                 dst,
-                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+                DesktopArtworkSampling,
                 null,
                 true,
             )
@@ -157,8 +163,8 @@ class SvgEmbeddedImageDecoder(
 ) : Decoder {
 
     override suspend fun decode(): DecodeResult? {
-        val bitmap = renderSvgWithImages(svg, ::load) ?: return null
-        return DecodeResult(image = bitmap.asImage(), isSampled = false)
+        val bitmap = renderSvgWithImages(svg, options.size, options.scale, ::load) ?: return null
+        return DecodeResult(image = bitmap.asImage(), isSampled = true)
     }
 
     private suspend fun load(href: String): Image? = runCatching {

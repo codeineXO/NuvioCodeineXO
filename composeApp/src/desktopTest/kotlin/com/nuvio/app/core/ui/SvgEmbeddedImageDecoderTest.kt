@@ -21,6 +21,17 @@ private const val BLUE = 0xFF0000FF.toInt()
 
 class SvgEmbeddedImageDecoderTest {
     @Test
+    fun vectorArtworkUsesPhysicalRequestSizeBeyondTheOldCeiling() = runBlocking {
+        val svg = """<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><image href="x" width="320" height="180"/></svg>"""
+        val bitmap = renderSvgWithImages(svg, coil3.size.Size(2560, 1440)) { solid(RED, 320, 180) }
+        assertNotNull(bitmap)
+        bitmap.use {
+            assertEquals(2560, it.width)
+            assertEquals(1440, it.height)
+        }
+    }
+
+    @Test
     fun externalImageIsDrawnOverBackground() = runBlocking {
         val svg = """
             <svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">

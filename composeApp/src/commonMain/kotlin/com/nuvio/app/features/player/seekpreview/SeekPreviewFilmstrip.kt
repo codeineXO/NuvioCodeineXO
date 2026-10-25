@@ -184,6 +184,7 @@ private fun FilmstripRow(
                             image = thumbnail.sheetBitmap,
                             srcOffset = IntOffset(thumbnail.tile.x, thumbnail.tile.y),
                             srcSize = IntSize(thumbnail.tile.w, thumbnail.tile.h),
+                            filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
                         )
                     }
 

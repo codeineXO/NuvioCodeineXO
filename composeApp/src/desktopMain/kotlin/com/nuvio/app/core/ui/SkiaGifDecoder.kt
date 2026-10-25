@@ -7,6 +7,11 @@ import coil3.decode.Decoder
 import coil3.decode.ImageSource
 import coil3.fetch.SourceFetchResult
 import coil3.request.Options
+import coil3.size.Dimension
+import coil3.size.Scale
+import coil3.size.Size
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.ceil
 import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,9 +22,6 @@ import org.jetbrains.skia.Data
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
 import org.jetbrains.skia.Rect
-import org.jetbrains.skia.SamplingMode
-
-private const val MAX_FRAME_DIMENSION = 512
 
 /**
  * Decodes GIFs (and, on request, animated WebPs) with Skia.
@@ -27,10 +29,12 @@ private const val MAX_FRAME_DIMENSION = 512
  * By default only the first frame is decoded, downscaled to keep memory low. When the request sets
  * [NuvioAnimatedImageKey] the result is an [AnimatedSkiaImage] that [NuvioAsyncImage] plays back.
  */
-class SkiaGifDecoder(
+class SkiaGifDecoder internal constructor(
     private val source: ImageSource,
     private val animate: Boolean = false,
     private val isGif: Boolean = true,
+    private val requestedSize: Size = Size.ORIGINAL,
+    private val requestedScale: Scale = Scale.FIT,
 ) : Decoder {
 
     override suspend fun decode(): DecodeResult? {
@@ -102,9 +106,9 @@ class SkiaGifDecoder(
     }
 
     private fun decodeStill(codec: Codec, w: Int, h: Int): DecodeResult {
-        val scale = minOf(1f, MAX_FRAME_DIMENSION.toFloat() / w, MAX_FRAME_DIMENSION.toFloat() / h)
-        val tw = (w * scale).toInt().coerceAtLeast(1)
-        val th = (h * scale).toInt().coerceAtLeast(1)
+        val target = desktopSourceDecodeSize(w, h, requestedSize, requestedScale)
+        val tw = target.width
+        val th = target.height
         val needsScale = tw != w || th != h
         val bitmap = Bitmap()
         try {
@@ -119,7 +123,7 @@ class SkiaGifDecoder(
                                 image,
                                 Rect.makeWH(w.toFloat(), h.toFloat()),
                                 Rect.makeWH(tw.toFloat(), th.toFloat()),
-                                SamplingMode.LINEAR,
+                                DesktopArtworkSampling,
                                 null,
                                 true,
                             )
@@ -155,9 +159,21 @@ class SkiaGifDecoder(
                 // without being read or parsed here.
                 if (!animate || !isWebp || !result.source.isAnimatedWebp()) return null
             }
-            return SkiaGifDecoder(result.source, animate = animate, isGif = isGif)
+            return SkiaGifDecoder(result.source, animate = animate, isGif = isGif,
+                requestedSize = options.size, requestedScale = options.scale)
         }
     }
+}
+
+/** Bounds decoded pixels by display requirements and real source detail, preserving aspect ratio. */
+internal fun desktopSourceDecodeSize(width: Int, height: Int, size: Size, scale: Scale): IntSize {
+    val ratios = listOfNotNull(
+        (size.width as? Dimension.Pixels)?.px?.toDouble()?.div(width),
+        (size.height as? Dimension.Pixels)?.px?.toDouble()?.div(height),
+    )
+    val ratio = (if (scale == Scale.FILL) ratios.maxOrNull() else ratios.minOrNull())
+        ?.coerceAtMost(1.0) ?: 1.0
+    return IntSize(ceil(width * ratio).toInt().coerceIn(1, width), ceil(height * ratio).toInt().coerceIn(1, height))
 }
 
 /** True when the RIFF/WebP header's VP8X chunk has the animation flag set. Reads 21 bytes without consuming. */

@@ -36,15 +36,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.jetbrains.skia.Bitmap
-import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Codec
 import org.jetbrains.skia.Data
-import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
-import org.jetbrains.skia.Rect
-import org.jetbrains.skia.SamplingMode
-
-private const val MAX_FRAME_DIMENSION = 512
 
 // How many decoded gif bytes we're willing to keep on disk between app runs.
 private const val MAX_DISK_CACHE_FILES = 200
@@ -118,9 +112,6 @@ private class GifCodecHolder(
     val frameDelaysMs: List<Long>,
     val width: Int,
     val height: Int,
-    val targetWidth: Int,
-    val targetHeight: Int,
-    val needsScale: Boolean,
 )
 
 // LRU Cache holding raw GIF Codecs (max 15 items in memory, tiny compressed bytes ~10-20MB total)
@@ -192,19 +183,11 @@ private suspend fun decodeGifCodec(url: String): GifCodecHolder? {
         val h = codec.height
         if (w <= 0 || h <= 0) return null
 
-        val scale = if (w > MAX_FRAME_DIMENSION || h > MAX_FRAME_DIMENSION) {
-            minOf(MAX_FRAME_DIMENSION.toFloat() / w, MAX_FRAME_DIMENSION.toFloat() / h)
-        } else 1f
-
-        val tw = (w * scale).toInt().coerceAtLeast(1)
-        val th = (h * scale).toInt().coerceAtLeast(1)
-        val needsScale = tw != w || th != h
-
         val delays = List(count) { i ->
             val duration = codec.getFrameInfo(i).duration
             if (duration > 0) duration.toLong() else 100L
         }
-        GifCodecHolder(codec, delays, w, h, tw, th, needsScale)
+        GifCodecHolder(codec, delays, w, h)
     } catch (_: Exception) {
         null
     }
@@ -238,60 +221,27 @@ internal actual fun CollectionCardRemoteImage(
             val singleBitmap = remember(imageUrl, currentHolder) {
                 try {
                     Bitmap().apply {
-                        allocPixels(ImageInfo.makeN32Premul(currentHolder.targetWidth, currentHolder.targetHeight))
+                        allocPixels(ImageInfo.makeN32Premul(currentHolder.width, currentHolder.height))
                     }
                 } catch (_: Exception) {
                     null
                 }
             }
 
-            // Full-res buffer if downscaling is required
-            val fullBitmap = remember(imageUrl, currentHolder) {
-                if (currentHolder.needsScale) {
-                    try {
-                        Bitmap().apply {
-                            allocPixels(ImageInfo.makeN32Premul(currentHolder.width, currentHolder.height))
-                        }
-                    } catch (_: Exception) {
-                        null
-                    }
-                } else null
-            }
-
-            DisposableEffect(singleBitmap, fullBitmap) {
+            DisposableEffect(singleBitmap) {
                 onDispose {
                     composeBitmap = null
                     try {
                         singleBitmap?.close()
                     } catch (_: Exception) {}
-                    try {
-                        fullBitmap?.close()
-                    } catch (_: Exception) {}
                 }
             }
 
             if (singleBitmap != null) {
-                LaunchedEffect(imageUrl, currentHolder, singleBitmap, fullBitmap) {
+                LaunchedEffect(imageUrl, currentHolder, singleBitmap) {
                     while (true) {
                         try {
-                            if (currentHolder.needsScale && fullBitmap != null) {
-                                currentHolder.codec.readPixels(fullBitmap, frameIndex)
-                                val skiaImg = Image.makeFromBitmap(fullBitmap)
-                                try {
-                                    Canvas(singleBitmap).drawImageRect(
-                                        skiaImg,
-                                        Rect.makeWH(currentHolder.width.toFloat(), currentHolder.height.toFloat()),
-                                        Rect.makeWH(currentHolder.targetWidth.toFloat(), currentHolder.targetHeight.toFloat()),
-                                        SamplingMode.LINEAR,
-                                        null,
-                                        true,
-                                    )
-                                } finally {
-                                    skiaImg.close()
-                                }
-                            } else {
-                                currentHolder.codec.readPixels(singleBitmap, frameIndex)
-                            }
+                            currentHolder.codec.readPixels(singleBitmap, frameIndex)
                             composeBitmap = singleBitmap.asComposeImageBitmap()
                         } catch (_: Exception) {}
 

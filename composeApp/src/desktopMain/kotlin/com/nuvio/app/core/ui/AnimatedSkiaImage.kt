@@ -13,7 +13,6 @@ import androidx.compose.runtime.setValue
 import coil3.Extras
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,15 +25,11 @@ import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Codec
 import org.jetbrains.skia.Data
-import org.jetbrains.skia.FilterMipmap
-import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.Image as SkiaImage
 import org.jetbrains.skia.ImageInfo
-import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Paint as SkiaPaint
 import org.jetbrains.skia.Rect
-import org.jetbrains.skia.SamplingMode
-import org.jetbrains.skia.Surface
+import org.jetbrains.skia.CubicResampler
 
 /**
  * Per-request switch for animated playback of GIF / animated WebP images.
@@ -61,9 +56,8 @@ private const val MaxSleepMs = 100L
 private const val MinSleepMs = 4L
 private const val FrameRingSize = 3
 
-/** Frames are only downscaled ahead of time when the target is clearly smaller than the source. */
-private const val MinDownscaleRatio = 1.5f
-private const val MipmapRatio = 2.5f
+// Matches Compose desktop's FilterQuality.High (Mitchell), without a sharpening pass.
+internal val DesktopArtworkSampling = CubicResampler(1f / 3f, 1f / 3f)
 
 /**
  * Coil image holding an encoded animation. Used as a plain Coil image it draws its first frame; use
@@ -127,7 +121,7 @@ private class AnimatedSkiaPainter(
         val image = if (isPlaying) {
             // Drawing is the only signal that someone still sees this image: the player stops by itself
             // once draws stop, so playback never outlives the composable showing it.
-            source.player.onDrawn(drawSize)
+            source.player.onDrawn()
             source.player.frame
         } else {
             source.firstFrame
@@ -139,7 +133,7 @@ private class AnimatedSkiaPainter(
                 image,
                 Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                 Rect.makeWH(drawSize.width.toFloat(), drawSize.height.toFloat()),
-                SamplingMode.LINEAR,
+                DesktopArtworkSampling,
                 paint,
                 true,
             )
@@ -181,7 +175,7 @@ private val playbackScope = CoroutineScope(
 
 /**
  * Decodes the frames of one animation in order into one reused working bitmap and publishes each frame,
- * downscaled to the size it is drawn at, through [frame].
+ * at source resolution through [frame], for one high-quality pass at the physical draw size.
  */
 internal class FramePlayer(private val source: AnimatedSkiaImage) {
     /** The frame to draw while playing. Reading it in a draw scope redraws on every new frame. */
@@ -189,8 +183,6 @@ internal class FramePlayer(private val source: AnimatedSkiaImage) {
         private set
 
     @Volatile private var lastDrawnAtMs = 0L
-    @Volatile private var targetWidth = 0
-    @Volatile private var targetHeight = 0
     @Volatile private var failed = false
     @Volatile private var queued = false
 
@@ -211,13 +203,8 @@ internal class FramePlayer(private val source: AnimatedSkiaImage) {
     private var ringPos = 0
     private var lastPublished: SkiaImage? = null
 
-    fun onDrawn(drawSize: IntSize) {
+    fun onDrawn() {
         lastDrawnAtMs = nowMs()
-        // The largest size it is drawn at wins, so a second, bigger use of the same image stays sharp.
-        if (drawSize.width > targetWidth || drawSize.height > targetHeight) {
-            targetWidth = max(targetWidth, drawSize.width)
-            targetHeight = max(targetHeight, drawSize.height)
-        }
         if (failed) return
         synchronized(lock) {
             if (job?.isActive == true || finished) return
@@ -312,7 +299,7 @@ internal class FramePlayer(private val source: AnimatedSkiaImage) {
             activeCodec.readPixels(bitmap, index, prior)
             lastDecoded = index
 
-            val image = scaledToTarget(SkiaImage.makeFromBitmap(bitmap))
+            val image = SkiaImage.makeFromBitmap(bitmap)
             frame = image
             lastPublished = image
             ring[ringPos]?.takeIf { it !== image }?.close()
@@ -334,37 +321,6 @@ internal class FramePlayer(private val source: AnimatedSkiaImage) {
             }
         } catch (_: Throwable) {
             failed = true
-        }
-    }
-
-    /** Resamples the frame to the size it is drawn at, here instead of on the UI thread every draw. */
-    private fun scaledToTarget(image: SkiaImage): SkiaImage {
-        val tw = targetWidth
-        val th = targetHeight
-        if (tw <= 0 || th <= 0) return image
-        if (image.width < tw * MinDownscaleRatio || image.height < th * MinDownscaleRatio) return image
-
-        // Quantized so a card that grows a few pixels does not rebuild the size every frame.
-        val width = ((tw + 7) / 8) * 8
-        val height = ((th + 7) / 8) * 8
-        val surface = Surface.makeRasterN32Premul(width, height)
-        try {
-            // Mipmaps are rebuilt for every frame, so they are only worth it for a heavy downscale; a modest
-            // one looks fine with plain bilinear sampling at a fraction of the cost.
-            val heavyDownscale = image.width >= width * MipmapRatio || image.height >= height * MipmapRatio
-            surface.canvas.drawImageRect(
-                image,
-                Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
-                Rect.makeWH(width.toFloat(), height.toFloat()),
-                if (heavyDownscale) FilterMipmap(FilterMode.LINEAR, MipmapMode.NEAREST) else SamplingMode.LINEAR,
-                null,
-                true,
-            )
-            val scaled = surface.makeImageSnapshot()
-            image.close()
-            return scaled
-        } finally {
-            surface.close()
         }
     }
 
