@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.AppBasicAlertDialog
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.remoteNavigationModal
@@ -33,7 +35,6 @@ import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.BasicAlertDialog
 import com.nuvio.app.core.ui.PlatformBackHandler
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -2828,7 +2829,7 @@ internal fun SubtitleColorDialog(
     var currentColor by remember(selectedColor) { mutableStateOf(selectedColor) }
     PlatformBackHandler(enabled = true, onBack = onDismiss)
 
-    BasicAlertDialog(
+    AppBasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
         Surface(
@@ -2885,7 +2886,7 @@ internal fun SubtitleFontDialog(
     onDismiss: () -> Unit,
 ) {
     PlatformBackHandler(enabled = true, onBack = onDismiss)
-    BasicAlertDialog(
+    AppBasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
         Surface(
@@ -2983,7 +2984,7 @@ internal fun SubtitleOutlineEffectDialog(
         SubtitleOutlineEffect.NONE to "Plain text without outline or shadow",
     )
 
-    BasicAlertDialog(
+    AppBasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
         Surface(

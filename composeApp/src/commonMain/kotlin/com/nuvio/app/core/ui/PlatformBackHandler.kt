@@ -28,6 +28,26 @@ internal object PlatformBackDispatcher {
     }
 }
 
+/** App shortcuts remain available without arrow-key navigation or a focused Compose target. */
+internal object AppBackspaceNavigation {
+    private val scopes = mutableSetOf<Any>()
+    val isEnabled: Boolean get() = scopes.isNotEmpty()
+
+    fun attach(): () -> Unit {
+        val scope = Any()
+        scopes += scope
+        return { scopes -= scope }
+    }
+}
+
+@Composable
+internal fun BindAppBackspaceNavigation(enabled: Boolean) {
+    DisposableEffect(enabled) {
+        val detach = if (enabled) AppBackspaceNavigation.attach() else null
+        onDispose { detach?.invoke() }
+    }
+}
+
 @Composable
 internal fun BindPlatformBackInput() {
     val dispatcher = LocalNavigationEventDispatcherOwner.current?.navigationEventDispatcher

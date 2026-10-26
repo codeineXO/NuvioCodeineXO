@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,7 +56,7 @@ fun DialogSurface(
 ) {
     val tokens = MaterialTheme.nuvio
     PlatformBackHandler(enabled = true, onBack = onDismissRequest)
-    BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
+    AppBasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
         Surface(
             modifier = modifier
                 .remoteNavigationModal()

@@ -1,5 +1,6 @@
 package com.nuvio.app
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -9,10 +10,13 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -36,8 +40,12 @@ internal fun RootTabHost(
     val parentLifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val hostActive = active && parentLifecycleState.isAtLeast(Lifecycle.State.STARTED)
     val focusManager = LocalFocusManager.current
+    var contentHasFocus by remember { mutableStateOf(false) }
     DisposableEffect(selectedTab, hostActive, profileId) {
-        onDispose { focusManager.clearFocus(force = true) }
+        onDispose {
+            // The sidebar is outside this host and retains focus across tab activation.
+            if (contentHasFocus) focusManager.clearFocus(force = true)
+        }
     }
 
     key(profileId) {
@@ -52,7 +60,9 @@ internal fun RootTabHost(
         }
 
         Layout(
-            modifier = modifier.fillMaxSize(),
+            modifier = modifier.fillMaxSize()
+                .onFocusChanged { contentHasFocus = it.hasFocus }
+                .focusGroup(),
             content = {
                 displayedTabs.forEach { tab ->
                     key(tab) {

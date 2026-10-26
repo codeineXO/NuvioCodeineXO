@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.AppPopup
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.LocalRemoteNavigationRole
@@ -1332,7 +1334,7 @@ private fun DesktopStreamActionsMenu(
         }
     }
 
-    Popup(
+    AppPopup(
         popupPositionProvider = remember(anchorInRoot, edgeMarginPx) {
             StreamActionsPopupPositionProvider(
                 pointerPosition = IntOffset(

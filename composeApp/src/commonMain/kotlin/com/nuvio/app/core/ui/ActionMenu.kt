@@ -199,39 +199,41 @@ internal fun NuvioActionMenu(
             Layout(
                 modifier = Modifier.fillMaxSize(),
                 content = {
-                    Column(
-                        Modifier
-                            .widthIn(min = minOf(244.dp, availableWidth), max = minOf(320.dp, availableWidth))
-                            .width(IntrinsicSize.Max)
-                            .heightIn(max = availableHeight)
-                            .graphicsLayer { this.alpha = alpha.value }
-                            .navigationGlass(shape = shape, panel = true, hazeState = hazeState)
-                            .border(tokens.borders.hairline, tokens.colors.borderSubtle, shape)
-                            .remoteNavigationModal(onDismissRequest = { close() })
-                            .onPreviewKeyEvent {
-                                if (it.key == Key.Escape || it.key == Key.Back) {
-                                    if (it.type == KeyEventType.KeyDown) close()
-                                    true
-                                } else false
-                            }
-                            .onGloballyPositioned {
-                                if (ActionMenuCoordinator.active === invocation) {
-                                    ActionMenuCoordinator.panelBounds = it.boundsInRoot()
+                    AppOverlayInput {
+                        Column(
+                            Modifier
+                                .widthIn(min = minOf(244.dp, availableWidth), max = minOf(320.dp, availableWidth))
+                                .width(IntrinsicSize.Max)
+                                .heightIn(max = availableHeight)
+                                .graphicsLayer { this.alpha = alpha.value }
+                                .navigationGlass(shape = shape, panel = true, hazeState = hazeState)
+                                .border(tokens.borders.hairline, tokens.colors.borderSubtle, shape)
+                                .remoteNavigationModal()
+                                .onPreviewKeyEvent {
+                                    if (it.key == Key.Escape || it.key == Key.Back) {
+                                        if (it.type == KeyEventType.KeyDown) close()
+                                        true
+                                    } else false
                                 }
+                                .onGloballyPositioned {
+                                    if (ActionMenuCoordinator.active === invocation) {
+                                        ActionMenuCoordinator.panelBounds = it.boundsInRoot()
+                                    }
+                                }
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 4.dp),
+                        ) {
+                            frozenActions.forEachIndexed { index, action ->
+                                if (index > 0) Box(Modifier.fillMaxWidth().height(tokens.borders.hairline)
+                                    .background(tokens.colors.borderSubtle))
+                                ActionMenuRow(
+                                    action = action,
+                                    shape = actionMenuRowShape(index, frozenActions.size),
+                                    enabled = !closing,
+                                    onSelected = { close(action.onSelected) },
+                                    modifier = if (index == 0) Modifier.focusRequester(firstAction) else Modifier,
+                                )
                             }
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 4.dp),
-                    ) {
-                        frozenActions.forEachIndexed { index, action ->
-                            if (index > 0) Box(Modifier.fillMaxWidth().height(tokens.borders.hairline)
-                                .background(tokens.colors.borderSubtle))
-                            ActionMenuRow(
-                                action = action,
-                                shape = actionMenuRowShape(index, frozenActions.size),
-                                enabled = !closing,
-                                onSelected = { close(action.onSelected) },
-                                modifier = if (index == 0) Modifier.focusRequester(firstAction) else Modifier,
-                            )
                         }
                     }
                 },

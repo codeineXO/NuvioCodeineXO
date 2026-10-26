@@ -1,5 +1,7 @@
 package com.nuvio.app.features.auth
 
+import com.nuvio.app.core.ui.remoteTextInputGuard
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -910,6 +912,7 @@ private fun AuthTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier
+                .remoteTextInputGuard()
                 .weight(1f)
                 .fillMaxHeight(),
             singleLine = true,

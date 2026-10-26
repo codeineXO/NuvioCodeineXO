@@ -39,6 +39,9 @@ import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.components.DesktopDetailHero
 import com.nuvio.app.navigation.DetailRoute
 import com.nuvio.app.navigation.TabsRoute
+import com.nuvio.app.AppScreenTab
+import com.nuvio.app.DesktopHoverSidebar
+import com.nuvio.app.RootTabHost
 import org.junit.Rule
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -47,6 +50,74 @@ import kotlin.test.*
 
 class RemoteNavigationRegressionTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun sidebarActivationRetainsFocusWhenRootTabContentChanges() {
+        var selectedTab by mutableStateOf(AppScreenTab.Home)
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(enabled = true, restorationKey = selectedTab) {
+                    Row(Modifier.size(800.dp, 600.dp)) {
+                        DesktopHoverSidebar(
+                            selectedTab = selectedTab,
+                            onTabSelected = { selectedTab = it },
+                            onProfileSelected = {},
+                            onAddProfileRequested = {},
+                            sidebarExpanded = true,
+                            sidebarWidth = 220.dp,
+                        )
+                        RootTabHost(selectedTab = selectedTab, modifier = Modifier.weight(1f)) { tab ->
+                            BasicText("Page ${tab.name}", Modifier.size(100.dp)
+                                .remoteNavigationTarget().clickable {})
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Home").performSemanticsAction(SemanticsActions.RequestFocus)
+        listOf(
+            Key.DirectionDown to AppScreenTab.Search,
+            Key.DirectionDown to AppScreenTab.Library,
+            Key.DirectionUp to AppScreenTab.Search,
+            Key.DirectionUp to AppScreenTab.Home,
+        ).forEach { (direction, tab) ->
+            compose.onNodeWithText(selectedTab.name).performKeyInput { pressKey(direction) }
+            compose.onNodeWithText(tab.name).assertIsFocused()
+            compose.onNodeWithText(tab.name).performKeyInput { pressKey(Key.Enter) }
+            compose.runOnIdle { assertEquals(tab, selectedTab) }
+            compose.onNodeWithText(tab.name).assertIsFocused()
+        }
+    }
+
+    @Test
+    fun activatingSidebarTabsKeepsFocusOnTheActivatedItem() {
+        var selectedTab by mutableStateOf("Home")
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(enabled = true, restorationKey = selectedTab) {
+                    CompositionLocalProvider(LocalRemoteNavigationRole provides RemoteNavigationRole.Sidebar) {
+                        Column {
+                            listOf("Home", "Search", "Library").forEach { tab ->
+                                key(tab) {
+                                    BasicText(tab, Modifier.size(100.dp, 40.dp)
+                                        .remoteNavigationTarget(sidebarEntry = selectedTab == tab)
+                                        .clickable { selectedTab = tab })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Leaving Search via Library remembers Library under Search's route.
+        // Returning to Search must retain the newly activated Search item.
+        listOf("Search", "Library", "Search", "Home").forEach { tab ->
+            compose.onNodeWithText(tab).performSemanticsAction(SemanticsActions.RequestFocus)
+            compose.onNodeWithText(tab).performKeyInput { pressKey(Key.Enter) }
+            compose.runOnIdle { assertEquals(tab, selectedTab) }
+            compose.onNodeWithText(tab).assertIsFocused()
+        }
+    }
 
     @Test
     fun contextMenuOutlineFollowsClippedFirstMiddleLastAndSingleRows() {
@@ -161,7 +232,7 @@ class RemoteNavigationRegressionTest {
     }
 
     @Test
-    fun backspaceNavigatesOutsideFieldsAndDeletesInsideFields() {
+    fun windowBackDispatchesOutsideFieldsAndBackspaceDeletesInsideFields() {
         var backs = 0
         var value by mutableStateOf("hello")
         compose.setContent {
@@ -178,10 +249,10 @@ class RemoteNavigationRegressionTest {
             }
         }
         compose.onNodeWithTag("action").performSemanticsAction(SemanticsActions.RequestFocus)
-        compose.onNodeWithTag("action").performKeyInput { pressKey(Key.Backspace) }
+        compose.runOnIdle { assertTrue(AppBackspaceNavigation.isEnabled); assertTrue(PlatformBackDispatcher.dispatch()) }
         compose.runOnIdle { assertEquals(1, backs) }
         compose.onNodeWithTag("field").performSemanticsAction(SemanticsActions.RequestFocus)
-        compose.runOnIdle { assertFalse(RemoteNavigationDispatcher.dispatchBackspace()) }
+        compose.runOnIdle { assertTrue(RemoteTextEditing.isTextInputFocused) }
         compose.onNodeWithTag("field").performKeyInput { pressKey(Key.Enter) }
         compose.onNodeWithTag("field").performTextInputSelection(androidx.compose.ui.text.TextRange(5))
         compose.onNodeWithTag("field").performKeyInput { pressKey(Key.Backspace) }
@@ -205,7 +276,7 @@ class RemoteNavigationRegressionTest {
             }
         }
         compose.onNodeWithTag("pin").performSemanticsAction(SemanticsActions.RequestFocus)
-        compose.runOnIdle { assertFalse(RemoteNavigationDispatcher.dispatchBackspace()) }
+        compose.runOnIdle { assertTrue(RemoteTextEditing.isTextInputFocused) }
         compose.onNodeWithTag("pin").performKeyInput { pressKey(Key.Backspace) }
         compose.runOnIdle { assertEquals(1, deletes) }
     }

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.auth
 
+import com.nuvio.app.core.ui.remoteTextInputGuard
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -181,7 +183,7 @@ internal fun ServerConnectionSheet(
             OutlinedTextField(
                 value = url,
                 onValueChange = { url = it },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().remoteTextInputGuard(),
                 enabled = !state.isDiscovering,
                 singleLine = true,
                 placeholder = { Text(stringResource(Res.string.server_connect_url_placeholder)) },

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.AppBasicAlertDialog
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import com.nuvio.app.core.ui.nuvioVerticalScroll
-import androidx.compose.material3.BasicAlertDialog
 import com.nuvio.app.core.ui.PlatformBackHandler
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -123,7 +124,7 @@ private fun MdbListLibraryListsDialog(
 ) {
     val tokens = MaterialTheme.nuvio
     PlatformBackHandler(enabled = true, onBack = onDismiss)
-    BasicAlertDialog(onDismissRequest = onDismiss) {
+    AppBasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

@@ -2,6 +2,8 @@ package com.nuvio.app
 
 import com.nuvio.app.core.ui.PlatformBackDispatcher
 import com.nuvio.app.core.ui.RemoteNavigationDispatcher
+import com.nuvio.app.core.ui.AppBackspaceNavigation
+import com.nuvio.app.core.ui.RemoteTextEditing
 import androidx.compose.ui.awt.ComposePanel
 import org.jetbrains.skiko.SkiaLayer
 import java.awt.Component
@@ -44,6 +46,22 @@ private const val AWT_MOUSE_BACK_BUTTON = 4
 
 /** Recover native focus and forward mouse Back once for the window and its dialogs. */
 internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
+    val backspaceInput = DesktopBackspaceInput()
+    fun Window.belongsToApp(): Boolean {
+        var candidate: Window? = this
+        while (candidate != null && candidate !== window) candidate = candidate.owner
+        return candidate === window
+    }
+    val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+    val inputFocusListener = java.beans.PropertyChangeListener { event ->
+        val focusedWindow = event.newValue as? Window
+        // Moving between an app window and its popup must not release a held shortcut.
+        if (focusedWindow != null && (!focusedWindow.belongsToApp() || focusedWindow.composeInputComponent() == null)) backspaceInput.reset()
+        if (focusedWindow == null) SwingUtilities.invokeLater {
+            if (focusManager.focusedWindow?.belongsToApp() != true) backspaceInput.reset()
+        }
+    }
+    focusManager.addPropertyChangeListener("focusedWindow", inputFocusListener)
     val focusListener = object : WindowAdapter() {
         override fun windowLostFocus(event: WindowEvent) {
             RemoteNavigationDispatcher.focusLost()
@@ -52,8 +70,16 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
     window.addWindowFocusListener(focusListener)
     var lastMousePosition = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull()
     val keyDispatcher = KeyEventDispatcher { event ->
-        val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
-        if (focusManager.focusedWindow !== window) return@KeyEventDispatcher false
+        val focusedWindow = focusManager.focusedWindow ?: return@KeyEventDispatcher false
+        if (!focusedWindow.belongsToApp()) return@KeyEventDispatcher false
+        // Native dialogs/file choosers retain their own keyboard handling.
+        val input = focusedWindow.composeInputComponent() ?: return@KeyEventDispatcher false
+        val owner = focusManager.focusOwner
+        val liveNativePlayer = owner is com.nuvio.app.features.player.desktop.NativePlayerHost && owner.isShowing
+        if (backspaceInput.process(event, eligible = AppBackspaceNavigation.isEnabled &&
+                !RemoteTextEditing.isTextInputFocused && owner !is javax.swing.text.JTextComponent && !liveNativePlayer)) {
+            return@KeyEventDispatcher true
+        }
         if (event.id == KeyEvent.KEY_PRESSED && DesktopAutoscrollInput.cancel()) return@KeyEventDispatcher true
         if (event.id == KeyEvent.KEY_PRESSED && event.keyCode in desktopNavigationArrowKeys) {
             val manager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
@@ -71,16 +97,10 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
                 }
             }
         }
-        val backspace = event.keyCode == KeyEvent.VK_BACK_SPACE && RemoteNavigationDispatcher.isEnabled &&
-            !com.nuvio.app.core.ui.RemoteTextEditing.isTextInputFocused &&
-            KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner !is javax.swing.text.JTextComponent
-        val input = window.composeInputComponent()
-        val owner = focusManager.focusOwner
-        val composeOwnsFocus = input != null && owner != null &&
+        val composeOwnsFocus = owner != null &&
             (owner === input || SwingUtilities.isDescendingFrom(owner, input))
-        val liveNativePlayer = owner is com.nuvio.app.features.player.desktop.NativePlayerHost && owner.isShowing
-        if (event.id == KeyEvent.KEY_PRESSED && !composeOwnsFocus && !liveNativePlayer &&
-            (event.keyCode == KeyEvent.VK_ESCAPE || backspace)) {
+        if (focusedWindow === window && event.id == KeyEvent.KEY_PRESSED && !composeOwnsFocus && !liveNativePlayer &&
+            event.keyCode == KeyEvent.VK_ESCAPE) {
             return@KeyEventDispatcher PlatformBackDispatcher.dispatch()
         }
         false
@@ -120,6 +140,7 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
     }
 
     return {
+        focusManager.removePropertyChangeListener("focusedWindow", inputFocusListener)
         window.removeWindowFocusListener(focusListener)
         KeyboardFocusManager.getCurrentKeyboardFocusManager().removeKeyEventDispatcher(keyDispatcher)
         runCatching {

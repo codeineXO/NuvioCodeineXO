@@ -56,7 +56,7 @@ fun Menu(
         tonalElevation = tokens.elevation.flat,
         shadowElevation = tokens.elevation.overlay,
         border = BorderStroke(tokens.borders.thin, SurfaceEdge),
-        content = content,
+        content = { AppOverlayInput { content() } },
     )
 }
 

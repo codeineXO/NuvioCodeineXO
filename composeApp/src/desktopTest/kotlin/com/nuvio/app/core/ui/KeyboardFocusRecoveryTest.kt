@@ -417,7 +417,8 @@ class KeyboardFocusRecoveryTest {
             assertTrue(session.targets.none { it.role == RemoteNavigationRole.Back })
         }
         compose.onNodeWithTag("back").performSemanticsAction(SemanticsActions.RequestFocus) { assertFalse(it()) }
-        compose.onNodeWithTag("host").performKeyInput { pressKey(Key.Backspace) }
+        // Backspace now joins this dispatcher at the native window boundary, outside this scene.
+        compose.runOnIdle { assertTrue(AppBackspaceNavigation.isEnabled); assertTrue(PlatformBackDispatcher.dispatch()) }
         compose.runOnIdle { assertEquals(1, backs) }
         compose.onNodeWithTag("back").performMouseInput { click() }
         compose.runOnIdle { assertEquals(2, backs) }

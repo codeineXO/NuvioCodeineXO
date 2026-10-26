@@ -1,5 +1,7 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.core.ui.remoteTextInputGuard
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -381,7 +383,7 @@ private fun Composer() {
                     PartyChat.draft.value = text
                 }
             },
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).remoteTextInputGuard(),
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = tokens.colors.textPrimary),
             cursorBrush = SolidColor(tokens.colors.accent),
             keyboardOptions = KeyboardOptions(

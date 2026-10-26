@@ -335,7 +335,6 @@ internal object RemoteNavigationDispatcher {
     fun mouseMoved() { handlers.lastOrNull()?.mouseMoved?.invoke() }
     fun focusLost() { handlers.lastOrNull()?.cancelHeld?.invoke() }
     val isEnabled: Boolean get() = handlers.isNotEmpty()
-    fun dispatchBackspace(): Boolean = isEnabled && !RemoteTextEditing.isTextInputFocused && PlatformBackDispatcher.dispatch()
 }
 
 /** Retained outgoing entries must neither claim focus nor write focus memory for the incoming route. */
@@ -360,11 +359,11 @@ internal fun RemoteNavigationDisabled(content: @Composable () -> Unit) {
 /** Editing gets first refusal before the desktop AWT back dispatcher pops a route. */
 internal object RemoteTextEditing {
     private val editors = mutableListOf<() -> Unit>()
-    private val focusedFields = mutableSetOf<Any>()
+    private val focusedFields = mutableMapOf<Any, () -> Boolean>()
     val isEditing: Boolean get() = editors.isNotEmpty()
-    val isTextInputFocused: Boolean get() = focusedFields.isNotEmpty()
-    fun focusField(owner: Any) { focusedFields += owner }
-    fun blurField(owner: Any) { focusedFields -= owner }
+    val isTextInputFocused: Boolean get() = focusedFields.values.any { it() }
+    fun focusField(owner: Any, isActive: () -> Boolean = { true }) { focusedFields[owner] = isActive }
+    fun blurField(owner: Any) { focusedFields.remove(owner) }
     fun register(exit: () -> Unit) { editors += exit }
     fun unregister(exit: () -> Unit) { editors -= exit }
     fun dispatchBack(): Boolean {
@@ -377,9 +376,16 @@ internal object RemoteTextEditing {
 /** Also used by custom PIN inputs, whose Backspace handling must take precedence over navigation. */
 internal fun Modifier.remoteTextInputGuard(): Modifier = composed {
     val owner = remember { Any() }
+    val active by rememberUpdatedState(LocalScreenActive.current)
+    val inputLayer by rememberUpdatedState(LocalAppOverlayInputLayer.current)
+    val windowInfo = androidx.compose.ui.platform.LocalWindowInfo.current
+    // Check native window focus at key-dispatch time, without waiting for recomposition.
+    val acceptsInput = remember(windowInfo) {
+        { active && windowInfo.isWindowFocused && inputLayer === AppOverlayInputLayers.current }
+    }
     DisposableEffect(Unit) { onDispose { RemoteTextEditing.blurField(owner) } }
     this.onFocusChanged {
-        if (it.isFocused) RemoteTextEditing.focusField(owner) else RemoteTextEditing.blurField(owner)
+        if (it.isFocused) RemoteTextEditing.focusField(owner, acceptsInput) else RemoteTextEditing.blurField(owner)
     }
 }
 
@@ -397,9 +403,13 @@ internal fun RemoteNavigationHost(
     enabled: Boolean,
     restorationKey: Any = Unit,
     modifier: Modifier = Modifier,
+    backspaceEnabled: Boolean = enabled,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    if (isDesktop) BindPlatformBackInput()
+    if (isDesktop) {
+        BindPlatformBackInput()
+        BindAppBackspaceNavigation(backspaceEnabled)
+    }
     val keyboardNavigationEnabled by com.nuvio.app.features.settings.KeyboardNavigationSettings.enabled.collectAsState()
     val navigationEnabled = enabled && isDesktop && keyboardNavigationEnabled
     val session = remember { RemoteNavigationSession() }
@@ -437,6 +447,9 @@ internal fun RemoteNavigationHost(
         if (navigationEnabled) {
             // Tab disposal and native player teardown can clear focus after composition.
             withFrameNanos { }
+            if (session.focusedTarget?.let {
+                    it.route == restorationKey && it.role == RemoteNavigationRole.Sidebar && it.focused
+                } == true) return@LaunchedEffect
             platformFocus()
             rootFocus.requestFocus()
             if (session.keyboard) session.restoreFocus(restorationKey, focusManager)
@@ -484,10 +497,6 @@ internal fun RemoteNavigationHost(
                             false
                         }
                         .onKeyEvent {
-                            if (it.key == Key.Backspace && !RemoteTextEditing.isTextInputFocused) {
-                                if (it.type == KeyEventType.KeyDown) RemoteNavigationDispatcher.dispatchBackspace()
-                                return@onKeyEvent true
-                            }
                             val direction = remoteDirection(it.key)
                             if (direction != null) {
                                 if (it.type == KeyEventType.KeyDown) {
@@ -522,7 +531,8 @@ internal fun Modifier.remoteNavigationTarget(
     onSelect: (() -> Unit)? = null,
     onContext: (() -> Unit)? = null,
 ): Modifier = composed {
-    val session = LocalRemoteNavigation.current ?: return@composed this
+    val guardedModifier = if (textField) this.remoteTextInputGuard() else this
+    val session = LocalRemoteNavigation.current ?: return@composed guardedModifier
     if (!LocalScreenActive.current) return@composed this.focusProperties { canFocus = false }
     val route = LocalRemoteRoute.current
     val identity = currentCompositeKeyHash
@@ -564,16 +574,16 @@ internal fun Modifier.remoteNavigationTarget(
         onDispose { RemoteTextEditing.unregister(exitEditing) }
     }
     if (textField) PlatformBackHandler(enabled = focused && editing, onBack = exitEditing)
-    DisposableEffect(focused, editing, session.keyboard, textField) {
-        if (textField && focused && (editing || !session.keyboard)) {
-            RemoteTextEditing.focusField(target)
-        }
-        onDispose {
-            if (textField) RemoteTextEditing.blurField(target)
-        }
-    }
     DisposableEffect(target) {
         session.targets += target
+        // Tab changes replace the route target while its sidebar focus node survives.
+        // Rebind that focus before route restoration can select an older sidebar item.
+        if (focused && effectiveRole == RemoteNavigationRole.Sidebar) {
+            target.focused = true
+            session.focusedTarget = target
+            session.rememberedFocus[route] = identity
+            session.rememberedBounds.remove(route)
+        }
         onDispose {
             session.targets -= target
             if (session.focusedTarget === target) session.focusedTarget = null
@@ -603,7 +613,7 @@ internal fun Modifier.remoteNavigationTarget(
             }
         }
     }
-    this
+    guardedModifier
         .remoteNavigationPointerIcon()
         .focusRequester(requester)
         .bringIntoViewRequester(bringIntoView)
@@ -1031,11 +1041,10 @@ internal fun Modifier.remoteNavigationScrollToTop(state: LazyListState): Modifie
 }
 
 /** Keep directional movement inside an overlay and return to its opener on dismissal. */
-internal fun Modifier.remoteNavigationModal(onDismissRequest: (() -> Unit)? = null): Modifier = composed {
+internal fun Modifier.remoteNavigationModal(): Modifier = composed {
     val session = LocalRemoteNavigation.current ?: return@composed this
     val requester = remember { FocusRequester() }
     val opener = remember { session.lastFocused }
-    val dismiss by rememberUpdatedState(onDismissRequest)
     var consumeOpeningEnter by remember { mutableStateOf(session.enterHeld) }
     LaunchedEffect(Unit) { requester.requestFocus() }
     DisposableEffect(Unit) {
@@ -1055,13 +1064,6 @@ internal fun Modifier.remoteNavigationModal(onDismissRequest: (() -> Unit)? = nu
                     consumeOpeningEnter = false
                     session.enterHeld = false
                 }
-                true
-            } else false
-        }
-        .onKeyEvent { event ->
-            // Popup windows do not bubble Backspace to the screen's navigation host.
-            if (event.key == Key.Backspace && !RemoteTextEditing.isTextInputFocused && dismiss != null) {
-                if (event.type == KeyEventType.KeyDown) dismiss?.invoke()
                 true
             } else false
         }

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.AppBasicAlertDialog
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.foundation.BorderStroke
@@ -24,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.BasicAlertDialog
 import com.nuvio.app.core.ui.PlatformBackHandler
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -155,7 +156,7 @@ private fun AppIconPickerDialog(
 ) {
     val tokens = MaterialTheme.nuvio
     PlatformBackHandler(enabled = true, onBack = onDismiss)
-    BasicAlertDialog(onDismissRequest = onDismiss) {
+    AppBasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()

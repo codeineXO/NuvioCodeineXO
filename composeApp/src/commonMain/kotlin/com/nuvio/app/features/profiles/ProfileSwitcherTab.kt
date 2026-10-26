@@ -1,5 +1,7 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.AppPopup
+
 import com.nuvio.app.isDesktop
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -283,7 +285,7 @@ fun ProfileSwitcherTab(
             var opensBelow by remember { mutableStateOf(popupBelowAnchor) }
             var availableHeight by remember { mutableStateOf<Dp?>(null) }
             val dismissPopup = { if (pinProfile != null) pinProfile = null else showPopup = false }
-            Popup(
+            AppPopup(
                 popupPositionProvider = remember(density, popupBelowAnchor) {
                     ProfilePopupPositionProvider(
                         margin = with(density) { 16.dp.roundToPx() },
@@ -843,7 +845,7 @@ fun NativeProfileSwitcherPopup(
                 .width(anchorWidth),
         ) {
             if (popupVisible && profiles.isNotEmpty() && !isSwitchingProfile) {
-                Popup(
+                AppPopup(
                     alignment = Alignment.BottomCenter,
                     offset = IntOffset(0, with(density) { -NuvioTokens.Space.s64.roundToPx() }),
                     properties = PopupProperties(focusable = true),

@@ -133,17 +133,19 @@ fun NuvioDropdownChip(
                 shadowElevation = if (useGlass) tokens.elevation.flat else tokens.elevation.overlay,
                 border = if (useGlass) BorderStroke(tokens.borders.thin, tokens.colors.borderDefault) else null,
             ) {
-                options.forEach { option ->
-                    key(option.key) {
-                        NuvioDropdownMenuOption(
-                            option = option,
-                            isSelected = option.key == selectedKey,
-                            useGlass = useGlass,
-                            onClick = {
-                                onSelected(option)
-                                isSheetVisible = false
-                            },
-                        )
+                AppOverlayInput {
+                    options.forEach { option ->
+                        key(option.key) {
+                            NuvioDropdownMenuOption(
+                                option = option,
+                                isSelected = option.key == selectedKey,
+                                useGlass = useGlass,
+                                onClick = {
+                                    onSelected(option)
+                                    isSheetVisible = false
+                                },
+                            )
+                        }
                     }
                 }
             }

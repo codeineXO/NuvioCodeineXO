@@ -481,6 +481,7 @@ internal fun AppGate(
     }
 
     com.nuvio.app.core.ui.RemoteNavigationHost(
+        backspaceEnabled = gateScreen != AppGateScreen.Main.name,
         enabled = isDesktop && gateScreen != AppGateScreen.Auth.name && gateScreen != AppGateScreen.Main.name,
         restorationKey = gateScreen,
     ) {
