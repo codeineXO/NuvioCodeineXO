@@ -184,6 +184,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
             PlayerSettingsRepository.ensureLoaded()
             PlayerSettingsRepository.uiState
         }.collectAsStateWithLifecycle()
+        val p2pSettings by remember {
+            P2pSettingsRepository.ensureLoaded()
+            P2pSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
 
         var showPlayerUiDialog by rememberSaveable { mutableStateOf(false) }
         var showSeekrApiKeyDialog by rememberSaveable { mutableStateOf(false) }
@@ -203,6 +207,24 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onClick = { showPlayerUiDialog = true },
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_show_clock_in_player),
+                    description = stringResource(Res.string.settings_playback_show_clock_in_player_description),
+                    checked = playerSettings.showClockInPlayer,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setShowClockInPlayer,
+                )
+                if (P2pSettingsRepository.isVisible) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_p2p_show_stats_title),
+                        description = stringResource(Res.string.settings_p2p_show_stats_subtitle),
+                        checked = p2pSettings.showTorrentStatsOverlay,
+                        isTablet = isTablet,
+                        onCheckedChange = P2pSettingsRepository::setShowTorrentStatsOverlay,
+                    )
+                }
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
@@ -670,14 +692,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         checked = p2pSettings.hideTorrentStats,
                         isTablet = isTablet,
                         onCheckedChange = P2pSettingsRepository::setHideTorrentStats,
-                    )
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_p2p_show_stats_title),
-                        description = stringResource(Res.string.settings_p2p_show_stats_subtitle),
-                        checked = p2pSettings.showTorrentStatsOverlay,
-                        isTablet = isTablet,
-                        onCheckedChange = P2pSettingsRepository::setShowTorrentStatsOverlay,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(

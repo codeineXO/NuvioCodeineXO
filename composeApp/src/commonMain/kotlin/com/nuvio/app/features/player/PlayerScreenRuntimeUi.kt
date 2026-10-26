@@ -417,6 +417,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         showSeekbarWhileSeeking = playerSettingsUiState.showSeekbarWhileSeeking,
         showRemainingTime = playerSettingsUiState.showRemainingTime,
         showPlaybackTimeOverlay = isCodeineUi &&
+            playerSettingsUiState.showClockInPlayer &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
         showTorrentStatsOverlay = isCodeineUi &&

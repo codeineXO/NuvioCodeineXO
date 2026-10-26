@@ -1977,7 +1977,6 @@ const renderShaderOptionList = () => {
       lastEnabledSvpMode = opt.mode;
       state.svpMode = opt.mode;
       send("setSvpMode", opt.modeValue);
-      showPlayerToast("Motion Smoothing: " + opt.label);
       renderShaderOptionList();
       renderChrome();
     });
@@ -4029,6 +4028,7 @@ const requestPlaybackState = (eventType, revealControls) => {
   };
   renderChrome();
   send(eventType, nextIsPlaying ? 1 : 0);
+  showPlayerToast(nextIsPlaying ? "Playing" : "Paused");
 
   window.clearTimeout(pendingPlaybackTimer);
   pendingPlaybackTimer = window.setTimeout(() => {

@@ -119,6 +119,7 @@ data class PlayerSettingsUiState(
     val playbackBufferPreset: PlaybackBufferPreset = PlaybackBufferPreset.MEDIUM,
     val audioNightModeEnabled: Boolean = false,
     val showSeekbarWhileSeeking: Boolean = true,
+    val showClockInPlayer: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
     val seekrApiKey: String = "",
     val showRemainingTime: Boolean = false,
@@ -214,6 +215,7 @@ object PlayerSettingsRepository {
     private var playbackBufferPreset = PlaybackBufferPreset.MEDIUM
     private var audioNightModeEnabled = false
     private var showSeekbarWhileSeeking = true
+    private var showClockInPlayer = true
     private var seekPreviewEnabled = true
     private var seekrApiKey = ""
     private var showRemainingTime = false
@@ -315,6 +317,7 @@ object PlayerSettingsRepository {
         playbackBufferPreset = PlaybackBufferPreset.MEDIUM
         audioNightModeEnabled = false
         showSeekbarWhileSeeking = true
+        showClockInPlayer = true
         seekPreviewEnabled = true
         seekrApiKey = ""
         showRemainingTime = false
@@ -508,6 +511,7 @@ object PlayerSettingsRepository {
         playbackBufferPreset = PlaybackBufferPreset.fromStorageKey(PlayerSettingsStorage.loadPlaybackBufferPreset())
         audioNightModeEnabled = PlayerSettingsStorage.loadAudioNightModeEnabled() ?: false
         showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
+        showClockInPlayer = PlayerSettingsStorage.loadShowClockInPlayer() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
         seekrApiKey = PlayerSettingsStorage.loadSeekrApiKey() ?: ""
         showRemainingTime = PlayerSettingsStorage.loadShowRemainingTime() ?: false
@@ -1142,6 +1146,14 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveShowSeekbarWhileSeeking(enabled)
     }
 
+    fun setShowClockInPlayer(enabled: Boolean) {
+        ensureLoaded()
+        if (showClockInPlayer == enabled) return
+        showClockInPlayer = enabled
+        publish()
+        PlayerSettingsStorage.saveShowClockInPlayer(enabled)
+    }
+
     fun setSeekPreviewEnabled(enabled: Boolean) {
         ensureLoaded()
         if (seekPreviewEnabled == enabled) return
@@ -1435,6 +1447,7 @@ object PlayerSettingsRepository {
             playbackBufferPreset = playbackBufferPreset,
             audioNightModeEnabled = audioNightModeEnabled,
             showSeekbarWhileSeeking = showSeekbarWhileSeeking,
+            showClockInPlayer = showClockInPlayer,
             seekPreviewEnabled = seekPreviewEnabled,
             seekrApiKey = seekrApiKey,
             showRemainingTime = showRemainingTime,

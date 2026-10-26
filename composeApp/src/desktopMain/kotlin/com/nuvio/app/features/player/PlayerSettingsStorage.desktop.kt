@@ -26,6 +26,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
     private const val playerUiModeKey = "player_ui_mode"
     private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
+    private const val showClockInPlayerKey = "show_clock_in_player"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val seekrApiKeyKey = "seekr_api_key"
     private const val showRemainingTimeKey = "show_remaining_time"
@@ -141,6 +142,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
         svpMotionOptionKey,
         audioNightModeEnabledKey,
         showSeekbarWhileSeekingKey,
+        showClockInPlayerKey,
         seekPreviewEnabledKey,
         seekrApiKeyKey,
         showRemainingTimeKey,
@@ -438,6 +440,9 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun loadShowSeekbarWhileSeeking(): Boolean? = loadBoolean(showSeekbarWhileSeekingKey)
     actual fun saveShowSeekbarWhileSeeking(enabled: Boolean) = saveBoolean(showSeekbarWhileSeekingKey, enabled)
 
+    actual fun loadShowClockInPlayer(): Boolean? = loadBoolean(showClockInPlayerKey)
+    actual fun saveShowClockInPlayer(enabled: Boolean) = saveBoolean(showClockInPlayerKey, enabled)
+
     actual fun loadSeekPreviewEnabled(): Boolean? = loadBoolean(seekPreviewEnabledKey)
     actual fun saveSeekPreviewEnabled(enabled: Boolean) = saveBoolean(seekPreviewEnabledKey, enabled)
 
@@ -549,6 +554,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
         loadPlaybackBufferPreset()?.let { put(playbackBufferPresetKey, encodeSyncString(it)) }
         loadAudioNightModeEnabled()?.let { put(audioNightModeEnabledKey, encodeSyncBoolean(it)) }
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
+        loadShowClockInPlayer()?.let { put(showClockInPlayerKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
         loadSeekrApiKey()?.let { put(seekrApiKeyKey, encodeSyncString(it)) }
         loadShowRemainingTime()?.let { put(showRemainingTimeKey, encodeSyncBoolean(it)) }
@@ -644,6 +650,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
         payload.decodeSyncString(playbackBufferPresetKey)?.let(::savePlaybackBufferPreset)
         payload.decodeSyncBoolean(audioNightModeEnabledKey)?.let(::saveAudioNightModeEnabled)
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
+        payload.decodeSyncBoolean(showClockInPlayerKey)?.let(::saveShowClockInPlayer)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)
         payload.decodeSyncString(seekrApiKeyKey)?.let(::saveSeekrApiKey)
         payload.decodeSyncBoolean(showRemainingTimeKey)?.let(::saveShowRemainingTime)

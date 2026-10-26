@@ -2465,8 +2465,10 @@
     <string name="settings_p2p_subtitle">Allow peer-to-peer (torrent) streams</string>
     <string name="settings_p2p_hide_stats_title">Hide torrent stats</string>
     <string name="settings_p2p_hide_stats_subtitle">Hide buffer, seeds, peers and download speed during loading and playback</string>
-    <string name="settings_p2p_show_stats_title">Show torrent stats in player</string>
-    <string name="settings_p2p_show_stats_subtitle">Display real-time download speed, seeders, and peer counts in the top right corner during playback</string>
+    <string name="settings_playback_show_clock_in_player">Show clock in player</string>
+    <string name="settings_playback_show_clock_in_player_description">Display the current time and estimated end time during playback</string>
+    <string name="settings_p2p_show_stats_title">Show network stats in player</string>
+    <string name="settings_p2p_show_stats_subtitle">Display real-time network activity during playback, including download speed and torrent seeders and peers when available</string>
     <string name="settings_p2p_profile_title">Torrent profile</string>
     <string name="settings_p2p_profile_soft">Soft</string>
     <string name="settings_p2p_profile_balanced">Balanced</string>

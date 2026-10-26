@@ -204,6 +204,8 @@ internal expect object PlayerSettingsStorage {
     fun saveAudioNightModeEnabled(enabled: Boolean)
     fun loadShowSeekbarWhileSeeking(): Boolean?
     fun saveShowSeekbarWhileSeeking(enabled: Boolean)
+    fun loadShowClockInPlayer(): Boolean?
+    fun saveShowClockInPlayer(enabled: Boolean)
     fun loadSeekPreviewEnabled(): Boolean?
     fun saveSeekPreviewEnabled(enabled: Boolean)
     fun loadSeekrApiKey(): String?
