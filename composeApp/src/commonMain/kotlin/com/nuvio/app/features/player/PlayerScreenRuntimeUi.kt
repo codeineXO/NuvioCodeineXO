@@ -392,7 +392,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         showEpisodesPanel ||
         showSubmitIntroModal ||
         (pendingP2pSwitch != null)
-    val isCodeineUi = playerSettingsUiState.playerUiMode == PlayerUiMode.CODEINE_XO
     val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
     val resolvedImdbId = extractImdbId(parentMetaId)
         ?: extractImdbId(targetMeta?.imdbId)
@@ -416,12 +415,10 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         seekrEpisode = activeEpisodeNumber ?: 0,
         showSeekbarWhileSeeking = playerSettingsUiState.showSeekbarWhileSeeking,
         showRemainingTime = playerSettingsUiState.showRemainingTime,
-        showPlaybackTimeOverlay = isCodeineUi &&
-            playerSettingsUiState.showClockInPlayer &&
+        showPlaybackTimeOverlay = playerSettingsUiState.showClockInPlayer &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
-        showTorrentStatsOverlay = isCodeineUi &&
-            p2pSettingsUiState.showTorrentStatsOverlay &&
+        showTorrentStatsOverlay = p2pSettingsUiState.showTorrentStatsOverlay &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
         torrentStatsText = torrentStatsOverlayText,

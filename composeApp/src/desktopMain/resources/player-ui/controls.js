@@ -1107,16 +1107,14 @@ const stopPauseClockTick = () => {
 };
 // ──────────────────────────────────────────────────────────────────────────
 
+const syncOfficialStatsOffset = () => {
+  const height = root.classList.contains("ui-official") && torrentStatsOverlay && !torrentStatsOverlay.hidden
+    ? torrentStatsOverlay.offsetHeight : 0;
+  root.style.setProperty("--official-stats-offset", `${height > 0 ? height + 8 : 0}px`);
+};
+
 const syncTorrentStatsOverlay = suppressed => {
   if (!torrentStatsOverlay) return;
-  const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
-  if (!isCodeineXo) {
-    torrentStatsOverlay.hidden = true;
-    if (torrentStatsTimeRow) torrentStatsTimeRow.hidden = true;
-    if (torrentStatsText) torrentStatsText.hidden = true;
-    stopStatsClockTick();
-    return;
-  }
   const showClock = Boolean(state.showPlaybackTimeOverlay && !suppressed);
   const showStats = Boolean(state.showTorrentStatsOverlay && String(state.torrentStatsText || "").trim() && !suppressed);
   torrentStatsOverlay.hidden = !showClock && !showStats;
@@ -1129,6 +1127,7 @@ const syncTorrentStatsOverlay = suppressed => {
   } else {
     stopStatsClockTick();
   }
+  syncOfficialStatsOffset();
 };
 
 const togglePlaybackStatsOverlay = () => {
@@ -5337,6 +5336,9 @@ window.addEventListener("dblclick", event => {
 }, true);
 window.addEventListener("resize", positionQuickMenu);
 new ResizeObserver(positionQuickMenu).observe(root);
+if (torrentStatsOverlay) {
+  new ResizeObserver(syncOfficialStatsOffset).observe(torrentStatsOverlay);
+}
 
 if (codeineStatsButton) {
   codeineStatsButton.addEventListener("click", event => {

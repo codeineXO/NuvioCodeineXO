@@ -393,8 +393,6 @@ button:disabled {
 }
 
 .torrent-stats-overlay[hidden],
-.player.ui-official .torrent-stats-overlay,
-.player:not(.ui-codeinexo) .torrent-stats-overlay,
 .player.modal-active .torrent-stats-overlay,
 .player.pip-mode .torrent-stats-overlay {
   display: none !important;
@@ -4364,7 +4362,8 @@ svg {
     0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-.player.ui-codeinexo .torrent-stats-overlay {
+.player.ui-codeinexo .torrent-stats-overlay,
+.player.ui-official .torrent-stats-overlay {
   top: calc(28px + env(safe-area-inset-top));
   right: calc(20px + env(safe-area-inset-right));
   height: auto;
@@ -4394,7 +4393,8 @@ svg {
   pointer-events: none;
 }
 
-.player.ui-codeinexo .torrent-stats-time-row {
+.player.ui-codeinexo .torrent-stats-time-row,
+.player.ui-official .torrent-stats-time-row {
   display: flex;
   align-items: baseline;
   justify-content: flex-end;
@@ -4403,11 +4403,29 @@ svg {
   line-height: 1.25;
 }
 
-.player.ui-codeinexo .torrent-stats-text {
+.player.ui-codeinexo .torrent-stats-text,
+.player.ui-official .torrent-stats-text {
   text-shadow: inherit;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   margin-top: 2px;
+}
+
+.player.ui-official .torrent-stats-overlay {
+  top: calc(var(--slider-bottom) + env(safe-area-inset-top));
+  left: var(--hp);
+  right: auto;
+  min-height: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.player.ui-official .torrent-stats-time-row {
+  justify-content: flex-start;
+}
+
+.player.ui-official:not(.chrome-hidden):not(.pip-mode) .parental-guide {
+  top: calc(var(--slider-bottom) + env(safe-area-inset-top) + var(--official-stats-offset, 0px));
 }
 
 .player.ui-codeinexo .header-left {
