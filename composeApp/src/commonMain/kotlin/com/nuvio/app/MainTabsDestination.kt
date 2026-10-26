@@ -46,6 +46,7 @@ import com.nuvio.app.core.ui.LocalNuvioBottomNavigationOverlayPadding
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
+import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.NuvioClassicNavigationBar
 import com.nuvio.app.core.ui.DesktopNavigationBar
 import com.nuvio.app.core.ui.FloatingNavigationBar
@@ -112,10 +113,23 @@ internal fun MainTabsDestination(
             desktopNavigationLayout == DesktopNavigationLayout.Sidebar
         val useDesktopTopBar = isDesktop && !useNativeBottomTabs && !useDesktopSidebar
         val useFloatingTopBar = !isDesktop && isTabletLayout && !useNativeBottomTabs
+        val homeCatalogSettingsUiState by remember { HomeCatalogSettingsRepository.uiState }.collectAsStateWithLifecycle()
         val topChromePadding = if (useFloatingTopBar || useDesktopTopBar) {
             val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             if (useDesktopTopBar) {
-                statusBarPadding + 48.dp + 64.dp
+                if (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library ||
+                    (selectedTab == AppScreenTab.Home && homeCatalogSettingsUiState.scrollPostersLayoutEnabled)
+                ) {
+                    val navigationIconSize = when {
+                        screenWidth < 800.dp -> 26.dp
+                        screenWidth > 1600.dp -> 30.dp
+                        else -> 28.dp
+                    }
+                    // Match the floating bar's top inset and height, then leave a small content gap.
+                    statusBarPadding + 10.dp + navigationIconSize + 20.dp + NuvioTokens.Space.s16
+                } else {
+                    statusBarPadding + 48.dp + 64.dp
+                }
             } else {
                 max(statusBarPadding + 24.dp, 48.dp) + 64.dp
             }
@@ -131,7 +145,6 @@ internal fun MainTabsDestination(
         val searchBackdropState = rememberHazeState()
         val libraryListState = rememberLazyListState()
         val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
-        val homeCatalogSettingsUiState by remember { HomeCatalogSettingsRepository.uiState }.collectAsStateWithLifecycle()
 
         val sidebarHoverSource = remember { MutableInteractionSource() }
         val isSidebarHovered by sidebarHoverSource.collectIsRemoteHoveredAsState()

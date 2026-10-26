@@ -1094,7 +1094,7 @@ fun HomeScreen(
                             .padding(
                                 start = sidebarContentInset + effectivePosterSectionPadding,
                                 end = effectivePosterSectionPadding,
-                                top = (topChromePadding ?: 0.dp) + NuvioTokens.Space.s16,
+                                top = topChromePadding ?: NuvioTokens.Space.s16,
                                 bottom = NuvioTokens.Space.s24,
                             )
                             .clip(heroShape)
