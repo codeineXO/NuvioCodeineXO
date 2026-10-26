@@ -274,10 +274,10 @@ class PosterNavigationContinuityTest {
             session.enqueuePosterMove(source, FocusDirection.Down)
         }
         compose.mainClock.advanceTimeBy(112)
-        assertRowCentered(3)
+        assertRowCentered(4)
         compose.runOnIdle { session.releasePosterDirection(FocusDirection.Down) }
         compose.mainClock.advanceTimeBy(500)
-        compose.onNodeWithTag("3-a").assertIsFocused()
+        compose.onNodeWithTag("4-a").assertIsFocused()
         compose.runOnIdle {
             assertFalse(session.fastPosterScroll)
             assertNull(session.pendingPosterMove)
@@ -287,12 +287,145 @@ class PosterNavigationContinuityTest {
         compose.mainClock.advanceTimeBy(80)
         compose.runOnIdle {
             val layout = session.posterPages.getValue("test").state!!.layoutInfo
-            val row = layout.visibleItemsInfo.single { it.index == 4 }
+            val row = layout.visibleItemsInfo.single { it.index == 5 }
             assertTrue(row.offset + row.size / 2f - (layout.viewportStartOffset + layout.viewportEndOffset) / 2f > 1f)
         }
         compose.mainClock.advanceTimeBy(500)
-        assertRowCentered(4)
+        assertRowCentered(5)
         compose.mainClock.autoAdvance = true
+    }
+
+    @Test fun verticalRepeatsRetargetBeforePreviousRowFinishesCentering() {
+        shelves(List(12) { listOf("a", "b") })
+        focus("2-a")
+        compose.runOnIdle { session.keyboard = true }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.runOnIdle { session.enqueuePosterMove(session.focusedTarget!!, FocusDirection.Down) }
+            compose.mainClock.advanceTimeBy(32)
+            compose.onNodeWithTag("3-a").assertIsFocused()
+            val firstMove = compose.runOnIdle { session.posterMoveJob!! }
+            compose.runOnIdle { session.enqueuePosterMove(session.focusedTarget!!, FocusDirection.Down) }
+            compose.mainClock.advanceTimeBy(32)
+            compose.onNodeWithTag("4-a").assertIsFocused()
+            compose.runOnIdle {
+                assertTrue(firstMove.isCancelled, "Repeat waited for the previous centering animation")
+                session.releasePosterDirection(FocusDirection.Down)
+            }
+            compose.mainClock.advanceTimeBy(500)
+            compose.onNodeWithTag("4-a").assertIsFocused().assertIsDisplayed()
+            assertRowCentered(4)
+            compose.runOnIdle {
+                assertNull(session.pendingPosterMove)
+                assertNull(session.posterMoveJob)
+                assertEquals(0, session.explicitFocusTransfers)
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun rapidVerticalTapsRetargetAndReverseWithoutWaitingForCentering() {
+        shelves(List(12) { listOf("a", "b") })
+        focus("2-a")
+        compose.runOnIdle { session.keyboard = true }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        try {
+            listOf(
+                Key.DirectionDown to 3,
+                Key.DirectionDown to 4,
+                Key.DirectionUp to 3,
+                Key.DirectionUp to 2,
+            ).forEach { (direction, row) ->
+                compose.onNodeWithTag("host").performKeyInput { pressKey(direction) }
+                compose.mainClock.advanceTimeBy(32)
+                compose.onNodeWithTag("$row-a").assertIsFocused()
+            }
+            compose.mainClock.advanceTimeBy(500)
+            compose.onNodeWithTag("2-a").assertIsFocused().assertIsDisplayed()
+            assertRowCentered(2)
+            compose.runOnIdle {
+                assertNull(session.pendingPosterMove)
+                assertNull(session.posterMoveJob)
+                assertNull(session.posterPressedDirection)
+                assertEquals(0, session.explicitFocusTransfers)
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun rapidHorizontalTapsRetainSelectionsBeyondComposedItemsAndReverse() {
+        shelves(listOf((0..20).map(Int::toString)), viewportWidth = 160)
+        focus("0-0")
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithTag("host").performKeyInput {
+                repeat(5) { pressKey(Key.DirectionRight) }
+                repeat(2) { pressKey(Key.DirectionLeft) }
+            }
+            compose.mainClock.advanceTimeBy(1000)
+            compose.onNodeWithTag("0-3").assertIsFocused().assertIsDisplayed()
+            compose.runOnIdle {
+                assertNull(session.posterMoveJob)
+                assertFalse(session.leftHeld)
+            }
+            compose.onNodeWithTag("host").performKeyInput { pressKey(Key.DirectionRight) }
+            compose.mainClock.advanceTimeBy(500)
+            compose.onNodeWithTag("0-4").assertIsFocused().assertIsDisplayed()
+            compose.onNodeWithTag("host").performKeyInput {
+                repeat(20) { pressKey(Key.DirectionRight) }
+            }
+            compose.mainClock.advanceTimeBy(1500)
+            compose.onNodeWithTag("0-20").assertIsFocused().assertIsDisplayed()
+            compose.onNodeWithTag("host").performKeyInput {
+                repeat(24) { pressKey(Key.DirectionLeft) }
+            }
+            compose.mainClock.advanceTimeBy(1500)
+            compose.onNodeWithTag("0-0").assertIsFocused().assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun registeredGridHorizontalFocusKeepsUpWithRapidTaps() {
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(true, modifier = Modifier.size(500.dp, 600.dp).testTag("host")) {
+                    session = LocalRemoteNavigation.current!!
+                    val state = rememberLazyListState()
+                    BindPosterNavigationPage("search", Unit,
+                        listOf(PosterNavigationRow("grid", (0..3).toList(), 0, grid = true)), state, false)
+                    LazyColumn(state = state) {
+                        item {
+                            RemotePosterRow("search", "grid") {
+                                Row {
+                                    repeat(4) { index ->
+                                        RemotePosterItem(index, index) {
+                                            BasicText("$index", Modifier.size(100.dp).testTag("grid-$index")
+                                                .remoteNavigationTarget().clickable {})
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        focus("grid-0")
+        compose.mainClock.autoAdvance = false
+        try {
+            listOf(Key.DirectionRight to 1, Key.DirectionRight to 2,
+                Key.DirectionLeft to 1, Key.DirectionLeft to 0).forEach { (direction, index) ->
+                compose.onNodeWithTag("host").performKeyInput { pressKey(direction) }
+                compose.onNodeWithTag("grid-$index").assertIsFocused()
+            }
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
     }
 
     @Test fun homeHorizontalFocusKeepsUpWithEveryKeyRepeat() = immediateHorizontalNavigation("home")

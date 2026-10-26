@@ -182,6 +182,7 @@ fun NuvioScreenHeader(
     onBack: (() -> Unit)? = null,
     backButtonKeyboardNavigationEnabled: Boolean = true,
     showFullscreenAction: Boolean = true,
+    backButtonBackgroundOnly: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val tokens = MaterialTheme.nuvio
@@ -231,7 +232,7 @@ fun NuvioScreenHeader(
                 if (onBack != null) {
                     IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
                         .size(desktopBackButtonSize)
-                    else Modifier).navigationGlass().then(if (backButtonKeyboardNavigationEnabled) {
+                    else Modifier).navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
                         Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)
                     } else Modifier.excludeFromRemoteNavigation())) {
                         Icon(
@@ -348,6 +349,7 @@ fun NuvioBackButton(
     contentDescription: String = stringResource(Res.string.action_back),
     usePageStyle: Boolean = false,
     keyboardNavigationEnabled: Boolean = true,
+    backgroundOnly: Boolean = false,
 ) {
     if (LocalUseNativeNavigation.current && !LocalNativeNavigationBarHidden.current) return
     val desktopPageStyle = isDesktop && usePageStyle
@@ -360,7 +362,7 @@ fun NuvioBackButton(
             .size(if (desktopPageStyle) desktopBackButtonSize else buttonSize)
             // Players use the original branch; only page navigation opts into glass.
             .then(
-                if (usePageStyle) Modifier.navigationGlass(effectiveShape)
+                if (usePageStyle) Modifier.navigationGlass(effectiveShape, backgroundOnly = backgroundOnly)
                 else Modifier.clip(effectiveShape).background(effectiveContainerColor),
             )
             .then(

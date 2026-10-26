@@ -711,6 +711,7 @@ private fun MobileSettingsScreen(
                         title = stringResource(page.titleRes),
                         topPadding = topChromePadding,
                         backButtonKeyboardNavigationEnabled = false,
+                        backButtonBackgroundOnly = true,
                         onBack = if (page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
                     )
                 }

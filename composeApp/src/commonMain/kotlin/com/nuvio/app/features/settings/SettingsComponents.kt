@@ -144,6 +144,7 @@ internal fun TabletPageHeader(
             if (showBack) {
                 NuvioBackButton(
                     usePageStyle = true,
+                    backgroundOnly = true,
                     keyboardNavigationEnabled = false,
                     onClick = onBack,
                     modifier = Modifier

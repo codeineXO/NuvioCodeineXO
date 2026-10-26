@@ -63,6 +63,7 @@ internal class RemoteNavigationSession {
     val rememberedBounds = mutableMapOf<Any, Rect>()
     val posterPages = mutableMapOf<String, PosterNavigationPage>()
     var posterMoveJob: Job? = null
+    var posterMoveSource: RemoteFocusTarget? = null
     var posterMoveDirection: FocusDirection? = null
     var posterMovePage: String? = null
     var pendingPosterMove: PosterMoveCommand? = null
@@ -745,7 +746,7 @@ internal fun Modifier.remoteNavigationTarget(
                     true
                 }
                 (direction == FocusDirection.Left || direction == FocusDirection.Right) &&
-                    poster != null && (poster.page == "home" || poster.page == "collection") -> {
+                    poster != null -> {
                     if (event.type == KeyEventType.KeyDown) session.movePosterHorizontally(target, direction)
                     true
                 }

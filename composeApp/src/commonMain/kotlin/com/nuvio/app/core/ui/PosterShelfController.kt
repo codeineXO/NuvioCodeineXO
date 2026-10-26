@@ -73,7 +73,6 @@ internal class PosterShelfController(
         session.activeShelf?.takeIf { it !== this }?.stop()
         session.activeShelf = this
         release(held ?: direction)
-        selectionJob?.cancel()
         session.cancelPosterNavigation()
         held = direction
         advance(source, direction)
@@ -88,11 +87,15 @@ internal class PosterShelfController(
     }
 
     private fun advance(source: RemoteFocusTarget, direction: FocusDirection) {
-        if (selectionJob?.isActive == true) return
         val item = source.shelfItem ?: return
-        val current = keys.indexOf(item.key).takeIf { it >= 0 } ?: item.index
+        // A lazy item may not own focus yet. Advance from the requested selection
+        // so rapid taps and hold ticks are retained while scrolling reveals it.
+        val current = keys.indexOf(anchor).takeIf { selectionJob?.isActive == true && it >= 0 }
+            ?: keys.indexOf(item.key).takeIf { it >= 0 } ?: item.index
         val next = current + if (direction == FocusDirection.Right) 1 else -1
         if (next !in keys.indices) {
+            // Finish revealing the requested boundary item before leaving the shelf.
+            if (selectionJob?.isActive == true) return
             // Preserve the existing explicit end action and sidebar rules.
             if (source.poster != null) session.enqueuePosterMove(source, direction)
             else if (direction != FocusDirection.Left || (allowSidebarEntry && session.canEnterSidebar())) {
@@ -108,6 +111,7 @@ internal class PosterShelfController(
     }
 
     private fun select(key: Any, source: RemoteFocusTarget?, direction: FocusDirection?) {
+        selectionJob?.cancel()
         anchor = key
         startScroll()
         selectionJob = scope.launch {

@@ -237,6 +237,7 @@ internal fun RemoteNavigationSession.cancelPosterNavigation(pageId: String? = nu
     posterRepeatingDirection = null
     posterMoveDirection = null
     posterMovePage = null
+    posterMoveSource = null
     posterMoveJob?.cancel()
     posterMoveJob = null
 }
@@ -295,9 +296,19 @@ internal fun RemoteNavigationSession.enqueuePosterMove(source: RemoteFocusTarget
             FocusDirection.Down -> direction == FocusDirection.Up
             else -> false
         }
-        if (!reversing) { pendingPosterMove = command; return }
-        cancelPosterNavigation()
-        posterPressedDirection = direction
+        val canRetarget = posterMovePage == pageId && posterMoveDirection == direction &&
+            (direction == FocusDirection.Up || direction == FocusDirection.Down) &&
+            focusedTarget?.poster?.let { it.page == pageId && it.row != posterMoveSource?.poster?.row } == true
+        if (!reversing && !canRetarget) { pendingPosterMove = command; return }
+        if (canRetarget) {
+            // Focus has already advanced. Retarget from the current scroll position
+            // without waiting for centering, shelf reveal, or focus-settling frames.
+            posterMoveJob?.cancel()
+            pendingPosterMove = null
+        } else {
+            cancelPosterNavigation()
+            posterPressedDirection = direction
+        }
     }
     val generation = ++posterMoveGeneration
     posterMovePage = pageId
@@ -309,6 +320,7 @@ internal fun RemoteNavigationSession.enqueuePosterMove(source: RemoteFocusTarget
                 posterMoveDirection = move.direction
                 val current = focusedTarget?.takeIf { it.poster?.page == pageId }
                     ?: move.source
+                posterMoveSource = current
                 if (handlesPosterDirection(current.poster, move.direction)) movePoster(current, move.direction)
                 else if (current in targets) moveFocus(current.route, move.direction, current.manager)
                 else {
@@ -330,6 +342,7 @@ internal fun RemoteNavigationSession.enqueuePosterMove(source: RemoteFocusTarget
                 pendingPosterMove = null
                 posterMoveDirection = null
                 posterMovePage = null
+                posterMoveSource = null
                 posterMoveJob = null
             }
         }
@@ -388,12 +401,13 @@ private suspend fun RemoteNavigationSession.movePosterInPage(source: RemoteFocus
     }
     var selected: RemoteFocusTarget? = null
     revealPosterRow(item.page, next, PosterRowReveal.Centered, onPositioned = {
-        // Show the outline as soon as the destination fits, while centering continues.
-        if (!next.grid && selected == null) {
+        // Select as soon as the row enters the viewport. Further key repeats can
+        // retarget the running scroll instead of waiting for this row to center.
+        if (selected == null) {
             val layout = page.state?.layoutInfo
             val measured = layout?.visibleItemsInfo?.firstOrNull { it.index == next.lazyIndex }
-            if (layout != null && measured != null && measured.offset >= layout.viewportStartOffset &&
-                measured.offset + measured.size <= layout.viewportEndOffset) {
+            if (layout != null && measured != null && measured.offset < layout.viewportEndOffset &&
+                measured.offset + measured.size > layout.viewportStartOffset) {
                 destination()?.let { if (it.requester.requestFocus()) selected = it }
             }
         }

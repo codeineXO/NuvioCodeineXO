@@ -133,7 +133,8 @@ internal fun RemoteNavigationRevealPolicy(content: @Composable () -> Unit) {
     val reveal = remember(session, defaultReveal) {
         object : BringIntoViewSpec {
             override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
-                if (session?.focusTransferReason == RemoteFocusTransferReason.ViewportEntry) 0f
+                if (session?.focusTransferReason == RemoteFocusTransferReason.ViewportEntry ||
+                    session?.explicitFocusTransfer == true) 0f
                 else defaultReveal.calculateScrollDistance(offset, size, containerSize)
         }
     }
