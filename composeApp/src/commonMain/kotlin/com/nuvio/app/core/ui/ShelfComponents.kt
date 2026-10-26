@@ -138,11 +138,11 @@ fun <T> NuvioShelfSection(
     val hoverViewport = remember { PosterRowHoverViewport() }
     val glowEnabled = isDesktop && rememberPosterCardStyleUiState().glowEnabled
     val glowOutset = if (glowEnabled) PosterGlowOutset else 0.dp
-    val rowHoverInset = DesktopPosterRowHoverInset
-    val horizontalOverflow = if (useGutterLayout) rowHoverInset else 0.dp
+    val rowHoverInset = maxOf(DesktopPosterRowHoverInset, glowOutset)
+    val horizontalOverflow = if (useGutterLayout) rowHoverInset else glowOutset
     val rowOverflow = glowOutset
     val direction = LocalLayoutDirection.current
-    hoverViewport.inset = rowHoverInset
+    hoverViewport.inset = horizontalOverflow
 
     val effectiveRowModifier = if (useGutterLayout) {
         rowModifier
@@ -152,21 +152,25 @@ fun <T> NuvioShelfSection(
                 hoverViewport.left = it.positionInRoot().x
                 hoverViewport.width = it.size.width
             }
-            .nuvioPosterRowGutterClip()
+            .nuvioPosterRowGutterClip(horizontalOverflow = maxOf(10.dp, glowOutset))
             .nuvioPosterRowEdgeFade(state, horizontalInset = rowHoverInset)
             .nuvioPosterRowMouseWheelScroll(state = state, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(state)
     } else {
         rowModifier.nuvioShelfHoverOverdraw(rowOverflow, horizontalOverflow)
-            .nuvioPosterRowEdgeFade(state)
+            .onGloballyPositioned {
+                hoverViewport.left = it.positionInRoot().x
+                hoverViewport.width = it.size.width
+            }
+            .nuvioPosterRowEdgeFade(state, horizontalInset = horizontalOverflow)
             .nuvioDesktopDragScroll(state)
     }
     val effectiveRowContentPadding = if (useGutterLayout) {
         PaddingValues(horizontal = rowHoverInset, vertical = rowOverflow)
     } else {
         PaddingValues(
-            start = rowContentPadding.calculateStartPadding(direction),
-            end = rowContentPadding.calculateEndPadding(direction),
+            start = rowContentPadding.calculateStartPadding(direction) + horizontalOverflow,
+            end = rowContentPadding.calculateEndPadding(direction) + horizontalOverflow,
             top = rowContentPadding.calculateTopPadding() + rowOverflow,
             bottom = rowContentPadding.calculateBottomPadding() + rowOverflow,
         )
@@ -198,7 +202,7 @@ fun <T> NuvioShelfSection(
                 viewportInset = if (useGutterLayout) {
                     rowHoverInset + ShelfPosterViewportSafetyInset
                 } else {
-                    ShelfPosterViewportSafetyInset
+                    horizontalOverflow + ShelfPosterViewportSafetyInset
                 },
             )
         }
@@ -218,7 +222,7 @@ fun <T> NuvioShelfSection(
                         contentType = { _, _ -> "poster" },
                     ) { index, keyedEntry ->
                         PosterRowItem(
-                            viewport = if (useGutterLayout) hoverViewport else null,
+                            viewport = if (useGutterLayout || glowEnabled) hoverViewport else null,
                             modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
                         ) {
                             CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, keyedEntry.lazyKey, index) }) {
@@ -232,7 +236,7 @@ fun <T> NuvioShelfSection(
                         contentType = { _, _ -> "poster" },
                     ) { index, entry ->
                         PosterRowItem(
-                            viewport = if (useGutterLayout) hoverViewport else null,
+                            viewport = if (useGutterLayout || glowEnabled) hoverViewport else null,
                             modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
                         ) {
                             CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, key?.invoke(entry) ?: index, index) }) {

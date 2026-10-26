@@ -915,7 +915,11 @@ private fun ContinueWatchingWideCard(
     Row(
         modifier = Modifier
             .posterGlow(glow, RoundedCornerShape(cornerRadius))
-            .posterCardClickable(onClick = onClick, onLongClick = onLongClick)
+            .posterCardClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+                zoomCornerRadius = cornerRadius,
+            )
             .width(layout.wideCardWidth)
             .height(layout.wideCardHeight)
             .clip(RoundedCornerShape(cornerRadius))

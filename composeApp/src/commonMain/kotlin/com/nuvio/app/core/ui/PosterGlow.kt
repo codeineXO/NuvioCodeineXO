@@ -17,24 +17,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
 import com.kmpalette.extensions.painter.rememberPainterDominantColorState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+import kotlin.math.ceil
 
 // Accessed on the UI dispatcher; keep only colors, never decoded images or painters.
 private val posterGlowColors = linkedMapOf<String, Color>()
@@ -70,7 +78,7 @@ internal fun BoxScope.PosterGlowBackdrop(layer: PosterGlowLayer, origin: Offset)
                     )
                 }
             }
-            .dropShadow(shape, shadow),
+            .softPosterGlow(shape, shadow),
     )
 }
 
@@ -173,6 +181,34 @@ internal fun Modifier.posterGlow(
                     coordinates.localToRoot(Offset.Zero),
                     coordinates.localToRoot(Offset(coordinates.size.width.toFloat(), coordinates.size.height.toFloat())),
                 )
-            } else if (shadow != null) Modifier.dropShadow(shape, shadow) else Modifier,
+            } else if (shadow != null) Modifier.softPosterGlow(shape, shadow) else Modifier,
         )
+}
+
+/** Keep the entire Gaussian tail; dropShadow's radius + spread bitmap crops it. */
+internal fun Modifier.softPosterGlow(shape: Shape, shadow: Shadow): Modifier = drawWithCache {
+    val radius = shadow.radius.toPx()
+    val spread = shadow.spread.toPx().coerceAtLeast(0f)
+    // Match the shadow blur's radius-to-sigma conversion, with room for three sigma.
+    val sigma = if (radius > 0f) radius * 0.57735f + 0.5f else 0f
+    val padding = ceil(sigma * 3f + spread).toInt()
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val glow = obtainGraphicsLayer()
+    glow.record(size = IntSize(
+        ceil(size.width).toInt() + padding * 2,
+        ceil(size.height).toInt() + padding * 2,
+    )) {
+        translate(padding.toFloat(), padding.toFloat()) {
+            drawOutline(outline, shadow.color)
+            if (spread > 0f) drawOutline(outline, shadow.color, style = Stroke(spread * 2f))
+        }
+    }
+    glow.renderEffect = if (radius > 0f) BlurEffect(radius, radius, TileMode.Decal) else null
+    glow.alpha = shadow.alpha
+    val offsetX = shadow.offset.x.toPx() - padding
+    val offsetY = shadow.offset.y.toPx() - padding
+    onDrawWithContent {
+        translate(offsetX, offsetY) { drawLayer(glow) }
+        drawContent()
+    }
 }

@@ -397,8 +397,9 @@ class RemoteNavigationRegressionTest {
                 RemoteNavigationHost(enabled = true) {
                     Row {
                         shapes.forEachIndexed { index, shape ->
-                            Box(Modifier.size(100.dp).testTag("shape$index").clip(shape)
-                                .background(Color.Black).remoteNavigationTarget(shape = shape).clickable {})
+                            Box(Modifier.size(100.dp).testTag("shape$index")
+                                .remoteNavigationTarget(shape = shape).clip(shape)
+                                .background(Color.Black).clickable {})
                         }
                     }
                 }
@@ -409,8 +410,8 @@ class RemoteNavigationRegressionTest {
             compose.onNodeWithTag("shape$index").performKeyInput { pressKey(Key.DirectionUp) }
             val pixels = compose.onNodeWithTag("shape$index").captureToImage().toPixelMap()
             val scale = pixels.width / 100f
-            val radius = when (index) { 0 -> 0f; 1 -> 24f * scale; else -> pixels.width / 2f - scale }
-            val diagonal = (scale + radius * (1 - 1 / sqrt(2f))).roundToInt()
+            val radius = when (index) { 0 -> 0f; 1 -> 24f * scale; else -> pixels.width / 2f }
+            val diagonal = (radius * (1 - 1 / sqrt(2f)) - 0.5f).roundToInt().coerceAtLeast(0)
             val matches = (-1..1).any { dx -> (-1..1).any { dy ->
                 val color = pixels[(diagonal + dx).coerceIn(0, pixels.width - 1), (diagonal + dy).coerceIn(0, pixels.height - 1)]
                 abs(color.red - accent.red) + abs(color.green - accent.green) + abs(color.blue - accent.blue) < 0.25f

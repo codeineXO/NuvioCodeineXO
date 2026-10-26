@@ -167,7 +167,6 @@ internal fun CollectionFolderCard(
                 focused = it.hasFocus
                 glow?.focused = it.hasFocus
             }
-            .posterCardClickable(onClick = onClick, onLongClick = null)
             .then(modifier)
             .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(cardWidth)),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -182,6 +181,12 @@ internal fun CollectionFolderCard(
                 .nuvioCardDepth(
                     shape = shapeCorner,
                     surface = NuvioCardDepthSurface.Posters,
+                )
+                .posterCardClickable(
+                    onClick = onClick,
+                    onLongClick = null,
+                    zoomImageUrl = imageUrl,
+                    zoomCornerRadius = posterCardStyle.cornerRadiusDp.dp,
                 ),
             shape = shapeCorner,
             colors = CardDefaults.cardColors(

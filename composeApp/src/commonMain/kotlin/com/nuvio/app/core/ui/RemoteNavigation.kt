@@ -15,14 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -775,14 +774,14 @@ internal fun Modifier.remoteNavigationTarget(
                 else -> false
             }
         }
-        .drawWithContent {
-            drawContent()
-            if (focused && session.keyboard) {
-                val width = 2.dp.toPx()
-                if (size.width > width && size.height > width) {
-                    inset(width / 2) {
-                        drawOutline(shape.createOutline(this.size, layoutDirection, this), outlineColor, style = Stroke(width))
-                    }
+        .drawWithCache {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            onDrawWithContent {
+                drawContent()
+                if (focused && session.keyboard) {
+                    // Straddle the real contour so the ring covers the artwork's
+                    // antialiased edge without clipping the surrounding glow.
+                    drawOutline(outline, outlineColor, style = Stroke(2.dp.toPx()))
                 }
             }
         }

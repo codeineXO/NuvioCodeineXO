@@ -139,9 +139,10 @@ internal fun Modifier.posterCardClickable(
             enabled = hoverScaleEnabled,
             interactionSource = interactionSource,
         )
-        .then(posterModifier)
         .focusRequester(actionOpenerFocus)
-        .remoteNavigationTarget(shape = androidx.compose.foundation.shape.RoundedCornerShape(zoomCornerRadius), onSelect = handleClick, onContext = handleLongClick).combinedClickable(
+        .remoteNavigationTarget(shape = androidx.compose.foundation.shape.RoundedCornerShape(zoomCornerRadius), onSelect = handleClick, onContext = handleLongClick)
+        .then(posterModifier)
+        .combinedClickable(
             interactionSource = interactionSource,
             indication = if (!isDesktop && onPosterClickAnchor == null) LocalIndication.current else null,
             onClick = handleClick,
