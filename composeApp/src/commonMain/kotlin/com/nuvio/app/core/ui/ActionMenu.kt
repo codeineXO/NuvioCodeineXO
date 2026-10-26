@@ -292,7 +292,7 @@ internal fun ActionMenuRow(
         modifier.fillMaxWidth()
             .hoverable(interaction)
             .navigationGlassFeedback(interaction, shape, showFocus = isRemoteKeyboardNavigationActive)
-            .remoteNavigationTarget(shape = shape)
+            .remoteNavigationTarget(shape = shape, insetFocusOutline = true)
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onSelected)
             .heightIn(min = 36.dp)
             .padding(horizontal = 12.dp, vertical = 8.dp),

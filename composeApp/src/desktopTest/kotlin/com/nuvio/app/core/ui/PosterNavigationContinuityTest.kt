@@ -204,7 +204,9 @@ class PosterNavigationContinuityTest {
 
     private fun outlinePixel(tag: String): androidx.compose.ui.graphics.Color {
         val pixels = compose.onNodeWithTag(tag).captureToImage().toPixelMap()
-        return pixels[pixels.width / 2, 1]
+        // The stroke straddles the contour, so sample the first pixel row.
+        // The second row can already be beyond its inner edge at 1x density.
+        return pixels[pixels.width / 2, 0]
     }
 
     @Test fun posterOutlineTransfersAtFullOpacityWithoutFading() {
@@ -213,6 +215,7 @@ class PosterNavigationContinuityTest {
         compose.runOnIdle { session.keyboard = true }
         compose.waitForIdle()
         val solidOutline = outlinePixel("0-a")
+        assertTrue(solidOutline.alpha > 0f, "Missing initial keyboard outline")
         compose.mainClock.autoAdvance = false
         compose.onNodeWithTag("host").performKeyInput { pressKey(Key.DirectionRight) }
         compose.mainClock.advanceTimeBy(80)
@@ -759,6 +762,7 @@ class PosterNavigationContinuityTest {
         compose.runOnIdle { session.keyboard = true }
         compose.waitForIdle()
         val solidOutline = outlinePixel("0-3")
+        assertTrue(solidOutline.alpha > 0f, "Missing initial keyboard outline")
         compose.mainClock.autoAdvance = false
         compose.onNodeWithTag("host").performKeyInput { pressKey(Key.DirectionRight) }
         compose.mainClock.advanceTimeBy(80)

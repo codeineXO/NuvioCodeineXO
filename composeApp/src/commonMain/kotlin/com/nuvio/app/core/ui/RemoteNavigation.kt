@@ -18,10 +18,12 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -530,6 +532,7 @@ internal fun Modifier.remoteNavigationTarget(
     onEditingChange: ((Boolean) -> Unit)? = null,
     onSelect: (() -> Unit)? = null,
     onContext: (() -> Unit)? = null,
+    insetFocusOutline: Boolean = false,
 ): Modifier = composed {
     val guardedModifier = if (textField) this.remoteTextInputGuard() else this
     val session = LocalRemoteNavigation.current ?: return@composed guardedModifier
@@ -776,13 +779,19 @@ internal fun Modifier.remoteNavigationTarget(
             }
         }
         .drawWithCache {
-            val outline = shape.createOutline(size, layoutDirection, this)
+            // Clipped panels need the entire stroke inside their bounds; posters
+            // retain a contour-centered stroke to cover the artwork edge.
+            val strokeWidth = 2.dp.toPx()
+            val padding = if (insetFocusOutline) strokeWidth / 2 else 0f
+            val outlineSize = Size((size.width - padding * 2).coerceAtLeast(0f),
+                (size.height - padding * 2).coerceAtLeast(0f))
+            val outline = shape.createOutline(outlineSize, layoutDirection, this)
             onDrawWithContent {
                 drawContent()
                 if (focused && session.keyboard) {
-                    // Straddle the real contour so the ring covers the artwork's
-                    // antialiased edge without clipping the surrounding glow.
-                    drawOutline(outline, outlineColor, style = Stroke(2.dp.toPx()))
+                    if (outlineSize.width > 0f && outlineSize.height > 0f) {
+                        inset(padding) { drawOutline(outline, outlineColor, style = Stroke(strokeWidth)) }
+                    }
                 }
             }
         }

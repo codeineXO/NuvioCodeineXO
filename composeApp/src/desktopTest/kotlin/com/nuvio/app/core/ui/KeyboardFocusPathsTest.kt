@@ -39,6 +39,7 @@ import kotlin.test.assertTrue
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 class KeyboardFocusPathsTest {
     @get:Rule val compose = createComposeRule()
+    private lateinit var searchSession: RemoteNavigationSession
 
     private fun focus(tag: String) = compose.onNodeWithTag(tag)
         .performSemanticsAction(SemanticsActions.RequestFocus)
@@ -57,6 +58,7 @@ class KeyboardFocusPathsTest {
         compose.setContent {
             NuvioTheme {
                 RemoteNavigationHost(enabled = true, modifier = Modifier.size(600.dp, 440.dp).testTag("host")) {
+                    searchSession = LocalRemoteNavigation.current!!
                     val list = rememberLazyListState()
                     val filters = remember { RemoteNavigationFocusDestination() }
                     val poster = remember { RemoteNavigationFocusDestination() }
@@ -101,7 +103,14 @@ class KeyboardFocusPathsTest {
         compose.onNodeWithText("Movies").assertIsFocused()
         compose.onNodeWithText("Recent one").assertExists()
         compose.onNodeWithText("Movies").performKeyInput { pressKey(Key.DirectionDown) }
-        compose.onNode(isFocused()).assert(hasAnySibling(hasText("First poster")))
+        compose.onNode(isFocused()).assertIsDisplayed()
+        compose.runOnIdle {
+            val poster = searchSession.focusedTarget?.poster
+            assertEquals("search", poster?.page)
+            assertEquals("discover_posters_0", poster?.row)
+            assertEquals("movie:poster", poster?.content)
+            assertEquals(PosterTargetRole.Poster, poster?.role)
+        }
     }
 
     @Test fun recentDownSkipsDisabledFilterAndLoadingKeepsFilterFocus() {

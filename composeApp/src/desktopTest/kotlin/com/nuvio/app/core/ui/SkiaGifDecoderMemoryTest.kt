@@ -2,6 +2,7 @@ package com.nuvio.app.core.ui
 
 import coil3.BitmapImage
 import coil3.decode.ImageSource
+import coil3.size.Size
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
 import okio.FileSystem
@@ -18,7 +19,11 @@ import kotlin.test.assertTrue
 class SkiaGifDecoderMemoryTest {
     @Test
     fun returnedPixelsSurviveClosingDecoderResources() = runBlocking {
-        for (width in listOf(4, 1024)) {
+        for ((width, requestedSize, expectedWidth) in listOf(
+            Triple(4, Size.ORIGINAL, 4),
+            Triple(1024, Size.ORIGINAL, 1024),
+            Triple(1024, Size(512, 256), 512),
+        )) {
             val input = BufferedImage(width, width / 2, BufferedImage.TYPE_INT_RGB)
             input.createGraphics().apply {
                 color = java.awt.Color.RED
@@ -27,12 +32,13 @@ class SkiaGifDecoderMemoryTest {
             }
             val bytes = ByteArrayOutputStream().also { assertTrue(ImageIO.write(input, "gif", it)) }.toByteArray()
             ImageSource(Buffer().write(bytes), FileSystem.SYSTEM).use { source ->
-                val result = assertNotNull(SkiaGifDecoder(source).decode())
+                val result = assertNotNull(SkiaGifDecoder(source, requestedSize = requestedSize).decode())
                 val bitmap = (result.image as BitmapImage).bitmap
                 try {
-                    assertEquals(minOf(width, 512), bitmap.width)
+                    assertEquals(expectedWidth, bitmap.width)
+                    assertEquals(expectedWidth / 2, bitmap.height)
                     assertEquals(0xffff0000.toInt(), bitmap.getColor(0, 0))
-                    assertEquals(width > 512, result.isSampled)
+                    assertEquals(expectedWidth != width, result.isSampled)
                 } finally {
                     bitmap.close()
                 }
