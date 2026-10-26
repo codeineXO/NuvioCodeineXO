@@ -153,10 +153,13 @@ fun <T> NuvioShelfSection(
                 hoverViewport.width = it.size.width
             }
             .nuvioPosterRowGutterClip()
+            .nuvioPosterRowEdgeFade(state, horizontalInset = rowHoverInset)
             .nuvioPosterRowMouseWheelScroll(state = state, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(state)
     } else {
-        rowModifier.nuvioShelfHoverOverdraw(rowOverflow, horizontalOverflow).nuvioDesktopDragScroll(state)
+        rowModifier.nuvioShelfHoverOverdraw(rowOverflow, horizontalOverflow)
+            .nuvioPosterRowEdgeFade(state)
+            .nuvioDesktopDragScroll(state)
     }
     val effectiveRowContentPadding = if (useGutterLayout) {
         PaddingValues(horizontal = rowHoverInset, vertical = rowOverflow)

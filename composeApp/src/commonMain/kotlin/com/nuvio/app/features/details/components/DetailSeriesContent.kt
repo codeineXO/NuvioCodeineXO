@@ -141,6 +141,7 @@ import com.nuvio.app.core.ui.nuvioCenterScrollConsumer
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
 import com.nuvio.app.core.ui.nuvioPosterRowGutterClip
+import com.nuvio.app.core.ui.nuvioPosterRowEdgeFade
 import com.nuvio.app.core.ui.nuvioPosterRowMouseWheelScroll
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.posterGlow
@@ -1293,7 +1294,9 @@ private fun SeasonPosterScrollRow(
         PosterShelfScrollOwner(rowNavigation.controller) {
             LazyRow(
                 state = seasonListState,
-                modifier = rowNavigation.modifier.then(rowModifier).then(rowGlassSource),
+                modifier = rowNavigation.modifier.then(rowModifier)
+                    .nuvioPosterRowEdgeFade(seasonListState)
+                    .then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
             ) {
@@ -1639,7 +1642,10 @@ private fun EpisodeHorizontalRow(
         PosterShelfScrollOwner(shelfController) {
             LazyRow(
                 state = listState,
-                modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }.remoteNavigationGroup().then(rowModifier).then(rowGlassSource),
+                modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }
+                    .remoteNavigationGroup().then(rowModifier)
+                    .nuvioPosterRowEdgeFade(listState)
+                    .then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
             ) {
