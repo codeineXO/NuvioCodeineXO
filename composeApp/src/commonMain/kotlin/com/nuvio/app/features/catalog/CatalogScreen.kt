@@ -79,6 +79,7 @@ import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
+import com.nuvio.app.core.ui.PosterGlowOutset
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.landscapePosterWidth
@@ -256,9 +257,10 @@ fun CatalogScreen(
                         state = gridState,
                         modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
                         contentPadding = PaddingValues(
-                            start = pageHorizontalPadding,
-                            end = pageHorizontalPadding,
-                            bottom = nuvioSafeBottomPadding(28.dp),
+                            start = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
+                            end = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
+                            top = if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp,
+                            bottom = nuvioSafeBottomPadding(if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 28.dp),
                         ),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(18.dp),

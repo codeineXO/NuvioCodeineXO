@@ -853,6 +853,8 @@
     <string name="settings_poster_hide_labels">Hide labels</string>
     <string name="settings_poster_always_show_landscape_clearlogo">Always backdrop with logo for landscape posters</string>
     <string name="settings_poster_animated_artwork">Animated artwork</string>
+    <string name="settings_poster_glow">Adaptive Card Glow</string>
+    <string name="settings_poster_glow_description">Show a soft glow matching the artwork when you hover over or highlight posters, collections, Continue Watching, and episode cards.</string>
     <string name="settings_poster_animated_artwork_always">Always</string>
     <string name="settings_poster_animated_artwork_on_hover">On hover</string>
     <string name="settings_poster_animated_artwork_off">Off</string>

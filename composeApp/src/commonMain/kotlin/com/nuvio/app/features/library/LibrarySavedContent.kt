@@ -18,6 +18,8 @@ import com.nuvio.app.core.i18n.localizedMediaTypeLabel
 import com.nuvio.app.core.poster.withCustomPosterUrl
 import com.nuvio.app.core.ui.NuvioDropdownChip
 import com.nuvio.app.core.ui.NuvioDropdownOption
+import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.PosterGridRow
 import com.nuvio.app.features.home.components.PosterGridSkeletonRow
@@ -166,11 +168,11 @@ internal fun LazyListScope.libraryVerticalSkeletonItems(columns: Int) {
 }
 
 internal fun LazyItemScope.libraryContentTransitionModifier(): Modifier =
-    Modifier.animateItem(
+    Modifier.nuvioShelfHoverOverdraw(if (isDesktop) PosterGlowOutset else 0.dp).animateItem(
         fadeInSpec = tween(durationMillis = 160),
         placementSpec = tween(durationMillis = 180),
         fadeOutSpec = tween(durationMillis = 90),
-    )
+    ).padding(if (isDesktop) PosterGlowOutset else 0.dp)
 
 @Composable
 private fun librarySortOptionLabel(option: LibrarySortOption): String =

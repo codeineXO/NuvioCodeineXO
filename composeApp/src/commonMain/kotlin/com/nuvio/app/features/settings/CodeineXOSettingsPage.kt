@@ -21,6 +21,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioToastController
+import com.nuvio.app.core.ui.PosterCardStyleRepository
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pCacheClearResult
@@ -125,6 +126,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
             MetaScreenSettingsRepository.ensureLoaded()
             MetaScreenSettingsRepository.uiState
         }.collectAsStateWithLifecycle()
+        val posterCardStyle by remember {
+            PosterCardStyleRepository.ensureLoaded()
+            PosterCardStyleRepository.uiState
+        }.collectAsStateWithLifecycle()
 
         SettingsSection(
             title = "LAYOUT",
@@ -151,6 +156,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 if (isDesktop) {
                     SettingsGroupDivider(isTablet = isTablet)
                     KeyboardNavigationSettingsRow(isTablet)
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_poster_glow),
+                        description = stringResource(Res.string.settings_poster_glow_description),
+                        checked = posterCardStyle.glowEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PosterCardStyleRepository::setGlowEnabled,
+                    )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),

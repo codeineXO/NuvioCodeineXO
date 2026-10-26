@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +47,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -63,10 +66,12 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -76,7 +81,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.offset
 import androidx.compose.ui.zIndex
 import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
@@ -132,11 +136,18 @@ fun <T> NuvioShelfSection(
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val hoverViewport = remember { PosterRowHoverViewport() }
+    val glowEnabled = isDesktop && rememberPosterCardStyleUiState().glowEnabled
+    val glowOutset = if (glowEnabled) PosterGlowOutset else 0.dp
+    val rowHoverInset = DesktopPosterRowHoverInset
+    val horizontalOverflow = if (useGutterLayout) rowHoverInset else 0.dp
+    val rowOverflow = glowOutset
+    val direction = LocalLayoutDirection.current
+    hoverViewport.inset = rowHoverInset
 
     val effectiveRowModifier = if (useGutterLayout) {
         rowModifier
             .padding(horizontal = headerHorizontalPadding)
-            .nuvioPosterRowHorizontalOverdraw(DesktopPosterRowHoverInset)
+            .nuvioShelfHoverOverdraw(rowOverflow, horizontalOverflow)
             .onGloballyPositioned {
                 hoverViewport.left = it.positionInRoot().x
                 hoverViewport.width = it.size.width
@@ -145,12 +156,17 @@ fun <T> NuvioShelfSection(
             .nuvioPosterRowMouseWheelScroll(state = state, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(state)
     } else {
-        rowModifier.nuvioDesktopDragScroll(state)
+        rowModifier.nuvioShelfHoverOverdraw(rowOverflow, horizontalOverflow).nuvioDesktopDragScroll(state)
     }
     val effectiveRowContentPadding = if (useGutterLayout) {
-        PaddingValues(horizontal = DesktopPosterRowHoverInset)
+        PaddingValues(horizontal = rowHoverInset, vertical = rowOverflow)
     } else {
-        rowContentPadding
+        PaddingValues(
+            start = rowContentPadding.calculateStartPadding(direction),
+            end = rowContentPadding.calculateEndPadding(direction),
+            top = rowContentPadding.calculateTopPadding() + rowOverflow,
+            bottom = rowContentPadding.calculateBottomPadding() + rowOverflow,
+        )
     }
 
     val sectionModifier = if (useGutterLayout) {
@@ -177,7 +193,7 @@ fun <T> NuvioShelfSection(
                 showRowNavigationControls = showRowNavigationControls,
                 state = state,
                 viewportInset = if (useGutterLayout) {
-                    DesktopPosterRowHoverInset + ShelfPosterViewportSafetyInset
+                    rowHoverInset + ShelfPosterViewportSafetyInset
                 } else {
                     ShelfPosterViewportSafetyInset
                 },
@@ -231,6 +247,7 @@ private val DesktopPosterRowHoverInset = 16.dp
 private val ShelfPosterViewportSafetyInset = 2.dp
 
 private class PosterRowHoverViewport {
+    var inset: Dp = DesktopPosterRowHoverInset
     var left by mutableFloatStateOf(0f)
     var width by mutableIntStateOf(0)
 }
@@ -247,29 +264,32 @@ private fun PosterRowItem(
     modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
-    if (viewport == null) {
-        Box(modifier) { content() }
-        return
-    }
     val hover = remember { PosterRowItemHover() }
     val coordinates = remember { PosterRowHoverViewport() }
+    val glowLayer = remember { PosterGlowLayer() }
+    var origin by remember { mutableStateOf(Offset.Zero) }
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
-    CompositionLocalProvider(LocalPosterRowItemHover provides hover) {
+    CompositionLocalProvider(LocalPosterRowItemHover provides hover, LocalPosterGlowLayer provides glowLayer) {
         Box(
             modifier
-                .zIndex(if (hovered || hover.scale() > 1f) 1f else 0f)
+                .zIndex(if (hovered || hover.scale() > 1f || glowLayer.shadow != null) 1f else 0f)
                 .hoverable(interactionSource)
-                .onGloballyPositioned { coordinates.left = it.positionInRoot().x }
-                .drawWithContent {
-                    if (viewport.width == 0) {
+                .onGloballyPositioned {
+                    origin = it.positionInRoot()
+                    coordinates.left = origin.x
+                },
+        ) {
+            PosterGlowBackdrop(glowLayer, origin)
+            Box(Modifier.drawWithContent {
+                    if (viewport == null || viewport.width == 0) {
                         drawContent()
                     } else {
                         val rowLeft = viewport.left - coordinates.left
-                        val inset = DesktopPosterRowHoverInset.toPx()
+                        val inset = viewport.inset.toPx()
                         val expansion = size.width * (hover.scale() - 1f).coerceAtLeast(0f) / 2f
-                        // Ordinary content stops at the original row edges. Only
-                        // this item's animated hover growth may enter the gutter.
+                        // Only the existing hover scale can enter the gutter.
+                        // The glow is drawn separately, outside this content clip.
                         clipRect(
                             left = rowLeft + inset - expansion,
                             right = rowLeft + viewport.width - inset + expansion,
@@ -277,18 +297,8 @@ private fun PosterRowItem(
                             bottom = size.height + 48.dp.toPx(),
                         ) { this@drawWithContent.drawContent() }
                     }
-                },
-        ) { content() }
-    }
-}
-
-private fun Modifier.nuvioPosterRowHorizontalOverdraw(inset: Dp): Modifier = layout { measurable, constraints ->
-    val insetPx = inset.roundToPx()
-    // Grow only the horizontal viewport; matching content padding keeps the
-    // first and last posters aligned while leaving room for hover expansion.
-    val placeable = measurable.measure(constraints.offset(horizontal = insetPx * 2))
-    layout((placeable.width - insetPx * 2).coerceAtLeast(0), placeable.height) {
-        placeable.placeRelative(-insetPx, 0)
+            }) { content() }
+        }
     }
 }
 
@@ -476,6 +486,10 @@ fun NuvioPosterCard(
     val effectiveBasePosterWidthDp = basePosterWidthDp ?: posterCardStyle.widthDp
     val cardWidth = shape.cardWidth(basePosterWidthDp = effectiveBasePosterWidthDp)
     val cardShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
+    val glowArtworkKey = "$imageUrl\n$fallbackImageUrl"
+    val glow = if (isDesktop && posterCardStyle.glowEnabled && imageUrl != null) {
+        rememberPosterGlowState(glowArtworkKey)
+    } else null
     val catalogLogoOverlaySize = catalogLogoOverlaySize(
         basePosterWidthDp = effectiveBasePosterWidthDp,
         shape = shape,
@@ -493,6 +507,7 @@ fun NuvioPosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(shape.aspectRatio)
+                .posterGlow(glow, glowArtworkKey, cardShape)
                 .clip(cardShape)
                 .background(tokens.colors.surface)
                 .nuvioCardDepth(
@@ -529,6 +544,7 @@ fun NuvioPosterCard(
                     modifier = Modifier.matchParentSize(),
                     contentScale = ContentScale.Crop,
                     desktopAnimation = posterCardStyle.animatedArtworkMode.toDesktopAnimation(),
+                    onSuccess = { result -> glow?.painter = result.painter },
                 )
             } else {
                 Text(
@@ -813,14 +829,15 @@ internal fun desktopCatalogShelfPosterBaseWidthDp(
         basePosterWidthDp
     }
 
-internal fun Modifier.nuvioShelfHoverOverdraw(inset: Dp): Modifier {
-    if (inset == 0.dp) return this
+internal fun Modifier.nuvioShelfHoverOverdraw(inset: Dp, horizontal: Dp = inset): Modifier {
+    if (inset == 0.dp && horizontal == 0.dp) return this
 
     // Expand the measured viewport, then place it negatively so edge items keep
-    // their visual alignment while desktop hover scale can draw into the gutter.
+    // their visual alignment while hover scale and glow draw into the gutter.
     return layout { measurable, constraints ->
         val insetPx = inset.roundToPx()
-        val horizontalInset = insetPx * 2
+        val horizontalPx = horizontal.roundToPx()
+        val horizontalInset = horizontalPx * 2
         val verticalInset = insetPx * 2
         val expandedMaxWidth = if (constraints.hasBoundedWidth) {
             constraints.maxWidth + horizontalInset
@@ -850,7 +867,7 @@ internal fun Modifier.nuvioShelfHoverOverdraw(inset: Dp): Modifier {
             .coerceIn(constraints.minHeight, constraints.maxHeight)
 
         layout(width, height) {
-            placeable.placeRelative(-insetPx, -insetPx)
+            placeable.placeRelative(-horizontalPx, -insetPx)
         }
     }
 }

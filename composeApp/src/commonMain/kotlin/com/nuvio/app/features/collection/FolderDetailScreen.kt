@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.Dp
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.NuvioPosterCard
+import com.nuvio.app.core.ui.PosterGlowOutset
 import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioTokens
@@ -457,10 +458,10 @@ private fun TabbedGridContent(
                             state = gridState,
                             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
                             contentPadding = PaddingValues(
-                                start = pageHorizontalPadding,
-                                end = pageHorizontalPadding,
-                                top = if (isDesktop) 8.dp else 4.dp,
-                                bottom = nuvioSafeBottomPadding(18.dp),
+                                start = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
+                                end = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
+                                top = if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else if (isDesktop) 8.dp else 4.dp,
+                                bottom = nuvioSafeBottomPadding(if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 18.dp),
                             ),
                             horizontalArrangement = Arrangement.spacedBy(if (isDesktop) 12.dp else 10.dp),
                             verticalArrangement = Arrangement.spacedBy(if (isDesktop) 18.dp else 14.dp),

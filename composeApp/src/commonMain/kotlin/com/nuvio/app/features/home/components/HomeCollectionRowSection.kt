@@ -17,6 +17,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +46,9 @@ import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
+import com.nuvio.app.core.ui.rememberArtworkGlowState
+import com.nuvio.app.core.ui.posterGlow
+import com.nuvio.app.core.ui.LocalPosterGlowImageState
 import com.nuvio.app.features.collection.Collection
 import com.nuvio.app.features.collection.CollectionFolder
 import com.nuvio.app.features.home.PosterShape
@@ -131,6 +136,9 @@ internal fun CollectionFolderCard(
         (animationSettings.alwaysAnimateCollectionCards || hovered ||
             (focused && isRemoteKeyboardNavigationActive))
     val posterCardStyle = rememberPosterCardStyleUiState()
+    val imageUrl = collectionFolderCardImageUrl(folder)
+    val glow = rememberArtworkGlowState(imageUrl, folder.coverImageUrl)
+    SideEffect { glow?.focused = focused }
     val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
     val isLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled
     val shape = if (isLandscapeMode) PosterShape.Landscape else folder.posterShape
@@ -155,18 +163,21 @@ internal fun CollectionFolderCard(
     Column(
         modifier = Modifier
             .hoverable(interactionSource)
-            .onFocusChanged { focused = it.hasFocus }
+            .onFocusChanged {
+                focused = it.hasFocus
+                glow?.focused = it.hasFocus
+            }
             .posterCardClickable(onClick = onClick, onLongClick = null)
             .then(modifier)
             .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(cardWidth)),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         val shapeCorner = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
-        val imageUrl = collectionFolderCardImageUrl(folder)
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
+                .posterGlow(glow, shapeCorner)
                 .onViewportVisibilityChanged { imageVisible = it }
                 .nuvioCardDepth(
                     shape = shapeCorner,
@@ -186,15 +197,17 @@ internal fun CollectionFolderCard(
             ) {
                 when {
                     !imageUrl.isNullOrBlank() -> {
-                        CollectionCardRemoteImage(
-                            imageUrl = imageUrl,
-                            staticImageUrl = firstNonBlank(folder.coverImageUrl),
-                            contentDescription = folder.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            animateIfPossible = shouldPlay &&
-                                isAnimatedCollectionFolderImage(folder, imageUrl),
-                        )
+                        CompositionLocalProvider(LocalPosterGlowImageState provides glow) {
+                            CollectionCardRemoteImage(
+                                imageUrl = imageUrl,
+                                staticImageUrl = firstNonBlank(folder.coverImageUrl),
+                                contentDescription = folder.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                animateIfPossible = shouldPlay &&
+                                    isAnimatedCollectionFolderImage(folder, imageUrl),
+                            )
+                        }
                     }
                     !folder.coverEmoji.isNullOrBlank() -> {
                         Text(

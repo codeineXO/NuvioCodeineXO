@@ -63,6 +63,9 @@ import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.desktopPosterHoverScale
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
+import com.nuvio.app.core.ui.rememberArtworkGlowState
+import com.nuvio.app.core.ui.posterGlow
+import com.nuvio.app.core.ui.PosterGlowState
 import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.cloudLibraryDisplayArtworkUrl
 import com.nuvio.app.features.tracking.WatchProgressSource
@@ -703,6 +706,7 @@ private fun ContinueWatchingCard(
         useEpisodeThumbnails = useEpisodeThumbnails,
         preferBackdropForNextUp = preferBackdropForNextUp,
     )
+    val glow = rememberArtworkGlowState(imageUrl, item.fallbackUrlForArtwork(imageUrl))
     val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(
         blurUnwatchedEpisodes = blurNextUp,
         useEpisodeThumbnails = useEpisodeThumbnails,
@@ -720,6 +724,7 @@ private fun ContinueWatchingCard(
 
     Box(
         modifier = Modifier
+            .posterGlow(glow, RoundedCornerShape(cardMetrics.cornerRadius))
             .posterCardClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -769,6 +774,7 @@ private fun ContinueWatchingCard(
                     },
                 contentScale = ContentScale.Crop,
                 desktopAnimation = rememberAnimatedArtworkAnimation(),
+                onSuccess = { result -> glow?.painter = result.painter },
             )
         }
         if (item.shufflePlayback) ShuffleBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
@@ -904,8 +910,11 @@ private fun ContinueWatchingWideCard(
     onLongClick: (() -> Unit)?,
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
+    val artworkUrl = item.continueWatchingArtworkUrl(useEpisodeThumbnails)
+    val glow = rememberArtworkGlowState(artworkUrl, item.fallbackUrlForArtwork(artworkUrl))
     Row(
         modifier = Modifier
+            .posterGlow(glow, RoundedCornerShape(cornerRadius))
             .posterCardClickable(onClick = onClick, onLongClick = onLongClick)
             .width(layout.wideCardWidth)
             .height(layout.wideCardHeight)
@@ -917,13 +926,13 @@ private fun ContinueWatchingWideCard(
                 shape = RoundedCornerShape(cornerRadius),
             ),
     ) {
-        val artworkUrl = item.continueWatchingArtworkUrl(useEpisodeThumbnails)
         val shouldBlurArtwork = item.shouldBlurContinueWatchingArtwork(
             blurUnwatchedEpisodes = blurNextUp,
             useEpisodeThumbnails = useEpisodeThumbnails,
             artworkUrl = artworkUrl,
         )
         ArtworkPanel(
+            glow = glow,
             imageUrl = artworkUrl,
             width = layout.widePosterStripWidth,
             blurred = shouldBlurArtwork,
@@ -1034,6 +1043,7 @@ private fun ContinueWatchingPosterCard(
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
     val imageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
+    val glow = rememberArtworkGlowState(imageUrl, item.fallbackUrlForArtwork(imageUrl))
     Column(
         modifier = Modifier
             .desktopPosterHoverScale()
@@ -1044,6 +1054,7 @@ private fun ContinueWatchingPosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .let { if (isDesktop) it.aspectRatio(0.675f) else it.height(layout.posterCardHeight) }
+                .posterGlow(glow, RoundedCornerShape(cornerRadius))
                 .clip(RoundedCornerShape(cornerRadius))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .nuvioCardDepth(
@@ -1077,6 +1088,7 @@ private fun ContinueWatchingPosterCard(
                         .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                     contentScale = if (item.isCloudLibraryItem()) ContentScale.Fit else ContentScale.Crop,
                     desktopAnimation = rememberAnimatedArtworkAnimation(),
+                    onSuccess = { result -> glow?.painter = result.painter },
                 )
             }
             if (item.shufflePlayback) ShuffleBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
@@ -1171,6 +1183,7 @@ private fun ArtworkPanel(
     fallbackUrl: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
     modifier: Modifier = Modifier,
+    glow: PosterGlowState? = null,
 ) {
     Box(
         modifier = modifier
@@ -1190,6 +1203,7 @@ private fun ArtworkPanel(
                     .then(if (blurred) Modifier.blur(18.dp) else Modifier),
                 contentScale = contentScale,
                 desktopAnimation = rememberAnimatedArtworkAnimation(),
+                onSuccess = { result -> glow?.painter = result.painter },
             )
         }
     }

@@ -143,6 +143,10 @@ import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
 import com.nuvio.app.core.ui.nuvioPosterRowGutterClip
 import com.nuvio.app.core.ui.nuvioPosterRowMouseWheelScroll
 import com.nuvio.app.core.ui.posterCardClickable
+import com.nuvio.app.core.ui.posterGlow
+import com.nuvio.app.core.ui.rememberArtworkGlowState
+import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -1583,7 +1587,12 @@ private fun EpisodeHorizontalRow(
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
     val rowHazeState = rememberHazeState()
-    val rowGlassSource = if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(rowHazeState) else Modifier
+    val glowOutset = if (isDesktop && rememberPosterCardStyleUiState().glowEnabled) PosterGlowOutset else 0.dp
+    val rowGlassSource = if (LocalFrostedGlassEnabled.current) {
+        Modifier.nuvioShelfHoverOverdraw(glowOutset)
+            .hazeSource(rowHazeState)
+            .padding(glowOutset)
+    } else Modifier
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
         Modifier
@@ -1737,6 +1746,7 @@ private fun EpisodeHorizontalCard(
     val formattedDate = remember(video.released) { video.released?.let { formatReleaseDateForDisplay(it) } }
     val runtimeLabel = remember(video.runtime) { video.runtime?.takeIf { it > 0 }?.let(::formatEpisodeRuntime) }
     val imageUrl = video.thumbnail ?: fallbackImage
+    val glow = rememberArtworkGlowState(imageUrl)
     val visibleProgressEntry = progressEntry?.takeIf { it.durationMs > 0L && !it.isCompleted }
     val progressBarHeight = 4.dp
     val progressBarContentSpacing = 6.dp
@@ -1750,6 +1760,7 @@ private fun EpisodeHorizontalCard(
         modifier = modifier
             .width(metrics.cardWidth)
             .height(metrics.cardHeight)
+            .posterGlow(glow, cardShape)
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .nuvioCardDepth(
@@ -1774,6 +1785,7 @@ private fun EpisodeHorizontalCard(
                     .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                 contentScale = ContentScale.Crop,
                 desktopAnimation = rememberAnimatedArtworkAnimation(),
+                onSuccess = { result -> glow?.painter = result.painter },
             )
         }
 

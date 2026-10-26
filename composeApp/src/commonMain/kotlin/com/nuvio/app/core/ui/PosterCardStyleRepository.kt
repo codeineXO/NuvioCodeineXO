@@ -36,6 +36,7 @@ fun AnimatedArtworkMode.toDesktopAnimation(): NuvioDesktopAnimation = when (this
 
 @Serializable
 private data class StoredPosterCardStylePreferences(
+    val glowEnabled: Boolean = true,
     val widthDp: Int = DefaultPosterCardWidthDp,
     val heightDp: Int = DefaultPosterCardHeightDp,
     val cornerRadiusDp: Int = DefaultPosterCardCornerRadiusDp,
@@ -51,6 +52,7 @@ private data class StoredPosterCardStylePreferences(
 )
 
 data class PosterCardStyleUiState(
+    val glowEnabled: Boolean = true,
     val widthDp: Int = DefaultPosterCardWidthDp,
     val heightDp: Int = DefaultPosterCardHeightDp,
     val cornerRadiusDp: Int = DefaultPosterCardCornerRadiusDp,
@@ -120,6 +122,13 @@ object PosterCardStyleRepository {
         ensureLoaded()
         if (_uiState.value.hideLabelsEnabled == enabled) return
         _uiState.value = _uiState.value.copy(hideLabelsEnabled = enabled)
+        persist()
+    }
+
+    fun setGlowEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (_uiState.value.glowEnabled == enabled) return
+        _uiState.value = _uiState.value.copy(glowEnabled = enabled)
         persist()
     }
 
@@ -209,6 +218,7 @@ object PosterCardStyleRepository {
             val heightDp = stored.heightDp.takeIf { it > 0 } ?: ((widthDp * 3) / 2)
             val cornerRadiusDp = stored.cornerRadiusDp.coerceAtLeast(0)
             PosterCardStyleUiState(
+                glowEnabled = stored.glowEnabled,
                 widthDp = widthDp,
                 heightDp = heightDp,
                 cornerRadiusDp = cornerRadiusDp,
@@ -237,6 +247,7 @@ object PosterCardStyleRepository {
         PosterCardStyleStorage.savePayload(
             json.encodeToString(
                 StoredPosterCardStylePreferences(
+                    glowEnabled = _uiState.value.glowEnabled,
                     widthDp = _uiState.value.widthDp,
                     heightDp = _uiState.value.heightDp,
                     cornerRadiusDp = _uiState.value.cornerRadiusDp,

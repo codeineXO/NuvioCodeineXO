@@ -95,6 +95,8 @@ import com.nuvio.app.core.ui.nuvioConsumePointerEvents
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
+import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.features.addons.AddonRepository
@@ -158,7 +160,14 @@ fun SearchScreen(
     // The shell supplies the aura beneath the scrolling sources, including at scroll position zero.
     // The pinned search field is never captured in its own backdrop.
     val searchBackdropState = LocalSearchBackdropState.current ?: rememberHazeState()
-    val searchBackdropModifier = if (isDesktop && LocalFrostedGlassEnabled.current) Modifier.hazeSource(searchBackdropState) else Modifier
+    val posterCardStyle = rememberPosterCardStyleUiState()
+    val glowOutset = if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp
+    // Capture the glow as well as the card when frosted controls sample this layer.
+    val searchBackdropModifier = if (isDesktop && LocalFrostedGlassEnabled.current) {
+        Modifier.nuvioShelfHoverOverdraw(glowOutset)
+            .hazeSource(searchBackdropState)
+            .padding(glowOutset)
+    } else Modifier
 
     ScreenActivityEffect(listState) { screenActive ->
         if (!screenActive) {
@@ -349,7 +358,6 @@ fun SearchScreen(
             )
         }
 
-        val posterCardStyle = rememberPosterCardStyleUiState()
         val useGutterLayout = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
         val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
         val effectivePosterWidth = if (posterCardStyle.catalogLandscapeModeEnabled) {

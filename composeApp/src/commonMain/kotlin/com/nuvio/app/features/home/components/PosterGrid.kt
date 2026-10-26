@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +38,8 @@ import com.nuvio.app.core.ui.SkeletonPoster
 import com.nuvio.app.core.ui.desktopPosterHoverScale
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.posterCardClickable
+import com.nuvio.app.core.ui.posterGlow
+import com.nuvio.app.core.ui.rememberPosterGlowState
 import com.nuvio.app.core.ui.RemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -63,7 +66,8 @@ internal fun PosterGridRow(
     val posterCardStyle = rememberPosterCardStyleUiState()
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth()
+            .padding(horizontal = if (isDesktop && posterCardStyle.glowEnabled) 16.dp else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -99,7 +103,8 @@ internal fun PosterGridSkeletonRow(
     val posterCardStyle = rememberPosterCardStyleUiState()
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth()
+            .padding(horizontal = if (isDesktop && posterCardStyle.glowEnabled) 16.dp else 0.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         repeat(columns) {
@@ -124,6 +129,11 @@ private fun PosterGridTile(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val posterCardStyle = rememberPosterCardStyleUiState()
+    val glowArtworkKey = "${item.poster}\n${item.rawPosterUrl}"
+    val glow = if (isDesktop && posterCardStyle.glowEnabled && item.poster != null) {
+        rememberPosterGlowState(glowArtworkKey)
+    } else null
     HomePosterHoverPreview(
         item = item,
         isWatched = isWatched,
@@ -142,6 +152,7 @@ private fun PosterGridTile(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(item.posterShape.posterGridAspectRatio())
+                    .posterGlow(glow, glowArtworkKey, RoundedCornerShape(cornerRadiusDp.dp))
                     .clip(RoundedCornerShape(cornerRadiusDp.dp))
                     .background(backgroundColor)
                     .nuvioCardDepth(
@@ -178,6 +189,7 @@ private fun PosterGridTile(
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
                             desktopAnimation = rememberAnimatedArtworkAnimation(),
+                            onSuccess = { result -> glow?.painter = result.painter },
                         )
                     } else {
                         AsyncImage(

@@ -18,6 +18,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
+import com.nuvio.app.core.ui.LocalPosterGlowImageState
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -202,6 +203,7 @@ internal actual fun CollectionCardRemoteImage(
     contentScale: ContentScale,
     animateIfPossible: Boolean,
 ) {
+    val glow = LocalPosterGlowImageState.current
     val shouldAnimate = animateIfPossible
     var composeBitmap by remember(imageUrl) { mutableStateOf<ImageBitmap?>(null) }
     var frameIndex by remember(imageUrl) { mutableStateOf(0) }
@@ -272,6 +274,7 @@ internal actual fun CollectionCardRemoteImage(
             modifier = Modifier.matchParentSize(),
             contentScale = contentScale,
             filterQuality = FilterQuality.High,
+            onSuccess = { result -> glow?.painter = result.painter },
         )
 
         val animatedFrame = composeBitmap.takeIf { shouldAnimate }

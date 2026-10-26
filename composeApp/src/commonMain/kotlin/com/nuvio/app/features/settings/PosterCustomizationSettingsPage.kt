@@ -116,6 +116,8 @@ import nuvio.composeapp.generated.resources.settings_poster_animated_artwork_alw
 import nuvio.composeapp.generated.resources.settings_poster_animated_artwork_off
 import nuvio.composeapp.generated.resources.settings_poster_animated_artwork_on_hover
 import nuvio.composeapp.generated.resources.settings_poster_hide_labels
+import nuvio.composeapp.generated.resources.settings_poster_glow
+import nuvio.composeapp.generated.resources.settings_poster_glow_description
 import nuvio.composeapp.generated.resources.settings_poster_always_show_landscape_clearlogo
 import nuvio.composeapp.generated.resources.settings_poster_landscape_mode
 import nuvio.composeapp.generated.resources.settings_poster_live_preview
@@ -173,12 +175,14 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                     hideLabelsEnabled = uiState.hideLabelsEnabled,
                     alwaysShowLandscapeClearlogo = uiState.alwaysShowLandscapeClearlogo,
                     animatedArtworkMode = uiState.animatedArtworkMode,
+                    glowEnabled = uiState.glowEnabled,
                     onWidthSelected = PosterCardStyleRepository::setWidthDp,
                     onCornerRadiusSelected = PosterCardStyleRepository::setCornerRadiusDp,
                     onCatalogLandscapeModeChange = PosterCardStyleRepository::setCatalogLandscapeModeEnabled,
                     onHideLabelsChange = PosterCardStyleRepository::setHideLabelsEnabled,
                     onAlwaysShowLandscapeClearlogoChange = PosterCardStyleRepository::setAlwaysShowLandscapeClearlogo,
                     onAnimatedArtworkModeSelected = PosterCardStyleRepository::setAnimatedArtworkMode,
+                    onGlowEnabledChange = PosterCardStyleRepository::setGlowEnabled,
                 )
             }
         }
@@ -736,12 +740,14 @@ private fun PosterCardStyleControls(
     hideLabelsEnabled: Boolean,
     alwaysShowLandscapeClearlogo: Boolean,
     animatedArtworkMode: AnimatedArtworkMode,
+    glowEnabled: Boolean,
     onWidthSelected: (Int) -> Unit,
     onCornerRadiusSelected: (Int) -> Unit,
     onCatalogLandscapeModeChange: (Boolean) -> Unit,
     onHideLabelsChange: (Boolean) -> Unit,
     onAlwaysShowLandscapeClearlogoChange: (Boolean) -> Unit,
     onAnimatedArtworkModeSelected: (AnimatedArtworkMode) -> Unit,
+    onGlowEnabledChange: (Boolean) -> Unit,
 ) {
     val animatedArtworkOptions = listOf(
         PresetOption(stringResource(Res.string.settings_poster_animated_artwork_always), AnimatedArtworkMode.Always.ordinal),
@@ -796,6 +802,12 @@ private fun PosterCardStyleControls(
             onCheckedChange = onCatalogLandscapeModeChange,
         )
         PosterToggleRow(
+            title = stringResource(Res.string.settings_poster_glow),
+            description = stringResource(Res.string.settings_poster_glow_description),
+            checked = glowEnabled,
+            onCheckedChange = onGlowEnabledChange,
+        )
+        PosterToggleRow(
             title = stringResource(Res.string.settings_poster_hide_labels),
             checked = hideLabelsEnabled,
             onCheckedChange = onHideLabelsChange,
@@ -833,19 +845,31 @@ private fun PosterToggleRow(
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    description: String? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium,
+        Column(
             modifier = Modifier.weight(1f).padding(end = 16.dp),
-        )
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
+            )
+            if (description != null) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
