@@ -199,10 +199,9 @@ import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.navigation.*
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import com.nuvio.app.features.servers.ServerRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import com.nuvio.app.features.servers.ServerMatcher
-import com.nuvio.app.features.servers.ServerRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
@@ -442,7 +441,6 @@ internal fun MainAppContent(
         if (enabledAddons.isWaitingForFirstEnabledManifest()) return@LaunchedEffect
         HomeCatalogSettingsRepository.syncCatalogs(enabledAddons)
         HomeRepository.refresh(enabledAddons)
-        ServerMatcher.warm()
     }
 
     fun activateTab(tab: AppScreenTab) {

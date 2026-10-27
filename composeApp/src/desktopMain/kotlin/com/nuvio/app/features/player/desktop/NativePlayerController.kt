@@ -26,6 +26,7 @@ import com.nuvio.app.features.player.InAppPlayerManager
 import com.nuvio.app.features.player.ParentalWarning
 import com.nuvio.app.features.player.PlayerControlsAction
 import com.nuvio.app.features.player.PlayerControlsState
+import com.nuvio.app.features.player.PlayerChapter
 import com.nuvio.app.features.player.PlayerEngineController
 import com.nuvio.app.features.player.PlayerMediaInfo
 import com.nuvio.app.features.player.mpvMediaInfo
@@ -1499,6 +1500,20 @@ internal class NativePlayerController(
         }
     }
 
+    override suspend fun getChapters(): List<PlayerChapter> {
+        if (!PlayerSettingsRepository.uiState.value.androidExoChaptersEnabled) return emptyList()
+        val current = handle.takeIf { it != 0L } ?: return emptyList()
+        val count = NativePlayerBridge.stringProperty(current, "chapter-list/count").toIntOrNull() ?: return emptyList()
+        return (0 until count).mapNotNull { index ->
+            val seconds = NativePlayerBridge.stringProperty(current, "chapter-list/$index/time").toDoubleOrNull()
+                ?: return@mapNotNull null
+            PlayerChapter(
+                startMs = (seconds * 1000.0).toLong(),
+                title = NativePlayerBridge.stringProperty(current, "chapter-list/$index/title").takeIf { it.isNotBlank() },
+            )
+        }
+    }
+
     override suspend fun getMediaInfo(): PlayerMediaInfo {
         val current = handle.takeIf { it != 0L } ?: return PlayerMediaInfo()
         return mpvMediaInfo { name -> NativePlayerBridge.stringProperty(current, name).takeIf { it.isNotBlank() } }
@@ -2474,6 +2489,18 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
             append(",\"borderColor\":").append(it.borderColor.toJsonString())
             append('}')
         }
+        append(',')
+        appendJsonArrayField("chapters", chapters) {
+            append("{\"startMs\":").append(it.startMs)
+            append(",\"title\":").append(it.title.toJsonString())
+            append('}')
+        }
+        append(',')
+        appendJsonField("chaptersLabel", chaptersLabel)
+        append(',')
+        appendJsonField("chaptersPanelTitle", chaptersPanelTitle)
+        append(',')
+        appendJsonField("chapterRemainingTemplate", chapterRemainingTemplate)
         append(",\"party\":")
         append(partyJson.encodeToString(PlayerControlPartyState.serializer(), party.withWebviewImages(onImageReady)))
         append('}')

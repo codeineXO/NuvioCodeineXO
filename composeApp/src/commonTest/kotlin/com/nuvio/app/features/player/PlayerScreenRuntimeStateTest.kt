@@ -4,6 +4,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Modifier
 import com.nuvio.app.features.streams.StreamsUiState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -308,6 +312,127 @@ class PlayerScreenRuntimeStateTest {
 
         runtime.prepareSeekByForNativeFallback(-1_000L, revealControls = false)
         assertFalse(runtime.controlsVisible)
+    }
+
+    @Test
+    fun chaptersAreNormalizedAndReadOnlyOncePerLoadedSource() = runTest {
+        val controller = ChapterController {
+            listOf(PlayerChapter(60_000L, "Second"), PlayerChapter(0L, "First"), PlayerChapter(0L, "Duplicate"))
+        }
+        val runtime = PlayerScreenRuntime(testPlayerScreenArgs()).apply {
+            playerController = controller
+            playerControllerSourceUrl = activeSourceUrl
+        }
+
+        runtime.loadChaptersIfNeeded()
+        runtime.loadChaptersIfNeeded()
+
+        assertEquals(listOf(0L, 60_000L), runtime.chapters.map { it.startMs })
+        assertEquals(1, controller.reads)
+    }
+
+    @Test
+    fun chapterlessSourceUsesBoundedRetriesAndDoesNotRetryOnRebuffer() = runTest {
+        val controller = ChapterController { emptyList() }
+        val runtime = PlayerScreenRuntime(testPlayerScreenArgs()).apply {
+            playerController = controller
+            playerControllerSourceUrl = activeSourceUrl
+        }
+
+        runtime.loadChaptersIfNeeded()
+        runtime.loadChaptersIfNeeded()
+
+        assertTrue(runtime.chapters.isEmpty())
+        assertEquals(9, controller.reads)
+    }
+
+    @Test
+    fun disabledChaptersDoNotReadAndCanReloadWhenEnabled() = runTest {
+        val controller = ChapterController { listOf(PlayerChapter(0L, "First"), PlayerChapter(60_000L, "Second")) }
+        val runtime = PlayerScreenRuntime(testPlayerScreenArgs()).apply {
+            playerController = controller
+            playerControllerSourceUrl = activeSourceUrl
+            playerSettingsUiState = playerSettingsUiState.copy(androidExoChaptersEnabled = false)
+        }
+
+        runtime.loadChaptersIfNeeded()
+        assertEquals(0, controller.reads)
+        runtime.playerSettingsUiState = runtime.playerSettingsUiState.copy(androidExoChaptersEnabled = true)
+        runtime.loadChaptersIfNeeded()
+        assertEquals(2, runtime.chapters.size)
+        runtime.showChaptersPanel = true
+        runtime.clearChapters()
+        assertTrue(runtime.chapters.isEmpty())
+        assertNull(runtime.chaptersLoadedForSourceUrl)
+        assertFalse(runtime.showChaptersPanel)
+        assertTrue(runtime.controlsVisible)
+        runtime.loadChaptersIfNeeded()
+        assertEquals(2, controller.reads)
+    }
+
+    @Test
+    fun oldChapterLoadCannotPopulateAReplacementSource() = runTest {
+        val controller = ChapterController {
+            delay(100)
+            listOf(PlayerChapter(0L, "Old first"), PlayerChapter(60_000L, "Old second"))
+        }
+        val runtime = PlayerScreenRuntime(testPlayerScreenArgs()).apply {
+            playerController = controller
+            playerControllerSourceUrl = activeSourceUrl
+        }
+        val load = launch { runtime.loadChaptersIfNeeded() }
+        runCurrent()
+        runtime.activeSourceUrl = "https://example.com/replacement.mp4"
+        advanceUntilIdle()
+        load.join()
+
+        assertTrue(runtime.chapters.isEmpty())
+        assertNull(runtime.chaptersLoadedForSourceUrl)
+    }
+
+    @Test
+    fun chapterSelectionUsesTimelineClampingAndBufferingState() = runTest {
+        val controller = ChapterController { emptyList() }
+        val runtime = PlayerScreenRuntime(testPlayerScreenArgs()).apply {
+            scope = backgroundScope
+            playerController = controller
+            playbackSnapshot = PlayerPlaybackSnapshot(isLoading = true, positionMs = 30_000L, durationMs = 120_000L)
+            chapters = listOf(PlayerChapter(0L, "First"), PlayerChapter(120_000L, "End"))
+            showChaptersPanel = true
+        }
+
+        runtime.selectChapter(1)
+
+        assertEquals(118_500L, controller.seekTarget)
+        assertEquals(118_500L, runtime.scrubbingPositionMs)
+        assertEquals(30_000L to 118_500L, runtime.lastManualSkipSeekPositions)
+        assertFalse(runtime.showChaptersPanel)
+        assertTrue(runtime.controlsVisible)
+        runtime.selectChapter(-1)
+        assertEquals(118_500L, controller.seekTarget)
+    }
+
+    private class ChapterController(private val read: suspend () -> List<PlayerChapter>) : PlayerEngineController {
+        var reads = 0
+        var seekTarget: Long? = null
+        override suspend fun getChapters(): List<PlayerChapter> {
+            reads++
+            return read()
+        }
+        override fun play() = Unit
+        override fun pause() = Unit
+        override fun seekTo(positionMs: Long) { seekTarget = positionMs }
+        override fun seekBy(offsetMs: Long) = Unit
+        override fun retry() = Unit
+        override fun setPlaybackSpeed(speed: Float) = Unit
+        override fun getAudioTracks() = emptyList<AudioTrack>()
+        override fun getSubtitleTracks() = emptyList<SubtitleTrack>()
+        override fun applyAudioLanguagePreferences(languages: List<String>) = Unit
+        override fun selectAudioTrack(index: Int) = Unit
+        override fun selectSubtitleTrack(index: Int) = Unit
+        override fun setSubtitleUri(url: String) = Unit
+        override fun clearExternalSubtitle() = Unit
+        override fun clearExternalSubtitleAndSelect(trackIndex: Int) = Unit
     }
 
     private fun testPlayerScreenArgs() = PlayerScreenArgs(

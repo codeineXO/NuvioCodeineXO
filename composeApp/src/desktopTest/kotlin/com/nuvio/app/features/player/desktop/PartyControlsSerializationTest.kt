@@ -3,6 +3,7 @@ package com.nuvio.app.features.player.desktop
 import com.nuvio.app.features.player.PlayerControlPartyMember
 import com.nuvio.app.features.player.PlayerControlPartyState
 import com.nuvio.app.features.player.PlayerControlsState
+import com.nuvio.app.features.player.PlayerControlChapter
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -27,6 +28,8 @@ class PartyControlsSerializationTest {
             svpMode = "auto",
             svpActive = true,
             audioNightModeEnabled = true,
+            chapters = listOf(PlayerControlChapter(0L, "Opening"), PlayerControlChapter(60_000L, "A \"quoted\" chapter")),
+            chaptersLabel = "Chapters",
             party = PlayerControlPartyState(
                 active = true,
                 code = "ABC123",
@@ -51,6 +54,11 @@ class PartyControlsSerializationTest {
         assertEquals("auto", json["svpMode"]?.jsonPrimitive?.content)
         assertEquals(true, json["svpActive"]?.jsonPrimitive?.booleanOrNull)
         assertEquals(true, json["audioNightModeEnabled"]?.jsonPrimitive?.booleanOrNull)
+        val chaptersJson = json["chapters"]!!.jsonArray
+        assertEquals(2, chaptersJson.size)
+        assertEquals("60000", chaptersJson[1].jsonObject["startMs"]?.jsonPrimitive?.content)
+        assertEquals("A \"quoted\" chapter", chaptersJson[1].jsonObject["title"]?.jsonPrimitive?.content)
+        assertEquals("Chapters", json["chaptersLabel"]?.jsonPrimitive?.content)
 
         // Verify party state serialization
         val partyJson = json["party"]?.jsonObject

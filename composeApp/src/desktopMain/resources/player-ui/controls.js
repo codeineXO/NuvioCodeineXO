@@ -70,6 +70,7 @@ const previewTiles = [
   document.getElementById("previewTile4")
 ];
 const seekPreviewPill = document.getElementById("seekPreviewPill");
+const seekChapterLabel = document.getElementById("seekChapterLabel");
 const codeineNextEpisodeButton = document.getElementById("codeineNextEpisodeButton");
 const codeineQuickDrawer = document.getElementById("codeineQuickDrawer");
 const codeineDrawerItems = document.getElementById("codeineDrawerItems");
@@ -122,6 +123,15 @@ const nextEpisodeStatus = document.getElementById("nextEpisodeStatus");
 const nextEpisodeAction = document.getElementById("nextEpisodeAction");
 const sourcesButton = document.getElementById("sourcesButton");
 const episodesButton = document.getElementById("episodesButton");
+const chaptersButton = document.getElementById("chaptersButton");
+const codeineChaptersButton = document.getElementById("codeineChaptersButton");
+const chaptersLabel = document.getElementById("chaptersLabel");
+const chapterTitle = document.getElementById("chapterTitle");
+const chapterMarks = document.getElementById("chapterMarks");
+const chaptersModal = document.getElementById("chaptersModal");
+const chaptersPanelTitle = document.getElementById("chaptersPanelTitle");
+const chaptersCloseButton = document.getElementById("chaptersCloseButton");
+const chapterList = document.getElementById("chapterList");
 const audioModal = document.getElementById("audioModal");
 const audioCloseButton = document.getElementById("audioCloseButton");
 const subtitleModal = document.getElementById("subtitleModal");
@@ -1575,6 +1585,7 @@ const modalByName = {
   shaders: shaderModal,
   sources: sourceModal,
   episodes: episodesModal,
+  chapters: chaptersModal,
   submitIntro: submitIntroModal,
   p2pConsent: p2pConsentModal,
   party: partyModal,
@@ -3281,6 +3292,139 @@ const renderP2pConsentModal = () => {
   lastRenderedModalSignature = getP2pConsentModalSignature();
 };
 
+const formatChapterClock = ms => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = value => String(value).padStart(2, "0");
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+};
+
+const currentChapterIndex = (chapters, atPositionMs = state.positionMs) => {
+  const positionMs = Math.max(0, Number(atPositionMs) || 0);
+  let index = -1;
+  chapters.forEach((chapter, i) => {
+    if (chapter.startMs <= positionMs) index = i;
+  });
+  return index;
+};
+
+let chapterListSignature = "";
+
+const renderChaptersModal = (modalOpened = false) => {
+  const chapters = Array.isArray(state.chapters) ? state.chapters : [];
+  const durationMs = Math.max(0, Number(state.durationMs) || 0);
+  const positionMs = Math.max(0, Number(state.positionMs) || 0);
+  chaptersPanelTitle.textContent = state.chaptersPanelTitle || "Chapters";
+  chaptersCloseButton.textContent = state.panelCloseLabel || "Close";
+  const signature = JSON.stringify(chapters);
+  if (signature !== chapterListSignature) {
+    chapterListSignature = signature;
+    chapterList.textContent = "";
+    chapters.forEach((chapter, index) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "chapter-row";
+      row.addEventListener("click", event => {
+        event.stopPropagation();
+        send("selectChapter", index);
+        window.setTimeout(closePlayerModal, 120);
+      });
+      const main = document.createElement("span");
+      main.className = "chapter-row-main";
+      const lead = document.createElement("span");
+      lead.className = "chapter-row-lead";
+      lead.textContent = String(index + 1);
+      const name = document.createElement("span");
+      name.className = "chapter-row-name";
+      name.textContent = chapter.title;
+      const time = document.createElement("span");
+      time.className = "chapter-row-time";
+      time.textContent = formatChapterClock(chapter.startMs);
+      main.append(lead, name, time);
+      const extra = document.createElement("span");
+      extra.className = "chapter-row-extra";
+      extra.hidden = true;
+      const bar = document.createElement("span");
+      bar.className = "chapter-row-bar";
+      bar.appendChild(document.createElement("span"));
+      const remaining = document.createElement("span");
+      remaining.className = "chapter-row-remaining";
+      extra.append(bar, remaining);
+      row.append(main, extra);
+      chapterList.appendChild(row);
+    });
+  }
+  const current = currentChapterIndex(chapters);
+  Array.from(chapterList.children).forEach((row, index) => {
+    const isCurrent = index === current;
+    row.classList.toggle("current", isCurrent);
+    const lead = row.querySelector(".chapter-row-lead");
+    const hasIcon = lead.firstElementChild !== null;
+    if (isCurrent && !hasIcon) {
+      lead.innerHTML = '<svg aria-hidden="true"><use href="#icon-play"></use></svg>';
+    } else if (!isCurrent && hasIcon) {
+      lead.textContent = String(index + 1);
+    }
+    const extra = row.querySelector(".chapter-row-extra");
+    extra.hidden = !isCurrent;
+    if (!isCurrent) return;
+    const startMs = chapters[index].startMs;
+    const endMs = chapters[index + 1] ? chapters[index + 1].startMs : durationMs;
+    if (endMs > startMs) {
+      const fraction = Math.min(1, Math.max(0, (positionMs - startMs) / (endMs - startMs)));
+      row.querySelector(".chapter-row-bar > span").style.width = `${fraction * 100}%`;
+      row.querySelector(".chapter-row-remaining").textContent = (state.chapterRemainingTemplate || "{time} left")
+        .replace("{time}", formatChapterClock(Math.max(0, endMs - positionMs)));
+    }
+  });
+  if (modalOpened && current >= 0) {
+    const row = chapterList.children[current];
+    if (row) row.scrollIntoView({ block: "center" });
+  }
+};
+
+let chapterMarksSignature = "";
+
+const renderChapterMarks = () => {
+  const chapters = Array.isArray(state.chapters) ? state.chapters : [];
+  const durationMs = Math.max(0, Number(state.durationMs) || 0);
+  const signature = `${durationMs}|${JSON.stringify(chapters.map(chapter => chapter.startMs))}`;
+  if (signature !== chapterMarksSignature) {
+    chapterMarksSignature = signature;
+    chapterMarks.textContent = "";
+    if (durationMs > 0) {
+      chapters.forEach(chapter => {
+        const fraction = chapter.startMs / durationMs;
+        if (fraction <= 0 || fraction >= 1) return;
+        const mark = document.createElement("span");
+        mark.className = "chapter-mark";
+        mark.style.left = `${fraction * 100}%`;
+        chapterMarks.appendChild(mark);
+      });
+    }
+  }
+  const index = currentChapterIndex(chapters);
+  setVisible(chapterMarks, chapters.length > 1 && durationMs > 0);
+  const showTitle = state.playerUiMode === "official" && !state.isInPip && index >= 0;
+  setText(chapterTitle, showTitle ? chapters[index].title : "");
+};
+
+const renderChapterControls = () => {
+  const hasChapters = Array.isArray(state.chapters) && state.chapters.length > 0;
+  const showChapters = hasChapters && !state.isInPip;
+  setVisible(chaptersButton, showChapters);
+  setVisible(codeineChaptersButton, showChapters);
+  codeineChaptersButton.querySelector("span").textContent = state.chaptersLabel || "Chapters";
+  codeineChaptersButton.setAttribute("aria-label", state.chaptersLabel || "Chapters");
+  chaptersLabel.textContent = state.chaptersLabel || "Chapters";
+  setActionButtonLabel("chapters", state.chaptersLabel || "Chapters");
+  renderChapterMarks();
+  if (!showChapters && activeModal === "chapters") closePlayerModal(false);
+  refreshSeekHover();
+};
+
 const trackListSignature = tracks =>
   normalizeTracks(tracks)
     .map(track => [
@@ -3445,6 +3589,10 @@ const getActiveModalSignature = modal => {
   if (modal === "episodes") return getEpisodesModalSignature();
   if (modal === "submitIntro") return getSubmitIntroModalSignature();
   if (modal === "p2pConsent") return getP2pConsentModalSignature();
+  if (modal === "chapters") return JSON.stringify([
+    state.chapters, state.durationMs, Math.floor((Number(state.positionMs) || 0) / 1000),
+    state.chaptersPanelTitle, state.panelCloseLabel, state.chapterRemainingTemplate,
+  ]);
   if (modal === "party") return JSON.stringify(currentParty());
   return "";
 };
@@ -3465,6 +3613,7 @@ const renderActiveModal = (modalOpened = false, force = false) => {
   else if (activeModal === "shaders") renderShaderOptionList();
   else if (activeModal === "sources") renderSourceModal(modalOpened);
   else if (activeModal === "episodes") renderEpisodesModal(modalOpened);
+  else if (activeModal === "chapters") renderChaptersModal(modalOpened);
   else if (activeModal === "submitIntro") renderSubmitIntroModal();
   else if (activeModal === "p2pConsent") renderP2pConsentModal();
   else if (activeModal === "party") renderPartyModal();
@@ -3914,6 +4063,7 @@ const renderChrome = () => {
   setVisible(videoSettingsButton, Boolean(state.showVideoSettings));
   setVisible(sourcesButton, Boolean(state.showSources));
   setVisible(episodesButton, Boolean(state.showEpisodes));
+  renderChapterControls();
   syncActionFocusState();
 
   const playPauseLabel = isPlaying ? state.pauseLabel : state.playLabel;
@@ -4500,6 +4650,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
       send("episodes", 0);
       return;
     }
+    if (command === "chapters") {
+      openPlayerModal("chapters");
+      return;
+    }
     if (command === "submitIntro") {
       openPlayerModal("submitIntro");
       return;
@@ -4789,6 +4943,11 @@ sourceList.addEventListener("scroll", () => {
     requestSourceVirtualRender();
   }
 }, { passive: true });
+chaptersCloseButton.addEventListener("click", event => {
+  event.stopPropagation();
+  closePlayerModal();
+});
+
 episodesCloseButton.addEventListener("click", event => {
   event.stopPropagation();
   closePlayerModal();
@@ -4933,6 +5092,25 @@ let seekrCues = [];
 let seekrLoadedVttUrl = "";
 let seekrLastQueryKey = "";
 let seekrContentKey = "";
+let seekHoverPositionMs = null;
+let seekHoverClientX = null;
+let seekHoverContentKey = "";
+
+function seekHoverSourceKey() {
+  return JSON.stringify([
+    state.playerUiMode, state.title, state.episodeText, state.streamTitle, state.providerName,
+    state.seekrImdbId, state.seekrTmdbId, state.seekrSeason, state.seekrEpisode, state.chapters,
+  ]);
+}
+
+function refreshSeekHover() {
+  if (seekHoverPositionMs === null) return;
+  if (state.isInPip || state.isMiniPlayer || seekHoverContentKey !== seekHoverSourceKey()) {
+    hideSeekrPreview();
+    return;
+  }
+  updateSeekrPreview(seekHoverPositionMs, seekHoverClientX);
+}
 
 function parseSeekrVtt(vttText, baseUrl) {
   const cues = [];
@@ -5005,7 +5183,7 @@ function syncSeekrPreviews() {
   if (!state.seekPreviewEnabled) {
     seekrCues = [];
     seekrLoadedVttUrl = "";
-    hideSeekrPreview();
+    refreshSeekHover();
     return;
   }
 
@@ -5063,16 +5241,27 @@ function syncSeekrPreviews() {
 }
 
 function updateSeekrPreview(positionMs, clientX) {
-  if (!codeineSeekPreview || !seekrCues || seekrCues.length === 0) {
+  if (!codeineSeekPreview || state.isInPip || state.isMiniPlayer) {
     hideSeekrPreview();
     return;
   }
 
-  const centerIdx = findSeekrCueIndex(seekrCues, positionMs);
-  if (centerIdx < 0) {
+  const chapters = Array.isArray(state.chapters) ? state.chapters : [];
+  const chapterIndex = currentChapterIndex(chapters, positionMs);
+  const chapterName = (state.playerUiMode || "codeine_xo") === "codeine_xo" && chapterIndex >= 0
+    ? chapters[chapterIndex].title : "";
+  setText(seekChapterLabel, chapterName);
+  const centerIdx = state.seekPreviewEnabled ? findSeekrCueIndex(seekrCues, positionMs) : -1;
+  const hasPreview = centerIdx >= 0;
+  setVisible(seekFilmstripCarousel, hasPreview);
+  setVisible(seekPreviewPill, hasPreview);
+  if (!hasPreview && !chapterName) {
     hideSeekrPreview();
     return;
   }
+  seekHoverPositionMs = positionMs;
+  seekHoverClientX = clientX;
+  seekHoverContentKey = seekHoverSourceKey();
 
   const centerCue = seekrCues[centerIdx];
   const tileWidth = (centerCue && centerCue.w) || 144;
@@ -5083,7 +5272,7 @@ function updateSeekrPreview(positionMs, clientX) {
     const tileEl = previewTiles[tileIdx];
     if (!tileEl) continue;
     const cueIdx = centerIdx + offset;
-    const cue = seekrCues[cueIdx];
+    const cue = hasPreview ? seekrCues[cueIdx] : null;
     if (cue) {
       tileEl.style.display = "block";
       tileEl.style.width = `${tileWidth}px`;
@@ -5095,15 +5284,15 @@ function updateSeekrPreview(positionMs, clientX) {
     }
   }
 
-  if (seekPreviewPill) {
-    seekPreviewPill.textContent = formatTime(centerCue ? centerCue.startMs : positionMs);
+  if (seekPreviewPill && hasPreview) {
+    seekPreviewPill.textContent = formatTime(centerCue.startMs);
   }
 
   if (codeineSeekContainer) {
     const parentRect = codeineSeekPreview.parentElement ? codeineSeekPreview.parentElement.getBoundingClientRect() : { left: 0, width: window.innerWidth };
     const containerRect = codeineSeekContainer.getBoundingClientRect();
     const windowWidth = window.innerWidth || document.documentElement.clientWidth;
-    const filmstripWidth = 5 * tileWidth + 4 * 8;
+    const filmstripWidth = hasPreview ? 5 * tileWidth + 4 * 8 : codeineSeekPreview.getBoundingClientRect().width;
     let targetX;
     if (clientX != null) {
       targetX = clientX;
@@ -5114,8 +5303,9 @@ function updateSeekrPreview(positionMs, clientX) {
       targetX = windowWidth / 2;
     }
 
-    const minCenter = filmstripWidth / 2 + 16;
-    const maxCenter = windowWidth - filmstripWidth / 2 - 16;
+    const previewWidth = Math.min(filmstripWidth, Math.max(0, windowWidth - 32));
+    const minCenter = previewWidth / 2 + 16;
+    const maxCenter = windowWidth - previewWidth / 2 - 16;
     const clampedCenter = Math.max(minCenter, Math.min(maxCenter, targetX));
     const localX = clampedCenter - parentRect.left;
     codeineSeekPreview.style.left = `${localX}px`;
@@ -5125,6 +5315,9 @@ function updateSeekrPreview(positionMs, clientX) {
 }
 
 function hideSeekrPreview() {
+  seekHoverPositionMs = null;
+  seekHoverClientX = null;
+  setText(seekChapterLabel, "");
   if (codeineSeekPreview) {
     codeineSeekPreview.classList.remove("visible");
   }
@@ -5166,12 +5359,14 @@ seek.addEventListener("change", () => {
 
 if (codeineSeekContainer) {
   codeineSeekContainer.addEventListener("mousemove", event => {
-    if (!state.seekPreviewEnabled || !state.durationMs) return;
+    if (!state.durationMs) {
+      hideSeekrPreview();
+      return;
+    }
     const rect = codeineSeekContainer.getBoundingClientRect();
     if (!rect.width) return;
     const frac = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const rawHoveredMs = Math.round(frac * state.durationMs);
-    const hoveredMs = state.durationMs > 2000 ? Math.min(rawHoveredMs, state.durationMs - 1500) : rawHoveredMs;
+    const hoveredMs = Math.round(frac * state.durationMs);
     updateSeekrPreview(isScrubbing ? scrubPositionMs : hoveredMs, event.clientX);
   });
   codeineSeekContainer.addEventListener("mouseleave", () => {
@@ -6239,12 +6434,15 @@ document.addEventListener("keydown", event => {
     if (activeModal === "subtitles") {
       items = Array.from(document.querySelectorAll('.subtitle-language-row:not([disabled]):not([hidden])'))
         .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+    } else if (activeModal === "chapters") {
+      items = Array.from(chapterList.querySelectorAll('.chapter-row:not([disabled]):not([hidden])'))
+        .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
     } else {
       items = Array.from(document.querySelectorAll('.track-row:not([disabled]):not([hidden])'))
         .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
     }
     if (items.length) {
-      let selectedIndex = items.findIndex(el => el.classList.contains('selected'));
+      let selectedIndex = items.findIndex(el => el.classList.contains('selected') || el.classList.contains('current'));
       if (selectedIndex === -1) selectedIndex = 0;
       let nextIndex = selectedIndex;
       if (event.code === 'ArrowDown' || event.code === 'ArrowRight') {

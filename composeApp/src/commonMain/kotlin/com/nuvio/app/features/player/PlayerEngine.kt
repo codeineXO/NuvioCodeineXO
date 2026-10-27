@@ -49,6 +49,8 @@ interface PlayerEngineController {
     }
 
     suspend fun getMediaInfo(): PlayerMediaInfo = PlayerMediaInfo()
+    /** The loaded file's chapters, unsorted; empty when the engine cannot read them. */
+    suspend fun getChapters(): List<PlayerChapter> = emptyList()
 }
 
 enum class PlayerControlsAction {
@@ -83,6 +85,11 @@ enum class PlayerControlsAction {
     Minimize,
     Expand,
 }
+
+data class PlayerControlChapter(
+    val startMs: Long,
+    val title: String,
+)
 
 data class PlayerControlsState(
     val title: String = "",
@@ -302,6 +309,10 @@ data class PlayerControlsState(
     val audioNightModeEnabled: Boolean = false,
     val party: PlayerControlPartyState = PlayerControlPartyState(),
     val badges: List<StreamBadge> = emptyList(),
+    val chapters: List<PlayerControlChapter> = emptyList(),
+    val chaptersLabel: String = "Chapters",
+    val chaptersPanelTitle: String = "Chapters",
+    val chapterRemainingTemplate: String = "{time} left",
 )
 
 data class PlayerControlFilterItem(

@@ -33,6 +33,7 @@ class MergedDesktopPreferencesTest {
         assertEquals("", StreamBadgeSettingsRepository.uiState.value.playerBadgeSource)
         assertTrue(MdbListSettings().showOnHero)
         assertFalse(PlayerSettingsUiState().useLibass)
+        assertTrue(PlayerSettingsUiState().androidExoChaptersEnabled)
     }
 
     @Test
