@@ -1051,7 +1051,6 @@ button:disabled {
 .player.pip-mode [data-command="sources"],
 .player.pip-mode [data-command="episodes"],
 .player.pip-mode [data-command="chapters"],
-.player.pip-mode .chapter-title,
 .player.pip-mode [data-command="playNextEpisode"],
 .player.pip-mode .next-episode-card,
 .player.pip-mode .skip-prompt,
@@ -1810,11 +1809,9 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
-.chapter-title[hidden] {
-  display: none;
-}
-
-.player.ui-codeinexo .chapter-title {
+.chapter-title[hidden],
+.player.ui-codeinexo .chapter-title,
+.player.pip-mode .chapter-title {
   display: none;
 }
 
@@ -4938,27 +4935,28 @@ svg {
   z-index: 2;
 }
 
-#seekPreviewPill {
-  margin-top: 6px;
+.seek-feedback {
+  flex-direction: column;
+  gap: 4px;
 }
 
 .seek-chapter-label {
-  max-width: min(360px, calc(100vw - 32px));
+  /* Reserve ink space so ellipsis clipping does not crop the toast text shadow. */
+  box-sizing: content-box;
+  padding: 20px;
+  margin: -20px;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.seek-preview-pill {
-  padding: 3px 10px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+.seek-chapter-label[hidden] {
+  display: none;
+}
+
+.player.seek-feedback-active #playerToast {
+  visibility: hidden;
 }
 
 /* CodeineXO Controls Row */

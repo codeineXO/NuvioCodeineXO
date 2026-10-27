@@ -126,6 +126,7 @@ const episodesButton = document.getElementById("episodesButton");
 const chaptersButton = document.getElementById("chaptersButton");
 const codeineChaptersButton = document.getElementById("codeineChaptersButton");
 const chaptersLabel = document.getElementById("chaptersLabel");
+const seekFeedback = document.getElementById("seekFeedback");
 const chapterTitle = document.getElementById("chapterTitle");
 const chapterMarks = document.getElementById("chapterMarks");
 const chaptersModal = document.getElementById("chaptersModal");
@@ -3409,8 +3410,8 @@ const renderChapterMarks = () => {
       });
     }
   }
-  const index = currentChapterIndex(chapters);
   setVisible(chapterMarks, chapters.length > 1 && durationMs > 0);
+  const index = currentChapterIndex(chapters);
   const showTitle = state.playerUiMode === "official" && !state.isInPip && index >= 0;
   setText(chapterTitle, showTitle ? chapters[index].title : "");
 };
@@ -3987,6 +3988,7 @@ const renderChrome = () => {
   const pipPointerOutside = Boolean(state.isInPip && isPipPointerOutside);
   root.classList.toggle("pip-pointer-outside", pipPointerOutside);
   const chromeHidden = Boolean(showError || !state.controlsVisible || state.isMiniPlayer || pipPointerOutside);
+  if ((chromeHidden && (seekDragActive || seekPointerPositionMs !== null)) || state.isInPip || showError) clearSeekPreviewInteraction();
   root.classList.toggle("chrome-hidden", chromeHidden);
   if (!chromeHidden || state.showSeekbarWhileSeeking === false) {
     clearSeekbarOnly();
@@ -5122,6 +5124,10 @@ function clearSeekPreviewInteraction() {
   seekPointerClientX = null;
   seekDragActive = false;
   hideSeekrPreview();
+  setText(seekChapterLabel, "");
+  seekFeedback.classList.remove("visible");
+  seekFeedback.setAttribute("aria-hidden", "true");
+  root.classList.remove("seek-feedback-active");
 }
 
 function activeSeekPreview() {
@@ -5140,10 +5146,19 @@ function seekPreviewTriggerEnabled(trigger) {
 }
 
 function refreshSeekHover() {
-  if (seekHoverContentKey && (seekHoverContentKey !== seekHoverSourceKey() || state.isInPip || state.isMiniPlayer)) {
+  if (seekHoverContentKey && (seekHoverContentKey !== seekHoverSourceKey() || state.isInPip || state.isMiniPlayer || (state.controlsVisible === false && (seekDragActive || seekPointerPositionMs !== null)))) {
     clearSeekPreviewInteraction();
     return;
   }
+  const mousePositionMs = seekDragActive ? scrubPositionMs : seekPointerPositionMs;
+  const showFeedback = mousePositionMs !== null && state.durationMs > 0;
+  const chapters = Array.isArray(state.chapters) ? state.chapters : [];
+  const chapterIndex = showFeedback && state.playerUiMode !== "official" ? currentChapterIndex(chapters, mousePositionMs) : -1;
+  setText(seekChapterLabel, chapterIndex >= 0 ? chapters[chapterIndex].title : "");
+  if (showFeedback) seekPreviewPill.textContent = formatTime(mousePositionMs);
+  seekFeedback.classList.toggle("visible", showFeedback);
+  seekFeedback.setAttribute("aria-hidden", String(!showFeedback));
+  root.classList.toggle("seek-feedback-active", showFeedback);
   const preview = activeSeekPreview();
   if (!preview) { hideSeekrPreview(); return; }
   updateSeekrPreview(preview.positionMs, preview.clientX, preview.trigger);
@@ -5323,16 +5338,10 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
     return;
   }
 
-  const chapters = Array.isArray(state.chapters) ? state.chapters : [];
-  const chapterIndex = currentChapterIndex(chapters, positionMs);
-  const chapterName = (state.playerUiMode || "codeine_xo") === "codeine_xo" && chapterIndex >= 0
-    ? chapters[chapterIndex].title : "";
-  setText(seekChapterLabel, chapterName);
   const centerIdx = seekPreviewTriggerEnabled(trigger) ? findSeekrCueIndex(seekrCues, positionMs) : -1;
   const hasPreview = centerIdx >= 0;
   setVisible(seekFilmstripCarousel, hasPreview);
-  setVisible(seekPreviewPill, hasPreview);
-  if (!hasPreview && !chapterName) {
+  if (!hasPreview) {
     hideSeekrPreview();
     return;
   }
@@ -5368,15 +5377,14 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
       tileEl.style.backgroundPosition = '-' + cue.x + 'px -' + cue.y + 'px';
     }
   }
-  if (seekPreviewPill && hasPreview) seekPreviewPill.textContent = formatTime(centerCue.startMs);
   const parentRect = codeineSeekPreview.offsetParent
     ? codeineSeekPreview.offsetParent.getBoundingClientRect() : { left: 0 };
-  const popupWidth = hasPreview ? geometry.width : codeineSeekPreview.getBoundingClientRect().width;
+  const popupWidth = geometry.width;
   const center = Math.max(16 + popupWidth / 2, Math.min(windowWidth - 16 - popupWidth / 2, targetX));
   codeineSeekPreview.style.left = (center - parentRect.left) + "px";
   const parentBottom = codeineSeekPreview.offsetParent
     ? codeineSeekPreview.offsetParent.getBoundingClientRect().bottom : window.innerHeight;
-  codeineSeekPreview.style.bottom = (parentBottom - timelineRect.top + 14) + "px";
+  codeineSeekPreview.style.bottom = (parentBottom - timelineRect.top + 20) + "px";
 
   codeineSeekPreview.classList.add("visible");
 }
@@ -5384,7 +5392,6 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
 function hideSeekrPreview() {
   seekHoverPositionMs = null;
   seekHoverClientX = null;
-  setText(seekChapterLabel, "");
   if (codeineSeekPreview) {
     codeineSeekPreview.classList.remove("visible");
   }
@@ -5426,8 +5433,9 @@ seek.addEventListener("change", () => {
 });
 
 function updateSeekPointer(event) {
+  if (event.pointerType && event.pointerType !== "mouse") return;
   const rect = seek.getBoundingClientRect();
-  if (!state.durationMs || !rect.width) { hideSeekrPreview(); return; }
+  if (!state.durationMs || !rect.width) { clearSeekPreviewInteraction(); return; }
   seekPointerClientX = Math.max(rect.left, Math.min(rect.right, event.clientX));
   const fraction = Math.max(0, Math.min(1, (seekPointerClientX - rect.left) / rect.width));
   seekPointerPositionMs = Math.round(fraction * state.durationMs);
@@ -5443,6 +5451,7 @@ seek.addEventListener("pointerleave", () => {
   refreshSeekHover();
 });
 seek.addEventListener("pointerdown", event => {
+  if (event.pointerType && event.pointerType !== "mouse") return;
   seekDragActive = true;
   window.clearTimeout(seekKeyboardTimer);
   seekKeyboardPositionMs = null;

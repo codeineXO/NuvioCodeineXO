@@ -412,8 +412,6 @@
             <div class="seek-preview-card tile-side tile-side-right-1" id="previewTile3"></div>
             <div class="seek-preview-card tile-side tile-side-right-2" id="previewTile4"></div>
           </div>
-          <div class="seek-preview-pill" id="seekPreviewPill">00:00</div>
-          <div class="seek-preview-pill seek-chapter-label" id="seekChapterLabel" hidden></div>
         </div>
         <div class="codeine-seek-row">
           <span class="codeine-time-pill codeine-time-current" id="codeinePosition">00:00</span>
@@ -523,6 +521,10 @@
             </button>
           </div>
         </div>
+      </section>
+      <section class="player-toast seek-feedback" id="seekFeedback" aria-hidden="true">
+        <span class="seek-chapter-label" id="seekChapterLabel" hidden></span>
+        <span id="seekPreviewPill"></span>
       </section>
       <section class="player-toast" id="playerToast" aria-live="polite" aria-atomic="true" aria-hidden="true">
         <svg class="player-toast-icon" id="playerToastIcon" aria-hidden="true" hidden><use id="playerToastIconUse" href="#icon-speed"></use></svg>

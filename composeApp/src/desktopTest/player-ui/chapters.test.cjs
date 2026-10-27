@@ -67,7 +67,7 @@ function player() {
     previewTiles: [], isScrubbing: false, scrubPositionMs: 0,
     fetch: () => { throw new Error('Chapter hover must not fetch Seekr data'); },
   };
-  for (const name of ['chapterTitle', 'chapterMarks', 'chaptersPanelTitle', 'chaptersCloseButton', 'chapterList',
+  for (const name of ['root', 'seekFeedback', 'chapterTitle', 'chapterMarks', 'chaptersPanelTitle', 'chaptersCloseButton', 'chapterList',
     'chaptersButton', 'codeineChaptersButton', 'chaptersLabel', 'seekChapterLabel', 'codeineSeekPreview',
     'seekFilmstripCarousel', 'seekPreviewPill', 'codeineSeekContainer', 'seek']) {
     context[name] = new Element();
@@ -81,7 +81,7 @@ function player() {
     section('function updateSeekrPreview', 'if (torrentStatsClock)') +
     section('function updateSeekPointer', 'volumeSlider.addEventListener') +
     '\nglobalThis.api = { renderChaptersModal, renderChapterMarks, renderChapterControls, renderActiveModal, currentChapterIndex,' +
-    ' updateSeekrPreview: (positionMs, clientX) => { seekPointerPositionMs = positionMs; seekPointerClientX = clientX; updateSeekrPreview(positionMs, clientX); },' +
+    ' updateSeekrPreview: (positionMs, clientX) => { seekPointerPositionMs = positionMs; seekPointerClientX = clientX; seekHoverContentKey = seekHoverSourceKey(); refreshSeekHover(); },' +
     ' hideSeekrPreview, refreshSeekHover, syncSeekrPreviews, setCues: cues => { seekrCues = cues; } };';
   vm.runInNewContext(script, context);
   return { ...context, context, events };
@@ -110,17 +110,16 @@ test('chapter selection sends its index and closes the modal', () => {
   assert.deepEqual(p.events, [['selectChapter', 1], ['close']]);
 });
 
-test('marks and titles follow playback and disappear for chapterless sources', () => {
+test('Official restores its playback chapter title above the timeline', () => {
   const p = player();
   p.state.playerUiMode = 'official';
   p.api.renderChapterMarks();
-  assert.equal(p.chapterMarks.children.length, 1);
-  assert.equal(p.chapterMarks.children[0].style.left, '50%');
   assert.equal(p.chapterTitle.textContent, 'Opening');
   assert.equal(p.chapterTitle.hidden, false);
+  assert.equal(p.chapterMarks.children.length, 1);
+  assert.equal(p.chapterMarks.children[0].style.left, '50%');
   p.state.positionMs = 75_000;
   p.api.renderChapterMarks();
-  assert.equal(p.chapterTitle.textContent, 'Main feature');
   p.state.chapters = [];
   p.api.renderChapterMarks();
   assert.equal(p.chapterMarks.children.length, 0);
@@ -137,18 +136,6 @@ test('source changes replace chapter rows even at the same playback position', (
   assert.equal(p.chapterList.children[1].querySelector('.chapter-row-time').textContent, '00:30');
 });
 
-test('CodeineXO has no persistent chapter title while Official retains it', () => {
-  const p = player();
-  p.api.renderChapterMarks();
-  assert.equal(p.chapterTitle.hidden, true);
-  p.state.playerUiMode = 'official';
-  p.api.renderChapterMarks();
-  assert.equal(p.chapterTitle.textContent, 'Opening');
-  p.state.isInPip = true;
-  p.api.renderChapterMarks();
-  assert.equal(p.chapterTitle.hidden, true);
-});
-
 test('hover follows chapter boundaries with Seekr disabled', () => {
   const p = player();
   p.seek.listeners.pointermove({ clientX: 399 });
@@ -156,11 +143,11 @@ test('hover follows chapter boundaries with Seekr disabled', () => {
   p.seek.listeners.pointermove({ clientX: 400 });
   assert.equal(p.seekChapterLabel.textContent, 'Main feature');
   assert.equal(p.seekFilmstripCarousel.hidden, true);
-  assert.equal(p.seekPreviewPill.hidden, true);
-  assert.equal(p.codeineSeekPreview.classes.has('visible'), true);
+  assert.equal(p.seekPreviewPill.textContent, '60000');
+  assert.equal(p.seekFeedback.classes.has('visible'), true);
   p.api.syncSeekrPreviews();
   assert.equal(p.seekChapterLabel.textContent, 'Main feature');
-  assert.equal(p.codeineSeekPreview.classes.has('visible'), true);
+  assert.equal(p.seekFeedback.classes.has('visible'), true);
 });
 
 test('chapter hover survives unavailable Seekr and coexists with available thumbnails', () => {
@@ -168,13 +155,13 @@ test('chapter hover survives unavailable Seekr and coexists with available thumb
   p.state.seekPreviewEnabled = true;
   p.api.updateSeekrPreview(75_000, 400);
   assert.equal(p.seekChapterLabel.textContent, 'Main feature');
-  assert.equal(p.seekPreviewPill.hidden, true);
+  assert.equal(p.seekFeedback.classes.has('visible'), true);
   p.api.setCues([{ startMs: 60_000, endMs: 120_000, w: 144, h: 81, sheetUrl: 'mock' }]);
   p.api.refreshSeekHover();
   assert.equal(p.seekChapterLabel.textContent, 'Main feature');
   assert.equal(p.seekFilmstripCarousel.hidden, false);
-  assert.equal(p.seekPreviewPill.hidden, false);
-  assert.equal(p.seekPreviewPill.textContent, '60000');
+  assert.equal(p.seekFeedback.classes.has('visible'), true);
+  assert.equal(p.seekPreviewPill.textContent, '75000');
 });
 
 test('hover clears on pointer leave, source changes and disabled chapters', () => {
@@ -182,7 +169,7 @@ test('hover clears on pointer leave, source changes and disabled chapters', () =
   p.api.updateSeekrPreview(75_000, 400);
   p.seek.listeners.pointerleave();
   assert.equal(p.seekChapterLabel.hidden, true);
-  assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
+  assert.equal(p.seekFeedback.classes.has('visible'), false);
   p.api.updateSeekrPreview(75_000, 400);
   p.state.streamTitle = 'Replacement source';
   p.api.refreshSeekHover();
@@ -199,6 +186,8 @@ test('no chapter tooltip appears before the first chapter or for chapterless con
   p.state.chapters = [{ startMs: 10_000, title: 'First' }, { startMs: 60_000, title: 'Second' }];
   p.api.updateSeekrPreview(0, 100);
   assert.equal(p.seekChapterLabel.hidden, true);
+  assert.equal(p.seekFeedback.classes.has('visible'), true);
+  assert.equal(p.seekPreviewPill.textContent, '0');
   p.state.chapters = [];
   p.api.updateSeekrPreview(75_000, 400);
   assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
@@ -221,4 +210,20 @@ test('PiP hides both chapter actions, closes the panel and restores actions on e
   p.api.renderChapterControls();
   assert.equal(p.chaptersButton.hidden, false);
   assert.equal(p.codeineChaptersButton.hidden, false);
+});
+
+test('Official keeps hover timestamps but suppresses chapter toast', () => {
+  const p = player();
+  p.state.playerUiMode = 'official';
+  p.api.renderChapterMarks();
+  p.api.updateSeekrPreview(75000, 400);
+  assert.equal(p.chapterTitle.textContent, 'Opening');
+  assert.equal(p.seekChapterLabel.hidden, true);
+  assert.equal(p.seekPreviewPill.textContent, '75000');
+  assert.equal(p.seekFeedback.classes.has('visible'), true);
+  p.state.playerUiMode = 'codeine_xo';
+  p.api.renderChapterMarks();
+  p.api.updateSeekrPreview(75000, 400);
+  assert.equal(p.chapterTitle.hidden, true);
+  assert.equal(p.seekChapterLabel.textContent, 'Main feature');
 });

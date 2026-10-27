@@ -19,7 +19,14 @@ function player(mode = 'official', width = 1280) {
   const rect = { left: 100, right: width - 100, top: 600, bottom: 625, width: width - 200 };
   const element = () => ({
     style: {}, hidden: false, textContent: '', listeners: {},
-    classList: { add() {}, remove() {}, contains: () => false },
+    classes: new Set(),
+    classList: {
+      add(name) { this.owner.classes.add(name); },
+      remove(name) { this.owner.classes.delete(name); },
+      toggle(name, enabled) { enabled ? this.owner.classes.add(name) : this.owner.classes.delete(name); },
+      contains(name) { return this.owner.classes.has(name); },
+    },
+    setAttribute(name, value) { this[name] = value; },
     addEventListener(name, listener) { this.listeners[name] = listener; },
     getBoundingClientRect: () => rect,
   });
@@ -50,7 +57,7 @@ function player(mode = 'official', width = 1280) {
     rangePositionMs: () => context.rangeValue,
     rangeValue: 40000, playerToast: null,
   };
-  for (const name of ['seek', 'codeineSeekContainer', 'codeineSeekPreview', 'seekFilmstripCarousel', 'seekPreviewPill', 'seekChapterLabel']) context[name] = element();
+  for (const name of ['root', 'seekFeedback', 'seek', 'codeineSeekContainer', 'codeineSeekPreview', 'seekFilmstripCarousel', 'seekPreviewPill', 'seekChapterLabel']) { context[name] = element(); context[name].classList.owner = context[name]; }
   // Official wrappers use display:contents and have no usable bounds.
   if (mode === 'official') context.codeineSeekContainer.getBoundingClientRect = () => ({ left: 0, width: 0 });
   context.codeineSeekPreview.offsetParent = { getBoundingClientRect: () => ({ left: 0, bottom: 720 }) };
@@ -79,27 +86,30 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.equal(p.seekPreviewPill.textContent, '60000');
     assert.equal(p.state.positionMs, 20000);
     assert.equal(p.events.length, 0);
-    assert.equal(p.codeineSeekPreview.style.bottom, '134px');
+    assert.equal(p.codeineSeekPreview.style.bottom, '140px');
   });
 
   test(`${mode}: each trigger can independently suppress thumbnails and retain chapter behavior`, () => {
     const p = player(mode);
     p.state.seekPreviewWhileHovering = false;
     p.hover(0.2);
-    assert.equal(p.seekPreviewPill.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
+    assert.equal(p.seekFilmstripCarousel.hidden, true);
     assert.equal(p.seekChapterLabel.hidden, mode === 'official');
     p.seek.listeners.pointerdown(p.pointer(0.4));
     p.seek.listeners.input();
-    assert.equal(p.seekPreviewPill.hidden, false);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
     p.state.seekPreviewWhileDragging = false;
     p.api.refreshSeekHover();
-    assert.equal(p.seekPreviewPill.hidden, true);
+    assert.equal(p.seekFilmstripCarousel.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
     p.window.listeners.pointerup(p.pointer(0.4));
     p.api.showKeyboardSeekPreview(70000);
-    assert.equal(p.seekPreviewPill.hidden, false);
+    assert.equal(p.seekFilmstripCarousel.hidden, false);
     p.state.seekPreviewWhileKeyboardSeeking = false;
     p.api.refreshSeekHover();
-    assert.equal(p.seekPreviewPill.hidden, true);
+    assert.equal(p.seekFilmstripCarousel.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
   });
 
   test(`${mode}: keyboard priority and timeout reset, followed by hover`, () => {
@@ -107,7 +117,7 @@ for (const mode of ['official', 'codeine_xo']) {
     p.hover(0.2);
     p.api.showKeyboardSeekPreview(60000);
     p.hover(0.3);
-    assert.equal(p.seekPreviewPill.textContent, '60000');
+    assert.equal(p.seekPreviewPill.textContent, '30000');
     p.api.showKeyboardSeekPreview(70000);
     assert.equal(p.timers.size, 1);
     assert.equal([...p.timers.values()][0].delay, 1500);
@@ -115,9 +125,9 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.equal(p.seekPreviewPill.textContent, '30000');
     p.state.seekPreviewWhileKeyboardSeeking = false;
     p.api.showKeyboardSeekPreview(80000);
-    assert.equal(p.seekPreviewPill.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
     p.expire();
-    assert.equal(p.seekPreviewPill.hidden, false);
+    assert.equal(p.seekFilmstripCarousel.hidden, false);
   });
 
   test(`${mode}: drag overrides keyboard, then returns to hover`, () => {
@@ -156,12 +166,23 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.ok(Number.parseFloat(p.codeineSeekPreview.style.left) + geometry.width / 2 <= 464.001);
   });
 
-  test(`${mode}: focused slider keyboard input keeps a timed preview after change`, () => {
+  test(`${mode}: focused slider keyboard input keeps thumbnails without mouse feedback`, () => {
     const p = player(mode);
     p.seek.listeners.input();
     p.seek.listeners.change();
     assert.equal(p.api.activeSeekPreview().trigger, 'keyboard');
-    assert.equal(p.seekPreviewPill.hidden, false);
+    assert.equal(p.seekFeedback.classes.has('visible'), false);
+    assert.equal(p.seekFilmstripCarousel.hidden, false);
+    p.expire();
+    assert.equal(p.api.activeSeekPreview(), null);
+  });
+
+  test(`${mode}: hidden controls retain keyboard thumbnail previews`, () => {
+    const p = player(mode);
+    p.state.controlsVisible = false;
+    p.api.showKeyboardSeekPreview(70000);
+    assert.equal(p.seekFilmstripCarousel.hidden, false);
+    assert.equal(p.seekFeedback.classes.has('visible'), false);
     p.expire();
     assert.equal(p.api.activeSeekPreview(), null);
   });
@@ -178,7 +199,7 @@ for (const mode of ['official', 'codeine_xo']) {
   });
 
   test(`${mode}: source changes, PiP, mini-player and blur clear ownership and timers`, () => {
-    for (const update of [s => { s.streamTitle = 'new'; }, s => { s.isInPip = true; }, s => { s.isMiniPlayer = true; }]) {
+    for (const update of [s => { s.streamTitle = 'new'; }, s => { s.isInPip = true; }, s => { s.isMiniPlayer = true; }, s => { s.controlsVisible = false; }]) {
       const p = player(mode);
       p.hover(0.2);
       p.api.showKeyboardSeekPreview(80000);
@@ -186,6 +207,8 @@ for (const mode of ['official', 'codeine_xo']) {
       p.api.refreshSeekHover();
       assert.equal(p.api.activeSeekPreview(), null);
       assert.equal(p.timers.size, 0);
+      assert.equal(p.seekFeedback.classes.has('visible'), false);
+      assert.equal(p.root.classes.has('seek-feedback-active'), false);
     }
     const p = player(mode);
     p.api.showKeyboardSeekPreview(80000);
@@ -193,7 +216,7 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.equal(p.timers.size, 0);
     p.state.seekPreviewEnabled = false;
     p.hover(0.4);
-    assert.equal(p.seekPreviewPill.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
     assert.equal(p.api.seekPreviewCount(4), 5);
   });
 
@@ -204,9 +227,38 @@ for (const mode of ['official', 'codeine_xo']) {
     p.state.seekPreviewEnabled = false;
     p.api.syncSeekrPreviews();
     assert.equal(p.timers.size, 0);
-    assert.equal(p.seekPreviewPill.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
     assert.equal(p.api.getCues().length, 0);
     assert.equal(p.seekChapterLabel.hidden, mode === 'official');
+  });
+
+  test(`${mode}: exact mouse time survives missing thumbnails and chapters`, () => {
+    const p = player(mode);
+    p.state.chapters = [];
+    p.api.setCues([]);
+    p.hover(0.45678);
+    assert.equal(p.seekPreviewPill.textContent, '45678');
+    assert.equal(p.seekChapterLabel.hidden, true);
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
+    assert.equal(p.root.classes.has('seek-feedback-active'), true);
+    p.seek.listeners.pointerleave();
+    assert.equal(p.seekFeedback.classes.has('visible'), false);
+    assert.equal(p.root.classes.has('seek-feedback-active'), false);
+    p.hover(0);
+    assert.equal(p.seekPreviewPill.textContent, '0');
+    p.hover(1);
+    assert.equal(p.seekPreviewPill.textContent, '100000');
+  });
+
+  test(`${mode}: dragging outside retains scrub time until released`, () => {
+    const p = player(mode);
+    p.seek.listeners.pointerdown(p.pointer(0.4));
+    p.seek.listeners.input();
+    p.seek.listeners.pointerleave();
+    assert.equal(p.seekFeedback.classes.has('visible'), true);
+    assert.equal(p.seekPreviewPill.textContent, '40000');
+    p.window.listeners.pointerup({ clientX: 0, clientY: 0 });
+    assert.equal(p.seekFeedback.classes.has('visible'), false);
   });
 
   test(`${mode}: stale thumbnail responses cannot replace a new content track`, async () => {
