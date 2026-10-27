@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
@@ -2509,6 +2510,12 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("chaptersPanelTitle", chaptersPanelTitle)
         append(',')
         appendJsonField("chapterRemainingTemplate", chapterRemainingTemplate)
+        append(',')
+        append("\"playbackStatsMetadata\":")
+        val metadata = playbackStatsMetadata?.let {
+            it.copy(providerLogo = it.providerLogo?.let { logo -> WebviewImages.resolve(logo, onImageReady) })
+        }
+        append(partyJson.encodeToString(metadata))
         append(",\"party\":")
         append(partyJson.encodeToString(PlayerControlPartyState.serializer(), party.withWebviewImages(onImageReady)))
         append('}')

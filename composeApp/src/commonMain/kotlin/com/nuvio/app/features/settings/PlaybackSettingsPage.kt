@@ -634,7 +634,7 @@ private fun PlaybackSettingsSection(
                     isTablet = isTablet,
                     onClick = { showSecondarySubtitleDialog = true },
                 )
-                if (!isIos && !isDesktop) {
+                if (!isIos) {
                     SettingsGroupDivider(isTablet = isTablet)
                     AutoSyncPlaybackSettingsRows( // AutoSync hook
                         isTablet = isTablet,

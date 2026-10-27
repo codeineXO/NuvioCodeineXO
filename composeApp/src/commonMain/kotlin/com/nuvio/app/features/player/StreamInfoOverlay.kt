@@ -267,3 +267,61 @@ private fun formatDecimal(value: Double, decimals: Int): String {
     repeat(decimals) { factor *= 10 }
     return ((value * factor).roundToInt() / factor).toString().removeSuffix(".0")
 }
+
+/** Addon selection takes precedence over embedded track metadata. */
+internal fun buildPlaybackStatsMetadata(
+    addonLogo: String?,
+    streamDescription: String?,
+    playbackEngine: String?,
+    serverPlayback: String?,
+    audioTrack: AudioTrack?,
+    subtitleTrack: SubtitleTrack?,
+    addonSubtitle: AddonSubtitle?,
+    addonSource: String,
+    embeddedSource: String,
+): PlaybackStatsMetadata {
+    fun String?.available() = this?.takeIf { it.isNotBlank() }
+    return PlaybackStatsMetadata(
+        providerLogo = addonLogo.available(),
+        streamDescription = streamDescription.available(),
+        playbackEngine = playbackEngine.available(),
+        serverSummary = serverPlayback.available(),
+        audioLanguage = audioTrack?.language.available(),
+        subtitleName = if (addonSubtitle != null) addonSubtitle.display.available() else subtitleTrack?.let {
+            it.label.available() ?: it.language.available()
+        },
+        subtitleLanguage = (if (addonSubtitle != null) addonSubtitle.language else subtitleTrack?.language)
+            .available(),
+        subtitleSource = when {
+            addonSubtitle != null -> addonSource
+            subtitleTrack != null -> embeddedSource
+            else -> null
+        },
+    )
+}
+
+@Composable
+internal fun rememberPlaybackStatsMetadata(
+    addonLogo: String?,
+    streamDescription: String?,
+    playbackEngine: AndroidPlaybackEngine?,
+    serverPlayback: String?,
+    audioTrack: AudioTrack?,
+    subtitleTrack: SubtitleTrack?,
+    addonSubtitle: AddonSubtitle?,
+): PlaybackStatsMetadata = buildPlaybackStatsMetadata(
+    addonLogo, streamDescription, playbackEngine?.label, serverPlayback,
+    audioTrack, subtitleTrack, addonSubtitle,
+    stringResource(Res.string.stream_info_subtitle_source_addon),
+    stringResource(Res.string.stream_info_subtitle_source_embedded),
+).copy(
+    audioLanguage = audioTrack?.language?.takeIf { it.isNotBlank() }?.let { languageLabelForCode(it) },
+    subtitleName = addonSubtitle?.display ?: subtitleTrack?.let { localizedTrackDisplayName(it.label, it.language, it.index) },
+    subtitleLanguage = (if (addonSubtitle != null) addonSubtitle.language else subtitleTrack?.language)
+        ?.takeIf { it.isNotBlank() }?.let { languageLabelForCode(it) },
+    languageLabel = stringResource(Res.string.stream_info_language),
+    engineLabel = stringResource(Res.string.stream_info_player_engine),
+    serverLabel = stringResource(Res.string.stream_info_server),
+    descriptionLabel = stringResource(Res.string.meta_section_details_title),
+    subtitleSourceLabel = stringResource(Res.string.stream_info_source),
+)

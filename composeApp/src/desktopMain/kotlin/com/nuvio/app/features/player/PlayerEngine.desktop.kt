@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,6 +39,7 @@ import com.nuvio.app.features.player.desktop.DesktopPlayerPictureInPicture
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
 import com.nuvio.app.features.player.desktop.desktopFullscreenChanges
+import com.nuvio.app.features.autosync.DesktopAutoSyncCoordinator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -76,6 +78,7 @@ actual fun PlatformPlayerSurface(
             sourceUrl = sourceUrl,
             sourceAvailable = sourceAvailable,
             sourceHeaders = sourceHeaders,
+            externalSubtitles = externalSubtitles,
             modifier = modifier,
             playWhenReady = playWhenReady,
             resizeMode = resizeMode,
@@ -108,6 +111,7 @@ private fun NativePlayerSurface(
     sourceUrl: String,
     sourceAvailable: Boolean,
     sourceHeaders: Map<String, String>,
+    externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle>,
     modifier: Modifier,
     playWhenReady: Boolean,
     resizeMode: PlayerResizeMode,
@@ -129,6 +133,21 @@ private fun NativePlayerSurface(
     val hostFirstPaintComplete = remember { mutableStateOf(false) }
     val hostFirstFullSizePaintComplete = remember { mutableStateOf(false) }
     val playbackHeaders = remember(sourceHeaders) { sanitizePlaybackHeaders(sourceHeaders) }
+    val latestExternalSubtitles = rememberUpdatedState(externalSubtitles)
+    val autoSyncScope = rememberCoroutineScope()
+    val autoSyncCoordinator = remember(sourceUrl, playbackHeaders, autoSyncScope) {
+        DesktopAutoSyncCoordinator(
+            scope = autoSyncScope,
+            sourceUrl = sourceUrl,
+            sourceHeaders = playbackHeaders,
+            getExternalSubtitles = { latestExternalSubtitles.value },
+            getPreferredLanguage = { PlayerSettingsRepository.uiState.value.preferredSubtitleLanguage },
+        )
+    }
+    DisposableEffect(autoSyncCoordinator) {
+        onDispose { autoSyncCoordinator.dispose() }
+    }
+    val readyController = remember(controller, autoSyncCoordinator) { autoSyncCoordinator.wrap(controller) }
     val latestOnPlayerControlsAction = rememberUpdatedState(onPlayerControlsAction)
     val latestOnPlayerControlsEvent = rememberUpdatedState(onPlayerControlsEvent)
     val latestOnPlayerControlsScrubChange = rememberUpdatedState(onPlayerControlsScrubChange)
@@ -145,7 +164,7 @@ private fun NativePlayerSurface(
     val audioNightModeEnabled = playerSettings.audioNightModeEnabled
 
     SideEffect {
-        onControllerReady(controller)
+        onControllerReady(readyController)
     }
 
     DisposableEffect(host) {
@@ -224,7 +243,7 @@ private fun NativePlayerSurface(
         initialPositionRequestKey?.let { key ->
             latestOnInitialPositionHandled.value(key, initialPositionMs > 0L)
         }
-        onControllerReady(controller)
+        onControllerReady(readyController)
     }
 
     LaunchedEffect(controller, sourceAvailable, playWhenReady) {

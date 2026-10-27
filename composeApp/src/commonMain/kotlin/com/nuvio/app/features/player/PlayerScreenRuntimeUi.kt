@@ -410,6 +410,17 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         ?: extractTmdbId(targetMeta?.id)
     val partyControls = if (isDesktop) rememberPartyControlsState() else PlayerControlPartyState()
     val playerBadges = if (isDesktop) rememberPlayerBadges() else emptyList()
+    val playbackStatsMetadata = if (isDesktop) {
+        rememberPlaybackStatsMetadata(
+            addonLogo = activeAddonLogo,
+            streamDescription = activeStreamSubtitle,
+            playbackEngine = playerController?.playbackEngine,
+            serverPlayback = serverPlaybackSummary(),
+            audioTrack = audioTracks.firstOrNull { it.index == selectedAudioIndex },
+            subtitleTrack = subtitleTracks.firstOrNull { it.index == selectedSubtitleIndex }.takeIf { !useCustomSubtitles },
+            addonSubtitle = selectedAddonSubtitle.takeIf { useCustomSubtitles },
+        )
+    } else null
     val controlChapters = chapters.mapIndexed { index, chapter ->
         PlayerControlChapter(
             startMs = chapter.startMs,
@@ -421,6 +432,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         chaptersLabel = stringResource(Res.string.compose_player_chapters),
         chaptersPanelTitle = stringResource(Res.string.compose_player_panel_chapters, chapters.size),
         chapterRemainingTemplate = stringResource(Res.string.compose_player_chapter_remaining, "{time}"),
+        playbackStatsMetadata = playbackStatsMetadata,
         title = title,
         mediaContentType = mediaClassification.type,
         isMiniPlayer = args.isMiniPlayer,

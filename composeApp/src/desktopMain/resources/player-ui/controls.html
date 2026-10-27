@@ -279,6 +279,7 @@
               <div class="stats-row"><span class="stats-label">Sample Rate</span><span class="stats-value" id="statAudioSampleRate">-</span></div>
               <div class="stats-row"><span class="stats-label">Bitrate</span><span class="stats-value" id="statAudioBitrate">-</span></div>
               <div class="stats-row"><span class="stats-label">Active Track</span><span class="stats-value" id="statAudioTrack">-</span></div>
+              <div class="stats-row" id="statAudioLanguageRow" hidden><span class="stats-label" id="statAudioLanguageLabel"></span><span class="stats-value" id="statAudioLanguage"></span></div>
             </div>
           </div>
 
@@ -290,6 +291,8 @@
             </button>
             <div class="stats-section-body">
               <div class="stats-row"><span class="stats-label">Active Track</span><span class="stats-value" id="statSubtitleTrack">-</span></div>
+              <div class="stats-row" id="statSubtitleLanguageRow" hidden><span class="stats-label" id="statSubtitleLanguageLabel"></span><span class="stats-value" id="statSubtitleLanguage"></span></div>
+              <div class="stats-row" id="statSubtitleSourceRow" hidden><span class="stats-label" id="statSubtitleSourceLabel"></span><span class="stats-value" id="statSubtitleSource"></span></div>
               <div class="stats-row"><span class="stats-label">Sync Offset</span><span class="stats-value" id="statSubtitleDelay">-</span></div>
             </div>
           </div>
@@ -331,8 +334,12 @@
             </button>
             <div class="stats-section-body">
               <div class="stats-row"><span class="stats-label">Title</span><span class="stats-value" id="statSourceTitle">-</span></div>
+              <img class="stats-provider-logo" id="statProviderLogo" alt="" hidden>
               <div class="stats-row"><span class="stats-label">Provider</span><span class="stats-value" id="statSourceProvider">-</span></div>
               <div class="stats-row"><span class="stats-label">Stream Details</span><span class="stats-value" id="statSourceStream">-</span></div>
+              <div class="stats-row" id="statStreamDescriptionRow" hidden><span class="stats-label" id="statStreamDescriptionLabel"></span><span class="stats-value" id="statStreamDescription"></span></div>
+              <div class="stats-row" id="statPlaybackEngineRow" hidden><span class="stats-label" id="statPlaybackEngineLabel"></span><span class="stats-value" id="statPlaybackEngine"></span></div>
+              <div class="stats-row" id="statServerSummaryRow" hidden><span class="stats-label" id="statServerSummaryLabel"></span><span class="stats-value" id="statServerSummary"></span></div>
               <div class="stats-row"><span class="stats-label">Time</span><span class="stats-value" id="statSourceTime">-</span></div>
             </div>
           </div>

@@ -91,6 +91,23 @@ data class PlayerControlChapter(
     val title: String,
 )
 
+@kotlinx.serialization.Serializable
+data class PlaybackStatsMetadata(
+    val providerLogo: String? = null,
+    val streamDescription: String? = null,
+    val playbackEngine: String? = null,
+    val serverSummary: String? = null,
+    val audioLanguage: String? = null,
+    val subtitleName: String? = null,
+    val subtitleLanguage: String? = null,
+    val subtitleSource: String? = null,
+    val languageLabel: String = "Language",
+    val engineLabel: String = "Player engine",
+    val serverLabel: String = "Server",
+    val descriptionLabel: String = "Description",
+    val subtitleSourceLabel: String = "Source",
+)
+
 data class PlayerControlsState(
     val title: String = "",
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
@@ -317,6 +334,7 @@ data class PlayerControlsState(
     val chaptersLabel: String = "Chapters",
     val chaptersPanelTitle: String = "Chapters",
     val chapterRemainingTemplate: String = "{time} left",
+    val playbackStatsMetadata: PlaybackStatsMetadata? = null,
 )
 
 data class PlayerControlFilterItem(

@@ -1160,6 +1160,34 @@ const togglePlaybackStatsOverlay = () => {
   }
 };
 
+const renderPlaybackStatsMetadata = () => {
+  const metadata = state.playbackStatsMetadata || {};
+  const row = (id, label, value) => {
+    const element = document.getElementById(id);
+    const container = document.getElementById(id + "Row");
+    const text = typeof value === "string" ? value.trim() : "";
+    container.hidden = !text;
+    setText(document.getElementById(id + "Label"), label);
+    setText(element, text);
+  };
+  row("statAudioLanguage", metadata.languageLabel, metadata.audioLanguage);
+  row("statSubtitleLanguage", metadata.languageLabel, metadata.subtitleLanguage);
+  row("statSubtitleSource", metadata.subtitleSourceLabel, metadata.subtitleSource);
+  row("statStreamDescription", metadata.descriptionLabel, metadata.streamDescription);
+  row("statPlaybackEngine", metadata.engineLabel, metadata.playbackEngine);
+  row("statServerSummary", metadata.serverLabel, metadata.serverSummary);
+  if (metadata.subtitleName) setText(statSubtitleTrack, metadata.subtitleName);
+  const logo = document.getElementById("statProviderLogo");
+  const logoUrl = metadata.providerLogo || "";
+  if (logo.dataset.source !== logoUrl) {
+    logo.dataset.source = logoUrl;
+    logo.hidden = !logoUrl;
+    logo.onerror = () => { logo.hidden = true; };
+    if (logoUrl) logo.src = logoUrl;
+    else logo.removeAttribute("src");
+  }
+};
+
 const renderPlaybackStats = () => {
   if (!isPlaybackStatsVisible || !playbackStatsOverlay) return;
   const stats = state.playbackStats || {};
@@ -1263,6 +1291,7 @@ const renderPlaybackStats = () => {
   const pos = formatTime(state.positionMs || 0);
   const dur = formatTime(state.durationMs || 0);
   setText(statSourceTime, `${pos} / ${dur}`);
+  renderPlaybackStatsMetadata();
 };
 
 const cssColorOrFallback = (value, fallback) => {
@@ -3639,7 +3668,12 @@ window.nuvioNativeViewportChanged = () => {
 
 window.nuvioNativeResizeEnded = () => {
   window.clearTimeout(nativeViewportTimer);
+  pipPointerDown = false;
+  clearSuppressNextRootClick();
   root.classList.remove("native-resizing");
+  if (document.body.style.cursor && document.body.style.cursor.includes("resize")) {
+    document.body.style.cursor = "";
+  }
   noteChromeActivity(true);
   syncSkipPromptPlacement(skipPrompt.classList.contains("visible"));
   if (activeModal) renderActiveModal(false, true);
@@ -5930,19 +5964,6 @@ const clearSuppressNextRootClick = () => {
   if (suppressClickTimer) {
     window.clearTimeout(suppressClickTimer);
     suppressClickTimer = null;
-  }
-};
-
-window.nuvioNativeViewportChanged = () => {
-  root.classList.add("native-resizing");
-};
-
-window.nuvioNativeResizeEnded = () => {
-  pipPointerDown = false;
-  clearSuppressNextRootClick();
-  root.classList.remove("native-resizing");
-  if (document.body.style.cursor && document.body.style.cursor.includes("resize")) {
-    document.body.style.cursor = "";
   }
 };
 
