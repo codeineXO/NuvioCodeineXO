@@ -435,6 +435,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         preferredAudioSelectionApplied,
         preferredSubtitleSelectionApplied,
         trackPreferenceRestoreApplied,
+        activePlaybackKey,
         addonSubtitles,
         isLoadingAddonSubtitles,
     ) {

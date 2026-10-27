@@ -168,9 +168,11 @@ internal class NativePlayerController(
 
     private fun executePlayerCommand(action: (Long) -> Unit) {
         val current = handle.takeIf { it != 0L } ?: return
+        val source = pendingSource
         ensureScopesActive()
         playerScope.launch {
             val activeHandle = handle.takeIf { it != 0L } ?: return@launch
+            if (activeHandle != current || pendingSource !== source) return@launch
             action(activeHandle)
         }
     }
@@ -190,6 +192,15 @@ internal class NativePlayerController(
 
     @Volatile
     private var pendingSource: PendingSource? = null
+    @Volatile
+    private var attachedSource: PendingSource? = null
+
+    fun isAttachedTo(sourceUrl: String, sourceHeaders: Map<String, String>): Boolean =
+        synchronized(lifecycleLock) {
+            val attached = attachedSource
+            !releaseRequested && handle != 0L && attached != null && attached === pendingSource &&
+                attached.sourceUrl == sourceUrl && attached.headerLines == sourceHeaders.toHeaderLines()
+        }
     @Volatile
     private var releaseRequested: Boolean = false
     val isReleasing: Boolean
@@ -461,6 +472,7 @@ internal class NativePlayerController(
                     val accepted = synchronized(lifecycleLock) {
                         if (!releaseRequested && terminalReleaseFailure == null && pendingSource === pending) {
                             handle = created
+                            attachedSource = pending
                             lastAppliedPlaybackBuffer = null
                             true
                         } else {
@@ -478,6 +490,7 @@ internal class NativePlayerController(
                                 handle != created -> false
                                 pendingSource !== pending || !isHostDisplayable() -> {
                                     handle = 0L
+                                    attachedSource = null
                                     lastSentControlsStructureKey = null
                                     startTrackedDisposeLocked(created)
                                     false
@@ -1350,6 +1363,7 @@ internal class NativePlayerController(
     private fun detachPlayerHandle(): Long = synchronized(lifecycleLock) {
         val current = handle
         handle = 0L
+        attachedSource = null
         cancelInFlightSubtitleDownload()
         cachedSubtitleTracks = emptyList()
         cachedAudioTracks = emptyList()
@@ -1387,6 +1401,7 @@ internal class NativePlayerController(
             val current = handle
             if (current == 0L) return
             handle = 0L
+            attachedSource = null
             cancelInFlightSubtitleDownload()
             cachedSubtitleTracks = emptyList()
             cachedAudioTracks = emptyList()

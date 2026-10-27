@@ -164,6 +164,11 @@ private fun NativePlayerSurface(
     val audioNightModeEnabled = playerSettings.audioNightModeEnabled
 
     SideEffect {
+        if (!sourceAvailable || !controller.isAttachedTo(sourceUrl, playbackHeaders)) {
+            onSnapshot(PlayerPlaybackSnapshot(isLoading = true))
+        }
+        // Publish early for navigation's release barrier, but keep track restoration gated on
+        // a loaded snapshot belonging to this source.
         onControllerReady(readyController)
     }
 
@@ -243,7 +248,6 @@ private fun NativePlayerSurface(
         initialPositionRequestKey?.let { key ->
             latestOnInitialPositionHandled.value(key, initialPositionMs > 0L)
         }
-        onControllerReady(readyController)
     }
 
     LaunchedEffect(controller, sourceAvailable, playWhenReady) {
@@ -320,9 +324,13 @@ private fun NativePlayerSurface(
         }
     }
 
-    LaunchedEffect(controller) {
+    // Do not label snapshots or tracks from the outgoing native handle as the new episode.
+    LaunchedEffect(controller, readyController, sourceAvailable, sourceUrl, playbackHeaders) {
         while (true) {
-            if (!controller.isReleasing) onSnapshot(controller.snapshot())
+            if (sourceAvailable && controller.isAttachedTo(sourceUrl, playbackHeaders)) {
+                onControllerReady(readyController)
+                onSnapshot(controller.snapshot())
+            }
             delay(250L)
         }
     }
