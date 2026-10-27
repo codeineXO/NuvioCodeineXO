@@ -35,7 +35,7 @@ class Element {
   addEventListener(name, callback) { this.listeners[name] = callback; }
   scrollIntoView() { this.scrolled = true; }
   setAttribute(name, value) { this[name] = value; }
-  getBoundingClientRect() { return { left: 100, width: 600 }; }
+  getBoundingClientRect() { return { left: 100, right: 700, top: 600, bottom: 625, width: 600 }; }
   querySelector(selector) {
     if (selector === '.chapter-row-bar > span') return this.querySelector('.chapter-row-bar').children[0];
     for (const child of this.children) {
@@ -58,7 +58,7 @@ function player() {
     },
     activeModal: 'chapters', lastRenderedModal: '', lastRenderedModalSignature: '',
     document: { createElement: tagName => new Element(tagName) },
-    window: { setTimeout: callback => callback(), innerWidth: 1280 },
+    window: { setTimeout: callback => callback(), clearTimeout() {}, addEventListener() {}, innerWidth: 1280 },
     send: (...event) => events.push(event),
     closePlayerModal: () => events.push(['close']),
     setVisible: (element, visible) => { element.hidden = !visible; },
@@ -69,7 +69,7 @@ function player() {
   };
   for (const name of ['chapterTitle', 'chapterMarks', 'chaptersPanelTitle', 'chaptersCloseButton', 'chapterList',
     'chaptersButton', 'codeineChaptersButton', 'chaptersLabel', 'seekChapterLabel', 'codeineSeekPreview',
-    'seekFilmstripCarousel', 'seekPreviewPill', 'codeineSeekContainer']) {
+    'seekFilmstripCarousel', 'seekPreviewPill', 'codeineSeekContainer', 'seek']) {
     context[name] = new Element();
   }
   context.codeineChaptersButton.append(new Element('span'));
@@ -79,9 +79,10 @@ function player() {
     section('let seekrCues =', 'function parseSeekrVtt') +
     section('function findSeekrCueIndex', 'function updateSeekrPreview') +
     section('function updateSeekrPreview', 'if (torrentStatsClock)') +
-    section('if (codeineSeekContainer) {\n  codeineSeekContainer.addEventListener("mousemove"', 'volumeSlider.addEventListener') +
+    section('function updateSeekPointer', 'volumeSlider.addEventListener') +
     '\nglobalThis.api = { renderChaptersModal, renderChapterMarks, renderChapterControls, renderActiveModal, currentChapterIndex,' +
-    ' updateSeekrPreview, hideSeekrPreview, refreshSeekHover, syncSeekrPreviews, setCues: cues => { seekrCues = cues; } };';
+    ' updateSeekrPreview: (positionMs, clientX) => { seekPointerPositionMs = positionMs; seekPointerClientX = clientX; updateSeekrPreview(positionMs, clientX); },' +
+    ' hideSeekrPreview, refreshSeekHover, syncSeekrPreviews, setCues: cues => { seekrCues = cues; } };';
   vm.runInNewContext(script, context);
   return { ...context, context, events };
 }
@@ -150,9 +151,9 @@ test('CodeineXO has no persistent chapter title while Official retains it', () =
 
 test('hover follows chapter boundaries with Seekr disabled', () => {
   const p = player();
-  p.codeineSeekContainer.listeners.mousemove({ clientX: 399 });
+  p.seek.listeners.pointermove({ clientX: 399 });
   assert.equal(p.seekChapterLabel.textContent, 'Opening');
-  p.codeineSeekContainer.listeners.mousemove({ clientX: 400 });
+  p.seek.listeners.pointermove({ clientX: 400 });
   assert.equal(p.seekChapterLabel.textContent, 'Main feature');
   assert.equal(p.seekFilmstripCarousel.hidden, true);
   assert.equal(p.seekPreviewPill.hidden, true);
@@ -179,7 +180,7 @@ test('chapter hover survives unavailable Seekr and coexists with available thumb
 test('hover clears on pointer leave, source changes and disabled chapters', () => {
   const p = player();
   p.api.updateSeekrPreview(75_000, 400);
-  p.codeineSeekContainer.listeners.mouseleave();
+  p.seek.listeners.pointerleave();
   assert.equal(p.seekChapterLabel.hidden, true);
   assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
   p.api.updateSeekrPreview(75_000, 400);

@@ -203,7 +203,6 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }.collectAsStateWithLifecycle()
 
         var showPlayerUiDialog by rememberSaveable { mutableStateOf(false) }
-        var showSeekrApiKeyDialog by rememberSaveable { mutableStateOf(false) }
 
         SettingsSection(
             title = stringResource(Res.string.settings_playback_section_player),
@@ -246,25 +245,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setShowSeekbarWhileSeeking,
                 )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_seek_previews),
-                    description = stringResource(Res.string.settings_playback_seek_previews_description),
-                    checked = playerSettings.seekPreviewEnabled,
-                    isTablet = isTablet,
-                    onCheckedChange = PlayerSettingsRepository::setSeekPreviewEnabled,
-                )
-                if (playerSettings.seekPreviewEnabled) {
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_seekr_api_key),
-                        description = playerSettings.seekrApiKey.ifBlank {
-                            stringResource(Res.string.settings_playback_seekr_key_not_set)
-                        },
-                        isTablet = isTablet,
-                        onClick = { showSeekrApiKeyDialog = true },
-                    )
-                }
+
             }
         }
 
@@ -283,16 +264,15 @@ internal fun LazyListScope.codeineXOSettingsContent(
             )
         }
 
-        if (showSeekrApiKeyDialog) {
-            SeekrApiKeyDialog(
-                initialValue = playerSettings.seekrApiKey,
-                onSave = { key ->
-                    PlayerSettingsRepository.setSeekrApiKey(key)
-                    showSeekrApiKeyDialog = false
-                },
-                onDismiss = { showSeekrApiKeyDialog = false },
-            )
-        }
+    }
+
+    item {
+        val playerSettings by remember {
+            PlayerSettingsRepository.ensureLoaded()
+            PlayerSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
+
+        SeekPreviewSettingsSection(playerSettings, isTablet)
     }
 
     if (isDesktop) {

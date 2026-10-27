@@ -216,6 +216,13 @@ internal fun PlayerScreenRuntime.applyNativePlaybackState(play: Boolean) {
 }
 
 internal fun PlayerScreenRuntime.seekFromNativeControls(offsetMs: Long, revealControls: Boolean = true): Boolean {
+    if (!revealControls) {
+        val from = pendingSeekTarget?.takeIf { (_, mark) -> mark.elapsedNow() < PendingSeekWindow }?.first
+            ?: currentPlaybackPositionMs()
+        val duration = playbackSnapshot.durationMs
+        val target = (from + offsetMs).coerceAtLeast(0L).let { if (duration > 0) it.coerceAtMost(duration) else it }
+        seekPreviewInteraction.keyboard(target, scope)
+    }
     if (isPartySynced) {
         seekBy(offsetMs, revealControls)
         return true

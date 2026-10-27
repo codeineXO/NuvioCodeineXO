@@ -17,6 +17,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
+import androidx.compose.runtime.rememberCoroutineScope
+import com.nuvio.app.features.player.seekpreview.LocalSeekPreviewInteraction
+import com.nuvio.app.features.player.seekpreview.seekPreviewInput
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -108,6 +111,8 @@ internal fun PlayerTimeline(
     /** Each chapter after the first gets a mark where it starts. */
     chapters: List<PlayerChapter> = emptyList(),
 ) {
+    val previewInteraction = LocalSeekPreviewInteraction.current
+    val previewScope = rememberCoroutineScope()
     val durationMs = snapshot.durationMs.coerceAtLeast(0L)
     val rangeEnd = durationMs.coerceAtLeast(1L).toFloat()
     val rawBufferedFraction = (snapshot.bufferedPositionMs.toFloat() / rangeEnd).coerceIn(0f, 1f)
@@ -139,6 +144,7 @@ internal fun PlayerTimeline(
             onValueChange = { value ->
                 val position = value.toLong().coerceIn(0L, durationMs)
                 scrubPosition = position
+                if (previewInteraction?.dragging == false) previewInteraction.keyboard(position, previewScope)
                 onScrubChange(position)
             },
             onValueChangeFinished = {
@@ -193,6 +199,7 @@ internal fun PlayerTimeline(
                 )
             },
             modifier = modifier
+                .seekPreviewInput(durationMs)
                 .fillMaxWidth()
                 .height(24.dp)
                 .wrapContentHeight(Alignment.Bottom, unbounded = true)

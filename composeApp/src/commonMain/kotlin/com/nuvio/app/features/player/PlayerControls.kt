@@ -43,6 +43,9 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.rememberCoroutineScope
+import com.nuvio.app.features.player.seekpreview.LocalSeekPreviewInteraction
+import com.nuvio.app.features.player.seekpreview.seekPreviewInput
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -839,6 +842,8 @@ internal fun PlayerSeekBar(
     modifier: Modifier = Modifier,
     chapters: List<PlayerChapter> = emptyList(),
 ) {
+    val previewInteraction = LocalSeekPreviewInteraction.current
+    val previewScope = rememberCoroutineScope()
     val seekDurationMs = durationMs.coerceAtLeast(1L)
     val seekDescription = stringResource(Res.string.player_seek_position)
     val seekState = remember(seekDurationMs) { SliderState(trackRange = 0f..seekDurationMs.toFloat()) }
@@ -848,10 +853,14 @@ internal fun PlayerSeekBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(metrics.sliderTouchHeight)
+                .seekPreviewInput(durationMs)
                 .graphicsLayer(scaleY = metrics.sliderScaleY)
                 .semantics { contentDescription = seekDescription },
             state = seekState,
-            onValueChange = { value -> onScrubChange(value.toLong()) },
+            onValueChange = { value ->
+                if (previewInteraction?.dragging == false) previewInteraction.keyboard(value.toLong(), previewScope)
+                onScrubChange(value.toLong())
+            },
             onValueChangeFinished = { onScrubFinished(displayedPositionMs.coerceIn(0L, seekDurationMs)) },
             enabled = durationMs > 0L,
             track = { sliderState -> PlayerProgressTrack(sliderState, chapters, durationMs) },

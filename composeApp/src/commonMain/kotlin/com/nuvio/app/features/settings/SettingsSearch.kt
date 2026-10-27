@@ -768,6 +768,21 @@ internal fun settingsSearchEntries(
         ),
     )
 
+    addPlaybackRows(
+        addRow = ::addRow,
+        pageLabel = playbackPage,
+        section = stringResource(Res.string.settings_seek_preview_section),
+        icon = Icons.Rounded.PlayArrow,
+        rows = listOf(
+            PlaybackSearchRow("settings_playback_seek_previews", stringResource(Res.string.settings_playback_seek_previews)),
+            PlaybackSearchRow("settings_playback_seekr_api_key", stringResource(Res.string.settings_playback_seekr_api_key)),
+            PlaybackSearchRow("settings_seek_preview_dragging", stringResource(Res.string.settings_seek_preview_dragging)),
+            PlaybackSearchRow("settings_seek_preview_hovering", stringResource(Res.string.settings_seek_preview_hovering)),
+            PlaybackSearchRow("settings_seek_preview_keyboard", stringResource(Res.string.settings_seek_preview_keyboard)),
+            PlaybackSearchRow("settings_seek_preview_count", stringResource(Res.string.settings_seek_preview_count)),
+        ),
+    )
+
     addContinueWatchingRows(
         addRow = ::addRow,
         pageLabel = continueWatchingPage,

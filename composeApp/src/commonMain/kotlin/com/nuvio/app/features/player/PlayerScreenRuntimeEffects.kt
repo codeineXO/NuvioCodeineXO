@@ -148,6 +148,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         isScrubbingTimeline = false
         scrubbingPositionMs = null
         seekPreviewTrack = null
+        seekPreviewInteraction.clear()
         pausedForTimelineScrub = false
         resumingAfterTimelineScrubForPresence = false
         liveGestureFeedback = null

@@ -28,6 +28,10 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val showSeekbarWhileSeekingKey = "show_seekbar_while_seeking"
     private const val showClockInPlayerKey = "show_clock_in_player"
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
+    private const val seekPreviewWhileDraggingKey = "seek_preview_while_dragging"
+    private const val seekPreviewWhileHoveringKey = "seek_preview_while_hovering"
+    private const val seekPreviewWhileKeyboardSeekingKey = "seek_preview_while_keyboard_seeking"
+    private const val seekPreviewThumbnailCountKey = "seek_preview_thumbnail_count"
     private const val seekrApiKeyKey = "seekr_api_key"
     private const val showRemainingTimeKey = "show_remaining_time"
     private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
@@ -145,6 +149,10 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
         showSeekbarWhileSeekingKey,
         showClockInPlayerKey,
         seekPreviewEnabledKey,
+        seekPreviewWhileDraggingKey,
+        seekPreviewWhileHoveringKey,
+        seekPreviewWhileKeyboardSeekingKey,
+        seekPreviewThumbnailCountKey,
         seekrApiKeyKey,
         showRemainingTimeKey,
         touchGesturesEnabledKey,
@@ -450,6 +458,18 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun loadSeekPreviewEnabled(): Boolean? = loadBoolean(seekPreviewEnabledKey)
     actual fun saveSeekPreviewEnabled(enabled: Boolean) = saveBoolean(seekPreviewEnabledKey, enabled)
 
+    actual fun loadSeekPreviewWhileDragging(): Boolean? = loadBoolean(seekPreviewWhileDraggingKey)
+    actual fun saveSeekPreviewWhileDragging(value: Boolean) = saveBoolean(seekPreviewWhileDraggingKey, value)
+
+    actual fun loadSeekPreviewWhileHovering(): Boolean? = loadBoolean(seekPreviewWhileHoveringKey)
+    actual fun saveSeekPreviewWhileHovering(value: Boolean) = saveBoolean(seekPreviewWhileHoveringKey, value)
+
+    actual fun loadSeekPreviewWhileKeyboardSeeking(): Boolean? = loadBoolean(seekPreviewWhileKeyboardSeekingKey)
+    actual fun saveSeekPreviewWhileKeyboardSeeking(value: Boolean) = saveBoolean(seekPreviewWhileKeyboardSeekingKey, value)
+
+    actual fun loadSeekPreviewThumbnailCount(): Int? = loadInt(seekPreviewThumbnailCountKey)
+    actual fun saveSeekPreviewThumbnailCount(value: Int) = saveInt(seekPreviewThumbnailCountKey, value)
+
     actual fun loadSeekrApiKey(): String? = loadString(seekrApiKeyKey)
     actual fun saveSeekrApiKey(apiKey: String) = saveString(seekrApiKeyKey, apiKey)
 
@@ -561,6 +581,10 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
         loadShowSeekbarWhileSeeking()?.let { put(showSeekbarWhileSeekingKey, encodeSyncBoolean(it)) }
         loadShowClockInPlayer()?.let { put(showClockInPlayerKey, encodeSyncBoolean(it)) }
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
+        loadSeekPreviewWhileDragging()?.let { put(seekPreviewWhileDraggingKey, encodeSyncBoolean(it)) }
+        loadSeekPreviewWhileHovering()?.let { put(seekPreviewWhileHoveringKey, encodeSyncBoolean(it)) }
+        loadSeekPreviewWhileKeyboardSeeking()?.let { put(seekPreviewWhileKeyboardSeekingKey, encodeSyncBoolean(it)) }
+        loadSeekPreviewThumbnailCount()?.let { put(seekPreviewThumbnailCountKey, encodeSyncInt(it)) }
         loadSeekrApiKey()?.let { put(seekrApiKeyKey, encodeSyncString(it)) }
         loadShowRemainingTime()?.let { put(showRemainingTimeKey, encodeSyncBoolean(it)) }
     }
@@ -658,6 +682,10 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
         payload.decodeSyncBoolean(showSeekbarWhileSeekingKey)?.let(::saveShowSeekbarWhileSeeking)
         payload.decodeSyncBoolean(showClockInPlayerKey)?.let(::saveShowClockInPlayer)
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)
+        payload.decodeSyncBoolean(seekPreviewWhileDraggingKey)?.let(::saveSeekPreviewWhileDragging)
+        payload.decodeSyncBoolean(seekPreviewWhileHoveringKey)?.let(::saveSeekPreviewWhileHovering)
+        payload.decodeSyncBoolean(seekPreviewWhileKeyboardSeekingKey)?.let(::saveSeekPreviewWhileKeyboardSeeking)
+        payload.decodeSyncInt(seekPreviewThumbnailCountKey)?.let(::saveSeekPreviewThumbnailCount)
         payload.decodeSyncString(seekrApiKeyKey)?.let(::saveSeekrApiKey)
         payload.decodeSyncBoolean(showRemainingTimeKey)?.let(::saveShowRemainingTime)
     }

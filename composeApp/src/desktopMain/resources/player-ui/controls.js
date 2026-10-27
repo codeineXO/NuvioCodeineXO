@@ -464,6 +464,10 @@ let state = {
   showEpisodes: false,
   showExternalPlayer: false,
   seekPreviewEnabled: false,
+  seekPreviewWhileDragging: true,
+  seekPreviewWhileHovering: true,
+  seekPreviewWhileKeyboardSeeking: true,
+  seekPreviewThumbnailCount: 5,
   seekPreviewVttUrl: "",
   seekrApiKey: "",
   seekrImdbId: "",
@@ -4329,6 +4333,7 @@ const fineSeek = isForward => {
   const targetPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, fineSeekBasePosMs + fineSeekAccumulatedMs) : fineSeekBasePosMs + fineSeekAccumulatedMs);
 
   state.positionMs = targetPosMs;
+  showKeyboardSeekPreview(targetPosMs);
   markSeek(targetPosMs);
   setProgress(targetPosMs, durationMs);
 
@@ -5092,9 +5097,15 @@ let seekrCues = [];
 let seekrLoadedVttUrl = "";
 let seekrLastQueryKey = "";
 let seekrContentKey = "";
+let seekrRequestGeneration = 0;
 let seekHoverPositionMs = null;
 let seekHoverClientX = null;
 let seekHoverContentKey = "";
+let seekPointerPositionMs = null;
+let seekPointerClientX = null;
+let seekDragActive = false;
+let seekKeyboardPositionMs = null;
+let seekKeyboardTimer = 0;
 
 function seekHoverSourceKey() {
   return JSON.stringify([
@@ -5103,13 +5114,63 @@ function seekHoverSourceKey() {
   ]);
 }
 
+function clearSeekPreviewInteraction() {
+  window.clearTimeout(seekKeyboardTimer);
+  seekKeyboardTimer = 0;
+  seekKeyboardPositionMs = null;
+  seekPointerPositionMs = null;
+  seekPointerClientX = null;
+  seekDragActive = false;
+  hideSeekrPreview();
+}
+
+function activeSeekPreview() {
+  if (seekDragActive) return { positionMs: scrubPositionMs, clientX: null, trigger: "dragging" };
+  if (seekKeyboardPositionMs !== null) return { positionMs: seekKeyboardPositionMs, clientX: null, trigger: "keyboard" };
+  if (seekPointerPositionMs !== null) return { positionMs: seekPointerPositionMs, clientX: seekPointerClientX, trigger: "hovering" };
+  return null;
+}
+
+function seekPreviewTriggerEnabled(trigger) {
+  return Boolean(state.seekPreviewEnabled) && state[{
+    dragging: "seekPreviewWhileDragging",
+    hovering: "seekPreviewWhileHovering",
+    keyboard: "seekPreviewWhileKeyboardSeeking",
+  }[trigger]] !== false;
+}
+
 function refreshSeekHover() {
-  if (seekHoverPositionMs === null) return;
-  if (state.isInPip || state.isMiniPlayer || seekHoverContentKey !== seekHoverSourceKey()) {
-    hideSeekrPreview();
+  if (seekHoverContentKey && (seekHoverContentKey !== seekHoverSourceKey() || state.isInPip || state.isMiniPlayer)) {
+    clearSeekPreviewInteraction();
     return;
   }
-  updateSeekrPreview(seekHoverPositionMs, seekHoverClientX);
+  const preview = activeSeekPreview();
+  if (!preview) { hideSeekrPreview(); return; }
+  updateSeekrPreview(preview.positionMs, preview.clientX, preview.trigger);
+}
+
+function showKeyboardSeekPreview(positionMs) {
+  seekHoverContentKey = seekHoverSourceKey();
+  seekKeyboardPositionMs = positionMs;
+  window.clearTimeout(seekKeyboardTimer);
+  seekKeyboardTimer = window.setTimeout(() => {
+    seekKeyboardTimer = 0;
+    seekKeyboardPositionMs = null;
+    refreshSeekHover();
+  }, 1500);
+  refreshSeekHover();
+}
+
+function seekPreviewCount(value) {
+  return [1, 3, 5].includes(value) ? value : 5;
+}
+
+function seekPreviewGeometry(count, tileWidth, viewportWidth, targetX) {
+  const unscaledWidth = count * tileWidth + (count - 1) * 8 + tileWidth * 0.08;
+  const scale = Math.min(1, Math.max(0, viewportWidth - 32) / unscaledWidth);
+  const width = unscaledWidth * scale;
+  const center = Math.max(16 + width / 2, Math.min(viewportWidth - 16 - width / 2, targetX));
+  return { scale, width, center };
 }
 
 function parseSeekrVtt(vttText, baseUrl) {
@@ -5181,27 +5242,38 @@ function findSeekrCueIndex(cues, positionMs) {
 
 function syncSeekrPreviews() {
   if (!state.seekPreviewEnabled) {
+    seekrRequestGeneration++;
     seekrCues = [];
     seekrLoadedVttUrl = "";
+    seekrLastQueryKey = "";
+    window.clearTimeout(seekKeyboardTimer);
+    seekKeyboardPositionMs = null;
     refreshSeekHover();
     return;
   }
 
   const newContentKey = `${state.seekrImdbId || ''}:${state.seekrTmdbId || 0}:${state.seekrSeason || 0}:${state.seekrEpisode || 0}`;
   if (newContentKey !== seekrContentKey) {
+    clearSeekPreviewInteraction();
     seekrContentKey = newContentKey;
+    seekrRequestGeneration++;
     seekrCues = [];
     seekrLoadedVttUrl = "";
     seekrLastQueryKey = "";
   }
 
   if (state.seekPreviewVttUrl && state.seekPreviewVttUrl !== seekrLoadedVttUrl) {
+    const generation = ++seekrRequestGeneration;
     const vttUrl = state.seekPreviewVttUrl;
+    seekrCues = [];
     seekrLoadedVttUrl = vttUrl;
+    refreshSeekHover();
     fetch(vttUrl)
       .then(res => res.text())
       .then(text => {
+        if (generation !== seekrRequestGeneration) return;
         seekrCues = parseSeekrVtt(text, vttUrl);
+        refreshSeekHover();
       })
       .catch(() => {});
     return;
@@ -5209,6 +5281,7 @@ function syncSeekrPreviews() {
 
   const queryKey = `${newContentKey}:${state.seekrApiKey || ''}`;
   if (!state.seekPreviewVttUrl && !seekrLoadedVttUrl && queryKey !== seekrLastQueryKey && (state.seekrImdbId || state.seekrTmdbId > 0)) {
+    const generation = ++seekrRequestGeneration;
     seekrLastQueryKey = queryKey;
     const params = new URLSearchParams();
     if (state.durationMs > 0) params.set("duration_ms", state.durationMs);
@@ -5228,19 +5301,23 @@ function syncSeekrPreviews() {
     fetch(`https://api.seekr.tv/sprites?${params.toString()}`, { headers })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
+        if (generation !== seekrRequestGeneration) return null;
         if (!data || !data.vttUrl) return;
         const vtt = data.vttUrl.includes("?") ? `${data.vttUrl}&st=1` : `${data.vttUrl}?st=1`;
         seekrLoadedVttUrl = vtt;
         return fetch(vtt).then(res => res.text());
       })
       .then(text => {
-        if (text) seekrCues = parseSeekrVtt(text, seekrLoadedVttUrl);
+        if (text && generation === seekrRequestGeneration) {
+          seekrCues = parseSeekrVtt(text, seekrLoadedVttUrl);
+          refreshSeekHover();
+        }
       })
       .catch(() => {});
   }
 }
 
-function updateSeekrPreview(positionMs, clientX) {
+function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
   if (!codeineSeekPreview || state.isInPip || state.isMiniPlayer) {
     hideSeekrPreview();
     return;
@@ -5251,7 +5328,7 @@ function updateSeekrPreview(positionMs, clientX) {
   const chapterName = (state.playerUiMode || "codeine_xo") === "codeine_xo" && chapterIndex >= 0
     ? chapters[chapterIndex].title : "";
   setText(seekChapterLabel, chapterName);
-  const centerIdx = state.seekPreviewEnabled ? findSeekrCueIndex(seekrCues, positionMs) : -1;
+  const centerIdx = seekPreviewTriggerEnabled(trigger) ? findSeekrCueIndex(seekrCues, positionMs) : -1;
   const hasPreview = centerIdx >= 0;
   setVisible(seekFilmstripCarousel, hasPreview);
   setVisible(seekPreviewPill, hasPreview);
@@ -5267,49 +5344,39 @@ function updateSeekrPreview(positionMs, clientX) {
   const tileWidth = (centerCue && centerCue.w) || 144;
   const tileHeight = (centerCue && centerCue.h) || 81;
 
-  for (let offset = -2; offset <= 2; offset++) {
-    const tileIdx = offset + 2;
-    const tileEl = previewTiles[tileIdx];
-    if (!tileEl) continue;
-    const cueIdx = centerIdx + offset;
-    const cue = hasPreview ? seekrCues[cueIdx] : null;
+  const count = seekPreviewCount(state.seekPreviewThumbnailCount);
+  const sideFrames = (count - 1) / 2;
+  const timelineRect = seek.getBoundingClientRect();
+  const windowWidth = window.innerWidth || document.documentElement.clientWidth;
+  const fraction = state.durationMs > 0 ? Math.max(0, Math.min(1, positionMs / state.durationMs)) : 0;
+  const targetX = clientX != null ? clientX : timelineRect.left + fraction * timelineRect.width;
+  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, targetX);
+  if (seekFilmstripCarousel) seekFilmstripCarousel.style.gap = (8 * geometry.scale) + "px";
+
+  for (let index = 0; index < previewTiles.length; index++) {
+    const tileEl = previewTiles[index];
+    const offset = index - 2;
+    const selected = Math.abs(offset) <= sideFrames;
+    const cue = hasPreview && selected ? seekrCues[centerIdx + offset] : null;
+    tileEl.style.display = selected ? "block" : "none";
+    tileEl.style.visibility = cue ? "visible" : "hidden";
+    tileEl.style.width = tileWidth + "px";
+    tileEl.style.height = tileHeight + "px";
+    tileEl.style.zoom = String(geometry.scale);
     if (cue) {
-      tileEl.style.display = "block";
-      tileEl.style.width = `${tileWidth}px`;
-      tileEl.style.height = `${tileHeight}px`;
-      tileEl.style.backgroundImage = `url("${cue.sheetUrl}")`;
-      tileEl.style.backgroundPosition = `-${cue.x}px -${cue.y}px`;
-    } else {
-      tileEl.style.display = "none";
+      tileEl.style.backgroundImage = 'url("' + cue.sheetUrl + '")';
+      tileEl.style.backgroundPosition = '-' + cue.x + 'px -' + cue.y + 'px';
     }
   }
-
-  if (seekPreviewPill && hasPreview) {
-    seekPreviewPill.textContent = formatTime(centerCue.startMs);
-  }
-
-  if (codeineSeekContainer) {
-    const parentRect = codeineSeekPreview.parentElement ? codeineSeekPreview.parentElement.getBoundingClientRect() : { left: 0, width: window.innerWidth };
-    const containerRect = codeineSeekContainer.getBoundingClientRect();
-    const windowWidth = window.innerWidth || document.documentElement.clientWidth;
-    const filmstripWidth = hasPreview ? 5 * tileWidth + 4 * 8 : codeineSeekPreview.getBoundingClientRect().width;
-    let targetX;
-    if (clientX != null) {
-      targetX = clientX;
-    } else if (state.durationMs > 0) {
-      const frac = Math.max(0, Math.min(1, positionMs / state.durationMs));
-      targetX = containerRect.left + frac * containerRect.width;
-    } else {
-      targetX = windowWidth / 2;
-    }
-
-    const previewWidth = Math.min(filmstripWidth, Math.max(0, windowWidth - 32));
-    const minCenter = previewWidth / 2 + 16;
-    const maxCenter = windowWidth - previewWidth / 2 - 16;
-    const clampedCenter = Math.max(minCenter, Math.min(maxCenter, targetX));
-    const localX = clampedCenter - parentRect.left;
-    codeineSeekPreview.style.left = `${localX}px`;
-  }
+  if (seekPreviewPill && hasPreview) seekPreviewPill.textContent = formatTime(centerCue.startMs);
+  const parentRect = codeineSeekPreview.offsetParent
+    ? codeineSeekPreview.offsetParent.getBoundingClientRect() : { left: 0 };
+  const popupWidth = hasPreview ? geometry.width : codeineSeekPreview.getBoundingClientRect().width;
+  const center = Math.max(16 + popupWidth / 2, Math.min(windowWidth - 16 - popupWidth / 2, targetX));
+  codeineSeekPreview.style.left = (center - parentRect.left) + "px";
+  const parentBottom = codeineSeekPreview.offsetParent
+    ? codeineSeekPreview.offsetParent.getBoundingClientRect().bottom : window.innerHeight;
+  codeineSeekPreview.style.bottom = (parentBottom - timelineRect.top + 14) + "px";
 
   codeineSeekPreview.classList.add("visible");
 }
@@ -5339,7 +5406,8 @@ seek.addEventListener("input", () => {
   markSeek(scrubPositionMs);
   setProgress(scrubPositionMs, state.durationMs);
   send("scrubChange", scrubPositionMs);
-  updateSeekrPreview(scrubPositionMs, null);
+  if (seekDragActive) refreshSeekHover();
+  else showKeyboardSeekPreview(scrubPositionMs);
 });
 
 seek.addEventListener("change", () => {
@@ -5350,31 +5418,52 @@ seek.addEventListener("change", () => {
   markSeek(scrubPositionMs);
   send("scrubFinish", scrubPositionMs);
   state.positionMs = scrubPositionMs;
-  hideSeekrPreview();
+  refreshSeekHover();
   render();
   if (!playerToast || !playerToast.classList.contains("visible")) {
     hideSeekbarOnly();
   }
 });
 
-if (codeineSeekContainer) {
-  codeineSeekContainer.addEventListener("mousemove", event => {
-    if (!state.durationMs) {
-      hideSeekrPreview();
-      return;
-    }
-    const rect = codeineSeekContainer.getBoundingClientRect();
-    if (!rect.width) return;
-    const frac = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const hoveredMs = Math.round(frac * state.durationMs);
-    updateSeekrPreview(isScrubbing ? scrubPositionMs : hoveredMs, event.clientX);
-  });
-  codeineSeekContainer.addEventListener("mouseleave", () => {
-    if (!isScrubbing) {
-      hideSeekrPreview();
-    }
-  });
+function updateSeekPointer(event) {
+  const rect = seek.getBoundingClientRect();
+  if (!state.durationMs || !rect.width) { hideSeekrPreview(); return; }
+  seekPointerClientX = Math.max(rect.left, Math.min(rect.right, event.clientX));
+  const fraction = Math.max(0, Math.min(1, (seekPointerClientX - rect.left) / rect.width));
+  seekPointerPositionMs = Math.round(fraction * state.durationMs);
+  seekHoverContentKey = seekHoverSourceKey();
+  refreshSeekHover();
 }
+
+seek.addEventListener("pointerenter", updateSeekPointer);
+seek.addEventListener("pointermove", updateSeekPointer);
+seek.addEventListener("pointerleave", () => {
+  seekPointerPositionMs = null;
+  seekPointerClientX = null;
+  refreshSeekHover();
+});
+seek.addEventListener("pointerdown", event => {
+  seekDragActive = true;
+  window.clearTimeout(seekKeyboardTimer);
+  seekKeyboardPositionMs = null;
+  scrubPositionMs = rangePositionMs();
+  updateSeekPointer(event);
+});
+window.addEventListener("pointerup", event => {
+  if (!seekDragActive) return;
+  seekDragActive = false;
+  const rect = seek.getBoundingClientRect();
+  if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
+    updateSeekPointer(event);
+  } else {
+    seekPointerPositionMs = null;
+    seekPointerClientX = null;
+    refreshSeekHover();
+  }
+});
+window.addEventListener("pointercancel", clearSeekPreviewInteraction);
+window.addEventListener("blur", clearSeekPreviewInteraction);
+window.addEventListener("resize", refreshSeekHover);
 
 volumeSlider.addEventListener("input", event => {
   if (event && !event.isTrusted) return;
@@ -6727,13 +6816,7 @@ document.addEventListener("keydown", event => {
     state.positionMs = nextPosMs;
     markSeek(nextPosMs);
     setProgress(nextPosMs, durationMs);
-    if (state.seekPreviewEnabled) {
-      updateSeekrPreview(nextPosMs, null);
-      clearTimeout(window.keyboardSeekPreviewTimeout);
-      window.keyboardSeekPreviewTimeout = setTimeout(() => {
-        if (!isScrubbing) hideSeekrPreview();
-      }, 1500);
-    }
+    showKeyboardSeekPreview(nextPosMs);
   }
   showCommandToast(command);
   send(command, 0);

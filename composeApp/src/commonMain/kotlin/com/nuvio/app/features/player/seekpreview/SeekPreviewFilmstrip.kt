@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -46,8 +49,6 @@ import androidx.compose.ui.unit.sp
 import com.nuvio.app.features.player.formatPlaybackTime
 import kotlin.math.roundToInt
 
-private const val FilmstripSideFrames = 2
-private const val FilmstripSize = FilmstripSideFrames * 2 + 1
 private val FilmstripGap = 10.dp
 private const val CenterScale = 1.08f
 private val FrameShape = RoundedCornerShape(8.dp)
@@ -63,10 +64,16 @@ internal fun SeekPreviewFilmstripOverlay(
     track: SeekrPreviewTrack?,
     scrubPositionMs: Long?,
     isVisible: Boolean,
+    thumbnailCount: Int = 5,
+    durationMs: Long = 0L,
+    timelineLeft: Float = 0f,
+    timelineWidth: Float = 0f,
     modifier: Modifier = Modifier,
 ) {
     if (track == null || track.isEmpty) return
 
+    val count = thumbnailCount.takeIf { it in listOf(1, 3, 5) } ?: 5
+    val sideFrames = (count - 1) / 2
     var lastScrubPositionMs by remember { mutableStateOf<Long?>(null) }
     if (scrubPositionMs != null) {
         lastScrubPositionMs = scrubPositionMs
@@ -83,15 +90,15 @@ internal fun SeekPreviewFilmstripOverlay(
     var previousCenterIndex by remember(track) { mutableStateOf<Int?>(null) }
     val slide = remember { Animatable(0f) }
 
-    LaunchedEffect(track, currentCueIndex) {
+    LaunchedEffect(track, currentCueIndex, count) {
         if (currentCueIndex < 0) return@LaunchedEffect
 
         val prev = previousCenterIndex
         val stepDiff = if (prev != null) currentCueIndex - prev else 0
         previousCenterIndex = currentCueIndex
 
-        val newSlots = List(FilmstripSize) { offset ->
-            val cueIdx = currentCueIndex + (offset - FilmstripSideFrames)
+        val newSlots = List(count) { offset ->
+            val cueIdx = currentCueIndex + (offset - sideFrames)
             val thumb = if (cueIdx in 0..track.cues.lastIndex) {
                 track.thumbnailAtIndex(cueIdx)
             } else {
@@ -102,7 +109,7 @@ internal fun SeekPreviewFilmstripOverlay(
         slots = newSlots
 
         if (prev != null && stepDiff != 0) {
-            val clampedSteps = stepDiff.coerceIn(-FilmstripSideFrames, FilmstripSideFrames)
+            val clampedSteps = stepDiff.coerceIn(-sideFrames, sideFrames)
             slide.snapTo(clampedSteps.toFloat())
             slide.animateTo(0f, tween(160, easing = FastOutSlowInEasing))
         } else {
@@ -110,21 +117,37 @@ internal fun SeekPreviewFilmstripOverlay(
         }
     }
 
+    val density = LocalDensity.current
+    var overlayLeft by remember { mutableStateOf(0f) }
     AnimatedVisibility(
         visible = isVisible && slots.isNotEmpty() && slots.any { it.thumbnail != null },
         enter = fadeIn(animationSpec = tween(140)),
         exit = fadeOut(animationSpec = tween(180)),
-        modifier = modifier,
+        modifier = modifier.onGloballyPositioned { overlayLeft = it.boundsInRoot().left },
     ) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
             val totalWidth = maxWidth
-            val baseFrameWidth = (totalWidth * 0.16f).coerceIn(140.dp, 200.dp)
+            val available = (totalWidth - 32.dp).coerceAtLeast(0.dp)
+            val preferred = (totalWidth * 0.16f).coerceIn(140.dp, 200.dp)
+            val preferredWidth = preferred * (count + CenterScale - 1f) + FilmstripGap * (count - 1)
+            val scale = (available / preferredWidth).coerceIn(0f, 1f)
+            val gap = FilmstripGap * scale
+            val baseFrameWidth = preferred * scale
+            val stripWidth = baseFrameWidth * (count + CenterScale - 1f) + gap * (count - 1)
+            val targetFraction = if (durationMs > 0) (effectivePositionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0.5f
+            val targetPx = if (timelineWidth > 0f) timelineLeft - overlayLeft + timelineWidth * targetFraction
+                else with(density) { totalWidth.toPx() * targetFraction }
+            val stripPx = with(density) { stripWidth.toPx() }
+            val edgePx = with(density) { 16.dp.toPx() }
+            val widthPx = with(density) { totalWidth.toPx() }
+            val centerPx = targetPx.coerceIn(edgePx + stripPx / 2, (widthPx - edgePx - stripPx / 2).coerceAtLeast(edgePx + stripPx / 2))
             val baseFrameHeight = baseFrameWidth * (9f / 16f)
 
             Column(
+                modifier = Modifier.width(stripWidth).offset { IntOffset((centerPx - widthPx / 2).roundToInt(), 0) },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 FilmstripRow(
@@ -132,9 +155,10 @@ internal fun SeekPreviewFilmstripOverlay(
                     slide = slide,
                     frameWidth = baseFrameWidth,
                     frameHeight = baseFrameHeight,
+                    gap = gap,
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                val centerSlot = slots.getOrNull(FilmstripSideFrames)
+                Spacer(modifier = Modifier.height(12.dp))
+                val centerSlot = slots.getOrNull(sideFrames)
                 val centerTime = centerSlot?.thumbnail?.cueStartMs ?: effectivePositionMs
                 Box(
                     modifier = Modifier
@@ -162,9 +186,10 @@ private fun FilmstripRow(
     slide: Animatable<Float, *>,
     frameWidth: Dp,
     frameHeight: Dp,
+    gap: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val stepPx = with(LocalDensity.current) { (frameWidth + FilmstripGap).toPx() }
+    val stepPx = with(LocalDensity.current) { (frameWidth + gap).toPx() }
 
     Box(
         modifier = modifier
@@ -174,7 +199,7 @@ private fun FilmstripRow(
     ) {
         slots.forEachIndexed { index, slot ->
             key(slot.cueIndex) {
-                val place = index - FilmstripSideFrames
+                val place = index - slots.size / 2
                 val isCenter = place == 0
                 val thumbnail = slot.thumbnail
 

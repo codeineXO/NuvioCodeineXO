@@ -210,6 +210,15 @@ internal expect object PlayerSettingsStorage {
     fun saveShowClockInPlayer(enabled: Boolean)
     fun loadSeekPreviewEnabled(): Boolean?
     fun saveSeekPreviewEnabled(enabled: Boolean)
+    fun loadSeekPreviewWhileDragging(): Boolean?
+    fun saveSeekPreviewWhileDragging(value: Boolean)
+    fun loadSeekPreviewWhileHovering(): Boolean?
+    fun saveSeekPreviewWhileHovering(value: Boolean)
+    fun loadSeekPreviewWhileKeyboardSeeking(): Boolean?
+    fun saveSeekPreviewWhileKeyboardSeeking(value: Boolean)
+    fun loadSeekPreviewThumbnailCount(): Int?
+    fun saveSeekPreviewThumbnailCount(value: Int)
+
     fun loadSeekrApiKey(): String?
     fun saveSeekrApiKey(apiKey: String)
     fun loadShowRemainingTime(): Boolean?

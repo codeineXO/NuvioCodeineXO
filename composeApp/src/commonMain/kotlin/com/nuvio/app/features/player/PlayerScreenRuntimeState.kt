@@ -202,6 +202,7 @@ internal class PlayerScreenRuntime(
     var errorMessage by mutableStateOf<String?>(null)
     var isScrubbingTimeline by mutableStateOf(false)
     var scrubbingPositionMs by mutableStateOf<Long?>(null)
+    val seekPreviewInteraction = com.nuvio.app.features.player.seekpreview.SeekPreviewInteraction()
     var seekPreviewTrack by mutableStateOf<com.nuvio.app.features.player.seekpreview.SeekrPreviewTrack?>(null)
     var pausedForTimelineScrub by mutableStateOf(false)
     var resumingAfterTimelineScrubForPresence by mutableStateOf(false)

@@ -4938,6 +4938,10 @@ svg {
   z-index: 2;
 }
 
+#seekPreviewPill {
+  margin-top: 6px;
+}
+
 .seek-chapter-label {
   max-width: min(360px, calc(100vw - 32px));
   white-space: nowrap;

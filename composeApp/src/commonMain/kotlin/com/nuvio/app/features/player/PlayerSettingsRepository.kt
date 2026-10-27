@@ -123,6 +123,10 @@ data class PlayerSettingsUiState(
     val showSeekbarWhileSeeking: Boolean = true,
     val showClockInPlayer: Boolean = true,
     val seekPreviewEnabled: Boolean = true,
+    val seekPreviewWhileDragging: Boolean = true,
+    val seekPreviewWhileHovering: Boolean = true,
+    val seekPreviewWhileKeyboardSeeking: Boolean = true,
+    val seekPreviewThumbnailCount: Int = 5,
     val seekrApiKey: String = "",
     val showRemainingTime: Boolean = false,
 )
@@ -220,6 +224,10 @@ object PlayerSettingsRepository {
     private var showSeekbarWhileSeeking = true
     private var showClockInPlayer = true
     private var seekPreviewEnabled = true
+    private var seekPreviewWhileDragging = true
+    private var seekPreviewWhileHovering = true
+    private var seekPreviewWhileKeyboardSeeking = true
+    private var seekPreviewThumbnailCount = 5
     private var seekrApiKey = ""
     private var showRemainingTime = false
 
@@ -323,6 +331,10 @@ object PlayerSettingsRepository {
         showSeekbarWhileSeeking = true
         showClockInPlayer = true
         seekPreviewEnabled = true
+        seekPreviewWhileDragging = true
+        seekPreviewWhileHovering = true
+        seekPreviewWhileKeyboardSeeking = true
+        seekPreviewThumbnailCount = 5
         seekrApiKey = ""
         showRemainingTime = false
         publish()
@@ -518,6 +530,10 @@ object PlayerSettingsRepository {
         showSeekbarWhileSeeking = PlayerSettingsStorage.loadShowSeekbarWhileSeeking() ?: true
         showClockInPlayer = PlayerSettingsStorage.loadShowClockInPlayer() ?: true
         seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
+        seekPreviewWhileDragging = PlayerSettingsStorage.loadSeekPreviewWhileDragging() ?: true
+        seekPreviewWhileHovering = PlayerSettingsStorage.loadSeekPreviewWhileHovering() ?: true
+        seekPreviewWhileKeyboardSeeking = PlayerSettingsStorage.loadSeekPreviewWhileKeyboardSeeking() ?: true
+        seekPreviewThumbnailCount = PlayerSettingsStorage.loadSeekPreviewThumbnailCount()?.takeIf { it in listOf(1, 3, 5) } ?: 5
         seekrApiKey = PlayerSettingsStorage.loadSeekrApiKey() ?: ""
         showRemainingTime = PlayerSettingsStorage.loadShowRemainingTime() ?: false
         publish()
@@ -1175,6 +1191,42 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSeekPreviewEnabled(enabled)
     }
 
+    fun setSeekPreviewWhileDragging(value: Boolean) {
+        ensureLoaded()
+        val normalized = value
+        if (seekPreviewWhileDragging == normalized) return
+        seekPreviewWhileDragging = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekPreviewWhileDragging(normalized)
+    }
+
+    fun setSeekPreviewWhileHovering(value: Boolean) {
+        ensureLoaded()
+        val normalized = value
+        if (seekPreviewWhileHovering == normalized) return
+        seekPreviewWhileHovering = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekPreviewWhileHovering(normalized)
+    }
+
+    fun setSeekPreviewWhileKeyboardSeeking(value: Boolean) {
+        ensureLoaded()
+        val normalized = value
+        if (seekPreviewWhileKeyboardSeeking == normalized) return
+        seekPreviewWhileKeyboardSeeking = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekPreviewWhileKeyboardSeeking(normalized)
+    }
+
+    fun setSeekPreviewThumbnailCount(value: Int) {
+        ensureLoaded()
+        val normalized = value.takeIf { it in listOf(1, 3, 5) } ?: 5
+        if (seekPreviewThumbnailCount == normalized) return
+        seekPreviewThumbnailCount = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekPreviewThumbnailCount(normalized)
+    }
+
     fun setSeekrApiKey(apiKey: String) {
         ensureLoaded()
         val trimmed = apiKey.trim()
@@ -1463,6 +1515,10 @@ object PlayerSettingsRepository {
             showSeekbarWhileSeeking = showSeekbarWhileSeeking,
             showClockInPlayer = showClockInPlayer,
             seekPreviewEnabled = seekPreviewEnabled,
+            seekPreviewWhileDragging = seekPreviewWhileDragging,
+            seekPreviewWhileHovering = seekPreviewWhileHovering,
+            seekPreviewWhileKeyboardSeeking = seekPreviewWhileKeyboardSeeking,
+            seekPreviewThumbnailCount = seekPreviewThumbnailCount,
             seekrApiKey = seekrApiKey,
             showRemainingTime = showRemainingTime,
         )
