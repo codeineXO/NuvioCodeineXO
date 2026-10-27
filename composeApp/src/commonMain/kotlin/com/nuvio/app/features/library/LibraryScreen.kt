@@ -1,6 +1,8 @@
 package com.nuvio.app.features.library
 
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
+import com.nuvio.app.core.ui.landscapePosterWidth
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
@@ -101,11 +103,13 @@ import com.nuvio.app.features.cloud.CloudLibraryRepository
 import com.nuvio.app.features.cloud.CloudLibraryUiState
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import com.nuvio.app.features.servers.ServerRepository
 import com.nuvio.app.features.home.components.HomePosterCard
 import com.nuvio.app.features.home.components.HomeSkeletonRow
+import com.nuvio.app.features.home.components.homePosterGutterPaddingForWidth
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.tracking.TrackingRefreshIntent
 import com.nuvio.app.features.watched.WatchedRepository
@@ -164,6 +168,7 @@ fun LibraryScreen(
         LibraryDisplaySettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
+    val homeCatalogSettings by HomeCatalogSettingsRepository.uiState.collectAsStateWithLifecycle()
     var observedOfflineState by remember { mutableStateOf(false) }
     val serversUiState by remember {
         ServerRepository.ensureLoaded()
@@ -330,6 +335,28 @@ fun LibraryScreen(
         }
 
         val posterCardStyle = rememberPosterCardStyleUiState()
+        val useGutterLayout = isDesktop &&
+            sourceMode == LibraryViewMode.Saved &&
+            displaySettings.layoutMode == LibraryLayoutMode.HORIZONTAL &&
+            homeCatalogSettings.scrollPostersLayoutEnabled
+        // AppTabHost already removes the sidebar inset from Library's available width.
+        val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
+        val effectivePosterWidth = if (posterCardStyle.catalogLandscapeModeEnabled) {
+            landscapePosterWidth(basePosterWidthDp)
+        } else {
+            basePosterWidthDp.dp
+        }
+        val posterSectionPadding = if (useGutterLayout) {
+            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+        } else {
+            16.dp
+        }
+        // Keep page controls spaced normally while matching Home's 24.dp between shelves.
+        val posterSectionBottomPadding = if (useGutterLayout) {
+            (24.dp - MaterialTheme.nuvio.spacing.listGap).coerceAtLeast(0.dp)
+        } else {
+            0.dp
+        }
         val gridColumns = remember(maxWidth, maxHeight, posterCardStyle.widthDp, isDesktop) {
             if (isDesktop) {
                 posterGridColumnCountForViewport(maxWidth, maxHeight, posterCardStyle.widthDp)
@@ -482,7 +509,8 @@ fun LibraryScreen(
                         } else {
                             items(3) {
                                 HomeSkeletonRow(
-                                    horizontalPadding = 16.dp,
+                                    modifier = Modifier.padding(bottom = posterSectionBottomPadding),
+                                    horizontalPadding = posterSectionPadding,
                                 )
                             }
                         }
@@ -556,6 +584,9 @@ fun LibraryScreen(
                         when (displaySettings.layoutMode) {
                             LibraryLayoutMode.HORIZONTAL -> librarySections(
                                 displaySections = librarySectionsDisplay,
+                                sectionPadding = posterSectionPadding,
+                                sectionBottomPadding = posterSectionBottomPadding,
+                                useGutterLayout = useGutterLayout,
                                 watchedKeys = watchedUiState.watchedKeys,
                                 fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                 sortOption = effectiveSortOption,
@@ -1294,6 +1325,9 @@ private enum class LibraryViewMode {
 
 private fun LazyListScope.librarySections(
     displaySections: List<LibraryDisplaySection>,
+    sectionPadding: Dp,
+    sectionBottomPadding: Dp,
+    useGutterLayout: Boolean,
     watchedKeys: Set<String>,
     fullyWatchedSeriesKeys: Set<String>,
     sortOption: LibrarySortOption,
@@ -1310,9 +1344,10 @@ private fun LazyListScope.librarySections(
         NuvioShelfSection(
             title = localizedLibrarySectionTitle(section.type, section.displayTitle),
             entries = section.previewEntries,
-            modifier = libraryContentTransitionModifier(),
-            headerHorizontalPadding = 16.dp,
-            rowContentPadding = PaddingValues(horizontal = 16.dp),
+            modifier = libraryContentTransitionModifier().padding(bottom = sectionBottomPadding),
+            headerHorizontalPadding = sectionPadding,
+            rowContentPadding = PaddingValues(horizontal = sectionPadding),
+            useGutterLayout = useGutterLayout,
             onViewAllClick = section.source
                 ?.takeIf { it.items.size > LIBRARY_SECTION_PREVIEW_LIMIT }
                 ?.let { source -> onSectionViewAllClick?.let { { it(source, sortOption) } } },
