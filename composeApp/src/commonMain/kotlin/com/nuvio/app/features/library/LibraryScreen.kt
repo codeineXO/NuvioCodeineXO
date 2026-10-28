@@ -5,6 +5,11 @@ import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.landscapePosterWidth
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.BindPosterNavigationPage
+import com.nuvio.app.core.ui.PosterNavigationRow
+import com.nuvio.app.core.ui.RemotePosterRow
+import com.nuvio.app.core.ui.RemoteNavigationControls
+import com.nuvio.app.features.home.stableKey
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -365,6 +370,29 @@ fun LibraryScreen(
             }
         }
 
+        val navigationRows = remember(sourceMode, displaySettings.layoutMode, verticalProjection.entries, gridColumns, librarySectionsDisplay) {
+            if (sourceMode != LibraryViewMode.Saved) emptyList()
+            else if (displaySettings.layoutMode == LibraryLayoutMode.VERTICAL) {
+                verticalProjection.entries.chunked(gridColumns).mapIndexed { index, entries ->
+                    // The sticky header and saved controls precede the poster rows.
+                    PosterNavigationRow(entries.libraryGridRowKey(), entries.map { it.item.toMetaPreview().stableKey() }, index + 2, grid = true)
+                }
+            } else {
+                librarySectionsDisplay.mapIndexed { index, section ->
+                    PosterNavigationRow("library-horizontal:${section.type}", section.previewEntries.map { it.globalKey }, index + 2)
+                }
+            }
+        }
+        BindPosterNavigationPage(
+            pageId = "library",
+            context = listOf(ProfileRepository.activeProfileId, sourceMode, uiState.sourceMode, displaySettings.layoutMode,
+                verticalProjection.selectedSectionKey, verticalProjection.selectedType, effectiveSortOption),
+            rows = navigationRows,
+            state = listState,
+            loading = !uiState.isLoaded || uiState.isLoading,
+            stopAtBottom = displaySettings.layoutMode == LibraryLayoutMode.VERTICAL,
+        )
+
         val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val effectiveHeaderTopPadding = topChromePadding ?: (statusBarTop + MaterialTheme.nuvio.spacing.screenTop)
 
@@ -387,6 +415,7 @@ fun LibraryScreen(
                             .background(androidx.compose.ui.graphics.Color.Transparent)
                             .nuvioConsumePointerEvents(),
                     )
+                    RemoteNavigationControls("library", row = 0, verticalEntry = false) {
                     androidx.compose.foundation.layout.Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -455,6 +484,7 @@ fun LibraryScreen(
                             modifier = Modifier.padding(horizontal = 16.dp),
                         )
                         Spacer(modifier = Modifier.height(6.dp))
+                    }
                     }
                 }
             }
@@ -821,6 +851,7 @@ private fun LibrarySourceSwitch(
     onModeSelected: (LibraryViewMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    RemoteNavigationControls("library", row = 0) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -842,6 +873,7 @@ private fun LibrarySourceSwitch(
                 onClick = { onModeSelected(LibraryViewMode.Servers) },
             )
         }
+    }
     }
 }
 
@@ -1341,6 +1373,7 @@ private fun LazyListScope.librarySections(
         items = displaySections,
         key = { section -> "library-horizontal:${section.type}" },
     ) { section ->
+        RemotePosterRow("library", "library-horizontal:${section.type}") {
         NuvioShelfSection(
             title = localizedLibrarySectionTitle(section.type, section.displayTitle),
             entries = section.previewEntries,
@@ -1381,6 +1414,7 @@ private fun LazyListScope.librarySections(
                     },
                 )
             }
+        }
         }
     }
 }

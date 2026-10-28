@@ -388,6 +388,64 @@ class KeyboardFocusPathsTest {
         compose.onNodeWithTag("search").assertIsFocused()
     }
 
+    @Test fun libraryControlsTraverseStaggeredHeaderAndEnterFiltersBeforeSourceTabs() {
+        compose.setContent {
+            NuvioTheme {
+                RemoteNavigationHost(enabled = true, modifier = Modifier.size(800.dp, 600.dp)) {
+                    val state = rememberLazyListState()
+                    BindPosterNavigationPage("library", Unit,
+                        listOf(PosterNavigationRow("posters", listOf("poster"), 2, grid = true)), state, false)
+                    Column {
+                        RemoteNavigationControls("library", 0, verticalEntry = false) {
+                            Row(Modifier.padding(start = 450.dp)) {
+                                listOf("view", "download").forEach { tag ->
+                                    BasicText(tag, Modifier.testTag(tag).size(100.dp, 50.dp)
+                                        .remoteNavigationTarget().clickable {})
+                                }
+                            }
+                        }
+                        RemoteNavigationControls("library", 0) {
+                            Row {
+                                listOf("saved", "cloud").forEach { tag ->
+                                    BasicText(tag, Modifier.testTag(tag).size(100.dp, 50.dp)
+                                        .remoteNavigationTarget().clickable {})
+                                }
+                            }
+                        }
+                        RemoteNavigationControls("library", 1) {
+                            Row {
+                                listOf("type", "sort").forEach { tag ->
+                                    BasicText(tag, Modifier.testTag(tag).size(150.dp, 50.dp)
+                                        .remoteNavigationTarget().clickable {})
+                                }
+                            }
+                        }
+                        RemotePosterRow("library", "posters") {
+                            RemotePosterItem("poster", 0) {
+                                BasicText("poster", Modifier.padding(start = 500.dp).testTag("poster").size(100.dp, 150.dp)
+                                    .remoteNavigationTarget().clickable {})
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        focus("saved")
+        listOf("cloud", "view", "download").forEach { tag ->
+            compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionRight) }
+            compose.onNodeWithTag(tag).assertIsFocused()
+        }
+        listOf("view", "cloud", "saved").forEach { tag ->
+            compose.onNode(isFocused()).performKeyInput { pressKey(Key.DirectionLeft) }
+            compose.onNodeWithTag(tag).assertIsFocused()
+        }
+        focus("poster")
+        compose.onNodeWithTag("poster").performKeyInput { pressKey(Key.DirectionUp) }
+        compose.onNodeWithTag("sort").assertIsFocused().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.onNodeWithTag("cloud").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNodeWithTag("type").assertIsFocused()
+    }
+
     @Test fun sidebarEntryAlwaysFocusesActiveTabFromEveryHeightWithoutActivation() {
         var selected by mutableStateOf(AppScreenTab.Home)
         var activations = 0

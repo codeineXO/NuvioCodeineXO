@@ -98,7 +98,17 @@ internal class PosterShelfController(
             if (selectionJob?.isActive == true) return
             // Preserve the existing explicit end action and sidebar rules.
             if (source.poster != null) session.enqueuePosterMove(source, direction)
-            else if (direction != FocusDirection.Left || (allowSidebarEntry && session.canEnterSidebar())) {
+            else if (direction == FocusDirection.Left) {
+                // Unregistered shelves (including Library rows) need the same
+                // explicit sidebar destination as registered Home poster rows.
+                // Spatial search can choose another row, which this shelf rejects.
+                if (allowSidebarEntry && session.canEnterSidebar()) {
+                    session.targets.firstOrNull {
+                        it.route == source.route && it.manager === source.manager &&
+                            it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+                    }?.requester?.requestFocus()
+                }
+            } else {
                 session.moveFocus(source.route, direction, source.manager)
                 val destination = session.focusedTarget
                 if (destination?.shelfItem?.controller !== this && destination?.role != RemoteNavigationRole.Sidebar) {

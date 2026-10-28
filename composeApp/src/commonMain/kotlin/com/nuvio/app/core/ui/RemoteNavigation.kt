@@ -163,6 +163,7 @@ internal class RemoteNavigationSession {
     fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager, sourceOverride: RemoteFocusTarget? = null): Boolean {
         val source = sourceOverride ?: focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
         if (source?.pageBoundary != null) return movePageFocus(source, direction)
+        source?.let { moveControlFocus(it, direction) }?.let { return it }
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
         val sidebarEntry = targets.firstOrNull {
@@ -288,6 +289,7 @@ internal class RemoteFocusTarget(val route: Any, val identity: Int, val requeste
     var pageBoundary: RemoteNavigationPageBoundary? = null
     var shelfItem: PosterShelfItem? = null
     var poster: PosterNavigationItem? = null
+    var controlRow: RemoteControlRow? = null
     var bounds by mutableStateOf<Rect?>(null)
     var visibleBounds: Rect? = null
     var focused by mutableStateOf(false)
@@ -546,7 +548,8 @@ internal fun Modifier.remoteNavigationTarget(
     val shelfItem = LocalPosterShelfItem.current
     val poster = LocalPosterNavigationItem.current
     val pageBoundary = LocalRemoteNavigationPageBoundary.current
-    SideEffect { target.poster = poster; target.pageBoundary = pageBoundary; target.shelfItem = shelfItem }
+    val controlRow = LocalRemoteControlRow.current
+    SideEffect { target.poster = poster; target.pageBoundary = pageBoundary; target.shelfItem = shelfItem; target.controlRow = controlRow }
     val bringIntoView = remember { BringIntoViewRequester() }
     SideEffect { target.reveal = { bringIntoView.bringIntoView() } }
     val scope = rememberCoroutineScope()

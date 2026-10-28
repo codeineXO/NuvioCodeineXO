@@ -34,6 +34,7 @@ internal class PosterNavigationPage {
     var rows: List<PosterNavigationRow> = emptyList()
     var state: LazyListState? = null
     var active = false
+    var stopAtBottom = false
     var origin: PosterOrigin? = null
     var lane: Float? = null
     var restorationState = PosterRestorationState.Idle
@@ -91,7 +92,7 @@ internal fun BindPosterShelf(state: LazyListState) {
 
 /** Registered outside lazy items so navigation can reveal rows that are not composed. */
 @Composable
-internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<PosterNavigationRow>, state: LazyListState, loading: Boolean) {
+internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<PosterNavigationRow>, state: LazyListState, loading: Boolean, stopAtBottom: Boolean = false) {
     val session = LocalRemoteNavigation.current ?: return
     val route = LocalRemoteRoute.current
     val active = LocalScreenActive.current
@@ -109,6 +110,7 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
             session.rememberedBounds.remove(route)
         }
         page.rows = rows
+        page.stopAtBottom = stopAtBottom
         page.state = state
         page.route = route
         if (active && !page.active && page.origin != null) {
@@ -224,6 +226,7 @@ internal fun RemoteNavigationSession.handlesPosterDirection(item: PosterNavigati
     if (item == null || item.role == PosterTargetRole.Header) return false
     if (posterPages[item.page]?.rows?.none { it.key == item.row } != false) return false
     if (direction == FocusDirection.Left || direction == FocusDirection.Right) return true
+    if (direction == FocusDirection.Down && posterPages[item.page]?.stopAtBottom == true) return true
     val rows = posterPages[item.page]?.rows.orEmpty().filter { it.items.isNotEmpty() }
     val index = rows.indexOfFirst { it.key == item.row }
     return index >= 0 && ((direction == FocusDirection.Up && index > 0) || (direction == FocusDirection.Down && index < rows.lastIndex))

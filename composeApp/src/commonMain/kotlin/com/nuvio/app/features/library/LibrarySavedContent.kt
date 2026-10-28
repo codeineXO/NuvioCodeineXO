@@ -19,6 +19,8 @@ import com.nuvio.app.core.poster.withCustomPosterUrl
 import com.nuvio.app.core.ui.NuvioDropdownChip
 import com.nuvio.app.core.ui.NuvioDropdownOption
 import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.RemotePosterRow
+import com.nuvio.app.core.ui.RemoteNavigationControls
 import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.PosterGridRow
@@ -51,6 +53,7 @@ internal fun LibrarySavedControls(
     val sortOptions = availableLibrarySortOptions(sourceMode)
     val allTypesLabel = stringResource(Res.string.library_filter_all_types)
 
+    RemoteNavigationControls("library", row = 1) {
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -109,6 +112,7 @@ internal fun LibrarySavedControls(
             },
         )
     }
+    }
 }
 
 internal fun LazyListScope.libraryVerticalContent(
@@ -123,8 +127,7 @@ internal fun LazyListScope.libraryVerticalContent(
     items(
         items = projection.entries.chunked(columns),
         key = { rowEntries ->
-            val firstEntry = rowEntries.first()
-            "library-vertical:${firstEntry.item.type}:${firstEntry.item.id}"
+            rowEntries.libraryGridRowKey()
         },
     ) { rowEntries ->
         val resolvedItems = remember(rowEntries, posterPattern) {
@@ -134,6 +137,7 @@ internal fun LazyListScope.libraryVerticalContent(
                 }
             }
         }
+        RemotePosterRow("library", rowEntries.libraryGridRowKey()) {
         PosterGridRow(
             items = resolvedItems,
             columns = columns,
@@ -151,8 +155,12 @@ internal fun LazyListScope.libraryVerticalContent(
                 }
             },
         )
+        }
     }
 }
+
+internal fun List<LibraryVerticalEntry>.libraryGridRowKey(): String =
+    first().item.let { "library-vertical:${it.type}:${it.id}" }
 
 internal fun LazyListScope.libraryVerticalSkeletonItems(columns: Int) {
     items(
