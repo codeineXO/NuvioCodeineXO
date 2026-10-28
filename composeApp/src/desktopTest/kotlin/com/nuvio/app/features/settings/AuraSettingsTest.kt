@@ -5,8 +5,6 @@ import androidx.compose.ui.graphics.lerp
 import com.nuvio.app.core.ui.*
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.core.storage.ProfileScopedKey
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.nio.file.Files
 import kotlin.test.*
 
@@ -60,7 +58,7 @@ class AuraSettingsTest {
         assertEquals(listOf(0.55f, 1f, 1.4f), AuraIntensity.entries.map { it.multiplier })
     }
 
-    @Test fun storagePersistsAcrossProfilesAndSync() {
+    @Test fun storagePersistsLocallyAcrossProfilesAndReload() {
         val file = Files.createTempFile("aura-settings", ".properties")
         val store = DesktopStorage.Store(file)
         var profile = 1
@@ -69,11 +67,8 @@ class AuraSettingsTest {
             assertNull(storage.loadAuraSettings())
             val first = AuraSettings(AuraPalette.SUNSET).encode()
             storage.saveAuraSettings(first)
-            val payload = buildJsonObject { put("aura_settings", storage.exportValue()!!) }
             profile = 2
             assertNull(storage.loadAuraSettings())
-            storage.restore(payload)
-            assertEquals(first, storage.loadAuraSettings())
             val second = AuraSettings(AuraPalette.ARCTIC, animated = false).encode()
             storage.saveAuraSettings(second)
             profile = 1

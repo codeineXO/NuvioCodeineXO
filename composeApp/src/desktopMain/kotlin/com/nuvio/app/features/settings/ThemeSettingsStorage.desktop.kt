@@ -32,18 +32,7 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
     private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
     private const val auraSettingsKey = "aura_settings"
     private const val auraBackgroundEnabledKey = "aura_background_enabled"
-    private val profileScopedSyncKeys = listOf(
-        selectedThemeKey,
-        customThemeColorsKey,
-        amoledEnabledKey,
-        frostedGlassEnabledKey,
-        liquidGlassNativeTabBarEnabledKey,
-        desktopNavigationLayoutKey,
-        navBarStyleKey,
-        navBarGlowEnabledKey,
-        auraBackgroundEnabledKey,
-        auraSettingsKey,
-    )
+    // Aura and frosted glass stay local to each profile and are never replaced by account sync.
     private val deviceLocale = Locale.getDefault()
     private val store = DesktopStorage.store("nuvio_theme_settings")
 
@@ -125,32 +114,52 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
     override fun loadAuraSettings(): String? = auraStorage.loadAuraSettings()
     override fun saveAuraSettings(value: String) = auraStorage.saveAuraSettings(value)
 
-    actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
-        loadSelectedTheme()?.let { put(selectedThemeKey, encodeSyncString(it)) }
-        loadCustomThemeColors()?.let { put(customThemeColorsKey, encodeSyncString(it)) }
-        put(frostedGlassEnabledKey, frostedGlassStorage.exportValue())
-        loadAmoledEnabled()?.let { put(amoledEnabledKey, encodeSyncBoolean(it)) }
-        loadLiquidGlassNativeTabBarEnabled()?.let { put(liquidGlassNativeTabBarEnabledKey, encodeSyncBoolean(it)) }
-        loadDesktopNavigationLayout()?.let { put(desktopNavigationLayoutKey, encodeSyncString(it)) }
-        loadNavBarStyle()?.let { put(navBarStyleKey, encodeSyncString(it)) }
-        loadNavBarGlowEnabled()?.let { put(navBarGlowEnabledKey, encodeSyncBoolean(it)) }
-        auraStorage.exportValue()?.let { put(auraSettingsKey, it) }
-        loadAuraBackgroundEnabled()?.let { put(auraBackgroundEnabledKey, encodeSyncBoolean(it)) }
-    }
+    private val syncStorage by lazy { SyncStorage(store) }
+
+    actual fun exportToSyncPayload(): JsonObject = syncStorage.exportToSyncPayload()
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
-        store.removeAll(profileScopedSyncKeys.map(ProfileScopedKey::of))
-        payload.decodeSyncString(selectedThemeKey)?.let(::saveSelectedTheme)
-        payload.decodeSyncString(customThemeColorsKey)?.let(::saveCustomThemeColors)
-        frostedGlassStorage.restore(payload)
-        payload.decodeSyncBoolean(amoledEnabledKey)?.let(::saveAmoledEnabled)
-        payload.decodeSyncBoolean(liquidGlassNativeTabBarEnabledKey)?.let(::saveLiquidGlassNativeTabBarEnabled)
-        payload.decodeSyncString(desktopNavigationLayoutKey)?.let(::saveDesktopNavigationLayout)
-        payload.decodeSyncString(navBarStyleKey)?.let(::saveNavBarStyle)
-        payload.decodeSyncBoolean(navBarGlowEnabledKey)?.let(::saveNavBarGlowEnabled)
-        auraStorage.restore(payload)
-        payload.decodeSyncBoolean(auraBackgroundEnabledKey)?.let(::saveAuraBackgroundEnabled)
+        syncStorage.replaceFromSyncPayload(payload)
         applySelectedAppLanguage(loadSelectedAppLanguage() ?: AppLanguage.ENGLISH.code)
+    }
+
+    /** Account sync only touches shared keys; local preferences use the same store unchanged. */
+    internal class SyncStorage(
+        private val store: DesktopStorage.Store,
+        private val profileKey: (String) -> String = ProfileScopedKey::of,
+    ) {
+        private fun scoped(key: String): String = profileKey(key)
+
+        private val profileScopedSyncKeys = listOf(
+            selectedThemeKey,
+            customThemeColorsKey,
+            amoledEnabledKey,
+            liquidGlassNativeTabBarEnabledKey,
+            desktopNavigationLayoutKey,
+            navBarStyleKey,
+            navBarGlowEnabledKey,
+        )
+
+        fun exportToSyncPayload(): JsonObject = buildJsonObject {
+            store.getString(scoped(selectedThemeKey))?.let { put(selectedThemeKey, encodeSyncString(it)) }
+            store.getString(scoped(customThemeColorsKey))?.let { put(customThemeColorsKey, encodeSyncString(it)) }
+            store.getBoolean(scoped(amoledEnabledKey))?.let { put(amoledEnabledKey, encodeSyncBoolean(it)) }
+            store.getBoolean(scoped(liquidGlassNativeTabBarEnabledKey))?.let { put(liquidGlassNativeTabBarEnabledKey, encodeSyncBoolean(it)) }
+            store.getString(scoped(desktopNavigationLayoutKey))?.let { put(desktopNavigationLayoutKey, encodeSyncString(it)) }
+            store.getString(scoped(navBarStyleKey))?.let { put(navBarStyleKey, encodeSyncString(it)) }
+            store.getBoolean(scoped(navBarGlowEnabledKey))?.let { put(navBarGlowEnabledKey, encodeSyncBoolean(it)) }
+        }
+
+        fun replaceFromSyncPayload(payload: JsonObject) {
+            store.removeAll(profileScopedSyncKeys.map(::scoped))
+            payload.decodeSyncString(selectedThemeKey)?.let { store.putString(scoped(selectedThemeKey), it) }
+            payload.decodeSyncString(customThemeColorsKey)?.let { store.putString(scoped(customThemeColorsKey), it) }
+            payload.decodeSyncBoolean(amoledEnabledKey)?.let { store.putBoolean(scoped(amoledEnabledKey), it) }
+            payload.decodeSyncBoolean(liquidGlassNativeTabBarEnabledKey)?.let { store.putBoolean(scoped(liquidGlassNativeTabBarEnabledKey), it) }
+            payload.decodeSyncString(desktopNavigationLayoutKey)?.let { store.putString(scoped(desktopNavigationLayoutKey), it) }
+            payload.decodeSyncString(navBarStyleKey)?.let { store.putString(scoped(navBarStyleKey), it) }
+            payload.decodeSyncBoolean(navBarGlowEnabledKey)?.let { store.putBoolean(scoped(navBarGlowEnabledKey), it) }
+        }
     }
 }
 
@@ -160,10 +169,6 @@ internal class DesktopAuraSettingsStorage(
 ) : AuraSettingsStore {
     override fun loadAuraSettings(): String? = store.getString(scopedKey())
     override fun saveAuraSettings(value: String) { store.putString(scopedKey(), value) }
-    fun exportValue() = loadAuraSettings()?.let(::encodeSyncString)
-    fun restore(payload: JsonObject) {
-        payload.decodeSyncString("aura_settings")?.let(::saveAuraSettings)
-    }
 }
 
 internal class DesktopFrostedGlassSettingsStorage(
@@ -172,8 +177,4 @@ internal class DesktopFrostedGlassSettingsStorage(
 ) : FrostedGlassSettingsStore {
     override fun loadFrostedGlassEnabled(): Boolean? = store.getBoolean(scopedKey())
     override fun saveFrostedGlassEnabled(enabled: Boolean) = store.putBoolean(scopedKey(), enabled)
-    fun exportValue() = encodeSyncBoolean(loadFrostedGlassEnabled() ?: true)
-    fun restore(payload: JsonObject) {
-        saveFrostedGlassEnabled(payload.decodeSyncBoolean("frosted_glass_enabled") ?: true)
-    }
 }

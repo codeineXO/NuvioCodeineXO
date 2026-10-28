@@ -2,9 +2,6 @@ package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.core.storage.ProfileScopedKey
-import com.nuvio.app.core.sync.decodeSyncBoolean
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,7 +9,7 @@ import kotlin.test.assertNull
 
 class FrostedGlassSettingsTest {
     @Test
-    fun defaultsPersistenceProfilesAndSync() {
+    fun localPreferenceSurvivesReloadAndProfileChanges() {
         val file = Files.createTempFile("frosted-glass-settings", ".properties")
         val store = DesktopStorage.Store(file)
         var profile = 1
@@ -21,21 +18,11 @@ class FrostedGlassSettingsTest {
         }
         try {
             assertNull(storage.loadFrostedGlassEnabled())
-            val defaults = buildJsonObject { put("frosted_glass_enabled", storage.exportValue()) }
-            assertEquals(true, defaults.decodeSyncBoolean("frosted_glass_enabled"))
             storage.saveFrostedGlassEnabled(false)
-            val disabled = buildJsonObject { put("frosted_glass_enabled", storage.exportValue()) }
-            assertEquals(false, disabled.decodeSyncBoolean("frosted_glass_enabled"))
 
             profile = 2
             assertNull(storage.loadFrostedGlassEnabled())
-            storage.restore(disabled)
-            assertEquals(false, storage.loadFrostedGlassEnabled())
-            storage.restore(defaults)
-            assertEquals(true, storage.loadFrostedGlassEnabled())
-            storage.restore(disabled)
-            storage.restore(buildJsonObject {}) // Older payload replaces a disabled preference.
-            assertEquals(true, storage.loadFrostedGlassEnabled())
+            storage.saveFrostedGlassEnabled(true)
             profile = 1
             assertEquals(false, storage.loadFrostedGlassEnabled())
 

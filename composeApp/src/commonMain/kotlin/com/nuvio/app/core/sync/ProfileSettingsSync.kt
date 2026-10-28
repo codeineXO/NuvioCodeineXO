@@ -185,10 +185,10 @@ object ProfileSettingsSync {
 
     @OptIn(FlowPreview::class)
     private fun observeLocalChangesAndPush() {
-        val signatureFlows = listOf(
+        val signatureFlows = listOfNotNull(
             ThemeSettingsRepository.selectedThemePreference.map { "theme" },
             ThemeSettingsRepository.customThemePreference.map { "custom_theme_colors" },
-            ThemeSettingsRepository.frostedGlassEnabled.map { "frosted_glass_enabled" },
+            if (isDesktop) null else ThemeSettingsRepository.frostedGlassEnabled.map { "frosted_glass_enabled" },
             ThemeSettingsRepository.amoledEnabled.map { "amoled" },
             ThemeSettingsRepository.liquidGlassNativeTabBarEnabled.map { "liquid_glass_tab_bar" },
             ThemeSettingsRepository.desktopNavigationLayout.map { "desktop_navigation_layout" },
@@ -246,7 +246,7 @@ object ProfileSettingsSync {
         return MobileProfileSettingsBlob(
             features = MobileProfileSettingsFeatures(
                 themeSettings = ThemeSettingsStorage.exportToSyncPayload(),
-                posterCardStyleSettingsPayload = PosterCardStyleStorage.loadPayload().orEmpty().trim(),
+                posterCardStyleSettingsPayload = posterSettingsForSync(PosterCardStyleStorage.loadPayload().orEmpty().trim()),
                 customPosterUrlPattern = CustomPosterUrlStorage.loadPattern().orEmpty().trim(),
                 customPosterEnabledScreens = CustomPosterUrlStorage.loadEnabledScreens()
                     ?.joinToString(",").orEmpty(),
@@ -268,7 +268,7 @@ object ProfileSettingsSync {
                     PROFILE_MDBLIST_SETTINGS_FEATURE,
                     MdbListSettingsStorage.exportToSyncPayload(),
                 ),
-                metaScreenSettingsPayload = MetaScreenSettingsStorage.loadPayload().orEmpty().trim(),
+                metaScreenSettingsPayload = metaSettingsForSync(MetaScreenSettingsStorage.loadPayload().orEmpty().trim()),
                 collectionMobileSettingsPayload = CollectionMobileSettingsStorage.loadPayload().orEmpty().trim(),
                 continueWatchingSettingsPayload = ContinueWatchingPreferencesStorage.loadPayload().orEmpty().trim(),
                 traktSettingsPayload = TraktSettingsStorage.loadPayload().orEmpty().trim(),
@@ -284,7 +284,9 @@ object ProfileSettingsSync {
         ThemeSettingsStorage.replaceFromSyncPayload(blob.features.themeSettings)
         ThemeSettingsRepository.onProfileChanged()
 
-        PosterCardStyleStorage.savePayload(blob.features.posterCardStyleSettingsPayload)
+        PosterCardStyleStorage.savePayload(
+            restorePosterSettingsFromSync(blob.features.posterCardStyleSettingsPayload, PosterCardStyleStorage.loadPayload()),
+        )
         PosterCardStyleRepository.onProfileChanged()
 
         CustomPosterUrlStorage.savePattern(blob.features.customPosterUrlPattern.ifBlank { null })
@@ -342,7 +344,9 @@ object ProfileSettingsSync {
         MdbListMetadataService.clearCache()
         MdbListSettingsRepository.onProfileChanged()
 
-        MetaScreenSettingsStorage.savePayload(blob.features.metaScreenSettingsPayload)
+        MetaScreenSettingsStorage.savePayload(
+            restoreMetaSettingsFromSync(blob.features.metaScreenSettingsPayload, MetaScreenSettingsStorage.loadPayload()),
+        )
         MetaScreenSettingsRepository.onProfileChanged()
 
         CollectionMobileSettingsStorage.savePayload(blob.features.collectionMobileSettingsPayload)
@@ -384,21 +388,21 @@ object ProfileSettingsSync {
     private fun currentObservedStateSignature(): String = listOf(
         "theme=${ThemeSettingsRepository.selectedThemePreference.value?.name}",
         "custom_theme_colors=${ThemeSettingsRepository.customThemePreference.value}",
-        "frosted_glass_enabled=${ThemeSettingsRepository.frostedGlassEnabled.value}",
+        if (isDesktop) "" else "frosted_glass_enabled=${ThemeSettingsRepository.frostedGlassEnabled.value}",
         "amoled=${ThemeSettingsRepository.amoledEnabled.value}",
         "liquid_glass_tab_bar=${ThemeSettingsRepository.liquidGlassNativeTabBarEnabled.value}",
         "desktop_navigation_layout=${ThemeSettingsRepository.desktopNavigationLayout.value.name}",
         "nav_bar_glow_enabled=${ThemeSettingsRepository.navBarGlowEnabled.value}",
         "nav_bar_style=${ThemeSettingsRepository.navBarStyle.value.key}",
-        "poster_card_style=${PosterCardStyleRepository.uiState.value}",
+        "poster_card_style=${posterSettingsSyncState(PosterCardStyleRepository.uiState.value)}",
         "custom_poster_url=${CustomPosterUrlRepository.pattern.value}",
         "card_depth_style=${CardDepthStyleRepository.uiState.value}",
-        "player=${PlayerSettingsRepository.uiState.value}",
+        "player=${playerSettingsSyncState(PlayerSettingsRepository.uiState.value)}",
         "stream_badges=${StreamBadgeSettingsRepository.uiState.value}",
         "debrid=${DebridSettingsRepository.uiState.value}",
         "tmdb=${TmdbSettingsRepository.uiState.value}",
         "mdblist=${MdbListSettingsRepository.uiState.value}",
-        "meta=${MetaScreenSettingsRepository.uiState.value}",
+        "meta=${metaSettingsSyncState(MetaScreenSettingsRepository.uiState.value)}",
         "collection_mobile_settings=${CollectionMobileSettingsRepository.uiState.value}",
         "continue=${ContinueWatchingPreferencesRepository.uiState.value}",
         "trakt_settings=${TrackingSettingsRepository.uiState.value}",
