@@ -61,6 +61,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -68,14 +69,10 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Done
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -121,6 +118,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SvpMotionOption
 import com.nuvio.app.features.player.SvpRuntimeDownloadState
+import com.nuvio.app.features.player.SvpRuntimeStatus
+import com.nuvio.app.features.player.VideoEnhancementsHardwareNote
 import com.nuvio.app.features.player.SvpRuntimeInstaller
 import com.nuvio.app.features.settings.SettingsGroupDivider
 import com.nuvio.app.features.settings.SettingsSwitchRow
@@ -555,8 +554,6 @@ private fun RecommendedSetupStepContent(
     onBack: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
-    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
-    val isSvpInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
 
     Column(
         modifier = Modifier
@@ -741,161 +738,6 @@ private fun RecommendedSetupStepContent(
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
-                }
-            }
-        }
-
-        // SVP Runtime Setup Card on Preset Page
-        if (!isSvpInstalled && SvpRuntimeInstaller.isSupported) {
-            Spacer(modifier = Modifier.height(14.dp))
-            OnboardingGlassSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = tokens.shapes.compactCard,
-                color = Color.Transparent,
-                border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        OnboardingGlassSurface(
-                            modifier = Modifier.size(38.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            color = tokens.colors.accent.copy(alpha = 0.14f),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Settings,
-                                    contentDescription = null,
-                                    tint = tokens.colors.accent,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Motion Interpolation (SVP) Setup",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = tokens.colors.textPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Motion smoothing is included with the app and prepared automatically",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = tokens.colors.textMuted,
-                            )
-                        }
-                    }
-
-                    when (val s = svpDownloadState) {
-                        is SvpRuntimeDownloadState.Downloading -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                LinearProgressIndicator(
-                                    progress = { s.progress },
-                                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                                    color = tokens.colors.accent,
-                                )
-                                Text(
-                                    text = "Preparing motion smoothing... ${(s.progress * 100).toInt()}%",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = tokens.colors.textSecondary,
-                                )
-                            }
-                        }
-                        is SvpRuntimeDownloadState.Extracting -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                LinearProgressIndicator(
-                                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                                    color = tokens.colors.accent,
-                                )
-                                Text(
-                                    text = "Preparing included motion smoothing runtime...",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = tokens.colors.textSecondary,
-                                )
-                            }
-                        }
-                        is SvpRuntimeDownloadState.Error -> {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    text = "Preparation error: ${s.message}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                OutlinedButton(
-                                    onClick = { SvpRuntimeInstaller.startDownload() },
-                                    shape = tokens.shapes.button,
-                                 modifier = Modifier.remoteNavigationTarget(shape = tokens.shapes.button)) {
-                                    Text("Retry", style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                        }
-                        else -> {
-                            OutlinedButton(
-                                onClick = { SvpRuntimeInstaller.startDownload() },
-                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
-                                shape = tokens.shapes.button,
-                                border = BorderStroke(1.dp, tokens.colors.accent.copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = tokens.colors.accent,
-                                ),
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Settings,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = "Prepare Motion Smoothing",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Medium,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else if (isSvpInstalled) {
-            Spacer(modifier = Modifier.height(14.dp))
-            OnboardingGlassSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = tokens.shapes.compactCard,
-                color = Color.Transparent,
-                border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        tint = tokens.colors.accent,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        text = "SVP Motion smoothing ready",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = tokens.colors.accent,
-                        fontWeight = FontWeight.Medium,
-                    )
                 }
             }
         }
@@ -1284,14 +1126,12 @@ private fun RecommendedPresetReviewDialog(
                     item {
                         OnboardingSectionTitle("Video Enhancements")
                         OnboardingSettingsGroup {
+                            VideoEnhancementsHardwareNote()
                             PresetSegmentRow<AnimeUpscalerOption>(
                                 title = "Anime Upscaler",
                                 description = "High quality scaling for anime streams",
-                                options = listOf(
-                                    AnimeUpscalerOption.AUTO to "Anime Only",
-                                    AnimeUpscalerOption.ALWAYS_ON to AnimeUpscalerOption.ALWAYS_ON.label,
-                                    AnimeUpscalerOption.OFF to "Off",
-                                ),
+                                options = AnimeUpscalerOption.entries.map { it to it.label },
+                                optionMaxLines = 2,
                                 selected = state.animeUpscalerOption,
                                 onSelect = { onStateChange(state.copy(animeUpscalerOption = it)) },
                             )
@@ -1300,10 +1140,8 @@ private fun RecommendedPresetReviewDialog(
                                 PresetSegmentRow<AnimeUpscalerMode>(
                                     title = "Upscaler Mode",
                                     description = "Processing shader intensity",
-                                    options = listOf(
-                                        AnimeUpscalerMode.FAST to AnimeUpscalerMode.FAST.label,
-                                        AnimeUpscalerMode.SHARP_DETAIL to AnimeUpscalerMode.SHARP_DETAIL.label,
-                                    ),
+                                    options = AnimeUpscalerMode.entries.map { it to it.label },
+                                    optionMaxLines = 2,
                                     selected = state.animeUpscalerMode,
                                     onSelect = { onStateChange(state.copy(animeUpscalerMode = it)) },
                                 )
@@ -1428,6 +1266,9 @@ private fun <T> PresetSegmentRow(
     options: List<Pair<T, String>>,
     selected: T,
     onSelect: (T) -> Unit,
+    optionMaxLines: Int = 1,
+    isOptionEnabled: (T) -> Boolean = { true },
+    supportingContent: (@Composable () -> Unit)? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     Column(
@@ -1448,6 +1289,7 @@ private fun <T> PresetSegmentRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = tokens.colors.textMuted,
             )
+            supportingContent?.invoke()
         }
 
         Row(
@@ -1456,11 +1298,13 @@ private fun <T> PresetSegmentRow(
         ) {
             options.forEach { (option, label) ->
                 val isSelected = option == selected
+                val enabled = isOptionEnabled(option)
                 OnboardingGlassSurface(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
-                        .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable { onSelect(option) },
+                        .then(if (enabled) Modifier.remoteNavigationTarget(shape = RoundedCornerShape(8.dp)) else Modifier)
+                        .clickable(enabled = enabled) { onSelect(option) },
                     shape = RoundedCornerShape(8.dp),
                     color = if (isSelected) tokens.colors.accent.copy(alpha = 0.2f) else Color.Transparent,
                     border = BorderStroke(
@@ -1471,15 +1315,16 @@ private fun <T> PresetSegmentRow(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = if (optionMaxLines > 1) 48.dp else 0.dp)
                             .padding(vertical = 8.dp, horizontal = 4.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) tokens.colors.accent else tokens.colors.textSecondary,
+                            color = if (!enabled) tokens.colors.textMuted else if (isSelected) tokens.colors.accent else tokens.colors.textSecondary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            maxLines = 1,
+                            maxLines = optionMaxLines,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
@@ -1494,235 +1339,19 @@ private fun SvpMotionPresetRow(
     selected: SvpMotionOption,
     onSelect: (SvpMotionOption) -> Unit,
 ) {
-    val tokens = MaterialTheme.nuvio
-    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
-    val isInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
-
-    LaunchedEffect(isInstalled) {
-        if (!SvpRuntimeInstaller.isSupported && !isInstalled && selected != SvpMotionOption.OFF) {
-            onSelect(SvpMotionOption.OFF)
-        }
-    }
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column {
-            Text(
-                text = "Motion Interpolation (SVP)",
-                style = MaterialTheme.typography.bodyLarge,
-                color = tokens.colors.textPrimary,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = if (isInstalled) "Smooth 60 FPS frame interpolation" else "Preparing included motion smoothing runtime",
-                style = MaterialTheme.typography.bodySmall,
-                color = tokens.colors.textMuted,
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            val isOffSelected = selected == SvpMotionOption.OFF
-            OnboardingGlassSurface(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable { onSelect(SvpMotionOption.OFF) },
-                shape = RoundedCornerShape(8.dp),
-                color = if (isOffSelected) tokens.colors.accent.copy(alpha = 0.2f) else Color.Transparent,
-                border = BorderStroke(
-                    width = if (isOffSelected) 1.5.dp else tokens.borders.hairline,
-                    color = if (isOffSelected) tokens.colors.accent else tokens.colors.borderSubtle,
-                ),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp, horizontal = 4.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Off",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isOffSelected) tokens.colors.accent else tokens.colors.textSecondary,
-                        fontWeight = if (isOffSelected) FontWeight.Bold else FontWeight.Normal,
-                    )
-                }
+    val runtimeState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+    PresetSegmentRow(
+        title = "Motion Interpolation (SVP)",
+        description = stringResource(Res.string.motion_smoothing_description),
+        options = SvpMotionOption.entries.map { it to it.label },
+        optionMaxLines = 2,
+        selected = selected,
+        onSelect = onSelect,
+        isOptionEnabled = { it == SvpMotionOption.OFF || runtimeState is SvpRuntimeDownloadState.Installed },
+        supportingContent = {
+            if (SvpRuntimeInstaller.isSupported) {
+                SvpRuntimeStatus(state = runtimeState)
             }
-
-            val isAutoSelected = selected == SvpMotionOption.AUTO
-            OnboardingGlassSurface(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable {
-                        if (isInstalled) {
-                            onSelect(SvpMotionOption.AUTO)
-                        } else {
-                            NuvioToastController.show("Motion smoothing is not ready yet. Preparing the included runtime.")
-                            if (svpDownloadState is SvpRuntimeDownloadState.Idle || svpDownloadState is SvpRuntimeDownloadState.Error) {
-                                SvpRuntimeInstaller.startDownload()
-                            }
-                        }
-                    },
-                shape = RoundedCornerShape(8.dp),
-                color = when {
-                    isAutoSelected -> tokens.colors.accent.copy(alpha = 0.2f)
-                    else -> Color.Transparent
-                },
-                border = BorderStroke(
-                    width = if (isAutoSelected) 1.5.dp else tokens.borders.hairline,
-                    color = if (isAutoSelected) tokens.colors.accent else tokens.colors.borderSubtle,
-                ),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp, horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (!isInstalled) {
-                        Icon(
-                            imageVector = Icons.Rounded.Lock,
-                            contentDescription = "Locked",
-                            tint = tokens.colors.textMuted,
-                            modifier = Modifier.size(12.dp),
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    Text(
-                        text = if (!isInstalled) "${SvpMotionOption.AUTO.label} (Preparing)" else SvpMotionOption.AUTO.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = when {
-                            isAutoSelected -> tokens.colors.accent
-                            !isInstalled -> tokens.colors.textMuted
-                            else -> tokens.colors.textSecondary
-                        },
-                        fontWeight = if (isAutoSelected) FontWeight.Bold else FontWeight.Normal,
-                    )
-                }
-            }
-        }
-
-        if (!isInstalled) {
-            OnboardingGlassSurface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color.Transparent,
-                border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            ) {
-                Column(
-                    modifier = Modifier.padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "Motion smoothing is included with the app. Preparation happens automatically and works offline.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = tokens.colors.textMuted,
-                    )
-
-                    when (val s = svpDownloadState) {
-                        is SvpRuntimeDownloadState.Downloading -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                LinearProgressIndicator(
-                                    progress = { s.progress },
-                                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                                    color = tokens.colors.accent,
-                                )
-                                Text(
-                                    text = "Preparing motion smoothing... ${(s.progress * 100).toInt()}%",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = tokens.colors.textSecondary,
-                                )
-                            }
-                        }
-                        is SvpRuntimeDownloadState.Extracting -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                LinearProgressIndicator(
-                                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                                    color = tokens.colors.accent,
-                                )
-                                Text(
-                                    text = "Preparing included motion smoothing runtime...",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = tokens.colors.textSecondary,
-                                )
-                            }
-                        }
-                        is SvpRuntimeDownloadState.Error -> {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Error: ${s.message}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                                OutlinedButton(
-                                    onClick = { SvpRuntimeInstaller.startDownload() },
-                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
-                                    shape = tokens.shapes.button,
-                                ) {
-                                    Text("Repair and Retry", style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                        }
-                        else -> {
-                            Button(
-                                onClick = { SvpRuntimeInstaller.startDownload() },
-                                modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
-                                shape = tokens.shapes.button,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = tokens.colors.accent,
-                                    contentColor = tokens.colors.onAccent,
-                                ),
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Settings,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = "Prepare Motion Smoothing",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    tint = tokens.colors.accent,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(
-                    text = "Runtime pack installed — 60 FPS motion interpolation ready",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = tokens.colors.accent,
-                )
-            }
-        }
-    }
+        },
+    )
 }

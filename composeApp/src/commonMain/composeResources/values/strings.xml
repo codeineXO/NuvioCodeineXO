@@ -1802,6 +1802,10 @@
     <string name="streams_fetching">Fetching…</string>
     <string name="streams_finding_source">Finding stream source</string>
     <string name="playback_show_loading_status">Show loading status</string>
+    <string name="motion_smoothing_description">Smooth video playback up to 60 FPS.</string>
+    <string name="video_enhancements_hardware_note">Video enhancements can increase CPU and GPU usage. Higher-quality modes work best on capable hardware. If playback stutters, try a lighter mode or turn enhancements off.</string>
+    <string name="motion_smoothing_initializing">Initializing…</string>
+    <string name="motion_smoothing_unavailable">Motion smoothing unavailable</string>
     <string name="playback_show_loading_status_sub">Display step-by-step progress while the player is initializing.</string>
     <string name="player_loading_preparing">Preparing stream…</string>
     <string name="player_loading_subtitles">Fetching subtitles…</string>

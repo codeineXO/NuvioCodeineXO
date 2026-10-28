@@ -79,6 +79,8 @@ import com.nuvio.app.features.player.AndroidPlaybackEngine
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.SvpMotionOption
+import com.nuvio.app.features.player.SvpRuntimeStatus
+import com.nuvio.app.features.player.VideoEnhancementsHardwareNote
 import com.nuvio.app.features.player.SvpRuntimeInstaller
 import com.nuvio.app.features.player.SvpRuntimeDownloadState
 import com.nuvio.app.features.player.AudioLanguageOption
@@ -1383,6 +1385,7 @@ private fun PlaybackSettingsSection(
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
+                    VideoEnhancementsHardwareNote()
                     SettingsNavigationRow(
                         title = "Anime Upscaler",
                         description = autoPlayPlayerSettings.animeUpscalerOption.label,
@@ -1399,15 +1402,9 @@ private fun PlaybackSettingsSection(
                         )
                     }
                     SettingsGroupDivider(isTablet = isTablet)
-                    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
-                    val svpDescription = when (val s = svpDownloadState) {
-                        is SvpRuntimeDownloadState.Downloading -> "Preparing motion smoothing... ${(s.progress * 100).toInt()}%"
-                        is SvpRuntimeDownloadState.Extracting -> "Preparing included motion smoothing runtime..."
-                        else -> autoPlayPlayerSettings.svpMotionOption.label
-                    }
                     SettingsNavigationRow(
                         title = "Motion Interpolation (SVP)",
-                        description = svpDescription,
+                        description = autoPlayPlayerSettings.svpMotionOption.label,
                         isTablet = isTablet,
                         onClick = { showSvpMotionOptionDialog = true },
                     )
@@ -2262,8 +2259,8 @@ internal fun SvpMotionOptionDialog(
     onOptionSelected: (SvpMotionOption) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
-    val isInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
+    val runtimeState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
+    val isInstalled = runtimeState is SvpRuntimeDownloadState.Installed
 
     DialogSurface(
         onDismissRequest = onDismiss,
@@ -2273,108 +2270,32 @@ internal fun SvpMotionOptionDialog(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (isInstalled) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            text = "Motion smoothing ready",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                }
-            } else if (SvpRuntimeInstaller.isSupported) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = "Motion smoothing is included with the app. Preparation happens automatically and works offline.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        when (val s = svpDownloadState) {
-                            is SvpRuntimeDownloadState.Downloading -> {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    androidx.compose.material3.LinearProgressIndicator(
-                                        progress = { s.progress },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Text(
-                                        text = "Preparing motion smoothing... ${(s.progress * 100).toInt()}%",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            is SvpRuntimeDownloadState.Extracting -> {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                    Text(
-                                        text = "Preparing included motion smoothing runtime...",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            is SvpRuntimeDownloadState.Error -> {
-                                Text(
-                                    text = "Error: ${s.message}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                                androidx.compose.material3.Button(
-                                    onClick = { SvpRuntimeInstaller.startDownload() },
-                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
-                                ) {
-                                    Text("Repair and Retry")
-                                }
-                            }
-                            else -> {
-                                androidx.compose.material3.Button(
-                                    onClick = { SvpRuntimeInstaller.startDownload() },
-                                    modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
-                                ) {
-                                    Text("Prepare Motion Smoothing")
-                                }
-                            }
-                        }
-                    }
-                }
+            Text(
+                text = stringResource(Res.string.motion_smoothing_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            if (SvpRuntimeInstaller.isSupported) {
+                SvpRuntimeStatus(
+                    state = runtimeState,
+                    onRetry = { SvpRuntimeInstaller.startDownload() },
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             } else {
                 Text(
                     text = "Requires VapourSynth or SVP 4 to be installed on your system.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
                 )
             }
             SvpMotionOption.entries.forEach { option ->
-                val isSelected = option == selectedOption
                 DialogOption(
                     text = option.label,
                     description = option.description,
-                    selected = isSelected,
+                    selected = option == selectedOption,
+                    enabled = !SvpRuntimeInstaller.isSupported || isInstalled || option == SvpMotionOption.OFF,
                     onClick = { onOptionSelected(option) },
                 )
             }
