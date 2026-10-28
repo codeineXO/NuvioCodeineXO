@@ -77,6 +77,85 @@ function player(mode = 'official', width = 1280) {
 }
 
 for (const mode of ['official', 'codeine_xo']) {
+  test(`${mode}: clicks never flash drag or keyboard thumbnails with hover disabled`, () => {
+    for (const changeBeforeRelease of [true, false]) {
+      const p = player(mode);
+      p.state.seekPreviewWhileHovering = false;
+      const noPreview = () => {
+        assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
+        assert.equal(p.api.activeSeekPreview()?.trigger, 'hovering');
+        assert.equal(p.timers.size, 0);
+      };
+      p.seek.listeners.pointerdown(p.pointer(0.4));
+      noPreview();
+      p.seek.listeners.input();
+      noPreview();
+      assert.deepEqual(p.events[0], ['scrubChange', 40000]);
+      if (changeBeforeRelease) p.seek.listeners.change();
+      p.window.listeners.pointerup(p.pointer(0.4));
+      if (!changeBeforeRelease) p.seek.listeners.change();
+      noPreview();
+      assert.equal(p.state.positionMs, 40000);
+      assert.deepEqual(p.events[1], ['scrubFinish', 40000]);
+    }
+  });
+
+  test(`${mode}: drag previews require four horizontal pixels and honor the drag setting`, () => {
+    for (const direction of [-1, 1]) {
+      const p = player(mode);
+      p.state.seekPreviewWhileHovering = false;
+      const start = p.pointer(0.4);
+      p.seek.listeners.pointerdown(start);
+      p.seek.listeners.pointermove({ ...start, clientX: start.clientX + direction * 3 });
+      p.seek.listeners.input();
+      assert.equal(p.api.activeSeekPreview().trigger, 'hovering');
+      assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
+      p.seek.listeners.pointermove({ ...start, clientX: start.clientX + direction * 4 });
+      assert.equal(p.api.activeSeekPreview().trigger, 'dragging');
+      assert.equal(p.codeineSeekPreview.classes.has('visible'), true);
+      p.state.seekPreviewWhileDragging = false;
+      p.api.refreshSeekHover();
+      assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
+      p.window.listeners.pointerup(start);
+      assert.equal(p.api.activeSeekPreview().trigger, 'hovering');
+    }
+  });
+
+  test(`${mode}: clicks preserve enabled hover and cancel previous keyboard previews`, () => {
+    const p = player(mode);
+    p.api.showKeyboardSeekPreview(80000);
+    p.seek.listeners.pointerdown(p.pointer(0.4));
+    p.seek.listeners.input();
+    assert.equal(p.api.activeSeekPreview().trigger, 'hovering');
+    assert.equal(p.codeineSeekPreview.classes.has('visible'), true);
+    assert.equal(p.timers.size, 0);
+    p.window.listeners.pointerup(p.pointer(0.4));
+    p.seek.listeners.change();
+    p.hover(0.6);
+    assert.equal(p.seekPreviewPill.textContent, '60000');
+  });
+
+  test(`${mode}: pending presses and drags clear on cancel, blur, reset and outside release`, () => {
+    for (const dragging of [false, true]) {
+      for (const finish of [
+        p => p.window.listeners.pointercancel(),
+        p => p.window.listeners.blur(),
+        p => p.api.clearSeekPreviewInteraction(),
+        p => p.window.listeners.pointerup({ clientX: 0, clientY: 0 }),
+      ]) {
+        const p = player(mode);
+        p.seek.listeners.pointerdown(p.pointer(0.4));
+        if (dragging) p.window.listeners.pointermove(p.pointer(0.5));
+        p.seek.listeners.input();
+        finish(p);
+        assert.equal(p.api.activeSeekPreview(), null);
+        assert.equal(p.codeineSeekPreview.classes.has('visible'), false);
+        p.seek.listeners.input();
+        assert.equal(p.api.activeSeekPreview().trigger, 'keyboard');
+      }
+    }
+  });
+
   test(`${mode}: hover follows the actual input without changing playback`, () => {
     const p = player(mode);
     p.hover(0.4);
@@ -97,8 +176,10 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.equal(p.seekFilmstripCarousel.hidden, true);
     assert.equal(p.seekChapterLabel.hidden, mode === 'official');
     p.seek.listeners.pointerdown(p.pointer(0.4));
+    p.seek.listeners.pointermove(p.pointer(0.5));
     p.seek.listeners.input();
     assert.equal(p.seekFeedback.classes.has('visible'), true);
+    assert.equal(p.seekFilmstripCarousel.hidden, false);
     p.state.seekPreviewWhileDragging = false;
     p.api.refreshSeekHover();
     assert.equal(p.seekFilmstripCarousel.hidden, true);
@@ -134,6 +215,7 @@ for (const mode of ['official', 'codeine_xo']) {
     const p = player(mode);
     p.api.showKeyboardSeekPreview(80000);
     p.seek.listeners.pointerdown(p.pointer(0.4));
+    p.seek.listeners.pointermove(p.pointer(0.5));
     p.seek.listeners.input();
     assert.equal(p.seekPreviewPill.textContent, '40000');
     assert.equal(p.timers.size, 0);
@@ -253,6 +335,7 @@ for (const mode of ['official', 'codeine_xo']) {
   test(`${mode}: dragging outside retains scrub time until released`, () => {
     const p = player(mode);
     p.seek.listeners.pointerdown(p.pointer(0.4));
+    p.seek.listeners.pointermove(p.pointer(0.5));
     p.seek.listeners.input();
     p.seek.listeners.pointerleave();
     assert.equal(p.seekFeedback.classes.has('visible'), true);

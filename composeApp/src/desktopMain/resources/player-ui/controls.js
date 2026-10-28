@@ -5143,6 +5143,7 @@ let seekHoverClientX = null;
 let seekHoverContentKey = "";
 let seekPointerPositionMs = null;
 let seekPointerClientX = null;
+let seekPointerDownX = null;
 let seekDragActive = false;
 let seekKeyboardPositionMs = null;
 let seekKeyboardTimer = 0;
@@ -5160,6 +5161,7 @@ function clearSeekPreviewInteraction() {
   seekKeyboardPositionMs = null;
   seekPointerPositionMs = null;
   seekPointerClientX = null;
+  seekPointerDownX = null;
   seekDragActive = false;
   hideSeekrPreview();
   setText(seekChapterLabel, "");
@@ -5451,7 +5453,7 @@ seek.addEventListener("input", () => {
   markSeek(scrubPositionMs);
   setProgress(scrubPositionMs, state.durationMs);
   send("scrubChange", scrubPositionMs);
-  if (seekDragActive) refreshSeekHover();
+  if (seekPointerDownX !== null) refreshSeekHover();
   else showKeyboardSeekPreview(scrubPositionMs);
 });
 
@@ -5482,7 +5484,17 @@ function updateSeekPointer(event) {
 }
 
 seek.addEventListener("pointerenter", updateSeekPointer);
-seek.addEventListener("pointermove", updateSeekPointer);
+function moveSeekPointer(event) {
+  if (event.pointerType && event.pointerType !== "mouse") return;
+  if (seekPointerDownX !== null && Math.abs(event.clientX - seekPointerDownX) >= 4) {
+    seekDragActive = true;
+  }
+  updateSeekPointer(event);
+}
+seek.addEventListener("pointermove", moveSeekPointer);
+window.addEventListener("pointermove", event => {
+  if (seekPointerDownX !== null && event.target !== seek) moveSeekPointer(event);
+});
 seek.addEventListener("pointerleave", () => {
   seekPointerPositionMs = null;
   seekPointerClientX = null;
@@ -5490,14 +5502,17 @@ seek.addEventListener("pointerleave", () => {
 });
 seek.addEventListener("pointerdown", event => {
   if (event.pointerType && event.pointerType !== "mouse") return;
-  seekDragActive = true;
+  seekPointerDownX = event.clientX;
+  seekDragActive = false;
   window.clearTimeout(seekKeyboardTimer);
+  seekKeyboardTimer = 0;
   seekKeyboardPositionMs = null;
   scrubPositionMs = rangePositionMs();
   updateSeekPointer(event);
 });
 window.addEventListener("pointerup", event => {
-  if (!seekDragActive) return;
+  if (seekPointerDownX === null) return;
+  seekPointerDownX = null;
   seekDragActive = false;
   const rect = seek.getBoundingClientRect();
   if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {

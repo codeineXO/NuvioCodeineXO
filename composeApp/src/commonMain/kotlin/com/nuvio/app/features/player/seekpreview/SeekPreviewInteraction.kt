@@ -25,11 +25,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /** Local interaction state; previewing never changes the playback target. */
 internal class SeekPreviewInteraction {
     var hoverPositionMs by mutableStateOf<Long?>(null)
     var dragging by mutableStateOf(false)
+    var pointerPressed by mutableStateOf(false)
+        private set
     var keyboardPositionMs by mutableStateOf<Long?>(null)
         private set
     var timelineLeft by mutableStateOf(0f)
@@ -45,17 +48,23 @@ internal class SeekPreviewInteraction {
         }
     }
 
-    fun startDrag() {
+    fun startPointer() {
         keyboardJob?.cancel()
         keyboardPositionMs = null
-        dragging = true
+        pointerPressed = true
+        dragging = false
+    }
+
+    fun endPointer() {
+        pointerPressed = false
+        dragging = false
     }
 
     fun clear() {
         keyboardJob?.cancel()
         keyboardPositionMs = null
         hoverPositionMs = null
-        dragging = false
+        endPointer()
     }
 }
 
@@ -88,27 +97,39 @@ internal fun Modifier.seekPreviewInput(durationMs: Long): Modifier = composed {
         .pointerInput(interaction, durationMs) {
             try {
                 awaitPointerEventScope {
+                    var pressX = 0f
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         val change = event.changes.firstOrNull() ?: continue
                         when (event.type) {
                             PointerEventType.Exit -> interaction.hoverPositionMs = null
-                            PointerEventType.Press -> interaction.startDrag()
-                            PointerEventType.Release -> interaction.dragging = false
+                            PointerEventType.Press -> {
+                                pressX = change.position.x
+                                interaction.startPointer()
+                            }
+                            PointerEventType.Move -> {
+                                if (interaction.pointerPressed && change.pressed &&
+                                    abs(change.position.x - pressX) >= viewConfiguration.touchSlop
+                                ) interaction.dragging = true
+                            }
                         }
                         if (event.type != PointerEventType.Exit && durationMs > 0 && size.width > 0) {
-                            val within = (change.type == PointerType.Mouse || interaction.dragging) &&
+                            val within = (change.type == PointerType.Mouse || (interaction.dragging && change.pressed)) &&
                                 change.position.x in 0f..size.width.toFloat() &&
                                 change.position.y in 0f..size.height.toFloat()
                             interaction.hoverPositionMs = if (within) {
                                 (durationMs * (change.position.x / size.width).coerceIn(0f, 1f)).toLong()
                             } else null
                         }
+                        if (event.type == PointerEventType.Release) {
+                            // Slider tap callbacks run in Main; retain pointer ownership until then.
+                            awaitPointerEvent(PointerEventPass.Final)
+                            interaction.endPointer()
+                        }
                     }
                 }
             } finally {
-                interaction.hoverPositionMs = null
-                interaction.dragging = false
+                interaction.clear()
             }
         }
 }

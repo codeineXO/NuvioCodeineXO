@@ -858,7 +858,7 @@ internal fun PlayerSeekBar(
                 .semantics { contentDescription = seekDescription },
             state = seekState,
             onValueChange = { value ->
-                if (previewInteraction?.dragging == false) previewInteraction.keyboard(value.toLong(), previewScope)
+                if (previewInteraction?.pointerPressed == false) previewInteraction.keyboard(value.toLong(), previewScope)
                 onScrubChange(value.toLong())
             },
             onValueChangeFinished = { onScrubFinished(displayedPositionMs.coerceIn(0L, seekDurationMs)) },
