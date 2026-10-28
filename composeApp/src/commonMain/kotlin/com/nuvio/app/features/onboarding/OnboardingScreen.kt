@@ -10,6 +10,23 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.unit.Dp
+import com.nuvio.app.core.ui.AppBasicAlertDialog
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.remoteNavigationModal
+import com.nuvio.app.features.settings.AppIconRepository
+import com.nuvio.app.features.settings.transparentPreviewResource
+import com.nuvio.app.features.settings.DesktopNavigationLayout
+import com.nuvio.app.features.settings.SeekrApiKeyDialog
+import com.nuvio.app.features.settings.SettingsNavigationRow
+import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +34,11 @@ import androidx.compose.foundation.layout.Arrangement
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Shape
+import com.nuvio.app.core.ui.LocalNavigationGlassState
+import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -78,7 +100,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtonStyle
 import com.nuvio.app.core.ui.DialogButtons
-import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.NuvioToastController
@@ -99,13 +120,14 @@ import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SvpMotionOption
 import com.nuvio.app.features.player.SvpRuntimeDownloadState
 import com.nuvio.app.features.player.SvpRuntimeInstaller
-import com.nuvio.app.features.settings.SettingsGroup
 import com.nuvio.app.features.settings.SettingsGroupDivider
-import com.nuvio.app.features.settings.SettingsSection
 import com.nuvio.app.features.settings.SettingsSwitchRow
 import com.nuvio.app.features.settings.ThemeSettingsRepository
 
 data class RecommendedPresetState(
+    val frostedGlassEnabled: Boolean = true,
+    val desktopNavigationLayout: DesktopNavigationLayout = DesktopNavigationLayout.Sidebar,
+    val seekPreviewEnabled: Boolean = true,
     val auraBackgroundEnabled: Boolean = true,
     val scrollPostersLayoutEnabled: Boolean = true,
     val playerUiMode: PlayerUiMode = PlayerUiMode.CODEINE_XO,
@@ -124,11 +146,14 @@ data class RecommendedPresetState(
 internal fun applyRecommendedPreset(state: RecommendedPresetState) {
     ThemeSettingsRepository.ensureLoaded()
     ThemeSettingsRepository.setAuraBackgroundEnabled(state.auraBackgroundEnabled)
+    ThemeSettingsRepository.setFrostedGlassEnabled(state.frostedGlassEnabled)
+    if (isDesktop) ThemeSettingsRepository.setDesktopNavigationLayout(state.desktopNavigationLayout)
 
     HomeCatalogSettingsRepository.snapshot()
     HomeCatalogSettingsRepository.setScrollPostersLayoutEnabled(state.scrollPostersLayoutEnabled)
 
     PlayerSettingsRepository.ensureLoaded()
+    PlayerSettingsRepository.setSeekPreviewEnabled(state.seekPreviewEnabled)
     PlayerSettingsRepository.setPlayerUiMode(state.playerUiMode)
     PlayerSettingsRepository.setShowSeekbarWhileSeeking(state.showSeekbarWhileSeeking)
     PlayerSettingsRepository.setAnimeUpscalerOption(state.animeUpscalerOption)
@@ -166,8 +191,14 @@ fun OnboardingScreen(
     val tokens = MaterialTheme.nuvio
     var currentStep by rememberSaveable { mutableIntStateOf(if (isReviewMode) 1 else 0) }
     var presetState by remember { mutableStateOf(RecommendedPresetState()) }
-    var showReviewDialog by rememberSaveable { mutableStateOf(false) }
-    var presetApplied by rememberSaveable { mutableStateOf(false) }
+    var showReviewDialog by remember { mutableStateOf(false) }
+    var presetApplied by remember { mutableStateOf(false) }
+    var draftState by remember { mutableStateOf(presetState) }
+    var draftSeekrApiKey by remember { mutableStateOf("") }
+    val playerSettings by remember {
+        PlayerSettingsRepository.ensureLoaded()
+        PlayerSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
 
     val totalSteps = 3
 
@@ -179,7 +210,7 @@ fun OnboardingScreen(
         }
     }
 
-    BoxWithConstraints(
+    OnboardingGlassScene(
         modifier = modifier
             .fillMaxSize()
             .background(tokens.colors.background),
@@ -312,13 +343,18 @@ fun OnboardingScreen(
                                 isTablet = true,
                                 presetState = presetState,
                                 presetApplied = presetApplied,
-                                onOpenReviewDialog = { showReviewDialog = true },
+                                hasSeekrApiKey = playerSettings.seekrApiKey.isNotBlank(),
+                                onOpenReviewDialog = {
+                                    PlayerSettingsRepository.ensureLoaded()
+                                    draftState = presetState
+                                    draftSeekrApiKey = PlayerSettingsRepository.uiState.value.seekrApiKey
+                                    showReviewDialog = true
+                                },
                                 onApplyDirectly = {
                                     val defaults = RecommendedPresetState()
                                     presetState = defaults
                                     applyRecommendedPreset(defaults)
                                     presetApplied = true
-                                    NuvioToastController.show("Recommended CodeineXO defaults applied")
                                 },
                                 onNext = { currentStep = 2 },
                                 onBack = { currentStep = 0 },
@@ -326,6 +362,9 @@ fun OnboardingScreen(
                             2 -> ReadyStepContent(
                                 isTablet = true,
                                 isReviewMode = isReviewMode,
+                                presetApplied = presetApplied,
+                                usesRecommendedSettings = presetState == RecommendedPresetState(),
+                                seekPreviewNeedsKey = playerSettings.seekPreviewEnabled && playerSettings.seekrApiKey.isBlank(),
                                 onFinish = onComplete,
                                 onBack = { currentStep = 1 },
                             )
@@ -338,14 +377,18 @@ fun OnboardingScreen(
         // ─── Staged Review Dialog ───
         if (showReviewDialog) {
             RecommendedPresetReviewDialog(
-                state = presetState,
-                onStateChange = { presetState = it },
+                state = draftState,
+                onStateChange = { draftState = it },
+                seekrApiKey = draftSeekrApiKey,
+                onSeekrApiKeyChange = { draftSeekrApiKey = it },
+                dialogHeight = (maxHeight * 0.8f).coerceAtMost(800.dp),
                 onDismissRequest = { showReviewDialog = false },
                 onConfirm = {
-                    applyRecommendedPreset(presetState)
+                    applyRecommendedPreset(draftState)
+                    PlayerSettingsRepository.setSeekrApiKey(draftSeekrApiKey)
+                    presetState = draftState
                     presetApplied = true
                     showReviewDialog = false
-                    NuvioToastController.show("Recommended CodeineXO setup applied")
                 },
             )
         }
@@ -366,25 +409,15 @@ private fun WelcomeStepContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        // App Icon / Aura Badge
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = RoundedCornerShape(22.dp),
-            color = tokens.colors.accent.copy(alpha = 0.16f),
-            border = BorderStroke(1.dp, tokens.colors.accent.copy(alpha = 0.35f)),
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = null,
-                    tint = tokens.colors.accent,
-                    modifier = Modifier.size(42.dp),
-                )
-            }
-        }
+        val iconState by remember {
+            AppIconRepository.ensureLoaded()
+            AppIconRepository.state
+        }.collectAsStateWithLifecycle()
+        Image(
+            painter = painterResource(iconState.selected.transparentPreviewResource),
+            contentDescription = "NuvioCodeineXO logo",
+            modifier = Modifier.size(112.dp),
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -430,23 +463,51 @@ private fun WelcomeStepContent(
 }
 
 @Composable
+private fun OnboardingGlassScene(
+    modifier: Modifier,
+    content: @Composable BoxWithConstraintsScope.() -> Unit,
+) {
+    CompositionLocalProvider(LocalNavigationGlassState provides rememberHazeState()) {
+        BoxWithConstraints(modifier = modifier, content = content)
+    }
+}
+
+@Composable
+private fun OnboardingGlassSurface(
+    modifier: Modifier = Modifier,
+    shape: Shape = MaterialTheme.nuvio.shapes.compactCard,
+    color: Color = Color.Transparent,
+    border: BorderStroke? = null,
+    panel: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = modifier.navigationGlass(shape = shape, panel = panel, backgroundOnly = true),
+        shape = shape,
+        color = color,
+        border = border,
+        content = content,
+    )
+}
+
+@Composable
 private fun FeatureHighlightRow(
     icon: ImageVector,
     title: String,
     subtitle: String,
 ) {
     val tokens = MaterialTheme.nuvio
-    Surface(
+    OnboardingGlassSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = tokens.shapes.compactCard,
-        color = tokens.colors.surface.copy(alpha = 0.7f),
+        color = Color.Transparent,
         border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
+            OnboardingGlassSurface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(10.dp),
                 color = tokens.colors.accent.copy(alpha = 0.12f),
@@ -484,6 +545,7 @@ private fun RecommendedSetupStepContent(
     isTablet: Boolean,
     presetState: RecommendedPresetState,
     presetApplied: Boolean,
+    hasSeekrApiKey: Boolean,
     onOpenReviewDialog: () -> Unit,
     onApplyDirectly: () -> Unit,
     onNext: () -> Unit,
@@ -496,7 +558,8 @@ private fun RecommendedSetupStepContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = 680.dp),
+            .widthIn(max = 680.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -520,12 +583,12 @@ private fun RecommendedSetupStepContent(
         Spacer(modifier = Modifier.height(28.dp))
 
         // Prominent Preset Card
-        Surface(
+        OnboardingGlassSurface(
+            panel = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(NuvioTokens.Radius.xl))
                 .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.xl)).clickable(onClick = onOpenReviewDialog),
-            color = tokens.colors.surface,
+            color = Color.Transparent,
             border = BorderStroke(
                 width = if (presetApplied) 1.5.dp else 1.dp,
                 color = if (presetApplied) tokens.colors.accent else tokens.colors.borderSubtle,
@@ -539,10 +602,11 @@ private fun RecommendedSetupStepContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Surface(
+                        OnboardingGlassSurface(
                             modifier = Modifier.size(46.dp),
                             shape = RoundedCornerShape(12.dp),
                             color = tokens.colors.accent.copy(alpha = 0.16f),
@@ -565,7 +629,7 @@ private fun RecommendedSetupStepContent(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Click to review and customize all 10 presets",
+                                text = "Customize your recommended settings",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = tokens.colors.textMuted,
                             )
@@ -573,7 +637,8 @@ private fun RecommendedSetupStepContent(
                     }
 
                     if (presetApplied) {
-                        Surface(
+                        OnboardingGlassSurface(
+                            modifier = Modifier.widthIn(max = 180.dp),
                             shape = RoundedCornerShape(8.dp),
                             color = tokens.colors.accent.copy(alpha = 0.2f),
                         ) {
@@ -589,7 +654,7 @@ private fun RecommendedSetupStepContent(
                                     modifier = Modifier.size(14.dp),
                                 )
                                 Text(
-                                    text = "Applied",
+                                    text = if (presetState == RecommendedPresetState()) "Applied Recommended Settings" else "Applied Custom Settings",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = tokens.colors.accent,
                                     fontWeight = FontWeight.Bold,
@@ -606,21 +671,31 @@ private fun RecommendedSetupStepContent(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Preset Items Grid / Highlights
-                PresetPillRow(
-                    pills = listOf(
-                        "CodeineXO Aura",
-                        "Scroll Poster Layout",
-                        "CodeineXO Player UI",
-                        "Seekbar Scrubbing",
-                        "Anime Upscaler (Fast)",
-                        if (presetState.svpMotionOption == SvpMotionOption.AUTO) "Motion (SVP) 60 FPS" else "Motion (SVP) Off",
-                        "Anime Filler Skip",
-                        "Halo Subtitles (#FFF6B3)",
-                        "Enhanced Episode Cards",
-                        "Torrent Stats HUD",
-                    ),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FeatureHighlightRow(
+                        icon = Icons.Rounded.Settings,
+                        title = "Appearance",
+                        subtitle = if (isDesktop) "Aura, frosted glass, navigation, and poster layout" else "Aura, frosted glass, and poster layout",
+                    )
+                    FeatureHighlightRow(
+                        icon = Icons.Rounded.ArrowForward,
+                        title = "Playback",
+                        subtitle = "Player UI, seeking, subtitles, and network stats",
+                    )
+                    FeatureHighlightRow(
+                        icon = Icons.Rounded.AutoAwesome,
+                        title = "Enhancements",
+                        subtitle = "Anime upscaling, motion interpolation, and episode options",
+                    )
+                }
+                if (presetState.seekPreviewEnabled && !hasSeekrApiKey) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Seek Previews: API key required. Add your key in Customize.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = tokens.colors.textSecondary,
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -640,7 +715,7 @@ private fun RecommendedSetupStepContent(
                         ),
                     ) {
                         Text(
-                            text = "Review & Customize",
+                            text = "Customize",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium,
                         )
@@ -658,7 +733,7 @@ private fun RecommendedSetupStepContent(
                         ),
                     ) {
                         Text(
-                            text = if (presetApplied) "Re-apply Defaults" else "Apply Defaults Now",
+                            text = "Apply Recommended Settings",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -670,10 +745,10 @@ private fun RecommendedSetupStepContent(
         // SVP Runtime Setup Card on Preset Page
         if (!isSvpInstalled && SvpRuntimeInstaller.isSupported) {
             Spacer(modifier = Modifier.height(14.dp))
-            Surface(
+            OnboardingGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = tokens.shapes.compactCard,
-                color = tokens.colors.surfaceElevated.copy(alpha = 0.7f),
+                color = Color.Transparent,
                 border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
             ) {
                 Column(
@@ -685,7 +760,7 @@ private fun RecommendedSetupStepContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Surface(
+                        OnboardingGlassSurface(
                             modifier = Modifier.size(38.dp),
                             shape = RoundedCornerShape(10.dp),
                             color = tokens.colors.accent.copy(alpha = 0.14f),
@@ -795,10 +870,10 @@ private fun RecommendedSetupStepContent(
             }
         } else if (isSvpInstalled) {
             Spacer(modifier = Modifier.height(14.dp))
-            Surface(
+            OnboardingGlassSurface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = tokens.shapes.compactCard,
-                color = tokens.colors.surfaceElevated.copy(alpha = 0.6f),
+                color = Color.Transparent,
                 border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
             ) {
                 Row(
@@ -859,7 +934,7 @@ private fun RecommendedSetupStepContent(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Text(
-                        text = "Continue",
+                        text = if (presetApplied) "Continue" else "Continue with Current Settings",
                         fontWeight = FontWeight.SemiBold,
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -875,55 +950,12 @@ private fun RecommendedSetupStepContent(
 }
 
 @Composable
-private fun PresetPillRow(pills: List<String>) {
-    val tokens = MaterialTheme.nuvio
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        val chunked = pills.chunked(2)
-        chunked.forEach { rowPills ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                rowPills.forEach { pill ->
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        color = tokens.colors.surfaceElevated.copy(alpha = 0.8f),
-                        border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(tokens.colors.accent),
-                            )
-                            Text(
-                                text = pill,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = tokens.colors.textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-                if (rowPills.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun ReadyStepContent(
     isTablet: Boolean,
     isReviewMode: Boolean,
+    presetApplied: Boolean,
+    usesRecommendedSettings: Boolean,
+    seekPreviewNeedsKey: Boolean,
     onFinish: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -932,10 +964,11 @@ private fun ReadyStepContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(max = 680.dp),
+            .widthIn(max = 680.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Surface(
+        OnboardingGlassSurface(
             modifier = Modifier.size(80.dp),
             shape = RoundedCornerShape(22.dp),
             color = tokens.colors.accent.copy(alpha = 0.16f),
@@ -967,7 +1000,11 @@ private fun ReadyStepContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Your setup has been staged. You can re-access this setup wizard or adjust individual options anytime from Settings.",
+            text = when {
+                !presetApplied -> "You're continuing with your current settings. You can adjust them anytime in Settings."
+                usesRecommendedSettings -> "Recommended settings are active. You can adjust them anytime in Settings."
+                else -> "Your custom settings are active. You can adjust them anytime in Settings."
+            },
             style = MaterialTheme.typography.bodyLarge,
             color = tokens.colors.textSecondary,
             textAlign = TextAlign.Center,
@@ -980,6 +1017,13 @@ private fun ReadyStepContent(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (seekPreviewNeedsKey) {
+                FeatureHighlightRow(
+                    icon = Icons.Rounded.Settings,
+                    title = "Seek Previews: API key required",
+                    subtitle = "Add your Seekr API key in Settings > Playback to enable thumbnail previews.",
+                )
+            }
             FeatureHighlightRow(
                 icon = Icons.Rounded.Settings,
                 title = "Settings Re-access",
@@ -1039,24 +1083,34 @@ private fun ReadyStepContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RecommendedPresetReviewDialog(
     state: RecommendedPresetState,
     onStateChange: (RecommendedPresetState) -> Unit,
+    seekrApiKey: String,
+    onSeekrApiKeyChange: (String) -> Unit,
+    dialogHeight: Dp,
     onDismissRequest: () -> Unit,
     onConfirm: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
 
-    DialogSurface(
+    var showKeyDialog by remember { mutableStateOf(false) }
+    PlatformBackHandler(enabled = !showKeyDialog, onBack = onDismissRequest)
+
+    AppBasicAlertDialog(
         onDismissRequest = onDismissRequest,
-        modifier = Modifier.widthIn(max = 640.dp),
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Column(
             modifier = Modifier
+                .widthIn(max = 640.dp)
                 .fillMaxWidth()
-                .heightIn(max = 560.dp),
+                .height(dialogHeight)
+                .remoteNavigationModal()
+                .navigationGlass(shape = tokens.shapes.dialog, panel = true, backgroundOnly = true)
+                .padding(tokens.spacing.dialogPadding),
         ) {
             // Header
             Row(
@@ -1064,9 +1118,9 @@ private fun RecommendedPresetReviewDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                     Text(
-                        text = "CodeineXO Recommended Preset",
+                        text = "Customize",
                         style = MaterialTheme.typography.titleLarge,
                         color = tokens.colors.textPrimary,
                         fontWeight = FontWeight.Bold,
@@ -1083,7 +1137,7 @@ private fun RecommendedPresetReviewDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Surface(
+                    OnboardingGlassSurface(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable {
@@ -1091,7 +1145,7 @@ private fun RecommendedPresetReviewDialog(
                                 NuvioToastController.show("Reset to recommended defaults")
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
-                        color = tokens.colors.surfaceElevated,
+                        color = Color.Transparent,
                         border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
                     ) {
                         Text(
@@ -1102,12 +1156,12 @@ private fun RecommendedPresetReviewDialog(
                         )
                     }
 
-                    Surface(
+                    OnboardingGlassSurface(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
                             .remoteNavigationTarget(shape = CircleShape).clickable(onClick = onDismissRequest),
-                        color = tokens.colors.surfaceElevated,
+                        color = Color.Transparent,
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -1136,7 +1190,8 @@ private fun RecommendedPresetReviewDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 item {
-                    SettingsGroup(isTablet = false) {
+                    OnboardingSectionTitle("Appearance")
+                    OnboardingSettingsGroup {
                         SettingsSwitchRow(
                             title = "CodeineXO Aura",
                             description = "Dynamic chromatic aurora ambient lighting",
@@ -1146,42 +1201,90 @@ private fun RecommendedPresetReviewDialog(
                         )
                         SettingsGroupDivider(isTablet = false)
                         SettingsSwitchRow(
-                            title = "Scroll Poster Layout",
-                            description = "Horizontal edge-to-edge poster rows on homescreen",
+                            title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
+                            description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
                             checked = state.scrollPostersLayoutEnabled,
                             isTablet = false,
                             onCheckedChange = { onStateChange(state.copy(scrollPostersLayoutEnabled = it)) },
                         )
                         SettingsGroupDivider(isTablet = false)
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.settings_appearance_frosted_glass),
+                            description = stringResource(Res.string.settings_appearance_frosted_glass_description),
+                            checked = state.frostedGlassEnabled,
+                            isTablet = false,
+                            onCheckedChange = { onStateChange(state.copy(frostedGlassEnabled = it)) },
+                        )
+                        if (isDesktop) {
+                            SettingsGroupDivider(isTablet = false)
+                            PresetSegmentRow(
+                                title = stringResource(Res.string.settings_appearance_desktop_navigation),
+                                description = "Choose where navigation appears",
+                                options = DesktopNavigationLayout.entries.map { it to stringResource(it.labelRes) },
+                                selected = state.desktopNavigationLayout,
+                                onSelect = { onStateChange(state.copy(desktopNavigationLayout = it)) },
+                            )
+                        }
+                    }
+                }
+                item {
+                    OnboardingSectionTitle("Playback")
+                    OnboardingSettingsGroup {
                         PresetSegmentRow<PlayerUiMode>(
-                            title = "Player UI Mode",
+                            title = stringResource(Res.string.settings_playback_player_ui),
                             description = "Player interface theme and layout",
                             options = listOf(
-                                PlayerUiMode.CODEINE_XO to "CodeineXO UI",
-                                PlayerUiMode.OFFICIAL to "Classic",
+                                PlayerUiMode.CODEINE_XO to stringResource(PlayerUiMode.CODEINE_XO.labelRes),
+                                PlayerUiMode.OFFICIAL to stringResource(PlayerUiMode.OFFICIAL.labelRes),
                             ),
                             selected = state.playerUiMode,
                             onSelect = { onStateChange(state.copy(playerUiMode = it)) },
                         )
                         SettingsGroupDivider(isTablet = false)
                         SettingsSwitchRow(
-                            title = "Seekbar While Seeking",
+                            title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
                             description = "Show fluid seekbar bar overlay during fast-forward/rewind",
                             checked = state.showSeekbarWhileSeeking,
                             isTablet = false,
                             onCheckedChange = { onStateChange(state.copy(showSeekbarWhileSeeking = it)) },
                         )
+                        SettingsGroupDivider(isTablet = false)
+                        SettingsSwitchRow(
+                            title = stringResource(Res.string.settings_playback_seek_previews),
+                            description = stringResource(Res.string.settings_playback_seek_previews_description),
+                            checked = state.seekPreviewEnabled,
+                            isTablet = false,
+                            onCheckedChange = { onStateChange(state.copy(seekPreviewEnabled = it)) },
+                        )
+                        if (state.seekPreviewEnabled) {
+                            SettingsGroupDivider(isTablet = false)
+                            SettingsNavigationRow(
+                                title = stringResource(Res.string.settings_playback_seekr_api_key),
+                                description = if (seekrApiKey.isBlank()) "API key required" else "\u2022".repeat(8),
+                                isTablet = false,
+                                onClick = { showKeyDialog = true },
+                            )
+                        }
+                        SettingsGroupDivider(isTablet = false)
+                        SettingsSwitchRow(
+                            title = "Network Stats in Player",
+                            description = "Real-time P2P peer count, seeds, and download speed overlay",
+                            checked = state.showTorrentStatsOverlay,
+                            isTablet = false,
+                            onCheckedChange = { onStateChange(state.copy(showTorrentStatsOverlay = it)) },
+                        )
                     }
                 }
 
                 item {
-                    SettingsGroup(isTablet = false) {
+                    OnboardingSectionTitle("Video Enhancements")
+                    OnboardingSettingsGroup {
                         PresetSegmentRow<AnimeUpscalerOption>(
                             title = "Anime Upscaler",
                             description = "High quality scaling for anime streams",
                             options = listOf(
                                 AnimeUpscalerOption.AUTO to "Anime Only",
-                                AnimeUpscalerOption.ALWAYS_ON to "All Videos",
+                                AnimeUpscalerOption.ALWAYS_ON to AnimeUpscalerOption.ALWAYS_ON.label,
                                 AnimeUpscalerOption.OFF to "Off",
                             ),
                             selected = state.animeUpscalerOption,
@@ -1193,8 +1296,8 @@ private fun RecommendedPresetReviewDialog(
                                 title = "Upscaler Mode",
                                 description = "Processing shader intensity",
                                 options = listOf(
-                                    AnimeUpscalerMode.FAST to "Fast Mode",
-                                    AnimeUpscalerMode.SHARP_DETAIL to "Sharp & Detailed",
+                                    AnimeUpscalerMode.FAST to AnimeUpscalerMode.FAST.label,
+                                    AnimeUpscalerMode.SHARP_DETAIL to AnimeUpscalerMode.SHARP_DETAIL.label,
                                 ),
                                 selected = state.animeUpscalerMode,
                                 onSelect = { onStateChange(state.copy(animeUpscalerMode = it)) },
@@ -1205,33 +1308,30 @@ private fun RecommendedPresetReviewDialog(
                             selected = state.svpMotionOption,
                             onSelect = { onStateChange(state.copy(svpMotionOption = it)) },
                         )
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = "Anime Filler Detection",
-                            description = "Highlight and mark filler episodes in episode lists",
-                            checked = state.animeFillerDetectionEnabled,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(animeFillerDetectionEnabled = it)) },
-                        )
                     }
                 }
 
                 item {
-                    SettingsGroup(isTablet = false) {
+                    OnboardingSectionTitle("Subtitles")
+                    OnboardingSettingsGroup {
                         PresetSegmentRow<SubtitleOutlineEffect>(
-                            title = "Subtitle Outline Style",
-                            description = "Halo effect with 1px width & #FFF6B3 vanilla tint",
+                            title = "Outline Style",
+                            description = "Subtitle edge effect with 1px width and #FFF6B3 text color",
                             options = listOf(
                                 SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Halo",
-                                SubtitleOutlineEffect.OUTLINE to "Outline",
+                                SubtitleOutlineEffect.OUTLINE to SubtitleOutlineEffect.OUTLINE.label,
                                 SubtitleOutlineEffect.SOFT_GLOW to "Glow",
                             ),
                             selected = state.subtitleOutlineEffect,
                             onSelect = { onStateChange(state.copy(subtitleOutlineEffect = it)) },
                         )
-                        SettingsGroupDivider(isTablet = false)
+                    }
+                }
+                item {
+                    OnboardingSectionTitle("Episodes")
+                    OnboardingSettingsGroup {
                         PresetSegmentRow<MetaEpisodeCardStyle>(
-                            title = "Episode Cards Style",
+                            title = stringResource(Res.string.settings_meta_episode_cards),
                             description = "Detailed thumbnail metadata layout",
                             options = listOf(
                                 MetaEpisodeCardStyle.Enhanced to "Enhanced",
@@ -1243,11 +1343,11 @@ private fun RecommendedPresetReviewDialog(
                         )
                         SettingsGroupDivider(isTablet = false)
                         SettingsSwitchRow(
-                            title = "Torrent Stats in Player",
-                            description = "Real-time P2P peer count, seeds, and download speed overlay",
-                            checked = state.showTorrentStatsOverlay,
+                            title = "Anime Filler Detection",
+                            description = "Highlight and mark filler episodes in episode lists",
+                            checked = state.animeFillerDetectionEnabled,
                             isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(showTorrentStatsOverlay = it)) },
+                            onCheckedChange = { onStateChange(state.copy(animeFillerDetectionEnabled = it)) },
                         )
                     }
                 }
@@ -1274,6 +1374,38 @@ private fun RecommendedPresetReviewDialog(
                 )
             }
         }
+    }
+    if (showKeyDialog) {
+        SeekrApiKeyDialog(
+            initialValue = seekrApiKey,
+            onSave = {
+                onSeekrApiKeyChange(it)
+                showKeyDialog = false
+            },
+            onDismiss = { showKeyDialog = false },
+        )
+    }
+}
+
+@Composable
+private fun OnboardingSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.nuvio.colors.textSecondary,
+        modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun OnboardingSettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    val tokens = MaterialTheme.nuvio
+    OnboardingGlassSurface(
+        color = Color.Transparent,
+        shape = tokens.shapes.compactCard,
+        border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), content = content)
     }
 }
 
@@ -1312,13 +1444,13 @@ private fun <T> PresetSegmentRow(
         ) {
             options.forEach { (option, label) ->
                 val isSelected = option == selected
-                Surface(
+                OnboardingGlassSurface(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(8.dp))
                         .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable { onSelect(option) },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) tokens.colors.accent.copy(alpha = 0.2f) else tokens.colors.surfaceElevated,
+                    color = if (isSelected) tokens.colors.accent.copy(alpha = 0.2f) else Color.Transparent,
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else tokens.borders.hairline,
                         color = if (isSelected) tokens.colors.accent else tokens.colors.borderSubtle,
@@ -1385,13 +1517,13 @@ private fun SvpMotionPresetRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             val isOffSelected = selected == SvpMotionOption.OFF
-            Surface(
+            OnboardingGlassSurface(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
                     .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable { onSelect(SvpMotionOption.OFF) },
                 shape = RoundedCornerShape(8.dp),
-                color = if (isOffSelected) tokens.colors.accent.copy(alpha = 0.2f) else tokens.colors.surfaceElevated,
+                color = if (isOffSelected) tokens.colors.accent.copy(alpha = 0.2f) else Color.Transparent,
                 border = BorderStroke(
                     width = if (isOffSelected) 1.5.dp else tokens.borders.hairline,
                     color = if (isOffSelected) tokens.colors.accent else tokens.colors.borderSubtle,
@@ -1413,7 +1545,7 @@ private fun SvpMotionPresetRow(
             }
 
             val isAutoSelected = selected == SvpMotionOption.AUTO
-            Surface(
+            OnboardingGlassSurface(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
@@ -1430,8 +1562,7 @@ private fun SvpMotionPresetRow(
                 shape = RoundedCornerShape(8.dp),
                 color = when {
                     isAutoSelected -> tokens.colors.accent.copy(alpha = 0.2f)
-                    !isInstalled -> tokens.colors.surfaceElevated.copy(alpha = 0.5f)
-                    else -> tokens.colors.surfaceElevated
+                    else -> Color.Transparent
                 },
                 border = BorderStroke(
                     width = if (isAutoSelected) 1.5.dp else tokens.borders.hairline,
@@ -1455,7 +1586,7 @@ private fun SvpMotionPresetRow(
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     Text(
-                        text = if (!isInstalled) "Auto (Setup Required)" else "Auto",
+                        text = if (!isInstalled) "${SvpMotionOption.AUTO.label} (Setup Required)" else SvpMotionOption.AUTO.label,
                         style = MaterialTheme.typography.labelSmall,
                         color = when {
                             isAutoSelected -> tokens.colors.accent
@@ -1469,9 +1600,9 @@ private fun SvpMotionPresetRow(
         }
 
         if (!isInstalled) {
-            Surface(
+            OnboardingGlassSurface(
                 shape = RoundedCornerShape(8.dp),
-                color = tokens.colors.surfaceElevated.copy(alpha = 0.7f),
+                color = Color.Transparent,
                 border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             ) {

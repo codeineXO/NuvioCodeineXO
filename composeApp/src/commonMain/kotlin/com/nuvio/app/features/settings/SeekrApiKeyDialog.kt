@@ -38,7 +38,7 @@ import nuvio.composeapp.generated.resources.settings_playback_seekr_get_api_key
 import nuvio.composeapp.generated.resources.settings_playback_seekr_invalid_api_key
 import org.jetbrains.compose.resources.stringResource
 
-private const val SEEKR_WEBSITE_URL = "https://seekr.tv"
+private const val SEEKR_WEBSITE_URL = "https://app.seekr.tv/"
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +71,7 @@ internal fun SeekrApiKeyDialog(
                 .padding(vertical = 4.dp, horizontal = 2.dp),
         ) {
             Text(
-                text = "${stringResource(Res.string.settings_playback_seekr_get_api_key)} (seekr.tv) ↗",
+                text = "${stringResource(Res.string.settings_playback_seekr_get_api_key)} (app.seekr.tv) ↗",
                 style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.primary,
                 textDecoration = TextDecoration.Underline,
