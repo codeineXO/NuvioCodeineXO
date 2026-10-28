@@ -250,10 +250,10 @@ fun <T> NuvioShelfSection(
     }
 }
 
-private val DesktopPosterRowHoverInset = 16.dp
+internal val DesktopPosterRowHoverInset = 16.dp
 private val ShelfPosterViewportSafetyInset = 2.dp
 
-private class PosterRowHoverViewport {
+internal class PosterRowHoverViewport {
     var inset: Dp = DesktopPosterRowHoverInset
     var left by mutableFloatStateOf(0f)
     var width by mutableIntStateOf(0)
@@ -266,7 +266,7 @@ private class PosterRowItemHover {
 private val LocalPosterRowItemHover = staticCompositionLocalOf<PosterRowItemHover?> { null }
 
 @Composable
-private fun PosterRowItem(
+internal fun PosterRowItem(
     viewport: PosterRowHoverViewport?,
     modifier: Modifier,
     content: @Composable () -> Unit,

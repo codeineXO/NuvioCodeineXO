@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -55,6 +56,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import com.nuvio.app.core.ui.NuvioLazyColumn
+import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -194,7 +196,8 @@ fun OnboardingScreen(
     var showReviewDialog by remember { mutableStateOf(false) }
     var presetApplied by remember { mutableStateOf(false) }
     var draftState by remember { mutableStateOf(presetState) }
-    var draftSeekrApiKey by remember { mutableStateOf("") }
+    // A null draft follows the saved key; an empty draft explicitly clears it.
+    var draftSeekrApiKey by remember { mutableStateOf<String?>(null) }
     val playerSettings by remember {
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
@@ -347,7 +350,7 @@ fun OnboardingScreen(
                                 onOpenReviewDialog = {
                                     PlayerSettingsRepository.ensureLoaded()
                                     draftState = presetState
-                                    draftSeekrApiKey = PlayerSettingsRepository.uiState.value.seekrApiKey
+                                    draftSeekrApiKey = null
                                     showReviewDialog = true
                                 },
                                 onApplyDirectly = {
@@ -379,13 +382,13 @@ fun OnboardingScreen(
             RecommendedPresetReviewDialog(
                 state = draftState,
                 onStateChange = { draftState = it },
-                seekrApiKey = draftSeekrApiKey,
+                seekrApiKey = draftSeekrApiKey ?: playerSettings.seekrApiKey,
                 onSeekrApiKeyChange = { draftSeekrApiKey = it },
                 dialogHeight = (maxHeight * 0.8f).coerceAtMost(800.dp),
                 onDismissRequest = { showReviewDialog = false },
                 onConfirm = {
                     applyRecommendedPreset(draftState)
-                    PlayerSettingsRepository.setSeekrApiKey(draftSeekrApiKey)
+                    draftSeekrApiKey?.let(PlayerSettingsRepository::setSeekrApiKey)
                     presetState = draftState
                     presetApplied = true
                     showReviewDialog = false
@@ -1096,6 +1099,7 @@ private fun RecommendedPresetReviewDialog(
 ) {
     val tokens = MaterialTheme.nuvio
 
+    val listState = rememberLazyListState()
     var showKeyDialog by remember { mutableStateOf(false) }
     PlatformBackHandler(enabled = !showKeyDialog, onBack = onDismissRequest)
 
@@ -1182,174 +1186,182 @@ private fun RecommendedPresetReviewDialog(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Scrollable settings list
-            NuvioLazyColumn(
-                modifier = Modifier.remoteNavigationGroup().then(Modifier
-                    .weight(1f)
-                    .fillMaxWidth()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item {
-                    OnboardingSectionTitle("Appearance")
-                    OnboardingSettingsGroup {
-                        SettingsSwitchRow(
-                            title = "CodeineXO Aura",
-                            description = "Dynamic chromatic aurora ambient lighting",
-                            checked = state.auraBackgroundEnabled,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(auraBackgroundEnabled = it)) },
-                        )
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
-                            description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
-                            checked = state.scrollPostersLayoutEnabled,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(scrollPostersLayoutEnabled = it)) },
-                        )
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = stringResource(Res.string.settings_appearance_frosted_glass),
-                            description = stringResource(Res.string.settings_appearance_frosted_glass_description),
-                            checked = state.frostedGlassEnabled,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(frostedGlassEnabled = it)) },
-                        )
-                        if (isDesktop) {
-                            SettingsGroupDivider(isTablet = false)
-                            PresetSegmentRow(
-                                title = stringResource(Res.string.settings_appearance_desktop_navigation),
-                                description = "Choose where navigation appears",
-                                options = DesktopNavigationLayout.entries.map { it to stringResource(it.labelRes) },
-                                selected = state.desktopNavigationLayout,
-                                onSelect = { onStateChange(state.copy(desktopNavigationLayout = it)) },
-                            )
-                        }
-                    }
-                }
-                item {
-                    OnboardingSectionTitle("Playback")
-                    OnboardingSettingsGroup {
-                        PresetSegmentRow<PlayerUiMode>(
-                            title = stringResource(Res.string.settings_playback_player_ui),
-                            description = "Player interface theme and layout",
-                            options = listOf(
-                                PlayerUiMode.CODEINE_XO to stringResource(PlayerUiMode.CODEINE_XO.labelRes),
-                                PlayerUiMode.OFFICIAL to stringResource(PlayerUiMode.OFFICIAL.labelRes),
-                            ),
-                            selected = state.playerUiMode,
-                            onSelect = { onStateChange(state.copy(playerUiMode = it)) },
-                        )
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
-                            description = "Show fluid seekbar bar overlay during fast-forward/rewind",
-                            checked = state.showSeekbarWhileSeeking,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(showSeekbarWhileSeeking = it)) },
-                        )
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = stringResource(Res.string.settings_playback_seek_previews),
-                            description = stringResource(Res.string.settings_playback_seek_previews_description),
-                            checked = state.seekPreviewEnabled,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(seekPreviewEnabled = it)) },
-                        )
-                        if (state.seekPreviewEnabled) {
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsNavigationRow(
-                                title = stringResource(Res.string.settings_playback_seekr_api_key),
-                                description = if (seekrApiKey.isBlank()) "API key required" else "\u2022".repeat(8),
+            // Share the list state so wheel scrolling and thumb dragging stay in sync.
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                NuvioLazyColumn(
+                    state = listState,
+                    modifier = Modifier.remoteNavigationGroup().fillMaxSize(),
+                    contentPadding = PaddingValues(end = if (isDesktop) 16.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    item {
+                        OnboardingSectionTitle("Appearance")
+                        OnboardingSettingsGroup {
+                            SettingsSwitchRow(
+                                title = "CodeineXO Aura",
+                                description = "Dynamic chromatic aurora ambient lighting",
+                                checked = state.auraBackgroundEnabled,
                                 isTablet = false,
-                                onClick = { showKeyDialog = true },
+                                onCheckedChange = { onStateChange(state.copy(auraBackgroundEnabled = it)) },
                             )
-                        }
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = "Network Stats in Player",
-                            description = "Real-time P2P peer count, seeds, and download speed overlay",
-                            checked = state.showTorrentStatsOverlay,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(showTorrentStatsOverlay = it)) },
-                        )
-                    }
-                }
-
-                item {
-                    OnboardingSectionTitle("Video Enhancements")
-                    OnboardingSettingsGroup {
-                        PresetSegmentRow<AnimeUpscalerOption>(
-                            title = "Anime Upscaler",
-                            description = "High quality scaling for anime streams",
-                            options = listOf(
-                                AnimeUpscalerOption.AUTO to "Anime Only",
-                                AnimeUpscalerOption.ALWAYS_ON to AnimeUpscalerOption.ALWAYS_ON.label,
-                                AnimeUpscalerOption.OFF to "Off",
-                            ),
-                            selected = state.animeUpscalerOption,
-                            onSelect = { onStateChange(state.copy(animeUpscalerOption = it)) },
-                        )
-                        if (state.animeUpscalerOption != AnimeUpscalerOption.OFF) {
                             SettingsGroupDivider(isTablet = false)
-                            PresetSegmentRow<AnimeUpscalerMode>(
-                                title = "Upscaler Mode",
-                                description = "Processing shader intensity",
+                            SettingsSwitchRow(
+                                title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
+                                description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
+                                checked = state.scrollPostersLayoutEnabled,
+                                isTablet = false,
+                                onCheckedChange = { onStateChange(state.copy(scrollPostersLayoutEnabled = it)) },
+                            )
+                            SettingsGroupDivider(isTablet = false)
+                            SettingsSwitchRow(
+                                title = stringResource(Res.string.settings_appearance_frosted_glass),
+                                description = stringResource(Res.string.settings_appearance_frosted_glass_description),
+                                checked = state.frostedGlassEnabled,
+                                isTablet = false,
+                                onCheckedChange = { onStateChange(state.copy(frostedGlassEnabled = it)) },
+                            )
+                            if (isDesktop) {
+                                SettingsGroupDivider(isTablet = false)
+                                PresetSegmentRow(
+                                    title = stringResource(Res.string.settings_appearance_desktop_navigation),
+                                    description = "Choose where navigation appears",
+                                    options = DesktopNavigationLayout.entries.map { it to stringResource(it.labelRes) },
+                                    selected = state.desktopNavigationLayout,
+                                    onSelect = { onStateChange(state.copy(desktopNavigationLayout = it)) },
+                                )
+                            }
+                        }
+                    }
+                    item {
+                        OnboardingSectionTitle("Playback")
+                        OnboardingSettingsGroup {
+                            PresetSegmentRow<PlayerUiMode>(
+                                title = stringResource(Res.string.settings_playback_player_ui),
+                                description = "Player interface theme and layout",
                                 options = listOf(
-                                    AnimeUpscalerMode.FAST to AnimeUpscalerMode.FAST.label,
-                                    AnimeUpscalerMode.SHARP_DETAIL to AnimeUpscalerMode.SHARP_DETAIL.label,
+                                    PlayerUiMode.CODEINE_XO to stringResource(PlayerUiMode.CODEINE_XO.labelRes),
+                                    PlayerUiMode.OFFICIAL to stringResource(PlayerUiMode.OFFICIAL.labelRes),
                                 ),
-                                selected = state.animeUpscalerMode,
-                                onSelect = { onStateChange(state.copy(animeUpscalerMode = it)) },
+                                selected = state.playerUiMode,
+                                onSelect = { onStateChange(state.copy(playerUiMode = it)) },
+                            )
+                            SettingsGroupDivider(isTablet = false)
+                            SettingsSwitchRow(
+                                title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
+                                description = "Show fluid seekbar bar overlay during fast-forward/rewind",
+                                checked = state.showSeekbarWhileSeeking,
+                                isTablet = false,
+                                onCheckedChange = { onStateChange(state.copy(showSeekbarWhileSeeking = it)) },
+                            )
+                            SettingsGroupDivider(isTablet = false)
+                            SettingsSwitchRow(
+                                title = stringResource(Res.string.settings_playback_seek_previews),
+                                description = stringResource(Res.string.settings_playback_seek_previews_description),
+                                checked = state.seekPreviewEnabled,
+                                isTablet = false,
+                                onCheckedChange = { onStateChange(state.copy(seekPreviewEnabled = it)) },
+                            )
+                            if (state.seekPreviewEnabled) {
+                                SettingsGroupDivider(isTablet = false)
+                                SettingsNavigationRow(
+                                    title = stringResource(Res.string.settings_playback_seekr_api_key),
+                                    description = if (seekrApiKey.isBlank()) "API key required" else "\u2022".repeat(8),
+                                    isTablet = false,
+                                    onClick = { showKeyDialog = true },
+                                )
+                            }
+                            SettingsGroupDivider(isTablet = false)
+                            SettingsSwitchRow(
+                                title = "Network Stats in Player",
+                                description = "Real-time P2P peer count, seeds, and download speed overlay",
+                                checked = state.showTorrentStatsOverlay,
+                                isTablet = false,
+                                onCheckedChange = { onStateChange(state.copy(showTorrentStatsOverlay = it)) },
                             )
                         }
-                        SettingsGroupDivider(isTablet = false)
-                        SvpMotionPresetRow(
-                            selected = state.svpMotionOption,
-                            onSelect = { onStateChange(state.copy(svpMotionOption = it)) },
-                        )
                     }
-                }
 
-                item {
-                    OnboardingSectionTitle("Subtitles")
-                    OnboardingSettingsGroup {
-                        PresetSegmentRow<SubtitleOutlineEffect>(
-                            title = "Outline Style",
-                            description = "Subtitle edge effect with 1px width and #FFF6B3 text color",
-                            options = listOf(
-                                SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Halo",
-                                SubtitleOutlineEffect.OUTLINE to SubtitleOutlineEffect.OUTLINE.label,
-                                SubtitleOutlineEffect.SOFT_GLOW to "Glow",
-                            ),
-                            selected = state.subtitleOutlineEffect,
-                            onSelect = { onStateChange(state.copy(subtitleOutlineEffect = it)) },
-                        )
+                    item {
+                        OnboardingSectionTitle("Video Enhancements")
+                        OnboardingSettingsGroup {
+                            PresetSegmentRow<AnimeUpscalerOption>(
+                                title = "Anime Upscaler",
+                                description = "High quality scaling for anime streams",
+                                options = listOf(
+                                    AnimeUpscalerOption.AUTO to "Anime Only",
+                                    AnimeUpscalerOption.ALWAYS_ON to AnimeUpscalerOption.ALWAYS_ON.label,
+                                    AnimeUpscalerOption.OFF to "Off",
+                                ),
+                                selected = state.animeUpscalerOption,
+                                onSelect = { onStateChange(state.copy(animeUpscalerOption = it)) },
+                            )
+                            if (state.animeUpscalerOption != AnimeUpscalerOption.OFF) {
+                                SettingsGroupDivider(isTablet = false)
+                                PresetSegmentRow<AnimeUpscalerMode>(
+                                    title = "Upscaler Mode",
+                                    description = "Processing shader intensity",
+                                    options = listOf(
+                                        AnimeUpscalerMode.FAST to AnimeUpscalerMode.FAST.label,
+                                        AnimeUpscalerMode.SHARP_DETAIL to AnimeUpscalerMode.SHARP_DETAIL.label,
+                                    ),
+                                    selected = state.animeUpscalerMode,
+                                    onSelect = { onStateChange(state.copy(animeUpscalerMode = it)) },
+                                )
+                            }
+                            SettingsGroupDivider(isTablet = false)
+                            SvpMotionPresetRow(
+                                selected = state.svpMotionOption,
+                                onSelect = { onStateChange(state.copy(svpMotionOption = it)) },
+                            )
+                        }
+                    }
+
+                    item {
+                        OnboardingSectionTitle("Subtitles")
+                        OnboardingSettingsGroup {
+                            PresetSegmentRow<SubtitleOutlineEffect>(
+                                title = "Outline Style",
+                                description = "Subtitle edge effect with 1px width and #FFF6B3 text color",
+                                options = listOf(
+                                    SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Halo",
+                                    SubtitleOutlineEffect.OUTLINE to SubtitleOutlineEffect.OUTLINE.label,
+                                    SubtitleOutlineEffect.SOFT_GLOW to "Glow",
+                                ),
+                                selected = state.subtitleOutlineEffect,
+                                onSelect = { onStateChange(state.copy(subtitleOutlineEffect = it)) },
+                            )
+                        }
+                    }
+                    item {
+                        OnboardingSectionTitle("Episodes")
+                        OnboardingSettingsGroup {
+                            PresetSegmentRow<MetaEpisodeCardStyle>(
+                                title = stringResource(Res.string.settings_meta_episode_cards),
+                                description = "Detailed thumbnail metadata layout",
+                                options = listOf(
+                                    MetaEpisodeCardStyle.Enhanced to "Enhanced",
+                                    MetaEpisodeCardStyle.Horizontal to "Horizontal",
+                                    MetaEpisodeCardStyle.List to "List",
+                                ),
+                                selected = state.episodeCardStyle,
+                                onSelect = { onStateChange(state.copy(episodeCardStyle = it)) },
+                            )
+                            SettingsGroupDivider(isTablet = false)
+                            SettingsSwitchRow(
+                                title = "Anime Filler Detection",
+                                description = "Highlight and mark filler episodes in episode lists",
+                                checked = state.animeFillerDetectionEnabled,
+                                isTablet = false,
+                                onCheckedChange = { onStateChange(state.copy(animeFillerDetectionEnabled = it)) },
+                            )
+                        }
                     }
                 }
-                item {
-                    OnboardingSectionTitle("Episodes")
-                    OnboardingSettingsGroup {
-                        PresetSegmentRow<MetaEpisodeCardStyle>(
-                            title = stringResource(Res.string.settings_meta_episode_cards),
-                            description = "Detailed thumbnail metadata layout",
-                            options = listOf(
-                                MetaEpisodeCardStyle.Enhanced to "Enhanced",
-                                MetaEpisodeCardStyle.Horizontal to "Horizontal",
-                                MetaEpisodeCardStyle.List to "List",
-                            ),
-                            selected = state.episodeCardStyle,
-                            onSelect = { onStateChange(state.copy(episodeCardStyle = it)) },
-                        )
-                        SettingsGroupDivider(isTablet = false)
-                        SettingsSwitchRow(
-                            title = "Anime Filler Detection",
-                            description = "Highlight and mark filler episodes in episode lists",
-                            checked = state.animeFillerDetectionEnabled,
-                            isTablet = false,
-                            onCheckedChange = { onStateChange(state.copy(animeFillerDetectionEnabled = it)) },
-                        )
-                    }
+                if (isDesktop) {
+                    NuvioDesktopVerticalScrollbar(
+                        state = listState,
+                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                    )
                 }
             }
 

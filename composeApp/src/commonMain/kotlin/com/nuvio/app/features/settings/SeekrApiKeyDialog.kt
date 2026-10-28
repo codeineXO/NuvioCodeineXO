@@ -49,7 +49,7 @@ internal fun SeekrApiKeyDialog(
 ) {
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
-    var value by remember { mutableStateOf(initialValue) }
+    var value by remember(initialValue) { mutableStateOf(initialValue) }
     var isVerifying by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val invalidKeyMessage = stringResource(Res.string.settings_playback_seekr_invalid_api_key)

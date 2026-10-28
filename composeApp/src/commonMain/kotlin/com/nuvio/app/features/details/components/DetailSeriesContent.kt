@@ -112,6 +112,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -147,6 +149,9 @@ import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.posterGlow
 import com.nuvio.app.core.ui.rememberArtworkGlowState
 import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.DesktopPosterRowHoverInset
+import com.nuvio.app.core.ui.PosterRowHoverViewport
+import com.nuvio.app.core.ui.PosterRowItem
 import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.features.details.MetaDetails
@@ -1575,27 +1580,26 @@ private fun EpisodeHorizontalRow(
     }
 
     val canScrollBack by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
-    val canScrollFwd by remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val total = layoutInfo.totalItemsCount
-            if (total == 0) false
-            else {
-                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
-                lastVisible != null && (lastVisible.index < total - 1 || lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset)
-            }
-        }
-    }
+    val canScrollFwd by remember { derivedStateOf { listState.canScrollForward } }
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
     val rowHazeState = rememberHazeState()
     val glowOutset = if (isDesktop && rememberPosterCardStyleUiState().glowEnabled) PosterGlowOutset else 0.dp
-    val rowGlassSource = if (LocalFrostedGlassEnabled.current) {
-        Modifier.nuvioShelfHoverOverdraw(glowOutset)
-            .hazeSource(rowHazeState)
-            .padding(glowOutset)
-    } else Modifier
+    val rowHoverInset = maxOf(if (isDesktop) DesktopPosterRowHoverInset else 0.dp, glowOutset)
+    val horizontalOverflow = if (scrollPostersLayoutEnabled) rowHoverInset else glowOutset
+    val hoverViewport = remember { PosterRowHoverViewport() }
+    hoverViewport.inset = horizontalOverflow
+    val rowGlassSource = if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(rowHazeState) else Modifier
+
+    // Match the shelf viewport expansion with internal padding to preserve the
+    // card positions and gutter width while allowing hover and glow overdraw.
+    val hoverOverdraw = Modifier
+        .nuvioShelfHoverOverdraw(glowOutset, horizontalOverflow)
+        .onGloballyPositioned {
+            hoverViewport.left = it.positionInRoot().x
+            hoverViewport.width = it.size.width
+        }
 
     val containerModifier = if (scrollPostersLayoutEnabled) {
         Modifier
@@ -1613,26 +1617,28 @@ private fun EpisodeHorizontalRow(
         Modifier
             .padding(horizontal = effectiveGutterPadding)
             .fillMaxWidth()
-            .nuvioPosterRowGutterClip()
             .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(listState)
+            .then(hoverOverdraw)
+            .nuvioPosterRowGutterClip(horizontalOverflow = maxOf(10.dp, glowOutset))
     } else {
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
             .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(listState)
+            .then(hoverOverdraw)
     }
 
     val rowContentPadding = if (scrollPostersLayoutEnabled) {
         PaddingValues(
-            horizontal = rowMetrics.rowHorizontalPadding,
-            vertical = rowMetrics.rowVerticalPadding,
+            horizontal = rowMetrics.rowHorizontalPadding + horizontalOverflow,
+            vertical = rowMetrics.rowVerticalPadding + glowOutset,
         )
     } else {
         PaddingValues(
-            horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding,
-            vertical = rowMetrics.rowVerticalPadding,
+            horizontal = horizontalScrollPadding + rowMetrics.rowHorizontalPadding + horizontalOverflow,
+            vertical = rowMetrics.rowVerticalPadding + glowOutset,
         )
     }
 
@@ -1644,7 +1650,7 @@ private fun EpisodeHorizontalRow(
                 state = listState,
                 modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }
                     .remoteNavigationGroup().then(rowModifier)
-                    .nuvioPosterRowEdgeFade(listState)
+                    .nuvioPosterRowEdgeFade(listState, horizontalInset = horizontalOverflow)
                     .then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(rowMetrics.itemSpacing),
@@ -1659,27 +1665,32 @@ private fun EpisodeHorizontalRow(
                         episodeNumber = episode.episode,
                         fallbackVideoId = episode.id,
                     )
-                    CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, episodeKeys[index], index) }) {
-                        EpisodeHorizontalCard(
-                            modifier = Modifier.remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
-                                .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
-                            video = episode,
-                            fallbackImage = fallbackImage,
-                            progressEntry = progressByVideoId[episodeVideoId],
-                            imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
-                            isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
-                                WatchingState.isEpisodeWatched(
-                                    watchedKeys = watchedKeys,
-                                    metaType = metaType,
-                                    metaId = parentMetaId,
-                                    episode = episode,
-                                ),
-                            episodeRatingsVisibility = episodeRatingsVisibility,
-                            blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                            metrics = rowMetrics,
-                            onClick = { onEpisodeClick?.invoke(episode) },
-                            onLongPress = { onEpisodeLongPress?.invoke(episode) },
-                        )
+                    PosterRowItem(
+                        viewport = hoverViewport.takeIf { scrollPostersLayoutEnabled || glowOutset > 0.dp },
+                        modifier = Modifier,
+                    ) {
+                        CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, episodeKeys[index], index) }) {
+                            EpisodeHorizontalCard(
+                                modifier = Modifier.remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
+                                    .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
+                                video = episode,
+                                fallbackImage = fallbackImage,
+                                progressEntry = progressByVideoId[episodeVideoId],
+                                imdbRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating,
+                                isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+                                    WatchingState.isEpisodeWatched(
+                                        watchedKeys = watchedKeys,
+                                        metaType = metaType,
+                                        metaId = parentMetaId,
+                                        episode = episode,
+                                    ),
+                                episodeRatingsVisibility = episodeRatingsVisibility,
+                                blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+                                metrics = rowMetrics,
+                                onClick = { onEpisodeClick?.invoke(episode) },
+                                onLongPress = { onEpisodeLongPress?.invoke(episode) },
+                            )
+                        }
                     }
                 }
             }
