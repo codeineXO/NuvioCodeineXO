@@ -5,12 +5,17 @@ import java.awt.Color
 import java.awt.Cursor
 import java.awt.Graphics
 import java.awt.Point
+import java.awt.Rectangle
 import java.awt.Toolkit
+import java.awt.Window
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.event.HierarchyBoundsAdapter
+import java.awt.event.HierarchyEvent
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import java.awt.image.BufferedImage
+import javax.swing.SwingUtilities
 
 internal class NativePlayerHost : Canvas() {
     var onPeerReady: (() -> Unit)? = null
@@ -25,6 +30,8 @@ internal class NativePlayerHost : Canvas() {
 
     private var isMiniPlayerMode = false
     private var cornerRadiusPx = 0
+    private var placementWindow: Window? = null
+    private var placementBounds: Rectangle? = null
 
     private companion object {
         val hiddenCursor: Cursor by lazy {
@@ -48,17 +55,24 @@ internal class NativePlayerHost : Canvas() {
             }
         })
         addHierarchyListener {
-            syncAncestorBackgrounds()
             updateWindowRegion()
+            repaintChangedPlacement()
         }
+        // SwingPanel moves its wrapper, so the Canvas itself need not receive componentMoved.
+        addHierarchyBoundsListener(object : HierarchyBoundsAdapter() {
+            override fun ancestorMoved(event: HierarchyEvent) = repaintChangedPlacement()
+            override fun ancestorResized(event: HierarchyEvent) = repaintChangedPlacement()
+        })
         addComponentListener(object : ComponentAdapter() {
+            override fun componentMoved(event: ComponentEvent) = repaintChangedPlacement()
+
             override fun componentResized(event: ComponentEvent) {
                 if (DesktopHostOs.current == DesktopHostOs.LINUX) {
                     repaint()
                     notifyFirstPaints()
                 }
                 updateWindowRegion()
-                syncAncestorBackgrounds()
+                repaintChangedPlacement()
             }
 
             override fun componentShown(event: ComponentEvent) {
@@ -67,7 +81,7 @@ internal class NativePlayerHost : Canvas() {
                     notifyFirstPaints()
                 }
                 updateWindowRegion()
-                syncAncestorBackgrounds()
+                repaintChangedPlacement()
             }
         })
     }
@@ -108,33 +122,30 @@ internal class NativePlayerHost : Canvas() {
     }
 
     override fun paint(graphics: Graphics) {
-        if (!isMiniPlayerMode) {
-            graphics.color = Color.BLACK
-            graphics.fillRect(0, 0, width, height)
-        }
+        graphics.color = Color.BLACK
+        graphics.fillRect(0, 0, width, height)
         notifyFirstPaints()
     }
 
-    fun syncAncestorBackgrounds() {
-        if (isMiniPlayerMode) {
-            background = Color(0, 0, 0, 0)
+    private fun repaintChangedPlacement() {
+        if (DesktopHostOs.current != DesktopHostOs.WINDOWS) return
+        val window = SwingUtilities.getWindowAncestor(this)
+        val bounds = if (window != null && isShowing) {
+            // Both rectangles use AWT user coordinates; do not apply Compose/display scale again.
+            SwingUtilities.convertRectangle(this, Rectangle(0, 0, width, height), window)
+        } else null
+        if (window === placementWindow && bounds == placementBounds) return
+        val oldWindow = placementWindow
+        val oldBounds = placementBounds
+        placementWindow = window
+        placementBounds = bounds
+        // Request painting only. Relayout or moving HWNDs here would fight SwingPanel placement.
+        if (oldWindow === window && bounds != null) {
+            val dirty = oldBounds?.union(bounds) ?: bounds
+            window?.repaint(dirty.x, dirty.y, dirty.width, dirty.height)
         } else {
-            background = Color.BLACK
-        }
-        var current: java.awt.Component? = parent
-        while (current != null) {
-            if (current is javax.swing.JComponent) {
-                if (isMiniPlayerMode) {
-                    current.isOpaque = false
-                    current.background = java.awt.Color(0, 0, 0, 0)
-                    current.border = null
-                } else {
-                    current.isOpaque = true
-                    current.background = java.awt.Color.BLACK
-                }
-            }
-            if (current is javax.swing.JRootPane) break
-            current = current.parent
+            oldBounds?.let { oldWindow?.repaint(it.x, it.y, it.width, it.height) }
+            bounds?.let { window?.repaint(it.x, it.y, it.width, it.height) }
         }
     }
 
@@ -143,11 +154,8 @@ internal class NativePlayerHost : Canvas() {
         this.isMiniPlayerMode = isMini
         this.cornerRadiusPx = radiusPx
         updateWindowRegion()
-        syncAncestorBackgrounds()
-        if (isMini) {
-            javax.swing.Timer(50) { updateWindowRegion(); syncAncestorBackgrounds() }.apply { isRepeats = false; start() }
-            javax.swing.Timer(150) { updateWindowRegion(); syncAncestorBackgrounds() }.apply { isRepeats = false; start() }
-        }
+        repaintChangedPlacement()
+        repaint()
     }
 
     fun updateWindowRegion() {
@@ -170,7 +178,7 @@ internal class NativePlayerHost : Canvas() {
         repaint()
         onPeerReady?.invoke()
         updateWindowRegion()
-        syncAncestorBackgrounds()
+        repaintChangedPlacement()
     }
 
     override fun removeNotify() {
@@ -186,5 +194,6 @@ internal class NativePlayerHost : Canvas() {
         onFirstFullSizePaint = null
         resetCursorVisibility()
         super.removeNotify()
+        repaintChangedPlacement()
     }
 }
