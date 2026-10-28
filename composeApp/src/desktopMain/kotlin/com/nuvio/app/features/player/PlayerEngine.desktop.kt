@@ -38,7 +38,6 @@ import com.nuvio.app.features.player.desktop.DesktopHostOs
 import com.nuvio.app.features.player.desktop.DesktopPlayerPictureInPicture
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
-import com.nuvio.app.features.player.desktop.WindowsPlayerSurface
 import com.nuvio.app.features.player.desktop.desktopFullscreenChanges
 import com.nuvio.app.features.autosync.DesktopAutoSyncCoordinator
 import kotlinx.coroutines.delay
@@ -355,39 +354,30 @@ private fun NativePlayerSurface(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        // Keep a stable AWT host. PiP moves only the native player
+        // SwingPanel keeps the stable AWT host. PiP moves only the native player
         // surface to the independent window, so Compose never loses its host peer.
         CompositionLocalProvider(LocalDensity provides platformDensity) {
-            val surfaceModifier = if (isInPip) {
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .requiredSize(1.dp)
-            } else if (hostFirstPaintComplete.value) {
-                Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (isMiniPlayer) {
-                            Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        } else Modifier
-                    )
-            } else {
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .requiredSize(1.dp)
-            }
-            if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
-                WindowsPlayerSurface(
-                    host = host,
-                    modifier = surfaceModifier,
-                    onResized = controller::layoutNativeSubviews,
-                )
-            } else {
-                SwingPanel(
-                    factory = { host },
-                    modifier = surfaceModifier,
-                    background = if (isMiniPlayer) Color.Transparent else Color.Black,
-                )
-            }
+            SwingPanel(
+                factory = { host },
+                modifier = if (isInPip) {
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .requiredSize(1.dp)
+                } else if (hostFirstPaintComplete.value) {
+                    Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (isMiniPlayer) {
+                                Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                            } else Modifier
+                        )
+                } else {
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .requiredSize(1.dp)
+                },
+                background = if (isMiniPlayer) Color.Transparent else Color.Black,
+            )
         }
 
         // Placeholder overlay shown when video has moved to PiP window
