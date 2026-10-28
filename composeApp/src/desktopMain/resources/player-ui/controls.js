@@ -1968,7 +1968,9 @@ const renderShaderOptionList = () => {
   if (!svpAvailable) {
     const svpWarn = document.createElement("div");
     svpWarn.className = "enhancement-warning-note";
-    svpWarn.textContent = "Requires VapourSynth or SVP 4 to be installed.";
+    svpWarn.textContent = state.svpRuntimeBundled
+      ? "Motion smoothing runtime is unavailable. Check its status in Settings."
+      : "Requires VapourSynth or SVP 4 to be installed.";
     shaderOptionList.appendChild(svpWarn);
   }
 
@@ -1983,7 +1985,9 @@ const renderShaderOptionList = () => {
   const toggleSvp = event => {
     event.stopPropagation();
     if (!svpAvailable) {
-      showPlayerToast("Motion Smoothing requires VapourSynth or SVP 4 installation.");
+      showPlayerToast(state.svpRuntimeBundled
+        ? "Motion smoothing is unavailable. Open Settings to retry preparation."
+        : "Motion Smoothing requires VapourSynth or SVP 4 installation.");
       return;
     }
     const mode = svpOff ? lastEnabledSvpMode : "off";

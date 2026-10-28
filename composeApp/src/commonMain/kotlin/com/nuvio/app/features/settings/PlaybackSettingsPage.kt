@@ -1401,8 +1401,8 @@ private fun PlaybackSettingsSection(
                     SettingsGroupDivider(isTablet = isTablet)
                     val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
                     val svpDescription = when (val s = svpDownloadState) {
-                        is SvpRuntimeDownloadState.Downloading -> "Downloading runtime... ${(s.progress * 100).toInt()}%"
-                        is SvpRuntimeDownloadState.Extracting -> "Extracting runtime pack..."
+                        is SvpRuntimeDownloadState.Downloading -> "Preparing motion smoothing... ${(s.progress * 100).toInt()}%"
+                        is SvpRuntimeDownloadState.Extracting -> "Preparing included motion smoothing runtime..."
                         else -> autoPlayPlayerSettings.svpMotionOption.label
                     }
                     SettingsNavigationRow(
@@ -2291,7 +2291,7 @@ internal fun SvpMotionOptionDialog(
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = "Runtime Pack Installed — 60 FPS motion smoothing ready",
+                            text = "Motion smoothing ready",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -2308,7 +2308,7 @@ internal fun SvpMotionOptionDialog(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "VapourSynth & SVP runtime pack (~26 MB) is required for real-time 60 FPS interpolation without external software.",
+                            text = "Motion smoothing is included with the app. Preparation happens automatically and works offline.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -2321,7 +2321,7 @@ internal fun SvpMotionOptionDialog(
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                     Text(
-                                        text = "Downloading runtime... ${(s.progress * 100).toInt()}%",
+                                        text = "Preparing motion smoothing... ${(s.progress * 100).toInt()}%",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -2331,7 +2331,7 @@ internal fun SvpMotionOptionDialog(
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                                     Text(
-                                        text = "Extracting and registering runtime...",
+                                        text = "Preparing included motion smoothing runtime...",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -2347,7 +2347,7 @@ internal fun SvpMotionOptionDialog(
                                     onClick = { SvpRuntimeInstaller.startDownload() },
                                     modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                                 ) {
-                                    Text("Retry Download")
+                                    Text("Repair and Retry")
                                 }
                             }
                             else -> {
@@ -2355,7 +2355,7 @@ internal fun SvpMotionOptionDialog(
                                     onClick = { SvpRuntimeInstaller.startDownload() },
                                     modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape),
                                 ) {
-                                    Text("Download Motion Smoothing Pack (~26 MB)")
+                                    Text("Prepare Motion Smoothing")
                                 }
                             }
                         }

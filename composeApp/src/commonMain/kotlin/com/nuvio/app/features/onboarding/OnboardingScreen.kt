@@ -68,7 +68,7 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Done
-import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
@@ -770,7 +770,7 @@ private fun RecommendedSetupStepContent(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Download,
+                                    imageVector = Icons.Rounded.Settings,
                                     contentDescription = null,
                                     tint = tokens.colors.accent,
                                     modifier = Modifier.size(20.dp),
@@ -786,7 +786,7 @@ private fun RecommendedSetupStepContent(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Download runtime pack (~26 MB) to unlock 60 FPS motion smoothing",
+                                text = "Motion smoothing is included with the app and prepared automatically",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = tokens.colors.textMuted,
                             )
@@ -802,7 +802,7 @@ private fun RecommendedSetupStepContent(
                                     color = tokens.colors.accent,
                                 )
                                 Text(
-                                    text = "Downloading runtime pack... ${(s.progress * 100).toInt()}%",
+                                    text = "Preparing motion smoothing... ${(s.progress * 100).toInt()}%",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = tokens.colors.textSecondary,
                                 )
@@ -815,7 +815,7 @@ private fun RecommendedSetupStepContent(
                                     color = tokens.colors.accent,
                                 )
                                 Text(
-                                    text = "Extracting and registering runtime...",
+                                    text = "Preparing included motion smoothing runtime...",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = tokens.colors.textSecondary,
                                 )
@@ -828,7 +828,7 @@ private fun RecommendedSetupStepContent(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    text = "Download error: ${s.message}",
+                                    text = "Preparation error: ${s.message}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.weight(1f),
@@ -856,12 +856,12 @@ private fun RecommendedSetupStepContent(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Download,
+                                        imageVector = Icons.Rounded.Settings,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
                                     )
                                     Text(
-                                        text = "Download & Setup SVP Runtime (~26 MB)",
+                                        text = "Prepare Motion Smoothing",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Medium,
                                     )
@@ -891,7 +891,7 @@ private fun RecommendedSetupStepContent(
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
-                        text = "SVP Runtime Pack Installed — 60 FPS motion smoothing ready",
+                        text = "SVP Motion smoothing ready",
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.colors.accent,
                         fontWeight = FontWeight.Medium,
@@ -1499,10 +1499,11 @@ private fun SvpMotionPresetRow(
     val isInstalled = SvpRuntimeInstaller.isInstalled || svpDownloadState is SvpRuntimeDownloadState.Installed
 
     LaunchedEffect(isInstalled) {
-        if (!isInstalled && selected != SvpMotionOption.OFF) {
+        if (!SvpRuntimeInstaller.isSupported && !isInstalled && selected != SvpMotionOption.OFF) {
             onSelect(SvpMotionOption.OFF)
         }
     }
+
 
     Column(
         modifier = Modifier
@@ -1518,7 +1519,7 @@ private fun SvpMotionPresetRow(
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = if (isInstalled) "Smooth 60 FPS frame interpolation" else "Requires SVP runtime setup (~26 MB)",
+                text = if (isInstalled) "Smooth 60 FPS frame interpolation" else "Preparing included motion smoothing runtime",
                 style = MaterialTheme.typography.bodySmall,
                 color = tokens.colors.textMuted,
             )
@@ -1565,7 +1566,7 @@ private fun SvpMotionPresetRow(
                         if (isInstalled) {
                             onSelect(SvpMotionOption.AUTO)
                         } else {
-                            NuvioToastController.show("Download and setup SVP runtime pack first")
+                            NuvioToastController.show("Motion smoothing is not ready yet. Preparing the included runtime.")
                             if (svpDownloadState is SvpRuntimeDownloadState.Idle || svpDownloadState is SvpRuntimeDownloadState.Error) {
                                 SvpRuntimeInstaller.startDownload()
                             }
@@ -1598,7 +1599,7 @@ private fun SvpMotionPresetRow(
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     Text(
-                        text = if (!isInstalled) "${SvpMotionOption.AUTO.label} (Setup Required)" else SvpMotionOption.AUTO.label,
+                        text = if (!isInstalled) "${SvpMotionOption.AUTO.label} (Preparing)" else SvpMotionOption.AUTO.label,
                         style = MaterialTheme.typography.labelSmall,
                         color = when {
                             isAutoSelected -> tokens.colors.accent
@@ -1623,7 +1624,7 @@ private fun SvpMotionPresetRow(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "VapourSynth & SVP runtime (~26 MB) is required to enable real-time 60 FPS motion interpolation.",
+                        text = "Motion smoothing is included with the app. Preparation happens automatically and works offline.",
                         style = MaterialTheme.typography.bodySmall,
                         color = tokens.colors.textMuted,
                     )
@@ -1637,7 +1638,7 @@ private fun SvpMotionPresetRow(
                                     color = tokens.colors.accent,
                                 )
                                 Text(
-                                    text = "Downloading runtime pack... ${(s.progress * 100).toInt()}%",
+                                    text = "Preparing motion smoothing... ${(s.progress * 100).toInt()}%",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = tokens.colors.textSecondary,
                                 )
@@ -1650,7 +1651,7 @@ private fun SvpMotionPresetRow(
                                     color = tokens.colors.accent,
                                 )
                                 Text(
-                                    text = "Extracting and registering runtime...",
+                                    text = "Preparing included motion smoothing runtime...",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = tokens.colors.textSecondary,
                                 )
@@ -1668,7 +1669,7 @@ private fun SvpMotionPresetRow(
                                     modifier = (Modifier.fillMaxWidth()).remoteNavigationTarget(shape = tokens.shapes.button),
                                     shape = tokens.shapes.button,
                                 ) {
-                                    Text("Retry Download", style = MaterialTheme.typography.labelSmall)
+                                    Text("Repair and Retry", style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
@@ -1687,12 +1688,12 @@ private fun SvpMotionPresetRow(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Download,
+                                        imageVector = Icons.Rounded.Settings,
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
                                     )
                                     Text(
-                                        text = "Download & Setup SVP Runtime (~26 MB)",
+                                        text = "Prepare Motion Smoothing",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold,
                                     )

@@ -310,8 +310,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     SettingsGroupDivider(isTablet = isTablet)
                     val svpDownloadState by SvpRuntimeInstaller.state.collectAsStateWithLifecycle()
                     val svpDescription = when (val s = svpDownloadState) {
-                        is SvpRuntimeDownloadState.Downloading -> "Downloading runtime... ${(s.progress * 100).toInt()}%"
-                        is SvpRuntimeDownloadState.Extracting -> "Extracting runtime pack..."
+                        is SvpRuntimeDownloadState.Downloading -> "Preparing motion smoothing... ${(s.progress * 100).toInt()}%"
+                        is SvpRuntimeDownloadState.Extracting -> "Preparing included motion smoothing runtime..."
                         else -> playerSettings.svpMotionOption.label
                     }
                     SettingsNavigationRow(

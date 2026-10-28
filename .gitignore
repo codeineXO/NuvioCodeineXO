@@ -73,4 +73,5 @@ $RECYCLE.BIN/
 # Python Cache (Scripts)
 __pycache__/
 *.py[cod]
+!composeApp/src/desktopMain/native/windows/svp-runtime/**/*.pyd
 *$py.class

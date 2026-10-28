@@ -27,6 +27,9 @@ internal object NativePlayerBridge {
 
     private val loadFailure: Throwable? = try {
         loadNativeLibrary()
+        if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+            com.nuvio.app.features.player.SvpRuntimeInstaller.prepareForBridge(::configureSvpRuntime)
+        }
         null
     } catch (error: Throwable) {
         log.e(error) { "native player library failed to load" }
@@ -100,6 +103,7 @@ internal object NativePlayerBridge {
     external fun setAudioFilter(handle: Long, filter: String)
     external fun setVideoFilter(handle: Long, filter: String)
     external fun isSvpAvailable(): Boolean
+    external fun configureSvpRuntime(directory: String): Boolean
     external fun setSvpFilter(handle: Long, enabled: Boolean, vpyPath: String): Boolean
     fun setPlaybackBufferPreset(handle: Long, preset: com.nuvio.app.features.player.PlaybackBufferPreset) {
         if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {

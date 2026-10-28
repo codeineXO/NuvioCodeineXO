@@ -34,6 +34,12 @@ internal object SvpScriptProvider {
     }
 
     fun getScriptPath(profile: SvpProfile): String? {
+        if (com.nuvio.app.features.player.desktop.DesktopHostOs.current ==
+            com.nuvio.app.features.player.desktop.DesktopHostOs.WINDOWS
+        ) {
+            return SvpRuntimeInstaller.runtimeDirectory?.resolve(profile.fileName)?.toFile()
+                ?.takeIf { it.isFile }?.absolutePath?.replace('\\', '/')
+        }
         val dir = installedDir ?: return null
         val file = dir.resolve(profile.fileName)
         return if (file.exists()) {

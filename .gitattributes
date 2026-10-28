@@ -1,2 +1,4 @@
 composeApp/src/desktopMain/native/windows/runtime/libmpv-2.dll filter=lfs diff=lfs merge=lfs -text
 composeApp/src/desktopMain/native/macos/runtime/**/*.dylib filter=lfs diff=lfs merge=lfs -text
+# Preserve the exact bytes pinned by the bundled SVP SHA-256 manifest, including text notices/configs.
+composeApp/src/desktopMain/native/windows/svp-runtime/** -text

@@ -871,7 +871,9 @@ internal class NativePlayerController(
             "svp_unavailable" -> {
                 log.w { "SVP unavailable: VapourSynth runtime is missing." }
                 controlsState = controlsState.copy(
-                    notificationMessage = "Motion Smoothing requires VapourSynth or SVP 4 to be installed.",
+                    notificationMessage = if (DesktopHostOs.current == DesktopHostOs.WINDOWS)
+                        "Motion smoothing is unavailable. Check its status in Settings."
+                    else "Motion Smoothing requires VapourSynth or SVP 4 to be installed.",
                     notificationToken = System.currentTimeMillis()
                 )
                 overrideSvpProfile = "off"
@@ -959,7 +961,9 @@ internal class NativePlayerController(
                 val mode = value.toInt()
                 if (mode != 0 && !runCatching { NativePlayerBridge.isSvpAvailable() }.getOrDefault(false)) {
                     controlsState = controlsState.copy(
-                        notificationMessage = "Motion Smoothing requires VapourSynth or SVP 4 to be installed.",
+                        notificationMessage = if (DesktopHostOs.current == DesktopHostOs.WINDOWS)
+                            "Motion smoothing is unavailable. Check its status in Settings."
+                        else "Motion Smoothing requires VapourSynth or SVP 4 to be installed.",
                         notificationToken = System.currentTimeMillis()
                     )
                     overrideSvpProfile = "off"
@@ -2072,6 +2076,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("svpProfile", svpProfile)
         append(',')
         appendJsonField("svpAvailable", svpAvailable)
+        append(',')
+        appendJsonField("svpRuntimeBundled", DesktopHostOs.current == DesktopHostOs.WINDOWS)
         append(',')
         appendJsonField("audioNightModeEnabled", audioNightModeEnabled)
         append(',')

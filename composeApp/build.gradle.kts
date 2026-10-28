@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Properties
+import java.security.MessageDigest
 import javax.inject.Inject
 
 abstract class GenerateRuntimeConfigsTask : DefaultTask() {
@@ -922,6 +923,64 @@ val generateWindowsPlayerRuntimeIndex = tasks.register<GenerateNativeRuntimeInde
     dependsOn(prepareWindowsPlayerRuntime)
     runtimeDir.set(windowsPlayerRuntimeOutput)
     indexFile.set(windowsPlayerRuntimeOutput.map { it.file("runtime-files.txt") })
+}
+
+abstract class PrepareBundledSvpRuntimeTask : DefaultTask() {
+    @get:InputDirectory
+    abstract val sourceDir: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun prepare() {
+        val source = sourceDir.get().asFile
+        val manifest = source.resolve("manifest.sha256")
+        val entries = linkedMapOf<String, String>()
+        manifest.readLines().map(String::trim)
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .forEach { line ->
+                val match = Regex("([0-9a-f]{64})  ([A-Za-z0-9_./-]+)").matchEntire(line)
+                    ?: error("Invalid bundled SVP manifest entry")
+                val (hash, name) = match.destructured
+                require(!name.startsWith('/') && name.split('/').none { it.isEmpty() || it == "." || it == ".." })
+                require(entries.put(name, hash) == null) { "Duplicate SVP file: $name" }
+            }
+        require(entries.keys.containsAll(listOf(
+            "VSScript.dll", "vapoursynth.dll", "python312.dll", "python3.dll", "python312.zip",
+            "python312._pth", "portable.vs", "lib/site-packages/vapoursynth.pyd",
+            "vs-plugins/svpflow1_vs.dll", "vs-plugins/svpflow2_vs.dll",
+        ))) { "Incomplete bundled SVP manifest" }
+        entries.forEach { (name, expected) ->
+            val file = source.resolve(name)
+            require(file.isFile) { "Missing bundled SVP file: $name" }
+            val hash = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+                .joinToString("") { "%02x".format(it) }
+            require(hash == expected) { "Bundled SVP checksum mismatch: $name" }
+        }
+        val output = outputDir.get().asFile
+        if (output.exists()) check(output.deleteRecursively()) { "Cannot refresh bundled SVP resources" }
+        val destination = output.resolve("svp-runtime/windows-x64")
+        entries.keys.forEach { name ->
+            source.resolve(name).copyTo(destination.resolve(name).apply { parentFile.mkdirs() })
+        }
+        manifest.copyTo(destination.resolve("manifest.sha256"))
+    }
+}
+
+val prepareBundledSvpRuntime = tasks.register<PrepareBundledSvpRuntimeTask>("prepareBundledSvpRuntime") {
+    enabled = isWindowsHost
+    sourceDir.set(layout.projectDirectory.dir("src/desktopMain/native/windows/svp-runtime"))
+    outputDir.set(layout.buildDirectory.dir("generated/svp-runtime-resources"))
+}
+
+tasks.withType<ProcessResources>().matching {
+    it.name == "desktopProcessResources" || it.name == "processDesktopMainResources"
+}.configureEach {
+    if (isWindowsHost) {
+        dependsOn(prepareBundledSvpRuntime)
+        from(prepareBundledSvpRuntime.flatMap { it.outputDir })
+    }
 }
 
 abstract class GenerateNativeRuntimeIndexTask : DefaultTask() {

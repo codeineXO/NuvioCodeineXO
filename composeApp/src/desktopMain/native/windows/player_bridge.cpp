@@ -640,150 +640,35 @@ static bool executeMpvCommandSeh(mpv_handle *mpv, const char **cmd) {
     }
 }
 
+// Only the app's validated bundle may supply the Windows SVP runtime. Failures are retryable.
+static std::mutex svpRuntimeMutex;
+static std::wstring svpRuntimeDirectory;
+static HMODULE svpScriptModule = nullptr;
+static DLL_DIRECTORY_COOKIE svpDllDirectory = nullptr;
+
+static bool ensureVapourSynthLoadedLocked() {
+    if (svpScriptModule) return true;
+    if (svpRuntimeDirectory.empty()) return false;
+    const std::wstring scriptPath = svpRuntimeDirectory + L"\\VSScript.dll";
+    SetEnvironmentVariableW(L"VSSCRIPT_PATH", scriptPath.c_str());
+    // VSScript loads Python dynamically; Python extensions also need this search directory.
+    if (!svpDllDirectory) svpDllDirectory = AddDllDirectory(svpRuntimeDirectory.c_str());
+    SetDllDirectoryW(svpRuntimeDirectory.c_str());
+    HMODULE module = LoadLibraryExW(scriptPath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+    if (!module) return false;
+    using getVSScriptAPI_fn = const void *(*)(int);
+    auto getAPI = reinterpret_cast<getVSScriptAPI_fn>(GetProcAddress(module, "getVSScriptAPI"));
+    if (!getAPI || !getAPI(4 << 16)) {
+        FreeLibrary(module);
+        return false;
+    }
+    svpScriptModule = module;
+    return true;
+}
+
 static bool ensureVapourSynthLoaded() {
-    static std::atomic<bool> sChecked(false);
-    static std::atomic<bool> sAvailable(false);
-    static HMODULE sVSScriptModule = nullptr;
-
-    if (sChecked.load()) {
-        return sAvailable.load();
-    }
-
-    // 1. Check if already loaded in the process
-    sVSScriptModule = GetModuleHandleW(L"VSScript.dll");
-    if (sVSScriptModule) {
-        sAvailable.store(true);
-        sChecked.store(true);
-        return true;
-    }
-
-    // 2. Try standard LoadLibrary (in case already in PATH or app directory)
-    sVSScriptModule = LoadLibraryW(L"VSScript.dll");
-    if (sVSScriptModule) {
-        sAvailable.store(true);
-        sChecked.store(true);
-        return true;
-    }
-
-    // 3. Search registry and candidate directories
-    std::vector<std::wstring> candidateDirs;
-
-    std::wstring modDir = moduleDirectory();
-    if (!modDir.empty()) {
-        candidateDirs.push_back(modDir);
-    }
-
-    auto queryRegString = [](HKEY root, const wchar_t *subKey, const wchar_t *valName) -> std::wstring {
-        HKEY hKey = nullptr;
-        if (RegOpenKeyExW(root, subKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
-            wchar_t buffer[1024] = {0};
-            DWORD bufSize = sizeof(buffer);
-            DWORD type = 0;
-            LONG res = RegQueryValueExW(hKey, valName, nullptr, &type, (LPBYTE)buffer, &bufSize);
-            RegCloseKey(hKey);
-            if (res == ERROR_SUCCESS && (type == REG_SZ || type == REG_EXPAND_SZ)) {
-                return std::wstring(buffer);
-            }
-        }
-        return L"";
-    };
-
-    const HKEY roots[] = {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER};
-    const wchar_t *subKeys[] = {
-        L"SOFTWARE\\VapourSynth",
-        L"SOFTWARE\\WOW6432Node\\VapourSynth",
-        L"SOFTWARE\\SVP 4",
-        L"SOFTWARE\\WOW6432Node\\SVP 4"
-    };
-
-    for (HKEY root : roots) {
-        for (const wchar_t *subKey : subKeys) {
-            std::wstring dllPath = queryRegString(root, subKey, L"VapourSynthDLL");
-            if (!dllPath.empty()) {
-                size_t slash = dllPath.find_last_of(L"\\/");
-                if (slash != std::wstring::npos) {
-                    candidateDirs.push_back(dllPath.substr(0, slash));
-                }
-            }
-            std::wstring installDir = queryRegString(root, subKey, L"InstallDir");
-            if (!installDir.empty()) {
-                candidateDirs.push_back(installDir);
-                candidateDirs.push_back(installDir + L"\\core");
-                candidateDirs.push_back(installDir + L"\\mpv64");
-            }
-            std::wstring appPath = queryRegString(root, subKey, L"app_path");
-            if (!appPath.empty()) {
-                candidateDirs.push_back(appPath);
-                candidateDirs.push_back(appPath + L"\\mpv64");
-            }
-        }
-    }
-
-    // Standard directories
-    candidateDirs.push_back(L"C:\\Program Files\\VapourSynth\\core");
-    candidateDirs.push_back(L"C:\\Program Files\\VapourSynth");
-    candidateDirs.push_back(L"C:\\Program Files (x86)\\VapourSynth\\core");
-    candidateDirs.push_back(L"C:\\Program Files (x86)\\VapourSynth");
-    candidateDirs.push_back(L"C:\\Program Files (x86)\\SVP 4\\mpv64");
-    candidateDirs.push_back(L"C:\\Program Files\\SVP 4\\mpv64");
-    candidateDirs.push_back(L"C:\\Program Files (x86)\\SVP 4");
-    candidateDirs.push_back(L"C:\\Program Files\\SVP 4");
-
-    wchar_t roamingAppPath[MAX_PATH] = {0};
-    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_APPDATA, NULL, 0, roamingAppPath))) {
-        candidateDirs.push_back(std::wstring(roamingAppPath) + L"\\NuvioCodeineXO\\vapoursynth");
-        candidateDirs.push_back(std::wstring(roamingAppPath) + L"\\NuvioCodeineXO\\vapoursynth\\core");
-    }
-
-    wchar_t localAppPath[MAX_PATH] = {0};
-    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, localAppPath))) {
-        candidateDirs.push_back(std::wstring(localAppPath) + L"\\NuvioCodeineXO\\vapoursynth");
-        candidateDirs.push_back(std::wstring(localAppPath) + L"\\NuvioCodeineXO\\vapoursynth\\core");
-        candidateDirs.push_back(std::wstring(localAppPath) + L"\\Programs\\VapourSynth\\core");
-        candidateDirs.push_back(std::wstring(localAppPath) + L"\\Programs\\VapourSynth");
-    }
-
-    for (const auto &dir : candidateDirs) {
-        std::wstring candidateDll = dir + L"\\VSScript.dll";
-        DWORD attrib = GetFileAttributesW(candidateDll.c_str());
-        if (attrib != INVALID_FILE_ATTRIBUTES && !(attrib & FILE_ATTRIBUTE_DIRECTORY)) {
-            // Ensure portable.vs marker exists so VapourSynth discovers its plugins locally
-            std::wstring portableMarker = dir + L"\\portable.vs";
-            HANDLE hMarker = CreateFileW(portableMarker.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-            if (hMarker != INVALID_HANDLE_VALUE) {
-                CloseHandle(hMarker);
-            }
-
-            // Prepend dir to PATH so Python can load dependent runtime DLLs
-            wchar_t currentPath[32768] = {0};
-            DWORD pathLen = GetEnvironmentVariableW(L"PATH", currentPath, 32768);
-            if (pathLen > 0 && pathLen < 32768) {
-                std::wstring newPath = dir + L";" + currentPath;
-                SetEnvironmentVariableW(L"PATH", newPath.c_str());
-            } else {
-                SetEnvironmentVariableW(L"PATH", dir.c_str());
-            }
-
-            SetDllDirectoryW(dir.c_str());
-            SetEnvironmentVariableW(L"VSSCRIPT_PATH", candidateDll.c_str());
-            sVSScriptModule = LoadLibraryExW(candidateDll.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-            if (sVSScriptModule) {
-                using getVSScriptAPI_fn = const void *(*)(int);
-                auto pGetVSScriptAPI = reinterpret_cast<getVSScriptAPI_fn>(GetProcAddress(sVSScriptModule, "getVSScriptAPI"));
-                if (pGetVSScriptAPI && pGetVSScriptAPI((4 << 16) | 0) != nullptr) {
-                    sAvailable.store(true);
-                    sChecked.store(true);
-                    return true;
-                }
-                FreeLibrary(sVSScriptModule);
-                sVSScriptModule = nullptr;
-            }
-        }
-    }
-
-    sAvailable.store(false);
-    sChecked.store(true);
-    return false;
+    std::lock_guard<std::mutex> lock(svpRuntimeMutex);
+    return ensureVapourSynthLoadedLocked();
 }
 
 static void logSvpEvent(const char *msg) {
@@ -3514,6 +3399,24 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setVideoFilter(JNI
         std::string filterText = jstringToUtf8(env, filter);
         player->setVideoFilter(filterText);
     }
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_configureSvpRuntime(JNIEnv *env, jobject, jstring directory) {
+    if (!directory) return JNI_FALSE;
+    const jchar *characters = env->GetStringChars(directory, nullptr);
+    if (!characters) return JNI_FALSE;
+    std::wstring path(reinterpret_cast<const wchar_t *>(characters), env->GetStringLength(directory));
+    env->ReleaseStringChars(directory, characters);
+    std::lock_guard<std::mutex> lock(svpRuntimeMutex);
+    // Never replace DLLs already in use by Python or mpv within this process.
+    if (svpScriptModule) return path == svpRuntimeDirectory ? JNI_TRUE : JNI_FALSE;
+    if (svpDllDirectory && path != svpRuntimeDirectory) {
+        RemoveDllDirectory(svpDllDirectory);
+        svpDllDirectory = nullptr;
+    }
+    svpRuntimeDirectory = path;
+    return ensureVapourSynthLoadedLocked() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
