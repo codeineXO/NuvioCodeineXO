@@ -5684,6 +5684,7 @@ codeineDrawerItems.addEventListener("click", event => {
     event.stopImmediatePropagation();
     return;
   }
+  if (action === codeineResizeButton || action.dataset.command === "resize") return;
   closeQuickMenu();
 }, true);
 
