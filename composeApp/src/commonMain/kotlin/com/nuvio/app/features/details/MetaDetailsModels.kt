@@ -41,6 +41,7 @@ data class MetaDetails(
     val seasonPosters: Map<Int, String> = emptyMap(),
     val videos: List<MetaVideo> = emptyList(),
     val classificationHints: MetaClassificationHints? = null,
+    val provenance: MetadataProvenance = MetadataProvenance(),
 )
 
 /** Provider evidence kept independently of localized display fields. */
@@ -117,4 +118,5 @@ data class MetaDetailsUiState(
     val isLoading: Boolean = false,
     val meta: MetaDetails? = null,
     val errorMessage: String? = null,
+    val isFromCache: Boolean = false,
 )

@@ -99,6 +99,10 @@ import com.nuvio.app.core.ui.dismissNuvioBottomSheet
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.MetadataInfoPanel
+import com.nuvio.app.features.plugins.PluginIdDiagnostics
+import com.nuvio.app.features.plugins.pluginContentId
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -114,6 +118,7 @@ import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.details.MetaScreenBackgroundMode
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
+import com.nuvio.app.features.watchprogress.savedMetadataForContent
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watched.watchedItemKeys
@@ -267,6 +272,31 @@ fun StreamsScreen(
 
     if (showLoadingScreen) return
 
+    val metadataState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
+    val pluginIds by PluginIdDiagnostics.resolutions.collectAsStateWithLifecycle()
+    val metadata = metadataState.meta?.takeIf {
+        it.type == parentMetaType && (it.id == parentMetaId || it.provenance.requestedId == parentMetaId)
+    } ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
+    val metadataInfoContent: (@Composable () -> Unit)? = if (metaScreenSettings.showMetadataInfo) {
+        {
+            MetadataInfoPanel(
+                meta = metadata,
+                requestedId = parentMetaId,
+                savedMetadata = episodeProgress?.metadataSnapshot
+                    ?: watchProgressUiState.entries.savedMetadataForContent(parentMetaId, parentMetaType),
+                playbackId = videoId,
+                season = seasonNumber,
+                episode = episodeNumber,
+                isFromCache = if (metadata != null) true else null,
+                pluginResolutions = pluginIds.filterKeys { it.startsWith(PluginIdDiagnostics.key(
+                    pluginContentId(videoId, seasonNumber, episodeNumber), type, seasonNumber, episodeNumber,
+                ) + "|") }.values.toList(),
+                showPluginRequest = uiState.groups.any { it.addonId.startsWith("plugin:") || it.addonId.startsWith("plugin-repo:") },
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+        }
+    } else null
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -277,6 +307,7 @@ fun StreamsScreen(
 
         if (isTabletLayout) {
             TabletStreamsLayout(
+                metadataInfoContent = metadataInfoContent,
                 description = description,
                 isEpisode = isEpisode,
                 title = title,
@@ -306,6 +337,7 @@ fun StreamsScreen(
             )
         } else {
             MobileStreamsLayout(
+                metadataInfoContent = metadataInfoContent,
                 description = description,
                 isEpisode = isEpisode,
                 backgroundMode = streamDisplaySettings.backgroundMode,
@@ -473,6 +505,7 @@ fun StreamsScreen(
 
 @Composable
 private fun MobileStreamsLayout(
+    metadataInfoContent: (@Composable () -> Unit)? = null,
     description: String?,
     isEpisode: Boolean,
     backgroundMode: StreamBackgroundMode,
@@ -576,6 +609,7 @@ private fun MobileStreamsLayout(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                         )
                     }
+                    metadataInfoContent?.invoke()
                     ProviderFilterRow(
                         desktopDragMomentumEnabled = true,
                         groups = uiState.groups,

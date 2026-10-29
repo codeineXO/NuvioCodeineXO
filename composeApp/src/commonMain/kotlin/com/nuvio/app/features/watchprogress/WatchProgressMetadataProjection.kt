@@ -1,6 +1,8 @@
 package com.nuvio.app.features.watchprogress
 
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetadataSnapshot
+import com.nuvio.app.features.details.metadataSnapshotOrNull
 import com.nuvio.app.features.tracking.WatchProgressSource
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
@@ -36,6 +38,7 @@ internal fun enrichWatchProgressEntry(
         poster = meta.poster?.takeIf(String::isNotBlank) ?: current.poster,
         background = meta.background?.takeIf(String::isNotBlank) ?: current.background,
         logo = meta.logo?.takeIf(String::isNotBlank) ?: current.logo,
+        metadataSnapshot = meta.metadataSnapshotOrNull() ?: current.metadataSnapshot,
         episodeTitle = episodeVideo?.title?.takeIf(String::isNotBlank) ?: current.episodeTitle,
         episodeThumbnail = episodeVideo?.thumbnail?.takeIf(String::isNotBlank) ?: current.episodeThumbnail,
         pauseDescription = episodeVideo?.overview?.takeIf(String::isNotBlank)
@@ -43,6 +46,17 @@ internal fun enrichWatchProgressEntry(
             ?: current.pauseDescription,
     )
 }
+
+/** Title-level provenance is reusable for another episode, without copying its playback state. */
+internal fun Collection<WatchProgressEntry>.savedMetadataForContent(
+    parentMetaId: String,
+    parentMetaType: String,
+): MetadataSnapshot? = asSequence()
+    .filter { it.parentMetaId == parentMetaId && it.parentMetaType == parentMetaType }
+    .filter { !it.metadataSnapshot?.provenance?.sourceName.isNullOrBlank() }
+    .maxWithOrNull(compareBy<WatchProgressEntry> { it.metadataSnapshot?.provenance?.fetchedAtMs ?: Long.MIN_VALUE }
+        .thenBy { it.lastUpdatedEpochMs })
+    ?.metadataSnapshot
 
 internal fun WatchProgressEntry.needsRemoteMetadataEnrichment(): Boolean =
     title.isBlank() ||

@@ -9,5 +9,10 @@ internal fun projectWatchProgressSourceEntries(
 ): List<WatchProgressEntry> = if (source.providerId == null) {
     nuvioEntries.toList()
 } else {
-    providerEntries.toList()
+    val savedMetadata = nuvioEntries.groupBy { it.parentMetaId to it.parentMetaType }
+        .mapValues { (identity, entries) -> entries.savedMetadataForContent(identity.first, identity.second) }
+    providerEntries.map { entry ->
+        val snapshot = entry.metadataSnapshot ?: savedMetadata[entry.parentMetaId to entry.parentMetaType]
+        if (snapshot == entry.metadataSnapshot) entry else entry.copy(metadataSnapshot = snapshot)
+    }
 }

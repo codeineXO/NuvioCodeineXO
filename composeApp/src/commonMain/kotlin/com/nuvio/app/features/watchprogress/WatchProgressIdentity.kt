@@ -114,7 +114,12 @@ internal fun Collection<WatchProgressEntry>.resolveIdentityForUpsert(
         .maxWithOrNull(watchProgressEntryFreshnessComparator)
         ?: logicalMatches.maxWithOrNull(watchProgressEntryFreshnessComparator)
     val progressKey = existing?.resolvedProgressKey() ?: candidate.resolvedProgressKey()
-    return candidate.copy(progressKey = progressKey)
+    return candidate.copy(
+        progressKey = progressKey,
+        metadataSnapshot = candidate.metadataSnapshot
+            ?: existing?.takeIf { it.parentMetaType == candidate.parentMetaType }?.metadataSnapshot
+            ?: savedMetadataForContent(candidate.parentMetaId, candidate.parentMetaType),
+    )
 }
 
 internal fun Collection<WatchProgressEntry>.resolveProgressForVideo(

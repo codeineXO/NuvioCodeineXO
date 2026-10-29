@@ -72,14 +72,14 @@ object MetaDetailsRepository {
             cachedEntry.metaScreenMeta
                 ?.takeIf { cachedEntry.metaScreenSettingsFingerprint == metaScreenSettingsFingerprint }
                 ?.let { cachedMeta ->
-                    _uiState.value = MetaDetailsUiState(meta = cachedMeta.withUnreleasedFilter())
+                    _uiState.value = MetaDetailsUiState(meta = cachedMeta.withUnreleasedFilter(), isFromCache = true)
                     activeRequestKey = requestKey
                     return
                 }
 
             val cachedBaseMeta = cachedEntry.baseMeta
             if (!shouldEnrichForMetaScreen(cachedBaseMeta, id, mdbListSettings)) {
-                _uiState.value = MetaDetailsUiState(meta = cachedBaseMeta.withUnreleasedFilter())
+                _uiState.value = MetaDetailsUiState(meta = cachedBaseMeta.withUnreleasedFilter(), isFromCache = true)
                 activeRequestKey = requestKey
                 return
             }
@@ -93,6 +93,7 @@ object MetaDetailsRepository {
             _uiState.value = MetaDetailsUiState(
                 isLoading = true,
                 meta = cachedBaseMeta,
+                isFromCache = true,
             )
 
             scope.launch {
@@ -106,7 +107,7 @@ object MetaDetailsRepository {
                         settingsFingerprint = metaScreenSettingsFingerprint,
                     )
                 }
-                _uiState.value = MetaDetailsUiState(meta = enrichedMeta.withUnreleasedFilter())
+                _uiState.value = MetaDetailsUiState(meta = enrichedMeta.withUnreleasedFilter(), isFromCache = true)
                 activeRequestKey = requestKey
             }
             return
@@ -154,7 +155,7 @@ object MetaDetailsRepository {
 
             for (manifest in manifests) {
                 val result = withContext(Dispatchers.Default) {
-                    tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false)
+                    tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false, requestedId = id)
                 }
                 if (result != null) {
                     publishLoadedMeta(
@@ -223,7 +224,7 @@ object MetaDetailsRepository {
 
         for (manifest in manifests) {
             val result = withTimeoutOrNull(FETCH_TIMEOUT_MS) {
-                tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false)
+                tryFetchMeta(manifest, type, metaLookupId, includeMdbList = false, requestedId = id)
             }
             if (result != null) {
                 val enriched = AnimeFillerRepository.enrichFillerStatus(
@@ -292,6 +293,7 @@ object MetaDetailsRepository {
         type: String,
         id: String,
         includeMdbList: Boolean,
+        requestedId: String = id,
     ): MetaDetails? {
         val url = buildAddonResourceUrl(
             manifestUrl = manifest.transportUrl,
@@ -305,7 +307,15 @@ object MetaDetailsRepository {
             log.d { "Fetching meta from: $url" }
             val payload = fetchAddonResponseText(url)
             log.d { "Raw payload length=${payload.length}, first 500 chars: ${payload.take(500)}" }
-            val result = MetaDetailsParser.parse(payload)
+            val result = MetaDetailsParser.parse(payload).let { parsed ->
+                parsed.copy(provenance = MetadataProvenance(
+                    sourceName = manifest.name,
+                    sourceId = manifest.id,
+                    requestedId = requestedId,
+                    lookupId = id,
+                    fetchedAtMs = com.nuvio.app.features.watchprogress.WatchProgressClock.nowEpochMs(),
+                ))
+            }
             val tmdbEnriched = withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
                 TmdbMetadataService.enrichMeta(
                     meta = result,

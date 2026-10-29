@@ -62,7 +62,13 @@ object MdbListMetadataService {
             providers = enabledProviders,
         )
 
-        return meta.copy(externalRatings = ratings)
+        return meta.copy(
+            externalRatings = ratings,
+            provenance = meta.provenance.copy(
+                enrichmentSources = if (ratings.isNotEmpty()) meta.provenance.enrichmentSources + "MDBList"
+                    else meta.provenance.enrichmentSources - "MDBList",
+            ),
+        )
     }
 
     suspend fun getRatings(

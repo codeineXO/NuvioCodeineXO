@@ -54,7 +54,8 @@ internal fun RemoteNavigationSession.movePageFocus(source: RemoteFocusTarget, di
     val candidates = pageCandidates(source).filter { candidate ->
         val bounds = candidate.bounds!!
         val visible = viewport == null || (bounds.bottom > viewport.top && bounds.top < viewport.bottom)
-        visible && !(candidate.role == RemoteNavigationRole.PageSwitch && boundary.state.canScrollForward) && when (direction) {
+        visible && (!(direction == FocusDirection.Left || direction == FocusDirection.Right) || !candidate.verticalOnly) &&
+            !(candidate.role == RemoteNavigationRole.PageSwitch && boundary.state.canScrollForward) && when (direction) {
             FocusDirection.Up -> bounds.center.y < origin.center.y
             FocusDirection.Down -> bounds.center.y > origin.center.y
             FocusDirection.Left -> bounds.center.x < origin.center.x && bounds.bottom > origin.top && bounds.top < origin.bottom

@@ -162,6 +162,19 @@ internal class RemoteNavigationSession {
 
     fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager, sourceOverride: RemoteFocusTarget? = null): Boolean {
         val source = sourceOverride ?: focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
+        val horizontal = direction == FocusDirection.Left || direction == FocusDirection.Right
+        if (horizontal && source?.verticalOnly == true) return true
+        if ((direction == FocusDirection.Up || direction == FocusDirection.Down) && source?.verticalGroup != null) {
+            val origin = source.bounds
+            val next = targets.filter { candidate ->
+                candidate !== source && candidate.route == route && candidate.manager === manager &&
+                    candidate.verticalGroup === source.verticalGroup && candidate.bounds?.let { bounds ->
+                        origin != null && if (direction == FocusDirection.Up) bounds.center.y < origin.center.y
+                            else bounds.center.y > origin.center.y
+                    } == true
+            }.minByOrNull { kotlin.math.abs(it.bounds!!.center.y - origin!!.center.y) }
+            if (next?.requester?.requestFocus() == true) return true
+        }
         if (source?.pageBoundary != null) return movePageFocus(source, direction)
         source?.let { moveControlFocus(it, direction) }?.let { return it }
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
@@ -170,7 +183,9 @@ internal class RemoteNavigationSession {
             it.route == route && it.manager === manager && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
         }
         val moved = manager.moveFocus(direction)
-        if (moved && focusedTarget != null && focusedTarget !== source) {
+        if (moved && horizontal && focusedTarget?.verticalOnly == true && focusedTarget !== source) {
+            source?.requester?.requestFocus()
+        } else if (moved && focusedTarget != null && focusedTarget !== source) {
             val destination = focusedTarget
             val isDestinationSidebar = destination?.role == RemoteNavigationRole.Sidebar
             val isDestinationStreamSource = destination?.role == RemoteNavigationRole.StreamSource
@@ -199,7 +214,7 @@ internal class RemoteNavigationSession {
         }
         val origin = source?.bounds ?: return moved
         val candidates = targets.filter {
-            it.route == route && it.manager === manager && it !== source && it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true &&
+            it.route == route && it.manager === manager && it !== source && (!horizontal || !it.verticalOnly) && it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true &&
                 (!isSourceStreamSource || !streamSourceMovedDuringHold || it.role == RemoteNavigationRole.StreamSource)
         }
         val fallback = when {
@@ -286,6 +301,8 @@ internal class RemoteNavigationSession {
 internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource, PageSwitch }
 
 internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager, val sidebarEntry: Boolean = false) {
+    var verticalOnly: Boolean = false
+    var verticalGroup: Any? = null
     var pageBoundary: RemoteNavigationPageBoundary? = null
     var shelfItem: PosterShelfItem? = null
     var poster: PosterNavigationItem? = null
@@ -297,6 +314,7 @@ internal class RemoteFocusTarget(val route: Any, val identity: Int, val requeste
 }
 
 internal val LocalRemoteNavigationRole = staticCompositionLocalOf { RemoteNavigationRole.Default }
+internal val LocalRemoteVerticalNavigationGroup = staticCompositionLocalOf<Any?> { null }
 internal val LocalRemoteFocusOutlineColor = staticCompositionLocalOf<Color?> { null }
 internal val LocalRemoteNavigation = staticCompositionLocalOf<RemoteNavigationSession?> { null }
 internal val LocalRemoteRoute = staticCompositionLocalOf<Any> { Unit }
@@ -535,6 +553,7 @@ internal fun Modifier.remoteNavigationTarget(
     onSelect: (() -> Unit)? = null,
     onContext: (() -> Unit)? = null,
     insetFocusOutline: Boolean = false,
+    verticalOnly: Boolean = false,
 ): Modifier = composed {
     val guardedModifier = if (textField) this.remoteTextInputGuard() else this
     val session = LocalRemoteNavigation.current ?: return@composed guardedModifier
@@ -549,7 +568,10 @@ internal fun Modifier.remoteNavigationTarget(
     val poster = LocalPosterNavigationItem.current
     val pageBoundary = LocalRemoteNavigationPageBoundary.current
     val controlRow = LocalRemoteControlRow.current
+    val verticalGroup = LocalRemoteVerticalNavigationGroup.current
     SideEffect { target.poster = poster; target.pageBoundary = pageBoundary; target.shelfItem = shelfItem; target.controlRow = controlRow }
+    SideEffect { target.verticalOnly = verticalOnly }
+    SideEffect { target.verticalGroup = verticalGroup }
     val bringIntoView = remember { BringIntoViewRequester() }
     SideEffect { target.reveal = { bringIntoView.bringIntoView() } }
     val scope = rememberCoroutineScope()

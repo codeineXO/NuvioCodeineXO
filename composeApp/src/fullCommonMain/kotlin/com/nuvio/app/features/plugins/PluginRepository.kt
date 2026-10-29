@@ -398,9 +398,16 @@ actual object PluginRepository {
         episode: Int?,
         respectSearchPause: Boolean,
     ): Result<List<PluginRuntimeResult>> {
+        val diagnosticKey = PluginIdDiagnostics.key(tmdbId, mediaType, season, episode)
+        if (respectSearchPause) PluginIdDiagnostics.record(diagnosticKey, scraper.id, PluginIdResolution(tmdbId, scraperName = scraper.name))
         val resolvedTmdbId = resolvePluginTmdbId(
             tmdbId = tmdbId,
             mediaType = mediaType,
+        )
+        if (respectSearchPause) PluginIdDiagnostics.record(
+            diagnosticKey,
+            scraper.id,
+            PluginIdResolution(tmdbId, resolvedTmdbId, resolvedTmdbId.all(Char::isDigit) && resolvedTmdbId.isNotBlank(), scraper.name),
         )
 
         return runCatching {

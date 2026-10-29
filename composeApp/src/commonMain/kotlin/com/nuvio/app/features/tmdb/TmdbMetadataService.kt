@@ -730,12 +730,15 @@ object TmdbMetadataService {
             enrichmentDeferred.await() to episodeDeferred?.await()
         }
 
-        return applyEnrichment(
+        val updated = applyEnrichment(
             meta = meta,
             enrichment = enrichment,
             episodeMap = episodeMap.orEmpty(),
             settings = settings,
         )
+        return updated.copy(provenance = updated.provenance.copy(
+            knownIds = updated.provenance.knownIds + ("TMDB" to tmdbId),
+        ))
     }
 
     suspend fun fetchStandaloneMeta(
@@ -775,6 +778,15 @@ object TmdbMetadataService {
             id = id,
             type = type,
             name = enrichment.localizedTitle ?: "TMDB $tmdbId",
+            provenance = com.nuvio.app.features.details.MetadataProvenance(
+                sourceName = "TMDB",
+                sourceId = "tmdb",
+                requestedId = id,
+                lookupId = id,
+                fetchedAtMs = com.nuvio.app.features.watchprogress.WatchProgressClock.nowEpochMs(),
+                usedFallback = true,
+                knownIds = mapOf("TMDB" to tmdbId.toString()),
+            ),
             poster = enrichment.poster,
             background = enrichment.backdrop,
             logo = enrichment.logo,
@@ -938,7 +950,9 @@ object TmdbMetadataService {
             updated = updated.copy(trailers = enrichment.trailers)
         }
 
-        return updated
+        return if (updated != meta) updated.copy(provenance = updated.provenance.copy(
+            enrichmentSources = updated.provenance.enrichmentSources + "TMDB",
+        )) else updated
     }
 
     private suspend fun fetchEnrichment(

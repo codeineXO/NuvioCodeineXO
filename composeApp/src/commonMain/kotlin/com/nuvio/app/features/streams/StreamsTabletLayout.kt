@@ -74,6 +74,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun TabletStreamsLayout(
+    metadataInfoContent: (@Composable () -> Unit)? = null,
     description: String? = null,
     isEpisode: Boolean,
     title: String,
@@ -98,6 +99,7 @@ internal fun TabletStreamsLayout(
 ) {
     if (!isDesktop) {
         LegacyTabletStreamsLayout(
+            metadataInfoContent = metadataInfoContent,
             description = description,
             isEpisode = isEpisode,
             title = title,
@@ -290,7 +292,9 @@ internal fun TabletStreamsLayout(
                             )
                         }
 
+                        metadataInfoContent?.invoke()
                         ProviderFilterRow(
+                            // Provider controls follow the optional metadata panel.
                             desktopDragMomentumEnabled = true,
                             groups = uiState.groups,
                             selectedFilter = uiState.selectedFilter,
@@ -323,6 +327,7 @@ internal fun TabletStreamsLayout(
 
 @Composable
 private fun LegacyTabletStreamsLayout(
+    metadataInfoContent: (@Composable () -> Unit)? = null,
     description: String?,
     isEpisode: Boolean,
     title: String,
@@ -479,6 +484,7 @@ private fun LegacyTabletStreamsLayout(
                             )
                         }
 
+                        metadataInfoContent?.invoke()
                         ProviderFilterRow(
 
                             desktopDragMomentumEnabled = true,

@@ -5,6 +5,7 @@ import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.cloudLibraryProviderPosterUrl
 import com.nuvio.app.features.details.MetaVideo
+import com.nuvio.app.features.details.MetadataSnapshot
 import com.nuvio.app.features.tracking.TrackingAttributedItem
 import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.watching.domain.WatchingContentRef
@@ -63,6 +64,7 @@ data class WatchProgressEntry(
     /** Stable server/storage identity. [videoId] remains the playback identity. */
     val progressKey: String? = null,
     val excludedNextUpSeasons: Set<Int> = emptySet(),
+    val metadataSnapshot: MetadataSnapshot? = null,
 ) : TrackingAttributedItem {
     override val trackingContentId: String
         get() = parentMetaId

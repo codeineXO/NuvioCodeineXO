@@ -1,0 +1,32 @@
+<resources>
+    <string name="settings_show_metadata_info">Show metadata source &amp; IDs</string>
+    <string name="settings_show_metadata_info_description">Show metadata providers and content identifiers on details and stream selection screens.</string>
+    <string name="metadata_info_title">Metadata info</string>
+    <string name="metadata_info_stream_title">Source &amp; IDs</string>
+    <string name="metadata_info_source">Metadata source</string>
+    <string name="metadata_info_source_id">Metadata addon ID</string>
+    <string name="metadata_info_provider">ID provider</string>
+    <string name="metadata_info_id">Metadata ID</string>
+    <string name="metadata_info_requested_id">Original catalog / requested ID</string>
+    <string name="metadata_info_lookup_id">Metadata lookup ID</string>
+    <string name="metadata_info_enrichment">Enrichment sources</string>
+    <string name="metadata_info_loaded">Loaded from</string>
+    <string name="metadata_info_cache">Memory cache</string>
+    <string name="metadata_info_saved_progress">Saved watch progress</string>
+    <string name="metadata_info_fetch">Provider fetch</string>
+    <string name="metadata_info_fetched_at">Fetched at (UTC)</string>
+    <string name="metadata_info_fallback">Built-in TMDB fallback used</string>
+    <string name="metadata_info_playback_id">Playback / addon request ID</string>
+    <string name="metadata_info_plugin_input">Plugin input ID</string>
+    <string name="metadata_info_plugin_id">ID passed to plugins</string>
+    <string name="metadata_info_plugin_status">Plugin TMDB resolution</string>
+    <string name="metadata_info_resolving">Resolving</string>
+    <string name="metadata_info_resolved">Resolved</string>
+    <string name="metadata_info_unresolved">Unresolved — original cleaned ID passed</string>
+    <string name="metadata_info_not_requested">Not requested</string>
+    <string name="metadata_info_episode">Season / episode</string>
+    <string name="metadata_info_expand">Show technical details</string>
+    <string name="metadata_info_collapse">Hide technical details</string>
+    <string name="metadata_info_copy">Copy %1$s</string>
+    <string name="metadata_info_copied">Copied</string>
+</resources>

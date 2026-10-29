@@ -1988,6 +1988,16 @@ fun MetaDetailsScreen(
                             }
 
                             if (!useEnhancedLayout || enhancedSecondPage) {
+                                if (metaScreenSettingsUiState.showMetadataInfo) {
+                                    item(key = "metadata-info", contentType = "metadata-info") {
+                                        MetadataInfoPanel(
+                                            meta = meta,
+                                            requestedId = id,
+                                            isFromCache = uiState.isFromCache,
+                                            modifier = Modifier.padding(horizontal = contentHorizontalPadding, vertical = 12.dp),
+                                        )
+                                    }
+                                }
                                 item(
                                     key = "detail-bottom-spacer",
                                     contentType = "detail-spacer",

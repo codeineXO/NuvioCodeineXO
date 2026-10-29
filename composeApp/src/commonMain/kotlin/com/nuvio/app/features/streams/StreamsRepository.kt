@@ -13,6 +13,7 @@ import com.nuvio.app.features.debrid.LocalDebridAvailabilityService
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepository
+import com.nuvio.app.features.plugins.PluginIdDiagnostics
 import com.nuvio.app.features.plugins.pluginContentId
 import com.nuvio.app.features.plugins.PluginsUiState
 import com.nuvio.app.features.servers.ServerStreams
@@ -101,6 +102,7 @@ object StreamsRepository {
 
         activeRequestKey = requestKey
         activeJob?.cancel()
+        PluginIdDiagnostics.clearRequest(PluginIdDiagnostics.key(pluginContentId(videoId, season, episode), type, season, episode))
         _uiState.value = StreamsUiState(requestToken = requestToken)
 
         PlayerSettingsRepository.ensureLoaded()

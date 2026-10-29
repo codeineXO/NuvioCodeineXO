@@ -186,6 +186,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     selectedStyle = metaScreenSettings.episodeCardStyle,
                     onStyleSelected = MetaScreenSettingsRepository::setEpisodeCardStyle,
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                MetadataInfoSettings(isTablet = isTablet, checked = metaScreenSettings.showMetadataInfo)
             }
         }
     }

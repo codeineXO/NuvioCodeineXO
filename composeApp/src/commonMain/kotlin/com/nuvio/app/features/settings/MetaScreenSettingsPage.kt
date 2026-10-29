@@ -186,6 +186,8 @@ internal fun LazyListScope.metaScreenSettingsContent(
                 SettingsGroupDivider(isTablet = isTablet)
                 RatingsSettings(isTablet = isTablet, uiState = uiState)
                 SettingsGroupDivider(isTablet = isTablet)
+                MetadataInfoSettings(isTablet = isTablet, checked = uiState.showMetadataInfo)
+                SettingsGroupDivider(isTablet = isTablet)
                 val shuffleProfile by remember {
                     EpisodeShuffleRepository.ensureLoaded()
                     EpisodeShuffleRepository.uiState

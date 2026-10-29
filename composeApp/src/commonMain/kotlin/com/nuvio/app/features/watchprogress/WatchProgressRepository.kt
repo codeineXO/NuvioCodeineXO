@@ -10,6 +10,7 @@ import com.nuvio.app.features.addons.AddonsUiState
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.metadataSnapshotOrNull
 import com.nuvio.app.features.player.PlayerPlaybackSnapshot
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.servers.ServerItemRef
@@ -900,6 +901,7 @@ object WatchProgressRepository {
             lastSourceUrl = cached?.lastSourceUrl,
             isCompleted = isWatchProgressComplete(position, duration, false),
             progressKey = resolvedProgressKey(),
+            metadataSnapshot = cached?.metadataSnapshot,
         )
 
     private fun ProgressDeltaEvent.toProgressSyncRecord(): ProgressSyncRecord =
@@ -1274,6 +1276,9 @@ object WatchProgressRepository {
         ) ?: session.parentMetaId
 
         val candidateEntry = WatchProgressEntry(
+            metadataSnapshot = if (targetProfileId == currentProfileId && ProfileRepository.activeProfileId == targetProfileId) {
+                MetaDetailsRepository.peek(session.parentMetaType, session.parentMetaId)?.metadataSnapshotOrNull()
+            } else null,
             contentType = session.contentType,
             parentMetaId = effectiveParentMetaId,
             parentMetaType = session.parentMetaType,
