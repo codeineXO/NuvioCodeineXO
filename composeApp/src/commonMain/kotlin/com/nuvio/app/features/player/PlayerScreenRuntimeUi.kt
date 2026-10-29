@@ -47,6 +47,7 @@ import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.p2p.P2pSettingsRepository
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +66,7 @@ import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.isSelectableForPlayback
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
+import com.nuvio.app.features.autosync.AutoSyncSyncedSubtitle
 import com.nuvio.app.isDesktop
 import com.nuvio.app.features.player.seekpreview.SeekPreviewFilmstripOverlay
 import com.nuvio.app.features.player.skip.internalSkipAction
@@ -432,6 +434,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         chaptersLabel = stringResource(Res.string.compose_player_chapters),
         chaptersPanelTitle = stringResource(Res.string.compose_player_panel_chapters, chapters.size),
         chapterRemainingTemplate = stringResource(Res.string.compose_player_chapter_remaining, "{time}"),
+        autoSyncedLabel = stringResource(Res.string.autosync_label_synced),
         playbackStatsMetadata = playbackStatsMetadata,
         title = title,
         mediaContentType = mediaClassification.type,
@@ -1474,12 +1477,12 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
                 "selectAddonSubtitle index=${value.toInt()} addonId=${addon.id} language=${addon.language} ${playerControlLogContext()}"
             }
             isUserExplicitSubtitleSelection = true
-            preferredSubtitleSelectionApplied = true
             selectedAddonSubtitleId = addon.id
             selectedSubtitleIndex = -1
             useCustomSubtitles = true
+            preferredSubtitleSelectionApplied = true
             persistAddonSubtitlePreference(addon)
-            playerController?.setSubtitleUri(addon.url)
+            attachSelectedAddonSubtitleWithAutoSync(addon.url)
         }
         "subtitleDelayDelta" -> setSubtitleDelay((subtitleDelayMs + value.toInt()).coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS))
         "subtitleDelayReset" -> setSubtitleDelay(0)
@@ -1968,6 +1971,7 @@ private data class PlayerControlSubtitleSelection(
 
 @Composable
 private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerControlSubtitleSelection {
+    val autoSyncedUrl by AutoSyncSyncedSubtitle.url.collectAsState()
     val selectedAddon = selectedAddonSubtitle
     val selectedLanguageKey = selectedSubtitleLanguageKey(
         subtitleTracks = subtitleTracks,
@@ -2039,6 +2043,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
                             it.isNotBlank() && it != title
                         }.orEmpty(),
                         isSelected = option.id == selectedOptionId,
+                        isAutoSynced = option.id == selectedOptionId && option.subtitle.url == autoSyncedUrl,
                     )
                 }
             }

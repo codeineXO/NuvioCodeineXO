@@ -2532,6 +2532,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         append(',')
         appendJsonField("chapterRemainingTemplate", chapterRemainingTemplate)
         append(',')
+        appendJsonField("autoSyncedLabel", autoSyncedLabel)
+        append(',')
         append("\"playbackStatsMetadata\":")
         val metadata = playbackStatsMetadata?.let {
             it.copy(providerLogo = it.providerLogo?.let { logo -> WebviewImages.resolve(logo, onImageReady) })
@@ -2754,6 +2756,8 @@ private fun StringBuilder.appendSubtitleOptionItemJson(item: PlayerControlSubtit
     appendJsonField("metadata", item.metadata)
     append(',')
     appendJsonField("isSelected", item.isSelected)
+    append(',')
+    appendJsonField("isAutoSynced", item.isAutoSynced)
     append('}')
 }
 

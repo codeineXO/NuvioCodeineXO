@@ -6,10 +6,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.features.autosync.AutoSyncFailure
 import com.nuvio.app.features.autosync.AutoSyncPlayerController
 import com.nuvio.app.features.autosync.AutoSyncPreferencesRepository
 import com.nuvio.app.features.autosync.AutoSyncSubtitleCandidate
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.autosync_toast_failed
+import nuvio.composeapp.generated.resources.autosync_toast_failed_no_reference
+import org.jetbrains.compose.resources.getString
 
 private fun List<AddonSubtitle>.toAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
     map { subtitle ->
@@ -27,6 +33,17 @@ internal fun PlayerScreenRuntime.configureAutoSyncController(
     controller: PlayerEngineController,
 ) {
     controller.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
+    controller.setAutoSyncFailureListener { failure ->
+        scope.launch {
+            playerNotificationMessage = getString(
+                when (failure) {
+                    AutoSyncFailure.NO_REFERENCE -> Res.string.autosync_toast_failed_no_reference
+                    AutoSyncFailure.FAILED -> Res.string.autosync_toast_failed
+                },
+            )
+            playerNotificationToken += 1L
+        }
+    }
     controller.setAutoSyncAppliedListener { subtitleUrl, delayMs ->
         val appliedSubtitle = addonSubtitles.firstOrNull { it.url == subtitleUrl }
         selectedAddonSubtitleId = appliedSubtitle?.selectionKey ?: subtitleUrl
@@ -64,7 +81,10 @@ internal fun PlayerScreenRuntime.BindAutoSyncRuntimeEffects() {
     DisposableEffect(activeController) {
         // Runs once playerController is set, which Nuvio only does for the live playback key.
         activeController?.let { configureAutoSyncController(it) }
-        onDispose { activeController?.setAutoSyncAppliedListener(null) }
+        onDispose {
+            activeController?.setAutoSyncAppliedListener(null)
+            activeController?.setAutoSyncFailureListener(null)
+        }
     }
     LaunchedEffect(playerController, playbackSnapshot.isLoading, isLoadingAddonSubtitles, addonSubtitles) {
         // Add-ons can finish after Nuvio has completed its first track scan with no subtitle.

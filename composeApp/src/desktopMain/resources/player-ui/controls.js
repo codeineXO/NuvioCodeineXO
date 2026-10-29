@@ -2145,6 +2145,7 @@ const subtitleSelectionOptions = () => normalizeItems(state.subtitleOptionItems)
   title: String(item.title || ""),
   metadata: String(item.metadata || ""),
   selected: Boolean(item.isSelected),
+  autoSynced: Boolean(item.isAutoSynced),
   index: Number(item.index) || 0,
 }));
 
@@ -2214,10 +2215,22 @@ const appendSubtitleOptionRow = option => {
   });
   const copy = document.createElement("span");
   copy.className = "subtitle-option-copy";
+  const sourceRow = document.createElement("span");
+  sourceRow.className = "subtitle-source-row";
   const source = document.createElement("span");
   source.className = "subtitle-source-chip";
   source.textContent = option.sourceLabel;
-  copy.appendChild(source);
+  sourceRow.appendChild(source);
+  if (option.autoSynced) {
+    const chip = document.createElement("span");
+    chip.className = "autosynced-chip";
+    chip.innerHTML = '<svg aria-hidden="true"><use href="#icon-sync"></use></svg>';
+    const text = document.createElement("span");
+    text.textContent = state.autoSyncedLabel || "Auto synced";
+    chip.appendChild(text);
+    sourceRow.appendChild(chip);
+  }
+  copy.appendChild(sourceRow);
   const title = document.createElement("span");
   title.className = "subtitle-option-title";
   title.textContent = option.title;
