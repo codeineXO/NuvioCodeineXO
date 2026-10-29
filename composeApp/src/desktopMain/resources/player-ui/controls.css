@@ -4935,20 +4935,39 @@ svg {
   z-index: 2;
 }
 
-.seek-feedback {
-  flex-direction: column;
-  gap: 4px;
+#seekFeedback {
+  top: auto;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  flex-direction: row;
+  gap: 8px;
+  font-size: 13px;
+  transform: translateX(-50%);
+  transition: opacity 160ms var(--ease-out);
+}
+
+.seek-feedback.visible {
+  transform: translateX(-50%);
+}
+
+#seekPreviewPill {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .seek-chapter-label {
-  /* Reserve ink space so ellipsis clipping does not crop the toast text shadow. */
-  box-sizing: content-box;
-  padding: 20px;
-  margin: -20px;
-  max-width: 100%;
+  min-width: 0;
+  /* Leave room for the text shadow outside the ellipsis clipping area. */
+  padding: 24px;
+  margin: -24px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.seek-chapter-label::before {
+  content: "·";
+  margin-right: 8px;
 }
 
 .seek-chapter-label[hidden] {

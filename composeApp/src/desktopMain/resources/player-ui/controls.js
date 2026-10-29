@@ -5164,7 +5164,6 @@ function clearSeekPreviewInteraction() {
   seekPointerDownX = null;
   seekDragActive = false;
   hideSeekrPreview();
-  setText(seekChapterLabel, "");
   seekFeedback.classList.remove("visible");
   seekFeedback.setAttribute("aria-hidden", "true");
   root.classList.remove("seek-feedback-active");
@@ -5192,13 +5191,17 @@ function refreshSeekHover() {
   }
   const mousePositionMs = seekDragActive ? scrubPositionMs : seekPointerPositionMs;
   const showFeedback = mousePositionMs !== null && state.durationMs > 0;
-  const chapters = Array.isArray(state.chapters) ? state.chapters : [];
-  const chapterIndex = showFeedback && state.playerUiMode !== "official" ? currentChapterIndex(chapters, mousePositionMs) : -1;
-  setText(seekChapterLabel, chapterIndex >= 0 ? chapters[chapterIndex].title : "");
-  if (showFeedback) seekPreviewPill.textContent = formatTime(mousePositionMs);
+  // Keep both labels intact during the container's fade-out.
+  if (showFeedback) {
+    const chapters = Array.isArray(state.chapters) ? state.chapters : [];
+    const chapterIndex = currentChapterIndex(chapters, mousePositionMs);
+    setText(seekChapterLabel, chapterIndex >= 0 ? chapters[chapterIndex].title : "");
+    seekPreviewPill.textContent = formatTime(mousePositionMs);
+  }
   seekFeedback.classList.toggle("visible", showFeedback);
   seekFeedback.setAttribute("aria-hidden", String(!showFeedback));
   root.classList.toggle("seek-feedback-active", showFeedback);
+  if (showFeedback) positionSeekFeedback(mousePositionMs, seekDragActive ? null : seekPointerClientX);
   const preview = activeSeekPreview();
   if (!preview) { hideSeekrPreview(); return; }
   updateSeekrPreview(preview.positionMs, preview.clientX, preview.trigger);
@@ -5226,6 +5229,20 @@ function seekPreviewGeometry(count, tileWidth, viewportWidth, targetX) {
   const width = unscaledWidth * scale;
   const center = Math.max(16 + width / 2, Math.min(viewportWidth - 16 - width / 2, targetX));
   return { scale, width, center };
+}
+
+// Use one clamped center for the thumbnail strip and its caption, including text-only hover.
+function positionSeekFeedback(positionMs, clientX, previewWidth = 0) {
+  const rootRect = root.getBoundingClientRect();
+  const timelineRect = seek.getBoundingClientRect();
+  const fraction = state.durationMs > 0 ? Math.max(0, Math.min(1, positionMs / state.durationMs)) : 0;
+  const targetX = clientX != null ? clientX : timelineRect.left + fraction * timelineRect.width;
+  const groupWidth = Math.max(seekFeedback.getBoundingClientRect().width, previewWidth);
+  const center = Math.max(rootRect.left + 16 + groupWidth / 2,
+    Math.min(rootRect.right - 16 - groupWidth / 2, targetX));
+  seekFeedback.style.left = (center - rootRect.left) + "px";
+  seekFeedback.style.bottom = (rootRect.bottom - timelineRect.top + 12) + "px";
+  return center;
 }
 
 function parseSeekrVtt(vttText, baseUrl) {
@@ -5396,10 +5413,11 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
   const count = seekPreviewCount(state.seekPreviewThumbnailCount);
   const sideFrames = (count - 1) / 2;
   const timelineRect = seek.getBoundingClientRect();
-  const windowWidth = window.innerWidth || document.documentElement.clientWidth;
+  const rootRect = root.getBoundingClientRect();
+  const windowWidth = rootRect.width;
   const fraction = state.durationMs > 0 ? Math.max(0, Math.min(1, positionMs / state.durationMs)) : 0;
   const targetX = clientX != null ? clientX : timelineRect.left + fraction * timelineRect.width;
-  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, targetX);
+  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, targetX - rootRect.left);
   if (seekFilmstripCarousel) seekFilmstripCarousel.style.gap = (8 * geometry.scale) + "px";
 
   for (let index = 0; index < previewTiles.length; index++) {
@@ -5419,12 +5437,14 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
   }
   const parentRect = codeineSeekPreview.offsetParent
     ? codeineSeekPreview.offsetParent.getBoundingClientRect() : { left: 0 };
-  const popupWidth = geometry.width;
-  const center = Math.max(16 + popupWidth / 2, Math.min(windowWidth - 16 - popupWidth / 2, targetX));
+  const showFeedback = seekFeedback.classList.contains("visible");
+  const center = showFeedback ? positionSeekFeedback(positionMs, clientX, geometry.width)
+    : geometry.center + rootRect.left;
   codeineSeekPreview.style.left = (center - parentRect.left) + "px";
   const parentBottom = codeineSeekPreview.offsetParent
     ? codeineSeekPreview.offsetParent.getBoundingClientRect().bottom : window.innerHeight;
-  codeineSeekPreview.style.bottom = (parentBottom - timelineRect.top + 20) + "px";
+  const captionHeight = showFeedback ? seekFeedback.getBoundingClientRect().height : 0;
+  codeineSeekPreview.style.bottom = (parentBottom - timelineRect.top + 20 + captionHeight + tileHeight * geometry.scale * 0.04) + "px";
 
   codeineSeekPreview.classList.add("visible");
 }

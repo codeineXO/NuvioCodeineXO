@@ -58,6 +58,8 @@ function player(mode = 'official', width = 1280) {
     rangeValue: 40000, playerToast: null,
   };
   for (const name of ['root', 'seekFeedback', 'seek', 'codeineSeekContainer', 'codeineSeekPreview', 'seekFilmstripCarousel', 'seekPreviewPill', 'seekChapterLabel']) { context[name] = element(); context[name].classList.owner = context[name]; }
+  context.root.getBoundingClientRect = () => ({ left: 0, right: width, bottom: 720, width });
+  context.seekFeedback.getBoundingClientRect = () => ({ width: Math.min(width - 32, context.seekChapterLabel.hidden ? 48 : 240), height: 17 });
   // Official wrappers use display:contents and have no usable bounds.
   if (mode === 'official') context.codeineSeekContainer.getBoundingClientRect = () => ({ left: 0, width: 0 });
   context.codeineSeekPreview.offsetParent = { getBoundingClientRect: () => ({ left: 0, bottom: 720 }) };
@@ -165,7 +167,15 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.equal(p.seekPreviewPill.textContent, '60000');
     assert.equal(p.state.positionMs, 20000);
     assert.equal(p.events.length, 0);
-    assert.equal(p.codeineSeekPreview.style.bottom, '140px');
+    assert.equal(p.codeineSeekPreview.style.bottom, '160.24px');
+    p.seek.listeners.pointerleave();
+    assert.equal(p.seekFeedback.classes.has('visible'), false);
+    assert.equal(p.seekPreviewPill.textContent, '60000');
+    assert.equal(p.seekChapterLabel.textContent, 'Opening');
+    assert.equal(p.seekChapterLabel.hidden, false);
+    p.api.clearSeekPreviewInteraction();
+    assert.equal(p.seekChapterLabel.textContent, 'Opening');
+    assert.equal(p.seekChapterLabel.hidden, false);
   });
 
   test(`${mode}: each trigger can independently suppress thumbnails and retain chapter behavior`, () => {
@@ -174,7 +184,7 @@ for (const mode of ['official', 'codeine_xo']) {
     p.hover(0.2);
     assert.equal(p.seekFeedback.classes.has('visible'), true);
     assert.equal(p.seekFilmstripCarousel.hidden, true);
-    assert.equal(p.seekChapterLabel.hidden, mode === 'official');
+    assert.equal(p.seekChapterLabel.hidden, false);
     p.seek.listeners.pointerdown(p.pointer(0.4));
     p.seek.listeners.pointermove(p.pointer(0.5));
     p.seek.listeners.input();
@@ -244,8 +254,19 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.ok(geometry.center - geometry.width / 2 >= 16 - 0.001);
     assert.equal(p.previewTiles.filter(tile => tile.style.display === 'block').length, 5);
     assert.equal(Number(p.previewTiles[2].style.zoom), geometry.scale);
+    const captionWidth = p.seekFeedback.getBoundingClientRect().width;
+    assert.equal(p.seekFeedback.style.left, p.codeineSeekPreview.style.left);
+    assert.ok(Number.parseFloat(p.seekFeedback.style.left) - captionWidth / 2 >= 16);
     p.hover(1);
     assert.ok(Number.parseFloat(p.codeineSeekPreview.style.left) + geometry.width / 2 <= 464.001);
+    assert.equal(p.seekFeedback.style.left, p.codeineSeekPreview.style.left);
+    assert.ok(Number.parseFloat(p.seekFeedback.style.left) + captionWidth / 2 <= 464.001);
+    p.state.seekPreviewEnabled = false;
+    p.hover(0);
+    assert.equal(p.seekFeedback.style.left, '136px');
+    p.hover(1);
+    assert.equal(p.seekFeedback.style.left, '344px');
+    assert.equal(p.seekFeedback.style.bottom, '132px');
   });
 
   test(`${mode}: focused slider keyboard input keeps thumbnails without mouse feedback`, () => {
@@ -311,7 +332,7 @@ for (const mode of ['official', 'codeine_xo']) {
     assert.equal(p.timers.size, 0);
     assert.equal(p.seekFeedback.classes.has('visible'), true);
     assert.equal(p.api.getCues().length, 0);
-    assert.equal(p.seekChapterLabel.hidden, mode === 'official');
+    assert.equal(p.seekChapterLabel.hidden, false);
   });
 
   test(`${mode}: exact mouse time survives missing thumbnails and chapters`, () => {
