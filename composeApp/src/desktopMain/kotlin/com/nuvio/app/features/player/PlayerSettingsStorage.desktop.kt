@@ -81,6 +81,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val streamReuseLastLinkEnabledKey = "stream_reuse_last_link_enabled"
     private const val streamReuseLastLinkCacheHoursKey = "stream_reuse_last_link_cache_hours"
     private const val androidPlaybackEngineKey = "android_playback_engine"
+    private const val autoSwitchPlaybackEngineOnErrorKey = "auto_switch_playback_engine_on_error"
     private const val androidLibmpvVideoOutputKey = "android_libmpv_video_output"
     private const val androidLibmpvHardwareDecodingEnabledKey = "android_libmpv_hardware_decoding_enabled"
     private const val androidLibmpvYuv420pEnabledKey = "android_libmpv_yuv420p_enabled"
@@ -110,6 +111,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val useLibassKey = "use_libass"
     private const val libassRenderTypeKey = "libass_render_type"
     private const val libassRenderScaleKey = "libass_render_scale"
+    private const val libassRenderModeKey = "libass_render_mode"
     private const val iosVideoOutputPresetKey = "ios_video_output_preset"
     private const val iosToneMappingModeKey = "ios_tone_mapping_mode"
     private const val iosTargetPrimariesKey = "ios_target_primaries"
@@ -237,6 +239,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun saveStreamReuseLastLinkCacheHours(hours: Int) = saveInt(streamReuseLastLinkCacheHoursKey, hours)
     actual fun loadAndroidPlaybackEngine(): String? = loadString(androidPlaybackEngineKey)
     actual fun saveAndroidPlaybackEngine(engine: String) = saveString(androidPlaybackEngineKey, engine)
+    actual fun loadAutoSwitchPlaybackEngineOnError(): Boolean? = loadBoolean(autoSwitchPlaybackEngineOnErrorKey)
+    actual fun saveAutoSwitchPlaybackEngineOnError(enabled: Boolean) = saveBoolean(autoSwitchPlaybackEngineOnErrorKey, enabled)
     actual fun loadAndroidLibmpvVideoOutput(): String? = loadString(androidLibmpvVideoOutputKey)
     actual fun saveAndroidLibmpvVideoOutput(output: String) = saveString(androidLibmpvVideoOutputKey, output)
     actual fun loadAndroidLibmpvHardwareDecodingEnabled(): Boolean? = loadBoolean(androidLibmpvHardwareDecodingEnabledKey)
@@ -298,6 +302,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun saveLibassRenderType(renderType: String) = saveString(libassRenderTypeKey, renderType)
     actual fun loadLibassRenderScale(): String? = loadString(libassRenderScaleKey)
     actual fun saveLibassRenderScale(scale: String) = saveString(libassRenderScaleKey, scale)
+    actual fun loadLibassRenderMode(): String? = loadString(libassRenderModeKey)
+    actual fun saveLibassRenderMode(mode: String) = saveString(libassRenderModeKey, mode)
     actual fun loadIosVideoOutputPreset(): String? = loadString(iosVideoOutputPresetKey)
     actual fun saveIosVideoOutputPreset(preset: String) = saveString(iosVideoOutputPresetKey, preset)
     actual fun loadIosToneMappingMode(): String? = loadString(iosToneMappingModeKey)
@@ -432,6 +438,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             streamReuseLastLinkEnabledKey,
             streamReuseLastLinkCacheHoursKey,
             androidPlaybackEngineKey,
+            autoSwitchPlaybackEngineOnErrorKey,
             androidLibmpvVideoOutputKey,
             androidLibmpvHardwareDecodingEnabledKey,
             androidLibmpvYuv420pEnabledKey,
@@ -473,6 +480,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             useLibassKey,
             libassRenderTypeKey,
             libassRenderScaleKey,
+            libassRenderModeKey,
             iosVideoOutputPresetKey,
             iosToneMappingModeKey,
             iosTargetPrimariesKey,
@@ -603,6 +611,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncBoolean(streamReuseLastLinkEnabledKey)?.let { store.putBoolean(scoped(streamReuseLastLinkEnabledKey), it) }
             payload.decodeSyncInt(streamReuseLastLinkCacheHoursKey)?.let { store.putInt(scoped(streamReuseLastLinkCacheHoursKey), it) }
             payload.decodeSyncString(androidPlaybackEngineKey)?.let { store.putString(scoped(androidPlaybackEngineKey), it) }
+            payload.decodeSyncBoolean(autoSwitchPlaybackEngineOnErrorKey)?.let { store.putBoolean(scoped(autoSwitchPlaybackEngineOnErrorKey), it) }
             payload.decodeSyncString(androidLibmpvVideoOutputKey)?.let { store.putString(scoped(androidLibmpvVideoOutputKey), it) }
             payload.decodeSyncBoolean(androidLibmpvHardwareDecodingEnabledKey)?.let { store.putBoolean(scoped(androidLibmpvHardwareDecodingEnabledKey), it) }
             payload.decodeSyncBoolean(androidLibmpvYuv420pEnabledKey)?.let { store.putBoolean(scoped(androidLibmpvYuv420pEnabledKey), it) }
@@ -635,6 +644,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncBoolean(useLibassKey)?.let { store.putBoolean(scoped(useLibassKey), it) }
             payload.decodeSyncString(libassRenderTypeKey)?.let { store.putString(scoped(libassRenderTypeKey), it) }
             payload.decodeSyncString(libassRenderScaleKey)?.let { store.putString(scoped(libassRenderScaleKey), it) }
+            payload.decodeSyncString(libassRenderModeKey)?.let { store.putString(scoped(libassRenderModeKey), it) }
             payload.decodeSyncString(iosVideoOutputPresetKey)?.let { store.putString(scoped(iosVideoOutputPresetKey), it) }
             payload.decodeSyncString(iosToneMappingModeKey)?.let { store.putString(scoped(iosToneMappingModeKey), it) }
             payload.decodeSyncString(iosTargetPrimariesKey)?.let { store.putString(scoped(iosTargetPrimariesKey), it) }

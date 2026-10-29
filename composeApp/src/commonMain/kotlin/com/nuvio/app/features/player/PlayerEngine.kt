@@ -86,6 +86,20 @@ enum class PlayerControlsAction {
     Expand,
 }
 
+data class PlayerControlInfoItem(
+    val label: String,
+    val value: String,
+)
+
+data class PlayerControlInfoSection(
+    val title: String,
+    val logo: String? = null,
+    val name: String? = null,
+    val subtitle: String? = null,
+    val description: String? = null,
+    val items: List<PlayerControlInfoItem> = emptyList(),
+)
+
 data class PlayerControlChapter(
     val startMs: Long,
     val title: String,

@@ -13,6 +13,8 @@ internal expect object PlayerSettingsStorage {
     fun savePlayerUiMode(mode: String)
     fun loadShowLoadingOverlay(): Boolean?
     fun saveShowLoadingOverlay(enabled: Boolean)
+    fun loadAutoSwitchPlaybackEngineOnError(): Boolean?
+    fun saveAutoSwitchPlaybackEngineOnError(enabled: Boolean)
     fun loadShowPlayerLoadingStatus(): Boolean?
     fun saveShowPlayerLoadingStatus(enabled: Boolean)
     fun loadPauseOverlayEnabled(): Boolean?
@@ -162,6 +164,8 @@ internal expect object PlayerSettingsStorage {
     fun saveLibassRenderType(renderType: String)
     fun loadLibassRenderScale(): String?
     fun saveLibassRenderScale(scale: String)
+    fun loadLibassRenderMode(): String?
+    fun saveLibassRenderMode(mode: String)
     fun loadIosVideoOutputPreset(): String?
     fun saveIosVideoOutputPreset(preset: String)
     fun loadIosToneMappingMode(): String?

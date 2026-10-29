@@ -770,6 +770,27 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         if (renderPlayerSurface) {
             val surfaceSource = currentPlayerSurfaceSource
             val sourceAvailable = surfaceSource != null
+            val playbackKey = activePlaybackKey
+            val resolvedAutoEngineState =
+                remember(playbackKey.copy(playbackEngine = null)) { mutableStateOf<AndroidPlaybackEngine?>(null) }
+            if (!initialLoadCompleted || resolvedAutoEngineState.value == null) {
+                resolvedAutoEngineState.value = resolveAutoPlaybackEngine(
+                    playbackEngineSetting = playerSettingsUiState.androidPlaybackEngine,
+                    videoId = activeVideoId,
+                    streamFilename = activeTorrentFilename ?: activeStreamFilename,
+                    streamName = activeStreamTitle,
+                    streamDescription = activeStreamSubtitle,
+                    contentTitle = title,
+                    genres = playerMeta?.genres.orEmpty(),
+                    country = playerMeta?.country,
+                )
+            }
+            val resolvedAutoEngine = resolvedAutoEngineState.value
+            LaunchedEffect(playbackKey.copy(playbackEngine = null)) {
+                engineFailoverTriggered = false
+                engineFailoverDisarmed = false
+                playbackEngineOverride = null
+            }
             PlatformPlayerSurface(
                 sourceUrl = surfaceSource?.sourceUrl.orEmpty(),
                 sourceAvailable = sourceAvailable,
@@ -783,7 +804,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 initialPositionMs = surfaceSource?.initialPositionMs,
                 initialPositionRequestKey = surfaceSource?.initialPositionRequestKey,
                 resizeMode = resizeMode,
-                playbackEngine = playbackEngineOverride,
+                playbackEngine = playbackEngineOverride ?: resolvedAutoEngine,
                 playerControlsState = playerControlsState,
                 onPlayerControlsAction = { action -> handlePlayerControlsAction(action) },
                 onPlayerControlsEvent = { type, value -> handlePlayerControlsEvent(type, value) },
@@ -816,6 +837,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 },
                 onError = { message ->
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
+                        return@PlatformPlayerSurface
+                    }
+                    if (message != null && !isDesktop && maybeFailoverPlaybackEngine(resolvedAutoEngine)) {
                         return@PlatformPlayerSurface
                     }
                     errorMessage = message
