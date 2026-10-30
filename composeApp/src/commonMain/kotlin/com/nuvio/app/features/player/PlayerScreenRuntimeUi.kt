@@ -2012,16 +2012,20 @@ private data class PlayerControlSubtitleSelection(
 private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerControlSubtitleSelection {
     val autoSyncedUrl by AutoSyncSyncedSubtitle.url.collectAsState()
     val selectedAddon = selectedAddonSubtitle
-    val selectedLanguageKey = selectedSubtitleLanguageKey(
-        subtitleTracks = subtitleTracks,
-        selectedSubtitleIndex = selectedSubtitleIndex,
-        selectedAddonSubtitle = selectedAddon,
-    )
-    val selectedOptionId = selectedSubtitleOptionId(
-        subtitleTracks = subtitleTracks,
-        selectedSubtitleIndex = selectedSubtitleIndex,
-        selectedAddonSubtitle = selectedAddon,
-    ).orEmpty()
+    var selectedLanguageKey = "__off__"
+    var selectedOptionId = ""
+    if (selectedAddon != null || selectedSubtitleIndex != -1) {
+        selectedLanguageKey = selectedSubtitleLanguageKey(
+            subtitleTracks = subtitleTracks,
+            selectedSubtitleIndex = selectedSubtitleIndex,
+            selectedAddonSubtitle = selectedAddon,
+        )
+        selectedOptionId = selectedSubtitleOptionId(
+            subtitleTracks = subtitleTracks,
+            selectedSubtitleIndex = selectedSubtitleIndex,
+            selectedAddonSubtitle = selectedAddon,
+        ).orEmpty()
+    }
     val languageItems = buildSubtitleLanguageItems(
         subtitleTracks = subtitleTracks,
         addonSubtitles = visibleAddonSubtitles,
