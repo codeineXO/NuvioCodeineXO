@@ -26,7 +26,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🎬 Player & Playback
 * **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
-* **Seek Previews (Seekr.tv):** Netflix-style 5-frame animated seek preview carousel on hover and scrub across Compose and Desktop MPV WebView2 chrome, powered by the Seekr API with WebVTT cue parsing and bounded sprite sheet caching.
+* **Seek Previews (Seekr.tv):** Highly customizable animated seek preview thumbnails on hover and scrub powered by the Seekr.tv API.
 * **In Player Playback Statistics Overlay:** View Stats for Nerds in player with all kinds of statistics.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
@@ -53,9 +53,10 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Enhanced Discord Rich Presence:** Richer Discord RPC with customizable activity types ("Watching" vs. "Playing"), uncropped full portrait posters, small badge display for episode thumbnails, active mini-player tracking, and interactive artwork linking directly to IMDb.
 * **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
 * **Custom Download Folder:** Uncapped download speed and option to choose download folder with auto transfer from old folder. 
+* **Show Metadata Info:** Show metadata source and ID with other useful information on details and stream selection screens.
 
 ### ⚡ P2P Engine & Core Performance
-* **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of native NuvioEngine backend (v0.1.5) with configurable persistent torrent caching, optimized HTTP stream buffering, audio channel routing fixes, and fast mid-file resume.
+* **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of native NuvioEngine backend with configurable persistent torrent caching, optimized HTTP stream buffering, audio channel routing fixes, and fast mid-file resume.
 
 ### 🪟 Windows Desktop Isolation & Installer
 * **Isolated Environment:** Runs entirely out of dedicated `NuvioCodeineXO` data directories without conflicting with or overwriting official Nuvio settings or shortcuts.
