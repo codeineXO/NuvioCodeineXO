@@ -153,6 +153,7 @@ fun main(args: Array<String>) {
                 window.rootPane.background = NuvioDesktopNativeBackground
                 window.contentPane.background = NuvioDesktopNativeBackground
                 (window.contentPane as? JComponent)?.isOpaque = true
+                window.dropTarget = com.nuvio.app.features.player.SubtitleImportPlatform.createDropTarget()
             }
             LaunchedEffect(window, appIconState.selected) {
                 val backgroundSuffix = "-transparent"

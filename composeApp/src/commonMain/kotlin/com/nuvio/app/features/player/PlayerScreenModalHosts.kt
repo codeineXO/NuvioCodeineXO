@@ -44,6 +44,7 @@ internal fun PlayerScreenModalHosts(
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onSubtitleModalDismissed: () -> Unit,
+    onImportSubtitle: (() -> Unit)? = null,
     showVideoSettingsModal: Boolean,
     playerSettings: PlayerSettingsUiState,
     onVideoSettingsChanged: () -> Unit,
@@ -146,6 +147,7 @@ internal fun PlayerScreenModalHosts(
         onAutoSyncCueSelected = onAutoSyncCueSelected,
         onAutoSyncReload = onAutoSyncReload,
         onDismiss = onSubtitleModalDismissed,
+        onImportSubtitle = onImportSubtitle,
     )
 
     IosVideoSettingsModal(

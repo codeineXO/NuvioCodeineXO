@@ -21,6 +21,8 @@ import com.nuvio.app.features.player.PlayerControlSubtitleCueItem
 import com.nuvio.app.features.player.PlayerControlSubtitleLanguageItem
 import com.nuvio.app.features.player.PlayerControlSubtitleOptionItem
 import com.nuvio.app.features.player.AudioTrack
+import com.nuvio.app.features.player.ImportedSubtitleFile
+import com.nuvio.app.features.player.SubtitleImportBridge
 import com.nuvio.app.features.player.findPreferredAudioTrackIndex
 import com.nuvio.app.features.player.InAppPlayerManager
 import com.nuvio.app.features.player.ParentalWarning
@@ -924,6 +926,21 @@ internal class NativePlayerController(
                 }
             }
             "dragWindow" -> NativePlayerBridge.beginWindowDrag(handle)
+            "externalSubtitleImported" -> {
+                val activeHandle = handle
+                if (activeHandle != 0L) {
+                    val info = runCatching { NativePlayerBridge.popLastImportedSubtitle(activeHandle) }.getOrNull()
+                    if (!info.isNullOrBlank()) {
+                        val parts = info.split("|", limit = 2)
+                        val filePath = parts.getOrNull(0).orEmpty()
+                        val fileName = parts.getOrNull(1).takeIf { !it.isNullOrBlank() }
+                            ?: filePath.substringAfterLast('\\').substringAfterLast('/')
+                        if (filePath.isNotBlank()) {
+                            SubtitleImportBridge.onImport?.invoke(ImportedSubtitleFile(filePath, fileName))
+                        }
+                    }
+                }
+            }
             "miniPlayerDragX" -> InAppPlayerManager.dragBy(value.toFloat(), 0f)
             "miniPlayerDragY" -> InAppPlayerManager.dragBy(0f, value.toFloat())
             "resizePip" -> DesktopPlayerPictureInPicture.resizeWindow(value)

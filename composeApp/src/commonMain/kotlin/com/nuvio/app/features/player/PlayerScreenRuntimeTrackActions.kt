@@ -22,16 +22,19 @@ internal val PlayerScreenRuntime.visibleAddonSubtitles: List<AddonSubtitle>
             subtitles = addonSubtitles,
             settings = playerSettingsUiState,
         )
-        val selectedId = selectedAddonSubtitleId ?: return filtered
-        if (filtered.any { it.matchesSelection(selectedId) }) return filtered
-        val selectedSub = addonSubtitles.findSelectedAddon(selectedId) ?: return filtered
-        return listOf(selectedSub) + filtered
+        val selectedId = selectedAddonSubtitleId ?: return importedSubtitles + filtered
+        if (filtered.any { it.matchesSelection(selectedId) } || importedSubtitles.any { it.matchesSelection(selectedId) }) {
+            return importedSubtitles + filtered
+        }
+        val selectedSub = addonSubtitles.findSelectedAddon(selectedId) ?: return importedSubtitles + filtered
+        return listOf(selectedSub) + importedSubtitles + filtered
     }
 
 internal val PlayerScreenRuntime.selectedAddonSubtitle: AddonSubtitle?
     get() {
         val selectedId = selectedAddonSubtitleId ?: return null
-        return addonSubtitles.findSelectedAddon(selectedId)
+        return importedSubtitles.findSelectedAddon(selectedId)
+            ?: addonSubtitles.findSelectedAddon(selectedId)
             ?: visibleAddonSubtitles.findSelectedAddon(selectedId)
     }
 

@@ -1476,6 +1476,13 @@ public:
         command({"sub-add", url, "select"});
     }
 
+    std::string popLastImportedSubtitle() {
+        std::lock_guard<std::mutex> lock(importedSubtitleMutex);
+        std::string result = lastImportedSubtitleInfo;
+        lastImportedSubtitleInfo.clear();
+        return result;
+    }
+
     void removeExternalSubtitles() {
         removeExternalSubtitleTracks();
         setStringProperty("sid", "no");
@@ -1639,6 +1646,9 @@ private:
     double appliedSubtitleFontSize = 0.0;
     int64_t appliedSubtitlePosition = 0;
     bool appliedSubtitleStripSdh = false;
+
+    std::mutex importedSubtitleMutex;
+    std::string lastImportedSubtitleInfo;
 
     JavaVM *javaVm = nullptr;
     jobject eventSink = nullptr;
@@ -2357,6 +2367,32 @@ private:
             int hitTest = (int)std::llround(value);
             if (hitTest >= 10 && hitTest <= 17) {
                 beginWindowResize(hitTest);
+            }
+            return;
+        }
+        if (type == "importSubtitleDrop") {
+            std::string path = extractJsonString(messageJson, L"path");
+            std::string name = extractJsonString(messageJson, L"name");
+            std::string content = extractJsonString(messageJson, L"content");
+            if (path.empty() && !content.empty()) {
+                wchar_t tempPath[MAX_PATH];
+                if (GetTempPathW(MAX_PATH, tempPath)) {
+                    std::wstring wideName = toWide(name.empty() ? "imported.srt" : name);
+                    std::wstring fullTempFile = std::wstring(tempPath) + L"nuvio_" + wideName;
+                    FILE *fp = _wfopen(fullTempFile.c_str(), L"wb");
+                    if (fp) {
+                        fwrite(content.data(), 1, content.size(), fp);
+                        fclose(fp);
+                        path = toUtf8(fullTempFile);
+                    }
+                }
+            }
+            if (!path.empty()) {
+                {
+                    std::lock_guard<std::mutex> lock(importedSubtitleMutex);
+                    lastImportedSubtitleInfo = path + "|" + (name.empty() ? "Imported Subtitle" : name);
+                }
+                sendPlayerEvent("externalSubtitleImported", 0.0);
             }
             return;
         }
@@ -3444,6 +3480,14 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addSubtitleUrl(JNIEnv *env, jobject, jlong handle, jstring url) {
     auto player = playerFromHandle(handle);
     if (player) player->addSubtitleUrl(jstringToUtf8(env, url));
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_popLastImportedSubtitle(JNIEnv *env, jobject, jlong handle) {
+    auto player = playerFromHandle(handle);
+    if (!player) return nullptr;
+    std::string info = player->popLastImportedSubtitle();
+    return newJavaStringUtf8(env, info);
 }
 
 extern "C" JNIEXPORT void JNICALL

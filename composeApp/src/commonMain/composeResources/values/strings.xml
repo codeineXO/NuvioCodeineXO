@@ -492,6 +492,9 @@
     <string name="compose_player_subs">Subs</string>
     <string name="compose_player_subtitle_delay">Subtitle Delay</string>
     <string name="compose_player_subtitles">Subtitles</string>
+    <string name="compose_player_imported">Imported</string>
+    <string name="compose_player_import">Import</string>
+    <string name="compose_player_imported_toast">Loaded: %1$s</string>
     <string name="compose_player_text_opacity">Text Opacity</string>
     <string name="compose_player_brightness_level">Brightness %1$s</string>
     <string name="compose_player_volume_level">Volume %1$s</string>

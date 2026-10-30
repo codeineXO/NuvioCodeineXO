@@ -2,6 +2,7 @@ package com.nuvio.app.features.player
 
 internal const val SubtitleOffLanguageKey = "__off__"
 internal const val SubtitleUnknownLanguageKey = "__unknown__"
+internal const val SubtitleImportedLanguageKey = "__imported__"
 
 internal data class SubtitleLanguageItem(
     val key: String,
@@ -79,17 +80,23 @@ internal fun buildSubtitleLanguageItems(
     ).distinct()
     val preferredKeys = preferredOrder.toSet()
     val visibleEntries = counts.entries.filter { entry ->
-        !showOnlyPreferredLanguages || entry.key in preferredKeys || entry.key == selectedLanguageKey
+        entry.key == SubtitleImportedLanguageKey || !showOnlyPreferredLanguages || entry.key in preferredKeys || entry.key == selectedLanguageKey
     }
-    val sortedEntries = visibleEntries.sortedWith(
+    val importedEntry = visibleEntries.firstOrNull { it.key == SubtitleImportedLanguageKey }
+    val otherEntries = visibleEntries.filter { it.key != SubtitleImportedLanguageKey }
+    val sortedEntries = otherEntries.sortedWith(
         compareBy<Map.Entry<String, Int>>(
             { entry -> preferredOrder.indexOf(entry.key).takeIf { it >= 0 } ?: Int.MAX_VALUE },
             { entry -> if (entry.key == SubtitleUnknownLanguageKey) "\uFFFF" else entry.key },
         ),
     )
 
-    return listOf(SubtitleLanguageItem(SubtitleOffLanguageKey, 0)) +
-        sortedEntries.map { SubtitleLanguageItem(it.key, it.value) }
+    val result = mutableListOf(SubtitleLanguageItem(SubtitleOffLanguageKey, 0))
+    if (importedEntry != null) {
+        result.add(SubtitleLanguageItem(importedEntry.key, importedEntry.value))
+    }
+    result.addAll(sortedEntries.map { SubtitleLanguageItem(it.key, it.value) })
+    return result
 }
 
 internal fun buildSubtitleSelectionOptions(
@@ -156,6 +163,7 @@ internal fun selectedSubtitleOptionId(
 }
 
 internal fun subtitleLanguageKey(language: String?): String {
+    if (language == SubtitleImportedLanguageKey) return SubtitleImportedLanguageKey
     val normalized = normalizeLanguageCode(language) ?: return SubtitleUnknownLanguageKey
     return when (normalized) {
         "pt-br", "es-419" -> normalized

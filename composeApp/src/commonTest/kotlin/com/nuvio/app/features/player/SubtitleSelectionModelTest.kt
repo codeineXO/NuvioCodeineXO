@@ -157,6 +157,32 @@ class SubtitleSelectionModelTest {
         )
     }
 
+    @Test
+    fun importedSubtitlesAppearDirectlyBelowNone() {
+        val tracks = listOf(
+            subtitleTrack(index = 0, language = "en"),
+            subtitleTrack(index = 1, language = "es"),
+        )
+        val imported = listOf(
+            addonSubtitle(id = "imported:1", language = SubtitleImportedLanguageKey, display = "custom.srt"),
+        )
+
+        val items = buildSubtitleLanguageItems(
+            subtitleTracks = tracks,
+            addonSubtitles = imported,
+            preferredLanguage = "en",
+            secondaryPreferredLanguage = "es",
+            showOnlyPreferredLanguages = false,
+            selectedLanguageKey = SubtitleImportedLanguageKey,
+        )
+
+        assertEquals(
+            listOf(SubtitleOffLanguageKey, SubtitleImportedLanguageKey, "en", "es"),
+            items.map { it.key },
+        )
+        assertEquals(1, items.first { it.key == SubtitleImportedLanguageKey }.count)
+    }
+
     private fun subtitleTrack(
         index: Int,
         language: String,

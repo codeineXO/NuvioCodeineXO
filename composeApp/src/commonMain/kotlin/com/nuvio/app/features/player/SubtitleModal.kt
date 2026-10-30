@@ -52,6 +52,8 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.addon_title
 import nuvio.composeapp.generated.resources.compose_player_built_in
 import nuvio.composeapp.generated.resources.compose_player_fetch_subtitles
+import nuvio.composeapp.generated.resources.compose_player_import
+import nuvio.composeapp.generated.resources.compose_player_imported
 import nuvio.composeapp.generated.resources.compose_player_languages
 import nuvio.composeapp.generated.resources.compose_player_none
 import nuvio.composeapp.generated.resources.compose_player_style
@@ -84,6 +86,7 @@ fun SubtitleModal(
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onDismiss: () -> Unit,
+    onImportSubtitle: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val effectiveSelectedAddonSubtitle = selectedAddonSubtitle
@@ -223,6 +226,24 @@ fun SubtitleModal(
                     SubtitleRail(
                         title = stringResource(Res.string.compose_player_subtitles),
                         width = 300.dp,
+                        headerTrailing = onImportSubtitle?.let { onImport ->
+                            {
+                                val chipShape = RoundedCornerShape(999.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(chipShape)
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                        .clickableIncludingFlingStop(onClick = onImport)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(Res.string.compose_player_import),
+                                        color = Color.White.copy(alpha = 0.78f),
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                }
+                            }
+                        },
                     ) {
                         when {
                             options.isEmpty() -> {
@@ -324,6 +345,7 @@ fun SubtitleModal(
 private fun SubtitleRail(
     title: String,
     width: Dp,
+    headerTrailing: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -332,13 +354,30 @@ private fun SubtitleRail(
         modifier = Modifier.width(width),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = title,
-            color = tokens.colors.textMuted,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (headerTrailing != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    color = tokens.colors.textMuted,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                headerTrailing()
+            }
+        } else {
+            Text(
+                text = title,
+                color = tokens.colors.textMuted,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         content()
     }
 }
@@ -352,6 +391,7 @@ private fun SubtitleLanguageRow(
     val tokens = MaterialTheme.nuvio
     val label = when (item.key) {
         SubtitleOffLanguageKey -> stringResource(Res.string.compose_player_none)
+        SubtitleImportedLanguageKey -> stringResource(Res.string.compose_player_imported)
         SubtitleUnknownLanguageKey -> stringResource(Res.string.subtitle_language_unknown)
         else -> languageLabelForCode(item.key)
     }
@@ -419,9 +459,10 @@ private fun SubtitleOptionRow(
         }
 
         is SubtitleSelectionOption.Addon -> {
-            sourceLabel = option.subtitle.addonName ?: stringResource(Res.string.addon_title)
-            title = languageLabelForCode(option.subtitle.language)
-            metadata = option.subtitle.display.takeIf { it.isNotBlank() && it != title }
+            val isImported = option.subtitle.language == SubtitleImportedLanguageKey
+            sourceLabel = if (isImported) stringResource(Res.string.compose_player_imported) else (option.subtitle.addonName ?: stringResource(Res.string.addon_title))
+            title = if (isImported) option.subtitle.display else languageLabelForCode(option.subtitle.language)
+            metadata = if (isImported) null else option.subtitle.display.takeIf { it.isNotBlank() && it != title }
         }
     }
 

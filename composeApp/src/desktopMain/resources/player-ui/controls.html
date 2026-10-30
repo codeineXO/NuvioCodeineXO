@@ -173,6 +173,13 @@
     <button class="pip-lock-badge" id="pipLockBadge" type="button" aria-label="Unlock player controls" hidden>
       <svg><use href="#icon-lock-open"></use></svg>
     </button>
+    <div class="subtitle-drop-overlay" id="subtitleDropOverlay" hidden aria-hidden="true">
+      <div class="subtitle-drop-card">
+        <svg class="subtitle-drop-icon" viewBox="0 0 24 24"><use href="#icon-subs"></use></svg>
+        <div class="subtitle-drop-title">Drop subtitle to import</div>
+        <div class="subtitle-drop-hint">Supports .srt, .vtt, .ass, .ssa, .sub</div>
+      </div>
+    </div>
     <section class="opening-overlay" id="openingOverlay" aria-label="Opening player" aria-hidden="true">
       <img class="opening-artwork" id="openingArtwork" alt="">
       <div class="opening-scrim"></div>
@@ -593,6 +600,7 @@
           <div class="filter-row subtitle-tab-filter" id="subtitleTabFilter">
             <button class="filter-chip selected" id="subtitleTabSubtitlesBtn" type="button">Subtitles</button>
             <button class="filter-chip" id="subtitleTabCustomizationBtn" type="button">Customization</button>
+            <button class="filter-chip subtitle-import-btn" id="subtitleImportBtn" type="button">Import</button>
           </div>
           <div class="subtitle-rails">
             <section class="subtitle-rail subtitle-language-rail">
@@ -600,7 +608,10 @@
               <div class="track-list" id="subtitleTrackList"></div>
             </section>
             <section class="subtitle-rail subtitle-options-rail">
-              <div class="subtitle-rail-title" id="subtitleOptionsRailTitle">Subtitles</div>
+              <div class="subtitle-rail-header">
+                <div class="subtitle-rail-title" id="subtitleOptionsRailTitle">Subtitles</div>
+                <button class="panel-button subtitle-import-btn-official" id="subtitleImportBtnOfficial" type="button">Import</button>
+              </div>
               <div class="track-list" id="addonSubtitleList"></div>
             </section>
             <section class="subtitle-rail subtitle-style-rail" id="subtitleStyleRail" hidden>

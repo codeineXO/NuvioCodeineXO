@@ -179,6 +179,7 @@ private fun PlayerScreenRuntime.resetTrackSelectionState() {
     selectedSubtitleIndex = -1
     selectedAddonSubtitleId = null
     useCustomSubtitles = false
+    importedSubtitles = emptyList()
 }
 
 internal fun PlayerScreenRuntime.currentPlaybackProgressPercent(

@@ -140,6 +140,9 @@ const subtitleCloseButton = document.getElementById("subtitleCloseButton");
 const subtitleTabFilter = document.getElementById("subtitleTabFilter");
 const subtitleTabSubtitlesBtn = document.getElementById("subtitleTabSubtitlesBtn");
 const subtitleTabCustomizationBtn = document.getElementById("subtitleTabCustomizationBtn");
+const subtitleImportBtn = document.getElementById("subtitleImportBtn");
+const subtitleImportBtnOfficial = document.getElementById("subtitleImportBtnOfficial");
+const subtitleDropOverlay = document.getElementById("subtitleDropOverlay");
 const speedModal = document.getElementById("speedModal");
 const speedCloseButton = document.getElementById("speedCloseButton");
 const speedOptionList = document.getElementById("speedOptionList");
@@ -2152,7 +2155,7 @@ const subtitleSelectionOptions = () => normalizeItems(state.subtitleOptionItems)
 const subtitleLanguages = () => normalizeItems(state.subtitleLanguageItems).map(item => ({
   key: String(item.key || "__unknown__"),
   count: Math.max(0, Number(item.count) || 0),
-  label: String(item.label || ""),
+  label: String(item.label || (item.key === "__imported__" ? (state.importedLabel || "Imported") : "")),
   selected: Boolean(item.isSelected),
 }));
 
@@ -4996,6 +4999,16 @@ if (subtitleTabCustomizationBtn) {
     setSubtitleTab("customization");
   });
 }
+const handleSubtitleImportClick = event => {
+  event.stopPropagation();
+  send("importSubtitle", 0);
+};
+if (subtitleImportBtn) {
+  subtitleImportBtn.addEventListener("click", handleSubtitleImportClick);
+}
+if (subtitleImportBtnOfficial) {
+  subtitleImportBtnOfficial.addEventListener("click", handleSubtitleImportClick);
+}
 sourceList.addEventListener("scroll", () => {
   if (activeModal === "sources") {
     requestSourceVirtualRender();
@@ -6903,6 +6916,80 @@ document.addEventListener("keydown", event => {
   }
   showCommandToast(command);
   send(command, 0);
+});
+
+let subtitleDragCounter = 0;
+const hasDragFiles = (e) => {
+  const types = e.dataTransfer?.types;
+  return types && (types.includes ? types.includes("Files") : types.indexOf("Files") !== -1);
+};
+
+window.addEventListener("dragenter", event => {
+  if (!hasDragFiles(event)) return;
+  event.preventDefault();
+  subtitleDragCounter++;
+  if (subtitleDropOverlay) {
+    subtitleDropOverlay.hidden = false;
+  }
+});
+
+window.addEventListener("dragover", event => {
+  if (!hasDragFiles(event)) return;
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = "copy";
+  }
+});
+
+window.addEventListener("dragleave", event => {
+  if (!hasDragFiles(event)) return;
+  event.preventDefault();
+  subtitleDragCounter--;
+  if (subtitleDragCounter <= 0) {
+    subtitleDragCounter = 0;
+    if (subtitleDropOverlay) {
+      subtitleDropOverlay.hidden = true;
+    }
+  }
+});
+
+window.addEventListener("drop", async event => {
+  event.preventDefault();
+  subtitleDragCounter = 0;
+  if (subtitleDropOverlay) {
+    subtitleDropOverlay.hidden = true;
+  }
+  const files = event.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+  const file = files[0];
+  const name = file.name || "";
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  const validExtensions = ["srt", "vtt", "ass", "ssa", "sub"];
+  if (!validExtensions.includes(ext)) return;
+  let content = "";
+  try {
+    content = await file.text();
+  } catch (err) {}
+  const path = file.path || "";
+  const webViewBridge = window.chrome && window.chrome.webview;
+  if (webViewBridge) {
+    webViewBridge.postMessage({
+      type: "importSubtitleDrop",
+      name: name,
+      path: path,
+      content: content
+    });
+    return;
+  }
+  const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.player;
+  if (bridge) {
+    bridge.postMessage({
+      type: "importSubtitleDrop",
+      name: name,
+      path: path,
+      content: content
+    });
+  }
 });
 
 setProgress(0, 0, 0);

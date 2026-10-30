@@ -2,6 +2,7 @@ package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_player_imported
 import nuvio.composeapp.generated.resources.lang_afrikaans
 import nuvio.composeapp.generated.resources.lang_albanian
 import nuvio.composeapp.generated.resources.lang_amharic
@@ -456,6 +457,8 @@ internal fun languageLabelResForCode(code: String?): StringResource? {
 
 @Composable
 fun languageLabelForCode(code: String?): String = when {
+    code == SubtitleImportedLanguageKey ->
+        stringResource(Res.string.compose_player_imported)
     code.isNullOrBlank() || code.equals(SubtitleLanguageOption.NONE, ignoreCase = true) ->
         stringResource(Res.string.settings_playback_option_none)
     code.equals(SubtitleLanguageOption.FORCED, ignoreCase = true) ->
@@ -472,6 +475,8 @@ fun languageLabelForCode(code: String?): String = when {
 }
 
 suspend fun getLanguageLabelForCode(code: String?): String = when {
+    code == SubtitleImportedLanguageKey ->
+        getString(Res.string.compose_player_imported)
     code.isNullOrBlank() || code.equals(SubtitleLanguageOption.NONE, ignoreCase = true) ->
         getString(Res.string.settings_playback_option_none)
     code.equals(SubtitleLanguageOption.FORCED, ignoreCase = true) ->

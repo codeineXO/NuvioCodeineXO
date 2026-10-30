@@ -5675,6 +5675,97 @@ svg {
   flex: 0 0 auto;
 }
 
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter .subtitle-import-btn {
+  margin-left: auto;
+}
+
+.subtitle-rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.subtitle-import-btn-official {
+  align-self: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .08);
+  color: rgba(255, 255, 255, .78);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.subtitle-import-btn-official:hover {
+  background: rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .95);
+  border-color: rgba(255, 255, 255, .22);
+}
+
+.subtitle-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+  animation: subtitleDropFadeIn .15s ease-out;
+}
+
+.subtitle-drop-overlay[hidden] {
+  display: none !important;
+}
+
+.subtitle-drop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 48px;
+  border-radius: 20px;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+}
+
+.subtitle-drop-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--accent, #a78bfa);
+}
+
+.subtitle-drop-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.subtitle-drop-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@keyframes subtitleDropFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.player.ui-codeinexo .subtitle-import-btn-official {
+  display: none !important;
+}
+
 .player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip,
 .player.ui-codeinexo .player-side-panel .filter-chip {
   padding: 8px 18px;

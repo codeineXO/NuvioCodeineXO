@@ -89,6 +89,14 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         systemBackRegistration { runtime.requestBack() }
         onDispose { systemBackRegistration(null) }
     }
+    DisposableEffect(runtime) {
+        SubtitleImportBridge.onImport = { file ->
+            runtime.importExternalSubtitle(file.path, file.name)
+        }
+        onDispose {
+            SubtitleImportBridge.onImport = null
+        }
+    }
     val isInPip = rememberIsInPictureInPicture()
     val displayedPositionMs = scrubbingPositionMs ?: playbackSnapshot.positionMs
     val seasonNumber = activeSeasonNumber
@@ -1508,6 +1516,13 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             persistAddonSubtitlePreference(addon)
             attachSelectedAddonSubtitleWithAutoSync(addon.url)
         }
+        "importSubtitle" -> {
+            val file = SubtitleImportPlatform.pickSubtitleFile()
+            if (file != null) {
+                importExternalSubtitle(file.path, file.name)
+            }
+            true
+        }
         "subtitleDelayDelta" -> setSubtitleDelay((subtitleDelayMs + value.toInt()).coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS))
         "subtitleDelayReset" -> setSubtitleDelay(0)
         "subtitleAutoSyncCapture" -> captureSubtitleAutoSyncTime()
@@ -2017,6 +2032,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
     )
     val noneLabel = stringResource(Res.string.compose_player_none)
     val unknownLabel = stringResource(Res.string.subtitle_language_unknown)
+    val importedLabel = stringResource(Res.string.compose_player_imported)
     val builtInLabel = stringResource(Res.string.compose_player_built_in)
     val addonLabel = stringResource(Res.string.addon_title)
     val forcedLabel = stringResource(Res.string.settings_playback_option_forced)
@@ -2026,6 +2042,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
             label = when (item.key) {
                 SubtitleOffLanguageKey -> noneLabel
                 SubtitleUnknownLanguageKey -> unknownLabel
+                SubtitleImportedLanguageKey -> importedLabel
                 else -> languageLabelForCode(item.key)
             },
             count = item.count,
@@ -2055,15 +2072,16 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
                 )
 
                 is SubtitleSelectionOption.Addon -> {
-                    val title = languageLabelForCode(option.subtitle.language)
+                    val isImported = option.subtitle.language == SubtitleImportedLanguageKey
+                    val title = if (isImported) option.subtitle.display else languageLabelForCode(option.subtitle.language)
                     PlayerControlSubtitleOptionItem(
                         id = option.id,
                         languageKey = language.key,
                         kind = "addon",
                         index = visibleAddonSubtitles.indexOf(option.subtitle).coerceAtLeast(0),
-                        sourceLabel = option.subtitle.addonName ?: addonLabel,
+                        sourceLabel = if (isImported) importedLabel else (option.subtitle.addonName ?: addonLabel),
                         title = title,
-                        metadata = option.subtitle.display.takeIf {
+                        metadata = if (isImported) "" else option.subtitle.display.takeIf {
                             it.isNotBlank() && it != title
                         }.orEmpty(),
                         isSelected = option.id == selectedOptionId,
@@ -2366,6 +2384,12 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         onAutoSyncCueSelected = { cue -> applySubtitleAutoSyncCue(cue) },
         onAutoSyncReload = { loadSubtitleAutoSyncCues(force = true) },
         onSubtitleModalDismissed = { showSubtitleModal = false },
+        onImportSubtitle = {
+            val file = SubtitleImportPlatform.pickSubtitleFile()
+            if (file != null) {
+                importExternalSubtitle(file.path, file.name)
+            }
+        },
         showVideoSettingsModal = showVideoSettingsModal,
         playerSettings = playerSettingsUiState,
         onVideoSettingsChanged = {
@@ -2501,4 +2525,23 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
             onDismiss = { showSwitchEngineConfirm = false },
         )
     }
+}
+
+internal fun PlayerScreenRuntime.importExternalSubtitle(path: String, fileName: String) {
+    val cleanName = fileName.substringBeforeLast('.')
+    val imported = AddonSubtitle(
+        id = "imported:${cleanName}:${path.hashCode()}",
+        url = path,
+        language = SubtitleImportedLanguageKey,
+        addonName = "Imported",
+        display = cleanName,
+    )
+    importedSubtitles = (importedSubtitles.filter { it.url != path } + imported)
+    selectedAddonSubtitleId = imported.id
+    selectedSubtitleIndex = -1
+    useCustomSubtitles = true
+    preferredSubtitleSelectionApplied = true
+    attachSelectedAddonSubtitleWithAutoSync(imported.url)
+    playerNotificationMessage = "Imported: $cleanName"
+    playerNotificationToken += 1L
 }
