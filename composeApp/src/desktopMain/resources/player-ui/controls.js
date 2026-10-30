@@ -234,6 +234,7 @@ const sourcePanelTitle = document.getElementById("sourcePanelTitle");
 const sourceReloadButton = document.getElementById("sourceReloadButton");
 const sourceCloseButton = document.getElementById("sourceCloseButton");
 const sourceContextLabel = document.getElementById("sourceContextLabel");
+const sourceMetaRow = document.getElementById("sourceMetaRow");
 const sourceFilterList = document.getElementById("sourceFilterList");
 const sourceList = document.getElementById("sourceList");
 const episodesModal = document.getElementById("episodesModal");
@@ -248,6 +249,7 @@ const episodeBackButton = document.getElementById("episodeBackButton");
 const episodeReloadButton = document.getElementById("episodeReloadButton");
 const episodeStreamsCloseButton = document.getElementById("episodeStreamsCloseButton");
 const episodeStreamContextLabel = document.getElementById("episodeStreamContextLabel");
+const episodeStreamMetaRow = document.getElementById("episodeStreamMetaRow");
 const episodeStreamFilterList = document.getElementById("episodeStreamFilterList");
 const episodeStreamList = document.getElementById("episodeStreamList");
 const submitIntroModal = document.getElementById("submitIntroModal");
@@ -486,11 +488,19 @@ let state = {
   sourceIsLoading: false,
   sourceFilters: [],
   sourceItems: [],
+  sourceReleaseDate: "",
+  sourceRating: "",
+  sourceIsFiller: false,
+  sourceIsMixed: false,
   episodeItems: [],
   episodeSeasons: [],
   episodeStreamsVisible: false,
   episodeStreamsIsLoading: false,
   selectedEpisodeLabel: "",
+  selectedEpisodeReleaseDate: "",
+  selectedEpisodeRating: "",
+  selectedEpisodeIsFiller: false,
+  selectedEpisodeIsMixed: false,
   episodeStreamFilters: [],
   episodeStreamItems: [],
   blurUnwatchedEpisodes: false,
@@ -3003,12 +3013,77 @@ const requestSourceVirtualRender = () => {
   sourceVirtualRenderRaf = window.requestAnimationFrame(renderSourceVirtualRows);
 };
 
+const renderMetaRow = (container, released, rating, isFiller, isMixed) => {
+  if (!container) return;
+  container.replaceChildren();
+  if (!released && !rating && !isFiller && !isMixed) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  if (released) {
+    const relSpan = document.createElement("span");
+    relSpan.className = "episode-release";
+    relSpan.textContent = released;
+    container.appendChild(relSpan);
+  }
+  if (released && (rating || isFiller || isMixed)) {
+    const dot = document.createElement("span");
+    dot.className = "episode-meta-dot";
+    dot.textContent = "•";
+    container.appendChild(dot);
+  }
+  if (rating) {
+    const badge = document.createElement("span");
+    badge.className = "episode-rating-badge";
+    const imdb = document.createElement("span");
+    imdb.className = "episode-rating-source";
+    imdb.textContent = "IMDb";
+    const val = document.createElement("span");
+    val.className = "episode-rating-val";
+    val.textContent = rating;
+    badge.appendChild(imdb);
+    badge.appendChild(val);
+    container.appendChild(badge);
+  }
+  if (isFiller) {
+    const fillerBadge = document.createElement("span");
+    fillerBadge.className = "episode-filler-badge";
+    const fillerDot = document.createElement("span");
+    fillerDot.className = "episode-filler-dot";
+    const fillerText = document.createElement("span");
+    fillerText.className = "episode-filler-text";
+    fillerText.textContent = "FILLER";
+    fillerBadge.appendChild(fillerDot);
+    fillerBadge.appendChild(fillerText);
+    container.appendChild(fillerBadge);
+  } else if (isMixed) {
+    const mixedBadge = document.createElement("span");
+    mixedBadge.className = "episode-mixed-badge";
+    const mixedDot = document.createElement("span");
+    mixedDot.className = "episode-mixed-dot";
+    const mixedText = document.createElement("span");
+    mixedText.className = "episode-mixed-text";
+    mixedText.textContent = "MIXED";
+    mixedBadge.appendChild(mixedDot);
+    mixedBadge.appendChild(mixedText);
+    container.appendChild(mixedBadge);
+  }
+};
+
 const renderSourceModal = (modalOpened = false) => {
   sourcePanelTitle.textContent = state.sourcesPanelTitle || "Sources";
   sourceReloadButton.textContent = state.reloadLabel || "Reload";
   sourceCloseButton.textContent = state.panelCloseLabel || "Close";
   sourceContextLabel.textContent = state.episodeText || state.title || "";
   sourceContextLabel.hidden = !sourceContextLabel.textContent;
+  renderMetaRow(
+    sourceMetaRow,
+    state.sourceReleaseDate,
+    state.sourceRating,
+    state.sourceIsFiller,
+    state.sourceIsMixed
+  );
 
   const filters = normalizeItems(state.sourceFilters);
   if (sourceFilterId && !filters.some(filter => String(filter.id || "") === sourceFilterId)) {
@@ -3245,6 +3320,13 @@ const renderEpisodeStreams = (modalOpened = false) => {
   episodeStreamsCloseButton.textContent = state.panelCloseLabel || "Close";
   episodeStreamContextLabel.textContent = state.selectedEpisodeLabel || "";
   episodeStreamContextLabel.hidden = !episodeStreamContextLabel.textContent;
+  renderMetaRow(
+    episodeStreamMetaRow,
+    state.selectedEpisodeReleaseDate,
+    state.selectedEpisodeRating,
+    state.selectedEpisodeIsFiller,
+    state.selectedEpisodeIsMixed
+  );
 
   const filters = normalizeItems(state.episodeStreamFilters);
   if (episodeStreamFilterId && !filters.some(filter => String(filter.id || "") === episodeStreamFilterId)) {
@@ -3576,6 +3658,10 @@ const getSourcesModalSignature = () => [
   state.panelCloseLabel || "",
   state.episodeText || "",
   state.title || "",
+  state.sourceReleaseDate || "",
+  state.sourceRating || "",
+  state.sourceIsFiller ? 1 : 0,
+  state.sourceIsMixed ? 1 : 0,
   state.noStreamsLabel || "",
   Boolean(state.sourceIsLoading),
   sourceFilterId || "",
@@ -3597,6 +3683,10 @@ const getEpisodesModalSignature = () => {
     Boolean(state.blurUnwatchedEpisodes),
     Boolean(state.episodeStreamsIsLoading),
     state.selectedEpisodeLabel || "",
+    state.selectedEpisodeReleaseDate || "",
+    state.selectedEpisodeRating || "",
+    state.selectedEpisodeIsFiller ? 1 : 0,
+    state.selectedEpisodeIsMixed ? 1 : 0,
     selectedEpisodeSeason == null ? "" : selectedEpisodeSeason,
     episodeStreamFilterId || "",
     (state.episodeSeasons || []).map(sea => `${sea.season}:${sea.label || ""}:${sea.isSelected ? 1 : 0}`).join(";"),

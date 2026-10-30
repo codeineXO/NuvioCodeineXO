@@ -2407,6 +2407,14 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         append(',')
         appendJsonArrayField("sourceItems", sourceItems) { appendSourceItemJson(it) }
         append(',')
+        appendJsonField("sourceReleaseDate", sourceReleaseDate)
+        append(',')
+        appendJsonField("sourceRating", sourceRating)
+        append(',')
+        appendJsonField("sourceIsFiller", sourceIsFiller)
+        append(',')
+        appendJsonField("sourceIsMixed", sourceIsMixed)
+        append(',')
         appendJsonArrayField("episodeItems", episodeItems) { appendEpisodeItemJson(it) }
         append(',')
         appendJsonArrayField("episodeSeasons", episodeSeasons) { appendSeasonItemJson(it) }
@@ -2416,6 +2424,14 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("episodeStreamsIsLoading", episodeStreamsIsLoading)
         append(',')
         appendJsonField("selectedEpisodeLabel", selectedEpisodeLabel)
+        append(',')
+        appendJsonField("selectedEpisodeReleaseDate", selectedEpisodeReleaseDate)
+        append(',')
+        appendJsonField("selectedEpisodeRating", selectedEpisodeRating)
+        append(',')
+        appendJsonField("selectedEpisodeIsFiller", selectedEpisodeIsFiller)
+        append(',')
+        appendJsonField("selectedEpisodeIsMixed", selectedEpisodeIsMixed)
         append(',')
         appendJsonArrayField("episodeStreamFilters", episodeStreamFilters) { appendFilterItemJson(it) }
         append(',')

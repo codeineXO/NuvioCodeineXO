@@ -790,7 +790,10 @@
               <button class="panel-button" id="sourceCloseButton" type="button">Close</button>
             </div>
           </div>
-          <div class="panel-context" id="sourceContextLabel"></div>
+          <div class="panel-context-column">
+            <div class="panel-context" id="sourceContextLabel"></div>
+            <div class="episode-meta-row" id="sourceMetaRow" hidden></div>
+          </div>
           <div class="filter-row" id="sourceFilterList"></div>
           <div class="track-list" id="sourceList"></div>
         </div>
@@ -828,7 +831,10 @@
             <div class="episode-stream-toolbar">
               <button class="panel-button" id="episodeBackButton" type="button">Back</button>
               <button class="panel-button" id="episodeReloadButton" type="button">Reload</button>
-              <div class="panel-context" id="episodeStreamContextLabel"></div>
+              <div class="panel-context-column">
+                <div class="panel-context" id="episodeStreamContextLabel"></div>
+                <div class="episode-meta-row" id="episodeStreamMetaRow" hidden></div>
+              </div>
             </div>
             <div class="filter-row" id="episodeStreamFilterList"></div>
             <div class="track-list" id="episodeStreamList"></div>

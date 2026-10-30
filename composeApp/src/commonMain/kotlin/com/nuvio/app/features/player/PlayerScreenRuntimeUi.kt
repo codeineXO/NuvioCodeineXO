@@ -354,6 +354,71 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         AnimeFillerSettingsRepository.ensureLoaded()
         AnimeFillerSettingsRepository.enabled
     }.collectAsStateWithLifecycle()
+
+    val selectedEpisode = episodeStreamsPanelState.selectedEpisode
+    val (selectedEpisodeReleaseDate, selectedEpisodeRating, selectedEpisodeIsFiller, selectedEpisodeIsMixed) = if (selectedEpisode != null) {
+        val episodeVideoId = buildPlaybackVideoId(
+            parentMetaId = parentMetaId,
+            seasonNumber = selectedEpisode.season,
+            episodeNumber = selectedEpisode.episode,
+            fallbackVideoId = selectedEpisode.id,
+        )
+        val isWatched = watchProgressUiState.byVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+            WatchingState.isEpisodeWatched(
+                watchedKeys = watchedUiState.watchedKeys,
+                metaType = parentMetaType,
+                metaId = parentMetaId,
+                episode = selectedEpisode,
+            )
+        val relDate = selectedEpisode.released?.takeIf { it.isNotBlank() }?.let(::formatReleaseDateForDisplay).orEmpty()
+        val rawRating = selectedEpisode.seasonEpisodeKey()?.let { episodeImdbRatings[it] } ?: selectedEpisode.rating
+        val rating = rawRating
+            ?.takeIf { it > 0.0 && metaScreenSettingsUiState.episodeRatingsVisibility.showRating(isWatched) }
+            ?.let(::formatEpisodeRating)
+            .orEmpty()
+        val filler = selectedEpisode.isFiller && isFillerEnabled
+        val mixed = selectedEpisode.isMixed && isFillerEnabled
+        listOf(relDate, rating, filler, mixed)
+    } else {
+        listOf("", "", false, false)
+    }
+
+    val activeEpisodeForSource = if (isSeries) {
+        playerMetaVideos.firstOrNull { it.season == activeSeasonNumber && it.episode == activeEpisodeNumber }
+    } else null
+    val (sourceReleaseDate, sourceRating, sourceIsFiller, sourceIsMixed) = if (isSeries) {
+        if (activeEpisodeForSource != null) {
+            val episodeVideoId = buildPlaybackVideoId(
+                parentMetaId = parentMetaId,
+                seasonNumber = activeEpisodeForSource.season,
+                episodeNumber = activeEpisodeForSource.episode,
+                fallbackVideoId = activeEpisodeForSource.id,
+            )
+            val isWatched = watchProgressUiState.byVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+                WatchingState.isEpisodeWatched(
+                    watchedKeys = watchedUiState.watchedKeys,
+                    metaType = parentMetaType,
+                    metaId = parentMetaId,
+                    episode = activeEpisodeForSource,
+                )
+            val relDate = activeEpisodeForSource.released?.takeIf { it.isNotBlank() }?.let(::formatReleaseDateForDisplay).orEmpty()
+            val rawRating = activeEpisodeForSource.seasonEpisodeKey()?.let { episodeImdbRatings[it] } ?: activeEpisodeForSource.rating
+            val rating = rawRating
+                ?.takeIf { it > 0.0 && metaScreenSettingsUiState.episodeRatingsVisibility.showRating(isWatched) }
+                ?.let(::formatEpisodeRating)
+                .orEmpty()
+            val filler = activeEpisodeForSource.isFiller && isFillerEnabled
+            val mixed = activeEpisodeForSource.isMixed && isFillerEnabled
+            listOf(relDate, rating, filler, mixed)
+        } else {
+            listOf("", "", false, false)
+        }
+    } else {
+        val relDate = metaUiState.meta?.releaseInfo.orEmpty()
+        val rating = metaUiState.meta?.imdbRating.orEmpty()
+        listOf(relDate, rating, false, false)
+    }
+
     val nextEpisodeStatus = when {
         nextEpisodeForControls == null -> ""
         !nextEpisodeForControls.hasAired && !nextEpisodeForControls.unairedMessage.isNullOrBlank() ->
@@ -612,11 +677,19 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         sourceIsLoading = sourceStreamsState.isAnyLoading,
         sourceFilters = sourceFilters,
         sourceItems = sourceItems,
+        sourceReleaseDate = sourceReleaseDate as? String ?: "",
+        sourceRating = sourceRating as? String ?: "",
+        sourceIsFiller = sourceIsFiller as? Boolean ?: false,
+        sourceIsMixed = sourceIsMixed as? Boolean ?: false,
         episodeItems = episodeItems,
         episodeSeasons = episodeSeasons,
         episodeStreamsVisible = episodeStreamsPanelState.showStreams,
         episodeStreamsIsLoading = episodeStreamsRepoState.isAnyLoading,
         selectedEpisodeLabel = selectedEpisodeLabel,
+        selectedEpisodeReleaseDate = selectedEpisodeReleaseDate as? String ?: "",
+        selectedEpisodeRating = selectedEpisodeRating as? String ?: "",
+        selectedEpisodeIsFiller = selectedEpisodeIsFiller as? Boolean ?: false,
+        selectedEpisodeIsMixed = selectedEpisodeIsMixed as? Boolean ?: false,
         episodeStreamFilters = episodeStreamFilters,
         episodeStreamItems = episodeStreamItems,
         blurUnwatchedEpisodes = metaScreenSettingsUiState.blurUnwatchedEpisodes,

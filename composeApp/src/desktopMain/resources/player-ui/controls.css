@@ -2445,10 +2445,18 @@ button:disabled {
   display: none;
 }
 
-.player-side-panel > .panel-context {
+.player-side-panel > .panel-context,
+.player-side-panel > .panel-context-column {
   margin-top: 6px;
   margin-bottom: 4px;
   flex: 0 0 auto;
+}
+
+.panel-context-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .episode-stream-toolbar {
@@ -2460,6 +2468,10 @@ button:disabled {
 }
 
 .episode-stream-toolbar .panel-context {
+  flex: 1 1 auto;
+}
+
+.episode-stream-toolbar .panel-context-column {
   flex: 1 1 auto;
 }
 

@@ -108,6 +108,7 @@ fun PlayerEpisodesPanel(
     modifier: Modifier = Modifier,
     episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
 ) {
+    val metaScreenSettings by MetaScreenSettingsRepository.uiState.collectAsState()
     val isFillerEnabled by remember {
         AnimeFillerSettingsRepository.ensureLoaded()
         AnimeFillerSettingsRepository.enabled
@@ -185,6 +186,13 @@ fun PlayerEpisodesPanel(
                     onStreamSelected = onEpisodeStreamSelected,
                     onBack = onBackToEpisodes,
                     onReload = onReloadEpisodeStreams,
+                    episodeRatings = episodeRatings,
+                    episodeRatingsVisibility = metaScreenSettings.episodeRatingsVisibility,
+                    progressByVideoId = progressByVideoId,
+                    watchedKeys = watchedKeys,
+                    parentMetaType = parentMetaType,
+                    parentMetaId = parentMetaId,
+                    isFillerEnabled = isFillerEnabled,
                     modifier = Modifier.weight(1f),
                 )
             } else {
@@ -243,12 +251,14 @@ private fun EpisodesListPanelContent(
         AnimeFillerSettingsRepository.ensureLoaded()
         AnimeFillerSettingsRepository.enabled
     }.collectAsStateWithLifecycle()
-    var episodeImdbRatings by remember(parentMetaId, initialEpisodeRatings) {
-        mutableStateOf(initialEpisodeRatings)
+    var episodeImdbRatings by remember(parentMetaId, initialEpisodeRatings, metaScreenSettings.episodeRatingsVisibility) {
+        mutableStateOf(if (metaScreenSettings.episodeRatingsVisibility.showRatings) initialEpisodeRatings else emptyMap())
     }
 
-    LaunchedEffect(initialEpisodeRatings) {
-        if (initialEpisodeRatings.isNotEmpty()) {
+    LaunchedEffect(initialEpisodeRatings, metaScreenSettings.episodeRatingsVisibility) {
+        if (!metaScreenSettings.episodeRatingsVisibility.showRatings) {
+            episodeImdbRatings = emptyMap()
+        } else if (initialEpisodeRatings.isNotEmpty()) {
             episodeImdbRatings = initialEpisodeRatings
         }
     }
@@ -568,39 +578,13 @@ private fun EpisodeRow(
                 rawRating?.takeIf { it > 0.0 && episodeRatingsVisibility.showRating(isWatched) }
                     ?.let(::formatEpisodeRating)
             }
-            if (formattedReleaseDate != null || ratingLabel != null || showFillerBadge || showMixedBadge) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    if (formattedReleaseDate != null) {
-                        Text(
-                            text = formattedReleaseDate,
-                            color = tokens.colors.textMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                    }
-                    if (formattedReleaseDate != null && (ratingLabel != null || showFillerBadge || showMixedBadge)) {
-                        Text(
-                            text = "•",
-                            color = tokens.colors.textMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    if (ratingLabel != null) {
-                        PlayerEpisodeRatingBadge(rating = ratingLabel)
-                    }
-                    if (showFillerBadge) {
-                        FillerBadge()
-                    } else if (showMixedBadge) {
-                        MixedBadge()
-                    }
-                }
-            }
+            PlayerMediaMetaRow(
+                releaseDate = formattedReleaseDate,
+                imdbRating = ratingLabel,
+                showFillerBadge = showFillerBadge,
+                showMixedBadge = showMixedBadge,
+                modifier = Modifier.fillMaxWidth(),
+            )
             episode.overview?.takeIf { it.isNotBlank() }?.let { overview ->
                 Text(
                     text = overview,
@@ -646,7 +630,7 @@ internal fun formatEpisodeRating(rating: Double): String {
 }
 
 @Composable
-private fun PlayerEpisodeRatingBadge(
+internal fun PlayerEpisodeRatingBadge(
     rating: String,
 ) {
     Row(
@@ -685,6 +669,49 @@ private fun PlayerEpisodeRatingBadge(
 }
 
 @Composable
+internal fun PlayerMediaMetaRow(
+    releaseDate: String?,
+    imdbRating: String?,
+    showFillerBadge: Boolean = false,
+    showMixedBadge: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
+    if (releaseDate == null && imdbRating == null && !showFillerBadge && !showMixedBadge) return
+    val tokens = MaterialTheme.nuvio
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (releaseDate != null) {
+            Text(
+                text = releaseDate,
+                color = tokens.colors.textMuted,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
+        if (releaseDate != null && (imdbRating != null || showFillerBadge || showMixedBadge)) {
+            Text(
+                text = "•",
+                color = tokens.colors.textMuted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        if (imdbRating != null) {
+            PlayerEpisodeRatingBadge(rating = imdbRating)
+        }
+        if (showFillerBadge) {
+            FillerBadge()
+        } else if (showMixedBadge) {
+            MixedBadge()
+        }
+    }
+}
+
+@Composable
 private fun EpisodeStreamsPanelContent(
     state: EpisodeStreamsPanelState,
     onFilterSelected: (String?) -> Unit,
@@ -692,10 +719,39 @@ private fun EpisodeStreamsPanelContent(
     onBack: () -> Unit,
     onReload: () -> Unit,
     modifier: Modifier = Modifier,
+    episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
+    episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+    progressByVideoId: Map<String, WatchProgressEntry> = emptyMap(),
+    watchedKeys: Set<String> = emptySet(),
+    parentMetaType: String = "",
+    parentMetaId: String = "",
+    isFillerEnabled: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
     val episode = state.selectedEpisode ?: return
     val streamsUiState = state.streamsUiState
+
+    val episodeVideoId = buildPlaybackVideoId(
+        parentMetaId = parentMetaId,
+        seasonNumber = episode.season,
+        episodeNumber = episode.episode,
+        fallbackVideoId = episode.id,
+    )
+    val isWatched = progressByVideoId[episodeVideoId]?.isEffectivelyCompleted == true ||
+        WatchingState.isEpisodeWatched(
+            watchedKeys = watchedKeys,
+            metaType = parentMetaType,
+            metaId = parentMetaId,
+            episode = episode,
+        )
+    val formattedReleaseDate = episode.released?.takeIf { it.isNotBlank() }?.let { formatReleaseDateForDisplay(it) }
+    val rawRating = episode.seasonEpisodeKey()?.let { episodeRatings[it] } ?: episode.rating
+    val ratingLabel = remember(rawRating, episodeRatingsVisibility, isWatched) {
+        rawRating?.takeIf { it > 0.0 && episodeRatingsVisibility.showRating(isWatched) }
+            ?.let(::formatEpisodeRating)
+    }
+    val showFillerBadge = episode.isFiller && isFillerEnabled
+    val showMixedBadge = episode.isMixed && isFillerEnabled
 
     Column(modifier = modifier) {
         Row(
@@ -707,28 +763,38 @@ private fun EpisodeStreamsPanelContent(
                 label = stringResource(Res.string.action_back),
                 onClick = onBack,
             )
-            Text(
-                text = buildString {
-                    if (episode.season != null && episode.episode != null) {
-                        append(
-                            stringResource(
-                                Res.string.compose_player_episode_code_full,
-                                episode.season,
-                                episode.episode,
-                            ),
-                        )
-                    }
-                    if (episode.title.isNotBlank()) {
-                        if (isNotEmpty()) append(" • ")
-                        append(episode.title)
-                    }
-                },
-                color = tokens.colors.textSecondary,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Column(
                 modifier = Modifier.weight(1f),
-            )
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = buildString {
+                        if (episode.season != null && episode.episode != null) {
+                            append(
+                                stringResource(
+                                    Res.string.compose_player_episode_code_full,
+                                    episode.season,
+                                    episode.episode,
+                                ),
+                            )
+                        }
+                        if (episode.title.isNotBlank()) {
+                            if (isNotEmpty()) append(" • ")
+                            append(episode.title)
+                        }
+                    },
+                    color = tokens.colors.textSecondary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                PlayerMediaMetaRow(
+                    releaseDate = formattedReleaseDate,
+                    imdbRating = ratingLabel,
+                    showFillerBadge = showFillerBadge,
+                    showMixedBadge = showMixedBadge,
+                )
+            }
         }
 
         Spacer(Modifier.height(16.dp))
