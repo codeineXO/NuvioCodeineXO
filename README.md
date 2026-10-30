@@ -38,18 +38,21 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
 * **Typography & Outline Styles:** 10 curated clean fonts, outline thickness stepper, and selectable outline effects (`Classic Outline`, `Glow`, `Halo`, `Background Box`, and `None`) that update live without player reload.
+* **Import External Subtitles:** Option to import external subtitle of choice. 
 
 ### ✨ Visuals, UX & Settings
 * **CodeineXO Aura & Frosted Glass Aesthetics:** Ambient interactive background glow with frosted glass styling across panels, cards and surfaces.
 * **Redesigned the Sidebar:** Floating sidebar with frosted glass style. 
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
+* **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
 * **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
 * **Catalog Navigation & Polish:** Drag-to-scroll and directional arrow buttons on carousels, sidebar quick exit button, and copy addon manifest link shortcuts.
 * **Enhanced Discord Rich Presence:** Richer Discord RPC with customizable activity types ("Watching" vs. "Playing"), uncropped full portrait posters, small badge display for episode thumbnails, active mini-player tracking, and interactive artwork linking directly to IMDb.
 * **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
+* **Custom Download Folder:** Uncapped download speed and option to choose download folder with auto transfer from old folder. 
 
 ### ⚡ P2P Engine & Core Performance
 * **NuvioEngine-Only Streaming:** Fully dropped external TorrServer dependency in favor of native NuvioEngine backend (v0.1.5) with configurable persistent torrent caching, optimized HTTP stream buffering, audio channel routing fixes, and fast mid-file resume.
