@@ -175,6 +175,15 @@ internal object DesktopStorage {
             loaded = false
         }
 
+        /** Required by file migrations before originals can safely be removed. */
+        fun flushChecked() = synchronized(lock) {
+            ensureLoaded()
+            persistJob?.cancel()
+            persistJob = null
+            writeSnapshotToDisk(Properties().apply { putAll(properties) })
+            isDirty = false
+        }
+
         fun flushSync() {
             synchronized(lock) {
                 persistJob?.cancel()

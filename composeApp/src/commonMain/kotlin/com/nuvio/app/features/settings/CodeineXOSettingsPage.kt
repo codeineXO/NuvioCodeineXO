@@ -821,4 +821,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
             }
         }
     }
+
+    if (isDesktop) {
+        item { DownloadLocationSettings(isTablet) }
+    }
 }

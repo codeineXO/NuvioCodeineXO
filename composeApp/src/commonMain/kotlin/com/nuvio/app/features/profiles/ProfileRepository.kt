@@ -193,9 +193,11 @@ object ProfileRepository {
     }
 
     suspend fun switchToProfile(profileIndex: Int) {
-        profileSwitchMutex.withLock {
-            withContext(Dispatchers.Default) {
-                selectProfile(profileIndex)
+        com.nuvio.app.features.downloads.DownloadLocation.operationMutex.withLock {
+            profileSwitchMutex.withLock {
+                withContext(Dispatchers.Default) {
+                    selectProfile(profileIndex)
+                }
             }
         }
     }

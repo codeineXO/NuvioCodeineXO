@@ -1,6 +1,36 @@
 package com.nuvio.app.features.downloads
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.LocalNavigationGlassState
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.features.settings.ThemeSettingsRepository
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
+import com.nuvio.app.isDesktop
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +52,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -79,54 +110,79 @@ fun DownloadsScreen(
         }
     }
 
-    NuvioScreen {
-        stickyHeader {
-            NuvioScreenHeader(
-                title = if (selectedShowId == null) {
-                    stringResource(Res.string.compose_settings_root_downloads_title)
-                } else {
-                    selectedShowTitle ?: stringResource(Res.string.downloads_show_downloads)
-                },
-                onBack = {
-                    if (selectedShowId != null) {
-                        onBackFromShow?.invoke() ?: run { selectedShowId = null }
-                    } else {
-                        onBack()
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            if (!DownloadsPlatformDownloader.openDownloadsDirectory()) {
-                                NuvioToastController.show(openDownloadsDirectoryFailedText)
+    val auraEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+    val locationBusy by DownloadLocation.busy.collectAsStateWithLifecycle()
+    val glassState = remember { HazeState() }
+    CompositionLocalProvider(LocalNavigationGlassState provides glassState) {
+        Box(Modifier.fillMaxSize()) {
+            if (auraEnabled) {
+                HomeInteractiveGradientBackground(Modifier.fillMaxSize())
+            } else {
+                Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
+            }
+            NuvioScreen(backgroundColor = Color.Transparent) {
+                stickyHeader {
+                    NuvioScreenHeader(
+                        title = if (selectedShowId == null) {
+                            stringResource(Res.string.compose_settings_root_downloads_title)
+                        } else {
+                            selectedShowTitle ?: stringResource(Res.string.downloads_show_downloads)
+                        },
+                        onBack = {
+                            if (selectedShowId != null) {
+                                onBackFromShow?.invoke() ?: run { selectedShowId = null }
+                            } else {
+                                onBack()
                             }
                         },
-                     modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-                        Icon(
-                            imageVector = Icons.Rounded.Folder,
-                            contentDescription = stringResource(Res.string.downloads_open_directory),
-                        )
-                    }
-                },
-            )
-        }
+                        showFullscreenAction = false,
+                        backgroundColor = Color.Transparent,
+                        backButtonBackgroundOnly = true,
+                        actions = {
+                            if (locationBusy) {
+                                Text(stringResource(Res.string.downloads_location_moving), color = MaterialTheme.nuvio.colors.textSecondary)
+                            }
+                            if (isDesktop) {
+                                DownloadFolderButton(
+                                    label = stringResource(Res.string.downloads_choose_directory),
+                                    icon = Icons.Rounded.FolderOpen,
+                                    enabled = !locationBusy,
+                                    showLabel = true,
+                                ) { DownloadLocation.chooseFolder() }
+                            }
+                            DownloadFolderButton(
+                                label = stringResource(Res.string.downloads_open_folder_tooltip),
+                                contentDescription = stringResource(Res.string.downloads_open_directory),
+                                icon = Icons.Rounded.Folder,
+                                enabled = !locationBusy,
+                            ) {
+                                if (!DownloadsPlatformDownloader.openDownloadsDirectory()) {
+                                    NuvioToastController.show(openDownloadsDirectoryFailedText)
+                                }
+                            }
+                        },
+                    )
+                }
 
-        if (selectedShowId == null) {
-            downloadsRootContent(
-                uiState = uiState,
-                onOpenDownload = onOpenDownload,
-                onOpenShow = { showId, title ->
-                    onNavigateToShow?.invoke(showId, title) ?: run { selectedShowId = showId }
-                },
-                onDeleteDownload = { downloadPendingDeletionId = it },
-            )
-        } else {
-            downloadsShowContent(
-                showId = selectedShowId.orEmpty(),
-                episodes = completedEpisodes,
-                onOpenDownload = onOpenDownload,
-                onDeleteDownload = { downloadPendingDeletionId = it },
-            )
+                if (selectedShowId == null) {
+                    downloadsRootContent(
+                        uiState = uiState,
+                        onOpenDownload = onOpenDownload,
+                        onOpenShow = { showId, title ->
+                            onNavigateToShow?.invoke(showId, title) ?: run { selectedShowId = showId }
+                        },
+                        onDeleteDownload = { downloadPendingDeletionId = it },
+                    )
+                } else {
+                    downloadsShowContent(
+                        showId = selectedShowId.orEmpty(),
+                        episodes = completedEpisodes,
+                        onOpenDownload = onOpenDownload,
+                        onDeleteDownload = { downloadPendingDeletionId = it },
+                    )
+                }
+            }
+
         }
     }
 
@@ -216,9 +272,10 @@ private fun LazyListScope.downloadsRootContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .navigationGlass(shape = MaterialTheme.shapes.medium, panel = true, backgroundOnly = true)
                     .remoteNavigationTarget(shape = MaterialTheme.shapes.medium).clickable { onOpenShow(item.parentMetaId, item.title) },
                 shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                color = Color.Transparent,
             ) {
                 Row(
                     modifier = Modifier
@@ -347,7 +404,9 @@ private fun DownloadRow(
     onRetry: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val locationBusy by DownloadLocation.busy.collectAsStateWithLifecycle()
     val displayTitle = item.displayTitle()
+    val actionColors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.nuvio.colors.textPrimary)
     val displaySubtitle = downloadDisplaySubtitle(
         item = item,
         displayTitle = displayTitle,
@@ -357,9 +416,10 @@ private fun DownloadRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .remoteNavigationTarget(shape = MaterialTheme.shapes.medium).clickable(enabled = item.isPlayable, onClick = onOpen),
+            .navigationGlass(shape = MaterialTheme.shapes.medium, panel = true, backgroundOnly = true)
+            .remoteNavigationTarget(shape = MaterialTheme.shapes.medium).clickable(enabled = item.isPlayable && !locationBusy, onClick = onOpen),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = Color.Transparent,
     ) {
         Column(
             modifier = Modifier
@@ -401,7 +461,7 @@ private fun DownloadRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     when (item.status) {
                         DownloadStatus.Downloading -> {
-                            IconButton(onClick = onPause, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                            IconButton(onClick = onPause, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Pause,
                                     contentDescription = stringResource(Res.string.compose_action_pause),
@@ -409,7 +469,7 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Paused -> {
-                            IconButton(onClick = onResume, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                            IconButton(onClick = onResume, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = stringResource(Res.string.action_resume),
@@ -417,7 +477,7 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Failed -> {
-                            IconButton(onClick = onRetry, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                            IconButton(onClick = onRetry, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
                                     contentDescription = stringResource(Res.string.action_retry),
@@ -425,7 +485,7 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Completed -> {
-                            IconButton(onClick = onOpen, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                            IconButton(onClick = onOpen, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = stringResource(Res.string.action_play),
@@ -433,7 +493,7 @@ private fun DownloadRow(
                             }
                         }
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                    IconButton(onClick = onDelete, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
                         Icon(
                             imageVector = Icons.Rounded.Delete,
                             contentDescription = stringResource(Res.string.action_delete),
@@ -497,6 +557,76 @@ private fun SectionTitle(title: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.SemiBold,
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DownloadFolderButton(
+    label: String,
+    contentDescription: String = label,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    enabled: Boolean,
+    showLabel: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val tooltipState = rememberTooltipState()
+    val scope = rememberCoroutineScope()
+    val defaultPosition = TooltipDefaults.rememberPlainTooltipPositionProvider()
+    val margin = with(LocalDensity.current) { 8.dp.roundToPx() }
+    val positionProvider = remember(defaultPosition, margin) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBounds: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize,
+            ): IntOffset {
+                val preferred = defaultPosition.calculatePosition(anchorBounds, windowSize, layoutDirection, popupContentSize)
+                val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+                val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+                val insetX = margin.coerceAtMost(maxX / 2)
+                val insetY = margin.coerceAtMost(maxY / 2)
+                return IntOffset(
+                    preferred.x.coerceIn(insetX, maxX - insetX),
+                    preferred.y.coerceIn(insetY, maxY - insetY),
+                )
+            }
+        }
+    }
+    val shape = if (showLabel) MaterialTheme.shapes.medium else CircleShape
+    val buttonModifier = Modifier.navigationGlass(shape = shape, backgroundOnly = true)
+        .onFocusChanged { focus ->
+            if (focus.isFocused) scope.launch { tooltipState.show() }
+            else tooltipState.dismiss()
+        }
+        .remoteNavigationTarget(shape = shape)
+    TooltipBox(
+        positionProvider = positionProvider,
+        tooltip = { PlainTooltip { Text(label) } },
+        state = tooltipState,
+        focusable = false,
+    ) {
+        if (showLabel) {
+            TextButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = buttonModifier,
+                shape = shape,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.nuvio.colors.textPrimary),
+            ) {
+                Text(label)
+            }
+        } else {
+            IconButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = buttonModifier,
+                colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.nuvio.colors.textPrimary),
+            ) {
+                Icon(icon, contentDescription = contentDescription)
+            }
+        }
+    }
 }
 
 @Composable

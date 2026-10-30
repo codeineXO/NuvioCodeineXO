@@ -1,0 +1,10 @@
+<resources>
+    <string name="downloads_open_folder_tooltip">Open download folder</string>
+    <string name="downloads_choose_directory">Choose download folder</string>
+    <string name="downloads_location_default">Restore default</string>
+    <string name="downloads_location_move_description">Existing downloads will move to the selected folder.</string>
+    <string name="downloads_location_moving">Moving downloads…</string>
+    <string name="downloads_location_saved">Download folder updated</string>
+    <string name="downloads_location_failed">Could not change download folder: %1$s</string>
+    <string name="downloads_location_busy">Please wait until the download folder change is complete.</string>
+</resources>

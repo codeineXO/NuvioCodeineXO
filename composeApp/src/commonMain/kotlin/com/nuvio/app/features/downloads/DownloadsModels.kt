@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.downloads_enqueue_missing_url
 import nuvio.composeapp.generated.resources.downloads_enqueue_replaced
+import nuvio.composeapp.generated.resources.downloads_location_busy
 import nuvio.composeapp.generated.resources.downloads_enqueue_started
 import nuvio.composeapp.generated.resources.downloads_enqueue_unsupported_format
 import org.jetbrains.compose.resources.getString
@@ -93,10 +94,12 @@ enum class DownloadEnqueueResult {
     Started,
     Replaced,
     MissingUrl,
+    LocationChanging,
     UnsupportedFormat;
 
     fun toastMessage(): String = runBlocking {
         when (this@DownloadEnqueueResult) {
+            LocationChanging -> getString(Res.string.downloads_location_busy)
             Started -> getString(Res.string.downloads_enqueue_started)
             Replaced -> getString(Res.string.downloads_enqueue_replaced)
             MissingUrl -> getString(Res.string.downloads_enqueue_missing_url)

@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.features.search.SearchHistoryRepository
+import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_page_addons
 import nuvio.composeapp.generated.resources.compose_settings_page_media_servers
@@ -83,5 +84,9 @@ internal fun LazyListScope.contentDiscoveryContent(
                 }
             }
         }
+    }
+
+    if (isDesktop) {
+        item { DownloadLocationSettings(isTablet) }
     }
 }
