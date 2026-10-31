@@ -77,6 +77,7 @@ import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
@@ -102,6 +103,9 @@ import com.nuvio.app.navigation.LocalUseNativeNavigation
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import com.nuvio.app.features.settings.ThemeSettingsRepository
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_folder_empty_items
 import nuvio.composeapp.generated.resources.collections_folder_not_found
@@ -126,6 +130,7 @@ fun FolderDetailScreen(
     val folder = uiState.folder
     val useNativeNavigation = LocalUseNativeNavigation.current
     val coverImageUrl = folder?.coverImageUrl?.takeIf { it.isNotBlank() }
+    val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
 
     if (!isDesktop) {
         MobileFolderDetailContent(
@@ -133,6 +138,7 @@ fun FolderDetailScreen(
             watchedKeys = watchedUiState.watchedKeys,
             homeCatalogSettings = homeCatalogSettings,
             coverImageUrl = coverImageUrl,
+            auraBackgroundEnabled = auraBackgroundEnabled,
             useNativeNavigation = useNativeNavigation,
             onBack = onBack,
             onCatalogClick = onCatalogClick,
@@ -145,9 +151,10 @@ fun FolderDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .then(
+                if (auraBackgroundEnabled || coverImageUrl != null) Modifier else Modifier.background(MaterialTheme.colorScheme.background)
+            ),
     ) {
-        Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
         if (coverImageUrl != null) {
             Box(Modifier.matchParentSize().navigationGlassSource()) {
                 AsyncImage(
@@ -161,25 +168,19 @@ fun FolderDetailScreen(
                         }
                         .blur(28.dp),
                     contentScale = ContentScale.Crop,
-                    alpha = 0.72f,
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                0f to MaterialTheme.colorScheme.background.copy(alpha = 0.50f),
-                                0.42f to MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                                1f to MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
-                            ),
-                        ),
+                    alpha = 0.85f,
                 )
             }
+        } else if (auraBackgroundEnabled) {
+            HomeInteractiveGradientBackground(Modifier.fillMaxSize())
+        } else {
+            Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val desktopPagePadding = desktopPageHorizontalPaddingForWidth(maxWidth.value)
-            Column(modifier = Modifier.fillMaxSize()) {
+            val sidebarInset = LocalDesktopSidebarContentInset.current
+            Column(modifier = Modifier.fillMaxSize().padding(start = sidebarInset)) {
                 if (!useNativeNavigation) {
                     NuvioScreenHeader(
                         title = folder?.title ?: uiState.collectionTitle,
@@ -246,6 +247,7 @@ private fun MobileFolderDetailContent(
     watchedKeys: Set<String>,
     homeCatalogSettings: HomeCatalogSettingsUiState,
     coverImageUrl: String?,
+    auraBackgroundEnabled: Boolean,
     useNativeNavigation: Boolean,
     onBack: () -> Unit,
     onCatalogClick: (HomeCatalogSection) -> Unit,
@@ -292,63 +294,72 @@ private fun MobileFolderDetailContent(
         Modifier
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .then(
+                if (auraBackgroundEnabled || coverImageUrl != null) Modifier else Modifier.background(MaterialTheme.colorScheme.background)
+            ),
     ) {
-        if (coverImageUrl != null && heroHeight > 0.dp) {
-            FolderCoverImage(
-                imageUrl = coverImageUrl,
-                title = folder?.title.orEmpty(),
-                modifier = Modifier.height(heroHeight),
-            )
+        if (coverImageUrl == null && auraBackgroundEnabled) {
+            HomeInteractiveGradientBackground(Modifier.fillMaxSize())
         }
-
-        if (!useNativeNavigation) {
-            NuvioScreenHeader(
-                title = folder?.title ?: uiState.collectionTitle,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                includeStatusBarPadding = coverImageUrl == null,
-                topPadding = if (coverImageUrl != null) statusBarTop * heroCollapseFraction else null,
-                onBack = onBack,
-            )
-        }
-
-        if (folder == null && !uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.collections_folder_not_found),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (coverImageUrl != null && heroHeight > 0.dp) {
+                FolderCoverImage(
+                    imageUrl = coverImageUrl,
+                    title = folder?.title.orEmpty(),
+                    modifier = Modifier.height(heroHeight),
                 )
             }
-            return@Column
-        }
 
-        when (uiState.viewMode) {
-            FolderViewMode.TABBED_GRID -> TabbedGridContent(
-                uiState = uiState,
-                watchedKeys = watchedKeys,
-                modifier = Modifier.weight(1f).then(contentModifier),
-                onTabSelected = { FolderDetailRepository.selectTab(it) },
-                onPosterClick = onPosterClick,
-                onPosterLongClick = onPosterLongClick,
-            )
-            FolderViewMode.ROWS,
-            FolderViewMode.FOLLOW_LAYOUT,
-            -> RowsContent(
-                uiState = uiState,
-                watchedKeys = watchedKeys,
-                homeCatalogSettings = homeCatalogSettings,
-                modifier = Modifier.weight(1f).then(contentModifier),
-                onCatalogClick = onCatalogClick,
-                onPosterClick = onPosterClick,
-                onPosterLongClick = onPosterLongClick,
-            )
+            if (!useNativeNavigation) {
+                NuvioScreenHeader(
+                    title = folder?.title ?: uiState.collectionTitle,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    includeStatusBarPadding = coverImageUrl == null,
+                    topPadding = if (coverImageUrl != null) statusBarTop * heroCollapseFraction else null,
+                    onBack = onBack,
+                )
+            }
+
+            if (folder == null && !uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.collections_folder_not_found),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                return@Box
+            }
+
+            when (uiState.viewMode) {
+                FolderViewMode.TABBED_GRID -> TabbedGridContent(
+                    uiState = uiState,
+                    watchedKeys = watchedKeys,
+                    modifier = Modifier.weight(1f).then(contentModifier),
+                    onTabSelected = { FolderDetailRepository.selectTab(it) },
+                    onPosterClick = onPosterClick,
+                    onPosterLongClick = onPosterLongClick,
+                )
+                FolderViewMode.ROWS,
+                FolderViewMode.FOLLOW_LAYOUT,
+                -> RowsContent(
+                    uiState = uiState,
+                    watchedKeys = watchedKeys,
+                    homeCatalogSettings = homeCatalogSettings,
+                    modifier = Modifier.weight(1f).then(contentModifier),
+                    onCatalogClick = onCatalogClick,
+                    onPosterClick = onPosterClick,
+                    onPosterLongClick = onPosterLongClick,
+                )
+            }
         }
     }
 }

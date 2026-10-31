@@ -1,5 +1,6 @@
 package com.nuvio.app.features.downloads
 
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.nuvio
@@ -29,7 +30,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
@@ -112,14 +112,14 @@ fun DownloadsScreen(
 
     val auraEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
     val locationBusy by DownloadLocation.busy.collectAsStateWithLifecycle()
-    val glassState = remember { HazeState() }
-    CompositionLocalProvider(LocalNavigationGlassState provides glassState) {
-        Box(Modifier.fillMaxSize()) {
-            if (auraEnabled) {
-                HomeInteractiveGradientBackground(Modifier.fillMaxSize())
-            } else {
-                Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
-            }
+    val sidebarInset = LocalDesktopSidebarContentInset.current
+    Box(Modifier.fillMaxSize()) {
+        if (auraEnabled) {
+            HomeInteractiveGradientBackground(Modifier.fillMaxSize())
+        } else {
+            Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
+        }
+        Box(Modifier.fillMaxSize().padding(start = sidebarInset)) {
             NuvioScreen(backgroundColor = Color.Transparent) {
                 stickyHeader {
                     NuvioScreenHeader(
@@ -182,7 +182,6 @@ fun DownloadsScreen(
                     )
                 }
             }
-
         }
     }
 

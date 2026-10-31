@@ -50,7 +50,7 @@ internal fun Modifier.navigationGlass(
     // In-page effects must not sample the z=1 scrolling source which contains them.
     // Navigation overlays retain their existing full-page backdrop behavior.
     val backdropState = hazeState?.takeIf { state ->
-        frostedGlassEnabled && (!backgroundOnly || state.areas.any { it.zIndex < 1f })
+        frostedGlassEnabled && state.areas.isNotEmpty() && (!backgroundOnly || state.areas.any { it.zIndex < 1f })
     }
     // The same light, theme-neutral tint for controls and panels, without a gray surface wash.
     val tint = tokens.colors.background.copy(alpha = tokens.opacity.pressed)

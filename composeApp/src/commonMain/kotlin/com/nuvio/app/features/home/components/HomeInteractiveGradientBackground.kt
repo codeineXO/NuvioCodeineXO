@@ -150,20 +150,6 @@ fun HomeInteractiveGradientBackground(
                 center = orb4Center,
                 radius = orb4Radius,
             )
-
-            // 3. Subtle Vignette Scrim for content contrast and depth
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.15f),
-                        Color.Black.copy(alpha = 0.45f),
-                        Color.Black.copy(alpha = 0.70f),
-                    ),
-                    startY = 0f,
-                    endY = h,
-                ),
-            )
         }
     }
 }

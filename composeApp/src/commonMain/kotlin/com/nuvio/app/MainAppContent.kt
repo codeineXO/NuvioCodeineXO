@@ -2487,6 +2487,13 @@ internal fun MainAppContent(
 
 private fun AppRoute?.drawsUnderVerticalBar(selectedTab: AppScreenTab): Boolean =
     when (this) {
-        is DetailRoute, is StreamRoute, is PlayerRoute, is TabsRoute -> true
+        is DetailRoute,
+        is StreamRoute,
+        is PlayerRoute,
+        is TabsRoute,
+        is FolderDetailRoute,
+        is CollectionFoldersRoute,
+        is DownloadsRoute,
+        is DownloadShowRoute -> true
         else -> false
     }
