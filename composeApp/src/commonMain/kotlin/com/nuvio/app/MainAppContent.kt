@@ -315,7 +315,7 @@ internal fun MainAppContent(
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val posterOverlayHazeState = rememberHazeState()
-        val navigationGlassState = remember(currentRoute) { dev.chrisbanes.haze.HazeState() }
+        val navigationGlassState = remember(currentRoute, selectedTab) { dev.chrisbanes.haze.HazeState() }
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
         var selectedContinueWatchingMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val libraryDisintegrationRequests = remember { DisintegrationRequestController<String>() }

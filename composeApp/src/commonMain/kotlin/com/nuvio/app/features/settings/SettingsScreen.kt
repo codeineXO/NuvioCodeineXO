@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.gestures.stopScroll
 import com.nuvio.app.core.ui.LocalScreenActive
+import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -186,6 +187,12 @@ fun SettingsScreen(
 
         if (auraBackgroundEnabled) {
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
+        } else {
+            Box(
+                Modifier.fillMaxSize()
+                    .navigationGlassSource(zIndex = -1f)
+                    .background(MaterialTheme.nuvio.colors.background)
+            )
         }
 
         val screenActive = LocalScreenActive.current
