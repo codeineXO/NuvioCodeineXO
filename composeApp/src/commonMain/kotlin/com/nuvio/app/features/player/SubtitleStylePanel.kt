@@ -618,7 +618,7 @@ private fun sameRgb(first: Color, second: Color): Boolean =
         abs(first.green - second.green) < 0.01f &&
         abs(first.blue - second.blue) < 0.01f
 
-private fun formatSubtitleDelay(delayMs: Int): String {
+internal fun formatSubtitleDelay(delayMs: Int): String {
     val sign = if (delayMs >= 0) "+" else "-"
     val absoluteMs = abs(delayMs)
     val seconds = absoluteMs / 1000

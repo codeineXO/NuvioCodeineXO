@@ -22,7 +22,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.features.player.seekpreview.LocalSeekPreviewInteraction
 import com.nuvio.app.features.player.seekpreview.seekPreviewKeyboardOffset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import com.nuvio.app.core.ui.NuvioToastController
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1043,6 +1048,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(
     val partyState by PartyRepository.state.collectAsStateWithLifecycle()
     val partyActive = partyState.party != null
     val playerBadges = if (isDesktop) emptyList() else rememberPlayerBadges()
+    val subtitleDelayToastLabel = stringResource(Res.string.compose_player_subtitle_delay)
     LaunchedEffect(playerSettingsUiState.seekPreviewEnabled, playerSettingsUiState.playerUiMode, isInPip, args.isMiniPlayer) {
         seekPreviewInteraction.clear()
     }
@@ -1207,6 +1213,22 @@ private fun PlayerScreenRuntime.RenderPlayerControls(
                 horizontalSafePadding = horizontalSafePadding,
                 onMinimize = args.onMinimize,
                 modifier = modifier.onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown) {
+                        when (event.key) {
+                            Key.G -> {
+                                val newDelay = (subtitleDelayMs - SUBTITLE_DELAY_STEP_MS).coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
+                                setSubtitleDelay(newDelay)
+                                NuvioToastController.show("$subtitleDelayToastLabel ${formatSubtitleDelay(newDelay)}")
+                                return@onKeyEvent true
+                            }
+                            Key.H -> {
+                                val newDelay = (subtitleDelayMs + SUBTITLE_DELAY_STEP_MS).coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
+                                setSubtitleDelay(newDelay)
+                                NuvioToastController.show("$subtitleDelayToastLabel ${formatSubtitleDelay(newDelay)}")
+                                return@onKeyEvent true
+                            }
+                        }
+                    }
                     val offset = seekPreviewKeyboardOffset(event)
                     if (offset == null) false else {
                         seekBy(offset, revealControls = false)

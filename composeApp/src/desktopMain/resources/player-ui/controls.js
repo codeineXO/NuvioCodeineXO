@@ -4849,16 +4849,34 @@ modalElements.forEach(modal => {
   });
 });
 
+const changeSubtitleDelay = (delta, showToast = true) => {
+  const currentDelay = Number(state.subtitleDelayMs) || 0;
+  const nextDelay = Math.max(-60000, Math.min(60000, currentDelay + delta));
+  state.subtitleDelayMs = nextDelay;
+  if (subtitleDelayValue) {
+    subtitleDelayValue.textContent = formatDelay(nextDelay);
+  }
+  if (showToast) {
+    const label = state.subtitleDelayLabel || "Subtitle Delay";
+    showPlayerToast(`${label} ${formatDelay(nextDelay)}`);
+  }
+  send("subtitleDelayDelta", delta);
+};
+
 subtitleDelayMinus.addEventListener("click", event => {
   event.stopPropagation();
-  send("subtitleDelayDelta", -100);
+  changeSubtitleDelay(-100, false);
 });
 subtitleDelayPlus.addEventListener("click", event => {
   event.stopPropagation();
-  send("subtitleDelayDelta", 100);
+  changeSubtitleDelay(100, false);
 });
 subtitleDelayReset.addEventListener("click", event => {
   event.stopPropagation();
+  state.subtitleDelayMs = 0;
+  if (subtitleDelayValue) {
+    subtitleDelayValue.textContent = formatDelay(0);
+  }
   send("subtitleDelayReset", 0);
 });
 autoSyncReload.addEventListener("click", event => {
@@ -6869,12 +6887,12 @@ document.addEventListener("keydown", event => {
   }
   if (event.code === "KeyG") {
     event.preventDefault();
-    send("subtitleDelayDelta", -100);
+    changeSubtitleDelay(-100);
     return;
   }
   if (event.code === "KeyH") {
     event.preventDefault();
-    send("subtitleDelayDelta", 100);
+    changeSubtitleDelay(100);
     return;
   }
   if (event.code === "KeyM") {
