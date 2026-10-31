@@ -17,9 +17,11 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -48,6 +50,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Settings
@@ -120,6 +123,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.flow.Flow
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.action_back
 import nuvio.composeapp.generated.resources.app_brand_name
 import nuvio.composeapp.generated.resources.compose_nav_close_app
 import nuvio.composeapp.generated.resources.compose_nav_home
@@ -751,6 +755,8 @@ internal fun DesktopHoverSidebar(
     onProfileStackVisibleChange: (Boolean) -> Unit = {},
     hazeState: HazeState? = null,
     onFocusWithinChanged: (Boolean) -> Unit = {},
+    canNavigateBack: Boolean = false,
+    onNavigateBack: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -793,51 +799,79 @@ internal fun DesktopHoverSidebar(
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-                    .nuvioVerticalScroll(rememberScrollState())
-                    .heightIn(min = maxHeight)
-                    .padding(top = profileTopPadding, bottom = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Box(
+                modifier = Modifier.fillMaxSize(),
             ) {
-                val profileInteraction = remember { MutableInteractionSource() }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(DesktopSidebarItemHeight)
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
-                        .navigationGlassFeedback(profileInteraction, tokens.shapes.button, profileStackVisible)
-                        .hoverable(profileInteraction)
-                        .remoteNavigationTarget(shape = tokens.shapes.button).clickable(
-                            interactionSource = profileInteraction,
-                            indication = null,
-                            onClick = { onProfileStackVisibleChange(!profileStackVisible) },
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    DesktopSidebarProfileTrigger(
-                        profile = activeProfile,
-                        avatars = avatars,
-                        label = activeProfileName,
-                        expanded = sidebarExpanded,
-                    )
-                }
-
-                if (profileStackVisible) {
-                    SidebarProfileSwitcherStack(
-                        onProfileSelected = onProfileSelected,
-                        onAddProfileRequested = onAddProfileRequested,
-                        onDismissRequest = { onProfileStackVisibleChange(false) },
-                        modifier = Modifier
-                            .padding(top = DesktopSidebarProfileStackTopGap, bottom = DesktopSidebarProfileStackNavGap)
-                            .width(DesktopSidebarExpandedContentWidth)
-                            .zIndex(NuvioTokens.Z.sheet),
-                    )
-                }
-
-                Spacer(Modifier.weight(1f))
                 Column(
                     modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(top = profileTopPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    val profileInteraction = remember { MutableInteractionSource() }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(DesktopSidebarItemHeight)
+                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                            .navigationGlassFeedback(profileInteraction, tokens.shapes.button, profileStackVisible)
+                            .hoverable(profileInteraction)
+                            .remoteNavigationTarget(shape = tokens.shapes.button).clickable(
+                                interactionSource = profileInteraction,
+                                indication = null,
+                                onClick = { onProfileStackVisibleChange(!profileStackVisible) },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        DesktopSidebarProfileTrigger(
+                            profile = activeProfile,
+                            avatars = avatars,
+                            label = activeProfileName,
+                            expanded = sidebarExpanded,
+                        )
+                    }
+
+                    if (profileStackVisible) {
+                        SidebarProfileSwitcherStack(
+                            onProfileSelected = onProfileSelected,
+                            onAddProfileRequested = onAddProfileRequested,
+                            onDismissRequest = { onProfileStackVisibleChange(false) },
+                            modifier = Modifier
+                                .padding(top = DesktopSidebarProfileStackTopGap, bottom = DesktopSidebarProfileStackNavGap)
+                                .width(DesktopSidebarExpandedContentWidth)
+                                .zIndex(NuvioTokens.Z.sheet),
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = canNavigateBack,
+                        enter = fadeIn(animationSpec = tween(160)) + expandVertically(
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                        ),
+                        exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                        ),
+                    ) {
+                        DesktopSidebarItem(
+                            label = stringResource(Res.string.action_back),
+                            selected = false,
+                            expanded = sidebarExpanded,
+                            onClick = onNavigateBack,
+                        ) { color ->
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = stringResource(Res.string.action_back),
+                                modifier = Modifier.size(DesktopSidebarIconSize),
+                                tint = color,
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -884,7 +918,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_settings_page_root),
                         selected = selectedTab == AppScreenTab.Settings,
                         expanded = sidebarExpanded,
-                        onClick = { if (selectedTab != AppScreenTab.Settings) selectTab(AppScreenTab.Settings) },
+                        onClick = { selectTab(AppScreenTab.Settings) },
                     ) { color ->
                         Icon(
                             imageVector = Icons.Rounded.Settings,
@@ -895,10 +929,11 @@ internal fun DesktopHoverSidebar(
                     }
                 }
 
-                Spacer(Modifier.weight(1f))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(),
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(bottom = 18.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     DesktopSidebarItem(
@@ -918,7 +953,7 @@ internal fun DesktopHoverSidebar(
             }
         }
     }
-    }
+}
 }
 
 @Composable

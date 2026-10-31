@@ -26,6 +26,7 @@ internal val LocalFrostedGlassEnabled = staticCompositionLocalOf { true }
 /** Only Compose page content is registered here; never a video surface or player UI. */
 internal val LocalNavigationGlassState = staticCompositionLocalOf<HazeState?> { null }
 internal val LocalDesktopSidebarContentInset = staticCompositionLocalOf { 0.dp }
+internal val LocalDesktopSidebarActive = staticCompositionLocalOf { false }
 
 /** Attach to artwork or scrolling content, with glass controls in a sibling layer. */
 @Composable

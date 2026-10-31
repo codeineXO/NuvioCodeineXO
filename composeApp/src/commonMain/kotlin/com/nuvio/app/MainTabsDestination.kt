@@ -314,36 +314,6 @@ internal fun MainTabsDestination(
                     )
                 }
 
-                if (useDesktopSidebar) {
-                    DesktopHoverSidebar(
-                        selectedTab = selectedTab,
-                        onTabSelected = onTabSelected,
-                        onProfileSelected = onProfileSelected,
-                        onAddProfileRequested = onAddProfileRequested,
-                        sidebarExpanded = isSidebarExpanded,
-                        sidebarWidth = animatedSidebarWidth,
-                        hoverSource = sidebarHoverSource,
-                        profileStackVisible = isProfileStackVisible,
-                        onProfileStackVisibleChange = { isProfileStackVisible = it },
-                        hazeState = navBarHazeState,
-                        onFocusWithinChanged = { isSidebarFocused = it },
-                        modifier = Modifier.align(Alignment.CenterStart)
-                            .pointerInput(navBarStyleSetting) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                                        if (event.type == PointerEventType.Exit &&
-                                            navBarStyleSetting != NavBarStyle.EXPANDED &&
-                                            navBarStyleSetting != NavBarStyle.COMPACT
-                                        ) {
-                                            isProfileStackVisible = false
-                                        }
-                                    }
-                                }
-                            },
-                    )
-                }
-
                 if (useFloatingTopBar) {
                     TabletFloatingTopBar(
                         selectedTab = selectedTab,

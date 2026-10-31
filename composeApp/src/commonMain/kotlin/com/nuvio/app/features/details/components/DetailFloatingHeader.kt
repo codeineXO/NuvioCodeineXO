@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
@@ -88,7 +89,8 @@ fun DetailFloatingHeader(
     ) {
         val logoWidth = (maxWidth * 0.6f).coerceAtMost(240.dp)
         val rightActionsWidth = if (isDesktop) 48.dp else 40.dp
-        val actionHorizontalInset = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else fullscreenActionHorizontalInsetForWidth(maxWidth.value)
+        val actionHorizontalInsetStart = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) + LocalDesktopSidebarContentInset.current else fullscreenActionHorizontalInsetForWidth(maxWidth.value)
+        val actionHorizontalInsetEnd = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else fullscreenActionHorizontalInsetForWidth(maxWidth.value)
 
         Box(
             modifier = Modifier
@@ -99,7 +101,7 @@ fun DetailFloatingHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = headerTopPadding, start = actionHorizontalInset, end = actionHorizontalInset)
+                    .padding(top = headerTopPadding, start = actionHorizontalInsetStart, end = actionHorizontalInsetEnd)
                     .height(if (isDesktop) 48.dp else 56.dp)
                     .graphicsLayer { alpha = progressProvider() },
                 horizontalArrangement = Arrangement.SpaceBetween,

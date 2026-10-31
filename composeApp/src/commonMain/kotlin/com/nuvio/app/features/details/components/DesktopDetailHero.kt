@@ -67,6 +67,7 @@ import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioDesktopImageScaling
 import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
@@ -264,7 +265,7 @@ fun DesktopDetailHero(
                 .align(heroAlignment)
                 .widthIn(max = 760.dp)
                 .padding(
-                    start = pageHorizontalPadding,
+                    start = pageHorizontalPadding + LocalDesktopSidebarContentInset.current,
                     end = space.s32,
                     top = if (compact) 90.dp else 0.dp,
                     bottom = if (compact) space.s8 else space.s40,

@@ -229,7 +229,7 @@ fun NuvioScreenHeader(
                 verticalAlignment = if (isDesktop && onBack != null) Alignment.Top else Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
-                if (onBack != null) {
+                if (onBack != null && !LocalDesktopSidebarActive.current) {
                     IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
                         .size(desktopBackButtonSize)
                     else Modifier).navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
@@ -352,6 +352,7 @@ fun NuvioBackButton(
     backgroundOnly: Boolean = false,
 ) {
     if (LocalUseNativeNavigation.current && !LocalNativeNavigationBarHidden.current) return
+    if (LocalDesktopSidebarActive.current) return
     val desktopPageStyle = isDesktop && usePageStyle
     val effectiveContainerColor = if (desktopPageStyle) desktopBackButtonContainerColor
         else if (isDesktop && !showContainerOnDesktop) Color.Transparent else containerColor

@@ -1,6 +1,7 @@
 package com.nuvio.app.features.streams
 
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.nuvio
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
@@ -228,12 +229,17 @@ internal fun TabletStreamsLayout(
             )
         }
 
+        val sidebarContentInset = LocalDesktopSidebarContentInset.current
+        val infoPanelAreaWidth = (maxWidth - resultsWidth).coerceAtLeast(0.dp)
+        val infoPanelCenterOffset = (sidebarContentInset / 2)
+
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .width(if (isWideLayout) artworkWidth else maxWidth * 0.4f)
+                .width(infoPanelAreaWidth)
                 .fillMaxHeight()
-                .padding(24.dp),
+                .padding(start = sidebarContentInset, end = 24.dp)
+                .padding(vertical = 24.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (isEpisode && seasonNumber != null && episodeNumber != null) {

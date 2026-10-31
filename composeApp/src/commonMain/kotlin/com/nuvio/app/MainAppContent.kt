@@ -218,6 +218,16 @@ import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.features.player.extractImdbId
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.input.pointer.PointerEventPass
+import com.nuvio.app.core.ui.LocalDesktopSidebarActive
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
+import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
+import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
+import com.nuvio.app.features.settings.DesktopNavigationLayout
+import com.nuvio.app.features.settings.NavBarStyle
 import com.nuvio.app.features.player.dispatchNavigationBack
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalComposeUiApi::class)
@@ -452,7 +462,14 @@ internal fun MainAppContent(
     }
 
     fun handleRootTabClick(tab: AppScreenTab) {
-        if (selectedTab != tab) {
+        val poppedAny = navBackStack.size > 1
+        if (poppedAny) {
+            posterNavigation.clear()
+            while (navBackStack.size > 1) {
+                navController.popBackStack()
+            }
+        }
+        if (selectedTab != tab || poppedAny) {
             activateTab(tab)
             return
         }
@@ -1428,7 +1445,7 @@ internal fun MainAppContent(
                         }
                     }),
             ) {
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
@@ -1440,6 +1457,50 @@ internal fun MainAppContent(
                     )
                     .background(MaterialTheme.nuvio.colors.background),
             ) {
+            val screenWidth = maxWidth
+            val isTabletLayout = useTabletFloatingTabBar || screenWidth >= 768.dp
+            val useNativeBottomTabs = if (useNativeNavigation) {
+                useNativeTabBar
+            } else {
+                liquidGlassNativeTabBarSupported && liquidGlassNativeTabBarEnabled && initialHomeReady
+            }
+            val useDesktopSidebar = isDesktop &&
+                isTabletLayout &&
+                !useNativeBottomTabs &&
+                desktopNavigationLayout == DesktopNavigationLayout.Sidebar &&
+                currentRoute !is PlayerRoute &&
+                currentRoute !is OnboardingRoute
+            val isSubpage = currentRoute != null && currentRoute !is TabsRoute && currentRoute !is PlayerRoute && currentRoute !is OnboardingRoute
+
+            val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
+            val sidebarHoverSource = remember { MutableInteractionSource() }
+            val isSidebarHovered by sidebarHoverSource.collectIsRemoteHoveredAsState()
+            var isProfileStackVisible by remember { mutableStateOf(false) }
+            var isSidebarFocused by remember { mutableStateOf(false) }
+            val isKeyboardNavigationActive = isRemoteKeyboardNavigationActive
+
+            val isSidebarExpanded = when (navBarStyleSetting) {
+                NavBarStyle.EXPANDED -> true
+                NavBarStyle.COMPACT -> isProfileStackVisible
+                else -> isSidebarHovered || (isKeyboardNavigationActive && isSidebarFocused) || isProfileStackVisible
+            }
+
+            val animatedSidebarWidth by animateDpAsState(
+                targetValue = if (isSidebarExpanded) DesktopSidebarExpandedWidth else DesktopSidebarCollapsedWidth,
+                animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                label = "desktop_sidebar_width",
+            )
+
+            val reservedSidebarWidth = when (navBarStyleSetting) {
+                NavBarStyle.EXPANDED -> DesktopSidebarExpandedWidth
+                NavBarStyle.COMPACT -> animatedSidebarWidth
+                else -> DesktopSidebarCollapsedWidth
+            }
+            val contentStartPadding = if (useDesktopSidebar) {
+                reservedSidebarWidth + DesktopSidebarOuterInset * 2
+            } else {
+                0.dp
+            }
             val verticalBarPadding = LocalVerticalBarPadding.current
             val drawsUnderVerticalBar = currentRoute.drawsUnderVerticalBar(selectedTab)
             SharedTransitionLayout {
@@ -1449,11 +1510,15 @@ internal fun MainAppContent(
                     LocalUseNativeNavigation provides useNativeNavigation,
                     LocalNativeNavigationBarHidden provides (currentRoute?.hidesNavigationBar == true),
                     LocalVerticalBarPadding provides if (drawsUnderVerticalBar) verticalBarPadding else PaddingValues(),
+                    LocalDesktopSidebarActive provides useDesktopSidebar,
+                    LocalDesktopSidebarContentInset provides if (useDesktopSidebar) contentStartPadding else 0.dp,
                 ) {
+                Box(modifier = Modifier.fillMaxSize()) {
                 NavDisplay(
                     backStack = navBackStack,
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(start = if (useDesktopSidebar && !drawsUnderVerticalBar) contentStartPadding else 0.dp)
                         .padding(if (drawsUnderVerticalBar) PaddingValues() else verticalBarPadding),
                     onBack = {
                         val routeAtRequest = navController.currentRoute
@@ -1900,7 +1965,65 @@ internal fun MainAppContent(
                         }
                     },
                 )
+
+                if (useDesktopSidebar) {
+                    DesktopHoverSidebar(
+                        selectedTab = selectedTab,
+                        onTabSelected = ::handleRootTabClick,
+                        onProfileSelected = { profile ->
+                            profileSwitchLoading = true
+                            NativeTabBridge.publishTabBarVisible(false)
+                            activateTab(AppScreenTab.Home)
+                            coroutineScope.launch {
+                                try {
+                                    ProfileRepository.switchToProfile(profile.profileIndex)
+                                    warmProfileBoundRepositories()
+                                    withContext(Dispatchers.Default) {
+                                        SyncManager.pullAllForProfile(profile.profileIndex)
+                                    }
+                                    delay(300)
+                                } finally {
+                                    profileSwitchLoading = false
+                                }
+                            }
+                        },
+                        onAddProfileRequested = onSwitchProfile,
+                        sidebarExpanded = isSidebarExpanded,
+                        sidebarWidth = animatedSidebarWidth,
+                        hoverSource = sidebarHoverSource,
+                        profileStackVisible = isProfileStackVisible,
+                        onProfileStackVisibleChange = { isProfileStackVisible = it },
+                        hazeState = navigationGlassState,
+                        onFocusWithinChanged = { isSidebarFocused = it },
+                        canNavigateBack = isSubpage,
+                        onNavigateBack = {
+                            val routeAtRequest = navController.currentRoute
+                            dispatchNavigationBack(
+                                isPlayerRoute = routeAtRequest is PlayerRoute,
+                                playerBack = registeredPlayerSystemBack
+                                    ?.takeIf { (route, _) -> route == routeAtRequest }
+                                    ?.second,
+                                pop = { navController.popBackStack() },
+                            )
+                        },
+                        modifier = Modifier.align(Alignment.CenterStart)
+                            .pointerInput(navBarStyleSetting) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                                        if (event.type == PointerEventType.Exit &&
+                                            navBarStyleSetting != NavBarStyle.EXPANDED &&
+                                            navBarStyleSetting != NavBarStyle.COMPACT
+                                        ) {
+                                            isProfileStackVisible = false
+                                        }
+                                    }
+                                }
+                            },
+                    )
                 }
+                }
+            }
             }
             }
 
@@ -2364,7 +2487,6 @@ internal fun MainAppContent(
 
 private fun AppRoute?.drawsUnderVerticalBar(selectedTab: AppScreenTab): Boolean =
     when (this) {
-        is DetailRoute, is StreamRoute, is PlayerRoute -> true
-        is TabsRoute -> selectedTab == AppScreenTab.Home || selectedTab == AppScreenTab.Library
+        is DetailRoute, is StreamRoute, is PlayerRoute, is TabsRoute -> true
         else -> false
     }

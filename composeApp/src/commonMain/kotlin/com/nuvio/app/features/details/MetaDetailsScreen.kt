@@ -138,6 +138,7 @@ import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.core.ui.verticalBarWidth
 import com.nuvio.app.core.ui.NuvioActionMenu
@@ -1320,6 +1321,7 @@ fun MetaDetailsScreen(
                     } else 0.dp
                     val viewportHeight = maxHeight
                     val desktopPageHorizontalPadding = desktopPageHorizontalPaddingForWidth(screenMaxWidth.value)
+                    val sidebarContentInset = LocalDesktopSidebarContentInset.current
                     val contentHorizontalPadding = if (isDesktop) {
                         desktopPageHorizontalPadding
                     } else if (isTablet) {
@@ -1574,7 +1576,8 @@ fun MetaDetailsScreen(
                                                             .fillMaxWidth(),
                                                     ) {
                                                         DetailSectionContainer(
-                                                            horizontalPadding = desktopPageHorizontalPadding,
+                                                            startPadding = desktopPageHorizontalPadding + sidebarContentInset,
+                                                            endPadding = desktopPageHorizontalPadding,
                                                             contentMaxWidth = Dp.Unspecified,
                                                             bottomPadding = 68.dp,
                                                         ) {
@@ -1613,7 +1616,8 @@ fun MetaDetailsScreen(
                                         isMdbListActive = mdbListSettings.isActive,
                                         meta = meta,
                                         isTablet = true,
-                                        contentHorizontalPadding = desktopPageHorizontalPadding,
+                                        startPadding = desktopPageHorizontalPadding + sidebarContentInset,
+                                        endPadding = desktopPageHorizontalPadding,
                                         contentMaxWidth = Dp.Unspecified,
                                         playButtonLabel = playButtonLabel,
                                         isPrimaryPlayEnabled = isPrimaryPlayEnabled,
@@ -1736,7 +1740,8 @@ fun MetaDetailsScreen(
                                     isMdbListActive = mdbListSettings.isActive,
                                     meta = meta,
                                     isTablet = true,
-                                    contentHorizontalPadding = desktopPageHorizontalPadding,
+                                    startPadding = desktopPageHorizontalPadding + sidebarContentInset,
+                                    endPadding = desktopPageHorizontalPadding,
                                     contentMaxWidth = Dp.Unspecified,
                                     playButtonLabel = playButtonLabel,
                                     isPrimaryPlayEnabled = isPrimaryPlayEnabled,
@@ -1990,12 +1995,19 @@ fun MetaDetailsScreen(
                             if (!useEnhancedLayout || enhancedSecondPage) {
                                 if (metaScreenSettingsUiState.showMetadataInfo) {
                                     item(key = "metadata-info", contentType = "metadata-info") {
-                                        MetadataInfoPanel(
-                                            meta = meta,
-                                            requestedId = id,
-                                            isFromCache = uiState.isFromCache,
-                                            modifier = Modifier.padding(horizontal = contentHorizontalPadding, vertical = 12.dp),
-                                        )
+                                        DetailSectionContainer(
+                                            startPadding = desktopPageHorizontalPadding + sidebarContentInset,
+                                            endPadding = desktopPageHorizontalPadding,
+                                            contentMaxWidth = contentMaxWidth,
+                                            bottomPadding = 12.dp,
+                                        ) {
+                                            MetadataInfoPanel(
+                                                meta = meta,
+                                                requestedId = id,
+                                                isFromCache = uiState.isFromCache,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
                                     }
                                 }
                                 item(
@@ -2595,7 +2607,9 @@ private fun LazyListScope.configuredMetaSectionItems(
     isMdbListActive: Boolean,
     meta: MetaDetails,
     isTablet: Boolean,
-    contentHorizontalPadding: Dp,
+    contentHorizontalPadding: Dp = 0.dp,
+    startPadding: Dp = contentHorizontalPadding,
+    endPadding: Dp = contentHorizontalPadding,
     contentMaxWidth: Dp,
     playButtonLabel: String,
     isPrimaryPlayEnabled: Boolean,
@@ -2670,7 +2684,8 @@ private fun LazyListScope.configuredMetaSectionItems(
     ) {
         item(key = key) {
             DetailSectionContainer(
-                horizontalPadding = contentHorizontalPadding,
+                startPadding = startPadding,
+                endPadding = endPadding,
                 contentMaxWidth = contentMaxWidth,
             ) {
                 ConfiguredMetaSections(
@@ -2681,7 +2696,7 @@ private fun LazyListScope.configuredMetaSectionItems(
                     isMdbListActive = isMdbListActive,
                     meta = meta,
                     isTablet = isTablet,
-                    horizontalScrollPadding = contentHorizontalPadding,
+                    horizontalScrollPadding = endPadding,
                     playButtonLabel = playButtonLabel,
                     isPrimaryPlayEnabled = isPrimaryPlayEnabled,
                     isSaved = isSaved,
@@ -2740,7 +2755,8 @@ private fun LazyListScope.configuredMetaSectionItems(
             contentType = "detail-episode-header",
         ) {
             DetailSectionContainer(
-                horizontalPadding = contentHorizontalPadding,
+                startPadding = startPadding,
+                endPadding = endPadding,
                 contentMaxWidth = contentMaxWidth,
                 bottomPadding = if (isDesktop) 8.dp else 12.dp,
             ) {
@@ -2749,7 +2765,7 @@ private fun LazyListScope.configuredMetaSectionItems(
                     groupedEpisodes = episodeListGroupedEpisodes,
                     seasons = episodeListSeasons,
                     currentSeason = currentSeason,
-                    horizontalScrollPadding = contentHorizontalPadding,
+                    horizontalScrollPadding = endPadding,
                     onSeasonSelect = onEpisodeListSeasonSelect,
                     onSeasonLongPress = onSeasonLongPress,
                 )
@@ -2772,7 +2788,8 @@ private fun LazyListScope.configuredMetaSectionItems(
                 val isHidingFillers = isFillerEnabled && hideFillerEpisodes
 
                 DetailSectionContainer(
-                    horizontalPadding = contentHorizontalPadding,
+                    startPadding = startPadding,
+                    endPadding = endPadding,
                     contentMaxWidth = contentMaxWidth,
                     bottomPadding = 20.dp,
                 ) {
@@ -2799,7 +2816,8 @@ private fun LazyListScope.configuredMetaSectionItems(
             contentType = { _, _ -> "detail-episode" },
         ) { index, episode ->
             DetailSectionContainer(
-                horizontalPadding = contentHorizontalPadding,
+                startPadding = startPadding,
+                endPadding = endPadding,
                 contentMaxWidth = contentMaxWidth,
                 bottomPadding = if (index == episodes.lastIndex) 20.dp else 12.dp,
             ) {
@@ -2882,7 +2900,9 @@ private fun LazyListScope.configuredMetaSectionItems(
 
 @Composable
 private fun DetailSectionContainer(
-    horizontalPadding: Dp,
+    horizontalPadding: Dp = 0.dp,
+    startPadding: Dp = horizontalPadding,
+    endPadding: Dp = horizontalPadding,
     contentMaxWidth: Dp,
     bottomPadding: Dp = 20.dp,
     content: @Composable () -> Unit,
@@ -2890,7 +2910,7 @@ private fun DetailSectionContainer(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding)
+            .padding(start = startPadding, end = endPadding)
             .padding(bottom = bottomPadding),
         contentAlignment = Alignment.Center,
     ) {
