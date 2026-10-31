@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import com.nuvio.app.core.ui.navigationGlassSource
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
@@ -306,7 +307,7 @@ fun DesktopDetailHero(
                                     translationY = 2f
                                     alpha = 0.65f
                                 }
-                                .blur(8.dp),
+                                .blur(8.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
                             alignment = Alignment.CenterStart,
                             contentScale = ContentScale.Fit,
                         )

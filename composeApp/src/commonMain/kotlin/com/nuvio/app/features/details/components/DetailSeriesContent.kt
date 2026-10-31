@@ -38,6 +38,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.FlowRow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -111,8 +112,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -396,10 +399,11 @@ fun DetailSeriesContent(
                     val fromIdx = seasons.indexOf(initialState).takeIf { it >= 0 } ?: 0
                     val toIdx = seasons.indexOf(targetState).takeIf { it >= 0 } ?: 0
                     val dir = if (toIdx >= fromIdx) 1 else -1
-                    (fadeIn(tween(220)) + slideInHorizontally(tween(220)) { dir * it / 5 })
+                    val transform = (fadeIn(tween(220)) + slideInHorizontally(tween(220)) { dir * it / 5 })
                         .togetherWith(
                             fadeOut(tween(170)) + slideOutHorizontally(tween(170)) { -dir * it / 5 },
                         )
+                    if (isEnhanced) transform.using(SizeTransform(clip = false)) else transform
                 },
                 label = "season_episodes",
             ) { seasonForContent ->
@@ -447,6 +451,13 @@ fun DetailSeriesContent(
 
                     if (isEnhanced) {
                         val effectiveEpisodesHeaderSize = if (isEnhanced) sizing.seasonHeaderSize * 0.95f else sizing.seasonHeaderSize
+                        val episodesHeaderShadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.78f),
+                            offset = Offset(0f, 2f),
+                            blurRadius = 8f,
+                        )
+                        val density = LocalDensity.current
+                        val episodeScrollOffsetPx = remember(density) { with(density) { (-48.dp).toPx().toInt() } }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -457,6 +468,7 @@ fun DetailSeriesContent(
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontSize = effectiveEpisodesHeaderSize,
                                     fontWeight = FontWeight.SemiBold,
+                                    shadow = episodesHeaderShadow,
                                 ),
                                 color = MaterialTheme.colorScheme.onBackground,
                             )
@@ -473,7 +485,10 @@ fun DetailSeriesContent(
                                             val firstVisible = episodeListState.firstVisibleItemIndex
                                             val count = (episodeListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
                                             val target = (firstVisible - count).coerceAtLeast(0)
-                                            episodeListState.animateScrollToItem(target)
+                                            episodeListState.animateScrollToItem(
+                                                index = target,
+                                                scrollOffset = if (target > 0) episodeScrollOffsetPx else 0,
+                                            )
                                         }
                                     },
                                 )
@@ -485,7 +500,10 @@ fun DetailSeriesContent(
                                             val firstVisible = episodeListState.firstVisibleItemIndex
                                             val count = (episodeListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
                                             val target = (firstVisible + count).coerceAtMost(seasonEpisodes.size - 1)
-                                            episodeListState.animateScrollToItem(target)
+                                            episodeListState.animateScrollToItem(
+                                                index = target,
+                                                scrollOffset = if (target > 0) episodeScrollOffsetPx else 0,
+                                            )
                                         }
                                     },
                                 )
@@ -753,11 +771,16 @@ private fun SeriesSeasonSelector(
         ) != null
     }
     Column(
-        modifier = Modifier.animateContentSize(animationSpec = tween(280)),
+        modifier = if (isEnhanced) Modifier else Modifier.animateContentSize(animationSpec = tween(280)),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (isEnhanced) {
             val effectiveSeasonHeaderSize = if (isEnhanced) sizing.seasonHeaderSize * 0.95f else sizing.seasonHeaderSize
+            val seasonHeaderShadow = Shadow(
+                color = Color.Black.copy(alpha = 0.78f),
+                offset = Offset(0f, 2f),
+                blurRadius = 8f,
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -773,6 +796,7 @@ private fun SeriesSeasonSelector(
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = effectiveSeasonHeaderSize,
                             fontWeight = FontWeight.SemiBold,
+                            shadow = seasonHeaderShadow,
                         ),
                         color = MaterialTheme.colorScheme.onBackground,
                     )
@@ -1173,20 +1197,23 @@ private fun SeasonTextChipScrollRow(
             .nuvioPosterRowGutterClip()
             .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(seasonListState)
-            .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
+            .let { if (isDesktop && !isEnhanced) it.padding(bottom = 4.dp) else it }
     } else {
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
             .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
             .nuvioDesktopDragScroll(seasonListState)
-            .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
+            .let { if (isDesktop && !isEnhanced) it.padding(bottom = 4.dp) else it }
     }
 
     val rowContentPadding = if (scrollPostersLayoutEnabled) {
-        PaddingValues(0.dp)
+        PaddingValues(vertical = if (isEnhanced) 12.dp else 0.dp)
     } else {
-        PaddingValues(horizontal = horizontalScrollPadding)
+        PaddingValues(
+            horizontal = horizontalScrollPadding,
+            vertical = if (isEnhanced) 12.dp else 0.dp,
+        )
     }
 
     Box(
@@ -1218,7 +1245,9 @@ private fun SeasonTextChipScrollRow(
                                             shape = RoundedCornerShape(sizing.seasonChipRadius),
                                             backgroundOnly = true,
                                         )
-                                    } else Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius)))
+                                    } else if (!isEnhanced) {
+                                        Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius))
+                                    } else Modifier)
                                     .hoverable(chipInteractionSource)
                                     .then(rowNavigation.itemModifier(index))
                                     .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })

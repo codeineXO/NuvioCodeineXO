@@ -29,10 +29,15 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -75,7 +80,7 @@ data class DetailSecondaryAction(
     val onLongClick: (() -> Unit)? = null,
 )
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DetailActionButtons(
     modifier: Modifier = Modifier,
@@ -181,53 +186,60 @@ fun DetailActionButtons(
                     secondaryActions.forEach { action ->
                         Spacer(modifier = Modifier.width(12.dp))
                         val actionInteractionSource = remember { MutableInteractionSource() }
-                        Surface(
-                            modifier = Modifier.size(iconButtonSize)
-                                .navigationGlass(shape = CircleShape, backgroundOnly = true),
-                            shape = CircleShape,
-                            color = Color.Transparent,
-                            contentColor = if (action.isActive) MaterialTheme.nuvio.colors.accent else MaterialTheme.nuvio.colors.textPrimary,
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text(action.label) } },
+                            state = rememberTooltipState(),
+                            focusable = false,
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(iconButtonSize)
-                                    .navigationGlassFeedback(actionInteractionSource, CircleShape, selected = action.isActive)
-                                    .hoverable(actionInteractionSource)
-                                    .remoteNavigationTarget(
-                                        shape = CircleShape,
-                                        onSelect = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            action.onClick()
-                                        },
-                                        onContext = action.onLongClick?.let { longClick ->
-                                            {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                longClick()
-                                            }
-                                        },
-                                    ).combinedClickable(
-                                        interactionSource = actionInteractionSource,
-                                        indication = androidx.compose.foundation.LocalIndication.current,
-                                        onClick = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            action.onClick()
-                                        },
-                                        onLongClick = action.onLongClick?.let { longClick ->
-                                            {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                longClick()
-                                            }
-                                        },
-                                        role = Role.Button,
-                                    )
-                                    .secondaryClick(action.onLongClick),
-                                contentAlignment = Alignment.Center,
+                            Surface(
+                                modifier = Modifier.size(iconButtonSize)
+                                    .navigationGlass(shape = CircleShape, backgroundOnly = true),
+                                shape = CircleShape,
+                                color = Color.Transparent,
+                                contentColor = if (action.isActive) MaterialTheme.nuvio.colors.accent else MaterialTheme.nuvio.colors.textPrimary,
                             ) {
-                                Icon(
-                                    imageVector = action.icon,
-                                    contentDescription = action.label,
-                                    modifier = Modifier.size(21.dp),
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(iconButtonSize)
+                                        .navigationGlassFeedback(actionInteractionSource, CircleShape, selected = action.isActive)
+                                        .hoverable(actionInteractionSource)
+                                        .remoteNavigationTarget(
+                                            shape = CircleShape,
+                                            onSelect = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                action.onClick()
+                                            },
+                                            onContext = action.onLongClick?.let { longClick ->
+                                                {
+                                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    longClick()
+                                                }
+                                            },
+                                        ).combinedClickable(
+                                            interactionSource = actionInteractionSource,
+                                            indication = androidx.compose.foundation.LocalIndication.current,
+                                            onClick = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                action.onClick()
+                                            },
+                                            onLongClick = action.onLongClick?.let { longClick ->
+                                                {
+                                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    longClick()
+                                                }
+                                            },
+                                            role = Role.Button,
+                                        )
+                                        .secondaryClick(action.onLongClick),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = action.icon,
+                                        contentDescription = action.label,
+                                        modifier = Modifier.size(21.dp),
+                                    )
+                                }
                             }
                         }
                     }
