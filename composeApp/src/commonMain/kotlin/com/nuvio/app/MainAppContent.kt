@@ -85,6 +85,7 @@ import com.nuvio.app.core.sync.AppVisibility
 import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.DisintegrationRequestController
+import com.nuvio.app.core.ui.LocalRemoteRoute
 import com.nuvio.app.core.ui.NativeTabBridge
 import com.nuvio.app.core.ui.NuvioFloatingPrompt
 import com.nuvio.app.core.ui.actionMenuInput
@@ -1967,60 +1968,64 @@ internal fun MainAppContent(
                 )
 
                 if (useDesktopSidebar) {
-                    DesktopHoverSidebar(
-                        selectedTab = selectedTab,
-                        onTabSelected = ::handleRootTabClick,
-                        onProfileSelected = { profile ->
-                            profileSwitchLoading = true
-                            NativeTabBridge.publishTabBarVisible(false)
-                            activateTab(AppScreenTab.Home)
-                            coroutineScope.launch {
-                                try {
-                                    ProfileRepository.switchToProfile(profile.profileIndex)
-                                    warmProfileBoundRepositories()
-                                    withContext(Dispatchers.Default) {
-                                        SyncManager.pullAllForProfile(profile.profileIndex)
-                                    }
-                                    delay(300)
-                                } finally {
-                                    profileSwitchLoading = false
-                                }
-                            }
-                        },
-                        onAddProfileRequested = onSwitchProfile,
-                        sidebarExpanded = isSidebarExpanded,
-                        sidebarWidth = animatedSidebarWidth,
-                        hoverSource = sidebarHoverSource,
-                        profileStackVisible = isProfileStackVisible,
-                        onProfileStackVisibleChange = { isProfileStackVisible = it },
-                        hazeState = navigationGlassState,
-                        onFocusWithinChanged = { isSidebarFocused = it },
-                        canNavigateBack = isSubpage,
-                        onNavigateBack = {
-                            val routeAtRequest = navController.currentRoute
-                            dispatchNavigationBack(
-                                isPlayerRoute = routeAtRequest is PlayerRoute,
-                                playerBack = registeredPlayerSystemBack
-                                    ?.takeIf { (route, _) -> route == routeAtRequest }
-                                    ?.second,
-                                pop = { navController.popBackStack() },
-                            )
-                        },
-                        modifier = Modifier.align(Alignment.CenterStart)
-                            .pointerInput(navBarStyleSetting) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                                        if (event.type == PointerEventType.Exit &&
-                                            navBarStyleSetting != NavBarStyle.EXPANDED &&
-                                            navBarStyleSetting != NavBarStyle.COMPACT
-                                        ) {
-                                            isProfileStackVisible = false
+                    val currentNavRoute = currentRoute
+                    val sidebarRouteKey = if (currentNavRoute is TabsRoute) currentNavRoute to selectedTab else (currentNavRoute ?: Unit)
+                    CompositionLocalProvider(LocalRemoteRoute provides sidebarRouteKey) {
+                        DesktopHoverSidebar(
+                            selectedTab = selectedTab,
+                            onTabSelected = ::handleRootTabClick,
+                            onProfileSelected = { profile ->
+                                profileSwitchLoading = true
+                                NativeTabBridge.publishTabBarVisible(false)
+                                activateTab(AppScreenTab.Home)
+                                coroutineScope.launch {
+                                    try {
+                                        ProfileRepository.switchToProfile(profile.profileIndex)
+                                        warmProfileBoundRepositories()
+                                        withContext(Dispatchers.Default) {
+                                            SyncManager.pullAllForProfile(profile.profileIndex)
                                         }
+                                        delay(300)
+                                    } finally {
+                                        profileSwitchLoading = false
                                     }
                                 }
                             },
-                    )
+                            onAddProfileRequested = onSwitchProfile,
+                            sidebarExpanded = isSidebarExpanded,
+                            sidebarWidth = animatedSidebarWidth,
+                            hoverSource = sidebarHoverSource,
+                            profileStackVisible = isProfileStackVisible,
+                            onProfileStackVisibleChange = { isProfileStackVisible = it },
+                            hazeState = navigationGlassState,
+                            onFocusWithinChanged = { isSidebarFocused = it },
+                            canNavigateBack = isSubpage,
+                            onNavigateBack = {
+                                val routeAtRequest = navController.currentRoute
+                                dispatchNavigationBack(
+                                    isPlayerRoute = routeAtRequest is PlayerRoute,
+                                    playerBack = registeredPlayerSystemBack
+                                        ?.takeIf { (route, _) -> route == routeAtRequest }
+                                        ?.second,
+                                    pop = { navController.popBackStack() },
+                                )
+                            },
+                            modifier = Modifier.align(Alignment.CenterStart)
+                                .pointerInput(navBarStyleSetting) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                                            if (event.type == PointerEventType.Exit &&
+                                                navBarStyleSetting != NavBarStyle.EXPANDED &&
+                                                navBarStyleSetting != NavBarStyle.COMPACT
+                                            ) {
+                                                isProfileStackVisible = false
+                                            }
+                                        }
+                                    }
+                                },
+                        )
+                    }
                 }
                 }
             }

@@ -96,11 +96,13 @@ internal fun Modifier.streamResultsNavigation(
                                 val filter = tabs[next]
                                 navigation.enterResults(filter)
                                 onFilterSelected(filter)
+                            } else if (event.key == Key.DirectionLeft && next < 0) {
+                                return@onPreviewKeyEvent false
                             }
                         }
                     }
                 }
-                true
+                if (event.type == KeyEventType.KeyUp) false else true
             }
         }.focusGroup()
 }

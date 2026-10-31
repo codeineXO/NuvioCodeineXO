@@ -6,6 +6,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import com.nuvio.app.core.ui.LocalRemoteNavigation
 import com.nuvio.app.core.ui.LocalRemoteNavigationRole
 import com.nuvio.app.core.ui.RemoteNavigationRole
@@ -781,6 +786,13 @@ internal fun DesktopHoverSidebar(
                 .navigationGlass(shape = tokens.shapes.card, panel = true, hazeState = hazeState)
                 .hoverable(hoverSource)
                 .onFocusChanged { onFocusWithinChanged(it.hasFocus) }
+                .onPreviewKeyEvent { event ->
+                    if (canNavigateBack && event.type == KeyEventType.KeyDown &&
+                        (event.key == Key.Escape || event.key == Key.Back)) {
+                        onNavigateBack()
+                        true
+                    } else false
+                }
                 .focusProperties {
                     onEnter = {
                         if (requestedFocusDirection == FocusDirection.Down || requestedFocusDirection == FocusDirection.Up) {
@@ -857,6 +869,7 @@ internal fun DesktopHoverSidebar(
                             label = stringResource(Res.string.action_back),
                             selected = false,
                             expanded = sidebarExpanded,
+                            isEntryTarget = canNavigateBack,
                             onClick = onNavigateBack,
                         ) { color ->
                             Icon(
@@ -879,6 +892,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_home),
                         selected = selectedTab == AppScreenTab.Home,
                         expanded = sidebarExpanded,
+                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Home,
                         onClick = { selectTab(AppScreenTab.Home) },
                     ) { color ->
                         Icon(
@@ -892,6 +906,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_search),
                         selected = selectedTab == AppScreenTab.Search,
                         expanded = sidebarExpanded,
+                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Search,
                         onClick = { selectTab(AppScreenTab.Search) },
                     ) { color ->
                         Icon(
@@ -905,6 +920,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_library),
                         selected = selectedTab == AppScreenTab.Library,
                         expanded = sidebarExpanded,
+                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Library,
                         onClick = { selectTab(AppScreenTab.Library) },
                     ) { color ->
                         Icon(
@@ -918,6 +934,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_settings_page_root),
                         selected = selectedTab == AppScreenTab.Settings,
                         expanded = sidebarExpanded,
+                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Settings,
                         onClick = { selectTab(AppScreenTab.Settings) },
                     ) { color ->
                         Icon(
@@ -1022,6 +1039,7 @@ private fun DesktopSidebarItem(
     selected: Boolean,
     expanded: Boolean,
     onClick: () -> Unit,
+    isEntryTarget: Boolean = selected,
     icon: @Composable (Color) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -1037,7 +1055,7 @@ private fun DesktopSidebarItem(
             .height(DesktopSidebarItemHeight)
             .padding(horizontal = 6.dp, vertical = 4.dp)
             .navigationGlassFeedback(interaction, itemShape, selected)
-            .hoverable(interaction)).remoteNavigationTarget(shape = itemShape, sidebarEntry = selected),
+            .hoverable(interaction)).remoteNavigationTarget(shape = itemShape, sidebarEntry = isEntryTarget),
         color = Color.Transparent,
         shape = itemShape,
         interactionSource = interaction,

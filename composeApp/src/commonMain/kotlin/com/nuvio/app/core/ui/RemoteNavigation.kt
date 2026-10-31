@@ -56,6 +56,7 @@ internal class RemoteNavigationSession {
     var arrowHeldKey: Key? = null
     var streamSourceMovedDuringHold = false
     val rememberedFocus = mutableMapOf<Any, Int>()
+    val rememberedContentFocus = mutableMapOf<Any, Int>()
     var lastFocused: FocusRequester? = null
     val targets = mutableStateListOf<RemoteFocusTarget>()
     var explicitFocusTransfers = 0
@@ -182,6 +183,15 @@ internal class RemoteNavigationSession {
         val sidebarEntry = targets.firstOrNull {
             it.route == route && it.manager === manager && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
         }
+        if (isSourceSidebar && direction == FocusDirection.Right) {
+            val targetIdentity = rememberedContentFocus[route] ?: rememberedFocus[route]
+            val contentTarget = targets.firstOrNull {
+                it.route == route && it.identity == targetIdentity && it.role != RemoteNavigationRole.Sidebar
+            }
+            if (contentTarget?.requester?.requestFocus() == true) {
+                return true
+            }
+        }
         val moved = manager.moveFocus(direction)
         if (moved && horizontal && focusedTarget?.verticalOnly == true && focusedTarget !== source) {
             source?.requester?.requestFocus()
@@ -250,6 +260,7 @@ internal class RemoteNavigationSession {
         }
         return fallback.sortedBy { candidate ->
             if (source?.role == RemoteNavigationRole.Back && candidate.initialFocus) -1f
+            else if (isSourceSidebar && direction == FocusDirection.Right && candidate.identity == (rememberedContentFocus[route] ?: rememberedFocus[route])) -1f
             else {
                 val b = candidate.bounds!!
                 when (direction) {
@@ -667,6 +678,9 @@ internal fun Modifier.remoteNavigationTarget(
                 }
                 session.focusedTarget = target
                 session.rememberedFocus[route] = identity
+                if (effectiveRole != RemoteNavigationRole.Sidebar) {
+                    session.rememberedContentFocus[route] = identity
+                }
                 session.lastFocused = requester
                 target.bounds?.let { session.rememberedBounds[route] = it }
             }

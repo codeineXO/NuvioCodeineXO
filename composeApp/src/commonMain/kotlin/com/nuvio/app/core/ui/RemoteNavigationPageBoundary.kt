@@ -63,12 +63,27 @@ internal fun RemoteNavigationSession.movePageFocus(source: RemoteFocusTarget, di
             else -> false
         }
     }
-    return candidates.sortedBy {
+    val handled = candidates.sortedBy {
         val bounds = it.bounds!!
         if (direction == FocusDirection.Up || direction == FocusDirection.Down) {
             abs(bounds.center.y - origin.center.y) * 1000f + abs(bounds.center.x - origin.center.x)
         } else abs(bounds.center.x - origin.center.x)
-    }.any { it.requester.requestFocus() }
+    }.any { candidate ->
+        val requested = candidate.requester.requestFocus()
+        if (requested && direction == FocusDirection.Left) {
+            leftMovedDuringHold = true
+        }
+        requested
+    }
+    if (handled) return true
+    if (direction == FocusDirection.Left && canEnterSidebar()) {
+        val sidebarEntry = targets.firstOrNull {
+            it.route == source.route && it.manager === source.manager &&
+                it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+        }
+        return sidebarEntry?.requester?.requestFocus() ?: false
+    }
+    return false
 }
 
 internal fun RemoteNavigationSession.movePageTabFocus(source: RemoteFocusTarget, backwards: Boolean): Boolean {

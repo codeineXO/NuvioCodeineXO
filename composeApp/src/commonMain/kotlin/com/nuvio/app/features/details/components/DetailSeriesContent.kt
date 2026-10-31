@@ -15,6 +15,7 @@ import com.nuvio.app.core.ui.BindRemoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
 import com.nuvio.app.core.ui.remoteNavigationUp
 import com.nuvio.app.core.ui.remoteNavigationDown
+import com.nuvio.app.core.ui.LocalDesktopSidebarActive
 import com.nuvio.app.core.ui.LocalPosterShelfItem
 import com.nuvio.app.core.ui.PosterShelfItem
 import com.nuvio.app.core.ui.PosterShelfController
@@ -195,8 +196,9 @@ private class SeriesRowNavigation(
 
 @Composable
 private fun rememberSeriesRowNavigation(state: LazyListState, items: List<Int>): SeriesRowNavigation {
+    val allowSidebar = LocalDesktopSidebarActive.current
     val controller = rememberPosterShelfController(
-        state, items, allowSidebarEntry = false, precedingPosterVisible = true,
+        state, items, allowSidebarEntry = allowSidebar, precedingPosterVisible = true,
     )
     if (controller != null) {
         return SeriesRowNavigation(Modifier.remoteNavigationGroup(), { Modifier }, controller)
@@ -227,9 +229,12 @@ private fun rememberSeriesRowNavigation(state: LazyListState, items: List<Int>):
                             moving = false
                         }
                     }
+                    return@onPreviewKeyEvent true
+                } else if (step < 0) {
+                    return@onPreviewKeyEvent false
                 }
             }
-            true
+            if (event.type == KeyEventType.KeyUp) false else true
         }.remoteNavigationGroup(),
         itemModifier = { index ->
             Modifier.focusRequester(requesters[index]).onFocusChanged {
@@ -1859,8 +1864,9 @@ private fun EpisodeHorizontalRow(
     val episodeKeys = remember(episodes) {
         episodes.mapIndexed { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" }
     }
+    val allowSidebar = LocalDesktopSidebarActive.current
     val shelfController = rememberPosterShelfController(
-        listState, episodeKeys, allowSidebarEntry = false, precedingPosterVisible = true,
+        listState, episodeKeys, allowSidebarEntry = allowSidebar, precedingPosterVisible = true,
     )
     var entryIndex by remember { mutableStateOf(0) }
     var hasPositioned by rememberSaveable(parentMetaId, episodes.firstOrNull()?.season) { mutableStateOf(false) }
