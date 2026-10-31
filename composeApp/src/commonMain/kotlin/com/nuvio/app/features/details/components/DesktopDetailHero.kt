@@ -119,6 +119,7 @@ fun DesktopDetailBackdrop(
     heroGradientColor: Color? = null,
     blurBackdrop: Boolean = false,
     removeSideFade: Boolean = false,
+    enableGlassSource: Boolean = true,
     onBackdropLoaded: (Painter) -> Unit = {},
     onHeroTrailerReady: () -> Unit,
     onHeroTrailerEnded: () -> Unit,
@@ -141,7 +142,7 @@ fun DesktopDetailBackdrop(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .navigationGlassSource(zIndex = -1f)
+            .navigationGlassSource(zIndex = -1f, enabled = enableGlassSource)
             .background(sideGradientColor),
     ) {
         val aspectRatio = maxWidth.value / viewportHeight.value
@@ -178,7 +179,7 @@ fun DesktopDetailBackdrop(
                 model = originalTmdbImageUrl(imageUrl),
                 contentDescription = meta.name,
                 desktopAnimation = NuvioDesktopAnimation.Always,
-                modifier = artworkModifier.navigationGlassSource(),
+                modifier = artworkModifier.navigationGlassSource(enabled = enableGlassSource),
                 alignment = BiasAlignment(0f, DesktopBackdropVerticalBias),
                 contentScale = if (removeSideFade) ContentScale.Crop else if (useWideArtworkFrame && !cropSideBackdrop) ContentScale.Fit else ContentScale.Crop,
                 desktopImageScaling = NuvioDesktopImageScaling.Disabled,
@@ -202,25 +203,76 @@ fun DesktopDetailBackdrop(
             )
         }
 
-        if (!removeSideFade) {
+        if (removeSideFade) {
             Box(
                 modifier = backdropModifier
-                    .navigationGlassSource(zIndex = 0.5f)
+                    .navigationGlassSource(zIndex = 0.5f, enabled = enableGlassSource)
+                    .drawWithCache {
+                        val topFadeHeightPx = 160.dp.toPx()
+                        val topFade = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = opacity.overlayHeavy * gradientIntensity),
+                                Color.Transparent,
+                            ),
+                            startY = 0f,
+                            endY = topFadeHeightPx,
+                        )
+                        val sideFade = Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Black.copy(alpha = 0.88f * gradientIntensity),
+                                0.08f to Color.Black.copy(alpha = 0.82f * gradientIntensity),
+                                0.16f to Color.Black.copy(alpha = 0.68f * gradientIntensity),
+                                0.26f to Color.Black.copy(alpha = 0.46f * gradientIntensity),
+                                0.36f to Color.Black.copy(alpha = 0.24f * gradientIntensity),
+                                0.46f to Color.Black.copy(alpha = 0.08f * gradientIntensity),
+                                0.56f to Color.Transparent,
+                            ),
+                        )
+                        val bottomFadeHeightPx = 300.dp.toPx()
+                        val bottomFade = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.35f * gradientIntensity),
+                                Color.Black.copy(alpha = 0.75f * gradientIntensity),
+                            ),
+                            startY = (size.height - bottomFadeHeightPx).coerceAtLeast(0f),
+                            endY = size.height,
+                        )
+                        onDrawBehind {
+                            drawRect(sideFade)
+                            val topHeight = topFadeHeightPx.coerceAtMost(size.height)
+                            drawRect(
+                                brush = topFade,
+                                size = size.copy(height = topHeight),
+                            )
+                            val bottomHeight = bottomFadeHeightPx.coerceAtMost(size.height)
+                            drawRect(
+                                brush = bottomFade,
+                                topLeft = Offset(0f, size.height - bottomHeight),
+                                size = size.copy(height = bottomHeight),
+                            )
+                        }
+                    },
+            )
+        } else {
+            Box(
+                modifier = backdropModifier
+                    .navigationGlassSource(zIndex = 0.5f, enabled = enableGlassSource)
                     .drawWithCache {
                         val bottomSpread = Brush.radialGradient(
                             colorStops = arrayOf(
                                 0.00f to sideGradientColor.copy(alpha = 0.12f * gradientIntensity * bottomSpreadStrength),
                                 0.55f to sideGradientColor.copy(alpha = 0.12f * gradientIntensity * bottomSpreadStrength),
-                            1.00f to Color.Transparent,
-                        ),
-                        center = Offset(0f, size.height * 1.15f),
-                        radius = size.width * 0.72f,
-                    )
-                    onDrawBehind {
-                        drawRect(baseSideFade)
-                        if (bottomSpreadStrength > 0f) drawRect(bottomSpread)
-                    }
-                },
+                                1.00f to Color.Transparent,
+                            ),
+                            center = Offset(0f, size.height * 1.15f),
+                            radius = size.width * 0.72f,
+                        )
+                        onDrawBehind {
+                            drawRect(baseSideFade)
+                            if (bottomSpreadStrength > 0f) drawRect(bottomSpread)
+                        }
+                    },
             )
         }
     }

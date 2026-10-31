@@ -30,8 +30,11 @@ internal val LocalDesktopSidebarActive = staticCompositionLocalOf { false }
 
 /** Attach to artwork or scrolling content, with glass controls in a sibling layer. */
 @Composable
-internal fun Modifier.navigationGlassSource(zIndex: Float = 0f): Modifier {
-    if (!LocalFrostedGlassEnabled.current || !LocalScreenActive.current) return this
+internal fun Modifier.navigationGlassSource(
+    zIndex: Float = 0f,
+    enabled: Boolean = true,
+): Modifier {
+    if (!enabled || !LocalFrostedGlassEnabled.current || !LocalScreenActive.current) return this
     val state = LocalNavigationGlassState.current ?: return this
     return hazeSource(state, zIndex = zIndex)
 }
@@ -67,6 +70,7 @@ internal fun Modifier.navigationGlass(
             if (backdropState != null) {
                 Modifier.hazeEffect(backdropState) {
                     if (backgroundOnly) canDrawArea = { it.zIndex < 1f }
+                    forceInvalidateOnPreDraw = true
                     backgroundColor = tokens.colors.background
                     blurRadius = if (panel) 16.dp else 10.dp
                     inputScale = HazeInputScale.Auto
