@@ -1423,9 +1423,16 @@ fun MetaDetailsScreen(
                                 },
                             )
                         } else when (backgroundMode) {
-                            MetaScreenBackgroundMode.Normal -> Unit
+                            MetaScreenBackgroundMode.Normal -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .navigationGlassSource(zIndex = -1f)
+                                        .background(colorScheme.background),
+                                )
+                            }
                             MetaScreenBackgroundMode.Cinematic -> if (deferredMetaWorkAllowed && backdropUrl != null) {
-                                Box(Modifier.fillMaxSize().navigationGlassSource()) {
+                                Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f)) {
                                     AsyncImage(
                                         model = if (isDesktop) originalTmdbImageUrl(backdropUrl) else backdropUrl,
                                         contentDescription = null,
@@ -1449,7 +1456,7 @@ fun MetaDetailsScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .navigationGlassSource()
+                                        .navigationGlassSource(zIndex = -1f)
                                         .background(dominantBackdropColor),
                                 )
                             }
@@ -1464,6 +1471,7 @@ fun MetaDetailsScreen(
                                 heroTrailerPlayWhenReady = heroTrailerPlayWhenReady,
                                 heroTrailerMuted = heroTrailerMuted,
                                 heroGradientColor = dominantBackdropColor.takeIf { dominantColorEnabled },
+                                removeSideFade = useEnhancedLayout,
                                 onBackdropLoaded = { painter -> dominantBackdropPainter = painter },
                                 onHeroTrailerReady = {
                                     if (!heroTrailerFinished) heroTrailerReady = true
@@ -1488,6 +1496,7 @@ fun MetaDetailsScreen(
                                     heroTrailerPlayWhenReady = false,
                                     heroTrailerMuted = true,
                                     blurBackdrop = true,
+                                    removeSideFade = useEnhancedLayout,
                                     onHeroTrailerReady = {},
                                     onHeroTrailerEnded = {},
                                     onHeroTrailerError = {},
@@ -1511,6 +1520,7 @@ fun MetaDetailsScreen(
                                 modifier = Modifier
                                     .zIndex(0.5f)
                                     .fillMaxSize()
+                                    .navigationGlassSource(zIndex = 0.5f)
                                     .graphicsLayer {
                                         alpha = detailScrolledBackgroundAlpha(
                                             scrollOffsetPx = detailScrollOffsetPx(),
@@ -1564,6 +1574,7 @@ fun MetaDetailsScreen(
                                                     onSaveLongClick = openLibraryListPicker,
                                                     modifier = if (hasEpisodes) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().heightIn(min = viewportHeight),
                                                     compact = hasEpisodes,
+                                                    isEnhanced = true,
                                                     onPlayDown = if (isDesktop) ({
                                                         if (hasEpisodes) enhancedSeriesFocus.requestFocus() else enhancedMoreFocus.requestFocus()
                                                         Unit

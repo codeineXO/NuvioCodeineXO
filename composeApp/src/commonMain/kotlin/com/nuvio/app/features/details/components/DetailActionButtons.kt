@@ -83,6 +83,7 @@ fun DetailActionButtons(
     playEnabled: Boolean = true,
     pinnedAction: DetailSecondaryAction? = null,
     secondaryActions: List<DetailSecondaryAction> = emptyList(),
+    alwaysShowSecondaryActions: Boolean = false,
     actionsMenuLabel: String = stringResource(Res.string.details_actions_menu_label),
     isTablet: Boolean = false,
     onPlayClick: () -> Unit = {},
@@ -176,65 +177,118 @@ fun DetailActionButtons(
             }
 
             if (hasSecondaryActions) {
-                Spacer(modifier = Modifier.width(12.dp))
-                Row(
-                    modifier = if (menuProgress > 0.01f) {
-                        Modifier.navigationGlass(shape = playShape, panel = true, backgroundOnly = true)
-                    } else Modifier,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    secondaryActions.forEachIndexed { index, action ->
-                        Box(
-                            modifier = Modifier
-                                .width(iconButtonSize * menuProgress)
-                                .height(iconButtonSize)
-                                .graphicsLayer {
-                                    clip = true
-                                },
-                            contentAlignment = Alignment.Center,
+                if (alwaysShowSecondaryActions) {
+                    secondaryActions.forEach { action ->
+                        Spacer(modifier = Modifier.width(12.dp))
+                        val actionInteractionSource = remember { MutableInteractionSource() }
+                        Surface(
+                            modifier = Modifier.size(iconButtonSize)
+                                .navigationGlass(shape = CircleShape, backgroundOnly = true),
+                            shape = CircleShape,
+                            color = Color.Transparent,
+                            contentColor = if (action.isActive) MaterialTheme.nuvio.colors.accent else MaterialTheme.nuvio.colors.textPrimary,
                         ) {
-                            if (actionsExpanded || menuProgress > 0.01f) {
-                                DetailIconAction(
-                                    label = action.label,
-                                    icon = action.icon,
-                                    active = action.isActive,
-                                    progress = menuProgress,
-                                    size = iconButtonSize,
-                                    glassMenuItem = true,
-                                    onClick = {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        action.onClick()
-                                    },
-                                    onLongClick = action.onLongClick?.let { longClick ->
-                                        {
+                            Box(
+                                modifier = Modifier
+                                    .size(iconButtonSize)
+                                    .navigationGlassFeedback(actionInteractionSource, CircleShape, selected = action.isActive)
+                                    .hoverable(actionInteractionSource)
+                                    .remoteNavigationTarget(
+                                        shape = CircleShape,
+                                        onSelect = {
                                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            longClick()
-                                        }
-                                    },
+                                            action.onClick()
+                                        },
+                                        onContext = action.onLongClick?.let { longClick ->
+                                            {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                longClick()
+                                            }
+                                        },
+                                    ).combinedClickable(
+                                        interactionSource = actionInteractionSource,
+                                        indication = androidx.compose.foundation.LocalIndication.current,
+                                        onClick = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            action.onClick()
+                                        },
+                                        onLongClick = action.onLongClick?.let { longClick ->
+                                            {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                longClick()
+                                            }
+                                        },
+                                        role = Role.Button,
+                                    )
+                                    .secondaryClick(action.onLongClick),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = action.icon,
+                                    contentDescription = action.label,
+                                    modifier = Modifier.size(21.dp),
                                 )
                             }
                         }
-
-                        if (index != secondaryActions.lastIndex) {
-                            Spacer(modifier = Modifier.width(12.dp * menuProgress))
-                        }
                     }
-                    Spacer(modifier = Modifier.width(12.dp * menuProgress))
-                }
-            }
+                } else {
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Row(
+                        modifier = if (menuProgress > 0.01f) {
+                            Modifier.navigationGlass(shape = playShape, panel = true, backgroundOnly = true)
+                        } else Modifier,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        secondaryActions.forEachIndexed { index, action ->
+                            Box(
+                                modifier = Modifier
+                                    .width(iconButtonSize * menuProgress)
+                                    .height(iconButtonSize)
+                                    .graphicsLayer {
+                                        clip = true
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (actionsExpanded || menuProgress > 0.01f) {
+                                    DetailIconAction(
+                                        label = action.label,
+                                        icon = action.icon,
+                                        active = action.isActive,
+                                        progress = menuProgress,
+                                        size = iconButtonSize,
+                                        glassMenuItem = true,
+                                        onClick = {
+                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            action.onClick()
+                                        },
+                                        onLongClick = action.onLongClick?.let { longClick ->
+                                            {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                longClick()
+                                            }
+                                        },
+                                    )
+                                }
+                            }
 
-            if (hasSecondaryActions) {
-                Surface(
-                    modifier = Modifier.size(iconButtonSize)
-                        .navigationGlass(shape = CircleShape, backgroundOnly = true),
-                    shape = CircleShape,
-                    color = Color.Transparent,
-                    contentColor = MaterialTheme.nuvio.colors.textPrimary,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(iconButtonSize)
-                            .navigationGlassFeedback(menuInteractionSource, CircleShape, selected = actionsExpanded)
+                            if (index != secondaryActions.lastIndex) {
+                                Spacer(modifier = Modifier.width(12.dp * menuProgress))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp * menuProgress))
+                    }
+
+                    Surface(
+                        modifier = Modifier.size(iconButtonSize)
+                            .navigationGlass(shape = CircleShape, backgroundOnly = true),
+                        shape = CircleShape,
+                        color = Color.Transparent,
+                        contentColor = MaterialTheme.nuvio.colors.textPrimary,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(iconButtonSize)
+                                .navigationGlassFeedback(menuInteractionSource, CircleShape, selected = actionsExpanded)
                             .hoverable(menuInteractionSource)
                             .remoteNavigationTarget(
                                 shape = CircleShape,
@@ -260,6 +314,7 @@ fun DetailActionButtons(
                     }
                 }
             }
+        }
         }
     }
 }

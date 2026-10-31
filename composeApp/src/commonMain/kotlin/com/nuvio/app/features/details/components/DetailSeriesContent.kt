@@ -22,6 +22,7 @@ import com.nuvio.app.core.ui.PosterShelfScrollOwner
 import com.nuvio.app.core.ui.rememberPosterShelfController
 import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.NuvioTokens
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import com.nuvio.app.core.ui.rememberAnimatedArtworkAnimation
@@ -68,6 +69,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -98,6 +100,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -333,16 +336,22 @@ fun DetailSeriesContent(
         MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
     }
 
-    val enhancedFillerNavigation = isAnime && episodeCardStyle == MetaEpisodeCardStyle.Enhanced && navigationEntry != null
+    val isEnhanced = episodeCardStyle == MetaEpisodeCardStyle.Enhanced
+    val enhancedFillerNavigation = isAnime && isEnhanced && navigationEntry != null
     val seasonNavigationEntry = if (enhancedFillerNavigation) {
         remember(meta.id) { RemoteNavigationFocusDestination() }
     } else navigationEntry
+    val viewListFocus = remember(meta.id, isEnhanced, navigationEntry) {
+        if (isEnhanced && navigationEntry != null) RemoteNavigationFocusDestination() else null
+    }
     val firstEpisodeFocus = remember(meta.id, navigationEntry, seasons.size, enhancedFillerNavigation) {
         if (seasons.size <= 1 && !enhancedFillerNavigation) navigationEntry
         else navigationEntry?.let { RemoteNavigationFocusDestination() }
     }
     val fillerDown: (suspend () -> Unit)? = if (enhancedFillerNavigation) ({
-        val moved = if (seasons.size > 1) seasonNavigationEntry?.requestFocus() else firstEpisodeFocus?.requestFocus()
+        val moved = if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+        else if (viewListFocus != null) viewListFocus.requestFocus()
+        else firstEpisodeFocus?.requestFocus()
         if (moved != true) onEpisodesDown?.invoke()
         Unit
     }) else null
@@ -362,7 +371,12 @@ fun DetailSeriesContent(
                 fillerNavigationEntry = navigationEntry.takeIf { enhancedFillerNavigation },
                 onFillerUp = onEntryUp.takeIf { enhancedFillerNavigation },
                 onFillerDown = fillerDown,
-                onSeasonDown = firstEpisodeFocus?.let { { if (!it.requestFocus()) onEpisodesDown?.invoke(); Unit } },
+                onSeasonDown = if (isEnhanced) {
+                    viewListFocus?.let { { if (!it.requestFocus()) { if (firstEpisodeFocus?.requestFocus() != true) onEpisodesDown?.invoke() }; Unit } }
+                        ?: firstEpisodeFocus?.let { { if (!it.requestFocus()) onEpisodesDown?.invoke(); Unit } }
+                } else {
+                    firstEpisodeFocus?.let { { if (!it.requestFocus()) onEpisodesDown?.invoke(); Unit } }
+                },
                 onSeasonUp = if (enhancedFillerNavigation) ({ navigationEntry?.requestFocus(); Unit }) else onEntryUp,
                 meta = meta,
                 seasons = seasons,
@@ -389,10 +403,20 @@ fun DetailSeriesContent(
                 },
                 label = "season_episodes",
             ) { seasonForContent ->
+                val episodeListState = rememberLazyListState()
+                val canScrollBack by remember {
+                    derivedStateOf { episodeListState.firstVisibleItemIndex > 0 || episodeListState.firstVisibleItemScrollOffset > 0 }
+                }
+                val canScrollFwd by remember {
+                    derivedStateOf { episodeListState.canScrollForward }
+                }
+                val episodeScope = rememberCoroutineScope()
+                val seasonEpisodes = groupedEpisodes[seasonForContent].orEmpty()
+
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    val showTitle = (!isDesktop || seasons.size <= 1) && episodeCardStyle != MetaEpisodeCardStyle.Enhanced
+                    val showTitle = (!isDesktop || seasons.size <= 1) && !isEnhanced
                     val showSingleSeasonAnimeToggles = seasons.size <= 1 && isAnime
                     if (showTitle || showSingleSeasonAnimeToggles) {
                         FlowRow(
@@ -420,7 +444,69 @@ fun DetailSeriesContent(
                             }
                         }
                     }
-                    val seasonEpisodes = groupedEpisodes[seasonForContent].orEmpty()
+
+                    if (isEnhanced) {
+                        val effectiveEpisodesHeaderSize = if (isEnhanced) sizing.seasonHeaderSize * 0.95f else sizing.seasonHeaderSize
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.settings_meta_episodes),
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontSize = effectiveEpisodesHeaderSize,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = MaterialTheme.colorScheme.onBackground,
+                            )
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                HeaderScrollArrowButton(
+                                    direction = ScrollNavDirection.Left,
+                                    enabled = canScrollBack,
+                                    onClick = {
+                                        episodeScope.launch {
+                                            val firstVisible = episodeListState.firstVisibleItemIndex
+                                            val count = (episodeListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                                            val target = (firstVisible - count).coerceAtLeast(0)
+                                            episodeListState.animateScrollToItem(target)
+                                        }
+                                    },
+                                )
+                                HeaderScrollArrowButton(
+                                    direction = ScrollNavDirection.Right,
+                                    enabled = canScrollFwd,
+                                    onClick = {
+                                        episodeScope.launch {
+                                            val firstVisible = episodeListState.firstVisibleItemIndex
+                                            val count = (episodeListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                                            val target = (firstVisible + count).coerceAtMost(seasonEpisodes.size - 1)
+                                            episodeListState.animateScrollToItem(target)
+                                        }
+                                    },
+                                )
+                                ViewListButton(
+                                    focusDestination = viewListFocus,
+                                    onUp = {
+                                        if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+                                        else if (enhancedFillerNavigation) navigationEntry?.requestFocus()
+                                        else onEntryUp?.invoke()
+                                        Unit
+                                    },
+                                    onDown = {
+                                        firstEpisodeFocus?.requestFocus()
+                                        Unit
+                                    },
+                                    onClick = { /* TODO: List view */ },
+                                )
+                            }
+                        }
+                    }
+
                     if (seasonEpisodes.isEmpty()) {
                         Text(
                             text = if (isAnime && shouldHideFillers) {
@@ -432,13 +518,22 @@ fun DetailSeriesContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 16.dp),
                         )
-                    } else if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
+                    } else if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || isEnhanced) {
                         EpisodeHorizontalRow(
                             firstEpisodeFocus = firstEpisodeFocus.takeIf { seasonForContent == currentSeason },
                             onEpisodeUp = if (navigationEntry == null) null else ({
-                                if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
-                                else if (enhancedFillerNavigation) navigationEntry.requestFocus()
-                                else onEntryUp?.invoke()
+                                if (isEnhanced) {
+                                    val moved = viewListFocus?.requestFocus()
+                                    if (moved != true) {
+                                        if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+                                        else if (enhancedFillerNavigation) navigationEntry.requestFocus()
+                                        else onEntryUp?.invoke()
+                                    }
+                                } else {
+                                    if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+                                    else if (enhancedFillerNavigation) navigationEntry.requestFocus()
+                                    else onEntryUp?.invoke()
+                                }
                                 Unit
                             }),
                             onEpisodeDown = onEpisodesDown,
@@ -459,6 +554,8 @@ fun DetailSeriesContent(
                                 preferredEpisodeNumber = preferredEpisodeNumber,
                             ),
                             scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                            isEnhanced = isEnhanced,
+                            listState = episodeListState,
                             onEpisodeClick = onEpisodeClick,
                             onEpisodeLongPress = onEpisodeLongPress,
                         )
@@ -629,6 +726,22 @@ private fun SeriesSeasonSelector(
         MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
     }
 
+    val seasonListState = rememberLazyListState()
+    val canScrollBack by remember { derivedStateOf { seasonListState.firstVisibleItemIndex > 0 || seasonListState.firstVisibleItemScrollOffset > 0 } }
+    val canScrollFwd by remember {
+        derivedStateOf {
+            val layoutInfo = seasonListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            if (total == 0) false
+            else {
+                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()
+                lastVisible != null && (lastVisible.index < total - 1 || lastVisible.offset + lastVisible.size > layoutInfo.viewportEndOffset)
+            }
+        }
+    }
+    val hasOverflowingSeasons by remember { derivedStateOf { canScrollBack || canScrollFwd } }
+    val seasonArrowScope = rememberCoroutineScope()
+
     var seasonViewMode by remember {
         mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
     }
@@ -643,32 +756,97 @@ private fun SeriesSeasonSelector(
         modifier = Modifier.animateContentSize(animationSpec = tween(280)),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.details_seasons),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontSize = sizing.seasonHeaderSize,
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            if (hasSeasonPosters && !isEnhanced) {
-                SeasonViewModeToggle(
-                    mode = seasonViewMode,
-                    sizing = sizing,
-                    onClick = {
-                        val next = seasonViewMode.toggled()
-                        seasonViewMode = next
-                        SeasonViewModeStorage.save(next)
-                    },
-                )
+        if (isEnhanced) {
+            val effectiveSeasonHeaderSize = if (isEnhanced) sizing.seasonHeaderSize * 0.95f else sizing.seasonHeaderSize
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FlowRow(
+                    modifier = Modifier.weight(1f, fill = false),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.details_seasons),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = effectiveSeasonHeaderSize,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    if (isAnime) {
+                        AnimeFillerTogglesRow(
+                            sizing = sizing,
+                            navigationEntry = fillerNavigationEntry,
+                            onUp = onFillerUp,
+                            onDown = onFillerDown,
+                            isEnhanced = true,
+                        )
+                    }
+                }
+
+                if (hasOverflowingSeasons) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        HeaderScrollArrowButton(
+                            direction = ScrollNavDirection.Left,
+                            enabled = canScrollBack,
+                            onClick = {
+                                seasonArrowScope.launch {
+                                    val firstVisible = seasonListState.firstVisibleItemIndex
+                                    val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                                    val target = (firstVisible - count).coerceAtLeast(0)
+                                    seasonListState.animateScrollToItem(target)
+                                }
+                            },
+                        )
+                        HeaderScrollArrowButton(
+                            direction = ScrollNavDirection.Right,
+                            enabled = canScrollFwd,
+                            onClick = {
+                                seasonArrowScope.launch {
+                                    val firstVisible = seasonListState.firstVisibleItemIndex
+                                    val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                                    val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
+                                    seasonListState.animateScrollToItem(target)
+                                }
+                            },
+                        )
+                    }
+                }
             }
-            if (isAnime) {
-                AnimeFillerTogglesRow(sizing = sizing, navigationEntry = fillerNavigationEntry, onUp = onFillerUp, onDown = onFillerDown)
+        } else {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.details_seasons),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = sizing.seasonHeaderSize,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                if (hasSeasonPosters) {
+                    SeasonViewModeToggle(
+                        mode = seasonViewMode,
+                        sizing = sizing,
+                        onClick = {
+                            val next = seasonViewMode.toggled()
+                            seasonViewMode = next
+                            SeasonViewModeStorage.save(next)
+                        },
+                    )
+                }
+                if (isAnime) {
+                    AnimeFillerTogglesRow(sizing = sizing, navigationEntry = fillerNavigationEntry, onUp = onFillerUp, onDown = onFillerDown)
+                }
             }
         }
 
@@ -690,6 +868,8 @@ private fun SeriesSeasonSelector(
                         meta = meta,
                     ) ?: meta.poster ?: meta.background
                 },
+                isEnhanced = true,
+                seasonListState = seasonListState,
                 onSelect = onSelect,
                 onLongPress = onLongPress,
             )
@@ -787,6 +967,7 @@ private fun AnimeFillerTogglesRow(
     navigationEntry: RemoteNavigationFocusDestination? = null,
     onUp: (suspend () -> Unit)? = null,
     onDown: (suspend () -> Unit)? = null,
+    isEnhanced: Boolean = false,
 ) {
     val isFillerEnabled by remember {
         AnimeFillerSettingsRepository.ensureLoaded()
@@ -796,6 +977,8 @@ private fun AnimeFillerTogglesRow(
         AnimeFillerSettingsRepository.ensureLoaded()
         AnimeFillerSettingsRepository.hideFillers
     }.collectAsStateWithLifecycle()
+    val pillTextSize = if (isEnhanced) sizing.seasonToggleTextSize * 0.95f else sizing.seasonToggleTextSize
+    val pillScale = if (isEnhanced) 0.95f else 1f
 
     Row(
         modifier = modifier,
@@ -805,7 +988,8 @@ private fun AnimeFillerTogglesRow(
         AnimeFillerChip(
             label = stringResource(Res.string.anime_filler_markers),
             isActive = isFillerEnabled,
-            textSize = sizing.seasonToggleTextSize,
+            textSize = pillTextSize,
+            scale = pillScale,
             modifier = Modifier.remoteNavigationFocusDestination(navigationEntry)
                 .remoteNavigationUp(onUp).remoteNavigationDown(onDown),
             onClick = {
@@ -815,7 +999,8 @@ private fun AnimeFillerTogglesRow(
         AnimeFillerChip(
             label = stringResource(Res.string.anime_hide_fillers),
             isActive = hideFillerEpisodes && isFillerEnabled,
-            textSize = sizing.seasonToggleTextSize,
+            textSize = pillTextSize,
+            scale = pillScale,
             modifier = Modifier.remoteNavigationUp(onUp).remoteNavigationDown(onDown),
             onClick = {
                 val nextHide = !hideFillerEpisodes
@@ -835,6 +1020,7 @@ internal fun AnimeFillerChip(
     textSize: TextUnit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    scale: Float = 1f,
 ) {
     var focused by remember { mutableStateOf(false) }
     val highlighted = focused && isRemoteKeyboardNavigationActive
@@ -868,24 +1054,24 @@ internal fun AnimeFillerChip(
     Box(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp * scale))
             .background(backgroundColor)
             .border(
                 width = 1.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(8.dp * scale),
             )
-            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp * scale)).clickable(onClick = onClick)
+            .padding(horizontal = 10.dp * scale, vertical = 6.dp * scale),
         contentAlignment = Alignment.Center,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp * scale),
         ) {
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(6.dp * scale)
                     .clip(CircleShape)
                     .background(dotColor),
             )
@@ -917,8 +1103,9 @@ private fun SeasonTextChipScrollRow(
     navigationEntry: RemoteNavigationFocusDestination? = null,
     onSeasonDown: (suspend () -> Unit)? = null,
     onSeasonUp: (suspend () -> Unit)? = null,
+    isEnhanced: Boolean = false,
+    seasonListState: LazyListState = rememberLazyListState(),
 ) {
-    val seasonListState = rememberLazyListState()
     val rowNavigation = rememberSeriesRowNavigation(seasonListState, seasons)
     BindRemoteNavigationFocusDestination(navigationEntry) {
         val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
@@ -1054,9 +1241,18 @@ private fun SeasonTextChipScrollRow(
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         fontSize = sizing.seasonChipTextSize,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        shadow = if (isEnhanced) {
+                                            androidx.compose.ui.graphics.Shadow(
+                                                color = Color.Black.copy(alpha = 0.65f),
+                                                offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                                                blurRadius = 8f,
+                                            )
+                                        } else null,
                                     ),
                                     color = if (isSelected) {
                                         MaterialTheme.colorScheme.onBackground
+                                    } else if (isEnhanced) {
+                                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
                                     } else {
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -1075,46 +1271,48 @@ private fun SeasonTextChipScrollRow(
             }
         }
 
-        AnimatedVisibility(
-            visible = showNavButtons && canScrollBack,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.CenterStart),
-        ) {
-            RowScrollNavButton(
-                direction = ScrollNavDirection.Left,
-                hazeState = rowHazeState,
-                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
-                onClick = {
-                    coroutineScope.launch {
-                        val firstVisible = seasonListState.firstVisibleItemIndex
-                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                        val target = (firstVisible - count).coerceAtLeast(0)
-                        seasonListState.animateScrollToItem(target)
-                    }
-                },
-            )
-        }
+        if (!isEnhanced) {
+            AnimatedVisibility(
+                visible = showNavButtons && canScrollBack,
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(150)),
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                RowScrollNavButton(
+                    direction = ScrollNavDirection.Left,
+                    hazeState = rowHazeState,
+                    horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
+                    onClick = {
+                        coroutineScope.launch {
+                            val firstVisible = seasonListState.firstVisibleItemIndex
+                            val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                            val target = (firstVisible - count).coerceAtLeast(0)
+                            seasonListState.animateScrollToItem(target)
+                        }
+                    },
+                )
+            }
 
-        AnimatedVisibility(
-            visible = showNavButtons && canScrollFwd,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.CenterEnd),
-        ) {
-            RowScrollNavButton(
-                direction = ScrollNavDirection.Right,
-                hazeState = rowHazeState,
-                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
-                onClick = {
-                    coroutineScope.launch {
-                        val firstVisible = seasonListState.firstVisibleItemIndex
-                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                        val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
-                        seasonListState.animateScrollToItem(target)
-                    }
-                },
-            )
+            AnimatedVisibility(
+                visible = showNavButtons && canScrollFwd,
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(150)),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
+                RowScrollNavButton(
+                    direction = ScrollNavDirection.Right,
+                    hazeState = rowHazeState,
+                    horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
+                    onClick = {
+                        coroutineScope.launch {
+                            val firstVisible = seasonListState.firstVisibleItemIndex
+                            val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                            val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
+                            seasonListState.animateScrollToItem(target)
+                        }
+                    },
+                )
+            }
         }
     }
 }
@@ -1426,6 +1624,93 @@ private fun RowScrollNavButton(
     }
 }
 
+@Composable
+private fun HeaderScrollArrowButton(
+    direction: ScrollNavDirection,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isLeft = direction == ScrollNavDirection.Left
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsRemoteHoveredAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered && enabled) 1.08f else 1.0f,
+        animationSpec = tween(180),
+    )
+
+    CompositionLocalProvider(androidx.compose.material3.LocalMinimumInteractiveComponentSize provides 0.dp) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier
+                .size(NuvioTokens.Space.s40)
+                .focusProperties { canFocus = false }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = if (enabled) 1f else 0.38f
+                }
+                .navigationGlass(shape = CircleShape, backgroundOnly = true)
+                .navigationGlassFeedback(interactionSource, CircleShape)
+                .hoverable(interactionSource),
+        ) {
+            Icon(
+                imageVector = if (isLeft) {
+                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft
+                } else {
+                    Icons.AutoMirrored.Rounded.KeyboardArrowRight
+                },
+                contentDescription = null,
+                tint = MaterialTheme.nuvio.colors.textMuted,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ViewListButton(
+    focusDestination: RemoteNavigationFocusDestination?,
+    onUp: (suspend () -> Unit)?,
+    onDown: (suspend () -> Unit)?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val tokens = MaterialTheme.nuvio
+    val pillShape = RoundedCornerShape(NuvioTokens.Radius.full)
+
+    Box(
+        modifier = modifier
+            .height(NuvioTokens.Space.s40)
+            .widthIn(min = NuvioTokens.Space.s40)
+            .navigationGlass(shape = pillShape, backgroundOnly = true)
+            .navigationGlassFeedback(interactionSource, pillShape)
+            .hoverable(interactionSource)
+            .remoteNavigationTarget(shape = pillShape)
+            .remoteNavigationFocusDestination(focusDestination)
+            .remoteNavigationUp(onUp)
+            .remoteNavigationDown(onDown)
+            .onPreviewKeyEvent { event ->
+                if (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) true else false
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = NuvioTokens.Space.s10),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(Res.string.details_episodes_view_list),
+            style = MaterialTheme.typography.labelLarge,
+            color = tokens.colors.textMuted,
+            maxLines = 1,
+        )
+    }
+}
+
 private fun resolveSeasonPoster(
     season: Int,
     groupedEpisodes: Map<Int, List<MetaVideo>>,
@@ -1532,14 +1817,16 @@ private fun EpisodeHorizontalRow(
     blurUnwatchedEpisodes: Boolean,
     preferredEpisodeNumber: Int? = null,
     scrollPostersLayoutEnabled: Boolean = false,
+    isEnhanced: Boolean = false,
+    listState: LazyListState = rememberLazyListState(),
     onEpisodeClick: ((MetaVideo) -> Unit)?,
     onEpisodeLongPress: ((MetaVideo) -> Unit)?,
 ) {
     val rowMetrics = rememberEpisodeHorizontalCardMetrics(
         maxWidthDp = maxWidthDp,
         reduceSize = scrollPostersLayoutEnabled,
+        isEnhanced = isEnhanced,
     )
-    val listState = rememberLazyListState()
     val episodeKeys = remember(episodes) {
         episodes.mapIndexed { index, episode -> "${episode.season}:${episode.episode}:${episode.id}#$index" }
     }
@@ -1696,46 +1983,48 @@ private fun EpisodeHorizontalRow(
             }
         }
 
-        AnimatedVisibility(
-            visible = showNavButtons && canScrollBack,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.CenterStart),
-        ) {
-            RowScrollNavButton(
-                direction = ScrollNavDirection.Left,
-                hazeState = rowHazeState,
-                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
-                onClick = {
-                    coroutineScope.launch {
-                        val firstVisible = listState.firstVisibleItemIndex
-                        val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                        val target = (firstVisible - count).coerceAtLeast(0)
-                        listState.animateScrollToItem(target)
-                    }
-                },
-            )
-        }
+        if (!isEnhanced) {
+            AnimatedVisibility(
+                visible = showNavButtons && canScrollBack,
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(150)),
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                RowScrollNavButton(
+                    direction = ScrollNavDirection.Left,
+                    hazeState = rowHazeState,
+                    horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
+                    onClick = {
+                        coroutineScope.launch {
+                            val firstVisible = listState.firstVisibleItemIndex
+                            val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                            val target = (firstVisible - count).coerceAtLeast(0)
+                            listState.animateScrollToItem(target)
+                        }
+                    },
+                )
+            }
 
-        AnimatedVisibility(
-            visible = showNavButtons && canScrollFwd,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.CenterEnd),
-        ) {
-            RowScrollNavButton(
-                direction = ScrollNavDirection.Right,
-                hazeState = rowHazeState,
-                horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
-                onClick = {
-                    coroutineScope.launch {
-                        val firstVisible = listState.firstVisibleItemIndex
-                        val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                        val target = (firstVisible + count).coerceAtMost(episodes.size - 1)
-                        listState.animateScrollToItem(target)
-                    }
-                },
-            )
+            AnimatedVisibility(
+                visible = showNavButtons && canScrollFwd,
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(150)),
+                modifier = Modifier.align(Alignment.CenterEnd),
+            ) {
+                RowScrollNavButton(
+                    direction = ScrollNavDirection.Right,
+                    hazeState = rowHazeState,
+                    horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
+                    onClick = {
+                        coroutineScope.launch {
+                            val firstVisible = listState.firstVisibleItemIndex
+                            val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                            val target = (firstVisible + count).coerceAtMost(episodes.size - 1)
+                            listState.animateScrollToItem(target)
+                        }
+                    },
+                )
+            }
         }
     }
 }
@@ -1974,11 +2263,14 @@ private data class EpisodeHorizontalCardMetrics(
 private fun rememberEpisodeHorizontalCardMetrics(
     maxWidthDp: Float,
     reduceSize: Boolean = false,
+    isEnhanced: Boolean = false,
 ): EpisodeHorizontalCardMetrics {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val userCornerRadius = posterCardStyle.cornerRadiusDp.dp
-    val scale = if (reduceSize) 0.9f else 1f
-    return remember(maxWidthDp, userCornerRadius, reduceSize) {
+    val baseScale = if (reduceSize) 0.9f else 1f
+    val scale = if (isEnhanced) baseScale * 0.80f else baseScale
+    val textScale = if (isEnhanced) 0.95f else 1f
+    return remember(maxWidthDp, userCornerRadius, reduceSize, isEnhanced) {
         when {
             maxWidthDp >= 1300f -> EpisodeHorizontalCardMetrics(
                 rowHorizontalPadding = 0.dp,
@@ -1989,13 +2281,13 @@ private fun rememberEpisodeHorizontalCardMetrics(
                 cornerRadius = userCornerRadius,
                 contentPadding = 16.dp,
                 contentBottomPadding = 18.dp,
-                titleTextSize = 18.sp,
-                titleLineHeight = 24.sp,
-                bodyTextSize = 14.sp,
-                bodyLineHeight = 20.sp,
+                titleTextSize = 18.sp * textScale,
+                titleLineHeight = 24.sp * textScale,
+                bodyTextSize = 14.sp * textScale,
+                bodyLineHeight = 20.sp * textScale,
                 overviewMaxLines = 3,
-                metaTextSize = 12.sp,
-                badgeTextSize = 11.sp,
+                metaTextSize = 12.sp * textScale,
+                badgeTextSize = 11.sp * textScale,
                 badgeRadius = 8.dp,
                 badgeHorizontalPadding = 10.dp,
                 badgeVerticalPadding = 5.dp,
@@ -2012,13 +2304,13 @@ private fun rememberEpisodeHorizontalCardMetrics(
                 cornerRadius = userCornerRadius,
                 contentPadding = 14.dp,
                 contentBottomPadding = 16.dp,
-                titleTextSize = 17.sp,
-                titleLineHeight = 22.sp,
-                bodyTextSize = 13.sp,
-                bodyLineHeight = 18.sp,
+                titleTextSize = 17.sp * textScale,
+                titleLineHeight = 22.sp * textScale,
+                bodyTextSize = 13.sp * textScale,
+                bodyLineHeight = 18.sp * textScale,
                 overviewMaxLines = 3,
-                metaTextSize = 12.sp,
-                badgeTextSize = 10.sp,
+                metaTextSize = 12.sp * textScale,
+                badgeTextSize = 10.sp * textScale,
                 badgeRadius = 7.dp,
                 badgeHorizontalPadding = 9.dp,
                 badgeVerticalPadding = 4.dp,
@@ -2035,13 +2327,13 @@ private fun rememberEpisodeHorizontalCardMetrics(
                 cornerRadius = userCornerRadius,
                 contentPadding = 12.dp,
                 contentBottomPadding = 14.dp,
-                titleTextSize = 16.sp,
-                titleLineHeight = 21.sp,
-                bodyTextSize = 12.sp,
-                bodyLineHeight = 17.sp,
+                titleTextSize = 16.sp * textScale,
+                titleLineHeight = 21.sp * textScale,
+                bodyTextSize = 12.sp * textScale,
+                bodyLineHeight = 17.sp * textScale,
                 overviewMaxLines = 2,
-                metaTextSize = 11.sp,
-                badgeTextSize = 10.sp,
+                metaTextSize = 11.sp * textScale,
+                badgeTextSize = 10.sp * textScale,
                 badgeRadius = 6.dp,
                 badgeHorizontalPadding = 8.dp,
                 badgeVerticalPadding = 4.dp,
@@ -2058,13 +2350,13 @@ private fun rememberEpisodeHorizontalCardMetrics(
                 cornerRadius = userCornerRadius,
                 contentPadding = 10.dp,
                 contentBottomPadding = 12.dp,
-                titleTextSize = 14.sp,
-                titleLineHeight = 19.sp,
-                bodyTextSize = 11.sp,
-                bodyLineHeight = 15.sp,
+                titleTextSize = 14.sp * textScale,
+                titleLineHeight = 19.sp * textScale,
+                bodyTextSize = 11.sp * textScale,
+                bodyLineHeight = 15.sp * textScale,
                 overviewMaxLines = 2,
-                metaTextSize = 10.sp,
-                badgeTextSize = 9.sp,
+                metaTextSize = 10.sp * textScale,
+                badgeTextSize = 9.sp * textScale,
                 badgeRadius = 5.dp,
                 badgeHorizontalPadding = 7.dp,
                 badgeVerticalPadding = 3.dp,

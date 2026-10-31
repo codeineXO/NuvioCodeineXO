@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -52,6 +53,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -115,6 +117,7 @@ fun DesktopDetailBackdrop(
     heroTrailerMuted: Boolean,
     heroGradientColor: Color? = null,
     blurBackdrop: Boolean = false,
+    removeSideFade: Boolean = false,
     onBackdropLoaded: (Painter) -> Unit = {},
     onHeroTrailerReady: () -> Unit,
     onHeroTrailerEnded: () -> Unit,
@@ -137,6 +140,7 @@ fun DesktopDetailBackdrop(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .navigationGlassSource(zIndex = -1f)
             .background(sideGradientColor),
     ) {
         val aspectRatio = maxWidth.value / viewportHeight.value
@@ -147,10 +151,14 @@ fun DesktopDetailBackdrop(
         } else {
             maxWidth
         }
-        val backdropModifier = Modifier
-            .align(Alignment.CenterEnd)
-            .width(backdropWidth)
-            .fillMaxHeight()
+        val backdropModifier = if (removeSideFade) {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier
+                .align(Alignment.CenterEnd)
+                .width(backdropWidth)
+                .fillMaxHeight()
+        }
         val artworkModifier = if (blurBackdrop) backdropModifier.blur(30.dp) else backdropModifier
         val bottomSpreadStrength = ((21f / 9f - aspectRatio) / (5f / 9f)).coerceIn(0f, 1f)
         val baseSideFade = Brush.horizontalGradient(
@@ -171,7 +179,7 @@ fun DesktopDetailBackdrop(
                 desktopAnimation = NuvioDesktopAnimation.Always,
                 modifier = artworkModifier.navigationGlassSource(),
                 alignment = BiasAlignment(0f, DesktopBackdropVerticalBias),
-                contentScale = if (useWideArtworkFrame && !cropSideBackdrop) ContentScale.Fit else ContentScale.Crop,
+                contentScale = if (removeSideFade) ContentScale.Crop else if (useWideArtworkFrame && !cropSideBackdrop) ContentScale.Fit else ContentScale.Crop,
                 desktopImageScaling = NuvioDesktopImageScaling.Disabled,
                 onSuccess = { state -> onBackdropLoaded(state.painter) },
             )
@@ -193,14 +201,15 @@ fun DesktopDetailBackdrop(
             )
         }
 
-        Box(
-            modifier = backdropModifier
-                .navigationGlassSource(zIndex = 0.5f)
-                .drawWithCache {
-                    val bottomSpread = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0.00f to sideGradientColor.copy(alpha = 0.12f * gradientIntensity * bottomSpreadStrength),
-                            0.55f to sideGradientColor.copy(alpha = 0.12f * gradientIntensity * bottomSpreadStrength),
+        if (!removeSideFade) {
+            Box(
+                modifier = backdropModifier
+                    .navigationGlassSource(zIndex = 0.5f)
+                    .drawWithCache {
+                        val bottomSpread = Brush.radialGradient(
+                            colorStops = arrayOf(
+                                0.00f to sideGradientColor.copy(alpha = 0.12f * gradientIntensity * bottomSpreadStrength),
+                                0.55f to sideGradientColor.copy(alpha = 0.12f * gradientIntensity * bottomSpreadStrength),
                             1.00f to Color.Transparent,
                         ),
                         center = Offset(0f, size.height * 1.15f),
@@ -211,7 +220,8 @@ fun DesktopDetailBackdrop(
                         if (bottomSpreadStrength > 0f) drawRect(bottomSpread)
                     }
                 },
-        )
+            )
+        }
     }
 }
 
@@ -238,6 +248,7 @@ fun DesktopDetailHero(
     onSaveLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    isEnhanced: Boolean = false,
     onPlayDown: (suspend () -> Unit)? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -259,6 +270,16 @@ fun DesktopDetailHero(
         val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
         val pageHorizontalPadding = desktopPageHorizontalPaddingForWidth(maxWidth.value)
         val heroAlignment = if (compact) Alignment.TopStart else Alignment.CenterStart
+        val heroTextShadow = if (isEnhanced) Shadow(
+            color = Color.Black.copy(alpha = 0.78f),
+            offset = Offset(0f, 2f),
+            blurRadius = 8f,
+        ) else null
+        val synopsisTextShadow = if (isEnhanced) Shadow(
+            color = Color.Black.copy(alpha = 0.50f),
+            offset = Offset(0f, 1f),
+            blurRadius = 3f,
+        ) else null
 
         Column(
             modifier = Modifier
@@ -267,21 +288,51 @@ fun DesktopDetailHero(
                 .padding(
                     start = pageHorizontalPadding + LocalDesktopSidebarContentInset.current,
                     end = space.s32,
-                    top = if (compact) 90.dp else 0.dp,
+                    top = if (isEnhanced && compact) 40.dp else 0.dp,
                     bottom = if (compact) space.s8 else space.s40,
                 ),
         ) {
             if (logoUrl != null && !logoLoadError) {
-                AsyncImage(
-                    model = logoUrl,
-                    contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
-                    modifier = Modifier
-                        .widthIn(max = 560.dp)
-                        .height(120.dp),
-                    alignment = Alignment.CenterStart,
-                    contentScale = ContentScale.Fit,
-                    onError = { logoLoadError = true },
-                )
+                if (isEnhanced) {
+                    Box(
+                        modifier = Modifier.wrapContentSize(),
+                    ) {
+                        AsyncImage(
+                            model = logoUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .matchParentSize()
+                                .graphicsLayer {
+                                    translationY = 2f
+                                    alpha = 0.65f
+                                }
+                                .blur(8.dp),
+                            alignment = Alignment.CenterStart,
+                            contentScale = ContentScale.Fit,
+                        )
+                        AsyncImage(
+                            model = logoUrl,
+                            contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
+                            modifier = Modifier
+                                .height(120.dp)
+                                .widthIn(max = 560.dp),
+                            alignment = Alignment.CenterStart,
+                            contentScale = ContentScale.Fit,
+                            onError = { logoLoadError = true },
+                        )
+                    }
+                } else {
+                    AsyncImage(
+                        model = logoUrl,
+                        contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
+                        modifier = Modifier
+                            .widthIn(max = 560.dp)
+                            .height(120.dp),
+                        alignment = Alignment.CenterStart,
+                        contentScale = ContentScale.Fit,
+                        onError = { logoLoadError = true },
+                    )
+                }
             } else {
                 Text(
                     text = meta.name,
@@ -290,6 +341,7 @@ fun DesktopDetailHero(
                         lineHeight = NuvioTokens.LineHeight.displayMd,
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = NuvioTokens.LetterSpacing.none,
+                        shadow = heroTextShadow,
                     ),
                     color = colorScheme.onBackground,
                     maxLines = 3,
@@ -297,7 +349,11 @@ fun DesktopDetailHero(
                 )
             }
             Spacer(modifier = Modifier.height(if (compact) space.s12 else space.s20))
-            DesktopHeroMetaRow(meta = meta, showOverallRatings = showOverallRatings && !isMdbListActive)
+            DesktopHeroMetaRow(
+                meta = meta,
+                showOverallRatings = showOverallRatings && !isMdbListActive,
+                textShadow = heroTextShadow,
+            )
             if (isMdbListActive && meta.externalRatings.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(if (compact) space.s8 else space.s12))
                 DetailRatingsRow(
@@ -313,8 +369,9 @@ fun DesktopDetailHero(
                         fontSize = NuvioTokens.Type.bodyMd,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = NuvioTokens.LetterSpacing.none,
+                        shadow = heroTextShadow,
                     ),
-                    color = colorScheme.onSurfaceVariant,
+                    color = if (isEnhanced) colorScheme.onSurface else colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -328,6 +385,7 @@ fun DesktopDetailHero(
                         fontSize = NuvioTokens.Type.bodyLg,
                         lineHeight = NuvioTokens.LineHeight.bodyLg,
                         letterSpacing = NuvioTokens.LetterSpacing.none,
+                        shadow = synopsisTextShadow,
                     ),
                     color = colorScheme.onSurface,
                 )
@@ -347,6 +405,7 @@ fun DesktopDetailHero(
                 playLabel = if (isPrimaryPlayEnabled) playButtonLabel else stringResource(Res.string.playback_unavailable),
                 playEnabled = isPrimaryPlayEnabled,
                 pinnedAction = shuffleAction?.takeIf { shuffleEnabled },
+                alwaysShowSecondaryActions = isEnhanced,
                 secondaryActions = buildList {
                     if (!shuffleEnabled) shuffleAction?.let(::add)
                     add(DetailSecondaryAction(
@@ -423,7 +482,11 @@ fun DesktopDetailHero(
 }
 
 @Composable
-private fun DesktopHeroMetaRow(meta: MetaDetails, showOverallRatings: Boolean) {
+private fun DesktopHeroMetaRow(
+    meta: MetaDetails,
+    showOverallRatings: Boolean,
+    textShadow: Shadow? = null,
+) {
     val colorScheme = MaterialTheme.colorScheme
     val space = NuvioTokens.Space
     val opacity = NuvioTokens.Opacity
@@ -445,6 +508,7 @@ private fun DesktopHeroMetaRow(meta: MetaDetails, showOverallRatings: Boolean) {
                     fontSize = NuvioTokens.Type.bodyLg,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = NuvioTokens.LetterSpacing.none,
+                    shadow = textShadow,
                 ),
                 color = colorScheme.onBackground,
                 maxLines = 1,
@@ -466,6 +530,7 @@ private fun DesktopHeroMetaRow(meta: MetaDetails, showOverallRatings: Boolean) {
                         fontSize = NuvioTokens.Type.bodySm,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = NuvioTokens.LetterSpacing.none,
+                        shadow = textShadow,
                     ),
                     color = colorScheme.onSurfaceVariant,
                 )
@@ -475,6 +540,7 @@ private fun DesktopHeroMetaRow(meta: MetaDetails, showOverallRatings: Boolean) {
             val imdbTextStyle = MaterialTheme.typography.titleSmall.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.sp,
+                shadow = textShadow,
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,

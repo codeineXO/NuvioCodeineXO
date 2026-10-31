@@ -42,7 +42,7 @@ internal fun EnhancedDetailsScrollButton(
         onClick = { onClick(backToTop) },
         modifier = modifier
             .heightIn(min = NuvioTokens.Space.s40)
-            .navigationGlass(shape = shape, backgroundOnly = true)
+            .navigationGlass(shape = shape, backgroundOnly = false)
             .remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.PageSwitch, onSelect = { onSelect(backToTop) }),
         shape = shape,
         color = Color.Transparent,
