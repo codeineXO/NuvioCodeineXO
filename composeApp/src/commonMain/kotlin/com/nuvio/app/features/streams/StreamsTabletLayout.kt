@@ -181,9 +181,9 @@ internal fun TabletStreamsLayout(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationGlassSource()
+                .navigationGlassSource(zIndex = -1f)
                 .background(if (useWideArtworkFrame) wideFadeColor else colorScheme.background)
-                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(state = hazeState) else Modifier),
+                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(state = hazeState, zIndex = -1f) else Modifier),
         ) {
             if (tabletBackdrop != null) {
                 AsyncImage(

@@ -149,14 +149,10 @@ fun FolderDetailScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(
-                if (auraBackgroundEnabled || coverImageUrl != null) Modifier else Modifier.background(MaterialTheme.colorScheme.background)
-            ),
+        modifier = Modifier.fillMaxSize(),
     ) {
         if (coverImageUrl != null) {
-            Box(Modifier.matchParentSize().navigationGlassSource()) {
+            Box(Modifier.fillMaxSize().navigationGlassSource()) {
                 AsyncImage(
                     model = coverImageUrl,
                     contentDescription = null,
@@ -174,17 +170,17 @@ fun FolderDetailScreen(
         } else if (auraBackgroundEnabled) {
             HomeInteractiveGradientBackground(Modifier.fillMaxSize())
         } else {
-            Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
+            Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val desktopPagePadding = desktopPageHorizontalPaddingForWidth(maxWidth.value)
             val sidebarInset = LocalDesktopSidebarContentInset.current
-            Column(modifier = Modifier.fillMaxSize().padding(start = sidebarInset)) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 if (!useNativeNavigation) {
                     NuvioScreenHeader(
                         title = folder?.title ?: uiState.collectionTitle,
-                        modifier = Modifier,
+                        modifier = Modifier.padding(start = sidebarInset),
                         backgroundColor = Color.Transparent,
                         includeStatusBarPadding = false,
                         topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + desktopBackButtonTopPadding,
@@ -212,6 +208,7 @@ fun FolderDetailScreen(
                         uiState = uiState,
                         watchedKeys = watchedUiState.watchedKeys,
                         pageHorizontalPadding = desktopPagePadding,
+                        sidebarInset = sidebarInset,
                         modifier = Modifier.weight(1f),
                         onTabSelected = { FolderDetailRepository.selectTab(it) },
                         onPosterClick = onPosterClick,
@@ -385,6 +382,7 @@ private fun TabbedGridContent(
     uiState: FolderDetailUiState,
     watchedKeys: Set<String>,
     pageHorizontalPadding: Dp = 16.dp,
+    sidebarInset: Dp = 0.dp,
     modifier: Modifier = Modifier,
     onTabSelected: (Int) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
@@ -410,8 +408,8 @@ private fun TabbedGridContent(
             CompositionLocalProvider(LocalRippleConfiguration provides null) {
                 ScrollableTabRow(
                     selectedTabIndex = uiState.selectedTabIndex,
-                    modifier = Modifier.fillMaxWidth(),
-                    edgePadding = pageHorizontalPadding,
+                    modifier = Modifier.fillMaxWidth().navigationGlassSource(zIndex = 1f),
+                    edgePadding = pageHorizontalPadding + sidebarInset,
                     containerColor = if (isDesktop) Color.Transparent else MaterialTheme.colorScheme.background,
                     contentColor = MaterialTheme.colorScheme.onBackground,
                     divider = {},
@@ -469,7 +467,7 @@ private fun TabbedGridContent(
                             state = gridState,
                             modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
                             contentPadding = PaddingValues(
-                                start = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
+                                start = maxOf(pageHorizontalPadding + sidebarInset, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
                                 end = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
                                 top = if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else if (isDesktop) 8.dp else 4.dp,
                                 bottom = nuvioSafeBottomPadding(if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 18.dp),
@@ -552,7 +550,8 @@ internal fun RowsContent(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val homeSectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(maxWidth.value) else null
+        val sidebarInset = LocalDesktopSidebarContentInset.current
+        val homeSectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(maxWidth.value) + sidebarInset else null
         val posterCardStyle = rememberPosterCardStyleUiState()
         val useGutterLayout = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
         val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
@@ -600,7 +599,10 @@ internal fun RowsContent(
         )
         NuvioLazyColumn(
             state = listState,
-            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
+            modifier = Modifier
+                .remoteNavigationGroup()
+                .fillMaxSize()
+                .navigationGlassSource(zIndex = 1f),
             contentPadding = PaddingValues(
                 bottom = nuvioSafeBottomPadding(18.dp),
             ),

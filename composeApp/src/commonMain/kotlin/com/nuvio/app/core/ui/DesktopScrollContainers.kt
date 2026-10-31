@@ -63,7 +63,9 @@ internal fun NuvioLazyVerticalGrid(
 ) {
     LazyVerticalGrid(
         columns = columns,
-        modifier = modifier.nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled, reverseLayout, flingBehavior),
+        modifier = modifier
+            .nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled, reverseLayout, flingBehavior)
+            .navigationGlassSource(zIndex = 1f),
         state = state,
         contentPadding = contentPadding,
         reverseLayout = reverseLayout,

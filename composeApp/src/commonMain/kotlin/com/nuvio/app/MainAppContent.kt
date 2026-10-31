@@ -2499,6 +2499,11 @@ private fun AppRoute?.drawsUnderVerticalBar(selectedTab: AppScreenTab): Boolean 
         is FolderDetailRoute,
         is CollectionFoldersRoute,
         is DownloadsRoute,
-        is DownloadShowRoute -> true
+        is DownloadShowRoute,
+        is CatalogRoute,
+        is CollectionsRoute,
+        is CollectionEditorRoute,
+        is CollectionEditorPageRoute,
+        is SettingsDestinationRoute -> true
         else -> false
     }

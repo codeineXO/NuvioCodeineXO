@@ -215,8 +215,8 @@ internal fun MainTabsDestination(
             ),
         )
 
-        // Poster pages share a full-window background, without a rectangle at the sidebar inset.
-        if (isDesktop && (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library)) {
+        // Poster and settings pages share a full-window background, without a rectangle at the sidebar inset.
+        if (isDesktop && (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library || selectedTab == AppScreenTab.Settings)) {
             val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
             val backgroundModifier = Modifier.fillMaxSize()
                 .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(navBarHazeState, zIndex = -1f) else Modifier)
@@ -224,7 +224,7 @@ internal fun MainTabsDestination(
             if (auraBackgroundEnabled) {
                 HomeInteractiveGradientBackground(
                     modifier = backgroundModifier,
-                    listState = if (selectedTab == AppScreenTab.Search) state.searchListState else libraryListState,
+                    listState = if (selectedTab == AppScreenTab.Search) state.searchListState else if (selectedTab == AppScreenTab.Library) libraryListState else null,
                 )
             } else {
                 Box(

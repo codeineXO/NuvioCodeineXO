@@ -2,6 +2,15 @@ package com.nuvio.app.features.collection
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
+import com.nuvio.app.features.settings.ThemeSettingsRepository
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,13 +91,23 @@ fun CollectionManagementScreen(
     var showDeleteConfirm by remember { mutableStateOf<String?>(null) }
     var showCopyError by remember { mutableStateOf(false) }
 
-    NuvioScreen {
-        stickyHeader {
-            NuvioScreenHeader(
-                title = stringResource(Res.string.collections_header),
-                onBack = onBack,
-                backButtonKeyboardNavigationEnabled = false,
-            ) {
+    val auraEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+    val sidebarInset = LocalDesktopSidebarContentInset.current
+
+    Box(Modifier.fillMaxSize()) {
+        if (auraEnabled) {
+            HomeInteractiveGradientBackground(Modifier.fillMaxSize())
+        } else {
+            Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
+        }
+        NuvioScreen(backgroundColor = Color.Transparent) {
+            stickyHeader {
+                NuvioScreenHeader(
+                    title = stringResource(Res.string.collections_header),
+                    onBack = onBack,
+                    backButtonKeyboardNavigationEnabled = false,
+                    modifier = Modifier.padding(start = sidebarInset),
+                ) {
                 IconButton(onClick = {
                     val json = CollectionRepository.exportToJson()
                     showCopyError = runCatching {
@@ -171,6 +190,7 @@ fun CollectionManagementScreen(
                 }
             }
         }
+    }
     }
 
     if (showImportDialog) {

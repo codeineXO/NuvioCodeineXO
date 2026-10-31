@@ -303,7 +303,6 @@ fun StreamsScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         val isTabletLayout = maxWidth >= 768.dp
-        Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
 
         if (isTabletLayout) {
             TabletStreamsLayout(

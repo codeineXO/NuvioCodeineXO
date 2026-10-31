@@ -29,6 +29,7 @@ import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.features.home.components.CollectionFolderCard
@@ -59,14 +60,10 @@ fun CollectionFolderBrowserScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(
-                if (auraBackgroundEnabled || coverImageUrl != null) Modifier else Modifier.background(MaterialTheme.colorScheme.background)
-            ),
+        modifier = Modifier.fillMaxSize(),
     ) {
         if (coverImageUrl != null) {
-            Box(Modifier.matchParentSize().navigationGlassSource()) {
+            Box(Modifier.fillMaxSize().navigationGlassSource()) {
                 AsyncImage(
                     model = coverImageUrl,
                     contentDescription = null,
@@ -84,17 +81,18 @@ fun CollectionFolderBrowserScreen(
         } else if (auraBackgroundEnabled) {
             HomeInteractiveGradientBackground(Modifier.fillMaxSize())
         } else {
-            Box(Modifier.matchParentSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.colorScheme.background))
+            Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
         }
 
         val sidebarInset = LocalDesktopSidebarContentInset.current
-        Column(modifier = Modifier.fillMaxSize().padding(start = sidebarInset)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             NuvioScreenHeader(
                 title = collection?.title ?: title,
                 onBack = onBack,
                 backgroundColor = Color.Transparent,
                 backButtonBackgroundOnly = true,
                 backButtonKeyboardNavigationEnabled = false,
+                modifier = Modifier.padding(start = sidebarInset),
             )
             val folders = collection?.folders.orEmpty()
             if (folders.isEmpty()) {
@@ -112,7 +110,7 @@ fun CollectionFolderBrowserScreen(
                 NuvioLazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = minGridWidth),
                     modifier = Modifier.fillMaxSize().remoteNavigationGroup(),
-                    contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 24.dp),
+                    contentPadding = PaddingValues(start = sidebarInset + 16.dp, top = 8.dp, end = 16.dp, bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                 ) {

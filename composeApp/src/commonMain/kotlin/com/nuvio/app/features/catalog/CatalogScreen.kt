@@ -81,6 +81,9 @@ import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
 import com.nuvio.app.core.ui.PosterGlowOutset
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -199,6 +202,7 @@ fun CatalogScreen(
     }
 
     val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+    val sidebarInset = LocalDesktopSidebarContentInset.current
 
     BoxWithConstraints(
         modifier = modifier
@@ -239,12 +243,20 @@ fun CatalogScreen(
                     modifier = Modifier.fillMaxSize(),
                     gridState = gridState,
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .navigationGlassSource(zIndex = -1f)
+                        .background(MaterialTheme.nuvio.colors.background),
+                )
             }
             Column(modifier = Modifier.fillMaxSize()) {
                 CatalogHeader(
                     title = title,
                     subtitle = subtitle,
                     pageHorizontalPadding = pageHorizontalPadding,
+                    sidebarInset = if (isDesktop) sidebarInset else 0.dp,
                     onBack = onBack,
                 )
                 Box(
@@ -257,7 +269,7 @@ fun CatalogScreen(
                         state = gridState,
                         modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxSize()),
                         contentPadding = PaddingValues(
-                            start = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
+                            start = maxOf(pageHorizontalPadding + sidebarInset, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
                             end = maxOf(pageHorizontalPadding, if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp),
                             top = if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp,
                             bottom = nuvioSafeBottomPadding(if (isDesktop && posterCardStyle.glowEnabled) PosterGlowOutset else 28.dp),
@@ -354,6 +366,7 @@ private fun CatalogHeader(
     title: String,
     subtitle: String,
     pageHorizontalPadding: Dp,
+    sidebarInset: Dp = 0.dp,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -376,7 +389,7 @@ private fun CatalogHeader(
             .fillMaxWidth()
             .background(Color.Transparent)
             .nuvioConsumePointerEvents()
-            .padding(horizontal = pageHorizontalPadding)
+            .padding(start = pageHorizontalPadding + sidebarInset, end = pageHorizontalPadding)
             .padding(top = effectiveTopPadding, bottom = NuvioTokens.Space.s4),
         verticalAlignment = if (isDesktop) Alignment.Top else Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),

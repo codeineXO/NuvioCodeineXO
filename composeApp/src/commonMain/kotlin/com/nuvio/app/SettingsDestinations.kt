@@ -1,10 +1,21 @@
 package com.nuvio.app
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
+import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
+import com.nuvio.app.features.settings.ThemeSettingsRepository
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.features.collection.CollectionEditorPage
 import com.nuvio.app.features.collection.CollectionEditorScreen
@@ -37,7 +48,16 @@ internal fun SettingsDestination(
 ) {
     val onBack = rememberGuardedPopBackStack(navController, route)
     PlatformBackHandler(enabled = true, onBack = onBack)
-    content(onBack)
+    val auraEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+    val sidebarInset = LocalDesktopSidebarContentInset.current
+    Box(Modifier.fillMaxSize()) {
+        if (auraEnabled) {
+            HomeInteractiveGradientBackground(Modifier.fillMaxSize())
+        } else {
+            Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
+        }
+        content(onBack)
+    }
 }
 
 @Composable
