@@ -1,6 +1,7 @@
 package com.nuvio.app
 
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.LocalSurfaceStyle
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.MutableTransitionState
@@ -171,6 +172,7 @@ import com.nuvio.app.features.settings.MetaScreenSettingsScreen
 import com.nuvio.app.features.settings.PluginsSettingsScreen
 import com.nuvio.app.features.settings.SupportersContributorsSettingsScreen
 import com.nuvio.app.features.settings.ThemeSettingsRepository
+import com.nuvio.app.features.settings.SurfaceStyle
 import com.nuvio.app.navigation.OnboardingRoute
 import com.nuvio.app.features.streams.BingeGroupCacheRepository
 import com.nuvio.app.features.streams.StreamAutoPlayPolicy
@@ -317,6 +319,7 @@ internal fun MainAppContent(
         var selectedPosterMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val posterOverlayHazeState = rememberHazeState()
         val navigationGlassState = remember(currentRoute, selectedTab) { dev.chrisbanes.haze.HazeState() }
+        val sidebarGlassState = rememberHazeState()
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
         var selectedContinueWatchingMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val libraryDisintegrationRequests = remember { DisintegrationRequestController<String>() }
@@ -1506,6 +1509,8 @@ internal fun MainAppContent(
             }
             val verticalBarPadding = LocalVerticalBarPadding.current
             val drawsUnderVerticalBar = currentRoute.drawsUnderVerticalBar(selectedTab)
+            val captureSidebarBackdrop = useDesktopSidebar &&
+                LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass
             SharedTransitionLayout {
                 CompositionLocalProvider(
                     com.nuvio.app.core.ui.LocalNavigationGlassState provides navigationGlassState.takeUnless { currentRoute is PlayerRoute },
@@ -1517,6 +1522,14 @@ internal fun MainAppContent(
                     LocalDesktopSidebarContentInset provides if (useDesktopSidebar) contentStartPadding else 0.dp,
                 ) {
                 Box(modifier = Modifier.fillMaxSize()) {
+                // Capture the live page before navigation padding, independently of page glass sources.
+                // The sidebar and native player overlays stay outside this source to avoid self-sampling.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (captureSidebarBackdrop) Modifier.hazeSource(sidebarGlassState) else Modifier)
+                        .background(MaterialTheme.nuvio.colors.background),
+                ) {
                 NavDisplay(
                     backStack = navBackStack,
                     modifier = Modifier
@@ -1968,6 +1981,7 @@ internal fun MainAppContent(
                         }
                     },
                 )
+                }
 
                 if (useDesktopSidebar) {
                     val currentNavRoute = currentRoute
@@ -1999,7 +2013,7 @@ internal fun MainAppContent(
                             hoverSource = sidebarHoverSource,
                             profileStackVisible = isProfileStackVisible,
                             onProfileStackVisibleChange = { isProfileStackVisible = it },
-                            hazeState = navigationGlassState,
+                            hazeState = sidebarGlassState,
                             onFocusWithinChanged = { isSidebarFocused = it },
                             canNavigateBack = isSubpage,
                             onNavigateBack = {

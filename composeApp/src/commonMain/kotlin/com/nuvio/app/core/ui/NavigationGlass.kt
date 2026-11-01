@@ -75,8 +75,8 @@ internal fun Modifier.navigationGlass(
     }
     // The same light, theme-neutral tint for controls and panels, without a gray surface wash.
     val tint = tokens.colors.background.copy(alpha = tokens.opacity.pressed)
-    // The sidebar keeps its light fill and effect node while a new page registers sources.
-    // Its page-scoped HazeState still changes, so no previous-page backdrop is retained.
+    // The sidebar keeps its light fill and effect node with a persistent, live page source.
+    // Route and tab changes update that source without retaining a previous-page backdrop.
     val fallback = if (stableBackdropFill) tint else tokens.colors.background.copy(alpha = tokens.opacity.strong)
     val elevation = if (surfaceStyle == SurfaceStyle.DarkGlass) {
         tokens.elevation.flat
