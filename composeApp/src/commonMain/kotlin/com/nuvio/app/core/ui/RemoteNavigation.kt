@@ -91,6 +91,13 @@ internal class RemoteNavigationSession {
 
     fun canEnterSidebar(): Boolean = !leftMovedDuringHold
 
+    fun sidebarFocusBlocked(route: Any): Boolean =
+        (preferContentEntry && contentEntryPending) ||
+            // The bookmark exists before the retained page is reactivated and marks
+            // restoration pending, so cover that first composition frame as well.
+            posterPages.values.any { it.route == route && it.origin != null } ||
+            posterRestorationPending(route)
+
     fun resetHoldState() {
         rowMoveJob?.cancel()
         activeShelf?.stop()
@@ -504,7 +511,8 @@ internal fun RemoteNavigationHost(
             // Tab disposal and native player teardown can clear focus after composition.
             withFrameNanos { }
             if (session.focusedTarget?.let {
-                    !preferContentEntry && it.route == restorationKey && it.role == RemoteNavigationRole.Sidebar && it.focused
+                    !preferContentEntry && !session.sidebarFocusBlocked(restorationKey) &&
+                        it.route == restorationKey && it.role == RemoteNavigationRole.Sidebar && it.focused
                 } == true) return@LaunchedEffect
             platformFocus()
             rootFocus.requestFocus()
@@ -659,7 +667,8 @@ internal fun Modifier.remoteNavigationTarget(
         session.targets += target
         // Tab changes replace the route target while its sidebar focus node survives.
         // Rebind that focus before route restoration can select an older sidebar item.
-        if (focused && effectiveRole == RemoteNavigationRole.Sidebar && !session.preferContentEntry) {
+        if (focused && effectiveRole == RemoteNavigationRole.Sidebar && !session.preferContentEntry &&
+            !session.sidebarFocusBlocked(route)) {
             target.focused = true
             session.focusedTarget = target
             session.rememberedFocus[route] = identity
@@ -672,7 +681,7 @@ internal fun Modifier.remoteNavigationTarget(
     }
     LaunchedEffect(route) {
         if (session.keyboard && !session.explicitFocusTransfer && !session.posterRestorationPending(route) &&
-            !(session.preferContentEntry && effectiveRole == RemoteNavigationRole.Sidebar) &&
+            !(effectiveRole == RemoteNavigationRole.Sidebar && (session.preferContentEntry || session.sidebarFocusBlocked(route))) &&
             session.rememberedFocus[route] == identity) requester.requestFocus()
     }
     LaunchedEffect(focused, session.keyboard, session.focusTransferReason) {
@@ -699,7 +708,7 @@ internal fun Modifier.remoteNavigationTarget(
     guardedModifier
         .modifierLocalConsumer { target.rowKey = LocalRemoteRow.current }
         .focusProperties {
-            if (effectiveRole == RemoteNavigationRole.Sidebar && session.preferContentEntry && session.contentEntryPending) canFocus = false
+            if (effectiveRole == RemoteNavigationRole.Sidebar && session.sidebarFocusBlocked(route)) canFocus = false
         }
         .remoteNavigationPointerIcon()
         .focusRequester(requester)

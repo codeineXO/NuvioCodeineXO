@@ -35,9 +35,9 @@ internal class PosterNavigationPage {
     var state: LazyListState? = null
     var active = false
     var stopAtBottom = false
-    var origin: PosterOrigin? = null
+    var origin: PosterOrigin? by mutableStateOf(null)
     var lane: Float? = null
-    var restorationState = PosterRestorationState.Idle
+    var restorationState by mutableStateOf(PosterRestorationState.Idle)
     var restorationGeneration = 0
     var restorationJob: Job? = null
     fun cancelRestoration(discardBookmark: Boolean = false) {
