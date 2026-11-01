@@ -788,7 +788,12 @@ internal fun DesktopHoverSidebar(
                 .padding(DesktopSidebarOuterInset)
                 .width(sidebarWidth)
                 .fillMaxHeight()
-                .navigationGlass(shape = tokens.shapes.card, panel = true, hazeState = hazeState)
+                .navigationGlass(
+                    shape = tokens.shapes.card,
+                    panel = true,
+                    hazeState = hazeState,
+                    stableBackdropFill = true,
+                )
                 .hoverable(hoverSource)
                 .onFocusChanged { onFocusWithinChanged(it.hasFocus) }
                 .onPreviewKeyEvent { event ->

@@ -62,6 +62,7 @@ internal fun Modifier.navigationGlass(
     panel: Boolean = false,
     hazeState: HazeState? = LocalNavigationGlassState.current,
     backgroundOnly: Boolean = false,
+    stableBackdropFill: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
     val surfaceStyle = LocalSurfaceStyle.current
@@ -69,11 +70,14 @@ internal fun Modifier.navigationGlass(
     // In-page effects must not sample the z=1 scrolling source which contains them.
     // Navigation overlays retain their existing full-page backdrop behavior.
     val backdropState = hazeState?.takeIf { state ->
-        frostedGlassEnabled && state.areas.isNotEmpty() && (!backgroundOnly || state.areas.any { it.zIndex < 1f })
+        frostedGlassEnabled && (stableBackdropFill ||
+            (state.areas.isNotEmpty() && (!backgroundOnly || state.areas.any { it.zIndex < 1f })))
     }
     // The same light, theme-neutral tint for controls and panels, without a gray surface wash.
     val tint = tokens.colors.background.copy(alpha = tokens.opacity.pressed)
-    val fallback = tokens.colors.background.copy(alpha = tokens.opacity.strong)
+    // The sidebar keeps its light fill and effect node while a new page registers sources.
+    // Its page-scoped HazeState still changes, so no previous-page backdrop is retained.
+    val fallback = if (stableBackdropFill) tint else tokens.colors.background.copy(alpha = tokens.opacity.strong)
     val elevation = if (surfaceStyle == SurfaceStyle.DarkGlass) {
         tokens.elevation.flat
     } else if (panel) {

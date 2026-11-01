@@ -67,9 +67,17 @@ fun NuvioDropdownChip(
     onSelected: (NuvioDropdownOption) -> Unit,
     modifier: Modifier = Modifier,
     useGlass: Boolean = false,
+    expanded: Boolean? = null,
+    onExpandedChange: ((Boolean) -> Unit)? = null,
+    keyboardNavigationEnabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
-    var isSheetVisible by remember { mutableStateOf(false) }
+    var internalExpanded by remember { mutableStateOf(false) }
+    val isSheetVisible = expanded ?: internalExpanded
+    fun setExpanded(value: Boolean) {
+        internalExpanded = value
+        onExpandedChange?.invoke(value)
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
     val interactionSource = remember { MutableInteractionSource() }
@@ -77,7 +85,8 @@ fun NuvioDropdownChip(
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
-                .then(if (enabled) Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard) else Modifier)
+                .then(if (!keyboardNavigationEnabled) Modifier.excludeFromRemoteNavigation()
+                    else if (enabled) Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard) else Modifier)
                 .then(
                     if (useGlass) {
                         Modifier.navigationGlass(shape = tokens.shapes.compactCard, backgroundOnly = true)
@@ -90,7 +99,7 @@ fun NuvioDropdownChip(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
                     enabled = enabled,
-                    onClick = { isSheetVisible = true },
+                    onClick = { setExpanded(true) },
                 )
                 .padding(horizontal = NuvioTokens.Space.s12, vertical = tokens.components.chipVerticalPadding),
             horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
@@ -113,10 +122,10 @@ fun NuvioDropdownChip(
 
         if (isDesktop) {
             val scrollState = rememberScrollState()
-            PlatformBackHandler(enabled = isSheetVisible, onBack = { isSheetVisible = false })
+            PlatformBackHandler(enabled = isSheetVisible, onBack = { setExpanded(false) })
             DropdownMenu(
                 expanded = isSheetVisible,
-                onDismissRequest = { isSheetVisible = false },
+                onDismissRequest = { setExpanded(false) },
                 scrollState = scrollState,
                 modifier = Modifier.nuvioDesktopDragScroll(scrollState, Orientation.Vertical)
                     .widthIn(min = 180.dp, max = 360.dp)
@@ -142,7 +151,7 @@ fun NuvioDropdownChip(
                                 useGlass = useGlass,
                                 onClick = {
                                     onSelected(option)
-                                    isSheetVisible = false
+                                    setExpanded(false)
                                 },
                             )
                         }
@@ -162,7 +171,7 @@ fun NuvioDropdownChip(
                 coroutineScope.launch {
                     dismissNuvioBottomSheet(
                         sheetState = sheetState,
-                        onDismiss = { isSheetVisible = false },
+                        onDismiss = { setExpanded(false) },
                     )
                 }
             },
@@ -171,7 +180,7 @@ fun NuvioDropdownChip(
                 coroutineScope.launch {
                     dismissNuvioBottomSheet(
                         sheetState = sheetState,
-                        onDismiss = { isSheetVisible = false },
+                        onDismiss = { setExpanded(false) },
                     )
                 }
             },
