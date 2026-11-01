@@ -380,7 +380,7 @@ fun DetailSeriesContent(
     }
     val fixedPath = isDesktop && isEnhanced && navigationEntry != null
     val rememberedEpisodes = remember(meta.id) { androidx.compose.runtime.mutableStateMapOf<Int, MetaVideo>() }
-    val enhancedFillerNavigation = isAnime && isEnhanced && navigationEntry != null && !fixedPath
+    val enhancedFillerNavigation = isAnime && isEnhanced && navigationEntry != null
     val seasonNavigationEntry = if (enhancedFillerNavigation) {
         remember(meta.id) { RemoteNavigationFocusDestination() }
     } else navigationEntry
@@ -393,7 +393,7 @@ fun DetailSeriesContent(
         else navigationEntry?.let { RemoteNavigationFocusDestination() }
     }
     val fillerDown: (suspend () -> Unit)? = if (enhancedFillerNavigation) ({
-        val moved = if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+        val moved = if (fixedPath || seasons.size > 1) seasonNavigationEntry?.requestFocus(restoreRememberedRow = !fixedPath)
         else if (viewListFocus != null) viewListFocus.requestFocus()
         else firstEpisodeFocus?.requestFocus()
         if (moved != true) onEpisodesDown?.invoke()
