@@ -78,6 +78,7 @@ fun HomescreenSettingsScreen(
         ) {
             stickyHeader {
                 NuvioScreenHeader(
+                    showBackWithDesktopSidebar = true,
                     title = stringResource(Res.string.compose_settings_page_homescreen),
                     onBack = onBack,
                 )
@@ -117,6 +118,7 @@ fun MetaScreenSettingsScreen(
         ) {
             stickyHeader {
                 NuvioScreenHeader(
+                    showBackWithDesktopSidebar = true,
                     title = stringResource(Res.string.compose_settings_page_meta_screen),
                     onBack = onBack,
                 )
@@ -149,6 +151,7 @@ fun ContinueWatchingSettingsScreen(
         ) {
             stickyHeader {
                 NuvioScreenHeader(
+                    showBackWithDesktopSidebar = true,
                     title = stringResource(Res.string.compose_settings_page_continue_watching),
                     onBack = onBack,
                 )
@@ -187,6 +190,7 @@ fun AddonsSettingsScreen(
         ) {
             stickyHeader {
                 NuvioScreenHeader(
+                    showBackWithDesktopSidebar = true,
                     title = stringResource(Res.string.compose_settings_page_addons),
                     onBack = onBack,
                 )
@@ -220,6 +224,7 @@ fun PluginsSettingsScreen(
         ) {
             stickyHeader {
                 NuvioScreenHeader(
+                    showBackWithDesktopSidebar = true,
                     title = stringResource(Res.string.compose_settings_page_plugins),
                     onBack = onBack,
                 )
@@ -244,6 +249,7 @@ fun AccountSettingsScreen(
         ) {
             stickyHeader {
                 NuvioScreenHeader(
+                    showBackWithDesktopSidebar = true,
                     title = stringResource(Res.string.compose_settings_page_account),
                     onBack = onBack,
                 )

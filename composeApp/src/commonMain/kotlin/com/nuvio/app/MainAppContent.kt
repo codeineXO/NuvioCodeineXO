@@ -1426,6 +1426,8 @@ internal fun MainAppContent(
             com.nuvio.app.core.ui.RemoteNavigationHost(
                 enabled = isDesktop && currentRoute !is PlayerRoute,
                 restorationKey = if (currentRoute is TabsRoute) currentRoute to selectedTab else currentRoute ?: TabsRoute,
+                preferContentEntry = currentRoute != null && currentRoute !is TabsRoute,
+                requireInitialContentFocus = currentRoute is StreamRoute,
                 modifier = Modifier
                     .fillMaxSize()
                     .actionMenuInput()

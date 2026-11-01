@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.remoteNavigationDown
 
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -118,6 +119,8 @@ fun DetailActionButtons(
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .remoteNavigationGroup(rememberRow = true)
+                .remoteNavigationDown(onPlayDown)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
@@ -133,7 +136,6 @@ fun DetailActionButtons(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .remoteNavigationDown(onPlayDown)
                         .remoteNavigationTarget(shape = playShape, initialFocus = true, onSelect = onPlayClick.takeIf { playEnabled }, onContext = onPlayLongClick).combinedClickable(
                             enabled = playEnabled,
                             onClick = {

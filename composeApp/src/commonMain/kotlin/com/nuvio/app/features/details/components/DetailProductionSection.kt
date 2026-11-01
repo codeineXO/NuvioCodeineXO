@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationGroup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -84,6 +85,7 @@ fun DetailProductionSection(
             }
 
             FlowRow(
+                modifier = Modifier.remoteNavigationGroup(rememberRow = true),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {

@@ -72,7 +72,7 @@ fun DetailCastSection(
 
             LazyRow(
                 state = rowState,
-                modifier = Modifier.remoteNavigationGroup().then(Modifier
+                modifier = Modifier.remoteNavigationGroup(rememberRow = true).then(Modifier
                     .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                     .fillMaxWidth()
                     .nuvioDesktopDragScroll(rowState)),

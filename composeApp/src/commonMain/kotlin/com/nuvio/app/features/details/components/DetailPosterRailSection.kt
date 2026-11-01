@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
+import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
@@ -64,6 +65,7 @@ fun DetailPosterRailSection(
             title = if (showHeader) title else "",
             entries = items,
             rowModifier = Modifier
+                .remoteNavigationGroup(rememberRow = true)
                 .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                 .nuvioShelfHoverOverdraw(rowHoverInset),
             headerHorizontalPadding = headerHorizontalPadding,

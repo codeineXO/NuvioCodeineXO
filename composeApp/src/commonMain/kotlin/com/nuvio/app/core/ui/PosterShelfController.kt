@@ -2,6 +2,7 @@ package com.nuvio.app.core.ui
 
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -120,6 +121,20 @@ internal class PosterShelfController(
         select(keys[next], source, direction)
     }
 
+    internal suspend fun revealItem(key: Any): RemoteFocusTarget? {
+        val index = keys.indexOf(key)
+        if (index < 0) return null
+        state.scrollToItem(index)
+        return withTimeoutOrNull(750) {
+            snapshotFlow {
+                session.targets.firstOrNull {
+                    it.shelfItem?.let { slot -> slot.controller === this@PosterShelfController && slot.key == key } == true &&
+                        it.bounds != null
+                }
+            }.first { it != null }
+        }
+    }
+
     private fun select(key: Any, source: RemoteFocusTarget?, direction: FocusDirection?) {
         selectionJob?.cancel()
         anchor = key
@@ -208,6 +223,28 @@ internal fun rememberPosterShelfController(
         }
     }
     return controller
+}
+
+/** Visible cards keep their exact position; clipped cards move only as far as necessary. */
+internal fun LazyListLayoutInfo.minimumShelfRevealDistance(index: Int): Float {
+    val nearest = visibleItemsInfo.minByOrNull { abs(it.index - index) } ?: return 0f
+    val selected = visibleItemsInfo.firstOrNull { it.index == index }
+    val size = selected?.size ?: nearest.size
+    val offset = selected?.offset ?: nearest.offset + (index - nearest.index) * (nearest.size + mainAxisItemSpacing)
+    val start = viewportStartOffset
+    val end = viewportEndOffset
+    return when {
+        size >= end - start -> (offset - start).toFloat()
+        offset < start -> (offset - start).toFloat()
+        offset + size > end -> (offset + size - end).toFloat()
+        else -> 0f
+    }
+}
+
+internal suspend fun LazyListState.revealShelfItem(index: Int) {
+    if (layoutInfo.visibleItemsInfo.none { it.index == index }) scrollToItem(index)
+    val distance = layoutInfo.minimumShelfRevealDistance(index)
+    if (distance != 0f) scrollBy(distance)
 }
 
 /** Keep a full preceding poster at the content edge, clamping to keep the selected card visible. */

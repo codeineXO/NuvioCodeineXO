@@ -21,6 +21,7 @@ import com.nuvio.app.core.ui.PosterShelfItem
 import com.nuvio.app.core.ui.PosterShelfController
 import com.nuvio.app.core.ui.PosterShelfScrollOwner
 import com.nuvio.app.core.ui.rememberPosterShelfController
+import com.nuvio.app.core.ui.revealShelfItem
 import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.core.ui.remoteNavigationGroup
 import com.nuvio.app.core.ui.NuvioTokens
@@ -201,7 +202,7 @@ private fun rememberSeriesRowNavigation(state: LazyListState, items: List<Int>):
         state, items, allowSidebarEntry = allowSidebar, precedingPosterVisible = true,
     )
     if (controller != null) {
-        return SeriesRowNavigation(Modifier.remoteNavigationGroup(), { Modifier }, controller)
+        return SeriesRowNavigation(Modifier.remoteNavigationGroup(rememberRow = true), { Modifier }, controller)
     }
     val requesters = remember(items) { List(items.size) { FocusRequester() } }
     var focusedIndex by remember(items) { mutableStateOf(0) }
@@ -235,7 +236,7 @@ private fun rememberSeriesRowNavigation(state: LazyListState, items: List<Int>):
                 }
             }
             if (event.type == KeyEventType.KeyUp) false else true
-        }.remoteNavigationGroup(),
+        }.remoteNavigationGroup(rememberRow = true),
         itemModifier = { index ->
             Modifier.focusRequester(requesters[index]).onFocusChanged {
                 if (it.isFocused) focusedIndex = index
@@ -262,6 +263,7 @@ fun DetailSeriesContent(
     onEpisodeLongPress: ((MetaVideo) -> Unit)? = null,
     onSeasonLongPress: ((Int) -> Unit)? = null,
     navigationEntry: RemoteNavigationFocusDestination? = null,
+    episodeNavigationEntry: RemoteNavigationFocusDestination? = null,
     onEntryUp: (suspend () -> Unit)? = null,
     onEpisodesDown: (suspend () -> Unit)? = null,
 ) {
@@ -345,15 +347,18 @@ fun DetailSeriesContent(
     }
 
     val isEnhanced = episodeCardStyle == MetaEpisodeCardStyle.Enhanced
-    val enhancedFillerNavigation = isAnime && isEnhanced && navigationEntry != null
+    val fixedPath = isDesktop && isEnhanced && navigationEntry != null
+    val rememberedEpisodes = remember(meta.id) { androidx.compose.runtime.mutableStateMapOf<Int, MetaVideo>() }
+    val enhancedFillerNavigation = isAnime && isEnhanced && navigationEntry != null && !fixedPath
     val seasonNavigationEntry = if (enhancedFillerNavigation) {
         remember(meta.id) { RemoteNavigationFocusDestination() }
     } else navigationEntry
     val viewListFocus = remember(meta.id, isEnhanced, navigationEntry) {
         if (isEnhanced && navigationEntry != null) RemoteNavigationFocusDestination() else null
     }
-    val firstEpisodeFocus = remember(meta.id, navigationEntry, seasons.size, enhancedFillerNavigation) {
-        if (seasons.size <= 1 && !enhancedFillerNavigation) navigationEntry
+    val firstEpisodeFocus = remember(meta.id, navigationEntry, episodeNavigationEntry, seasons.size, enhancedFillerNavigation, fixedPath) {
+        if (fixedPath) episodeNavigationEntry ?: RemoteNavigationFocusDestination()
+        else if (seasons.size <= 1 && !enhancedFillerNavigation) navigationEntry
         else navigationEntry?.let { RemoteNavigationFocusDestination() }
     }
     val fillerDown: (suspend () -> Unit)? = if (enhancedFillerNavigation) ({
@@ -379,7 +384,9 @@ fun DetailSeriesContent(
                 fillerNavigationEntry = navigationEntry.takeIf { enhancedFillerNavigation },
                 onFillerUp = onEntryUp.takeIf { enhancedFillerNavigation },
                 onFillerDown = fillerDown,
-                onSeasonDown = if (isEnhanced) {
+                onSeasonDown = if (fixedPath) {
+                    { if (firstEpisodeFocus?.requestFocus(restoreRememberedRow = false) != true) onEpisodesDown?.invoke(); Unit }
+                } else if (isEnhanced) {
                     viewListFocus?.let { { if (!it.requestFocus()) { if (firstEpisodeFocus?.requestFocus() != true) onEpisodesDown?.invoke() }; Unit } }
                         ?: firstEpisodeFocus?.let { { if (!it.requestFocus()) onEpisodesDown?.invoke(); Unit } }
                 } else {
@@ -426,7 +433,7 @@ fun DetailSeriesContent(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     val showTitle = (!isDesktop || seasons.size <= 1) && !isEnhanced
-                    val showSingleSeasonAnimeToggles = seasons.size <= 1 && isAnime
+                    val showSingleSeasonAnimeToggles = seasons.size <= 1 && isAnime && !fixedPath
                     if (showTitle || showSingleSeasonAnimeToggles) {
                         FlowRow(
                             modifier = Modifier.fillMaxWidth(),
@@ -464,7 +471,7 @@ fun DetailSeriesContent(
                         val density = LocalDensity.current
                         val episodeScrollOffsetPx = remember(density) { with(density) { (-48.dp).toPx().toInt() } }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().remoteNavigationGroup(rememberRow = true),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -515,13 +522,14 @@ fun DetailSeriesContent(
                                 ViewListButton(
                                     focusDestination = viewListFocus,
                                     onUp = {
-                                        if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
+                                        if (fixedPath) seasonNavigationEntry?.requestFocus(restoreRememberedRow = false)
+                                        else if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
                                         else if (enhancedFillerNavigation) navigationEntry?.requestFocus()
                                         else onEntryUp?.invoke()
                                         Unit
                                     },
                                     onDown = {
-                                        firstEpisodeFocus?.requestFocus()
+                                        firstEpisodeFocus?.requestFocus(restoreRememberedRow = !fixedPath)
                                         Unit
                                     },
                                     onClick = { /* TODO: List view */ },
@@ -544,8 +552,15 @@ fun DetailSeriesContent(
                     } else if (episodeCardStyle == MetaEpisodeCardStyle.Horizontal || isEnhanced) {
                         EpisodeHorizontalRow(
                             firstEpisodeFocus = firstEpisodeFocus.takeIf { seasonForContent == currentSeason },
+                            fixedPath = fixedPath,
+                            rememberedEpisode = rememberedEpisodes[seasonForContent],
+                            onEpisodeFocused = if (fixedPath) ({ episode ->
+                                if (seasonForContent == currentSeason) rememberedEpisodes[seasonForContent] = episode
+                            }) else null,
                             onEpisodeUp = if (navigationEntry == null) null else ({
-                                if (isEnhanced) {
+                                if (fixedPath) {
+                                    if (seasonNavigationEntry?.requestFocus(restoreRememberedRow = false) != true) onEntryUp?.invoke()
+                                } else if (isEnhanced) {
                                     val moved = viewListFocus?.requestFocus()
                                     if (moved != true) {
                                         if (seasons.size > 1) seasonNavigationEntry?.requestFocus()
@@ -742,9 +757,8 @@ private fun SeriesSeasonSelector(
     onSeasonDown: (suspend () -> Unit)? = null,
     onSeasonUp: (suspend () -> Unit)? = null,
 ) {
-    if (seasons.size <= 1) return
-
     val isEnhanced = episodeCardStyle == MetaEpisodeCardStyle.Enhanced
+    if (seasons.isEmpty() || (seasons.size <= 1 && !(isDesktop && isEnhanced && navigationEntry != null))) return
     val isAnime = remember(meta) {
         MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
     }
@@ -1010,7 +1024,7 @@ private fun AnimeFillerTogglesRow(
     val pillScale = if (isEnhanced) 0.95f else 1f
 
     Row(
-        modifier = modifier,
+        modifier = modifier.remoteNavigationGroup(rememberRow = true),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1227,7 +1241,10 @@ private fun SeasonTextChipScrollRow(
         PosterShelfScrollOwner(rowNavigation.controller) {
             LazyRow(
                 state = seasonListState,
-                modifier = rowNavigation.modifier.then(rowModifier).then(rowGlassSource),
+                modifier = rowNavigation.modifier
+                    .remoteNavigationUp(onSeasonUp.takeIf { isEnhanced })
+                    .remoteNavigationDown(onSeasonDown.takeIf { isEnhanced })
+                    .then(rowModifier).then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
             ) {
@@ -1836,6 +1853,9 @@ private fun SeasonPosterButton(
 @Composable
 private fun EpisodeHorizontalRow(
     episodes: List<MetaVideo>,
+    fixedPath: Boolean = false,
+    rememberedEpisode: MetaVideo? = null,
+    onEpisodeFocused: ((MetaVideo) -> Unit)? = null,
     firstEpisodeFocus: RemoteNavigationFocusDestination? = null,
     onEpisodeUp: (suspend () -> Unit)? = null,
     onEpisodeDown: (suspend () -> Unit)? = null,
@@ -1872,7 +1892,15 @@ private fun EpisodeHorizontalRow(
     var hasPositioned by rememberSaveable(parentMetaId, episodes.firstOrNull()?.season) { mutableStateOf(false) }
     BindRemoteNavigationFocusDestination(firstEpisodeFocus) {
         hasPositioned = true
-        entryIndex = com.nuvio.app.core.ui.firstVisibleNavigationIndex(listState.layoutInfo) ?: listState.firstVisibleItemIndex
+        entryIndex = if (fixedPath) {
+            episodes.indexOfFirst {
+                rememberedEpisode != null && it.id == rememberedEpisode.id &&
+                    it.season == rememberedEpisode.season && it.episode == rememberedEpisode.episode
+            }.takeIf { it >= 0 }
+                ?: episodes.indexOfFirst { preferredEpisodeNumber != null && it.episode == preferredEpisodeNumber }.takeIf { it >= 0 }
+                ?: 0
+        } else com.nuvio.app.core.ui.firstVisibleNavigationIndex(listState.layoutInfo) ?: listState.firstVisibleItemIndex
+        if (fixedPath) listState.revealShelfItem(entryIndex)
         androidx.compose.runtime.withFrameNanos { }
     }
     val coroutineScope = rememberCoroutineScope()
@@ -1971,7 +1999,9 @@ private fun EpisodeHorizontalRow(
             LazyRow(
                 state = listState,
                 modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }
-                    .remoteNavigationGroup().then(rowModifier)
+                    .remoteNavigationUp(onEpisodeUp.takeIf { fixedPath })
+                    .remoteNavigationDown(onEpisodeDown.takeIf { fixedPath })
+                    .remoteNavigationGroup(rememberRow = true).then(rowModifier)
                     .nuvioPosterRowEdgeFade(listState, horizontalInset = horizontalOverflow)
                     .then(rowGlassSource),
                 contentPadding = rowContentPadding,
@@ -1994,6 +2024,7 @@ private fun EpisodeHorizontalRow(
                         CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, episodeKeys[index], index) }) {
                             EpisodeHorizontalCard(
                                 modifier = Modifier.remoteNavigationFocusDestination(firstEpisodeFocus.takeIf { index == entryIndex })
+                                    .onFocusChanged { if (it.isFocused) onEpisodeFocused?.invoke(episode) }
                                     .remoteNavigationUp(onEpisodeUp).remoteNavigationDown(onEpisodeDown),
                                 video = episode,
                                 fallbackImage = fallbackImage,

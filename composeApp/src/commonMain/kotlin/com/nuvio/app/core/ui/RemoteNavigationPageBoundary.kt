@@ -69,7 +69,8 @@ internal fun RemoteNavigationSession.movePageFocus(source: RemoteFocusTarget, di
             abs(bounds.center.y - origin.center.y) * 1000f + abs(bounds.center.x - origin.center.x)
         } else abs(bounds.center.x - origin.center.x)
     }.any { candidate ->
-        val requested = candidate.requester.requestFocus()
+        val requested = if ((direction == FocusDirection.Up || direction == FocusDirection.Down) && candidate.rowKey != source.rowKey) requestRowFocus(candidate)
+            else candidate.requester.requestFocus()
         if (requested && direction == FocusDirection.Left) {
             leftMovedDuringHold = true
         }

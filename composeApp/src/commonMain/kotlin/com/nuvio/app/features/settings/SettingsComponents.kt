@@ -143,6 +143,7 @@ internal fun TabletPageHeader(
         ) {
             if (showBack) {
                 NuvioBackButton(
+                    showWithDesktopSidebar = true,
                     usePageStyle = true,
                     backgroundOnly = true,
                     keyboardNavigationEnabled = false,

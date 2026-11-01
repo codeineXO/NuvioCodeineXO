@@ -81,6 +81,7 @@ fun LicensesAttributionsSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
+                showBackWithDesktopSidebar = true,
                 title = stringResource(Res.string.compose_settings_page_licenses_attributions),
                 onBack = onBack,
             )

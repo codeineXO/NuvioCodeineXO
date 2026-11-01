@@ -394,7 +394,7 @@ private fun CatalogHeader(
         verticalAlignment = if (isDesktop) Alignment.Top else Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize) else Modifier).navigationGlass().excludeFromRemoteNavigation()) {
+        if (!isDesktop) IconButton(onClick = onBack, modifier = Modifier.navigationGlass().excludeFromRemoteNavigation()) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(Res.string.action_back),

@@ -183,6 +183,7 @@ fun NuvioScreenHeader(
     backButtonKeyboardNavigationEnabled: Boolean = true,
     showFullscreenAction: Boolean = true,
     backButtonBackgroundOnly: Boolean = false,
+    showBackWithDesktopSidebar: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val tokens = MaterialTheme.nuvio
@@ -229,7 +230,7 @@ fun NuvioScreenHeader(
                 verticalAlignment = if (isDesktop && onBack != null) Alignment.Top else Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
-                if (onBack != null && !LocalDesktopSidebarActive.current) {
+                if (onBack != null && (!LocalDesktopSidebarActive.current || showBackWithDesktopSidebar)) {
                     IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
                         .size(desktopBackButtonSize)
                     else Modifier).navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
@@ -350,9 +351,10 @@ fun NuvioBackButton(
     usePageStyle: Boolean = false,
     keyboardNavigationEnabled: Boolean = true,
     backgroundOnly: Boolean = false,
+    showWithDesktopSidebar: Boolean = false,
 ) {
     if (LocalUseNativeNavigation.current && !LocalNativeNavigationBarHidden.current) return
-    if (LocalDesktopSidebarActive.current) return
+    if (LocalDesktopSidebarActive.current && !showWithDesktopSidebar) return
     val desktopPageStyle = isDesktop && usePageStyle
     val effectiveContainerColor = if (desktopPageStyle) desktopBackButtonContainerColor
         else if (isDesktop && !showContainerOnDesktop) Color.Transparent else containerColor

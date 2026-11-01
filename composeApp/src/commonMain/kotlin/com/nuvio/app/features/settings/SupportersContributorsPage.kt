@@ -275,6 +275,7 @@ fun SupportersContributorsSettingsScreen(
     ) {
         stickyHeader {
             NuvioScreenHeader(
+                showBackWithDesktopSidebar = true,
                 title = stringResource(Res.string.compose_settings_page_supporters_contributors),
                 onBack = onBack,
             )

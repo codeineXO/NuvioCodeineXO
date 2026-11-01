@@ -1,6 +1,7 @@
 package com.nuvio.app.features.streams
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.remoteNavigationPageEntry
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -70,6 +71,7 @@ internal fun ProviderFilterRow(
     },
     filterChip: @Composable (AddonStreamGroup?, Boolean, () -> Unit) -> Unit = { group, isSelected, onClick ->
         FilterChip(
+            initialFocus = group == null,
             modifier = Modifier.streamResultsFocus(isTab = true, id = group?.addonId),
             label = group?.addonName ?: stringResource(Res.string.collections_tab_all),
             isSelected = isSelected,
@@ -83,11 +85,12 @@ internal fun ProviderFilterRow(
             onFilterSelected(null)
         }
     }
-    if (addonGroups.isEmpty() && onRefresh == null) return
+    if (addonGroups.isEmpty() && onRefresh == null && !com.nuvio.app.isDesktop) return
 
     val scrollState = rememberScrollState()
     Row(
         modifier = modifier
+            .remoteNavigationPageEntry()
             .fillMaxWidth()
             .nuvioDesktopDragScroll(scrollState, momentumEnabled = desktopDragMomentumEnabled)
             .horizontalScroll(scrollState)
@@ -148,6 +151,7 @@ private fun RefreshChip(
 @Composable
 private fun FilterChip(
     modifier: Modifier = Modifier,
+    initialFocus: Boolean = false,
     label: String? = null,
     icon: ImageVector? = null,
     contentDescription: String? = null,
@@ -196,6 +200,7 @@ private fun FilterChip(
                 } else Modifier.background(containerColor),
             )
             .remoteNavigationTarget(
+                initialFocus = initialFocus,
                 shape = RoundedCornerShape(16.dp),
                 focusOutlineColor = if (isSelected) Color.White else null,
             ).clickable(

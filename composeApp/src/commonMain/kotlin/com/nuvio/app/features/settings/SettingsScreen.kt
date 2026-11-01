@@ -728,7 +728,8 @@ private fun MobileSettingsScreen(
                         topPadding = topChromePadding,
                         backButtonKeyboardNavigationEnabled = false,
                         backButtonBackgroundOnly = true,
-                        onBack = if (page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
+                        showBackWithDesktopSidebar = true,
+                        onBack = if (!isDesktop && page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
                     )
                 }
             }
@@ -1254,7 +1255,7 @@ private fun TabletSettingsScreen(
                                         } else {
                                             stringResource(page.titleRes)
                                         },
-                                        showBack = previousPage != null && page != SettingsPage.CodeineXO,
+                                        showBack = previousPage != null && (isDesktop || page != SettingsPage.CodeineXO),
                                         onBack = { if (previousPage != null) onNavigateBack() },
                                     )
                                 }

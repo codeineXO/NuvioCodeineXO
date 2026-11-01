@@ -85,7 +85,7 @@ internal fun RemoteNavigationSession.enterVisibleViewport(route: Any, manager: F
     val ordered = listOfNotNull(previous) + posters.filter(::fullyVisible).sortedWith(readingOrder) +
         posters.sortedWith(compareByDescending<RemoteFocusTarget> { visibleArea(it) }.then(readingOrder)) +
         candidates.sortedWith(readingOrder) + targets.filter {
-            it.route == route && it.manager === manager && it.sidebarEntry
+            !preferContentEntry && it.route == route && it.manager === manager && it.sidebarEntry
         }
     if (ordered.distinct().any { it.requester.requestFocus() }) {
         pendingViewportRoutes -= route
@@ -95,7 +95,7 @@ internal fun RemoteNavigationSession.enterVisibleViewport(route: Any, manager: F
 }
 
 internal fun RemoteNavigationSession.focusAvailableContent(route: Any): Boolean =
-    targets.filter { it.route == route && it.bounds != null }
+    targets.filter { it.route == route && it.bounds != null && (!preferContentEntry || it.role != RemoteNavigationRole.Sidebar) }
         .sortedBy { when (it.role) {
             RemoteNavigationRole.Sidebar -> if (it.sidebarEntry) 2 else 4
             RemoteNavigationRole.Back -> 3

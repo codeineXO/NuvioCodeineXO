@@ -128,7 +128,7 @@ fun DetailCommentsSection(
             else -> {
                 LazyRow(
                     state = listState,
-                    modifier = Modifier.remoteNavigationGroup().then(Modifier
+                    modifier = Modifier.remoteNavigationGroup(rememberRow = true).then(Modifier
                         .nuvioHorizontalScrollBleed(horizontalScrollPadding)
                         .fillMaxWidth()
                         .nuvioDesktopDragScroll(listState)),

@@ -624,7 +624,7 @@ fun MetaDetailsScreen(
 
     Box(
         modifier = modifier
-            .remoteNavigationDetailsEntry()
+            .remoteNavigationDetailsEntry(rememberRows = metaScreenSettingsUiState.episodeCardStyle == MetaEpisodeCardStyle.Enhanced)
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
@@ -1285,10 +1285,19 @@ fun MetaDetailsScreen(
                         },
                     )
                     val enhancedSeriesFocus = remember(meta.id) { RemoteNavigationFocusDestination() }
+                    val enhancedEpisodesFocus = remember(meta.id) { RemoteNavigationFocusDestination() }
                     val enhancedMoreFocus = remember(meta.id) { RemoteNavigationFocusDestination() }
                     val focusPrimary = rememberRemotePrimaryFocus()
                     val focusLastSection = rememberRemoteNextSectionFocus(listState, firstItemIndex = 0, fromEnd = true)
-                    val focusFirstPageEnd = rememberRemoteNextSectionFocus(firstPageState, firstItemIndex = 0, fromEnd = true)
+                    val focusFirstPageLastSection = rememberRemoteNextSectionFocus(firstPageState, firstItemIndex = 0, fromEnd = true)
+                    val focusFirstPageEnd: suspend () -> Unit = {
+                        if (isDesktop && useEnhancedLayout && hasEpisodes) {
+                            if (!enhancedEpisodesFocus.requestFocus(restoreRememberedRow = false)) {
+                                enhancedSeriesFocus.requestFocus(restoreRememberedRow = false)
+                            }
+                        } else focusFirstPageLastSection()
+                        Unit
+                    }
                     val focusEnhancedSections = rememberRemoteNextSectionFocus(secondPageState, firstItemIndex = 0)
                     var switchingPage by remember(type, id) { mutableStateOf(false) }
                     val switchEnhancedPage: (Boolean, Boolean, Boolean) -> Unit = { nextPage, toBottom, focusSection ->
@@ -1584,7 +1593,7 @@ fun MetaDetailsScreen(
                                                     compact = hasEpisodes,
                                                     isEnhanced = true,
                                                     onPlayDown = if (isDesktop) ({
-                                                        if (hasEpisodes) enhancedSeriesFocus.requestFocus() else enhancedMoreFocus.requestFocus()
+                                                        if (!hasEpisodes || !enhancedSeriesFocus.requestFocus(restoreRememberedRow = false)) enhancedMoreFocus.requestFocus()
                                                         Unit
                                                     }) else null,
                                                 )
@@ -1608,6 +1617,7 @@ fun MetaDetailsScreen(
                                                                 preferredEpisodeNumber = seriesAction?.episodeNumber,
                                                                 episodeCardStyle = MetaEpisodeCardStyle.Enhanced,
                                                                 navigationEntry = enhancedSeriesFocus.takeIf { isDesktop },
+                                                                episodeNavigationEntry = enhancedEpisodesFocus.takeIf { isDesktop },
                                                                 onEntryUp = if (isDesktop) ({ focusPrimary() }) else null,
                                                                 onEpisodesDown = if (isDesktop) ({ enhancedMoreFocus.requestFocus(); Unit }) else null,
                                                                 progressByVideoId = progressByVideoId,
@@ -2083,7 +2093,8 @@ fun MetaDetailsScreen(
                                     modifier = Modifier
                                         .remoteNavigationFocusDestination(enhancedMoreFocus)
                                         .remoteNavigationUp {
-                                            focusLastSection()
+                                            if (isDesktop && !enhancedSecondPage && hasEpisodes) focusFirstPageEnd()
+                                            else focusLastSection()
                                         }
                                         .remoteNavigationDown {
                                             if (!enhancedSecondPage) switchEnhancedPage(true, false, true)
