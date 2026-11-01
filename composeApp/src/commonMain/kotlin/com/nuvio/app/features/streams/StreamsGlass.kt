@@ -4,10 +4,15 @@ import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.features.settings.SurfaceStyle
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.nuvio
 
@@ -18,14 +23,34 @@ internal val LocalStreamResultsGlass = staticCompositionLocalOf { false }
 @Composable
 internal fun Modifier.streamResultsSurface(): Modifier {
     val tokens = MaterialTheme.nuvio
+    val surfaceStyle = LocalSurfaceStyle.current
     return background(
-        if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) {
-            // The results panel already owns the 75% black fill.
-            androidx.compose.ui.graphics.Color.Transparent
-        } else if (LocalFrostedGlassEnabled.current) {
-            tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle)
-        } else {
-            tokens.colors.surfaceCard.copy(alpha = 1f)
+        when {
+            surfaceStyle == SurfaceStyle.DarkGlass -> {
+                Color.White.copy(alpha = 0.07f)
+            }
+            surfaceStyle == SurfaceStyle.FrostedGlass || LocalFrostedGlassEnabled.current -> {
+                tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle)
+            }
+            else -> {
+                Color.White.copy(alpha = 0.07f).compositeOver(tokens.colors.surfaceCard)
+            }
         },
     )
 }
+
+/** Distinct subtle border for results cards in Dark Glass and Flat styles; Frosted Glass is untouched. */
+@Composable
+internal fun Modifier.streamResultsBorder(shape: Shape): Modifier {
+    val surfaceStyle = LocalSurfaceStyle.current
+    return if (surfaceStyle == SurfaceStyle.DarkGlass || surfaceStyle == SurfaceStyle.Flat) {
+        border(
+            width = 1.dp,
+            color = Color.White.copy(alpha = 0.10f),
+            shape = shape,
+        )
+    } else {
+        this
+    }
+}
+

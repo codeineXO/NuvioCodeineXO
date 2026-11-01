@@ -2,6 +2,7 @@ package com.nuvio.app.features.streams
 
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.core.ui.DarkGlassSurfaceColor
+import com.nuvio.app.core.ui.DarkGlassPanelContent
 import com.nuvio.app.features.settings.SurfaceStyle
 
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
@@ -282,10 +283,11 @@ internal fun TabletStreamsLayout(
                     .fillMaxSize()
                     .navigationGlass(shape = RoundedCornerShape(24.dp), panel = true, hazeState = hazeState),
             ) {
-                CompositionLocalProvider(
-                    LocalStreamResultsGlass provides true,
-                    LocalStreamResultsNavigation provides resultsNavigation,
-                ) {
+                DarkGlassPanelContent {
+                    CompositionLocalProvider(
+                        LocalStreamResultsGlass provides true,
+                        LocalStreamResultsNavigation provides resultsNavigation,
+                    ) {
                     Column(
                         modifier = Modifier
                             .streamResultsNavigation(resultsNavigation, resultTabs, uiState.selectedFilter) {
@@ -332,6 +334,7 @@ internal fun TabletStreamsLayout(
                 }
             }
         }
+    }
     }
 }
 
@@ -481,48 +484,50 @@ private fun LegacyTabletStreamsLayout(
                         )
                         .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.36f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
                 ) {
-                    CompositionLocalProvider(
-                        LocalStreamResultsGlass provides (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
+                    DarkGlassPanelContent {
+                        CompositionLocalProvider(
+                            LocalStreamResultsGlass provides true,
                         ) {
-                            if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
-                                ResumeBanner(
-                                    positionMs = resumePositionMs,
-                                    progressFraction = resumeProgressFraction,
-                                    modifier = Modifier.padding(bottom = 8.dp),
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                            ) {
+                                if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
+                                    ResumeBanner(
+                                        positionMs = resumePositionMs,
+                                        progressFraction = resumeProgressFraction,
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                    )
+                                }
+
+                                metadataInfoContent?.invoke()
+                                ProviderFilterRow(
+
+                                    desktopDragMomentumEnabled = true,
+                                    groups = uiState.groups,
+                                    selectedFilter = uiState.selectedFilter,
+                                    onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },
+                                    onRefresh = onRefresh,
+                                )
+
+                                ActiveScrapersStatusBlock(
+                                    groups = uiState.groups,
+                                    modifier = Modifier.padding(bottom = 4.dp),
+                                )
+
+                                StreamList(
+                                    uiState = uiState,
+                                    debridEnabled = debridEnabled,
+                                    appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
+                                    onStreamSelected = onStreamSelected,
+                                    onStreamLongPress = onStreamLongPress,
+                                    onStreamSecondaryClick = onStreamSecondaryClick,
+                                    resumePositionMs = resumePositionMs,
+                                    resumeProgressFraction = resumeProgressFraction,
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
-
-                            metadataInfoContent?.invoke()
-                            ProviderFilterRow(
-
-                                desktopDragMomentumEnabled = true,
-                                groups = uiState.groups,
-                                selectedFilter = uiState.selectedFilter,
-                                onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },
-                                onRefresh = onRefresh,
-                            )
-
-                            ActiveScrapersStatusBlock(
-                                groups = uiState.groups,
-                                modifier = Modifier.padding(bottom = 4.dp),
-                            )
-
-                            StreamList(
-                                uiState = uiState,
-                                debridEnabled = debridEnabled,
-                                appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
-                                onStreamSelected = onStreamSelected,
-                                onStreamLongPress = onStreamLongPress,
-                                onStreamSecondaryClick = onStreamSecondaryClick,
-                                resumePositionMs = resumePositionMs,
-                                resumeProgressFraction = resumeProgressFraction,
-                                modifier = Modifier.weight(1f),
-                            )
                         }
                     }
                 }
@@ -548,46 +553,48 @@ private fun TabletMovieInfoPanel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (logoUrl != null && !logoLoadError) {
-            AsyncImage(
-                model = logoUrl,
-                contentDescription = title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                contentScale = ContentScale.Fit,
-                onError = { logoLoadError = true },
-            )
-        } else if (title.isNotBlank()) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-0.5).sp,
-                    shadow = Shadow(
-                        color = Color.Black.copy(alpha = 0.8f),
-                        offset = Offset(0f, 2f),
-                        blurRadius = 4f,
+        DarkGlassPanelContent {
+            if (logoUrl != null && !logoLoadError) {
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentScale = ContentScale.Fit,
+                    onError = { logoLoadError = true },
+                )
+            } else if (title.isNotBlank()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.5).sp,
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.8f),
+                            offset = Offset(0f, 2f),
+                            blurRadius = 4f,
+                        ),
                     ),
-                ),
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-        } else {
-            Text(
-                text = stringResource(Res.string.streams_no_metadata),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 16.sp,
-                    fontStyle = FontStyle.Italic,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Text(
+                    text = stringResource(Res.string.streams_no_metadata),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 16.sp,
+                        fontStyle = FontStyle.Italic,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            StreamSynopsis(description)
         }
-        StreamSynopsis(description)
     }
 }
 
@@ -616,52 +623,54 @@ private fun TabletEpisodeInfoPanel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (logoUrl != null && !logoLoadError) {
-            AsyncImage(
-                model = logoUrl,
-                contentDescription = showTitle,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                contentScale = ContentScale.Fit,
-                onError = { logoLoadError = true },
-            )
-        } else {
+        DarkGlassPanelContent {
+            if (logoUrl != null && !logoLoadError) {
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = showTitle,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentScale = ContentScale.Fit,
+                    onError = { logoLoadError = true },
+                )
+            } else {
+                Text(
+                    text = showTitle,
+                    style = MaterialTheme.typography.displayMedium.copy(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.5).sp,
+                        shadow = textShadow,
+                    ),
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = showTitle,
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-0.5).sp,
+                text = stringResource(
+                    Res.string.streams_episode_title_with_name,
+                    seasonNumber,
+                    episodeNumber,
+                    episodeTitle?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.streams_episode_fallback_title),
+                ),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.SemiBold,
                     shadow = textShadow,
                 ),
-                color = Color.White,
+                color = Color.White.copy(alpha = 0.95f),
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            StreamSynopsis(description)
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = stringResource(
-                Res.string.streams_episode_title_with_name,
-                seasonNumber,
-                episodeNumber,
-                episodeTitle?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.streams_episode_fallback_title),
-            ),
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-                shadow = textShadow,
-            ),
-            color = Color.White.copy(alpha = 0.95f),
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        StreamSynopsis(description)
     }
 }
 
@@ -715,7 +724,7 @@ private fun ActiveScrapersStatusBlock(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .then(if (LocalStreamResultsGlass.current) Modifier.streamResultsSurface() else Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)))
+                        .then(if (LocalStreamResultsGlass.current) Modifier.streamResultsSurface().streamResultsBorder(RoundedCornerShape(6.dp)) else Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)))
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
                     Text(

@@ -26,7 +26,7 @@ import dev.chrisbanes.haze.hazeSource
 /** App-scoped glass policy, inherited by screen content, dialogs, and popups. */
 internal val LocalFrostedGlassEnabled = staticCompositionLocalOf { true }
 internal val LocalSurfaceStyle = staticCompositionLocalOf { SurfaceStyle.DarkGlass }
-internal val DarkGlassSurfaceColor = Color.Black.copy(alpha = 0.75f)
+internal val DarkGlassSurfaceColor = Color.Black.copy(alpha = 0.80f)
 private val LocalDarkGlassSurfacePresent = staticCompositionLocalOf { false }
 
 /** Inner controls share their panel's dark fill, while retaining interaction feedback. */
@@ -74,12 +74,19 @@ internal fun Modifier.navigationGlass(
     // The same light, theme-neutral tint for controls and panels, without a gray surface wash.
     val tint = tokens.colors.background.copy(alpha = tokens.opacity.pressed)
     val fallback = tokens.colors.background.copy(alpha = tokens.opacity.strong)
+    val elevation = if (surfaceStyle == SurfaceStyle.DarkGlass) {
+        tokens.elevation.flat
+    } else if (panel) {
+        tokens.elevation.modal
+    } else {
+        tokens.elevation.raised
+    }
     return this
-        .shadow(if (panel) tokens.elevation.modal else tokens.elevation.raised, shape, clip = false)
+        .shadow(elevation, shape, clip = false)
         .clip(shape)
         .background(
             if (surfaceStyle == SurfaceStyle.DarkGlass) {
-                if (!panel && LocalDarkGlassSurfacePresent.current) Color.Transparent else DarkGlassSurfaceColor
+                if (LocalDarkGlassSurfacePresent.current) Color.Transparent else DarkGlassSurfaceColor
             } else if (!frostedGlassEnabled) {
                 (if (panel) tokens.colors.surfacePopover else tokens.colors.surfaceCard).copy(alpha = 1f)
             } else if (backdropState == null) fallback else tint,

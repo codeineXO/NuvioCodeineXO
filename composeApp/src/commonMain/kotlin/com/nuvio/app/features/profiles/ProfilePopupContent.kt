@@ -113,7 +113,7 @@ internal fun ProfilePopupContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .onGloballyPositioned { panelBounds = it.boundsInParent() }
-                    .shadow(12.dp, shape)
+                    .shadow(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) 0.dp else 12.dp, shape)
                     .clip(shape)
                     .then(
                         if (LocalFrostedGlassEnabled.current && hazeState != null) {

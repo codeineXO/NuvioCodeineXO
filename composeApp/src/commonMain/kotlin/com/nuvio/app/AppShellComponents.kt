@@ -2,6 +2,7 @@ package com.nuvio.app
 
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.core.ui.DarkGlassSurfaceColor
+import com.nuvio.app.core.ui.DarkGlassPanelContent
 import com.nuvio.app.features.settings.SurfaceStyle
 
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
@@ -812,9 +813,10 @@ internal fun DesktopHoverSidebar(
             shape = tokens.shapes.card,
             contentColor = tokens.colors.textPrimary,
         ) {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(),
-        ) {
+            DarkGlassPanelContent {
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxSize(),
+                ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -974,6 +976,7 @@ internal fun DesktopHoverSidebar(
             }
         }
     }
+}
 }
 }
 

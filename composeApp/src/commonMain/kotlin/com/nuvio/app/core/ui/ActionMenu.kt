@@ -223,16 +223,18 @@ internal fun NuvioActionMenu(
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 4.dp),
                         ) {
-                            frozenActions.forEachIndexed { index, action ->
-                                if (index > 0) Box(Modifier.fillMaxWidth().height(tokens.borders.hairline)
-                                    .background(tokens.colors.borderSubtle))
-                                ActionMenuRow(
-                                    action = action,
-                                    shape = actionMenuRowShape(index, frozenActions.size),
-                                    enabled = !closing,
-                                    onSelected = { close(action.onSelected) },
-                                    modifier = if (index == 0) Modifier.focusRequester(firstAction) else Modifier,
-                                )
+                            DarkGlassPanelContent {
+                                frozenActions.forEachIndexed { index, action ->
+                                    if (index > 0) Box(Modifier.fillMaxWidth().height(tokens.borders.hairline)
+                                        .background(tokens.colors.borderSubtle))
+                                    ActionMenuRow(
+                                        action = action,
+                                        shape = actionMenuRowShape(index, frozenActions.size),
+                                        enabled = !closing,
+                                        onSelected = { close(action.onSelected) },
+                                        modifier = if (index == 0) Modifier.focusRequester(firstAction) else Modifier,
+                                    )
+                                }
                             }
                         }
                     }

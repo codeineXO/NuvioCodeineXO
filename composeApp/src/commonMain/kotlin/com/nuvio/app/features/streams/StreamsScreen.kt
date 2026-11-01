@@ -89,6 +89,7 @@ import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.navigationGlassFeedback
+import com.nuvio.app.core.ui.DarkGlassPanelContent
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
@@ -674,7 +675,7 @@ internal fun ResumeBanner(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .then(if (LocalStreamResultsGlass.current) Modifier.streamResultsSurface() else Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
+            .then(if (LocalStreamResultsGlass.current) Modifier.streamResultsSurface().streamResultsBorder(RoundedCornerShape(18.dp)) else Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
@@ -1391,14 +1392,16 @@ private fun DesktopStreamActionsMenu(
                 )
                 .padding(4.dp),
         ) {
-            actions.forEach { action ->
-                DesktopStreamActionRow(
-                    action = action,
-                    onSelected = {
-                        onDismiss()
-                        action.onClick()
-                    },
-                )
+            DarkGlassPanelContent {
+                actions.forEach { action ->
+                    DesktopStreamActionRow(
+                        action = action,
+                        onSelected = {
+                            onDismiss()
+                            action.onClick()
+                        },
+                    )
+                }
             }
         }
     }

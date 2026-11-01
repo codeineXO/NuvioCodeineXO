@@ -194,7 +194,7 @@ private fun FilterChip(
             .clip(RoundedCornerShape(16.dp))
             .then(
                 if (LocalStreamResultsGlass.current) {
-                    (if (isSelected) Modifier.background(containerColor) else Modifier.streamResultsSurface())
+                    (if (isSelected) Modifier.background(containerColor) else Modifier.streamResultsSurface().streamResultsBorder(RoundedCornerShape(16.dp)))
                         .navigationGlassFeedback(interactionSource, RoundedCornerShape(16.dp))
                         .hoverable(interactionSource)
                 } else Modifier.background(containerColor),

@@ -109,6 +109,8 @@ internal fun StreamCard(
     val interactionSource = remember { MutableInteractionSource() }
     val playerHazeState = LocalPlayerHazeState.current
     val primaryColor = MaterialTheme.colorScheme.primary
+    val surfaceStyle = LocalSurfaceStyle.current
+    val cardElevation = if (surfaceStyle == SurfaceStyle.DarkGlass) 0.dp else 2.dp
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
     val streamSize = stream.resolvedVideoSize
     val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && streamSize != null && streamSize > 0L)
@@ -118,10 +120,10 @@ internal fun StreamCard(
             .fillMaxWidth()
             .heightIn(min = 68.dp)
             .shadow(
-                elevation = 2.dp,
+                elevation = cardElevation,
                 shape = cardShape,
-                ambientColor = Color.Black.copy(alpha = 0.04f),
-                spotColor = Color.Black.copy(alpha = 0.04f),
+                ambientColor = if (surfaceStyle == SurfaceStyle.DarkGlass) Color.Transparent else if (surfaceStyle == SurfaceStyle.Flat) Color.Black.copy(alpha = 0.16f) else Color.Black.copy(alpha = 0.04f),
+                spotColor = if (surfaceStyle == SurfaceStyle.DarkGlass) Color.Transparent else if (surfaceStyle == SurfaceStyle.Flat) Color.Black.copy(alpha = 0.16f) else Color.Black.copy(alpha = 0.04f),
             )
             .clip(cardShape)
             .then(
@@ -179,6 +181,8 @@ internal fun StreamCard(
                         color = primaryColor.copy(alpha = 0.52f),
                         shape = cardShape,
                     )
+                } else if (resultsGlass) {
+                    Modifier.streamResultsBorder(cardShape)
                 } else if (playerHazeState != null) {
                     Modifier.border(
                         width = 1.dp,
@@ -332,7 +336,9 @@ internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
                 },
             )
             .then(
-                if (playerHazeState != null) {
+                if (LocalStreamResultsGlass.current) {
+                    Modifier.streamResultsBorder(cardShape)
+                } else if (playerHazeState != null) {
                     Modifier.border(
                         width = 1.dp,
                         color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else MaterialTheme.nuvio.colors.borderDefault,
