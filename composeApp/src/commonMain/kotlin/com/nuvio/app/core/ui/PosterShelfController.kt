@@ -268,12 +268,18 @@ internal fun LazyListLayoutInfo.posterShelfAnchorDistance(index: Int, precedingP
 /** Limit automatic horizontal reveal to the same owner for posters and episode cards. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun PosterShelfScrollOwner(controller: PosterShelfController?, content: @Composable () -> Unit) {
+internal fun PosterShelfScrollOwner(
+    controller: PosterShelfController?,
+    explicitRevealOnly: Boolean = false,
+    content: @Composable () -> Unit,
+) {
     val defaultReveal = LocalBringIntoViewSpec.current
-    val horizontalReveal = remember(controller, defaultReveal) {
+    val horizontalReveal = remember(controller, defaultReveal, explicitRevealOnly) {
         object : BringIntoViewSpec {
             override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
-                if (controller?.ownsReveal == true) 0f
+                // Explicit entry paths already reveal the destination. Keep native focus
+                // scrolling suppressed after leaving/re-entering through a header control too.
+                if (explicitRevealOnly || controller?.ownsReveal == true) 0f
                 else defaultReveal.calculateScrollDistance(offset, size, containerSize)
         }
     }

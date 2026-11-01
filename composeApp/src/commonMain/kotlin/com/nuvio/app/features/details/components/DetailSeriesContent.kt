@@ -69,6 +69,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -347,6 +349,35 @@ fun DetailSeriesContent(
     }
 
     val isEnhanced = episodeCardStyle == MetaEpisodeCardStyle.Enhanced
+    var episodeListOpen by remember(meta.id) { mutableStateOf(false) }
+    val viewListRequester = remember(meta.id) { FocusRequester() }
+    val popupScope = rememberCoroutineScope()
+    val continuousListState = rememberContinuousEpisodeListState(meta.id, currentSeason, seasons, groupedEpisodes)
+    if (isEnhanced && episodeListOpen) {
+        ContinuousEpisodeListPopup(
+            meta = meta,
+            seasons = seasons,
+            groupedEpisodes = groupedEpisodes,
+            state = continuousListState,
+            progressByVideoId = progressByVideoId,
+            watchedKeys = watchedKeys,
+            episodeRatings = episodeRatings,
+            episodeRatingsVisibility = episodeRatingsVisibility,
+            blurUnwatchedEpisodes = blurUnwatchedEpisodes,
+            onDismiss = {
+                episodeListOpen = false
+                popupScope.launch {
+                    withFrameNanos { }
+                    runCatching { viewListRequester.requestFocus() }
+                }
+            },
+            onEpisodeClick = { episode ->
+                episodeListOpen = false
+                onEpisodeClick?.invoke(episode)
+            },
+            onEpisodeLongPress = onEpisodeLongPress,
+        )
+    }
     val fixedPath = isDesktop && isEnhanced && navigationEntry != null
     val rememberedEpisodes = remember(meta.id) { androidx.compose.runtime.mutableStateMapOf<Int, MetaVideo>() }
     val enhancedFillerNavigation = isAnime && isEnhanced && navigationEntry != null && !fixedPath
@@ -385,7 +416,11 @@ fun DetailSeriesContent(
                 onFillerUp = onEntryUp.takeIf { enhancedFillerNavigation },
                 onFillerDown = fillerDown,
                 onSeasonDown = if (fixedPath) {
-                    { if (firstEpisodeFocus?.requestFocus(restoreRememberedRow = false) != true) onEpisodesDown?.invoke(); Unit }
+                    {
+                        if (viewListFocus?.requestFocus(restoreRememberedRow = false) != true &&
+                            firstEpisodeFocus?.requestFocus(restoreRememberedRow = false) != true) onEpisodesDown?.invoke()
+                        Unit
+                    }
                 } else if (isEnhanced) {
                     viewListFocus?.let { { if (!it.requestFocus()) { if (firstEpisodeFocus?.requestFocus() != true) onEpisodesDown?.invoke() }; Unit } }
                         ?: firstEpisodeFocus?.let { { if (!it.requestFocus()) onEpisodesDown?.invoke(); Unit } }
@@ -520,6 +555,7 @@ fun DetailSeriesContent(
                                     },
                                 )
                                 ViewListButton(
+                                    modifier = Modifier.focusRequester(viewListRequester),
                                     focusDestination = viewListFocus,
                                     onUp = {
                                         if (fixedPath) seasonNavigationEntry?.requestFocus(restoreRememberedRow = false)
@@ -532,7 +568,7 @@ fun DetailSeriesContent(
                                         firstEpisodeFocus?.requestFocus(restoreRememberedRow = !fixedPath)
                                         Unit
                                     },
-                                    onClick = { /* TODO: List view */ },
+                                    onClick = { episodeListOpen = true },
                                 )
                             }
                         }
@@ -559,7 +595,8 @@ fun DetailSeriesContent(
                             }) else null,
                             onEpisodeUp = if (navigationEntry == null) null else ({
                                 if (fixedPath) {
-                                    if (seasonNavigationEntry?.requestFocus(restoreRememberedRow = false) != true) onEntryUp?.invoke()
+                                    if (viewListFocus?.requestFocus(restoreRememberedRow = false) != true &&
+                                        seasonNavigationEntry?.requestFocus(restoreRememberedRow = false) != true) onEntryUp?.invoke()
                                 } else if (isEnhanced) {
                                     val moved = viewListFocus?.requestFocus()
                                     if (moved != true) {
@@ -708,9 +745,15 @@ internal fun DetailSeriesListEpisode(
     onEpisodeClick: ((MetaVideo) -> Unit)?,
     onEpisodeLongPress: ((MetaVideo) -> Unit)?,
     modifier: Modifier = Modifier,
+    popupPresentation: Boolean = false,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val sizing = seriesContentSizing(maxWidth.value)
+        val baseSizing = seriesContentSizing(maxWidth.value)
+        val sizing = if (popupPresentation) baseSizing.copy(
+            imageWidth = (maxWidth * 0.28f).coerceIn(96.dp, 260.dp),
+            titleMaxLines = 2,
+            overviewMaxLines = 3,
+        ) else baseSizing
         val episodeVideoId = buildPlaybackVideoId(
             parentMetaId = meta.id,
             seasonNumber = episode.season,
@@ -732,6 +775,7 @@ internal fun DetailSeriesListEpisode(
             episodeRatingsVisibility = episodeRatingsVisibility,
             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
             sizing = sizing,
+            popupPresentation = popupPresentation,
             onClick = { onEpisodeClick?.invoke(episode) },
             onLongPress = { onEpisodeLongPress?.invoke(episode) },
         )
@@ -1738,13 +1782,13 @@ private fun ViewListButton(
             .navigationGlass(shape = pillShape, backgroundOnly = true)
             .navigationGlassFeedback(interactionSource, pillShape)
             .hoverable(interactionSource)
-            .remoteNavigationTarget(shape = pillShape)
             .remoteNavigationFocusDestination(focusDestination)
             .remoteNavigationUp(onUp)
             .remoteNavigationDown(onDown)
             .onPreviewKeyEvent { event ->
                 if (event.key == Key.DirectionLeft || event.key == Key.DirectionRight) true else false
             }
+            .remoteNavigationTarget(shape = pillShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1995,7 +2039,7 @@ private fun EpisodeHorizontalRow(
     Box(
         modifier = containerModifier,
     ) {
-        PosterShelfScrollOwner(shelfController) {
+        PosterShelfScrollOwner(shelfController, explicitRevealOnly = fixedPath && shelfController != null) {
             LazyRow(
                 state = listState,
                 modifier = Modifier.onFocusChanged { if (it.hasFocus) hasPositioned = true }
@@ -2523,6 +2567,7 @@ private fun EpisodeListCard(
     blurUnwatchedEpisodes: Boolean,
     sizing: SeriesContentSizing,
     modifier: Modifier = Modifier,
+    popupPresentation: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
 ) {
@@ -2540,7 +2585,7 @@ private fun EpisodeListCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(sizing.cardHeight)
+            .then(if (popupPresentation) Modifier else Modifier.height(sizing.cardHeight))
             .clip(cardShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .border(
@@ -2557,14 +2602,15 @@ private fun EpisodeListCard(
             ),
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = if (popupPresentation) Modifier.fillMaxWidth().padding(start = 12.dp).heightIn(min = 168.dp)
+                else Modifier.fillMaxSize(),
+            verticalAlignment = if (popupPresentation) Alignment.CenterVertically else Alignment.Top,
         ) {
-            // Image area - fixed width matching card height per spec
             Box(
                 modifier = Modifier
                     .width(sizing.imageWidth)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(topStart = cornerRadius, bottomStart = cornerRadius)),
+                    .then(if (popupPresentation) Modifier.aspectRatio(16f / 9f) else Modifier.fillMaxHeight())
+                    .clip(if (popupPresentation) cardShape else RoundedCornerShape(topStart = cornerRadius, bottomStart = cornerRadius)),
             ) {
                 val imageUrl = video.thumbnail ?: fallbackImage
                 val shouldBlurArtwork = blurUnwatchedEpisodes && !isWatched
@@ -2586,7 +2632,7 @@ private fun EpisodeListCard(
                     )
                 }
 
-                EpisodeCodeBadge(
+                if (!popupPresentation) EpisodeCodeBadge(
                     text = video.episodeBadge(),
                     textSize = sizing.badgeTextSize,
                     radius = sizing.badgeRadius,
@@ -2598,7 +2644,7 @@ private fun EpisodeListCard(
                         .padding(start = 8.dp, top = 8.dp),
                 )
 
-                NuvioAnimatedWatchedBadge(
+                if (!popupPresentation) NuvioAnimatedWatchedBadge(
                     isVisible = isWatched,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -2608,16 +2654,32 @@ private fun EpisodeListCard(
 
             Column(
                 modifier = Modifier
-                    .fillMaxHeight()
+                    .then(if (popupPresentation) Modifier else Modifier.fillMaxHeight())
                     .weight(1f)
                     .padding(
                         start = sizing.contentHorizontalPadding,
                         end = sizing.contentHorizontalPadding,
                         top = sizing.contentVerticalPadding,
-                        bottom = sizing.contentVerticalPadding,
+                        bottom = sizing.contentVerticalPadding + if (popupPresentation) 14.dp else 0.dp,
                     ),
                 verticalArrangement = Arrangement.spacedBy(sizing.contentSpacing),
             ) {
+                if (popupPresentation) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        EpisodeCodeBadge(
+                            text = video.episodeBadge(),
+                            textSize = sizing.badgeTextSize,
+                            radius = sizing.badgeRadius,
+                            horizontalPadding = sizing.badgeHorizontalPadding,
+                            verticalPadding = sizing.badgeVerticalPadding,
+                            backgroundAlpha = 0.42f,
+                        )
+                        NuvioAnimatedWatchedBadge(isVisible = isWatched)
+                    }
+                }
                 Text(
                     text = video.title,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -2633,14 +2695,24 @@ private fun EpisodeListCard(
 
                 val showFiller = video.isFiller && isFillerEnabled
                 val showMixed = video.isMixed && isFillerEnabled
-                if (formattedDate != null || ratingLabel != null || showFiller || showMixed) {
-                    Row(
+                val runtimeLabel = if (popupPresentation) video.runtime?.takeIf { it > 0 }?.let(::formatEpisodeRuntime) else null
+                if (formattedDate != null || ratingLabel != null || showFiller || showMixed || runtimeLabel != null) {
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
+                        runtimeLabel?.let { runtime ->
+                            Text(
+                                text = runtime,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                                style = MaterialTheme.typography.labelMedium.copy(fontSize = sizing.metaTextSize),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         formattedDate?.let { date ->
                             Text(
                                 text = date,
+                                modifier = Modifier.align(if (popupPresentation) Alignment.CenterVertically else Alignment.Top),
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontSize = sizing.metaTextSize,
                                     fontWeight = FontWeight.Medium,
@@ -2651,17 +2723,19 @@ private fun EpisodeListCard(
                             )
                         }
                         ratingLabel?.let { rating ->
-                            ImdbEpisodeRatingBadge(
-                                rating = rating,
-                                logoWidth = 24.dp,
-                                logoHeight = 12.dp,
-                                textSize = sizing.metaTextSize,
-                            )
+                            Box(Modifier.align(if (popupPresentation) Alignment.CenterVertically else Alignment.Top)) {
+                                ImdbEpisodeRatingBadge(
+                                    rating = rating,
+                                    logoWidth = 24.dp,
+                                    logoHeight = 12.dp,
+                                    textSize = sizing.metaTextSize,
+                                )
+                            }
                         }
-                        if (showFiller) {
-                            FillerBadge()
-                        } else if (showMixed) {
-                            MixedBadge()
+                        if (showFiller || showMixed) {
+                            Box(Modifier.align(if (popupPresentation) Alignment.CenterVertically else Alignment.Top)) {
+                                if (showFiller) FillerBadge() else MixedBadge()
+                            }
                         }
                     }
                 }
@@ -2688,8 +2762,9 @@ private fun EpisodeListCard(
                     progress = entry.progressFraction,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .width(sizing.imageWidth - 24.dp)
-                        .padding(start = 12.dp, bottom = 10.dp),
+                        .then(if (popupPresentation) Modifier.fillMaxWidth() else Modifier.width(sizing.imageWidth - 24.dp))
+                        .padding(start = if (popupPresentation) 12.dp + sizing.imageWidth + sizing.contentHorizontalPadding else 12.dp,
+                            end = if (popupPresentation) sizing.contentHorizontalPadding else 0.dp, bottom = 10.dp),
                     height = 5.dp,
                     trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.14f),
                     fillColor = MaterialTheme.colorScheme.primary,
