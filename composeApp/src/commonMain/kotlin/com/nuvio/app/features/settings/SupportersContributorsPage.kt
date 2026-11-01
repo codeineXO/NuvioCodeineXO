@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioScreen
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSurfaceCard
 import com.nuvio.app.features.addons.httpRequestRaw
@@ -271,6 +272,7 @@ fun SupportersContributorsSettingsScreen(
     onBack: () -> Unit,
 ) {
     NuvioScreen(
+        sidebarContentInset = LocalDesktopSidebarContentInset.current,
         modifier = Modifier.fillMaxSize(),
     ) {
         stickyHeader {

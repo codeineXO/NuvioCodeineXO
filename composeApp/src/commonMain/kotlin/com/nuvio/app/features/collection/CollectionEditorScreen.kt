@@ -66,6 +66,7 @@ import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
 import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioScreen
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioSurfaceCard
@@ -244,6 +245,7 @@ fun CollectionEditorScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
         ) {
             stickyHeader {
@@ -469,7 +471,7 @@ fun CollectionEditorScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(start = LocalDesktopSidebarContentInset.current + 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
                     .padding(bottom = bottomInset),
             ) {
                 NuvioPrimaryButton(
@@ -647,7 +649,10 @@ private fun FolderEditorPage(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NuvioScreen(modifier = Modifier.fillMaxSize()) {
+        NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             stickyHeader {
                 NuvioScreenHeader(
                     title = if (state.folders.any { it.id == folder.id }) {
@@ -927,7 +932,7 @@ private fun FolderEditorPage(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(start = LocalDesktopSidebarContentInset.current + 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
                     .padding(bottom = bottomInset),
             ) {
                 NuvioPrimaryButton(
@@ -951,7 +956,10 @@ private fun CatalogPickerScreen(
         onBack()
     }
 
-    NuvioScreen(modifier = Modifier.fillMaxSize()) {
+    NuvioScreen(
+        sidebarContentInset = LocalDesktopSidebarContentInset.current,
+        modifier = Modifier.fillMaxSize(),
+    ) {
         stickyHeader {
             NuvioScreenHeader(
                 title = stringResource(Res.string.collections_editor_select_catalogs),
@@ -1057,7 +1065,10 @@ private fun TmdbSourcePickerScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NuvioScreen(modifier = Modifier.fillMaxSize()) {
+        NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             stickyHeader {
                 NuvioScreenHeader(
                     title = stringResource(Res.string.collections_editor_tmdb_sources),
@@ -1601,7 +1612,7 @@ private fun TmdbSourcePickerScreen(
                 PickerActionBar(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(start = LocalDesktopSidebarContentInset.current + 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
                         .padding(bottom = bottomInset),
                 ) {
                     if (sourceType == TmdbCollectionSourceType.COMPANY || sourceType == TmdbCollectionSourceType.COLLECTION) {
@@ -1651,7 +1662,10 @@ private fun TraktSourcePickerScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        NuvioScreen(modifier = Modifier.fillMaxSize()) {
+        NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             stickyHeader {
                 NuvioScreenHeader(
                     title = if (state.editingTraktSourceIndex != null) {
@@ -1792,7 +1806,7 @@ private fun TraktSourcePickerScreen(
             PickerActionBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(start = LocalDesktopSidebarContentInset.current + 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
                     .padding(bottom = bottomInset),
             ) {
                 TextButton(onClick = { CollectionEditorRepository.searchTraktLists() }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.material3.ButtonDefaults.shape)) {

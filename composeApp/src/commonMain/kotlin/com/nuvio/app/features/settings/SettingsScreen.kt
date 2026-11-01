@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.foundation.gestures.stopScroll
 import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -389,7 +390,8 @@ fun SettingsScreen(
 
         if (isSelectedTab || page == SettingsPage.Root) {
             pageStateHolder.SaveableStateProvider("content") {
-        if (maxWidth >= 960.dp) {
+        val foregroundWidth = (maxWidth - LocalDesktopSidebarContentInset.current).coerceAtLeast(0.dp)
+        if (foregroundWidth >= 960.dp) {
             TabletSettingsScreen(
                 page = page,
                 topChromePadding = topChromePadding,
@@ -470,7 +472,7 @@ fun SettingsScreen(
         } else {
             MobileSettingsScreen(
                 page = page,
-                isTabletLayout = maxWidth >= 768.dp,
+                isTabletLayout = foregroundWidth >= 768.dp,
                 topChromePadding = topChromePadding,
                 scrollToTopRequests = scrollToTopRequests,
                 onPageChange = ::openPage,
@@ -715,6 +717,7 @@ private fun MobileSettingsScreen(
 
         val watchPartyRowClick = watchPartyRow(onWatchPartyClick)
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.nestedScroll(rootSearchRevealConnection),
             topPadding = if (topChromePadding != null) 0.dp else null,
             listState = listState,
@@ -724,11 +727,11 @@ private fun MobileSettingsScreen(
                 stickyHeader {
                     val previousPage = page.previousPage()
                     NuvioScreenHeader(
+                        showBackWithDesktopSidebar = true,
                         title = stringResource(page.titleRes),
                         topPadding = topChromePadding,
                         backButtonKeyboardNavigationEnabled = false,
                         backButtonBackgroundOnly = true,
-                        showBackWithDesktopSidebar = true,
                         onBack = if (!isDesktop && page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
                     )
                 }
@@ -1085,7 +1088,7 @@ private fun TabletSettingsScreen(
 
     val saveableStateHolder = rememberSaveableStateHolder()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(start = LocalDesktopSidebarContentInset.current)) {
         Row(modifier = Modifier.fillMaxSize()) {
             Surface(
                 modifier = Modifier

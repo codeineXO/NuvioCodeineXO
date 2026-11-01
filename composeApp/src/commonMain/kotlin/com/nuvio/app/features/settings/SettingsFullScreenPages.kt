@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioScreen
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.addons.AddonRepository
@@ -73,6 +74,7 @@ fun HomescreenSettingsScreen(
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
         }
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -113,6 +115,7 @@ fun MetaScreenSettingsScreen(
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
         }
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -146,6 +149,7 @@ fun ContinueWatchingSettingsScreen(
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
         }
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -185,6 +189,7 @@ fun AddonsSettingsScreen(
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
         }
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -219,6 +224,7 @@ fun PluginsSettingsScreen(
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
         }
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {
@@ -244,6 +250,7 @@ fun AccountSettingsScreen(
             HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
         }
         NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
             modifier = Modifier.fillMaxSize(),
             backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
         ) {

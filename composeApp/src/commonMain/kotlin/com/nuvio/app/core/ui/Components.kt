@@ -93,6 +93,7 @@ fun NuvioScreen(
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
     listState: LazyListState = rememberLazyListState(),
     backgroundColor: Color = MaterialTheme.nuvio.colors.background,
+    sidebarContentInset: Dp = 0.dp,
     content: LazyListScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -109,7 +110,7 @@ fun NuvioScreen(
             ),
     ) {
         val pagePadding = horizontalPadding ?: if (isDesktop) {
-            desktopPageHorizontalPaddingForWidth(maxWidth.value)
+            desktopPageHorizontalPaddingForWidth((maxWidth - sidebarContentInset).coerceAtLeast(0.dp).value)
         } else tokens.spacing.screenHorizontal
         if (backgroundColor != Color.Transparent) {
             // A sibling source for controls inside the scrolling content source.
@@ -120,7 +121,7 @@ fun NuvioScreen(
                 state = listState,
                 modifier = Modifier.remoteNavigationViewport(listState).remoteNavigationGroup().fillMaxSize().navigationGlassSource(zIndex = 1f),
                 contentPadding = PaddingValues(
-                    start = pagePadding,
+                    start = sidebarContentInset + pagePadding,
                     top = topPadding ?: if (isDesktop) 0.dp else tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding,
                     end = pagePadding,
                     bottom = nuvioSafeBottomPadding(tokens.spacing.screenBottom),

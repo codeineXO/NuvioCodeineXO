@@ -59,6 +59,7 @@ import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtonStyle
 import com.nuvio.app.core.ui.NuvioScreen
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioPlatformExtraTopPadding
@@ -146,7 +147,10 @@ private fun PartyHome(
             PartyRoom(onBack = onBack, onWatch = onWatch)
             return@AnimatedContent
         }
-        NuvioScreen(modifier = Modifier.fillMaxSize()) {
+        NuvioScreen(
+            sidebarContentInset = LocalDesktopSidebarContentInset.current,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             stickyHeader {
                 NuvioScreenHeader(
                     title = stringResource(Res.string.party_title),
@@ -196,7 +200,7 @@ private fun PartyRoom(
     val unread by PartyChat.unread.collectAsStateWithLifecycle()
     val party = state.party ?: return
     var showChat by rememberSaveable { mutableStateOf(unread > 0) }
-    PartyPage(onBack = onBack) {
+    PartyPage(onBack = onBack, sidebarContentInset = LocalDesktopSidebarContentInset.current) {
         PartyTabs(
             chatSelected = showChat,
             unread = unread,
@@ -233,6 +237,7 @@ private fun PartyRoom(
 @Composable
 internal fun PartyPage(
     onBack: () -> Unit,
+    sidebarContentInset: androidx.compose.ui.unit.Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -241,6 +246,7 @@ internal fun PartyPage(
         modifier = Modifier
             .fillMaxSize()
             .background(tokens.colors.background)
+            .padding(start = sidebarContentInset)
             .padding(top = if (isDesktop) 0.dp else tokens.spacing.screenTop + statusBarTop + nuvioPlatformExtraTopPadding)
             .padding(horizontal = if (isDesktop) 0.dp else tokens.spacing.screenHorizontal),
     ) {

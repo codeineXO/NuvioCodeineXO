@@ -551,7 +551,8 @@ internal fun RowsContent(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val sidebarInset = LocalDesktopSidebarContentInset.current
-        val homeSectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(maxWidth.value) + sidebarInset else null
+        val contentWidth = (maxWidth - sidebarInset).coerceAtLeast(0.dp)
+        val homeSectionPadding = if (isDesktop) homeSectionHorizontalPaddingForWidth(contentWidth.value) else null
         val posterCardStyle = rememberPosterCardStyleUiState()
         val useGutterLayout = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
         val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
@@ -561,14 +562,14 @@ internal fun RowsContent(
             basePosterWidthDp.dp
         }
         val effectivePosterSectionPadding = if (useGutterLayout) {
-            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+            homePosterGutterPaddingForWidth(contentWidth.value, effectivePosterWidth)
         } else {
             homeSectionPadding
         }
         val sectionBottomPadding = if (useGutterLayout) 24.dp else 12.dp
         val catalogPreviewLimit = if (isDesktop) {
             homeCatalogPreviewLimitForWidth(
-                maxWidthDp = maxWidth.value,
+                maxWidthDp = contentWidth.value,
                 sectionPadding = effectivePosterSectionPadding ?: 0.dp,
                 basePosterWidthDp = posterCardStyle.widthDp,
                 useLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled,
@@ -613,7 +614,7 @@ internal fun RowsContent(
                 key = { it.key },
             ) { slot ->
                 val section = slot.section
-                Box(Modifier.fillMaxWidth().height(slotHeight)) {
+                Box(Modifier.fillMaxWidth().padding(start = sidebarInset).height(slotHeight)) {
                     if (section == null || section.items.isEmpty()) {
                         if (slot.tab.isLoading) {
                             HomeSkeletonRow(horizontalPadding = effectivePosterSectionPadding)

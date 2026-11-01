@@ -2,7 +2,6 @@ package com.nuvio.app
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -11,7 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
@@ -49,7 +47,6 @@ internal fun SettingsDestination(
     val onBack = rememberGuardedPopBackStack(navController, route)
     PlatformBackHandler(enabled = true, onBack = onBack)
     val auraEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
-    val sidebarInset = LocalDesktopSidebarContentInset.current
     Box(Modifier.fillMaxSize()) {
         if (auraEnabled) {
             HomeInteractiveGradientBackground(Modifier.fillMaxSize())

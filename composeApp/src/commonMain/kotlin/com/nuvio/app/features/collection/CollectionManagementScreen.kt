@@ -100,97 +100,99 @@ fun CollectionManagementScreen(
         } else {
             Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
         }
-        NuvioScreen(backgroundColor = Color.Transparent) {
+        NuvioScreen(
+            backgroundColor = Color.Transparent,
+            sidebarContentInset = sidebarInset,
+        ) {
             stickyHeader {
                 NuvioScreenHeader(
                     title = stringResource(Res.string.collections_header),
                     onBack = onBack,
                     backButtonKeyboardNavigationEnabled = false,
-                    modifier = Modifier.padding(start = sidebarInset),
                 ) {
-                IconButton(onClick = {
-                    val json = CollectionRepository.exportToJson()
-                    showCopyError = runCatching {
-                        clipboardManager.setText(AnnotatedString(json))
-                    }.isFailure
-                }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-                    Icon(
-                        imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = stringResource(Res.string.collections_copy_json),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    IconButton(onClick = {
+                        val json = CollectionRepository.exportToJson()
+                        showCopyError = runCatching {
+                            clipboardManager.setText(AnnotatedString(json))
+                        }.isFailure
+                    }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentCopy,
+                            contentDescription = stringResource(Res.string.collections_copy_json),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = { showImportDialog = true }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
+                        Icon(
+                            imageVector = Icons.Rounded.ContentPaste,
+                            contentDescription = stringResource(Res.string.collections_import),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                IconButton(onClick = { showImportDialog = true }, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-                    Icon(
-                        imageVector = Icons.Rounded.ContentPaste,
-                        contentDescription = stringResource(Res.string.collections_import),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
-        }
-        item {
-            NuvioSurfaceCard {
-                Text(
-                    text = stringResource(
-                        Res.string.collections_count_summary,
-                        collections.size,
-                        collections.sumOf { it.folders.size },
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        item {
-            NuvioPrimaryButton(
-                text = stringResource(Res.string.collections_new),
-                onClick = { onNavigateToEditor(null) },
-            )
-        }
-
-        if (collections.isNotEmpty()) {
-            item { NuvioSectionLabel(text = stringResource(Res.string.collections_your_collections)) }
-        }
-
-        if (collections.isNotEmpty()) {
             item {
-                CollectionReorderableList(
-                    collections = collections,
-                    onEdit = { onNavigateToEditor(it) },
-                    onDelete = { showDeleteConfirm = it },
-                )
-            }
-        }
-
-        if (collections.isEmpty()) {
-            item {
-                NuvioSurfaceCard(
-                    modifier = Modifier.padding(top = 24.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                NuvioSurfaceCard {
                     Text(
-                        text = stringResource(Res.string.collections_empty_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(Res.string.collections_empty_subtitle),
+                        text = stringResource(
+                            Res.string.collections_count_summary,
+                            collections.size,
+                            collections.sumOf { it.folders.size },
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+
+            item {
+                NuvioPrimaryButton(
+                    text = stringResource(Res.string.collections_new),
+                    onClick = { onNavigateToEditor(null) },
+                )
+            }
+
+            if (collections.isNotEmpty()) {
+                item { NuvioSectionLabel(text = stringResource(Res.string.collections_your_collections)) }
+            }
+
+            if (collections.isNotEmpty()) {
+                item {
+                    CollectionReorderableList(
+                        collections = collections,
+                        onEdit = { onNavigateToEditor(it) },
+                        onDelete = { showDeleteConfirm = it },
+                    )
+                }
+            }
+
+            if (collections.isEmpty()) {
+                item {
+                    NuvioSurfaceCard(
+                        modifier = Modifier.padding(top = 24.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(Res.string.collections_empty_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(Res.string.collections_empty_subtitle),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
-    }
     }
 
     if (showImportDialog) {

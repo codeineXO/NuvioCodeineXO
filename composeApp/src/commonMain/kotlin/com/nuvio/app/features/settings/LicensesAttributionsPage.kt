@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioScreen
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.features.cloud.PremiumizeCloudLibraryPosterUrl
 import com.nuvio.app.features.cloud.TorboxCloudLibraryPosterUrl
@@ -77,6 +78,7 @@ fun LicensesAttributionsSettingsScreen(
     onBack: () -> Unit,
 ) {
     NuvioScreen(
+        sidebarContentInset = LocalDesktopSidebarContentInset.current,
         modifier = Modifier.fillMaxSize(),
     ) {
         stickyHeader {
