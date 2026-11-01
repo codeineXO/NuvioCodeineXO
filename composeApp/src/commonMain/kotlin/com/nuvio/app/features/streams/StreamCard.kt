@@ -1,5 +1,9 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.core.ui.DarkGlassSurfaceColor
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -123,6 +127,10 @@ internal fun StreamCard(
             .then(
                 if (resultsGlass) {
                     Modifier.streamResultsSurface().then(
+                        if (marked) Modifier.background(primaryColor.copy(alpha = 0.12f)) else Modifier,
+                    )
+                } else if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) {
+                    Modifier.background(DarkGlassSurfaceColor).then(
                         if (marked) Modifier.background(primaryColor.copy(alpha = 0.12f)) else Modifier,
                     )
                 } else if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
@@ -309,6 +317,8 @@ internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
             .then(
                 if (LocalStreamResultsGlass.current) {
                     Modifier.streamResultsSurface()
+                } else if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) {
+                    Modifier.background(DarkGlassSurfaceColor)
                 } else if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
                     Modifier.hazeEffect(state = playerHazeState) {
                         blurRadius = 160.dp

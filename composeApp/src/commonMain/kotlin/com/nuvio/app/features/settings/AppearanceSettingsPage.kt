@@ -94,8 +94,8 @@ internal fun LazyListScope.appearanceSettingsContent(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
-    frostedGlassEnabled: Boolean,
-    onFrostedGlassToggle: (Boolean) -> Unit,
+    surfaceStyle: SurfaceStyle,
+    onSurfaceStyleSelected: (SurfaceStyle) -> Unit,
     liquidGlassNativeTabBarEnabled: Boolean,
     onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -165,12 +165,10 @@ internal fun LazyListScope.appearanceSettingsContent(
                     onCheckedChange = onAmoledToggle,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_appearance_frosted_glass),
-                    description = stringResource(Res.string.settings_appearance_frosted_glass_description),
-                    checked = frostedGlassEnabled,
+                SurfaceStyleSettingsRow(
+                    selectedStyle = surfaceStyle,
                     isTablet = isTablet,
-                    onCheckedChange = onFrostedGlassToggle,
+                    onSelected = onSurfaceStyleSelected,
                 )
                 if (liquidGlassNativeTabBarSupported) {
                     SettingsGroupDivider(isTablet = isTablet)

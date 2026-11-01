@@ -1,5 +1,9 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.core.ui.DarkGlassSurfaceColor
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import androidx.compose.runtime.CompositionLocalProvider
@@ -509,7 +513,7 @@ internal fun TabletFloatingTopBar(
             .hoverable(interactionSource)
 
         Surface(
-            color = if (LocalFrostedGlassEnabled.current) surfaceColor else tokens.colors.surfacePopover.copy(alpha = 1f),
+            color = if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) surfaceColor else tokens.colors.surfacePopover.copy(alpha = 1f),
             shape = chipShape,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,

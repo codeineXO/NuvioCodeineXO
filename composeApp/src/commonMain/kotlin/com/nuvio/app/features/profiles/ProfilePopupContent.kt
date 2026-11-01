@@ -1,5 +1,9 @@
 package com.nuvio.app.features.profiles
 
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.core.ui.DarkGlassSurfaceColor
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
@@ -121,7 +125,7 @@ internal fun ProfilePopupContent(
                                 noiseFactor = 0f
                             }
                         } else {
-                            Modifier.background(if (LocalFrostedGlassEnabled.current) tokens.colors.background else tokens.colors.surfacePopover.copy(alpha = 1f))
+                            Modifier.background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) tokens.colors.background else tokens.colors.surfacePopover.copy(alpha = 1f))
                         },
                     )
                     .border(0.5.dp, tokens.colors.borderDefault, shape)

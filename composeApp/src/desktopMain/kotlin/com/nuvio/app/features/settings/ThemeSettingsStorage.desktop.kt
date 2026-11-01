@@ -24,6 +24,7 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
     private const val selectedThemeKey = "selected_theme"
     private const val customThemeColorsKey = "custom_theme_colors"
     private const val frostedGlassEnabledKey = "frosted_glass_enabled"
+    private const val surfaceStyleKey = "surface_style"
     private const val amoledEnabledKey = "amoled_enabled"
     private const val liquidGlassNativeTabBarEnabledKey = "liquid_glass_native_tab_bar_enabled"
     private const val desktopNavigationLayoutKey = "desktop_navigation_layout"
@@ -32,7 +33,7 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
     private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
     private const val auraSettingsKey = "aura_settings"
     private const val auraBackgroundEnabledKey = "aura_background_enabled"
-    // Aura and frosted glass stay local to each profile and are never replaced by account sync.
+    // Aura, surface style, and the legacy player preference remain local to each profile.
     private val deviceLocale = Locale.getDefault()
     private val store = DesktopStorage.store("nuvio_theme_settings")
 
@@ -55,6 +56,9 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
     }
     override fun loadFrostedGlassEnabled(): Boolean? = frostedGlassStorage.loadFrostedGlassEnabled()
     override fun saveFrostedGlassEnabled(enabled: Boolean) = frostedGlassStorage.saveFrostedGlassEnabled(enabled)
+
+    override fun loadSurfaceStyle(): String? = store.getString(ProfileScopedKey.of(surfaceStyleKey))
+    override fun saveSurfaceStyle(value: String) = store.putString(ProfileScopedKey.of(surfaceStyleKey), value)
 
     actual fun loadAmoledEnabled(): Boolean? =
         store.getBoolean(ProfileScopedKey.of(amoledEnabledKey))

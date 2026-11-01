@@ -2,8 +2,10 @@ package com.nuvio.app.features.settings
 
 import kotlinx.serialization.json.JsonObject
 
-/** Optional capability; platforms without frosted glass storage retain the enabled default. */
+/** Optional local surface preferences, including the legacy player appearance setting. */
 internal interface FrostedGlassSettingsStore {
+    fun loadSurfaceStyle(): String? = null
+    fun saveSurfaceStyle(value: String) {}
     fun loadFrostedGlassEnabled(): Boolean? = null
     fun saveFrostedGlassEnabled(enabled: Boolean) {}
 }

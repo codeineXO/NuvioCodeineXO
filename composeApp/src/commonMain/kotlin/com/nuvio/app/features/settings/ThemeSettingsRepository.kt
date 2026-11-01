@@ -29,6 +29,10 @@ object ThemeSettingsRepository {
     private val _customThemeColors = MutableStateFlow(CustomThemeColors.solid(CustomThemeColors.Default.second))
     val customThemeColors: StateFlow<CustomThemeColors> = _customThemeColors.asStateFlow()
 
+    private val _surfaceStyle = MutableStateFlow(SurfaceStyle.DarkGlass)
+    val surfaceStyle: StateFlow<SurfaceStyle> = _surfaceStyle.asStateFlow()
+
+    // Preserve the pre-existing player appearance independently of page surface style.
     private val _frostedGlassEnabled = MutableStateFlow(true)
     val frostedGlassEnabled: StateFlow<Boolean> = _frostedGlassEnabled.asStateFlow()
 
@@ -83,6 +87,7 @@ object ThemeSettingsRepository {
         _customThemePreference.value = CustomThemeColors.Default
         _customThemeColors.value = CustomThemeColors.solid(CustomThemeColors.Default.second)
         _frostedGlassEnabled.value = true
+        _surfaceStyle.value = SurfaceStyle.DarkGlass
         _amoledEnabled.value = false
         _liquidGlassNativeTabBarEnabled.value = false
         _desktopNavigationLayout.value = DesktopNavigationLayout.Default
@@ -110,7 +115,9 @@ object ThemeSettingsRepository {
         _selectedThemePreference.value = theme
         _customThemePreference.value = CustomThemeColors.decode(ThemeSettingsStorage.loadCustomThemeColors())
         applyEffectiveTheme()
-        _frostedGlassEnabled.value = ThemeSettingsStorage.loadFrostedGlassEnabled() ?: true
+        val legacyFrostedEnabled = ThemeSettingsStorage.loadFrostedGlassEnabled()
+        _frostedGlassEnabled.value = legacyFrostedEnabled ?: true
+        _surfaceStyle.value = SurfaceStyle.fromStored(ThemeSettingsStorage.loadSurfaceStyle(), legacyFrostedEnabled)
         _amoledEnabled.value = ThemeSettingsStorage.loadAmoledEnabled() ?: false
         val liquidGlassEnabled = ThemeSettingsStorage.loadLiquidGlassNativeTabBarEnabled() ?: false
         _liquidGlassNativeTabBarEnabled.value = liquidGlassEnabled
@@ -146,6 +153,13 @@ object ThemeSettingsRepository {
         _customThemePreference.value = selectedColors
         _selectedThemePreference.value = AppTheme.CUSTOM
         applyEffectiveTheme()
+    }
+
+    fun setSurfaceStyle(style: SurfaceStyle) {
+        ensureLoaded()
+        if (_surfaceStyle.value == style) return
+        _surfaceStyle.value = style
+        ThemeSettingsStorage.saveSurfaceStyle(style.key)
     }
 
     fun setFrostedGlassEnabled(enabled: Boolean) {

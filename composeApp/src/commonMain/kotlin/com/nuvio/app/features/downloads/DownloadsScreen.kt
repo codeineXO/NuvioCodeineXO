@@ -2,6 +2,7 @@ package com.nuvio.app.features.downloads
 
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.DarkGlassPanelContent
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.LocalNavigationGlassState
@@ -420,97 +421,99 @@ private fun DownloadRow(
         shape = MaterialTheme.shapes.medium,
         color = Color.Transparent,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+        DarkGlassPanelContent {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    Text(
-                        text = displayTitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = displaySubtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = statusText(item),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    when (item.status) {
-                        DownloadStatus.Downloading -> {
-                            IconButton(onClick = onPause, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Pause,
-                                    contentDescription = stringResource(Res.string.compose_action_pause),
-                                )
-                            }
-                        }
-                        DownloadStatus.Paused -> {
-                            IconButton(onClick = onResume, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(Res.string.action_resume),
-                                )
-                            }
-                        }
-                        DownloadStatus.Failed -> {
-                            IconButton(onClick = onRetry, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Refresh,
-                                    contentDescription = stringResource(Res.string.action_retry),
-                                )
-                            }
-                        }
-                        DownloadStatus.Completed -> {
-                            IconButton(onClick = onOpen, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = stringResource(Res.string.action_play),
-                                )
-                            }
-                        }
-                    }
-                    IconButton(onClick = onDelete, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
-                        Icon(
-                            imageVector = Icons.Rounded.Delete,
-                            contentDescription = stringResource(Res.string.action_delete),
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = displayTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = displaySubtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = statusText(item),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-            }
 
-            if (item.status == DownloadStatus.Downloading) {
-                if (item.totalBytes != null && item.totalBytes > 0L) {
-                    LinearProgressIndicator(
-                        progress = item.progressFraction,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        when (item.status) {
+                            DownloadStatus.Downloading -> {
+                                IconButton(onClick = onPause, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Pause,
+                                        contentDescription = stringResource(Res.string.compose_action_pause),
+                                    )
+                                }
+                            }
+                            DownloadStatus.Paused -> {
+                                IconButton(onClick = onResume, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = stringResource(Res.string.action_resume),
+                                    )
+                                }
+                            }
+                            DownloadStatus.Failed -> {
+                                IconButton(onClick = onRetry, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Refresh,
+                                        contentDescription = stringResource(Res.string.action_retry),
+                                    )
+                                }
+                            }
+                            DownloadStatus.Completed -> {
+                                IconButton(onClick = onOpen, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = stringResource(Res.string.action_play),
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onDelete, enabled = !locationBusy, colors = actionColors, modifier = Modifier.navigationGlass(shape = CircleShape, backgroundOnly = true).remoteNavigationTarget(shape = CircleShape)) {
+                            Icon(
+                                imageVector = Icons.Rounded.Delete,
+                                contentDescription = stringResource(Res.string.action_delete),
+                            )
+                        }
+                    }
+                }
+
+                if (item.status == DownloadStatus.Downloading) {
+                    if (item.totalBytes != null && item.totalBytes > 0L) {
+                        LinearProgressIndicator(
+                            progress = item.progressFraction,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }

@@ -1,5 +1,8 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -16,7 +19,10 @@ internal val LocalStreamResultsGlass = staticCompositionLocalOf { false }
 internal fun Modifier.streamResultsSurface(): Modifier {
     val tokens = MaterialTheme.nuvio
     return background(
-        if (LocalFrostedGlassEnabled.current) {
+        if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) {
+            // The results panel already owns the 75% black fill.
+            androidx.compose.ui.graphics.Color.Transparent
+        } else if (LocalFrostedGlassEnabled.current) {
             tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle)
         } else {
             tokens.colors.surfaceCard.copy(alpha = 1f)

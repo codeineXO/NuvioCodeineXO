@@ -1,5 +1,7 @@
 package com.nuvio.app.core.ui
 
+import com.nuvio.app.features.settings.SurfaceStyle
+
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -186,7 +188,7 @@ fun NuvioNavigationBar(
                     Modifier
                 },
             )
-            .background(if (LocalFrostedGlassEnabled.current) Color(0xFF1C1C1E).copy(alpha = if (hazeState != null) 0.55f else 0.82f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
+            .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) Color(0xFF1C1C1E).copy(alpha = if (hazeState != null) 0.55f else 0.82f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
 
         Box(modifier = pillModifier) {
             Row(

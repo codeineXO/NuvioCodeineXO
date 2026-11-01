@@ -1,5 +1,9 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.core.ui.DarkGlassSurfaceColor
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.nuvio
@@ -475,47 +479,51 @@ private fun LegacyTabletStreamsLayout(
                                 }
                             } else Modifier,
                         )
-                        .background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.36f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
+                        .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.36f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
+                    CompositionLocalProvider(
+                        LocalStreamResultsGlass provides (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass),
                     ) {
-                        if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
-                            ResumeBanner(
-                                positionMs = resumePositionMs,
-                                progressFraction = resumeProgressFraction,
-                                modifier = Modifier.padding(bottom = 8.dp),
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                        ) {
+                            if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
+                                ResumeBanner(
+                                    positionMs = resumePositionMs,
+                                    progressFraction = resumeProgressFraction,
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                )
+                            }
+
+                            metadataInfoContent?.invoke()
+                            ProviderFilterRow(
+
+                                desktopDragMomentumEnabled = true,
+                                groups = uiState.groups,
+                                selectedFilter = uiState.selectedFilter,
+                                onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },
+                                onRefresh = onRefresh,
+                            )
+
+                            ActiveScrapersStatusBlock(
+                                groups = uiState.groups,
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+
+                            StreamList(
+                                uiState = uiState,
+                                debridEnabled = debridEnabled,
+                                appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
+                                onStreamSelected = onStreamSelected,
+                                onStreamLongPress = onStreamLongPress,
+                                onStreamSecondaryClick = onStreamSecondaryClick,
+                                resumePositionMs = resumePositionMs,
+                                resumeProgressFraction = resumeProgressFraction,
+                                modifier = Modifier.weight(1f),
                             )
                         }
-
-                        metadataInfoContent?.invoke()
-                        ProviderFilterRow(
-
-                            desktopDragMomentumEnabled = true,
-                            groups = uiState.groups,
-                            selectedFilter = uiState.selectedFilter,
-                            onFilterSelected = { addonId -> StreamsRepository.selectFilter(addonId) },
-                            onRefresh = onRefresh,
-                        )
-
-                        ActiveScrapersStatusBlock(
-                            groups = uiState.groups,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-
-                        StreamList(
-                            uiState = uiState,
-                            debridEnabled = debridEnabled,
-                            appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
-                            onStreamSelected = onStreamSelected,
-                            onStreamLongPress = onStreamLongPress,
-                            onStreamSecondaryClick = onStreamSecondaryClick,
-                            resumePositionMs = resumePositionMs,
-                            resumeProgressFraction = resumeProgressFraction,
-                            modifier = Modifier.weight(1f),
-                        )
                     }
                 }
             }

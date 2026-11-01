@@ -18,10 +18,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.unit.Dp
 import com.nuvio.app.core.ui.AppBasicAlertDialog
 import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.DarkGlassPanelContent
 import com.nuvio.app.core.ui.remoteNavigationModal
 import com.nuvio.app.features.settings.AppIconRepository
 import com.nuvio.app.features.settings.transparentPreviewResource
 import com.nuvio.app.features.settings.DesktopNavigationLayout
+import com.nuvio.app.features.settings.SurfaceStyle
+import com.nuvio.app.features.settings.labelRes
 import com.nuvio.app.features.settings.SeekrApiKeyDialog
 import com.nuvio.app.features.settings.SettingsNavigationRow
 import nuvio.composeapp.generated.resources.*
@@ -126,7 +129,7 @@ import com.nuvio.app.features.settings.SettingsSwitchRow
 import com.nuvio.app.features.settings.ThemeSettingsRepository
 
 data class RecommendedPresetState(
-    val frostedGlassEnabled: Boolean = true,
+    val surfaceStyle: SurfaceStyle = SurfaceStyle.FrostedGlass,
     val desktopNavigationLayout: DesktopNavigationLayout = DesktopNavigationLayout.Sidebar,
     val seekPreviewEnabled: Boolean = true,
     val auraBackgroundEnabled: Boolean = true,
@@ -147,7 +150,7 @@ data class RecommendedPresetState(
 internal fun applyRecommendedPreset(state: RecommendedPresetState) {
     ThemeSettingsRepository.ensureLoaded()
     ThemeSettingsRepository.setAuraBackgroundEnabled(state.auraBackgroundEnabled)
-    ThemeSettingsRepository.setFrostedGlassEnabled(state.frostedGlassEnabled)
+    ThemeSettingsRepository.setSurfaceStyle(state.surfaceStyle)
     if (isDesktop) ThemeSettingsRepository.setDesktopNavigationLayout(state.desktopNavigationLayout)
 
     HomeCatalogSettingsRepository.snapshot()
@@ -488,7 +491,7 @@ private fun OnboardingGlassSurface(
         shape = shape,
         color = color,
         border = border,
-        content = content,
+        content = { DarkGlassPanelContent(content) },
     )
 }
 
@@ -958,270 +961,272 @@ private fun RecommendedPresetReviewDialog(
                 .navigationGlass(shape = tokens.shapes.dialog, panel = true, backgroundOnly = true)
                 .padding(tokens.spacing.dialogPadding),
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text(
-                        text = "Customize",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = tokens.colors.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Customize any item before applying to your profile.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = tokens.colors.textMuted,
-                    )
-                }
-
+            DarkGlassPanelContent {
+                // Header
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    OnboardingGlassSurface(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable {
-                                onStateChange(RecommendedPresetState())
-                                NuvioToastController.show("Reset to recommended defaults")
-                            }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        color = Color.Transparent,
-                        border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
-                    ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Reset Defaults",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = tokens.colors.accent,
-                            fontWeight = FontWeight.SemiBold,
+                            text = "Customize",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = tokens.colors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Customize any item before applying to your profile.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.colors.textMuted,
                         )
                     }
 
-                    OnboardingGlassSurface(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .remoteNavigationTarget(shape = CircleShape).clickable(onClick = onDismissRequest),
-                        color = Color.Transparent,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = tokens.colors.textMuted,
-                                modifier = Modifier.size(18.dp),
+                        OnboardingGlassSurface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .remoteNavigationTarget(shape = RoundedCornerShape(8.dp)).clickable {
+                                    onStateChange(RecommendedPresetState())
+                                    NuvioToastController.show("Reset to recommended defaults")
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            color = Color.Transparent,
+                            border = BorderStroke(tokens.borders.hairline, tokens.colors.borderSubtle),
+                        ) {
+                            Text(
+                                text = "Reset Defaults",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = tokens.colors.accent,
+                                fontWeight = FontWeight.SemiBold,
                             )
+                        }
+
+                        OnboardingGlassSurface(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .remoteNavigationTarget(shape = CircleShape).clickable(onClick = onDismissRequest),
+                            color = Color.Transparent,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Close",
+                                    tint = tokens.colors.textMuted,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(
-                thickness = tokens.borders.hairline,
-                color = tokens.colors.borderSubtle,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(
+                    thickness = tokens.borders.hairline,
+                    color = tokens.colors.borderSubtle,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Share the list state so wheel scrolling and thumb dragging stay in sync.
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                NuvioLazyColumn(
-                    state = listState,
-                    modifier = Modifier.remoteNavigationGroup().fillMaxSize(),
-                    contentPadding = PaddingValues(end = if (isDesktop) 16.dp else 0.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    item {
-                        OnboardingSectionTitle("Appearance")
-                        OnboardingSettingsGroup {
-                            SettingsSwitchRow(
-                                title = "CodeineXO Aura",
-                                description = "Dynamic chromatic aurora ambient lighting",
-                                checked = state.auraBackgroundEnabled,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(auraBackgroundEnabled = it)) },
-                            )
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsSwitchRow(
-                                title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
-                                description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
-                                checked = state.scrollPostersLayoutEnabled,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(scrollPostersLayoutEnabled = it)) },
-                            )
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsSwitchRow(
-                                title = stringResource(Res.string.settings_appearance_frosted_glass),
-                                description = stringResource(Res.string.settings_appearance_frosted_glass_description),
-                                checked = state.frostedGlassEnabled,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(frostedGlassEnabled = it)) },
-                            )
-                            if (isDesktop) {
+                // Share the list state so wheel scrolling and thumb dragging stay in sync.
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    NuvioLazyColumn(
+                        state = listState,
+                        modifier = Modifier.remoteNavigationGroup().fillMaxSize(),
+                        contentPadding = PaddingValues(end = if (isDesktop) 16.dp else 0.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        item {
+                            OnboardingSectionTitle("Appearance")
+                            OnboardingSettingsGroup {
+                                SettingsSwitchRow(
+                                    title = "CodeineXO Aura",
+                                    description = "Dynamic chromatic aurora ambient lighting",
+                                    checked = state.auraBackgroundEnabled,
+                                    isTablet = false,
+                                    onCheckedChange = { onStateChange(state.copy(auraBackgroundEnabled = it)) },
+                                )
+                                SettingsGroupDivider(isTablet = false)
+                                SettingsSwitchRow(
+                                    title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
+                                    description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
+                                    checked = state.scrollPostersLayoutEnabled,
+                                    isTablet = false,
+                                    onCheckedChange = { onStateChange(state.copy(scrollPostersLayoutEnabled = it)) },
+                                )
                                 SettingsGroupDivider(isTablet = false)
                                 PresetSegmentRow(
-                                    title = stringResource(Res.string.settings_appearance_desktop_navigation),
-                                    description = "Choose where navigation appears",
-                                    options = DesktopNavigationLayout.entries.map { it to stringResource(it.labelRes) },
-                                    selected = state.desktopNavigationLayout,
-                                    onSelect = { onStateChange(state.copy(desktopNavigationLayout = it)) },
+                                    title = stringResource(Res.string.settings_surface_style),
+                                    description = stringResource(Res.string.settings_surface_style_description),
+                                    options = SurfaceStyle.entries.map { it to stringResource(it.labelRes) },
+                                    selected = state.surfaceStyle,
+                                    onSelect = { onStateChange(state.copy(surfaceStyle = it)) },
                                 )
+                                if (isDesktop) {
+                                    SettingsGroupDivider(isTablet = false)
+                                    PresetSegmentRow(
+                                        title = stringResource(Res.string.settings_appearance_desktop_navigation),
+                                        description = "Choose where navigation appears",
+                                        options = DesktopNavigationLayout.entries.map { it to stringResource(it.labelRes) },
+                                        selected = state.desktopNavigationLayout,
+                                        onSelect = { onStateChange(state.copy(desktopNavigationLayout = it)) },
+                                    )
+                                }
                             }
                         }
-                    }
-                    item {
-                        OnboardingSectionTitle("Playback")
-                        OnboardingSettingsGroup {
-                            PresetSegmentRow<PlayerUiMode>(
-                                title = stringResource(Res.string.settings_playback_player_ui),
-                                description = "Player interface theme and layout",
-                                options = listOf(
-                                    PlayerUiMode.CODEINE_XO to stringResource(PlayerUiMode.CODEINE_XO.labelRes),
-                                    PlayerUiMode.OFFICIAL to stringResource(PlayerUiMode.OFFICIAL.labelRes),
-                                ),
-                                selected = state.playerUiMode,
-                                onSelect = { onStateChange(state.copy(playerUiMode = it)) },
-                            )
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsSwitchRow(
-                                title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
-                                description = "Show fluid seekbar bar overlay during fast-forward/rewind",
-                                checked = state.showSeekbarWhileSeeking,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(showSeekbarWhileSeeking = it)) },
-                            )
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsSwitchRow(
-                                title = stringResource(Res.string.settings_playback_seek_previews),
-                                description = stringResource(Res.string.settings_playback_seek_previews_description),
-                                checked = state.seekPreviewEnabled,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(seekPreviewEnabled = it)) },
-                            )
-                            if (state.seekPreviewEnabled) {
+                        item {
+                            OnboardingSectionTitle("Playback")
+                            OnboardingSettingsGroup {
+                                PresetSegmentRow<PlayerUiMode>(
+                                    title = stringResource(Res.string.settings_playback_player_ui),
+                                    description = "Player interface theme and layout",
+                                    options = listOf(
+                                        PlayerUiMode.CODEINE_XO to stringResource(PlayerUiMode.CODEINE_XO.labelRes),
+                                        PlayerUiMode.OFFICIAL to stringResource(PlayerUiMode.OFFICIAL.labelRes),
+                                    ),
+                                    selected = state.playerUiMode,
+                                    onSelect = { onStateChange(state.copy(playerUiMode = it)) },
+                                )
                                 SettingsGroupDivider(isTablet = false)
-                                SettingsNavigationRow(
-                                    title = stringResource(Res.string.settings_playback_seekr_api_key),
-                                    description = if (seekrApiKey.isBlank()) "API key required" else "\u2022".repeat(8),
+                                SettingsSwitchRow(
+                                    title = stringResource(Res.string.settings_playback_show_seekbar_while_seeking),
+                                    description = "Show fluid seekbar bar overlay during fast-forward/rewind",
+                                    checked = state.showSeekbarWhileSeeking,
                                     isTablet = false,
-                                    onClick = { showKeyDialog = true },
+                                    onCheckedChange = { onStateChange(state.copy(showSeekbarWhileSeeking = it)) },
                                 )
-                            }
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsSwitchRow(
-                                title = "Network Stats in Player",
-                                description = "Real-time P2P peer count, seeds, and download speed overlay",
-                                checked = state.showTorrentStatsOverlay,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(showTorrentStatsOverlay = it)) },
-                            )
-                        }
-                    }
-
-                    item {
-                        OnboardingSectionTitle("Video Enhancements")
-                        OnboardingSettingsGroup {
-                            VideoEnhancementsHardwareNote()
-                            PresetSegmentRow<AnimeUpscalerOption>(
-                                title = "Anime Upscaler",
-                                description = "High quality scaling for anime streams",
-                                options = AnimeUpscalerOption.entries.map { it to it.label },
-                                optionMaxLines = 2,
-                                selected = state.animeUpscalerOption,
-                                onSelect = { onStateChange(state.copy(animeUpscalerOption = it)) },
-                            )
-                            if (state.animeUpscalerOption != AnimeUpscalerOption.OFF) {
                                 SettingsGroupDivider(isTablet = false)
-                                PresetSegmentRow<AnimeUpscalerMode>(
-                                    title = "Upscaler Mode",
-                                    description = "Processing shader intensity",
-                                    options = AnimeUpscalerMode.entries.map { it to it.label },
-                                    optionMaxLines = 2,
-                                    selected = state.animeUpscalerMode,
-                                    onSelect = { onStateChange(state.copy(animeUpscalerMode = it)) },
+                                SettingsSwitchRow(
+                                    title = stringResource(Res.string.settings_playback_seek_previews),
+                                    description = stringResource(Res.string.settings_playback_seek_previews_description),
+                                    checked = state.seekPreviewEnabled,
+                                    isTablet = false,
+                                    onCheckedChange = { onStateChange(state.copy(seekPreviewEnabled = it)) },
+                                )
+                                if (state.seekPreviewEnabled) {
+                                    SettingsGroupDivider(isTablet = false)
+                                    SettingsNavigationRow(
+                                        title = stringResource(Res.string.settings_playback_seekr_api_key),
+                                        description = if (seekrApiKey.isBlank()) "API key required" else "\u2022".repeat(8),
+                                        isTablet = false,
+                                        onClick = { showKeyDialog = true },
+                                    )
+                                }
+                                SettingsGroupDivider(isTablet = false)
+                                SettingsSwitchRow(
+                                    title = "Network Stats in Player",
+                                    description = "Real-time P2P peer count, seeds, and download speed overlay",
+                                    checked = state.showTorrentStatsOverlay,
+                                    isTablet = false,
+                                    onCheckedChange = { onStateChange(state.copy(showTorrentStatsOverlay = it)) },
                                 )
                             }
-                            SettingsGroupDivider(isTablet = false)
-                            SvpMotionPresetRow(
-                                selected = state.svpMotionOption,
-                                onSelect = { onStateChange(state.copy(svpMotionOption = it)) },
-                            )
                         }
-                    }
 
-                    item {
-                        OnboardingSectionTitle("Subtitles")
-                        OnboardingSettingsGroup {
-                            PresetSegmentRow<SubtitleOutlineEffect>(
-                                title = "Outline Style",
-                                description = "Subtitle edge effect with 1px width and #FFF6B3 text color",
-                                options = listOf(
-                                    SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Halo",
-                                    SubtitleOutlineEffect.OUTLINE to SubtitleOutlineEffect.OUTLINE.label,
-                                    SubtitleOutlineEffect.SOFT_GLOW to "Glow",
-                                ),
-                                selected = state.subtitleOutlineEffect,
-                                onSelect = { onStateChange(state.copy(subtitleOutlineEffect = it)) },
-                            )
+                        item {
+                            OnboardingSectionTitle("Video Enhancements")
+                            OnboardingSettingsGroup {
+                                VideoEnhancementsHardwareNote()
+                                PresetSegmentRow<AnimeUpscalerOption>(
+                                    title = "Anime Upscaler",
+                                    description = "High quality scaling for anime streams",
+                                    options = AnimeUpscalerOption.entries.map { it to it.label },
+                                    optionMaxLines = 2,
+                                    selected = state.animeUpscalerOption,
+                                    onSelect = { onStateChange(state.copy(animeUpscalerOption = it)) },
+                                )
+                                if (state.animeUpscalerOption != AnimeUpscalerOption.OFF) {
+                                    SettingsGroupDivider(isTablet = false)
+                                    PresetSegmentRow<AnimeUpscalerMode>(
+                                        title = "Upscaler Mode",
+                                        description = "Processing shader intensity",
+                                        options = AnimeUpscalerMode.entries.map { it to it.label },
+                                        optionMaxLines = 2,
+                                        selected = state.animeUpscalerMode,
+                                        onSelect = { onStateChange(state.copy(animeUpscalerMode = it)) },
+                                    )
+                                }
+                                SettingsGroupDivider(isTablet = false)
+                                SvpMotionPresetRow(
+                                    selected = state.svpMotionOption,
+                                    onSelect = { onStateChange(state.copy(svpMotionOption = it)) },
+                                )
+                            }
+                        }
+
+                        item {
+                            OnboardingSectionTitle("Subtitles")
+                            OnboardingSettingsGroup {
+                                PresetSegmentRow<SubtitleOutlineEffect>(
+                                    title = "Outline Style",
+                                    description = "Subtitle edge effect with 1px width and #FFF6B3 text color",
+                                    options = listOf(
+                                        SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Halo",
+                                        SubtitleOutlineEffect.OUTLINE to SubtitleOutlineEffect.OUTLINE.label,
+                                        SubtitleOutlineEffect.SOFT_GLOW to "Glow",
+                                    ),
+                                    selected = state.subtitleOutlineEffect,
+                                    onSelect = { onStateChange(state.copy(subtitleOutlineEffect = it)) },
+                                )
+                            }
+                        }
+                        item {
+                            OnboardingSectionTitle("Episodes")
+                            OnboardingSettingsGroup {
+                                PresetSegmentRow<MetaEpisodeCardStyle>(
+                                    title = stringResource(Res.string.settings_meta_episode_cards),
+                                    description = "Detailed thumbnail metadata layout",
+                                    options = listOf(
+                                        MetaEpisodeCardStyle.Enhanced to "Enhanced",
+                                        MetaEpisodeCardStyle.Horizontal to "Horizontal",
+                                        MetaEpisodeCardStyle.List to "List",
+                                    ),
+                                    selected = state.episodeCardStyle,
+                                    onSelect = { onStateChange(state.copy(episodeCardStyle = it)) },
+                                )
+                                SettingsGroupDivider(isTablet = false)
+                                SettingsSwitchRow(
+                                    title = "Anime Filler Detection",
+                                    description = "Highlight and mark filler episodes in episode lists",
+                                    checked = state.animeFillerDetectionEnabled,
+                                    isTablet = false,
+                                    onCheckedChange = { onStateChange(state.copy(animeFillerDetectionEnabled = it)) },
+                                )
+                            }
                         }
                     }
-                    item {
-                        OnboardingSectionTitle("Episodes")
-                        OnboardingSettingsGroup {
-                            PresetSegmentRow<MetaEpisodeCardStyle>(
-                                title = stringResource(Res.string.settings_meta_episode_cards),
-                                description = "Detailed thumbnail metadata layout",
-                                options = listOf(
-                                    MetaEpisodeCardStyle.Enhanced to "Enhanced",
-                                    MetaEpisodeCardStyle.Horizontal to "Horizontal",
-                                    MetaEpisodeCardStyle.List to "List",
-                                ),
-                                selected = state.episodeCardStyle,
-                                onSelect = { onStateChange(state.copy(episodeCardStyle = it)) },
-                            )
-                            SettingsGroupDivider(isTablet = false)
-                            SettingsSwitchRow(
-                                title = "Anime Filler Detection",
-                                description = "Highlight and mark filler episodes in episode lists",
-                                checked = state.animeFillerDetectionEnabled,
-                                isTablet = false,
-                                onCheckedChange = { onStateChange(state.copy(animeFillerDetectionEnabled = it)) },
-                            )
-                        }
+                    if (isDesktop) {
+                        NuvioDesktopVerticalScrollbar(
+                            state = listState,
+                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                        )
                     }
                 }
-                if (isDesktop) {
-                    NuvioDesktopVerticalScrollbar(
-                        state = listState,
-                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(
+                    thickness = tokens.borders.hairline,
+                    color = tokens.colors.borderSubtle,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Action Buttons
+                DialogButtons {
+                    DialogButton(
+                        text = "Cancel",
+                        onClick = onDismissRequest,
+                        style = DialogButtonStyle.Secondary,
+                    )
+                    DialogButton(
+                        text = "Apply",
+                        onClick = onConfirm,
+                        style = DialogButtonStyle.Primary,
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-            HorizontalDivider(
-                thickness = tokens.borders.hairline,
-                color = tokens.colors.borderSubtle,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Action Buttons
-            DialogButtons {
-                DialogButton(
-                    text = "Cancel",
-                    onClick = onDismissRequest,
-                    style = DialogButtonStyle.Secondary,
-                )
-                DialogButton(
-                    text = "Apply",
-                    onClick = onConfirm,
-                    style = DialogButtonStyle.Primary,
-                )
             }
         }
     }

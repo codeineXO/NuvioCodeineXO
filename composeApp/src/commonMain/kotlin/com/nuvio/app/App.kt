@@ -1,5 +1,8 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -103,7 +106,7 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
         ThemeSettingsRepository.ensureLoaded()
         ThemeSettingsRepository.selectedTheme
     }.collectAsStateWithLifecycle()
-    val frostedGlassEnabled by ThemeSettingsRepository.frostedGlassEnabled.collectAsStateWithLifecycle()
+    val surfaceStyle by ThemeSettingsRepository.surfaceStyle.collectAsStateWithLifecycle()
     val amoledEnabled by remember {
         ThemeSettingsRepository.amoledEnabled
     }.collectAsStateWithLifecycle()
@@ -126,7 +129,8 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
             auraSettings = auraSettings,
         ) {
             CompositionLocalProvider(
-                LocalFrostedGlassEnabled provides frostedGlassEnabled,
+                LocalSurfaceStyle provides surfaceStyle,
+                LocalFrostedGlassEnabled provides (surfaceStyle == SurfaceStyle.FrostedGlass),
                 LocalNavigationGlassState provides rememberHazeState(),
             ) {
                 content()

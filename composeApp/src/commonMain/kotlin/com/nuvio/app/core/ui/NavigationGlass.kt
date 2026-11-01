@@ -6,12 +6,15 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
+import com.nuvio.app.features.settings.SurfaceStyle
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInputScale
@@ -22,6 +25,18 @@ import dev.chrisbanes.haze.hazeSource
 
 /** App-scoped glass policy, inherited by screen content, dialogs, and popups. */
 internal val LocalFrostedGlassEnabled = staticCompositionLocalOf { true }
+internal val LocalSurfaceStyle = staticCompositionLocalOf { SurfaceStyle.DarkGlass }
+internal val DarkGlassSurfaceColor = Color.Black.copy(alpha = 0.75f)
+private val LocalDarkGlassSurfacePresent = staticCompositionLocalOf { false }
+
+/** Inner controls share their panel's dark fill, while retaining interaction feedback. */
+@Composable
+internal fun DarkGlassPanelContent(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalDarkGlassSurfacePresent provides (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass),
+        content = content,
+    )
+}
 
 /** Only Compose page content is registered here; never a video surface or player UI. */
 internal val LocalNavigationGlassState = staticCompositionLocalOf<HazeState?> { null }
@@ -34,7 +49,7 @@ internal fun Modifier.navigationGlassSource(
     zIndex: Float = 0f,
     enabled: Boolean = true,
 ): Modifier {
-    if (!enabled || !LocalFrostedGlassEnabled.current || !LocalScreenActive.current) return this
+    if (!enabled || LocalSurfaceStyle.current != SurfaceStyle.FrostedGlass || !LocalFrostedGlassEnabled.current || !LocalScreenActive.current) return this
     val state = LocalNavigationGlassState.current ?: return this
     return hazeSource(state, zIndex = zIndex)
 }
@@ -49,7 +64,8 @@ internal fun Modifier.navigationGlass(
     backgroundOnly: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
-    val frostedGlassEnabled = LocalFrostedGlassEnabled.current
+    val surfaceStyle = LocalSurfaceStyle.current
+    val frostedGlassEnabled = LocalFrostedGlassEnabled.current && surfaceStyle == SurfaceStyle.FrostedGlass
     // In-page effects must not sample the z=1 scrolling source which contains them.
     // Navigation overlays retain their existing full-page backdrop behavior.
     val backdropState = hazeState?.takeIf { state ->
@@ -62,7 +78,9 @@ internal fun Modifier.navigationGlass(
         .shadow(if (panel) tokens.elevation.modal else tokens.elevation.raised, shape, clip = false)
         .clip(shape)
         .background(
-            if (!frostedGlassEnabled) {
+            if (surfaceStyle == SurfaceStyle.DarkGlass) {
+                if (!panel && LocalDarkGlassSurfacePresent.current) Color.Transparent else DarkGlassSurfaceColor
+            } else if (!frostedGlassEnabled) {
                 (if (panel) tokens.colors.surfacePopover else tokens.colors.surfaceCard).copy(alpha = 1f)
             } else if (backdropState == null) fallback else tint,
         )

@@ -1,5 +1,7 @@
 package com.nuvio.app.core.ui
 
+import com.nuvio.app.features.settings.SurfaceStyle
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -103,7 +105,7 @@ internal fun DesktopNavigationBar(
                             Modifier
                         },
                     )
-                    .background(if (LocalFrostedGlassEnabled.current) surfaceColor else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
+                    .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) surfaceColor else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
                     .background(
                         Brush.verticalGradient(
                             listOf(
