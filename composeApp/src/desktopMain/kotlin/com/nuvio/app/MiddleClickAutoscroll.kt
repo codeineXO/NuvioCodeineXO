@@ -35,7 +35,7 @@ import kotlin.math.pow
 import kotlin.math.sign
 
 // Middle-click autoscroll as Chromium does it (blink's AutoscrollController):
-// every axis further than 15 units from the press point scrolls at
+// the dominant axis further than 15 units from the press point scrolls at
 // 0.04 * distance^2.2 DIP/s and the cursor points the way it scrolls. Releasing
 // after moving stops it; a plain click keeps it going until the next click or
 // key press.
@@ -152,14 +152,17 @@ internal fun MiddleClickAutoscroll(content: @Composable () -> Unit) {
                 val pointer = MouseInfo.getPointerInfo()?.location ?: continue
                 val component = scroll.component
                 val unitsPerAwt = component.awtScale / (component.displayScale * component.displayScale)
-                val velocityX = velocity((pointer.x - scroll.origin.x) * unitsPerAwt)
-                val velocityY = velocity((pointer.y - scroll.origin.y) * unitsPerAwt)
+                val distanceX = (pointer.x - scroll.origin.x) * unitsPerAwt
+                val distanceY = (pointer.y - scroll.origin.y) * unitsPerAwt
+                val horizontal = abs(distanceX) > abs(distanceY)
+                val velocityX = if (horizontal) velocity(distanceX) else 0.0
+                val velocityY = if (horizontal) 0.0 else velocity(distanceY)
                 if (velocityX != 0.0 || velocityY != 0.0) scroll.moved = true
                 scroll.icon = PanningIcons[(velocityY.sign.toInt() + 1) * 3 + velocityX.sign.toInt() + 1]
                 // The middle button stays held unless it was clicked to toggle.
                 val buttons = if (scroll.toggled) 0 else InputEvent.BUTTON2_DOWN_MASK
-                pendingX += velocityX * component.displayScale * elapsedSeconds
-                pendingY += velocityY * component.displayScale * elapsedSeconds
+                pendingX = if (horizontal) pendingX + velocityX * component.displayScale * elapsedSeconds else 0.0
+                pendingY = if (horizontal) 0.0 else pendingY + velocityY * component.displayScale * elapsedSeconds
                 pendingX = postPreciseWheel(component, pointer, pendingX, horizontal = true, buttons)
                 pendingY = postPreciseWheel(component, pointer, pendingY, horizontal = false, buttons)
             }
