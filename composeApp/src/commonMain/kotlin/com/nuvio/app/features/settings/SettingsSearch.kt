@@ -191,6 +191,21 @@ internal fun settingsSearchEntries(
         )
     }
 
+    if (isDesktop) {
+        addRow(
+            page = SettingsPage.Appearance,
+            key = "navigation-feel",
+            title = stringResource(Res.string.settings_navigation_feel),
+            description = listOf(
+                stringResource(Res.string.settings_navigation_feel_description),
+                stringResource(Res.string.settings_navigation_feel_smooth),
+                stringResource(Res.string.settings_navigation_feel_snappy),
+            ).joinToString(" "),
+            pageLabel = layoutPage,
+            section = stringResource(Res.string.settings_appearance_section_display),
+            icon = Icons.Rounded.Tune,
+        )
+    }
     if (switchProfileAvailable) {
         add(
             key = "switch-profile",

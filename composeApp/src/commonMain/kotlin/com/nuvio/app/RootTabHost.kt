@@ -1,6 +1,9 @@
 package com.nuvio.app
 
 import androidx.compose.foundation.focusGroup
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -23,11 +26,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import com.nuvio.app.core.ui.LocalScreenActive
+import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.navigationMotionDuration
 
 @Composable
 internal fun RootTabHost(
@@ -97,6 +103,13 @@ private fun RootTabPane(
     stateHolder: SaveableStateHolder,
     content: @Composable (AppScreenTab) -> Unit,
 ) {
+    val entrance = remember { Animatable(if (active) 0f else 1f) }
+    LaunchedEffect(active) {
+        if (active) {
+            entrance.snapTo(0f)
+            entrance.animateTo(1f, tween(navigationMotionDuration(NuvioTokens.Motion.normalMillis), easing = NuvioTokens.Motion.standard))
+        } else entrance.snapTo(1f)
+    }
     val lifecycleOwner = rememberLifecycleOwner(
         maxLifecycle = if (active) Lifecycle.State.RESUMED else Lifecycle.State.CREATED,
     )
@@ -107,7 +120,10 @@ private fun RootTabPane(
         stateHolder.SaveableStateProvider(tab.name) {
             Box(
                 Modifier.fillMaxSize()
-                    .graphicsLayer()
+                    .graphicsLayer {
+                        alpha = 0.94f + 0.06f * entrance.value
+                        translationY = (1f - entrance.value) * 6.dp.toPx()
+                    }
                     // An active pane must not turn a descendant focusGroup into a focus stop.
                     .then(if (active) Modifier else Modifier.focusProperties { canFocus = false })
                     .pointerInput(active) {

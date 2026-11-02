@@ -14,9 +14,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -43,12 +45,7 @@ fun HomeInteractiveGradientBackground(
 
     val glows = resolveAuraPalette(settings, MaterialTheme.themePalette)
     val intensity = settings.intensity.multiplier
-    val motion = if (settings.animated) rememberAuraMotion() else AuraMotion()
-    val phase1 = motion.phase1
-    val phase2 = motion.phase2
-    val phase3 = motion.phase3
-    val phase4 = motion.phase4
-    val pulse = motion.pulse
+    val motion = if (settings.animated) rememberAuraMotion() else remember { AuraMotion() }
 
     val scrollShift by remember(listState, gridState, settings.animated) {
         derivedStateOf {
@@ -64,6 +61,12 @@ fun HomeInteractiveGradientBackground(
         modifier = modifier.fillMaxSize().navigationGlassSource(),
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            // Observe animation in drawing so each frame skips composition and layout.
+            val phase1 = motion.phase1.value
+            val phase2 = motion.phase2.value
+            val phase3 = motion.phase3.value
+            val phase4 = motion.phase4.value
+            val pulse = motion.pulse.value
             val w = size.width
             val h = size.height
 
@@ -155,14 +158,15 @@ fun HomeInteractiveGradientBackground(
 }
 
 private data class AuraMotion(
-    val phase1: Float = 0f, val phase2: Float = 0f,
-    val phase3: Float = 0f, val phase4: Float = 0f, val pulse: Float = 1f,
+    val phase1: State<Float> = mutableStateOf(0f), val phase2: State<Float> = mutableStateOf(0f),
+    val phase3: State<Float> = mutableStateOf(0f), val phase4: State<Float> = mutableStateOf(0f),
+    val pulse: State<Float> = mutableStateOf(1f),
 )
 @Composable
 private fun rememberAuraMotion(): AuraMotion {
     val infiniteTransition = rememberInfiniteTransition(label = "HomeAmbientGradientTransition")
 
-    val phase1 by infiniteTransition.animateFloat(
+    val phase1 = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(
@@ -172,7 +176,7 @@ private fun rememberAuraMotion(): AuraMotion {
         label = "HomeAmbientPhase1",
     )
 
-    val phase2 by infiniteTransition.animateFloat(
+    val phase2 = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(
@@ -182,7 +186,7 @@ private fun rememberAuraMotion(): AuraMotion {
         label = "HomeAmbientPhase2",
     )
 
-    val phase3 by infiniteTransition.animateFloat(
+    val phase3 = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(
@@ -192,7 +196,7 @@ private fun rememberAuraMotion(): AuraMotion {
         label = "HomeAmbientPhase3",
     )
 
-    val phase4 by infiniteTransition.animateFloat(
+    val phase4 = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(
@@ -202,7 +206,7 @@ private fun rememberAuraMotion(): AuraMotion {
         label = "HomeAmbientPhase4",
     )
 
-    val pulse by infiniteTransition.animateFloat(
+    val pulse = infiniteTransition.animateFloat(
         initialValue = 0.88f,
         targetValue = 1.14f,
         animationSpec = infiniteRepeatable(
@@ -212,5 +216,7 @@ private fun rememberAuraMotion(): AuraMotion {
         label = "HomeAmbientGradientPulse",
     )
 
-    return AuraMotion(phase1, phase2, phase3, phase4, pulse)
+    return remember(phase1, phase2, phase3, phase4, pulse) {
+        AuraMotion(phase1, phase2, phase3, phase4, pulse)
+    }
 }

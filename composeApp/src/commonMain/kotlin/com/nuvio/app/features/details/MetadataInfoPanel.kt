@@ -5,7 +5,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.ExpandLess
@@ -110,7 +110,7 @@ internal fun MetadataInfoPanel(
                 }
                 if (expanded) {
                     Column(
-                        modifier = if (compact) Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState()) else Modifier,
+                        modifier = if (compact) Modifier.heightIn(max = 220.dp).nuvioVerticalScroll(rememberScrollState()) else Modifier,
                         verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s4),
                     ) {
                         if (compact) {

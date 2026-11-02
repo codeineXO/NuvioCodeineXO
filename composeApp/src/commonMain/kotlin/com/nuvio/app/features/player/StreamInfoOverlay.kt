@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +54,7 @@ internal fun StreamInfoOverlay(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .verticalScroll(rememberScrollState()),
+                .nuvioVerticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             StreamInfoSection(stringResource(Res.string.stream_info_section_source)) {

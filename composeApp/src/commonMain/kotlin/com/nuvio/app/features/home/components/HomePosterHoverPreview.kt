@@ -1,4 +1,5 @@
 package com.nuvio.app.features.home.components
+import com.nuvio.app.core.ui.navigationMotionDuration
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
@@ -110,8 +111,8 @@ import nuvio.composeapp.generated.resources.tracking_lists_update_failed
 import org.jetbrains.compose.resources.stringResource
 
 private const val HoverPreviewCloseDelayMillis = 120L
-private const val HoverPreviewEnterDurationMillis = 260
-private const val HoverPreviewExitDurationMillis = 170
+private val HoverPreviewEnterDurationMillis get() = navigationMotionDuration(NuvioTokens.Motion.sheetEnterMillis)
+private val HoverPreviewExitDurationMillis get() = navigationMotionDuration(170)
 private const val HoverTrailerExtractionDebounceMillis = 1_000L
 private val HoverPreviewWidth = 420.dp
 
@@ -308,18 +309,18 @@ internal fun HomePosterHoverPreview(
                     enter = fadeIn(
                         animationSpec = tween(
                             durationMillis = HoverPreviewEnterDurationMillis,
-                            easing = NuvioTokens.Motion.decelerate,
+                            easing = NuvioTokens.Motion.standard,
                         ),
                     ) + scaleIn(
                         animationSpec = tween(
                             durationMillis = HoverPreviewEnterDurationMillis,
                             easing = NuvioTokens.Motion.emphasized,
                         ),
-                        initialScale = 0.9f,
+                        initialScale = 0.96f,
                     ) + slideInVertically(
                         animationSpec = tween(
                             durationMillis = HoverPreviewEnterDurationMillis,
-                            easing = NuvioTokens.Motion.decelerate,
+                            easing = NuvioTokens.Motion.standard,
                         ),
                         initialOffsetY = { height -> height / 18 },
                     ),

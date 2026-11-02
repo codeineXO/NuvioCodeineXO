@@ -88,7 +88,8 @@ internal fun SeekPreviewFilmstripOverlay(
         mutableStateOf<List<FilmstripSlot>>(emptyList())
     }
     var previousCenterIndex by remember(track) { mutableStateOf<Int?>(null) }
-    val slide = remember { Animatable(0f) }
+    val motion = remember(track, count) { FilmstripSlideMotion() }
+    val slide = motion.slide
 
     LaunchedEffect(track, currentCueIndex, count) {
         if (currentCueIndex < 0) return@LaunchedEffect
@@ -108,13 +109,7 @@ internal fun SeekPreviewFilmstripOverlay(
         }
         slots = newSlots
 
-        if (prev != null && stepDiff != 0) {
-            val clampedSteps = stepDiff.coerceIn(-sideFrames, sideFrames)
-            slide.snapTo(clampedSteps.toFloat())
-            slide.animateTo(0f, tween(160, easing = FastOutSlowInEasing))
-        } else {
-            slide.snapTo(0f)
-        }
+        motion.moveBy(stepDiff, sideFrames)
     }
 
     val density = LocalDensity.current
@@ -216,23 +211,13 @@ private fun FilmstripRow(
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .offset {
-                                val x = ((place + slide.value) * stepPx).roundToInt()
-                                IntOffset(x, 0)
-                            }
                             .size(frameWidth, frameHeight)
-                            .then(
-                                if (isCenter) {
-                                    Modifier.graphicsLayer {
-                                        scaleX = CenterScale
-                                        scaleY = CenterScale
-                                    }
-                                } else {
-                                    Modifier.graphicsLayer {
-                                        alpha = 0.68f
-                                    }
-                                }
-                            )
+                            .graphicsLayer {
+                                translationX = (place + slide.value) * stepPx
+                                scaleX = if (isCenter) CenterScale else 1f
+                                scaleY = scaleX
+                                alpha = if (isCenter) 1f else 0.68f
+                            }
                             .clip(FrameShape)
                             .background(Color.Black)
                             .then(

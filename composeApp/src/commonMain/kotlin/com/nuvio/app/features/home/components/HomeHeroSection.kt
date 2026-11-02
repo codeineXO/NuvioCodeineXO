@@ -1,6 +1,8 @@
 package com.nuvio.app.features.home.components
+import com.nuvio.app.core.ui.navigationMotionDuration
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import androidx.compose.animation.core.tween
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.animation.animateContentSize
@@ -112,6 +114,7 @@ private const val HERO_SCROLL_MAX_SCALE = 1.3f
 private const val HERO_SWIPE_THRESHOLD_FRACTION = 0.16f
 private const val HERO_SWIPE_VELOCITY_THRESHOLD = 300f
 private const val HERO_AUTO_SCROLL_INTERVAL_MS = 8_000L
+private val HeroPagerMotion get() = tween<Float>(navigationMotionDuration(NuvioTokens.Motion.slowMillis), easing = NuvioTokens.Motion.standard)
 private const val MOBILE_HERO_VIEWPORT_RATIO = 0.82f
 private const val MOBILE_HERO_MIN_HEIGHT_DP = 360f
 private const val MOBILE_HERO_MAX_HEIGHT_DP = 760f
@@ -206,7 +209,7 @@ fun HomeHeroSection(
         }
 
         val nextPage = pagerState.currentPage + 1
-        pagerState.animateScrollToPage(nextPage)
+        pagerState.animateScrollToPage(nextPage, animationSpec = HeroPagerMotion)
     }
 
     BoxWithConstraints(
@@ -760,7 +763,7 @@ private fun HeroPageIndicatorRow(
                 modifier = Modifier
                     .remoteNavigationTarget().clickable {
                         coroutineScope.launch {
-                            pagerState.animateScrollToPage(heroPageForItem(pagerState.currentPage, index, itemCount))
+                            pagerState.animateScrollToPage(heroPageForItem(pagerState.currentPage, index, itemCount), animationSpec = HeroPagerMotion)
                         }
                     }
                     .clip(CircleShape)
@@ -1357,7 +1360,7 @@ private fun Modifier.homeHeroPagerGesture(
                             settleAnimationStarted = true
                             coroutineScope.launch {
                                 try {
-                                    pagerState.animateScrollToPage(targetPage)
+                                    pagerState.animateScrollToPage(targetPage, animationSpec = HeroPagerMotion)
                                 } finally {
                                     onDragActiveChange(false)
                                 }

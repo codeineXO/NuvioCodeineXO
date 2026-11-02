@@ -1,6 +1,8 @@
 package com.nuvio.app.features.onboarding
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.NavigationFeel
+import com.nuvio.app.core.ui.NavigationMotionSettings
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
 import androidx.compose.animation.AnimatedContent
@@ -12,7 +14,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.unit.Dp
@@ -129,6 +131,7 @@ import com.nuvio.app.features.settings.SettingsSwitchRow
 import com.nuvio.app.features.settings.ThemeSettingsRepository
 
 data class RecommendedPresetState(
+    val navigationFeel: NavigationFeel = NavigationFeel.Smooth,
     val surfaceStyle: SurfaceStyle = SurfaceStyle.FrostedGlass,
     val desktopNavigationLayout: DesktopNavigationLayout = DesktopNavigationLayout.Sidebar,
     val seekPreviewEnabled: Boolean = true,
@@ -148,6 +151,7 @@ data class RecommendedPresetState(
 )
 
 internal fun applyRecommendedPreset(state: RecommendedPresetState) {
+    if (isDesktop) NavigationMotionSettings.select(state.navigationFeel)
     ThemeSettingsRepository.ensureLoaded()
     ThemeSettingsRepository.setAuraBackgroundEnabled(state.auraBackgroundEnabled)
     ThemeSettingsRepository.setSurfaceStyle(state.surfaceStyle)
@@ -194,7 +198,7 @@ fun OnboardingScreen(
 ) {
     val tokens = MaterialTheme.nuvio
     var currentStep by rememberSaveable { mutableIntStateOf(if (isReviewMode) 1 else 0) }
-    var presetState by remember { mutableStateOf(RecommendedPresetState()) }
+    var presetState by remember { mutableStateOf(RecommendedPresetState(navigationFeel = NavigationMotionSettings.feel.value)) }
     var showReviewDialog by remember { mutableStateOf(false) }
     var presetApplied by remember { mutableStateOf(false) }
     var draftState by remember { mutableStateOf(presetState) }
@@ -356,7 +360,7 @@ fun OnboardingScreen(
                                     showReviewDialog = true
                                 },
                                 onApplyDirectly = {
-                                    val defaults = RecommendedPresetState()
+                                    val defaults = RecommendedPresetState(navigationFeel = presetState.navigationFeel)
                                     presetState = defaults
                                     applyRecommendedPreset(defaults)
                                     presetApplied = true
@@ -562,7 +566,7 @@ private fun RecommendedSetupStepContent(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 680.dp)
-            .verticalScroll(rememberScrollState()),
+            .nuvioVerticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -813,7 +817,7 @@ private fun ReadyStepContent(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 680.dp)
-            .verticalScroll(rememberScrollState()),
+            .nuvioVerticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         OnboardingGlassSurface(
@@ -1074,6 +1078,26 @@ private fun RecommendedPresetReviewDialog(
                                         options = DesktopNavigationLayout.entries.map { it to stringResource(it.labelRes) },
                                         selected = state.desktopNavigationLayout,
                                         onSelect = { onStateChange(state.copy(desktopNavigationLayout = it)) },
+                                    )
+                                    SettingsGroupDivider(isTablet = false)
+                                    PresetSegmentRow(
+                                        title = stringResource(Res.string.settings_navigation_feel),
+                                        description = stringResource(Res.string.settings_navigation_feel_description),
+                                        options = NavigationFeel.entries.map { feel ->
+                                            feel to stringResource(if (feel == NavigationFeel.Smooth) Res.string.settings_navigation_feel_smooth
+                                                else Res.string.settings_navigation_feel_snappy)
+                                        },
+                                        selected = state.navigationFeel,
+                                        onSelect = { onStateChange(state.copy(navigationFeel = it)) },
+                                        supportingContent = {
+                                            Text(
+                                                text = stringResource(if (state.navigationFeel == NavigationFeel.Smooth)
+                                                    Res.string.settings_navigation_feel_smooth_description
+                                                    else Res.string.settings_navigation_feel_snappy_description),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.nuvio.colors.textMuted,
+                                            )
+                                        },
                                     )
                                 }
                             }

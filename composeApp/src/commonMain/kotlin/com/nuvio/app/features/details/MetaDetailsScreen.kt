@@ -1,5 +1,8 @@
 package com.nuvio.app.features.details
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationScrollToTop
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -458,44 +461,50 @@ fun MetaDetailsScreen(
         trackingSettingsUiState.watchProgressSource,
     ) {
         val meta = displayedMeta ?: return@LaunchedEffect
-        val posterKey = watchedItemKey(meta.type, meta.id)
-        val expectedEpisodeKeys = meta.videos.map { episode ->
-            watchedItemKey(meta.type, meta.id, episode.season, episode.episode)
-        }
-        val matchedEpisodeKeys = expectedEpisodeKeys.filter(watchedUiState.watchedKeys::contains)
-        val completedProgressMatches = meta.videos.count { episode ->
-            val videoId = buildPlaybackVideoId(
-                parentMetaId = meta.id,
-                seasonNumber = episode.season,
-                episodeNumber = episode.episode,
-                fallbackVideoId = episode.id,
-            )
-            progressByVideoId[videoId]?.isEffectivelyCompleted == true
-        }
-        val directItemKeys = watchedUiState.items
-            .asSequence()
-            .filter { item -> item.id == meta.id }
-            .take(10)
-            .joinToString(separator = ",") { item ->
-                watchedItemKey(item.type, item.id, item.season, item.episode)
+        val watchedSnapshot = watchedUiState
+        val fullyWatchedSnapshot = fullyWatchedSeriesKeys
+        val progressSnapshot = progressByVideoId
+        val progressSource = trackingSettingsUiState.watchProgressSource
+        withContext(Dispatchers.Default) {
+            watchedMarkerDiagnosticLog.i {
+                val posterKey = watchedItemKey(meta.type, meta.id)
+                val expectedEpisodeKeys = meta.videos.map { episode ->
+                    watchedItemKey(meta.type, meta.id, episode.season, episode.episode)
+                }
+                val matchedEpisodeKeys = expectedEpisodeKeys.filter(watchedSnapshot.watchedKeys::contains)
+                val completedProgressMatches = meta.videos.count { episode ->
+                    val videoId = buildPlaybackVideoId(
+                        parentMetaId = meta.id,
+                        seasonNumber = episode.season,
+                        episodeNumber = episode.episode,
+                        fallbackVideoId = episode.id,
+                    )
+                    progressSnapshot[videoId]?.isEffectivelyCompleted == true
+                }
+                val directItemKeys = watchedSnapshot.items
+                    .asSequence()
+                    .filter { item -> item.id == meta.id }
+                    .take(10)
+                    .joinToString(separator = ",") { item ->
+                        watchedItemKey(item.type, item.id, item.season, item.episode)
+                    }
+                val titleCandidateKeys = watchedSnapshot.items
+                    .asSequence()
+                    .filter { item -> item.name.equals(meta.name, ignoreCase = true) }
+                    .take(10)
+                    .joinToString(separator = ",") { item ->
+                        watchedItemKey(item.type, item.id, item.season, item.episode)
+                    }
+                "marker state requestedSource=$progressSource " +
+                        "content=${meta.type}:${meta.id} repositoryLoaded=${watchedSnapshot.isLoaded} " +
+                        "remoteLoaded=${watchedSnapshot.hasLoadedRemoteItems} repositoryItems=${watchedSnapshot.items.size} " +
+                        "posterKey=$posterKey posterInWatched=${posterKey in watchedSnapshot.watchedKeys} " +
+                        "posterInFullyWatched=${posterKey in fullyWatchedSnapshot} videos=${meta.videos.size} " +
+                        "episodeMarkerMatches=${matchedEpisodeKeys.size} completedProgressMatches=$completedProgressMatches " +
+                        "directItemKeys=[$directItemKeys] titleCandidateKeys=[$titleCandidateKeys] " +
+                        "expectedEpisodeKeys=[${expectedEpisodeKeys.take(10).joinToString(",")}] " +
+                        "repositoryKeySample=[${watchedSnapshot.watchedKeys.take(10).joinToString(",")}]"
             }
-        val titleCandidateKeys = watchedUiState.items
-            .asSequence()
-            .filter { item -> item.name.equals(meta.name, ignoreCase = true) }
-            .take(10)
-            .joinToString(separator = ",") { item ->
-                watchedItemKey(item.type, item.id, item.season, item.episode)
-            }
-        watchedMarkerDiagnosticLog.i {
-            "marker state requestedSource=${trackingSettingsUiState.watchProgressSource} " +
-                "content=${meta.type}:${meta.id} repositoryLoaded=${watchedUiState.isLoaded} " +
-                "remoteLoaded=${watchedUiState.hasLoadedRemoteItems} repositoryItems=${watchedUiState.items.size} " +
-                "posterKey=$posterKey posterInWatched=${posterKey in watchedUiState.watchedKeys} " +
-                "posterInFullyWatched=${posterKey in fullyWatchedSeriesKeys} videos=${meta.videos.size} " +
-                "episodeMarkerMatches=${matchedEpisodeKeys.size} completedProgressMatches=$completedProgressMatches " +
-                "directItemKeys=[$directItemKeys] titleCandidateKeys=[$titleCandidateKeys] " +
-                "expectedEpisodeKeys=[${expectedEpisodeKeys.take(10).joinToString(",")}] " +
-                "repositoryKeySample=[${watchedUiState.watchedKeys.take(10).joinToString(",")}]"
         }
     }
 

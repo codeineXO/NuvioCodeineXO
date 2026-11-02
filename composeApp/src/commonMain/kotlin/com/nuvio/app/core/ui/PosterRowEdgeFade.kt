@@ -52,20 +52,10 @@ internal fun Modifier.nuvioPosterRowEdgeFade(
             try {
                 drawContent()
                 if (fadeLeft) {
-                    drawRect(
-                        brush = leftMask,
-                        topLeft = Offset(bounds.left, bounds.top),
-                        size = Size(left + width - bounds.left, bounds.height),
-                        blendMode = BlendMode.DstIn,
-                    )
+                    drawRect(leftMask, Offset(bounds.left, bounds.top), Size(left + width - bounds.left, bounds.height), blendMode = BlendMode.DstIn)
                 }
                 if (fadeRight) {
-                    drawRect(
-                        brush = rightMask,
-                        topLeft = Offset(right - width, bounds.top),
-                        size = Size(bounds.right - right + width, bounds.height),
-                        blendMode = BlendMode.DstIn,
-                    )
+                    drawRect(rightMask, Offset(right - width, bounds.top), Size(bounds.right - right + width, bounds.height), blendMode = BlendMode.DstIn)
                 }
             } finally {
                 canvas.restore()

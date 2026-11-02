@@ -847,7 +847,8 @@ internal fun PlayerSeekBar(
     val seekDurationMs = durationMs.coerceAtLeast(1L)
     val seekDescription = stringResource(Res.string.player_seek_position)
     val seekState = remember(seekDurationMs) { SliderState(trackRange = 0f..seekDurationMs.toFloat()) }
-    seekState.value = displayedPositionMs.coerceIn(0L, seekDurationMs).toFloat()
+    var pendingScrubPosition by remember(seekDurationMs) { mutableStateOf<Long?>(null) }
+    seekState.value = (pendingScrubPosition ?: displayedPositionMs).coerceIn(0L, seekDurationMs).toFloat()
     Column(modifier = modifier) {
         Slider(
             modifier = Modifier
@@ -858,10 +859,16 @@ internal fun PlayerSeekBar(
                 .semantics { contentDescription = seekDescription },
             state = seekState,
             onValueChange = { value ->
-                if (previewInteraction?.pointerPressed == false) previewInteraction.keyboard(value.toLong(), previewScope)
-                onScrubChange(value.toLong())
+                val position = value.toLong().coerceIn(0L, durationMs.coerceAtLeast(0L))
+                pendingScrubPosition = position
+                if (previewInteraction?.pointerPressed == false) previewInteraction.keyboard(position, previewScope)
+                onScrubChange(position)
             },
-            onValueChangeFinished = { onScrubFinished(displayedPositionMs.coerceIn(0L, seekDurationMs)) },
+            onValueChangeFinished = {
+                val target = pendingScrubPosition ?: seekState.value.toLong()
+                pendingScrubPosition = null
+                onScrubFinished(target.coerceIn(0L, durationMs.coerceAtLeast(0L)))
+            },
             enabled = durationMs > 0L,
             track = { sliderState -> PlayerProgressTrack(sliderState, chapters, durationMs) },
         )

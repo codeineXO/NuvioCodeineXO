@@ -71,6 +71,11 @@ fun main(args: Array<String>) {
         save = { keyboardNavigationStore.putBoolean("enabled", it) },
     )
     applyDesktopRendererPreference()
+    val navigationFeelStore = com.nuvio.app.core.storage.DesktopStorage.store("nuvio_navigation_feel")
+    com.nuvio.app.core.ui.NavigationMotionSettings.initialize(
+        storedKey = navigationFeelStore.getString("feel"),
+        save = { navigationFeelStore.putString("feel", it) },
+    )
     SentryInitializer.start()
     configureDesktopQuickJsLibrary()
     configureDesktopChrome()

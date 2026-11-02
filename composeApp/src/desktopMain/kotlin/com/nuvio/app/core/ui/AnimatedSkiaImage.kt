@@ -47,9 +47,6 @@ internal const val MaxAnimatedImagePixels = 1_300_000
 /** Animations decoded at the same time. Extra animations stay on their current frame until one stops. */
 private const val MaxConcurrentPlayers = 12
 
-/** Threads used for frame decoding. Compose keeps the UI thread free of decode work. */
-private const val PlaybackThreads = 3
-
 /** A player that has not been drawn for this long is considered off screen and stops. */
 private const val StaleAfterMs = 400L
 private const val MaxSleepMs = 100L
@@ -170,7 +167,7 @@ private val waitingPlayers = ArrayDeque<WeakReference<FramePlayer>>()
 
 @OptIn(ExperimentalCoroutinesApi::class)
 private val playbackScope = CoroutineScope(
-    SupervisorJob() + Dispatchers.Default.limitedParallelism(PlaybackThreads),
+    SupervisorJob() + DesktopArtworkDecodeDispatcher,
 )
 
 /**

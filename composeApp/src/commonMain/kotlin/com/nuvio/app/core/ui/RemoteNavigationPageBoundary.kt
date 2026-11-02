@@ -1,9 +1,7 @@
 package com.nuvio.app.core.ui
 
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -110,7 +108,7 @@ internal fun RemoteNavigationSession.revealPageFocus(source: RemoteFocusTarget, 
                 return@launch
             }
             val distance = (state.layoutInfo.viewportEndOffset - state.layoutInfo.viewportStartOffset) / 3f
-            val consumed = state.animateScrollBy(if (direction == FocusDirection.Up) -distance else distance, tween(100))
+            val consumed = state.softScrollBy(if (direction == FocusDirection.Up) -distance else distance)
             withFrameNanos { }
             if (moveFocus(source.route, direction, source.manager, sourceOverride = source)) return@launch
             if (consumed == 0f) return@launch

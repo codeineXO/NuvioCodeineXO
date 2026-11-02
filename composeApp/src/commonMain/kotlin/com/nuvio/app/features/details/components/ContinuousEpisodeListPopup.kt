@@ -1,6 +1,9 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.softScrollToItem
+
 import androidx.compose.foundation.border
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -10,7 +13,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -65,6 +68,8 @@ import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlin.math.abs
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -285,8 +290,9 @@ internal fun ContinuousEpisodeListPopup(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                LazyColumn(
+                NuvioLazyColumn(
                     state = railState,
+                    desktopDragEnabled = false,
                     modifier = Modifier.width(48.dp).fillMaxHeight().padding(vertical = 16.dp)
                         .seasonPickerDrag(
                             railState = railState,
@@ -302,7 +308,7 @@ internal fun ContinuousEpisodeListPopup(
                                     val episodeIndex = episodeIndices.firstOrNull { entries[it].season == season }
                                     if (episodeIndex != null) state.focusedIndex = episodeIndex
                                     seasonGlide?.cancel()
-                                    if (header >= 0) seasonGlide = scope.launch { state.scroll.animateScrollToItem(header) }
+                                    if (header >= 0) seasonGlide = scope.launch { state.scroll.softScrollToItem(header) }
                                 }
                             },
                             onEnd = {
@@ -379,10 +385,9 @@ internal fun ContinuousEpisodeListPopup(
                         }
                     }
                     Box(Modifier.weight(1f).fillMaxWidth()) {
-                        LazyColumn(
+                        NuvioLazyColumn(
                             state = state.scroll,
-                            modifier = Modifier.fillMaxSize().padding(end = 16.dp)
-                                .nuvioDesktopDragScroll(state.scroll, orientation = Orientation.Vertical),
+                            modifier = Modifier.fillMaxSize().padding(end = 16.dp),
                             contentPadding = PaddingValues(4.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
@@ -430,7 +435,7 @@ internal fun ContinuousEpisodeListPopup(
 
 /** Claim movement after touch slop so a drag never activates a season mark's click. */
 @Composable
-private fun Modifier.seasonPickerDrag(
+internal fun Modifier.seasonPickerDrag(
     railState: LazyListState,
     onStart: () -> Unit,
     onSelect: (Int) -> Unit,
@@ -440,38 +445,67 @@ private fun Modifier.seasonPickerDrag(
     val currentSelect by rememberUpdatedState(onSelect)
     val currentEnd by rememberUpdatedState(onEnd)
     return pointerInput(railState) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            var dragging = false
-            try {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed) {
-                        if (dragging) change.consume()
-                        break
+        coroutineScope {
+            val scope = this
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                var dragging = false
+                var pointerY = down.position.y
+                var lastSelected: Int? = null
+                var motion: Job? = null
+                fun selectNearest() {
+                    val nearest = railState.layoutInfo.visibleItemsInfo.minByOrNull {
+                        abs(it.offset + it.size / 2f - pointerY)
+                    }?.index ?: return
+                    if (nearest != lastSelected) {
+                        lastSelected = nearest
+                        currentSelect(nearest)
                     }
-                    if (event.changes.count { it.pressed } != 1) break
-                    if (!dragging) {
-                        val distance = change.position - down.position
-                        if (abs(distance.y) <= viewConfiguration.touchSlop) continue
-                        if (abs(distance.x) > abs(distance.y)) break
-                        dragging = true
-                        currentStart()
-                    }
-                    val info = railState.layoutInfo
-                    val edge = 16.dp.toPx()
-                    when {
-                        change.position.y < edge -> railState.dispatchRawDelta(-edge / 2)
-                        change.position.y > info.viewportEndOffset - edge -> railState.dispatchRawDelta(edge / 2)
-                    }
-                    info.visibleItemsInfo.minByOrNull {
-                        abs(it.offset + it.size / 2f - change.position.y)
-                    }?.let { currentSelect(it.index) }
-                    change.consume()
                 }
-            } finally {
-                if (dragging) currentEnd()
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        pointerY = change.position.y
+                        if (!change.pressed) {
+                            if (dragging) {
+                                selectNearest()
+                                change.consume()
+                            }
+                            break
+                        }
+                        if (event.changes.count { it.pressed } != 1) break
+                        if (!dragging) {
+                            val distance = change.position - down.position
+                            if (abs(distance.y) <= viewConfiguration.touchSlop) continue
+                            if (abs(distance.x) > abs(distance.y)) break
+                            dragging = true
+                            currentStart()
+                            selectNearest()
+                            motion = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                railState.scroll(MutatePriority.UserInput) {
+                                    var previous: Long? = null
+                                    while (true) {
+                                        val frame = withFrameNanos { it }
+                                        val seconds = previous?.let { ((frame - it) / 1_000_000_000f).coerceIn(0f, 0.1f) } ?: (1f / 60)
+                                        previous = frame
+                                        val info = railState.layoutInfo
+                                        val speed = seasonRailEdgeVelocity(
+                                            pointerY, info.viewportStartOffset.toFloat(), info.viewportEndOffset.toFloat(),
+                                            16.dp.toPx(), 240.dp.toPx(),
+                                        )
+                                        if (speed != 0f) scrollBy(speed * seconds)
+                                        selectNearest()
+                                    }
+                                }
+                            }
+                        }
+                        change.consume()
+                    }
+                } finally {
+                    motion?.cancel()
+                    if (dragging) currentEnd()
+                }
             }
         }
     }

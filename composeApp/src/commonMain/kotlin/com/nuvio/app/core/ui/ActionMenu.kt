@@ -10,7 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -220,7 +220,7 @@ internal fun NuvioActionMenu(
                                         ActionMenuCoordinator.panelBounds = it.boundsInRoot()
                                     }
                                 }
-                                .verticalScroll(rememberScrollState())
+                                .nuvioVerticalScroll(rememberScrollState())
                                 .padding(vertical = 4.dp),
                         ) {
                             DarkGlassPanelContent {

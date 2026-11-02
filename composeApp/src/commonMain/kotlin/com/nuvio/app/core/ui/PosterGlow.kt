@@ -60,7 +60,7 @@ internal val LocalPosterGlowImageState = staticCompositionLocalOf<PosterGlowStat
 
 /** A drawing-only sibling: poster clipping and pointer hit regions stay unchanged. */
 @Composable
-internal fun BoxScope.PosterGlowBackdrop(layer: PosterGlowLayer, origin: Offset) {
+internal fun BoxScope.PosterGlowBackdrop(layer: PosterGlowLayer, origin: () -> Offset) {
     val shadow = layer.shadow ?: return
     val shape = layer.shape ?: return
     val bounds = layer.bounds ?: return
@@ -72,9 +72,10 @@ internal fun BoxScope.PosterGlowBackdrop(layer: PosterGlowLayer, origin: Offset)
                     bounds.height.roundToInt().coerceAtLeast(1),
                 ))
                 layout(constraints.maxWidth, constraints.maxHeight) {
+                    val currentOrigin = origin()
                     placeable.place(
-                        (bounds.left - origin.x).roundToInt(),
-                        (bounds.top - origin.y).roundToInt(),
+                        (bounds.left - currentOrigin.x).roundToInt(),
+                        (bounds.top - currentOrigin.y).roundToInt(),
                     )
                 }
             }

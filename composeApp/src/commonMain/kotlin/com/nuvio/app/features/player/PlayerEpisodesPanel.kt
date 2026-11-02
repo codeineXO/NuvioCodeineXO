@@ -1,5 +1,9 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.softScrollToItem
+import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.NuvioLazyColumn
+
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.foundation.background
@@ -303,7 +307,7 @@ private fun EpisodesListPanelContent(
     LaunchedEffect(selectedSeason, availableSeasons) {
         val index = availableSeasons.indexOf(selectedSeason)
         if (index >= 0) {
-            if (positionedSeasonRow) seasonListState.animateScrollToItem(index)
+            if (positionedSeasonRow) seasonListState.softScrollToItem(index)
             else {
                 seasonListState.scrollToItem(index)
                 positionedSeasonRow = true
@@ -319,7 +323,7 @@ private fun EpisodesListPanelContent(
             -1
         }
         val targetIndex = currentIndex.takeIf { it >= 0 } ?: 0
-        if (positionedEpisodeList) episodeListState.animateScrollToItem(targetIndex)
+        if (positionedEpisodeList) episodeListState.softScrollToItem(targetIndex)
         else {
             episodeListState.scrollToItem(targetIndex)
             positionedEpisodeList = true
@@ -330,7 +334,7 @@ private fun EpisodesListPanelContent(
         if (availableSeasons.isNotEmpty()) {
             LazyRow(
                 state = seasonListState,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().nuvioDesktopDragScroll(seasonListState),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
             ) {
@@ -365,7 +369,7 @@ private fun EpisodesListPanelContent(
                 )
             }
         } else {
-            LazyColumn(
+            NuvioLazyColumn(
                 state = episodeListState,
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

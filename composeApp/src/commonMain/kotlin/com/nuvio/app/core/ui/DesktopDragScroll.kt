@@ -5,10 +5,12 @@ import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
@@ -16,6 +18,10 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLayoutDirection
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -36,16 +42,19 @@ internal fun Modifier.nuvioDesktopDragScroll(
     enabled: Boolean = true,
     reverseDirection: Boolean = false,
     flingBehavior: FlingBehavior? = null,
+    momentumEnabled: Boolean = true,
 ): Modifier {
     if (!isDesktop || !enabled) return this
     return composed {
         val active = LocalScreenActive.current
         val fling = flingBehavior ?: ScrollableDefaults.flingBehavior()
         if (!active) return@composed this
+        val direction = dragScrollDirection(orientation, reverseDirection, LocalLayoutDirection.current)
+        val dispatcher = remember { NestedScrollDispatcher() }
+        val connection = remember { object : NestedScrollConnection {} }
         val motion = remember(state, orientation, reverseDirection, fling) { DesktopDragMotion() }
-        // Some app wheel handlers use dispatchRawDelta, bypassing ScrollableState's mutex.
-        // Observe the wheel without consuming it so those handlers also interrupt our fling.
-        pointerInput(motion) {
+        // Wheel input interrupts a drag fling without consuming the wheel event.
+        nestedScroll(connection, dispatcher).pointerInput(motion) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -54,10 +63,9 @@ internal fun Modifier.nuvioDesktopDragScroll(
                     }
                 }
             }
-        }.pointerInput(state, orientation, reverseDirection, fling) {
+        }.pointerInput(state, orientation, direction, fling, momentumEnabled) {
             coroutineScope {
                 val scope = this
-                val direction = if (reverseDirection) 1f else -1f
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
                     motion.job?.cancel()
@@ -65,7 +73,8 @@ internal fun Modifier.nuvioDesktopDragScroll(
                     val tracker = VelocityTracker()
                     tracker.addPosition(down.uptimeMillis, down.position)
                     var total = Offset.Zero
-                    var deltas: Channel<Float>? = null
+                    var deltas: Channel<Unit>? = null
+                    var pendingDelta = 0f
                     var released = false
                     var velocity = 0f
                     try {
@@ -75,8 +84,15 @@ internal fun Modifier.nuvioDesktopDragScroll(
                             tracker.addPosition(change.uptimeMillis, change.position)
                             if (!change.pressed) {
                                 released = !change.isConsumed && event.changes.none { it.pressed }
+                                if (released && deltas != null) {
+                                    val lastDelta = change.position - change.previousPosition
+                                    pendingDelta += direction * if (orientation == Orientation.Vertical) lastDelta.y else lastDelta.x
+                                    deltas.trySend(Unit)
+                                }
                                 val measured = tracker.calculateVelocity()
-                                velocity = direction * if (orientation == Orientation.Vertical) measured.y else measured.x
+                                val maximum = viewConfiguration.maximumFlingVelocity
+                                velocity = (direction * if (orientation == Orientation.Vertical) measured.y else measured.x)
+                                    .coerceIn(-maximum, maximum)
                                 break
                             }
                             // A native scrollable, slider, selection, or reorder handler owns this gesture.
@@ -91,21 +107,34 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                 if (abs(primary) <= viewConfiguration.touchSlop || abs(primary) <= abs(cross)) continue
                                 amount = direction * (primary - sign(primary) * viewConfiguration.touchSlop)
                                 if ((amount > 0f && !state.canScrollForward) || (amount < 0f && !state.canScrollBackward)) break
-                                val channel = Channel<Float>(Channel.UNLIMITED)
+                                val channel = Channel<Unit>(Channel.CONFLATED)
                                 deltas = channel
                                 motion.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
                                     state.scroll(MutatePriority.UserInput) {
-                                        for (value in channel) scrollBy(value)
+                                        for (signal in channel) {
+                                            withFrameNanos { }
+                                            val value = pendingDelta
+                                            pendingDelta = 0f
+                                            // These signals describe movement already included in value.
+                                            while (channel.tryReceive().isSuccess) Unit
+                                            if (value != 0f) scrollWithNestedParents(value, dispatcher, orientation, direction)
+                                        }
                                     }
-                                    if (released) {
+                                    if (released && momentumEnabled && NavigationMotionSettings.profile.dragMomentum) {
                                         state.scroll {
-                                            with(fling) { performFling(velocity) }
+                                            val direct = this
+                                            val nested = object : ScrollScope {
+                                                override fun scrollBy(pixels: Float): Float =
+                                                    direct.scrollWithNestedParents(pixels, dispatcher, orientation, direction)
+                                            }
+                                            with(fling) { nested.performFling(velocity) }
                                         }
                                     }
                                 }
                             }
                             if (motion.job?.isActive != true) break
-                            deltas.trySend(amount)
+                            pendingDelta += amount
+                            deltas.trySend(Unit)
                             change.consume()
                         }
                     } finally {

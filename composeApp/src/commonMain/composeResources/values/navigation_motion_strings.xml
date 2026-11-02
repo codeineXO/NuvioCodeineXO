@@ -1,0 +1,10 @@
+<resources>
+    <string name="settings_navigation_feel">Navigation feel</string>
+    <string name="settings_navigation_feel_description">Choose how scrolling, navigation, and page transitions feel.</string>
+    <string name="settings_navigation_feel_smooth">Smooth</string>
+    <string name="settings_navigation_feel_smooth_description">Fluid movement, gentle transitions, and cushioned stops.</string>
+    <string name="settings_navigation_feel_snappy">Snappy</string>
+    <string name="settings_navigation_feel_snappy_description">Quick movement, shorter transitions, and firmer stops.</string>
+    <string name="settings_motion_section">Motion</string>
+    <string name="settings_navigation_motion_section">Navigation &amp; Motion</string>
+</resources>

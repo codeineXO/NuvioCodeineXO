@@ -1,5 +1,9 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.softScrollToItem
+import com.nuvio.app.core.ui.navigationMotionDuration
+import com.nuvio.app.core.ui.rememberSoftArrowScroll
+
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.nuvio
 import androidx.compose.ui.unit.TextUnit
@@ -224,7 +228,7 @@ private fun rememberSeriesRowNavigation(state: LazyListState, items: List<Int>):
                     scope.launch {
                         try {
                             if (state.layoutInfo.visibleItemsInfo.none { it.index == next }) {
-                                state.scrollToItem(next)
+                                state.softScrollToItem(next)
                                 withFrameNanos { }
                             }
                             requesters[next].requestFocus()
@@ -446,9 +450,9 @@ fun DetailSeriesContent(
                     val fromIdx = seasons.indexOf(initialState).takeIf { it >= 0 } ?: 0
                     val toIdx = seasons.indexOf(targetState).takeIf { it >= 0 } ?: 0
                     val dir = if (toIdx >= fromIdx) 1 else -1
-                    val transform = (fadeIn(tween(220)) + slideInHorizontally(tween(220)) { dir * it / 5 })
+                    val transform = (fadeIn(tween(navigationMotionDuration(220))) + slideInHorizontally(tween(navigationMotionDuration(220))) { dir * it / 5 })
                         .togetherWith(
-                            fadeOut(tween(170)) + slideOutHorizontally(tween(170)) { -dir * it / 5 },
+                            fadeOut(tween(navigationMotionDuration(170))) + slideOutHorizontally(tween(navigationMotionDuration(170))) { -dir * it / 5 },
                         )
                     if (isEnhanced) transform.using(SizeTransform(clip = false)) else transform
                 },
@@ -461,7 +465,7 @@ fun DetailSeriesContent(
                 val canScrollFwd by remember {
                     derivedStateOf { episodeListState.canScrollForward }
                 }
-                val episodeScope = rememberCoroutineScope()
+                val episodeArrows = rememberSoftArrowScroll(episodeListState)
                 val seasonEpisodes = groupedEpisodes[seasonForContent].orEmpty()
 
                 Column(
@@ -528,30 +532,14 @@ fun DetailSeriesContent(
                                     direction = ScrollNavDirection.Left,
                                     enabled = canScrollBack,
                                     onClick = {
-                                        episodeScope.launch {
-                                            val firstVisible = episodeListState.firstVisibleItemIndex
-                                            val count = (episodeListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                                            val target = (firstVisible - count).coerceAtLeast(0)
-                                            episodeListState.animateScrollToItem(
-                                                index = target,
-                                                scrollOffset = if (target > 0) episodeScrollOffsetPx else 0,
-                                            )
-                                        }
+                                        episodeArrows.scrollPage(forward = false, scrollOffset = episodeScrollOffsetPx)
                                     },
                                 )
                                 HeaderScrollArrowButton(
                                     direction = ScrollNavDirection.Right,
                                     enabled = canScrollFwd,
                                     onClick = {
-                                        episodeScope.launch {
-                                            val firstVisible = episodeListState.firstVisibleItemIndex
-                                            val count = (episodeListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                                            val target = (firstVisible + count).coerceAtMost(seasonEpisodes.size - 1)
-                                            episodeListState.animateScrollToItem(
-                                                index = target,
-                                                scrollOffset = if (target > 0) episodeScrollOffsetPx else 0,
-                                            )
-                                        }
+                                        episodeArrows.scrollPage(forward = true, scrollOffset = episodeScrollOffsetPx)
                                     },
                                 )
                                 ViewListButton(
@@ -821,7 +809,7 @@ private fun SeriesSeasonSelector(
         }
     }
     val hasOverflowingSeasons by remember { derivedStateOf { canScrollBack || canScrollFwd } }
-    val seasonArrowScope = rememberCoroutineScope()
+    val seasonArrows = rememberSoftArrowScroll(seasonListState)
 
     var seasonViewMode by remember {
         mutableStateOf(SeasonViewModeStorage.load() ?: SeasonViewMode.Posters)
@@ -883,24 +871,14 @@ private fun SeriesSeasonSelector(
                             direction = ScrollNavDirection.Left,
                             enabled = canScrollBack,
                             onClick = {
-                                seasonArrowScope.launch {
-                                    val firstVisible = seasonListState.firstVisibleItemIndex
-                                    val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                                    val target = (firstVisible - count).coerceAtLeast(0)
-                                    seasonListState.animateScrollToItem(target)
-                                }
+                                seasonArrows.scrollPage(forward = false)
                             },
                         )
                         HeaderScrollArrowButton(
                             direction = ScrollNavDirection.Right,
                             enabled = canScrollFwd,
                             onClick = {
-                                seasonArrowScope.launch {
-                                    val firstVisible = seasonListState.firstVisibleItemIndex
-                                    val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                                    val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
-                                    seasonListState.animateScrollToItem(target)
-                                }
+                                seasonArrows.scrollPage(forward = true)
                             },
                         )
                     }
@@ -1197,9 +1175,9 @@ private fun SeasonTextChipScrollRow(
     BindRemoteNavigationFocusDestination(navigationEntry) {
         val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
         val visible = seasonListState.layoutInfo.visibleItemsInfo.any { it.index == index }
-        if (!visible) seasonListState.animateScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
+        if (!visible) seasonListState.softScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
     }
-    val coroutineScope = rememberCoroutineScope()
+    val seasonArrows = rememberSoftArrowScroll(seasonListState)
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val bleedPadding = if (horizontalScrollPadding > 0.dp) {
@@ -1215,7 +1193,7 @@ private fun SeasonTextChipScrollRow(
         if (currentIndex >= 0) {
             val anchorIndex = (currentIndex - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0)
             if (hasPositionedSeasonRow) {
-                seasonListState.animateScrollToItem(anchorIndex)
+                seasonListState.softScrollToItem(anchorIndex)
             } else {
                 seasonListState.scrollToItem(anchorIndex)
                 hasPositionedSeasonRow = true
@@ -1378,12 +1356,7 @@ private fun SeasonTextChipScrollRow(
                     hazeState = rowHazeState,
                     horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                     onClick = {
-                        coroutineScope.launch {
-                            val firstVisible = seasonListState.firstVisibleItemIndex
-                            val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                            val target = (firstVisible - count).coerceAtLeast(0)
-                            seasonListState.animateScrollToItem(target)
-                        }
+                        seasonArrows.scrollPage(forward = false)
                     },
                 )
             }
@@ -1399,12 +1372,7 @@ private fun SeasonTextChipScrollRow(
                     hazeState = rowHazeState,
                     horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                     onClick = {
-                        coroutineScope.launch {
-                            val firstVisible = seasonListState.firstVisibleItemIndex
-                            val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                            val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
-                            seasonListState.animateScrollToItem(target)
-                        }
+                        seasonArrows.scrollPage(forward = true)
                     },
                 )
             }
@@ -1506,10 +1474,10 @@ private fun SeasonPosterScrollRow(
     BindRemoteNavigationFocusDestination(navigationEntry) {
         val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
         if (seasonListState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
-            seasonListState.animateScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
+            seasonListState.softScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
         }
     }
-    val coroutineScope = rememberCoroutineScope()
+    val seasonArrows = rememberSoftArrowScroll(seasonListState)
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val bleedPadding = if (horizontalScrollPadding > 0.dp) {
@@ -1525,7 +1493,7 @@ private fun SeasonPosterScrollRow(
         if (currentIndex >= 0) {
             val anchorIndex = (currentIndex - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0)
             if (hasPositionedSeasonRow) {
-                seasonListState.animateScrollToItem(anchorIndex)
+                seasonListState.softScrollToItem(anchorIndex)
             } else {
                 seasonListState.scrollToItem(anchorIndex)
                 hasPositionedSeasonRow = true
@@ -1633,12 +1601,7 @@ private fun SeasonPosterScrollRow(
                 hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
-                    coroutineScope.launch {
-                        val firstVisible = seasonListState.firstVisibleItemIndex
-                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                        val target = (firstVisible - count).coerceAtLeast(0)
-                        seasonListState.animateScrollToItem(target)
-                    }
+                    seasonArrows.scrollPage(forward = false)
                 },
             )
         }
@@ -1654,12 +1617,7 @@ private fun SeasonPosterScrollRow(
                 hazeState = rowHazeState,
                 horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                 onClick = {
-                    coroutineScope.launch {
-                        val firstVisible = seasonListState.firstVisibleItemIndex
-                        val count = (seasonListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                        val target = (firstVisible + count).coerceAtMost(seasons.size - 1)
-                        seasonListState.animateScrollToItem(target)
-                    }
+                    seasonArrows.scrollPage(forward = true)
                 },
             )
         }
@@ -1947,7 +1905,7 @@ private fun EpisodeHorizontalRow(
         if (fixedPath) listState.revealShelfItem(entryIndex)
         androidx.compose.runtime.withFrameNanos { }
     }
-    val coroutineScope = rememberCoroutineScope()
+    val episodeArrows = rememberSoftArrowScroll(listState)
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val bleedPadding = if (horizontalScrollPadding > 0.dp) {
@@ -2105,12 +2063,7 @@ private fun EpisodeHorizontalRow(
                     hazeState = rowHazeState,
                     horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                     onClick = {
-                        coroutineScope.launch {
-                            val firstVisible = listState.firstVisibleItemIndex
-                            val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                            val target = (firstVisible - count).coerceAtLeast(0)
-                            listState.animateScrollToItem(target)
-                        }
+                        episodeArrows.scrollPage(forward = false)
                     },
                 )
             }
@@ -2126,12 +2079,7 @@ private fun EpisodeHorizontalRow(
                     hazeState = rowHazeState,
                     horizontalScrollPadding = if (scrollPostersLayoutEnabled) effectiveGutterPadding else horizontalScrollPadding,
                     onClick = {
-                        coroutineScope.launch {
-                            val firstVisible = listState.firstVisibleItemIndex
-                            val count = (listState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
-                            val target = (firstVisible + count).coerceAtMost(episodes.size - 1)
-                            listState.animateScrollToItem(target)
-                        }
+                        episodeArrows.scrollPage(forward = true)
                     },
                 )
             }

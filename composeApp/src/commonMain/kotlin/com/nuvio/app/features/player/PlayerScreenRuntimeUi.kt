@@ -1896,7 +1896,9 @@ private fun formatPlayerControlsSeconds(seconds: Double): String {
 }
 
 private fun PlayerScreenRuntime.handlePlayerControlsScrubChange(positionMs: Long) {
-    playerControlsLog.d { "scrubChange positionMs=$positionMs ${playerControlLogContext()}" }
+    if (!isScrubbingTimeline) {
+        playerControlsLog.d { "scrubStarted positionMs=$positionMs ${playerControlLogContext()}" }
+    }
     if (!isScrubbingTimeline && playbackSnapshot.isPlaying) {
         pausedForTimelineScrub = true
         playerController?.pause()

@@ -1,6 +1,8 @@
 package com.nuvio.app.core.ui
 
 import androidx.compose.foundation.focusGroup
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.InteractionSource
@@ -636,7 +638,7 @@ internal fun Modifier.remoteNavigationTarget(
     val bringIntoView = remember { BringIntoViewRequester() }
     SideEffect { target.reveal = { bringIntoView.bringIntoView() } }
     val scope = rememberCoroutineScope()
-    val margin = with(LocalDensity.current) { 160.dp.toPx() }
+    val margin = with(LocalDensity.current) { NuvioTokens.Space.s64.toPx() }
     val longPressTimeout = LocalViewConfiguration.current.longPressTimeoutMillis
     val select by rememberUpdatedState(onSelect)
     val context by rememberUpdatedState(onContext)
@@ -650,6 +652,16 @@ internal fun Modifier.remoteNavigationTarget(
     var enteringEdit by remember { mutableStateOf(false) }
     val accent = MaterialTheme.nuvio.colors.accent
     val outlineColor = focusOutlineColor ?: LocalRemoteFocusOutlineColor.current ?: accent
+    // Focus and key handling change immediately; only the contour eases in drawing.
+    val motionProfile = rememberNavigationMotionProfile()
+    val focusOutlineAlpha = animateFloatAsState(
+        targetValue = if (focused && session.keyboard) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = motionProfile.duration(if (focused && session.keyboard) NuvioTokens.Motion.fastMillis else NuvioTokens.Motion.fastMillis / 2),
+            easing = NuvioTokens.Motion.standard,
+        ),
+        label = "remote_focus_outline",
+    )
     val exitEditing = remember {
         {
             requester.freeFocus()
@@ -885,9 +897,10 @@ internal fun Modifier.remoteNavigationTarget(
             val outline = shape.createOutline(outlineSize, layoutDirection, this)
             onDrawWithContent {
                 drawContent()
-                if (focused && session.keyboard) {
+                val alpha = if (session.keyboard) focusOutlineAlpha.value else 0f
+                if (alpha > 0f) {
                     if (outlineSize.width > 0f && outlineSize.height > 0f) {
-                        inset(padding) { drawOutline(outline, outlineColor, style = Stroke(strokeWidth)) }
+                        inset(padding) { drawOutline(outline, outlineColor.copy(alpha = outlineColor.alpha * alpha), style = Stroke(strokeWidth)) }
                     }
                 }
             }
@@ -1027,7 +1040,7 @@ internal suspend fun LazyListState.revealNavigationItem(key: Any, keys: List<Any
         ?.let { it.offset + it.size } ?: info.viewportStartOffset else info.viewportStartOffset
     val item = info.visibleItemsInfo.firstOrNull { it.key == key }
     if (item == null) {
-        animateScrollToItem(index, -headerBottom.coerceAtLeast(0))
+        softScrollToItem(index, -headerBottom.coerceAtLeast(0))
     } else {
         val delta = when {
             item.offset < headerBottom -> item.offset - headerBottom
@@ -1035,7 +1048,7 @@ internal suspend fun LazyListState.revealNavigationItem(key: Any, keys: List<Any
                 minOf(item.offset - headerBottom, item.offset + item.size - info.viewportEndOffset)
             else -> 0
         }
-        if (delta != 0) animateScrollBy(delta.toFloat())
+        if (delta != 0) softScrollBy(delta.toFloat())
     }
 }
 
@@ -1163,7 +1176,7 @@ internal fun rememberRemoteNextSectionFocus(state: LazyListState, firstItemIndex
         val originalOffset = state.firstVisibleItemScrollOffset
         val indices = (firstItemIndex until state.layoutInfo.totalItemsCount).let { if (fromEnd) it.reversed() else it }
         for (index in indices) {
-            state.animateScrollToItem(index)
+            state.softScrollToItem(index)
             withFrameNanos { }
             val candidates = session.targets.filter {
                 val viewport = it.pageBoundary?.viewportBounds
@@ -1180,7 +1193,7 @@ internal fun rememberRemoteNextSectionFocus(state: LazyListState, firstItemIndex
             if (candidate != null && session.requestRowFocus(candidate)) return@action
         }
         // A text-only secondary page should stay at its opening position.
-        if (firstItemIndex == 0) state.scrollToItem(originalIndex, originalOffset)
+        if (firstItemIndex == 0) state.softScrollToItem(originalIndex, originalOffset)
     }
 }
 
@@ -1221,7 +1234,7 @@ internal fun Modifier.remoteNavigationScrollToTop(state: LazyListState): Modifie
         if (hasFocus && session.keyboard && session.focusTransferReason != RemoteFocusTransferReason.ViewportEntry) {
             // Let child focus reveal finish before aligning the complete hero.
             delay(300)
-            state.animateScrollToItem(0)
+            state.softScrollToItem(0)
         }
     }
     this.onFocusChanged { hasFocus = it.hasFocus }.focusGroup()

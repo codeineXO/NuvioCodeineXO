@@ -21,7 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Opt-in containers keep the same state, layout, and native scrolling behavior. */
+/** Shared desktop wheel easing and drag behavior with native touch scrolling. */
 @Composable
 internal fun NuvioLazyColumn(
     modifier: Modifier = Modifier,
@@ -36,7 +36,9 @@ internal fun NuvioLazyColumn(
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
-        modifier = modifier.nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled && desktopDragEnabled, reverseLayout, flingBehavior),
+        modifier = modifier
+            .nuvioVerticalMouseWheelScroll(state, userScrollEnabled, reverseLayout)
+            .nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled && desktopDragEnabled, reverseLayout, flingBehavior),
         state = state,
         contentPadding = contentPadding,
         reverseLayout = reverseLayout,
@@ -64,6 +66,7 @@ internal fun NuvioLazyVerticalGrid(
     LazyVerticalGrid(
         columns = columns,
         modifier = modifier
+            .nuvioVerticalMouseWheelScroll(state, userScrollEnabled, reverseLayout)
             .nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled, reverseLayout, flingBehavior)
             .navigationGlassSource(zIndex = 1f),
         state = state,
@@ -82,5 +85,6 @@ internal fun Modifier.nuvioVerticalScroll(
     enabled: Boolean = true,
     flingBehavior: FlingBehavior? = null,
     reverseScrolling: Boolean = false,
-): Modifier = nuvioDesktopDragScroll(state, Orientation.Vertical, enabled, reverseScrolling, flingBehavior)
+): Modifier = nuvioVerticalMouseWheelScroll(state, enabled, reverseScrolling)
+    .nuvioDesktopDragScroll(state, Orientation.Vertical, enabled, reverseScrolling, flingBehavior)
     .verticalScroll(state, enabled, flingBehavior, reverseScrolling)

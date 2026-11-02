@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -52,8 +53,11 @@ internal fun DesktopNavigationBar(
     val isHovered by interactionSource.collectIsRemoteHoveredAsState()
     val isHomeSelected = items.first().selected
     val isSettingsSelected = items.last().selected
-    val scrollOffset = scrollState?.totalScrollOffset ?: 0f
-    val isScrolledAwayFromTop = scrollOffset > if (isSettingsSelected) 70f else 35f
+    val isScrolledAwayFromTop by remember(scrollState, isSettingsSelected) {
+        derivedStateOf {
+            (scrollState?.totalScrollOffset ?: 0f) > if (isSettingsSelected) 70f else 35f
+        }
+    }
     val isFrosted = isHovered || profileSwitcherOpen ||
         ((isHomeSelected || isSettingsSelected) && isScrolledAwayFromTop)
     val labelFraction by animateFloatAsState(

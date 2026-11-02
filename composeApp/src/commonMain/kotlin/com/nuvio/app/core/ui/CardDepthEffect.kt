@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -75,24 +75,20 @@ fun Modifier.cardDepthVisual(
     }
 
     return if (sheen > 0f) {
-        withEdge.drawWithContent {
-            drawContent()
+        withEdge.drawWithCache {
             val sheenHeight = size.height * 0.22f
-            if (sheenHeight > 0f) {
-                val outline = shape.createOutline(size, layoutDirection, this)
-                val shapePath = outline.toPath()
-                clipPath(shapePath) {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = sheen),
-                                Color.Transparent,
-                            ),
-                            startY = 0f,
-                            endY = sheenHeight,
-                        ),
-                        size = Size(size.width, sheenHeight),
-                    )
+            val shapePath = shape.createOutline(size, layoutDirection, this).toPath()
+            val sheenBrush = Brush.verticalGradient(
+                colors = listOf(Color.White.copy(alpha = sheen), Color.Transparent),
+                startY = 0f,
+                endY = sheenHeight,
+            )
+            onDrawWithContent {
+                drawContent()
+                if (sheenHeight > 0f) {
+                    clipPath(shapePath) {
+                        drawRect(brush = sheenBrush, size = Size(size.width, sheenHeight))
+                    }
                 }
             }
         }

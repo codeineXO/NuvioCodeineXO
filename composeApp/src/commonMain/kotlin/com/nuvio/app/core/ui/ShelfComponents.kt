@@ -23,9 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -43,6 +40,8 @@ import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -56,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.composed
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -91,7 +91,6 @@ import nuvio.composeapp.generated.resources.poster_logo_content_description
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 
 enum class NuvioPosterShape {
     Poster,
@@ -277,17 +276,20 @@ internal fun PosterRowItem(
     var origin by remember { mutableStateOf(Offset.Zero) }
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
+    val raised by remember(hovered, hover, glowLayer) {
+        derivedStateOf { hovered || hover.scale() > 1f || glowLayer.shadow != null }
+    }
     CompositionLocalProvider(LocalPosterRowItemHover provides hover, LocalPosterGlowLayer provides glowLayer) {
         Box(
             modifier
-                .zIndex(if (hovered || hover.scale() > 1f || glowLayer.shadow != null) 1f else 0f)
+                .zIndex(if (raised) 1f else 0f)
                 .hoverable(interactionSource)
                 .onGloballyPositioned {
                     origin = it.positionInRoot()
                     coordinates.left = origin.x
                 },
         ) {
-            PosterGlowBackdrop(glowLayer, origin)
+            PosterGlowBackdrop(glowLayer) { origin }
             Box(Modifier.drawWithContent {
                     if (viewport == null || viewport.width == 0) {
                         drawContent()
@@ -342,16 +344,28 @@ internal fun Modifier.nuvioPosterRowMouseWheelScroll(
 
     return composed {
         val horizontalEvents = LocalHorizontalWheelEvents.current
-        onPointerEvent(PointerEventType.Scroll) { event ->
-            val totalDelta = event.changes.fold(0f) { acc, change ->
-                acc + change.scrollDelta.y + change.scrollDelta.x
-            }
-            if (totalDelta != 0f) {
-                horizontalEvents?.handled = true
-                state.dispatchRawDelta(totalDelta * scrollStepPx)
-                event.changes.forEach { it.consume() }
-            }
+        val scope = rememberCoroutineScope()
+        val wheel = remember(state, scope) { SoftWheelScroll(state, scope) }
+        val route = remember { SoftWheelRoute() }
+        val active = LocalScreenActive.current
+        DisposableEffect(wheel, active) {
+            if (!active) wheel.cancel()
+            onDispose { wheel.cancel() }
         }
+        if (!active) return@composed this
+        modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
+            .onPointerEvent(PointerEventType.Press) { wheel.cancel() }
+            .onPointerEvent(PointerEventType.Scroll) { event ->
+                val totalDelta = event.changes.fold(0f) { acc, change ->
+                    acc + change.scrollDelta.y + change.scrollDelta.x
+                }
+                if (totalDelta != 0f) {
+                    route.claim(event)
+                    horizontalEvents?.handled = true
+                    wheel.scrollBy(totalDelta * scrollStepPx)
+                    event.changes.forEach { it.consume() }
+                }
+            }
     }
 }
 
@@ -364,7 +378,9 @@ internal fun Modifier.nuvioCenterScrollConsumer(
 
     return composed {
         val horizontalEvents = LocalHorizontalWheelEvents.current
-        pointerInput(enabled, headerHorizontalPadding, horizontalEvents) {
+        val route = remember { SoftWheelRoute() }
+        modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
+            .pointerInput(enabled, headerHorizontalPadding, horizontalEvents) {
             val headerPaddingPx = headerHorizontalPadding.toPx()
             awaitPointerEventScope {
                 while (true) {
@@ -374,6 +390,7 @@ internal fun Modifier.nuvioCenterScrollConsumer(
                         event.changes.forEach { change ->
                             val x = change.position.x
                             if (x >= headerPaddingPx && x <= width - headerPaddingPx) {
+                                route.claim(event)
                                 horizontalEvents?.handled = true
                                 change.consume()
                             }
@@ -388,88 +405,16 @@ internal fun Modifier.nuvioCenterScrollConsumer(
 internal fun Modifier.nuvioDesktopDragScroll(
     state: LazyListState,
     momentumEnabled: Boolean = true,
-): Modifier {
-    if (momentumEnabled) return nuvioDesktopDragScroll(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
-    if (!isDesktop) return this
-
-    return pointerInput(state) {
-        awaitEachGesture {
-            val down = awaitFirstDown(pass = PointerEventPass.Initial)
-            var totalDx = 0f
-            var totalDy = 0f
-            var dragging = false
-
-            while (true) {
-                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-
-                val delta = change.position - change.previousPosition
-                totalDx += delta.x
-                totalDy += delta.y
-
-                if (!dragging) {
-                    val horizontalDrag =
-                        abs(totalDx) > viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
-                    val verticalDrag =
-                        abs(totalDy) > viewConfiguration.touchSlop && abs(totalDy) > abs(totalDx)
-
-                    when {
-                        verticalDrag -> break
-                        horizontalDrag -> dragging = true
-                        else -> continue
-                    }
-                }
-
-                state.dispatchRawDelta(-delta.x)
-                change.consume()
-            }
-        }
-    }
-}
+): Modifier = nuvioDesktopDragScroll(
+    state, androidx.compose.foundation.gestures.Orientation.Horizontal, momentumEnabled = momentumEnabled,
+)
 
 internal fun Modifier.nuvioDesktopDragScroll(
     state: ScrollState,
     momentumEnabled: Boolean = true,
-): Modifier {
-    if (momentumEnabled) return nuvioDesktopDragScroll(state, androidx.compose.foundation.gestures.Orientation.Horizontal)
-    if (!isDesktop) return this
-
-    return pointerInput(state) {
-        awaitEachGesture {
-            val down = awaitFirstDown(pass = PointerEventPass.Initial)
-            var totalDx = 0f
-            var totalDy = 0f
-            var dragging = false
-
-            while (true) {
-                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-
-                val delta = change.position - change.previousPosition
-                totalDx += delta.x
-                totalDy += delta.y
-
-                if (!dragging) {
-                    val horizontalDrag =
-                        abs(totalDx) > viewConfiguration.touchSlop && abs(totalDx) > abs(totalDy)
-                    val verticalDrag =
-                        abs(totalDy) > viewConfiguration.touchSlop && abs(totalDy) > abs(totalDx)
-
-                    when {
-                        verticalDrag -> break
-                        horizontalDrag -> dragging = true
-                        else -> continue
-                    }
-                }
-
-                state.dispatchRawDelta(-delta.x)
-                change.consume()
-            }
-        }
-    }
-}
+): Modifier = nuvioDesktopDragScroll(
+    state, androidx.compose.foundation.gestures.Orientation.Horizontal, momentumEnabled = momentumEnabled,
+)
 
 @Composable
 fun NuvioPosterCard(
@@ -647,6 +592,7 @@ private fun NuvioShelfSectionHeader(
     viewportInset: Dp,
 ) {
     val tokens = MaterialTheme.nuvio
+    val arrowScroll = rememberSoftArrowScroll(state)
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -672,11 +618,13 @@ private fun NuvioShelfSectionHeader(
             if (showRowNavigationControls) {
                 ShelfRowNavigationButton(
                     state = state,
+                    arrowScroll = arrowScroll,
                     direction = ShelfScrollDirection.Backward,
                     viewportInset = viewportInset,
                 )
                 ShelfRowNavigationButton(
                     state = state,
+                    arrowScroll = arrowScroll,
                     direction = ShelfScrollDirection.Forward,
                     viewportInset = viewportInset,
                 )
@@ -704,10 +652,10 @@ private enum class ShelfScrollDirection { Backward, Forward }
 @Composable
 private fun ShelfRowNavigationButton(
     state: LazyListState,
+    arrowScroll: SoftArrowScroll,
     direction: ShelfScrollDirection,
     viewportInset: Dp,
 ) {
-    val scope = rememberCoroutineScope()
     val viewportInsetPx = with(LocalDensity.current) { viewportInset.roundToPx() }
     val enabled = when (direction) {
         ShelfScrollDirection.Backward -> state.canScrollBackward
@@ -723,11 +671,7 @@ private fun ShelfRowNavigationButton(
         IconButton(
             onClick = {
                 val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx)
-                if (scrollDistance != 0f) {
-                    scope.launch {
-                        state.animateScrollBy(scrollDistance)
-                    }
-                }
+                arrowScroll.scrollBy(scrollDistance)
             },
             enabled = enabled,
             modifier = Modifier
@@ -927,17 +871,18 @@ internal fun Modifier.desktopPosterHoverScale(
 
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
     val keyboardNavigation = isRemoteKeyboardNavigationActive
+    val motion = rememberNavigationMotionProfile()
     val animatedScale = animateFloatAsState(
-        targetValue = if (hovered) DesktopPosterHoverScale else 1f,
+        targetValue = if (hovered && !keyboardNavigation) DesktopPosterHoverScale else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow,
+            stiffness = motion.scrollStiffness,
         ),
         label = "desktop_poster_hover_scale",
     )
-    val scale = if (keyboardNavigation) 1f else animatedScale.value
-
-    val isScaling = hovered || scale != 1f
+    val isScaling by remember(hovered, keyboardNavigation, animatedScale) {
+        derivedStateOf { !keyboardNavigation && (hovered || animatedScale.value != 1f) }
+    }
     // Read animation state in the parent's draw scope so its clip is invalidated
     // together with the scaled child layer on every animation frame.
     LocalPosterRowItemHover.current?.scale = { if (keyboardNavigation) 1f else animatedScale.value }
@@ -947,6 +892,7 @@ internal fun Modifier.desktopPosterHoverScale(
             if (isScaling) {
                 Modifier
                     .graphicsLayer {
+                        val scale = if (keyboardNavigation) 1f else animatedScale.value
                         scaleX = scale
                         scaleY = scale
                     }

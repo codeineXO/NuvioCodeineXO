@@ -72,6 +72,7 @@ import com.nuvio.app.core.ui.LocalPosterClickAnchor
 import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.navigation.PosterNavigationState
 import com.nuvio.app.navigation.posterNavigationEntry
+import com.nuvio.app.navigation.pageNavigationMotion
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.auth.DeviceSessionRegistration
@@ -1530,6 +1531,7 @@ internal fun MainAppContent(
                         .then(if (captureSidebarBackdrop) Modifier.hazeSource(sidebarGlassState) else Modifier)
                         .background(MaterialTheme.nuvio.colors.background),
                 ) {
+                val pageTravelPx = with(LocalDensity.current) { 12.dp.roundToPx() }
                 NavDisplay(
                     backStack = navBackStack,
                     modifier = Modifier
@@ -1551,6 +1553,8 @@ internal fun MainAppContent(
                         routeDisposalDecorator,
                     ),
                     sharedTransitionScope = this@SharedTransitionLayout,
+                    transitionSpec = { pageNavigationMotion(forward = true, pageTravelPx) },
+                    popTransitionSpec = { pageNavigationMotion(forward = false, pageTravelPx) },
                     entryProvider = entryProvider<NavKey> {
                 entry<TabsRoute> {
                     MainTabsDestination(
@@ -1773,11 +1777,9 @@ internal fun MainAppContent(
                 entry<StreamRoute>(
                     metadata = if (isDesktop) {
                         NavDisplay.transitionSpec {
-                            fadeIn(animationSpec = tween(160)) togetherWith
-                                fadeOut(animationSpec = tween(160))
+                            pageNavigationMotion(forward = true, pageTravelPx)
                         } + NavDisplay.popTransitionSpec {
-                            fadeIn(animationSpec = tween(160)) togetherWith
-                                fadeOut(animationSpec = tween(160))
+                            pageNavigationMotion(forward = false, pageTravelPx)
                         }
                     } else {
                         emptyMap()

@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.abs
-import kotlin.math.exp
 
 internal data class PosterShelfItem(val controller: PosterShelfController, val key: Any, val index: Int)
 internal val LocalPosterShelfItem = staticCompositionLocalOf<PosterShelfItem?> { null }
@@ -124,7 +123,7 @@ internal class PosterShelfController(
     internal suspend fun revealItem(key: Any): RemoteFocusTarget? {
         val index = keys.indexOf(key)
         if (index < 0) return null
-        state.scrollToItem(index)
+        state.revealShelfItem(index)
         return withTimeoutOrNull(750) {
             snapshotFlow {
                 session.targets.firstOrNull {
@@ -180,13 +179,10 @@ internal class PosterShelfController(
                         break
                     }
                     // Critically damped tracking preserves velocity across retargets and reversals.
-                    val omega = 30f
-                    val decay = exp(-omega * seconds)
-                    val correction = omega * delta - velocity
-                    val step = delta - (delta + correction * seconds) * decay
-                    velocity = (velocity + omega * correction * seconds) * decay
-                    val consumed = scrollBy(step)
-                    if (abs(consumed) < 0.01f && seconds > 0f) break
+                    val step = navigationScrollStep(delta, velocity, seconds)
+                    velocity = step.velocity
+                    val consumed = scrollBy(step.delta)
+                    if (abs(step.delta - consumed) > 0.5f) break
                 }
             }
         }
@@ -242,9 +238,9 @@ internal fun LazyListLayoutInfo.minimumShelfRevealDistance(index: Int): Float {
 }
 
 internal suspend fun LazyListState.revealShelfItem(index: Int) {
-    if (layoutInfo.visibleItemsInfo.none { it.index == index }) scrollToItem(index)
+    if (layoutInfo.visibleItemsInfo.none { it.index == index }) softScrollToItem(index)
     val distance = layoutInfo.minimumShelfRevealDistance(index)
-    if (distance != 0f) scrollBy(distance)
+    if (distance != 0f) softScrollBy(distance)
 }
 
 /** Keep a full preceding poster at the content edge, clamping to keep the selected card visible. */

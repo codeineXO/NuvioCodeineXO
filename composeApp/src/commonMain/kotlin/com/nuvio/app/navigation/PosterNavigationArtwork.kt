@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.PosterOpenMotion
 import com.nuvio.app.core.ui.drawLiftedPoster
 
@@ -38,7 +39,7 @@ internal fun PosterNavigationArtwork(request: PosterNavigationRequest) {
                 scaleY = viewport.height / size.height
                 alpha = PosterOpenMotion.artworkAlpha(request.elapsedMillis)
                 val bounds = PosterOpenMotion.bounds(request.anchor.boundsInRoot, request.viewportBounds, request.elapsedMillis)
-                val radius = PosterOpenMotion.artworkBlurRadius(size, bounds.size, request.elapsedMillis)
+                val radius = PosterOpenMotion.artworkBlurRadius(size, bounds.size, request.elapsedMillis, 16.dp.toPx())
                 renderEffect = if (alpha > 0f && radius.width > 0.1f && radius.height > 0.1f) {
                     BlurEffect(radius.width, radius.height, TileMode.Clamp)
                 } else {

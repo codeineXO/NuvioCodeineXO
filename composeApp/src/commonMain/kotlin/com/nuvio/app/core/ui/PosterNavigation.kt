@@ -443,14 +443,14 @@ internal suspend fun RemoteNavigationSession.revealPosterRow(
             }
         }
     } else if (visible == null) {
-        state.scrollToItem(row.lazyIndex, -headerBottom)
+        state.softScrollToItem(row.lazyIndex, -headerBottom)
     } else {
         val delta = when {
             visible.offset < headerBottom -> visible.offset - headerBottom
             visible.offset + visible.size > info.viewportEndOffset -> minOf(visible.offset - headerBottom, visible.offset + visible.size - info.viewportEndOffset)
             else -> 0
         }
-        if (delta != 0) state.scrollBy(delta.toFloat())
+        if (delta != 0) state.softScrollBy(delta.toFloat())
     }
     onPositioned()
     withFrameNanos { }
@@ -578,7 +578,7 @@ private suspend fun LazyListState.animatePosterScroll(
             var progress = 0f
             var previous = 0f
             while (progress < 1f) withFrameNanos { frame ->
-                val duration = if (fast()) heldMillis else durationMillis
+                val duration = navigationMotionDuration(if (fast()) heldMillis else durationMillis)
                 progress = (progress + (frame - lastFrame).toFloat() / (duration * 1_000_000f)).coerceAtMost(1f)
                 lastFrame = frame
                 val eased = NuvioTokens.Motion.standard.transform(progress)
@@ -590,10 +590,10 @@ private suspend fun LazyListState.animatePosterScroll(
         }
     }
     // Repeats accelerate the motion already in flight as well as subsequent moves.
-    move(NuvioTokens.Motion.fastMillis, NuvioTokens.Motion.fastMillis / 2)
+    move(NuvioTokens.Motion.normalMillis, NuvioTokens.Motion.fastMillis)
     withFrameNanos { }
     // Usually just subpixel rounding; late lazy measurements get a short eased tail, never a snap.
-    if (canMove(distance(layoutInfo))) move(NuvioTokens.Motion.fastMillis / 2, NuvioTokens.Motion.fastMillis / 4)
+    if (canMove(distance(layoutInfo))) move(NuvioTokens.Motion.fastMillis, NuvioTokens.Motion.fastMillis / 2)
 }
 
 internal fun firstVisibleNavigationIndex(layout: androidx.compose.foundation.lazy.LazyListLayoutInfo): Int? =
