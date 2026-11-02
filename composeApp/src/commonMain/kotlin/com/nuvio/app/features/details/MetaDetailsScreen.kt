@@ -1450,8 +1450,7 @@ fun MetaDetailsScreen(
                                 )
                             }
                             MetaScreenBackgroundMode.Cinematic -> if (deferredMetaWorkAllowed && backdropUrl != null) {
-                                val backdropGlassSourceEnabled = !(useEnhancedLayout && enhancedSecondPage)
-                                Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f, enabled = backdropGlassSourceEnabled)) {
+                                Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f)) {
                                     AsyncImage(
                                         model = if (isDesktop) originalTmdbImageUrl(backdropUrl) else backdropUrl,
                                         contentDescription = null,
@@ -1481,7 +1480,6 @@ fun MetaDetailsScreen(
                             }
                         }
                         if (useDesktopDetailLayout || useEnhancedLayout) {
-                            val backdropGlassSourceEnabled = !(useEnhancedLayout && enhancedSecondPage)
                             DesktopDetailBackdrop(
                                 meta = meta,
                                 viewportHeight = viewportHeight,
@@ -1492,7 +1490,6 @@ fun MetaDetailsScreen(
                                 heroTrailerMuted = heroTrailerMuted,
                                 heroGradientColor = dominantBackdropColor.takeIf { dominantColorEnabled },
                                 removeSideFade = useEnhancedLayout,
-                                enableGlassSource = backdropGlassSourceEnabled,
                                 onBackdropLoaded = { painter -> dominantBackdropPainter = painter },
                                 onHeroTrailerReady = {
                                     if (!heroTrailerFinished) heroTrailerReady = true
@@ -1518,7 +1515,6 @@ fun MetaDetailsScreen(
                                     heroTrailerMuted = true,
                                     blurBackdrop = true,
                                     removeSideFade = useEnhancedLayout,
-                                    enableGlassSource = backdropGlassSourceEnabled,
                                     onHeroTrailerReady = {},
                                     onHeroTrailerEnded = {},
                                     onHeroTrailerError = {},
@@ -1544,19 +1540,15 @@ fun MetaDetailsScreen(
                                     .fillMaxSize()
                                     .navigationGlassSource(zIndex = 0.5f)
                                     .graphicsLayer {
-                                        alpha = if (useEnhancedLayout && enhancedSecondPage) {
-                                            1f
-                                        } else {
-                                            detailScrolledBackgroundAlpha(
-                                                scrollOffsetPx = detailScrollOffsetPx(),
-                                                heroHeightPx = heroHeightPx.intValue,
-                                                maxAlpha = if (backgroundMode == MetaScreenBackgroundMode.Cinematic) {
-                                                    DetailScrolledBackgroundCinematicMaxAlpha
-                                                } else {
-                                                    DetailScrolledBackgroundDefaultMaxAlpha
-                                                },
-                                            )
-                                        }
+                                        alpha = detailScrolledBackgroundAlpha(
+                                            scrollOffsetPx = detailScrollOffsetPx(),
+                                            heroHeightPx = heroHeightPx.intValue,
+                                            maxAlpha = if (backgroundMode == MetaScreenBackgroundMode.Cinematic) {
+                                                DetailScrolledBackgroundCinematicMaxAlpha
+                                            } else {
+                                                DetailScrolledBackgroundDefaultMaxAlpha
+                                            },
+                                        )
                                     }
                                     .background(scrolledBackgroundColor),
                             )
