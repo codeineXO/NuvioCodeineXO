@@ -139,9 +139,6 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
             customThemeColorsKey,
             amoledEnabledKey,
             liquidGlassNativeTabBarEnabledKey,
-            desktopNavigationLayoutKey,
-            navBarStyleKey,
-            navBarGlowEnabledKey,
         )
 
         fun exportToSyncPayload(): JsonObject = buildJsonObject {
@@ -149,9 +146,6 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
             store.getString(scoped(customThemeColorsKey))?.let { put(customThemeColorsKey, encodeSyncString(it)) }
             store.getBoolean(scoped(amoledEnabledKey))?.let { put(amoledEnabledKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(liquidGlassNativeTabBarEnabledKey))?.let { put(liquidGlassNativeTabBarEnabledKey, encodeSyncBoolean(it)) }
-            store.getString(scoped(desktopNavigationLayoutKey))?.let { put(desktopNavigationLayoutKey, encodeSyncString(it)) }
-            store.getString(scoped(navBarStyleKey))?.let { put(navBarStyleKey, encodeSyncString(it)) }
-            store.getBoolean(scoped(navBarGlowEnabledKey))?.let { put(navBarGlowEnabledKey, encodeSyncBoolean(it)) }
         }
 
         fun replaceFromSyncPayload(payload: JsonObject) {
@@ -160,9 +154,6 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
             payload.decodeSyncString(customThemeColorsKey)?.let { store.putString(scoped(customThemeColorsKey), it) }
             payload.decodeSyncBoolean(amoledEnabledKey)?.let { store.putBoolean(scoped(amoledEnabledKey), it) }
             payload.decodeSyncBoolean(liquidGlassNativeTabBarEnabledKey)?.let { store.putBoolean(scoped(liquidGlassNativeTabBarEnabledKey), it) }
-            payload.decodeSyncString(desktopNavigationLayoutKey)?.let { store.putString(scoped(desktopNavigationLayoutKey), it) }
-            payload.decodeSyncString(navBarStyleKey)?.let { store.putString(scoped(navBarStyleKey), it) }
-            payload.decodeSyncBoolean(navBarGlowEnabledKey)?.let { store.putBoolean(scoped(navBarGlowEnabledKey), it) }
         }
     }
 }

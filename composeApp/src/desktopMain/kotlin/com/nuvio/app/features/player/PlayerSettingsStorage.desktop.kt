@@ -413,7 +413,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             resizeModeKey,
             holdToSpeedEnabledKey,
             holdToSpeedValueKey,
-            nvidiaRtxSuperResolutionEnabledKey,
             touchGesturesEnabledKey,
             externalPlayerEnabledKey,
             externalPlayerForwardSubtitlesKey,
@@ -423,11 +422,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             secondaryPreferredAudioLanguageKey,
             preferredSubtitleLanguageKey,
             secondaryPreferredSubtitleLanguageKey,
-            subtitleTextColorKey,
             subtitleBackgroundColorKey,
-            subtitleOutlineColorKey,
             subtitleOutlineEnabledKey,
-            subtitleOutlineWidthKey,
             subtitleBoldKey,
             subtitleFontSizeSpKey,
             subtitleBottomOffsetKey,
@@ -515,11 +511,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             store.getString(scoped(secondaryPreferredAudioLanguageKey))?.let { put(secondaryPreferredAudioLanguageKey, encodeSyncString(it)) }
             store.getString(scoped(preferredSubtitleLanguageKey))?.let { put(preferredSubtitleLanguageKey, encodeSyncString(it)) }
             store.getString(scoped(secondaryPreferredSubtitleLanguageKey))?.let { put(secondaryPreferredSubtitleLanguageKey, encodeSyncString(it)) }
-            store.getString(scoped(subtitleTextColorKey))?.let { put(subtitleTextColorKey, encodeSyncString(it)) }
             store.getString(scoped(subtitleBackgroundColorKey))?.let { put(subtitleBackgroundColorKey, encodeSyncString(it)) }
-            store.getString(scoped(subtitleOutlineColorKey))?.let { put(subtitleOutlineColorKey, encodeSyncString(it)) }
             store.getBoolean(scoped(subtitleOutlineEnabledKey))?.let { put(subtitleOutlineEnabledKey, encodeSyncBoolean(it)) }
-            store.getInt(scoped(subtitleOutlineWidthKey))?.let { put(subtitleOutlineWidthKey, encodeSyncInt(it)) }
             store.getBoolean(scoped(subtitleBoldKey))?.let { put(subtitleBoldKey, encodeSyncBoolean(it)) }
             store.getInt(scoped(subtitleFontSizeSpKey))?.let { put(subtitleFontSizeSpKey, encodeSyncInt(it)) }
             store.getInt(scoped(subtitleBottomOffsetKey))?.let { put(subtitleBottomOffsetKey, encodeSyncInt(it)) }
@@ -575,7 +568,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             store.getInt(scoped(iosContrastKey))?.let { put(iosContrastKey, encodeSyncInt(it)) }
             store.getInt(scoped(iosSaturationKey))?.let { put(iosSaturationKey, encodeSyncInt(it)) }
             store.getInt(scoped(iosGammaKey))?.let { put(iosGammaKey, encodeSyncInt(it)) }
-            store.getBoolean(scoped(nvidiaRtxSuperResolutionEnabledKey))?.let { put(nvidiaRtxSuperResolutionEnabledKey, encodeSyncBoolean(it)) }
         }
 
         fun replaceFromSyncPayload(payload: JsonObject) {
@@ -596,11 +588,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncString(secondaryPreferredAudioLanguageKey)?.let { store.putString(scoped(secondaryPreferredAudioLanguageKey), it.takeIf(String::isNotBlank)) }
             payload.decodeSyncString(preferredSubtitleLanguageKey)?.let { store.putString(scoped(preferredSubtitleLanguageKey), it) }
             payload.decodeSyncString(secondaryPreferredSubtitleLanguageKey)?.let { store.putString(scoped(secondaryPreferredSubtitleLanguageKey), it.takeIf(String::isNotBlank)) }
-            payload.decodeSyncString(subtitleTextColorKey)?.let { store.putString(scoped(subtitleTextColorKey), it) }
             payload.decodeSyncString(subtitleBackgroundColorKey)?.let { store.putString(scoped(subtitleBackgroundColorKey), it) }
-            payload.decodeSyncString(subtitleOutlineColorKey)?.let { store.putString(scoped(subtitleOutlineColorKey), it) }
             payload.decodeSyncBoolean(subtitleOutlineEnabledKey)?.let { store.putBoolean(scoped(subtitleOutlineEnabledKey), it) }
-            payload.decodeSyncInt(subtitleOutlineWidthKey)?.let { store.putInt(scoped(subtitleOutlineWidthKey), it) }
             payload.decodeSyncBoolean(subtitleBoldKey)?.let { store.putBoolean(scoped(subtitleBoldKey), it) }
             payload.decodeSyncInt(subtitleFontSizeSpKey)?.let { store.putInt(scoped(subtitleFontSizeSpKey), it) }
             payload.decodeSyncInt(subtitleBottomOffsetKey)?.let { store.putInt(scoped(subtitleBottomOffsetKey), it) }
@@ -660,7 +649,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncInt(iosContrastKey)?.let { store.putInt(scoped(iosContrastKey), it) }
             payload.decodeSyncInt(iosSaturationKey)?.let { store.putInt(scoped(iosSaturationKey), it) }
             payload.decodeSyncInt(iosGammaKey)?.let { store.putInt(scoped(iosGammaKey), it) }
-            payload.decodeSyncBoolean(nvidiaRtxSuperResolutionEnabledKey)?.let { store.putBoolean(scoped(nvidiaRtxSuperResolutionEnabledKey), it) }
         }
     }
 }

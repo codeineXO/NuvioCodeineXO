@@ -16,39 +16,39 @@ import kotlinx.serialization.json.JsonObject
 
 /** Filter the wire payload, not local storage: existing per-profile preferences need no migration. */
 internal fun posterSettingsForSync(payload: String, desktop: Boolean = isDesktop): String =
-    withoutLocalField(payload, "glowEnabled", desktop)
+    withoutLocalFields(payload, setOf("glowEnabled"), desktop)
 
 internal fun metaSettingsForSync(payload: String, desktop: Boolean = isDesktop): String =
-    withoutLocalField(payload, "episodeCardStyle", desktop)
+    withoutLocalFields(payload, setOf("episodeCardStyle", "showMetadataInfo"), desktop)
 
 internal fun restorePosterSettingsFromSync(
     remote: String,
     local: String?,
     desktop: Boolean = isDesktop,
-): String = preservingLocalField(remote, local, "glowEnabled", desktop)
+): String = preservingLocalFields(remote, local, setOf("glowEnabled"), desktop)
 
 internal fun restoreMetaSettingsFromSync(
     remote: String,
     local: String?,
     desktop: Boolean = isDesktop,
-): String = preservingLocalField(remote, local, "episodeCardStyle", desktop)
+): String = preservingLocalFields(remote, local, setOf("episodeCardStyle", "showMetadataInfo"), desktop)
 
 private fun parsePayload(payload: String?): JsonObject? =
     payload?.takeIf { it.isNotBlank() }?.let {
         runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull()
     }
 
-private fun withoutLocalField(payload: String, key: String, desktop: Boolean): String {
+private fun withoutLocalFields(payload: String, keys: Set<String>, desktop: Boolean): String {
     if (!desktop) return payload
     val fields = parsePayload(payload) ?: return ""
-    return JsonObject(fields.filterKeys { it != key }).toString()
+    return JsonObject(fields.filterKeys { it !in keys }).toString()
 }
 
-private fun preservingLocalField(remote: String, local: String?, key: String, desktop: Boolean): String {
+private fun preservingLocalFields(remote: String, local: String?, keys: Set<String>, desktop: Boolean): String {
     if (!desktop) return remote
-    val fields = parsePayload(remote).orEmpty().filterKeys { it != key }.toMutableMap()
+    val fields = parsePayload(remote).orEmpty().filterKeys { it !in keys }.toMutableMap()
     // Missing local values deliberately stay absent, so repository defaults apply.
-    parsePayload(local)?.get(key)?.let { fields[key] = it }
+    parsePayload(local)?.filterKeys { it in keys }?.let(fields::putAll)
     return if (fields.isEmpty()) "" else JsonObject(fields).toString()
 }
 
@@ -62,6 +62,7 @@ internal fun playerSettingsSyncState(state: PlayerSettingsUiState, desktop: Bool
         svpMotionOption = SvpMotionOption.OFF,
         playbackBufferPreset = PlaybackBufferPreset.MEDIUM,
         audioNightModeEnabled = false,
+        nvidiaRtxSuperResolutionEnabled = false,
         showSeekbarWhileSeeking = true,
         showClockInPlayer = true,
         showRemainingTime = false,
@@ -74,6 +75,9 @@ internal fun playerSettingsSyncState(state: PlayerSettingsUiState, desktop: Bool
         subtitleStyle = state.subtitleStyle.copy(
             fontName = SubtitleStyleState.DEFAULT.fontName,
             outlineEffect = SubtitleStyleState.DEFAULT.outlineEffect,
+            textColor = SubtitleStyleState.DEFAULT.textColor,
+            outlineColor = SubtitleStyleState.DEFAULT.outlineColor,
+            outlineWidth = SubtitleStyleState.DEFAULT.outlineWidth,
         ),
     )
 
@@ -81,4 +85,7 @@ internal fun posterSettingsSyncState(state: PosterCardStyleUiState, desktop: Boo
     if (!desktop) state else state.copy(glowEnabled = true)
 
 internal fun metaSettingsSyncState(state: MetaScreenSettingsUiState, desktop: Boolean = isDesktop): MetaScreenSettingsUiState =
-    if (!desktop) state else state.copy(episodeCardStyle = MetaEpisodeCardStyle.Horizontal)
+    if (!desktop) state else state.copy(
+        episodeCardStyle = MetaEpisodeCardStyle.Horizontal,
+        showMetadataInfo = false,
+    )
