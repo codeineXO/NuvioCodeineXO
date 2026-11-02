@@ -1,6 +1,7 @@
 package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.SettingsOverlaySurfaceLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,13 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun NavigationBarPreview(style: NavBarStyle, isTablet: Boolean, glowEnabled: Boolean) {
+    SettingsOverlaySurfaceLayer {
+        NavigationBarPreviewContent(style, isTablet, glowEnabled)
+    }
+}
+
+@Composable
+private fun NavigationBarPreviewContent(style: NavBarStyle, isTablet: Boolean, glowEnabled: Boolean) {
     val tokens = MaterialTheme.nuvio
     val hazeState = rememberHazeState()
     val barScrollState = remember(style, isTablet) {

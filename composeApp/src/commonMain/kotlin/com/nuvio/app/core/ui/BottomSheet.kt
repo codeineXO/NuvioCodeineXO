@@ -70,19 +70,25 @@ fun NuvioModalBottomSheet(
             dragHandle = null,
         ) {
             AppOverlayInput {
-                CompositionLocalProvider(LocalBottomInsetsConsumed provides true) {
-                    Column(
-                        modifier = modifier
-                            .remoteNavigationModal()
-                            .padding(NuvioTokens.Space.s10)
-                            .clip(SheetShape)
-                            .background(containerColor)
-                            .border(tokens.borders.thin, SurfaceEdge, SheetShape),
-                    ) {
-                        if (showDragHandle) {
-                            NuvioBottomSheetDragHandle(Modifier.align(Alignment.CenterHorizontally))
+                SettingsOverlaySurfaceLayer {
+                    CompositionLocalProvider(LocalBottomInsetsConsumed provides true) {
+                        SettingsAwareSurface(
+                            modifier = modifier
+                                .remoteNavigationModal()
+                                .padding(NuvioTokens.Space.s10)
+                                .border(tokens.borders.thin, SurfaceEdge, SheetShape),
+                            shape = SheetShape,
+                            color = containerColor,
+                            contentColor = contentColor,
+                            panel = true,
+                        ) {
+                            Column {
+                                if (showDragHandle) {
+                                    NuvioBottomSheetDragHandle(Modifier.align(Alignment.CenterHorizontally))
+                                }
+                                content()
+                            }
                         }
-                        content()
                     }
                 }
             }

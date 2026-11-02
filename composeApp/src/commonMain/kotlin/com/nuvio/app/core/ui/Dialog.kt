@@ -23,7 +23,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -57,13 +56,14 @@ fun DialogSurface(
     val tokens = MaterialTheme.nuvio
     PlatformBackHandler(enabled = true, onBack = onDismissRequest)
     AppBasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
-        Surface(
+        SettingsAwareSurface(
             modifier = modifier
                 .remoteNavigationModal()
                 .fillMaxWidth()
                 .widthIn(max = tokens.components.dialogMaxWidth),
             shape = tokens.shapes.dialog,
             color = tokens.colors.surfaceDialog,
+            panel = true,
             contentColor = tokens.colors.textPrimary,
             border = BorderStroke(tokens.borders.thin, SurfaceEdge),
         ) {

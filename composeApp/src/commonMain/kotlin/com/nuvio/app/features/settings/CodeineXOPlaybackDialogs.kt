@@ -28,6 +28,7 @@ import com.nuvio.app.core.ui.PlatformBackHandler
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import com.nuvio.app.core.ui.SettingsAwareSurface
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -206,11 +207,12 @@ internal fun SubtitleColorDialog(
     AppBasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
-        Surface(
+        SettingsAwareSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .remoteNavigationModal()
                 .widthIn(max = 520.dp),
+            panel = true,
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {
@@ -276,11 +278,12 @@ internal fun SubtitleOutlineEffectDialog(
     AppBasicAlertDialog(
         onDismissRequest = onDismiss,
     ) {
-        Surface(
+        SettingsAwareSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .remoteNavigationModal()
                 .widthIn(max = 500.dp),
+            panel = true,
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
         ) {

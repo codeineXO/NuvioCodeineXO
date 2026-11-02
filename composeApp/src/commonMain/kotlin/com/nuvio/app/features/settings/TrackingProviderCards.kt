@@ -1,6 +1,8 @@
 package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.SettingsAwareSurface
+import com.nuvio.app.core.ui.LocalSurfaceStyle
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -387,16 +389,16 @@ internal fun TrackingProviderCard(
             .onFailure { browserError = true }
     }
 
-    Box(
-        modifier = modifier
-            .clip(tokens.shapes.card)
-            .background(brand.cardBrush(), tokens.shapes.card)
-            .border(
-                width = tokens.borders.hairline,
-                color = Color.White.copy(alpha = 0.2f),
-                shape = tokens.shapes.card,
-            ),
+    SettingsAwareSurface(
+        modifier = modifier,
+        shape = tokens.shapes.card,
+        border = BorderStroke(tokens.borders.hairline, Color.White.copy(alpha = 0.2f)),
     ) {
+        Box(
+            modifier = if (LocalSurfaceStyle.current == SurfaceStyle.Flat) {
+                Modifier.background(brand.cardBrush(), tokens.shapes.card)
+            } else Modifier,
+        ) {
         TrackingBrandGlyph(
             brand = brand,
             contentDescription = null,
@@ -581,6 +583,8 @@ internal fun TrackingProviderCard(
                 }
             }
         }
+    }
+
     }
 
     if (showDisconnectDialog) {

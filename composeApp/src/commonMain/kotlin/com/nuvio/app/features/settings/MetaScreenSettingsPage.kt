@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.SettingsAwareSurface
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
@@ -504,7 +506,7 @@ private fun MetaEpisodeCardStyleOption(
     isTablet: Boolean,
     onClick: () -> Unit,
 ) {
-    Surface(
+    SettingsAwareSurface(
         modifier = Modifier
             .fillMaxWidth()
             .remoteNavigationTarget(shape = RoundedCornerShape(12.dp)).selectable(selected = selected, role = Role.RadioButton, onClick = onClick),

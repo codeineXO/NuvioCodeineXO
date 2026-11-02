@@ -42,7 +42,7 @@ internal fun AppBasicAlertDialog(
     content: @Composable () -> Unit,
 ) {
     BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
-        AppOverlayInput(content)
+        AppOverlayInput { SettingsOverlaySurfaceLayer(content) }
     }
 }
 

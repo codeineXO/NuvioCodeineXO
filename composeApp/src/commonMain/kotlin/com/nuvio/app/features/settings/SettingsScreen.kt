@@ -2,11 +2,11 @@ package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.desktopBackButtonSize
 
-import com.nuvio.app.core.ui.desktopBackButtonTopPadding
-
 import com.nuvio.app.core.ui.NuvioBackButton
 
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.SettingsSurfaceStyle
+import com.nuvio.app.core.ui.SettingsAwareSurface
 
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.core.build.AppFeaturePolicy
@@ -34,7 +34,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.snapshotFlow
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
@@ -424,6 +423,7 @@ fun SettingsScreen(
 
         if (isSelectedTab || page == SettingsPage.Root) {
             pageStateHolder.SaveableStateProvider("content") {
+                SettingsSurfaceStyle {
         val foregroundWidth = (maxWidth - LocalDesktopSidebarContentInset.current).coerceAtLeast(0.dp)
         if (foregroundWidth >= 960.dp) {
             TabletSettingsScreen(
@@ -539,6 +539,7 @@ fun SettingsScreen(
                 onWatchPartyClick = onWatchPartyClick,
             )
         }
+                }
             }
         }
     }
@@ -721,7 +722,6 @@ private fun MobileSettingsScreen(
                             isTablet = false,
                             onPageClick = { openSearchTarget(SettingsSearchTarget.Page(it)) },
                             onSwitchProfileClick = onSwitchProfile,
-                            onOnboardingClick = onOnboardingClick,
                             showNotificationsEntry = AppFeaturePolicy.notificationsEnabled,
                             onWatchPartyClick = watchPartyRowClick,
                         )
@@ -985,7 +985,7 @@ private fun TabletSettingsScreen(
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.Look.name) }
     val activeCategory = settingsCategoryForName(selectedCategory)
     val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val effectiveTopOffset = topChromePadding ?: (statusBarPadding + if (isDesktop) desktopBackButtonTopPadding else 24.dp)
+    val effectiveTopOffset = topChromePadding ?: (max(statusBarPadding + 24.dp, 48.dp) + 64.dp)
 
     val navBarScrollState = LocalNuvioNavBarScrollState.current
 
@@ -1004,11 +1004,12 @@ private fun TabletSettingsScreen(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(start = LocalDesktopSidebarContentInset.current)) {
         Row(modifier = Modifier.fillMaxSize()) {
-            Surface(
+            SettingsAwareSurface(
                 modifier = Modifier
-                    .width(240.dp)
+                    .width(280.dp)
                     .fillMaxSize(),
-                color = if (auraBackgroundEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surface,
+                panel = true,
             ) {
                 Column(
                     modifier = Modifier
@@ -1019,7 +1020,7 @@ private fun TabletSettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
-                            .padding(bottom = 16.dp),
+                            .padding(bottom = 20.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
                     ) {
@@ -1033,6 +1034,8 @@ private fun TabletSettingsScreen(
                             softWrap = false,
                         )
                     }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(10.dp))
                     SettingsCategory.entries.forEach { category ->
                         SettingsSidebarItem(
                             label = stringResource(category.labelRes),
@@ -1136,25 +1139,20 @@ private fun TabletSettingsScreen(
                         }
                     }
                         val watchPartyRowClick = watchPartyRow(onWatchPartyClick)
-                    BoxWithConstraints(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
                     ) {
-                        val horizontalPadding = if (isDesktop && maxWidth > 800.dp) {
-                            ((maxWidth - 800.dp) / 2) + 40.dp
-                        } else {
-                            40.dp
-                        }
                         NuvioLazyColumn(
                             state = listState,
                             modifier = Modifier.remoteNavigationGroup().then(Modifier
                                 .fillMaxSize()
                                 .nestedScroll(rootSearchRevealConnection)),
                             contentPadding = PaddingValues(
-                                start = horizontalPadding,
+                                start = 40.dp,
                                 top = effectiveTopOffset,
-                                end = horizontalPadding,
+                                end = 40.dp,
                                 bottom = 40.dp + bottomOverlayPadding,
                             ),
                             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -1193,7 +1191,6 @@ private fun TabletSettingsScreen(
                                             isTablet = true,
                                             onPageClick = ::openInlinePage,
                                             onSwitchProfileClick = onSwitchProfile,
-                                            onOnboardingClick = onOnboardingClick,
                                             onWatchPartyClick = watchPartyRowClick,
                                             showNotificationsEntry = AppFeaturePolicy.notificationsEnabled,
                                             category = activeCategory,

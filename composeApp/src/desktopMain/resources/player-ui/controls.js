@@ -218,9 +218,11 @@ const subtitleFontList = document.getElementById("subtitleFontList");
 const subtitleFontHint = document.getElementById("subtitleFontHint");
 const subtitleFontError = document.getElementById("subtitleFontError");
 const subtitleFontImport = document.getElementById("subtitleFontImport");
+const subtitleFontManager = document.getElementById("subtitleFontManager");
 const subtitleFontDone = document.getElementById("subtitleFontDone");
 
 let fontPickerOpen = false;
+let fontPickerTrigger = null;
 const fontMinus = document.getElementById("fontMinus");
 const fontValue = document.getElementById("fontValue");
 const fontPlus = document.getElementById("fontPlus");
@@ -2527,11 +2529,12 @@ const renderFontPicker = () => {
 };
 
 const setFontPickerOpen = open => {
+  if (open && !fontPickerOpen) fontPickerTrigger = document.activeElement;
   fontPickerOpen = open;
   if (open) renderFontPicker();
   setModalVisibility(subtitleFontModal, open);
   if (open) requestAnimationFrame(() => subtitleFontList.querySelector("button")?.focus());
-  else fontValue.focus();
+  else (fontPickerTrigger || fontValue).focus();
 };
 
 
@@ -2540,11 +2543,11 @@ const handleFontPickerKey = event => {
   if (event.key === "Escape") {
     event.preventDefault();
     setFontPickerOpen(false);
-  } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+  } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(event.key)) {
     event.preventDefault();
     const buttons = Array.from(subtitleFontModal.querySelectorAll("button:not([disabled])"));
     const current = buttons.indexOf(document.activeElement);
-    const delta = ["ArrowUp", "ArrowLeft"].includes(event.key) ? -1 : 1;
+    const delta = ["ArrowUp", "ArrowLeft"].includes(event.key) || (event.key === "Tab" && event.shiftKey) ? -1 : 1;
     if (buttons.length) buttons[(Math.max(0, current) + delta + buttons.length) % buttons.length].focus();
   }
   event.stopPropagation();
@@ -2552,6 +2555,7 @@ const handleFontPickerKey = event => {
 };
 
 const renderSubtitleStylePanel = () => {
+  subtitleFontManager.textContent = state.fontImportLabel || "Import font";
   const style = state.subtitleStyle || {};
   const storedCustomStyling = state.customSubtitleStylingEnabled !== false;
   if (pendingCustomSubtitleStyling !== null && pendingCustomSubtitleStyling === storedCustomStyling) {
@@ -5018,6 +5022,7 @@ fontSizePlus.addEventListener("click", event => {
   send("subtitleFontSizeDelta", 1);
 });
 fontValue.addEventListener("click", event => { event.stopPropagation(); setFontPickerOpen(true); });
+subtitleFontManager.addEventListener("click", event => { event.stopPropagation(); setFontPickerOpen(true); });
 subtitleFontImport.addEventListener("click", event => { event.stopPropagation(); send("subtitleFontImport"); });
 subtitleFontDone.addEventListener("click", event => { event.stopPropagation(); setFontPickerOpen(false); });
 subtitleFontModal.addEventListener("click", event => { if (event.target === subtitleFontModal) setFontPickerOpen(false); });

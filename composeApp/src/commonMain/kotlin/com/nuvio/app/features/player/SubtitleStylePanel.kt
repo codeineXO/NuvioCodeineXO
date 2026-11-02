@@ -436,7 +436,6 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
             )
         }
 
-        SubtitleFontImportControl(style, onStyleChanged)
         SubtitleStyleSection(title = "Font") {
             val currentIndex = SubtitleFontOptions.indexOf(style.fontName).coerceAtLeast(0)
             SubtitleStyleStepper(
@@ -452,6 +451,7 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
                 valueWidth = 140.dp,
                 fontFamily = getSubtitleFontFamily(style.fontName),
             )
+            SubtitleFontImportControl(style, onStyleChanged)
         }
 
         SubtitleStyleSection(title = stringResource(Res.string.compose_player_bold)) {

@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.SettingsSurfaceStyle
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.settings.ThemeSettingsRepository
@@ -53,7 +54,7 @@ internal fun SettingsDestination(
         } else {
             Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
         }
-        content(onBack)
+        SettingsSurfaceStyle { content(onBack) }
     }
 }
 

@@ -1,6 +1,7 @@
 package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.SettingsAwareSurface
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -84,7 +85,7 @@ private fun SettingsCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
-    Surface(
+    SettingsAwareSurface(
         modifier = modifier.fillMaxWidth(),
         color = tokens.colors.surface,
         shape = tokens.shapes.card,

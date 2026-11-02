@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.SettingsAwareSurface
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.foundation.background
@@ -69,57 +71,58 @@ internal fun SupporterMembershipCard(
     onAction: () -> Unit,
     onRefresh: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(CardColor),
+    SettingsAwareSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = CardColor,
     ) {
-        when {
-            state.isLoading -> LoadingMembershipContent(isTablet = isTablet)
-            state.overview == null -> MembershipLoadErrorContent(
-                isTablet = isTablet,
-                isRefreshing = state.isRefreshing,
-                onRefresh = onRefresh,
-            )
-            state.overview.subscriptionActive -> ActiveSubscriptionContent(
-                overview = state.overview,
-                isTablet = isTablet,
-                isRefreshing = state.isRefreshing,
-                hasError = state.errorMessage != null,
-                showAction = showAction,
-                actionEnabled = actionEnabled,
-                onAction = onAction,
-                onRefresh = onRefresh,
-            )
-            state.overview.providerConnected && !state.overview.hasActiveGrant -> ConnectedMembershipContent(
-                isTablet = isTablet,
-                isRefreshing = state.isRefreshing,
-                hasError = state.errorMessage != null,
-                showAction = showAction,
-                actionEnabled = actionEnabled,
-                onAction = onAction,
-                onRefresh = onRefresh,
-            )
-            state.overview.hasActiveGrant || state.overview.active -> GrantMembershipContent(
-                overview = state.overview,
-                isTablet = isTablet,
-                isRefreshing = state.isRefreshing,
-                hasError = state.errorMessage != null,
-                showAction = showAction,
-                actionEnabled = actionEnabled,
-                onAction = onAction,
-                onRefresh = onRefresh,
-            )
-            else -> NonMemberContent(
-                isTablet = isTablet,
-                isRefreshing = state.isRefreshing,
-                hasError = state.errorMessage != null,
-                showAction = showAction,
-                actionEnabled = actionEnabled,
-                onAction = onAction,
-                onRefresh = onRefresh,
-            )
+        Column {
+            when {
+                state.isLoading -> LoadingMembershipContent(isTablet = isTablet)
+                state.overview == null -> MembershipLoadErrorContent(
+                    isTablet = isTablet,
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = onRefresh,
+                )
+                state.overview.subscriptionActive -> ActiveSubscriptionContent(
+                    overview = state.overview,
+                    isTablet = isTablet,
+                    isRefreshing = state.isRefreshing,
+                    hasError = state.errorMessage != null,
+                    showAction = showAction,
+                    actionEnabled = actionEnabled,
+                    onAction = onAction,
+                    onRefresh = onRefresh,
+                )
+                state.overview.providerConnected && !state.overview.hasActiveGrant -> ConnectedMembershipContent(
+                    isTablet = isTablet,
+                    isRefreshing = state.isRefreshing,
+                    hasError = state.errorMessage != null,
+                    showAction = showAction,
+                    actionEnabled = actionEnabled,
+                    onAction = onAction,
+                    onRefresh = onRefresh,
+                )
+                state.overview.hasActiveGrant || state.overview.active -> GrantMembershipContent(
+                    overview = state.overview,
+                    isTablet = isTablet,
+                    isRefreshing = state.isRefreshing,
+                    hasError = state.errorMessage != null,
+                    showAction = showAction,
+                    actionEnabled = actionEnabled,
+                    onAction = onAction,
+                    onRefresh = onRefresh,
+                )
+                else -> NonMemberContent(
+                    isTablet = isTablet,
+                    isRefreshing = state.isRefreshing,
+                    hasError = state.errorMessage != null,
+                    showAction = showAction,
+                    actionEnabled = actionEnabled,
+                    onAction = onAction,
+                    onRefresh = onRefresh,
+                )
+            }
         }
     }
 }

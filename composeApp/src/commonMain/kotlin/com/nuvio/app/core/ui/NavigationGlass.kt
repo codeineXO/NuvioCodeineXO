@@ -32,8 +32,16 @@ private val LocalDarkGlassSurfacePresent = staticCompositionLocalOf { false }
 /** Inner controls share their panel's dark fill, while retaining interaction feedback. */
 @Composable
 internal fun DarkGlassPanelContent(content: @Composable () -> Unit) {
+    DarkGlassPanelContent(enabled = LocalSurfaceStyle.current == SurfaceStyle.DarkGlass, content = content)
+}
+
+@Composable
+internal fun DarkGlassPanelContent(
+    enabled: Boolean,
+    content: @Composable () -> Unit,
+) {
     CompositionLocalProvider(
-        LocalDarkGlassSurfacePresent provides (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass),
+        LocalDarkGlassSurfacePresent provides enabled,
         content = content,
     )
 }
@@ -65,6 +73,7 @@ internal fun Modifier.navigationGlass(
     stableBackdropFill: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
+    if (LocalSettingsSurfaceStyleEnabled.current && LocalSettingsPanelPresent.current && !panel) return clip(shape)
     val surfaceStyle = LocalSurfaceStyle.current
     val frostedGlassEnabled = LocalFrostedGlassEnabled.current && surfaceStyle == SurfaceStyle.FrostedGlass
     // In-page effects must not sample the z=1 scrolling source which contains them.
@@ -90,7 +99,9 @@ internal fun Modifier.navigationGlass(
         .clip(shape)
         .background(
             if (surfaceStyle == SurfaceStyle.DarkGlass) {
-                if (LocalDarkGlassSurfacePresent.current) Color.Transparent else DarkGlassSurfaceColor
+                if (LocalDarkGlassSurfacePresent.current && !(panel && LocalSettingsSurfaceStyleEnabled.current)) {
+                    Color.Transparent
+                } else DarkGlassSurfaceColor
             } else if (!frostedGlassEnabled) {
                 (if (panel) tokens.colors.surfacePopover else tokens.colors.surfaceCard).copy(alpha = 1f)
             } else if (backdropState == null) fallback else tint,

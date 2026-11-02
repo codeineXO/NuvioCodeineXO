@@ -2765,19 +2765,48 @@ button:disabled {
 }
 
 .font-picker-panel {
-  width: min(460px, 92vw);
-  max-height: 80vh;
+  box-sizing: border-box;
+  width: min(460px, 100%);
+  max-height: min(560px, calc(100vh - 48px));
   gap: 12px;
+}
+
+.font-picker-panel > :not(.track-list) {
+  flex-shrink: 0;
+}
+
+.font-picker-panel > .stream-subtitle {
+  padding: 0 20px;
+  overflow-wrap: anywhere;
+}
+
+.font-picker-actions {
+  padding: 4px 20px 20px;
+  flex-wrap: wrap;
+}
+
+.font-picker-actions .panel-button {
+  flex: 1 1 140px;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.subtitle-font-manager-button {
+  width: 100%;
+  white-space: normal;
 }
 
 .font-option {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .font-option .track-row {
   flex: 1;
+  min-width: 0;
 }
 
 .font-option-sample {

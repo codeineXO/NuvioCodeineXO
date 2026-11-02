@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,9 +50,14 @@ internal fun SubtitleFontPicker(selectedId: String, onSelect: (String) -> Unit, 
             onSelect(it.id)
         }
     }
-    DialogSurface(onDismissRequest = onDismiss, title = stringResource(Res.string.subtitle_font)) {
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = stringResource(Res.string.subtitle_font),
+        modifier = Modifier.heightIn(max = 560.dp),
+    ) {
         Column(
-            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+            Modifier.fillMaxWidth().weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()).padding(4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SubtitleFontOptions.forEach { id ->
@@ -112,7 +119,8 @@ internal fun SubtitleStyleState.selectFont(id: String): SubtitleStyleState = whe
 internal fun SubtitleFontImportControl(style: SubtitleStyleState, onStyleChanged: (SubtitleStyleState) -> Unit) {
     var showPicker by remember { mutableStateOf(false) }
     com.nuvio.app.core.ui.DialogButton(
-        text = stringResource(Res.string.subtitle_font) + ": " + subtitleFontLabel(style.importedFontId ?: style.fontName),
+        text = stringResource(Res.string.subtitle_font_import),
+        modifier = Modifier.fillMaxWidth(),
         onClick = { showPicker = true },
     )
     if (showPicker) SubtitleFontPicker(

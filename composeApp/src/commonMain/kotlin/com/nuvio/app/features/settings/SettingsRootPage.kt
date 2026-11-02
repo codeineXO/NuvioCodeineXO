@@ -16,7 +16,6 @@ internal fun LazyListScope.settingsRootContent(
     onWatchPartyClick: (() -> Unit)? = null,
     showNotificationsEntry: Boolean = true,
     category: SettingsCategory? = null,
-    onOnboardingClick: (() -> Unit)? = null,
 ) {
     SettingsCategory.entries.filter { category == null || it == category }.forEach { group ->
         item(key = group.name) {
@@ -96,22 +95,6 @@ internal fun LazyListScope.settingsRootContent(
                         )
                     }
                     SettingsCategory.System -> {
-                        SettingsNavigationRow(
-                            title = stringResource(SettingsPage.CodeineXO.titleRes),
-                            description = null,
-                            isTablet = isTablet,
-                            onClick = { onPageClick(SettingsPage.CodeineXO) },
-                        )
-                        SettingsGroupDivider(isTablet = isTablet)
-                        if (onOnboardingClick != null) {
-                            SettingsNavigationRow(
-                                title = "Quick Setup & Onboarding",
-                                description = null,
-                                isTablet = isTablet,
-                                onClick = onOnboardingClick,
-                            )
-                            SettingsGroupDivider(isTablet = isTablet)
-                        }
                         if (showNotificationsEntry) {
                             SettingsPageRow(
                                 page = SettingsPage.Notifications,

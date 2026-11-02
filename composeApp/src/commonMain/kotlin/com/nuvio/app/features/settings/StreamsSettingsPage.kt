@@ -1,5 +1,7 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.SettingsAwareSurface
+
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.remoteNavigationGroup
 
@@ -34,7 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -548,7 +549,7 @@ private fun BadgeUrlRow(
     } else {
         tokens.colors.surfaceCard
     }
-    Surface(
+    SettingsAwareSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = tokens.shapes.compactCard,
         color = containerColor,

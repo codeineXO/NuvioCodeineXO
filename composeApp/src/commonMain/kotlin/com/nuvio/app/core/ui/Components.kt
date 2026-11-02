@@ -158,7 +158,7 @@ fun NuvioSurfaceCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
-    Surface(
+    SettingsAwareSurface(
         modifier = modifier.fillMaxWidth(),
         color = tokens.colors.surface,
         shape = tokens.shapes.card,
