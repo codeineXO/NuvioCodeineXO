@@ -1724,6 +1724,13 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             }
         }
         "subtitleStyleReset" -> PlayerSettingsRepository.setSubtitleStyle(SubtitleStyleState.DEFAULT)
+        "showParentalGuide" -> {
+            if (playerSettingsUiState.showParentalGuide && parentalWarnings.isNotEmpty() &&
+                !showParentalGuide && !playerControlsLocked
+            ) {
+                showParentalGuide = true
+            }
+        }
         "parentalGuideComplete" -> {
             showParentalGuide = false
         }

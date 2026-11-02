@@ -538,6 +538,20 @@ button:disabled {
   padding: 0 0 10px;
 }
 
+.parental-guide-trigger {
+  text-align: start;
+  align-self: flex-start;
+  pointer-events: auto;
+}
+
+.player:is(.chrome-hidden, .opening-active, .error-active, .pip-mode, .mini-player-mode) .parental-guide-trigger {
+  pointer-events: none;
+}
+
+.parental-guide-trigger[aria-disabled="true"] {
+  cursor: default;
+}
+
 .title {
   max-width: min(760px, 100%);
   font-size: var(--title);
@@ -649,9 +663,9 @@ button:disabled {
 }
 
 .parental-guide-line {
-  width: 3px;
+  width: 3.6px;
   height: 0;
-  border-radius: 1px;
+  border-radius: 1.2px;
   background: var(--theme-accent-gradient-vertical, var(--theme-accent));
   transform: scaleY(0);
   transform-origin: top;
@@ -665,12 +679,12 @@ button:disabled {
 .parental-guide-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-left: 10px;
+  gap: 2.4px;
+  padding-left: 12px;
 }
 
 .parental-guide-row {
-  height: 18px;
+  height: 21.6px;
   display: flex;
   align-items: center;
   opacity: 0;
@@ -689,8 +703,8 @@ button:disabled {
 .parental-guide-label,
 .parental-guide-separator,
 .parental-guide-severity {
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 13.2px;
+  line-height: 21.6px;
 }
 
 .parental-guide-label {
@@ -4587,8 +4601,9 @@ svg {
   justify-content: flex-start;
 }
 
-.player.ui-official:not(.chrome-hidden):not(.pip-mode) .parental-guide {
-  top: calc(var(--slider-bottom) + env(safe-area-inset-top) + var(--official-stats-offset, 0px));
+.player.ui-official .parental-guide {
+  /* Reserve both stats rows plus breathing room, even while chrome is hidden. */
+  top: calc(var(--slider-bottom) + env(safe-area-inset-top) + 56px);
 }
 
 .player.ui-codeinexo .header-left {
@@ -4657,6 +4672,7 @@ svg {
 }
 
 .player.ui-codeinexo .codeine-title {
+  align-self: center;
   font-size: var(--title);
   font-weight: 700;
   line-height: 1.25;

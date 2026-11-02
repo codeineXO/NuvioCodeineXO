@@ -963,8 +963,8 @@ const hideParentalGuide = () => {
 
 const renderParentalGuideRows = warnings => {
   parentalGuideList.innerHTML = "";
-  const rowHeight = 18;
-  const rowGap = 2;
+  const rowHeight = 21.6;
+  const rowGap = 2.4;
   const totalHeight = warnings.length > 0
     ? (rowHeight * warnings.length) + (rowGap * (warnings.length - 1))
     : 0;
@@ -1135,12 +1135,6 @@ const stopPauseClockTick = () => {
 };
 // ──────────────────────────────────────────────────────────────────────────
 
-const syncOfficialStatsOffset = () => {
-  const height = root.classList.contains("ui-official") && torrentStatsOverlay && !torrentStatsOverlay.hidden
-    ? torrentStatsOverlay.offsetHeight : 0;
-  root.style.setProperty("--official-stats-offset", `${height > 0 ? height + 8 : 0}px`);
-};
-
 const syncTorrentStatsOverlay = suppressed => {
   if (!torrentStatsOverlay) return;
   const showClock = Boolean(state.showPlaybackTimeOverlay && !suppressed);
@@ -1155,7 +1149,6 @@ const syncTorrentStatsOverlay = suppressed => {
   } else {
     stopStatsClockTick();
   }
-  syncOfficialStatsOffset();
 };
 
 const togglePlaybackStatsOverlay = () => {
@@ -4146,6 +4139,12 @@ const renderChrome = () => {
   syncTorrentStatsOverlay(showOpening || showError || modalActive);
 
   title.textContent = state.title || "";
+  const parentalGuideUnavailable = !normalizedParentalWarnings().length || Boolean(state.isLocked || state.showParentalGuide);
+  [title, codeineTitle].forEach(button => {
+    if (!button) return;
+    button.setAttribute("aria-disabled", String(parentalGuideUnavailable));
+    button.inert = chromeHidden || showOpening || Boolean(state.isInPip) || (button === title ? isCodeineXo : !isCodeineXo);
+  });
   setText(episode, state.episodeText);
   setText(streamTitle, state.streamTitle);
   setText(providerName, state.providerName);
@@ -4754,6 +4753,14 @@ document.querySelectorAll("[data-command]").forEach(button => {
       requestPlaybackState("setPlaybackState", true);
       return;
     }
+    if (command === "showParentalGuide") {
+      // Returning focus lets auto-hide resume after the pointer leaves the title.
+      focusShortcutRoot();
+      isChromeFocusInside = false;
+      noteChromeActivity(true);
+      if (button.getAttribute("aria-disabled") !== "true") send(command, 0);
+      return;
+    }
     if (command === "audio") {
       openPlayerModal("audio");
       return;
@@ -4816,6 +4823,15 @@ document.querySelectorAll("[data-command]").forEach(button => {
     showCommandToast(command);
     send(command, 0);
   });
+});
+
+document.querySelectorAll(".parental-guide-trigger").forEach(button => {
+  button.addEventListener("dblclick", event => event.stopPropagation());
+  for (const type of ["keydown", "keyup"]) {
+    button.addEventListener(type, event => {
+      if (event.code === "Space" || event.key === "Enter") event.stopPropagation();
+    });
+  }
 });
 
 toggle.addEventListener("pointerdown", event => {
@@ -5837,10 +5853,6 @@ window.addEventListener("dblclick", event => {
 }, true);
 window.addEventListener("resize", positionQuickMenu);
 new ResizeObserver(positionQuickMenu).observe(root);
-if (torrentStatsOverlay) {
-  new ResizeObserver(syncOfficialStatsOffset).observe(torrentStatsOverlay);
-}
-
 if (codeineStatsButton) {
   codeineStatsButton.addEventListener("click", event => {
     event.stopPropagation();
