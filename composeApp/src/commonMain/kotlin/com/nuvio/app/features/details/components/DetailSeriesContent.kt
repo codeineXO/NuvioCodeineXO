@@ -1266,7 +1266,9 @@ private fun SeasonTextChipScrollRow(
                 modifier = rowNavigation.modifier
                     .remoteNavigationUp(onSeasonUp.takeIf { isEnhanced })
                     .remoteNavigationDown(onSeasonDown.takeIf { isEnhanced })
-                    .then(rowModifier).then(rowGlassSource),
+                    .then(rowModifier)
+                    .let { if (isEnhanced) it.nuvioPosterRowEdgeFade(seasonListState) else it }
+                    .then(rowGlassSource),
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
             ) {
@@ -1276,7 +1278,7 @@ private fun SeasonTextChipScrollRow(
                         val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
                         val chipInteractionSource = remember { MutableInteractionSource() }
                         val isChipHovered by chipInteractionSource.collectIsRemoteHoveredAsState()
-                        val posterUrl = remember(season) { seasonPosterForSeason?.invoke(season) }
+                        val posterUrl = seasonPosterForSeason?.invoke(season)
 
                         Box(
                             modifier = Modifier.wrapContentSize(),
@@ -1443,7 +1445,7 @@ private fun SeasonPosterHoverPreviewOverlay(
                         ),
                 ) {
                     AsyncImage(
-                        model = posterUrl,
+                        model = rememberSeasonPosterHoverRequest(posterUrl),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
@@ -1764,7 +1766,7 @@ private fun ViewListButton(
     }
 }
 
-private fun resolveSeasonPoster(
+internal fun resolveSeasonPoster(
     season: Int,
     groupedEpisodes: Map<Int, List<MetaVideo>>,
     meta: MetaDetails,
@@ -2042,6 +2044,7 @@ private fun EpisodeHorizontalRow(
                                 episodeRatingsVisibility = episodeRatingsVisibility,
                                 blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                                 metrics = rowMetrics,
+                                isEnhanced = isEnhanced,
                                 onClick = { onEpisodeClick?.invoke(episode) },
                                 onLongPress = { onEpisodeLongPress?.invoke(episode) },
                             )
@@ -2098,6 +2101,7 @@ private fun EpisodeHorizontalCard(
     episodeRatingsVisibility: EpisodeRatingsVisibility,
     blurUnwatchedEpisodes: Boolean,
     metrics: EpisodeHorizontalCardMetrics,
+    isEnhanced: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -2113,12 +2117,23 @@ private fun EpisodeHorizontalCard(
     val glow = rememberArtworkGlowState(imageUrl)
     val visibleProgressEntry = progressEntry?.takeIf { it.durationMs > 0L && !it.isCompleted }
     val progressBarHeight = 4.dp
-    val progressBarContentSpacing = 6.dp
+    val progressBarContentSpacing = if (isEnhanced) 4.dp else 6.dp
     val progressBarBottomSpacing = 8.dp
     val contentBottomPadding = if (visibleProgressEntry != null) {
         progressBarContentSpacing + progressBarHeight + progressBarBottomSpacing
     } else {
-        metrics.contentBottomPadding
+        if (isEnhanced) (metrics.contentBottomPadding - 4.dp).coerceAtLeast(8.dp)
+        else metrics.contentBottomPadding
+    }
+    val density = LocalDensity.current
+    val textShadow = remember(isEnhanced, density) {
+        if (isEnhanced) with(density) {
+            Shadow(
+                color = Color.Black.copy(alpha = 0.85f),
+                offset = Offset(0f, 1.dp.toPx()),
+                blurRadius = 3.dp.toPx(),
+            )
+        } else null
     }
     Box(
         modifier = modifier
@@ -2211,6 +2226,7 @@ private fun EpisodeHorizontalCard(
                 horizontalPadding = metrics.badgeHorizontalPadding,
                 verticalPadding = metrics.badgeVerticalPadding,
                 backgroundAlpha = 0.42f,
+                textShadow = textShadow,
             )
 
             Text(
@@ -2219,6 +2235,7 @@ private fun EpisodeHorizontalCard(
                     fontSize = metrics.titleTextSize,
                     fontWeight = FontWeight.ExtraBold,
                     lineHeight = metrics.titleLineHeight,
+                    shadow = textShadow,
                 ),
                 color = Color.White,
                 maxLines = 2,
@@ -2231,6 +2248,7 @@ private fun EpisodeHorizontalCard(
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = metrics.bodyTextSize,
                         lineHeight = metrics.bodyLineHeight,
+                        shadow = textShadow,
                     ),
                     color = Color.White.copy(alpha = 0.86f),
                     maxLines = metrics.overviewMaxLines,
@@ -2247,7 +2265,7 @@ private fun EpisodeHorizontalCard(
                     runtimeLabel?.let { runtime ->
                         Text(
                             text = runtime,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = metrics.metaTextSize),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = metrics.metaTextSize, shadow = textShadow),
                             color = Color.White.copy(alpha = 0.78f),
                             maxLines = 1,
                         )
@@ -2258,13 +2276,14 @@ private fun EpisodeHorizontalCard(
                             logoWidth = metrics.imdbLogoWidth,
                             logoHeight = metrics.imdbLogoHeight,
                             textSize = metrics.metaTextSize,
+                            textShadow = textShadow,
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     formattedDate?.let { date ->
                         Text(
                             text = date,
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = metrics.metaTextSize),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = metrics.metaTextSize, shadow = textShadow),
                             color = Color.White.copy(alpha = 0.78f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -2327,7 +2346,7 @@ private fun rememberEpisodeHorizontalCardMetrics(
     val userCornerRadius = posterCardStyle.cornerRadiusDp.dp
     val baseScale = if (reduceSize) 0.9f else 1f
     val scale = if (isEnhanced) baseScale * 0.80f else baseScale
-    val textScale = if (isEnhanced) 0.95f else 1f
+    val textScale = if (isEnhanced) 0.80f else 1f
     return remember(maxWidthDp, userCornerRadius, reduceSize, isEnhanced) {
         when {
             maxWidthDp >= 1300f -> EpisodeHorizontalCardMetrics(
@@ -2438,6 +2457,7 @@ private fun EpisodeCodeBadge(
     verticalPadding: Dp,
     backgroundAlpha: Float,
     modifier: Modifier = Modifier,
+    textShadow: Shadow? = null,
 ) {
     Box(
         modifier = modifier
@@ -2451,6 +2471,7 @@ private fun EpisodeCodeBadge(
                 fontSize = textSize,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.sp,
+                shadow = textShadow,
             ),
             color = Color.White.copy(alpha = 0.9f),
             maxLines = 1,
@@ -2464,6 +2485,7 @@ private fun ImdbEpisodeRatingBadge(
     logoWidth: Dp,
     logoHeight: Dp,
     textSize: androidx.compose.ui.unit.TextUnit,
+    textShadow: Shadow? = null,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -2485,6 +2507,7 @@ private fun ImdbEpisodeRatingBadge(
                     fontSize = textSize,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.sp,
+                    shadow = textShadow,
                 ),
                 color = Color.White.copy(alpha = 0.78f),
                 maxLines = 1,
@@ -2495,6 +2518,7 @@ private fun ImdbEpisodeRatingBadge(
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = textSize,
                 fontWeight = FontWeight.SemiBold,
+                shadow = textShadow,
             ),
             color = Color(0xFFF5C518),
             maxLines = 1,

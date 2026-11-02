@@ -695,6 +695,9 @@ fun MetaDetailsScreen(
 
             displayedMeta != null -> {
                 val meta = displayedMeta
+                if (metaScreenSettingsUiState.episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
+                    com.nuvio.app.features.details.components.PreloadSeasonPosterHoverPreviews(meta)
+                }
                 val metaPreview = remember(meta) { meta.toMetaPreview() }
                 val todayIsoDate = CurrentDateProvider.todayIsoDate()
                 val isSaved = remember(
