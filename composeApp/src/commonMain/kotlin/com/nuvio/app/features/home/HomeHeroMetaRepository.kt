@@ -122,6 +122,8 @@ internal class HomeHeroMetaRepository(
 internal fun MetaPreview.withHeroMeta(meta: HomeHeroMeta): MetaPreview {
     val details = meta.details
     return copy(
+        releaseInfo = releaseInfo?.takeIf { it.isNotBlank() }
+            ?: details?.releaseInfo?.takeIf { it.isNotBlank() },
         genres = details?.genres?.takeIf { it.isNotEmpty() } ?: genres,
         imdbRating = details?.imdbRating?.takeIf { it.isNotBlank() } ?: imdbRating,
         runtime = details?.runtime?.takeIf { it.isNotBlank() } ?: runtime,

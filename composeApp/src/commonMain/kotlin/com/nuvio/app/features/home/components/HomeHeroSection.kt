@@ -79,6 +79,8 @@ import com.nuvio.app.core.ui.NuvioDesktopImageScaling
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.core.format.extractReleaseYearForDisplay
+import com.nuvio.app.features.details.formatRuntimeForDisplay
 import com.nuvio.app.core.ui.heroStretchHeight
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.onViewportVisibilityChanged
@@ -1008,6 +1010,25 @@ private fun DesktopHeroContentBlock(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+
+        val releaseMetadata = buildList {
+            (item.releaseInfo?.takeIf { it.isNotBlank() } ?: item.rawReleaseDate)
+                ?.trim()?.takeIf { it.isNotBlank() }
+                ?.let { extractReleaseYearForDisplay(it)?.toString() ?: it }
+                ?.let(::add)
+            formatRuntimeForDisplay(item.runtime)?.takeIf { it.isNotBlank() }?.let(::add)
+            item.ageRating?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
+        }.joinToString(" • ")
+        Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
+        // Keep one line reserved while the existing hero metadata request completes.
+        Text(
+            text = releaseMetadata,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = colorScheme.onSurfaceVariant,
+            minLines = 1,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
 
         val heroRatings = item.heroRatings(showOverallRatings, isMdbListActive)
         val validImdbRating = heroRatings.imdb
