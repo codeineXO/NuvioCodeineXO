@@ -16,9 +16,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -193,11 +196,14 @@ internal fun DetailRatingsRow(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun RatingsRow(
     ratings: List<MetaExternalRating>,
     modifier: Modifier = Modifier,
     maxItems: Int = Int.MAX_VALUE,
+    wrap: Boolean = false,
+    compact: Boolean = false,
 ) {
     val orderedRatings = remember(ratings, maxItems) {
         val bySource = ratings.associateBy { it.source }
@@ -207,18 +213,18 @@ internal fun RatingsRow(
     }
 
     if (orderedRatings.isEmpty()) return
+    val ratingScale = if (compact) 0.85f else 1f
 
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
+    val content: @Composable () -> Unit = {
         orderedRatings.forEach { (visuals, rating) ->
             val ratingTextStyle = MaterialTheme.typography.titleSmall.copy(
+                fontSize = MaterialTheme.typography.titleSmall.fontSize * ratingScale,
+                lineHeight = MaterialTheme.typography.titleSmall.lineHeight * ratingScale,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.sp,
             )
             Row(
+                modifier = if (wrap) Modifier.heightIn(min = 24.dp * ratingScale) else Modifier,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
@@ -227,14 +233,17 @@ internal fun RatingsRow(
                     val logoHeight = when (rating.rottenTomatoesStatus) {
                         RottenTomatoesStatus.CERTIFIED_FRESH, RottenTomatoesStatus.VERIFIED_HOT -> 24.dp
                         else -> 16.dp
-                    }
+                    } * ratingScale
                     Image(
                         painter = if (visuals.source == PROVIDER_IMDB) rememberImdbLogoPainter() else painterResource(visuals.logoFor(rating)),
                         contentDescription = visuals.displayName,
-                        modifier = Modifier.size(width = maxOf(visuals.logoWidth, logoHeight), height = logoHeight),
+                        modifier = Modifier.size(
+                            width = maxOf(visuals.logoWidth * ratingScale, if (wrap) 24.dp * ratingScale else logoHeight),
+                            height = logoHeight,
+                        ),
                     )
                 }
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(4.dp * ratingScale))
                 Text(
                     text = visuals.format(rating.value),
                     style = ratingTextStyle,
@@ -242,6 +251,19 @@ internal fun RatingsRow(
                 )
             }
         }
+    }
+    if (wrap) {
+        FlowRow(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(14.dp * ratingScale),
+            verticalArrangement = Arrangement.spacedBy(8.dp * ratingScale),
+        ) { content() }
+    } else {
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp * ratingScale),
+        ) { content() }
     }
 }
 

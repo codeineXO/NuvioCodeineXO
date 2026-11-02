@@ -22,39 +22,41 @@ import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalWindowInfo
+import com.nuvio.app.features.details.components.RatingsRow
+import com.nuvio.app.features.details.formatRuntimeForDisplay
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CheckCircleOutline
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.nuvio.app.core.ui.LocalPosterGlowLayer
+import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.posterGlow
+import com.nuvio.app.core.ui.rememberArtworkGlowState
+import com.nuvio.app.features.details.MetaExternalRating
+import com.nuvio.app.features.mdblist.MdbListMetadataService
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -75,7 +77,7 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.TrailerPlaybackMode
-import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.core.format.extractReleaseYearForDisplay
 import com.nuvio.app.core.ui.NuvioAsyncImage
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.NuvioTokens
@@ -86,35 +88,18 @@ import com.nuvio.app.core.ui.actionMenuSecondaryClick
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.home.MetaPreview
-import com.nuvio.app.features.details.components.DetailIconAction
-import com.nuvio.app.features.library.LibraryRepository
-import com.nuvio.app.features.library.PendingTrackingMembershipRemoval
-import com.nuvio.app.features.library.TrackingMembershipRemovalConfirmationHost
-import com.nuvio.app.features.library.executeTrackingMembershipOperation
-import com.nuvio.app.features.library.showTrackingMembershipRewriteFeedback
-import com.nuvio.app.features.library.toLibraryItem
 import com.nuvio.app.features.trailer.TrailerPlaybackSource
-import com.nuvio.app.features.tracking.TrackingMembershipApplyResult
-import com.nuvio.app.features.tracking.TrackingProviderId
-import com.nuvio.app.features.watching.application.WatchingActions
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.hero_add_to_library
-import nuvio.composeapp.generated.resources.hero_mark_unwatched
-import nuvio.composeapp.generated.resources.hero_mark_watched
-import nuvio.composeapp.generated.resources.hero_remove_from_library
-import nuvio.composeapp.generated.resources.home_view_details
 import nuvio.composeapp.generated.resources.poster_logo_content_description
-import nuvio.composeapp.generated.resources.tracking_lists_update_failed
 import org.jetbrains.compose.resources.stringResource
 
 private const val HoverPreviewCloseDelayMillis = 120L
 private val HoverPreviewEnterDurationMillis get() = navigationMotionDuration(NuvioTokens.Motion.sheetEnterMillis)
 private val HoverPreviewExitDurationMillis get() = navigationMotionDuration(170)
 private const val HoverTrailerExtractionDebounceMillis = 1_000L
-private val HoverPreviewWidth = 420.dp
+private val HoverPreviewWidth = 600.dp
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -155,18 +140,10 @@ internal fun HomePosterHoverPreview(
     var trailerPlaybackSource by remember(item.type, item.id) {
         mutableStateOf<TrailerPlaybackSource?>(null)
     }
-    var previewIsSaved by remember(item.type, item.id) { mutableStateOf(false) }
-    var pendingTrackingRemoval by remember(item.type, item.id) {
-        mutableStateOf<PendingTrackingMembershipRemoval?>(null)
-    }
-    val actionScope = rememberCoroutineScope()
-    val libraryItem = remember(item) { item.toLibraryItem(savedAtEpochMs = 0L) }
-    val trackingListsUpdateFailedMessage = stringResource(Res.string.tracking_lists_update_failed)
     val density = LocalDensity.current
     val positionProvider = remember(density) {
         HomePosterPreviewPositionProvider(
             edgeMarginPx = with(density) { NuvioTokens.Space.s16.roundToPx() },
-            topOverlapPx = with(density) { NuvioTokens.Space.s24.roundToPx() },
         )
     }
 
@@ -239,133 +216,81 @@ internal fun HomePosterHoverPreview(
         }
     }
 
-    LaunchedEffect(popupMounted, item.type, item.id) {
-        if (popupMounted) {
-            previewIsSaved = LibraryRepository.isSaved(item.id, item.type)
-        }
-    }
-
-    val onWatchedClick = remember(item) {
-        {
-            actionScope.launch {
-                WatchingActions.togglePosterWatched(item)
-            }
-            Unit
-        }
-    }
-    val onSaveClick = remember(libraryItem, trackingListsUpdateFailedMessage) {
-        {
-            actionScope.launch {
-                val toggleMembership: suspend (Set<TrackingProviderId>) -> TrackingMembershipApplyResult =
-                    { confirmedProviders ->
-                        LibraryRepository.toggleSaved(
-                            item = libraryItem,
-                            confirmedRemovalProviders = confirmedProviders,
-                        )
-                    }
-                val completeUpdate: suspend (TrackingMembershipApplyResult) -> Unit = { result ->
-                    showTrackingMembershipRewriteFeedback(result)
-                    previewIsSaved = LibraryRepository.isSaved(item.id, item.type)
-                }
-                val showFailure: suspend (Throwable) -> Unit = { error ->
-                    com.nuvio.app.core.ui.NuvioToastController.show(
-                        error.message ?: trackingListsUpdateFailedMessage,
-                    )
-                }
-                executeTrackingMembershipOperation(
-                    operation = { toggleMembership(emptySet()) },
-                    onSuccess = { result ->
-                        if (result.requiresRemovalConfirmation) {
-                            pendingTrackingRemoval = PendingTrackingMembershipRemoval(
-                                itemTitle = libraryItem.name,
-                                confirmations = result.requiredRemovalConfirmations,
-                                retry = toggleMembership,
-                                onApplied = completeUpdate,
-                                onFailure = showFailure,
-                            )
-                        } else {
-                            completeUpdate(result)
-                        }
-                    },
-                    onFailure = showFailure,
-                )
-            }
-            Unit
-        }
-    }
-
     Box(modifier = modifier) {
         CompositionLocalProvider(LocalActionMenuSource provides actionMenuSource) {
             content(Modifier.hoverable(anchorInteractionSource, enabled = !keyboardNavigation))
         }
 
         if (popupMounted && !keyboardNavigation && !actionMenuOpen) {
+            val previewState = rememberHomePosterPreviewState(item)
+            val glowOutset = if (posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp
+            val windowSize = LocalWindowInfo.current.containerSize
+            val availableWidth = with(density) { windowSize.width.toDp() } - (NuvioTokens.Space.s16 + glowOutset) * 2
+            val availableHeight = with(density) { windowSize.height.toDp() } - (NuvioTokens.Space.s16 + glowOutset) * 2
             Popup(
                 popupPositionProvider = positionProvider,
                 properties = PopupProperties(focusable = false),
             ) {
-                AnimatedVisibility(
-                    visible = previewVisible,
-                    enter = fadeIn(
-                        animationSpec = tween(
-                            durationMillis = HoverPreviewEnterDurationMillis,
-                            easing = NuvioTokens.Motion.standard,
+                // A popup owns its glow rather than writing into the shelf behind it.
+                CompositionLocalProvider(LocalPosterGlowLayer provides null) {
+                    AnimatedVisibility(
+                        visible = previewVisible,
+                        enter = fadeIn(
+                            animationSpec = tween(
+                                durationMillis = HoverPreviewEnterDurationMillis,
+                                easing = NuvioTokens.Motion.standard,
+                            ),
+                        ) + scaleIn(
+                            animationSpec = tween(
+                                durationMillis = HoverPreviewEnterDurationMillis,
+                                easing = NuvioTokens.Motion.emphasized,
+                            ),
+                            initialScale = 0.96f,
+                        ) + slideInVertically(
+                            animationSpec = tween(
+                                durationMillis = HoverPreviewEnterDurationMillis,
+                                easing = NuvioTokens.Motion.standard,
+                            ),
+                            initialOffsetY = { height -> height / 18 },
                         ),
-                    ) + scaleIn(
-                        animationSpec = tween(
-                            durationMillis = HoverPreviewEnterDurationMillis,
-                            easing = NuvioTokens.Motion.emphasized,
+                        exit = fadeOut(
+                            animationSpec = tween(HoverPreviewExitDurationMillis),
+                        ) + scaleOut(
+                            animationSpec = tween(HoverPreviewExitDurationMillis),
+                            targetScale = 0.97f,
+                        ) + slideOutVertically(
+                            animationSpec = tween(HoverPreviewExitDurationMillis),
+                            targetOffsetY = { height -> height / 32 },
                         ),
-                        initialScale = 0.96f,
-                    ) + slideInVertically(
-                        animationSpec = tween(
-                            durationMillis = HoverPreviewEnterDurationMillis,
-                            easing = NuvioTokens.Motion.standard,
-                        ),
-                        initialOffsetY = { height -> height / 18 },
-                    ),
-                    exit = fadeOut(
-                        animationSpec = tween(HoverPreviewExitDurationMillis),
-                    ) + scaleOut(
-                        animationSpec = tween(HoverPreviewExitDurationMillis),
-                        targetScale = 0.97f,
-                    ) + slideOutVertically(
-                        animationSpec = tween(HoverPreviewExitDurationMillis),
-                        targetOffsetY = { height -> height / 32 },
-                    ),
-                ) {
-                    HomePosterPreviewCard(
-                        actionMenuSource = actionMenuSource,
-                        item = item,
-                        isWatched = isWatched,
-                        isSaved = previewIsSaved,
-                        trailerEnabled = trailerPlaybackEnabled,
-                        trailerSoundEnabled = posterCardStyle.hoverPreviewTrailerSoundEnabled,
-                        trailerStartSeconds = posterCardStyle.hoverPreviewTrailerStartSeconds,
-                        trailerPlaybackSource = trailerPlaybackSource,
-                        modifier = Modifier
-                            .hoverable(previewInteractionSource)
-                            .onPointerEvent(PointerEventType.Scroll) {
-                                previewDismissedByScroll = true
-                                previewVisible = false
-                                popupMounted = false
-                            },
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                        onWatchedClick = onWatchedClick,
-                        onSaveClick = onSaveClick,
-                    )
+                    ) {
+                        HomePosterPreviewCard(
+                            actionMenuSource = actionMenuSource,
+                            item = previewState.item,
+                            ratingSources = previewState.ratingSources,
+                            previewWidth = minOf(HoverPreviewWidth, availableWidth.coerceAtLeast(1.dp)),
+                            previewMaxHeight = availableHeight.coerceAtLeast(1.dp),
+                            isWatched = isWatched,
+                            trailerEnabled = trailerPlaybackEnabled,
+                            trailerSoundEnabled = posterCardStyle.hoverPreviewTrailerSoundEnabled,
+                            trailerStartSeconds = posterCardStyle.hoverPreviewTrailerStartSeconds,
+                            trailerPlaybackSource = trailerPlaybackSource,
+                            modifier = Modifier
+                                .padding(glowOutset)
+                                .hoverable(previewInteractionSource)
+                                .onPointerEvent(PointerEventType.Scroll) {
+                                    previewDismissedByScroll = true
+                                    previewVisible = false
+                                    popupMounted = false
+                                },
+                            onClick = onClick,
+                            onLongClick = onLongClick,
+                        )
+                    }
                 }
             }
         }
     }
 
-    pendingTrackingRemoval?.let { pending ->
-        TrackingMembershipRemovalConfirmationHost(
-            pending = pending,
-            onPendingChange = { pendingTrackingRemoval = it },
-        )
-    }
 }
 
 @Composable
@@ -373,7 +298,9 @@ private fun HomePosterPreviewCard(
     actionMenuSource: ActionMenuSource,
     item: MetaPreview,
     isWatched: Boolean,
-    isSaved: Boolean,
+    ratingSources: List<String>,
+    previewWidth: androidx.compose.ui.unit.Dp,
+    previewMaxHeight: androidx.compose.ui.unit.Dp,
     trailerEnabled: Boolean,
     trailerSoundEnabled: Boolean,
     trailerStartSeconds: Int,
@@ -381,8 +308,6 @@ private fun HomePosterPreviewCard(
     modifier: Modifier,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
-    onWatchedClick: () -> Unit,
-    onSaveClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
     val shape = RoundedCornerShape(NuvioTokens.Radius.xl)
@@ -390,72 +315,70 @@ private fun HomePosterPreviewCard(
     val clickInteractionSource = remember { MutableInteractionSource() }
     var logoLoadError by remember(item.type, item.id, item.logo) { mutableStateOf(false) }
     val logoUrl = item.logo?.takeIf { it.isNotBlank() && !logoLoadError }
+    val artworkUrl = listOf(item.banner, item.landscapePoster, item.poster)
+        .firstOrNull { !it.isNullOrBlank() }
+    val glow = rememberArtworkGlowState(artworkUrl)
 
-    Column(
+    Box(
         modifier = modifier
-            .width(HoverPreviewWidth)
+            .width(previewWidth)
+            .sizeIn(maxHeight = previewMaxHeight)
+            .posterGlow(glow, shape, forceActive = true)
             .shadow(tokens.elevation.overlay, shape)
             .clip(shape)
             .background(previewBackground)
             .border(tokens.borders.hairline, tokens.colors.borderStrong, shape)
-            .remoteNavigationTarget(shape = shape).clickable(
+            .remoteNavigationTarget(shape = shape)
+            .clickable(
                 interactionSource = clickInteractionSource,
                 indication = null,
                 enabled = onClick != null,
-            ) {
-                onClick?.invoke()
-            }
+            ) { onClick?.invoke() }
             .actionMenuSecondaryClick(onLongClick, actionMenuSource),
     ) {
+        if (artworkUrl != null) {
+            NuvioAsyncImage(
+                model = artworkUrl,
+                contentDescription = item.name,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                desktopAnimation = NuvioDesktopAnimation.Always,
+                onSuccess = { result -> glow?.painter = result.painter },
+            )
+        }
+        if (trailerEnabled) {
+            HomePosterHoverTrailer(
+                playbackSource = trailerPlaybackSource,
+                soundEnabled = trailerSoundEnabled,
+                startPositionSeconds = trailerStartSeconds,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Box(
+            modifier = Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.35f to Color.Black.copy(alpha = 0.15f),
+                    0.7f to Color.Black.copy(alpha = 0.78f),
+                    1f to Color.Black.copy(alpha = 0.98f),
+                ),
+            ),
+        )
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .background(tokens.colors.surface),
+                .heightIn(min = minOf(previewWidth * 9f / 16f, previewMaxHeight))
+                .verticalScroll(rememberScrollState())
+                .padding(NuvioTokens.Space.s18),
+            verticalArrangement = Arrangement.Bottom,
         ) {
-            val artworkUrl = item.banner ?: item.poster
-            if (!artworkUrl.isNullOrBlank()) {
-                NuvioAsyncImage(
-                    model = artworkUrl,
-                    contentDescription = item.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    desktopAnimation = NuvioDesktopAnimation.Always,
-                )
-            }
-
-            if (trailerEnabled) {
-                HomePosterHoverTrailer(
-                    playbackSource = trailerPlaybackSource,
-                    soundEnabled = trailerSoundEnabled,
-                    startPositionSeconds = trailerStartSeconds,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0f to Color.Transparent,
-                                0.58f to previewBackground.copy(alpha = 0.08f),
-                                1f to previewBackground.copy(alpha = 0.94f),
-                            ),
-                        ),
-                    ),
-            )
-
+            // Keep a clear artwork area even when wrapping ratings increase the card height.
+            Spacer(Modifier.height(previewWidth * 0.25f))
             if (logoUrl != null) {
                 NuvioAsyncImage(
                     model = logoUrl,
                     contentDescription = stringResource(Res.string.poster_logo_content_description, item.name),
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = NuvioTokens.Space.s18, bottom = NuvioTokens.Space.s14)
-                        .width(180.dp)
-                        .height(52.dp),
+                    modifier = Modifier.width(220.dp).height(56.dp),
                     alignment = Alignment.CenterStart,
                     contentScale = ContentScale.Fit,
                     clipToBounds = false,
@@ -464,153 +387,93 @@ private fun HomePosterPreviewCard(
             } else {
                 Text(
                     text = item.name,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(horizontal = NuvioTokens.Space.s18, vertical = NuvioTokens.Space.s16),
                     style = MaterialTheme.typography.headlineLarge,
-                    color = tokens.colors.textPrimary,
+                    color = Color.White,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-
-            NuvioPosterWatchedOverlay(
-                isWatched = isWatched,
-                padding = NuvioTokens.Space.s10,
-            )
-        }
-
-        Column(
-            modifier = Modifier.padding(
-                start = NuvioTokens.Space.s18,
-                top = NuvioTokens.Space.s14,
-                end = NuvioTokens.Space.s18,
-                bottom = NuvioTokens.Space.s18,
-            ),
-            verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s10),
-        ) {
-            Text(
-                text = item.previewMetadataLine(),
-                style = MaterialTheme.typography.labelLarge,
-                color = tokens.colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            item.genres
-                .take(3)
-                .joinToString(" • ")
-                .takeIf { it.isNotBlank() }
-                ?.let { genres ->
+            Column(verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8)) {
+                PreviewMetadataRatings(item, ratingSources)
+                item.genres.take(3).joinToString(" • ").takeIf { it.isNotBlank() }?.let { genres ->
                     Text(
                         text = genres,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = tokens.colors.textMuted,
+                        color = Color.White.copy(alpha = 0.65f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-
-            item.description?.takeIf { it.isNotBlank() }?.let { description ->
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = tokens.colors.textPrimary,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            if (onClick != null) {
-                Spacer(modifier = Modifier.height(NuvioTokens.Space.s2))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s10),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(NuvioTokens.Space.s40),
-                        color = tokens.colors.accent,
-                        contentColor = tokens.colors.onAccent,
-                        shape = tokens.shapes.button,
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .remoteNavigationTarget().clickable(onClick = onClick)
-                                .padding(horizontal = NuvioTokens.Space.s16),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(Res.string.home_view_details),
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                            )
-                            Spacer(modifier = Modifier.width(NuvioTokens.Space.s8))
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                                contentDescription = null,
-                                modifier = Modifier.size(NuvioTokens.Icon.sm),
-                            )
-                        }
-                    }
-
-                    DetailIconAction(
-                        label = if (isWatched) {
-                            stringResource(Res.string.hero_mark_unwatched)
-                        } else {
-                            stringResource(Res.string.hero_mark_watched)
-                        },
-                        icon = if (isWatched) {
-                            Icons.Default.CheckCircle
-                        } else {
-                            Icons.Default.CheckCircleOutline
-                        },
-                        active = isWatched,
-                        progress = 1f,
-                        onClick = onWatchedClick,
-                        size = NuvioTokens.Space.s40,
-                    )
-
-                    DetailIconAction(
-                        label = if (isSaved) {
-                            stringResource(Res.string.hero_remove_from_library)
-                        } else {
-                            stringResource(Res.string.hero_add_to_library)
-                        },
-                        icon = if (isSaved) Icons.Default.Check else Icons.Default.Add,
-                        active = isSaved,
-                        progress = 1f,
-                        onClick = onSaveClick,
-                        size = NuvioTokens.Space.s40,
+                item.description?.takeIf { it.isNotBlank() }?.let { description ->
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
         }
+        NuvioPosterWatchedOverlay(isWatched = isWatched, padding = NuvioTokens.Space.s10)
     }
 }
 
-private fun MetaPreview.previewMetadataLine(): String =
-    buildList {
-        add(type.replaceFirstChar(Char::uppercase))
-        releaseInfo
-            ?.takeIf { it.isNotBlank() }
-            ?.let(::formatReleaseDateForDisplay)
-            ?.takeIf { it.isNotBlank() }
-            ?.let(::add)
-        imdbRating
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { add("IMDb $it") }
-    }.joinToString(" • ")
+/** Reserve enabled source slots before the request completes, including wrap rows. */
+@Composable
+private fun PreviewMetadataRatings(item: MetaPreview, ratingSources: List<String>) {
+    val reservedRatings = remember(ratingSources) {
+        ratingSources.map { source ->
+            val maximum = when (source) {
+                MdbListMetadataService.PROVIDER_IMDB,
+                MdbListMetadataService.PROVIDER_LETTERBOXD,
+                MdbListMetadataService.PROVIDER_MAL -> 10.0
+                else -> 100.0
+            }
+            MetaExternalRating(source, maximum)
+        }
+    }
+    val ratings = item.externalRatings.ifEmpty {
+        item.imdbRating?.trim()?.toDoubleOrNull()?.takeIf { it > 0.0 }
+            ?.let { listOf(MetaExternalRating(MdbListMetadataService.PROVIDER_IMDB, it)) }
+            .orEmpty()
+    }
+    val metadata = item.previewMetadataLine()
+    Column(verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8)) {
+        if (metadata.isNotBlank()) {
+            Text(
+                text = metadata,
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.8f),
+            )
+        }
+        Box(Modifier.fillMaxWidth()) {
+            RatingsRow(
+                ratings = reservedRatings,
+                modifier = Modifier.fillMaxWidth().alpha(0f).clearAndSetSemantics {},
+                wrap = true,
+                compact = true,
+            )
+            RatingsRow(
+                ratings = ratings,
+                modifier = Modifier.fillMaxWidth(),
+                wrap = true,
+                compact = true,
+            )
+        }
+    }
+}
+
+private fun MetaPreview.previewMetadataLine(): String = buildList {
+    releaseInfo?.takeIf { it.isNotBlank() }?.let { extractReleaseYearForDisplay(it)?.toString() ?: it }
+        ?.takeIf { it.isNotBlank() }?.let(::add)
+    formatRuntimeForDisplay(runtime)?.takeIf { it.isNotBlank() }?.let(::add)
+    ageRating?.takeIf { it.isNotBlank() }?.let(::add)
+}.joinToString(" • ")
 
 private class HomePosterPreviewPositionProvider(
     private val edgeMarginPx: Int,
-    private val topOverlapPx: Int,
 ) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
@@ -623,11 +486,11 @@ private class HomePosterPreviewPositionProvider(
         val maxY = (windowSize.height - popupContentSize.height - edgeMarginPx)
             .coerceAtLeast(edgeMarginPx)
         val centeredX = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
-        val preferredY = anchorBounds.top - topOverlapPx
+        val centeredY = anchorBounds.top + (anchorBounds.height - popupContentSize.height) / 2
 
         return IntOffset(
             x = centeredX.coerceIn(edgeMarginPx, maxX),
-            y = preferredY.coerceIn(edgeMarginPx, maxY),
+            y = centeredY.coerceIn(edgeMarginPx, maxY),
         )
     }
 }

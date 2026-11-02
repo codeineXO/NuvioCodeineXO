@@ -100,14 +100,15 @@ internal fun rememberArtworkGlowState(imageUrl: String?, fallbackUrl: String? = 
     } else null
 
 @Composable
-internal fun Modifier.posterGlow(state: PosterGlowState?, shape: Shape): Modifier =
-    posterGlow(state, state?.artworkKey.orEmpty(), shape)
+internal fun Modifier.posterGlow(state: PosterGlowState?, shape: Shape, forceActive: Boolean = false): Modifier =
+    posterGlow(state, state?.artworkKey.orEmpty(), shape, forceActive)
 
 @Composable
 internal fun Modifier.posterGlow(
     state: PosterGlowState?,
     artworkKey: String,
     shape: Shape,
+    forceActive: Boolean = false,
 ): Modifier {
     val layer = LocalPosterGlowLayer.current
     if (state == null) return this
@@ -120,7 +121,7 @@ internal fun Modifier.posterGlow(
 
     val interactions = remember { MutableInteractionSource() }
     val hovered by interactions.collectIsRemoteHoveredAsState()
-    val active = hovered || (state.focused && isRemoteKeyboardNavigationActive)
+    val active = forceActive || hovered || (state.focused && isRemoteKeyboardNavigationActive)
     var color by remember(artworkKey) { mutableStateOf(posterGlowColors[artworkKey]) }
     val dominant = key(artworkKey) {
         rememberPainterDominantColorState(
