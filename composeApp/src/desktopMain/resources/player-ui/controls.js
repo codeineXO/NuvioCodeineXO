@@ -212,6 +212,15 @@ const subtitleOutlineBriSlider = document.getElementById("subtitleOutlineBriSlid
 const subtitleOutlineBriValue = document.getElementById("subtitleOutlineBriValue");
 const subtitleOutlineHexInput = document.getElementById("subtitleOutlineHexInput");
 const fontLabel = document.getElementById("fontLabel");
+const subtitleFontModal = document.getElementById("subtitleFontModal");
+const subtitleFontModalTitle = document.getElementById("subtitleFontModalTitle");
+const subtitleFontList = document.getElementById("subtitleFontList");
+const subtitleFontHint = document.getElementById("subtitleFontHint");
+const subtitleFontError = document.getElementById("subtitleFontError");
+const subtitleFontImport = document.getElementById("subtitleFontImport");
+const subtitleFontDone = document.getElementById("subtitleFontDone");
+
+let fontPickerOpen = false;
 const fontMinus = document.getElementById("fontMinus");
 const fontValue = document.getElementById("fontValue");
 const fontPlus = document.getElementById("fontPlus");
@@ -1676,6 +1685,7 @@ const setModalVisibility = (modal, visible, animated = true) => {
 };
 
 const closePlayerModal = (notifyDismiss = false, animated = true) => {
+  if (fontPickerOpen) setFontPickerOpen(false);
   const closingModal = activeModal;
   activeModal = "";
   lastRenderedModal = "";
@@ -2462,6 +2472,85 @@ const renderAutoSyncCues = () => {
   });
 };
 
+const isBuiltInFont = id => !String(id).startsWith("custom-");
+const fontSampleFamily = id => ({ sans: "sans-serif", serif: "serif", mono: "monospace" })[id] || "inherit";
+
+const renderFontPicker = () => {
+  subtitleFontModalTitle.textContent = state.fontLabel || "Font";
+  subtitleFontImport.textContent = state.fontImportLabel || "Import font";
+  subtitleFontDone.textContent = state.doneLabel || "Done";
+  subtitleFontHint.textContent = state.fontImportHint || "";
+  subtitleFontError.textContent = state.fontImportError || "";
+  subtitleFontError.hidden = !state.subtitleFontImportFailed;
+  if (!fontPickerOpen) return;
+  const selectedId = (state.subtitleStyle || {}).fontId || "Arial";
+  const focusedIndex = Array.from(subtitleFontList.querySelectorAll("button")).indexOf(document.activeElement);
+  subtitleFontList.textContent = "";
+  (state.subtitleFonts || []).forEach((font, index) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "font-option";
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `track-row${font.id === selectedId ? " selected" : ""}`;
+    row.addEventListener("click", event => {
+      event.stopPropagation();
+      send("subtitleFont", index);
+    });
+    const sample = document.createElement("span");
+    sample.className = "font-option-sample";
+    sample.style.fontFamily = fontSampleFamily(font.id);
+    sample.textContent = "Aa";
+    const label = document.createElement("span");
+    label.className = "track-label";
+    label.textContent = font.label;
+    row.append(sample, label);
+    if (font.id === selectedId) row.appendChild(buildCheckIcon());
+    wrapper.appendChild(row);
+    if (!isBuiltInFont(font.id)) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "panel-button";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", (state.fontRemoveLabel || "Remove {name}").replace("{name}", font.label));
+      remove.addEventListener("click", event => {
+        event.stopPropagation();
+        send("subtitleFontRemove", index);
+      });
+      wrapper.appendChild(remove);
+    }
+    subtitleFontList.appendChild(wrapper);
+  });
+  if (focusedIndex >= 0) {
+    const buttons = subtitleFontList.querySelectorAll("button");
+    buttons[Math.min(focusedIndex, buttons.length - 1)]?.focus();
+  }
+};
+
+const setFontPickerOpen = open => {
+  fontPickerOpen = open;
+  if (open) renderFontPicker();
+  setModalVisibility(subtitleFontModal, open);
+  if (open) requestAnimationFrame(() => subtitleFontList.querySelector("button")?.focus());
+  else fontValue.focus();
+};
+
+
+const handleFontPickerKey = event => {
+  if (!fontPickerOpen) return false;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    setFontPickerOpen(false);
+  } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+    event.preventDefault();
+    const buttons = Array.from(subtitleFontModal.querySelectorAll("button:not([disabled])"));
+    const current = buttons.indexOf(document.activeElement);
+    const delta = ["ArrowUp", "ArrowLeft"].includes(event.key) ? -1 : 1;
+    if (buttons.length) buttons[(Math.max(0, current) + delta + buttons.length) % buttons.length].focus();
+  }
+  event.stopPropagation();
+  return true;
+};
+
 const renderSubtitleStylePanel = () => {
   const style = state.subtitleStyle || {};
   const storedCustomStyling = state.customSubtitleStylingEnabled !== false;
@@ -2489,7 +2578,7 @@ const renderSubtitleStylePanel = () => {
   fontSizeValue.textContent = `${Number(style.fontSizeSp) || 18}sp`;
   if (fontLabel) fontLabel.textContent = state.fontLabel || "Font";
   if (fontValue) {
-    const font = style.fontName || "Inter";
+    const font = (state.subtitleFonts || []).find(item => item.id === style.fontId)?.label || style.fontName || "Arial";
     fontValue.textContent = font;
     fontValue.style.fontFamily = `"${font}", sans-serif`;
   }
@@ -2538,6 +2627,7 @@ const renderSubtitleStylePanel = () => {
   renderSwatches(outlineColorSwatches, state.subtitleOutlineColorSwatches, style.outlineColor, "subtitleOutlineColor");
   syncColorPickerUi("subtitleText", style.textColor);
   syncColorPickerUi("subtitleOutline", style.outlineColor);
+  if (fontPickerOpen) renderFontPicker();
   renderAutoSyncCues();
 };
 
@@ -3633,6 +3723,9 @@ const getSubtitlesModalSignature = () => {
     style.fontSizeSp || 18,
     style.bottomOffset || 20,
     style.fontName || "",
+    style.fontId || "",
+    Boolean(state.subtitleFontImportFailed),
+    JSON.stringify(state.subtitleFonts || []),
     style.outlineEffect || "",
     style.outlineWidth || 2,
     style.backgroundColor || "",
@@ -4924,6 +5017,10 @@ fontSizePlus.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleFontSizeDelta", 1);
 });
+fontValue.addEventListener("click", event => { event.stopPropagation(); setFontPickerOpen(true); });
+subtitleFontImport.addEventListener("click", event => { event.stopPropagation(); send("subtitleFontImport"); });
+subtitleFontDone.addEventListener("click", event => { event.stopPropagation(); setFontPickerOpen(false); });
+subtitleFontModal.addEventListener("click", event => { if (event.target === subtitleFontModal) setFontPickerOpen(false); });
 if (fontMinus) {
   fontMinus.addEventListener("click", event => {
     event.stopPropagation();
@@ -6634,6 +6731,7 @@ document.addEventListener("keyup", event => {
 });
 
 document.addEventListener("keydown", event => {
+  if (handleFontPickerKey(event)) return;
   if (event.key === "Escape" && isQuickMenuOpen) {
     event.preventDefault();
     closeQuickMenu();

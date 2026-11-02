@@ -2,7 +2,6 @@ package com.nuvio.app.features.player
 
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.build.AppFeaturePolicy
-import com.nuvio.app.isDesktop
 import com.nuvio.app.features.player.skip.AutoSkipSegmentType
 import com.nuvio.app.features.player.skip.NextEpisodeThresholdMode
 import com.nuvio.app.features.streams.StreamAutoPlayMode
@@ -396,6 +395,7 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.outlineWidth,
             outlineEffect = SubtitleOutlineEffect.fromId(PlayerSettingsStorage.loadSubtitleOutlineEffect()),
             fontName = PlayerSettingsStorage.loadSubtitleFont() ?: SubtitleStyleState.DEFAULT.fontName,
+            importedFontId = decodeSubtitleAppearance(PlayerSettingsStorage.loadSubtitleAppearance()).fontId.takeIf { it.startsWith("custom-") },
             bold = PlayerSettingsStorage.loadSubtitleBold()
                 ?: SubtitleStyleState.DEFAULT.bold,
             fontSizeSp = (PlayerSettingsStorage.loadSubtitleFontSizeSp()
@@ -408,6 +408,7 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.useForcedSubtitles,
             showOnlyPreferredLanguages = PlayerSettingsStorage.loadSubtitleShowOnlyPreferredLanguages()
                 ?: SubtitleStyleState.DEFAULT.showOnlyPreferredLanguages,
+            appearance = decodeSubtitleAppearance(PlayerSettingsStorage.loadSubtitleAppearance()),
         )
         streamReuseLastLinkEnabled = PlayerSettingsStorage.loadStreamReuseLastLinkEnabled() ?: false
         streamReuseLastLinkCacheHours = PlayerSettingsStorage.loadStreamReuseLastLinkCacheHours() ?: 24
@@ -728,12 +729,14 @@ object PlayerSettingsRepository {
         val normalized = style.copy(
             fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp),
             outlineEnabled = outlineEnabled,
+            bottomOffset = style.bottomOffset.coerceIn(0, 200),
         )
         if (subtitleStyle == normalized) return
         subtitleStyle = normalized
         publish()
         PlayerSettingsStorage.saveSubtitleTextColor(normalized.textColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleBackgroundColor(normalized.backgroundColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleAppearance(normalized.appearance.copy(fontId = normalized.importedFontId ?: "default").encode())
         PlayerSettingsStorage.saveSubtitleOutlineColor(normalized.outlineColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleOutlineEnabled(normalized.outlineEnabled)
         PlayerSettingsStorage.saveSubtitleOutlineWidth(normalized.outlineWidth)

@@ -191,6 +191,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 
 private val log = Logger.withTag("SeriesContent")
 private val SeriesScrollPostersExtraGutter = 20.dp
@@ -2188,13 +2189,14 @@ private fun EpisodeHorizontalCard(
             AnimeFillerSettingsRepository.enabled
         }.collectAsStateWithLifecycle()
 
-        Row(
+        Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(metrics.contentPadding),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.End,
         ) {
+            EpisodeAvailabilityBadge(video = video)
             if (isFillerEnabled) {
                 if (video.isFiller) {
                     FillerBadge()
@@ -2230,7 +2232,7 @@ private fun EpisodeHorizontalCard(
             )
 
             Text(
-                text = video.title,
+                text = localizedEpisodeTitle(video.title, video.episode) ?: video.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = metrics.titleTextSize,
                     fontWeight = FontWeight.ExtraBold,
@@ -2622,6 +2624,21 @@ private fun EpisodeListCard(
                         .align(Alignment.TopEnd)
                         .padding(8.dp),
                 )
+
+                EpisodeAvailabilityBadge(
+                    video = video,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 8.dp,
+                            end = 8.dp,
+                            bottom = if (progressEntry != null && progressEntry.durationMs > 0L && !progressEntry.isCompleted) {
+                                24.dp
+                            } else {
+                                8.dp
+                            },
+                        ),
+                )
             }
 
             Column(
@@ -2653,7 +2670,7 @@ private fun EpisodeListCard(
                     }
                 }
                 Text(
-                    text = video.title,
+                    text = localizedEpisodeTitle(video.title, video.episode) ?: video.title,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = sizing.titleTextSize,
                         fontWeight = FontWeight.Bold,

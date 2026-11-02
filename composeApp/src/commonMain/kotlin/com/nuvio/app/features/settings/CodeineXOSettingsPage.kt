@@ -37,6 +37,8 @@ import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
 import com.nuvio.app.features.player.SvpMotionOption
 import com.nuvio.app.features.player.VideoEnhancementsHardwareNote
+import com.nuvio.app.features.player.subtitleFontLabel
+import com.nuvio.app.features.player.selectFont
 import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
@@ -62,10 +64,12 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.codeineXOSettingsContent(
+    section: SettingsPage? = null,
     isTablet: Boolean,
     onOnboardingClick: (() -> Unit)? = null,
 ) {
     // ─── Quick Setup & Onboarding ───
+    if (section == null) {
     if (onOnboardingClick != null) {
         item {
             SettingsSection(
@@ -86,6 +90,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
     }
 
     // ─── Discord Support / Issue Reporting ───
+    }
+    if (section == null) {
     item {
         val tokens = MaterialTheme.nuvio
         val clipboardManager = LocalClipboardManager.current
@@ -111,6 +117,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }
     }
     // ─── Display / Interface ───
+    }
+    if (section == null || section == SettingsPage.Layout) {
     item {
         val auraBackgroundEnabled by remember {
             ThemeSettingsRepository.ensureLoaded()
@@ -193,6 +201,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
     }
 
     // ─── Player ───
+    }
+    if (section == null || section == SettingsPage.PlaybackInterface) {
     item {
         val playerSettings by remember {
             PlayerSettingsRepository.ensureLoaded()
@@ -267,6 +277,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
 
     }
 
+    }
+    if (section == null || section == SettingsPage.PlaybackInterface) {
     item {
         val playerSettings by remember {
             PlayerSettingsRepository.ensureLoaded()
@@ -276,6 +288,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
         SeekPreviewSettingsSection(playerSettings, isTablet)
     }
 
+    }
+    if (section == null || section == SettingsPage.PlaybackVideo) {
     if (isDesktop) {
         // ─── Video Enhancements ───
         item {
@@ -355,6 +369,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
     }
 
     // ─── Anime ───
+    }
+    if (section == null || section == SettingsPage.PlaybackSkipSegments) {
     item {
         val animeFillerEnabled by remember {
             AnimeFillerSettingsRepository.ensureLoaded()
@@ -390,6 +406,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }
     }
 
+    }
+    if (section == null || section == SettingsPage.PlaybackAudio) {
     if (isDesktop) {
         // ─── Audio Enhancement ───
         item {
@@ -416,6 +434,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
     }
 
     // ─── Subtitle Rendering ───
+    }
+    if (section == null) {
     item {
         val playerSettings by remember {
             PlayerSettingsRepository.ensureLoaded()
@@ -436,7 +456,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
             SettingsGroup(isTablet = isTablet) {
                 SettingsNavigationRow(
                     title = "Subtitle Font",
-                    description = subtitleStyle.fontName,
+                    description = subtitleFontLabel(subtitleStyle.importedFontId ?: subtitleStyle.fontName),
                     isTablet = isTablet,
                     onClick = { showSubtitleFontDialog = true },
                 )
@@ -482,9 +502,9 @@ internal fun LazyListScope.codeineXOSettingsContent(
 
         if (showSubtitleFontDialog) {
             SubtitleFontDialog(
-                selectedFont = playerSettings.subtitleStyle.fontName,
+                selectedFont = playerSettings.subtitleStyle.importedFontId ?: playerSettings.subtitleStyle.fontName,
                 onFontSelected = { font ->
-                    PlayerSettingsRepository.setSubtitleStyle(playerSettings.subtitleStyle.copy(fontName = font))
+                    PlayerSettingsRepository.setSubtitleStyle(playerSettings.subtitleStyle.selectFont(font))
                     showSubtitleFontDialog = false
                 },
                 onDismiss = { showSubtitleFontDialog = false },
@@ -533,6 +553,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
     }
 
     // ─── Discord ───
+    }
+    if (section == null) {
     if (isDesktop && DiscordRichPresenceRepository.isSupported) {
         item {
             val discordEnabledFlow = remember {
@@ -640,6 +662,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
     }
 
     // ─── P2P Torrent Streaming ───
+    }
+    if (section == null || section == SettingsPage.PlaybackP2p) {
     if (P2pSettingsRepository.isVisible) {
         item {
             val p2pSettings by remember {
@@ -822,7 +846,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }
     }
 
+    }
+    if (section == null) {
     if (isDesktop) {
         item { DownloadLocationSettings(isTablet) }
-    }
+    }    }
+
 }

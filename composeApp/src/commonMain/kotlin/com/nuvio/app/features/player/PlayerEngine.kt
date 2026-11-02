@@ -86,6 +86,22 @@ enum class PlayerControlsAction {
     Expand,
 }
 
+data class PlayerControlSubtitleFonts(
+    val label: String = "Font",
+    val importLabel: String = "Import font",
+    val importHint: String = "",
+    val importError: String = "",
+    val doneLabel: String = "Done",
+    val removeLabel: String = "Remove {name}",
+    val importFailed: Boolean = false,
+    val items: List<PlayerControlSubtitleFont> = emptyList(),
+)
+
+data class PlayerControlSubtitleFont(
+    val id: String,
+    val label: String,
+)
+
 data class PlayerControlInfoItem(
     val label: String,
     val value: String,
@@ -231,6 +247,7 @@ data class PlayerControlsState(
     val colorLabel: String = "Color",
     val textOpacityLabel: String = "Text Opacity",
     val outlineColorLabel: String = "Outline Color",
+    val fontPicker: PlayerControlSubtitleFonts = PlayerControlSubtitleFonts(),
     val noSubtitleLinesFoundLabel: String = "No subtitle lines found",
     val resetDefaultsLabel: String = "Reset Defaults",
     val onLabel: String = "On",

@@ -91,12 +91,14 @@ data class SubtitleStyleState(
     val outlineWidth: Int = 2,
     val outlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE_AND_SHADOW,
     val fontName: String = "Arial",
+    val importedFontId: String? = null,
     val bold: Boolean = true,
     val fontSizeSp: Int = 12,
     val bottomOffset: Int = 10,
     val stripSdh: Boolean = false,
     val useForcedSubtitles: Boolean = false,
     val showOnlyPreferredLanguages: Boolean = false,
+    val appearance: SubtitleAppearance = SubtitleAppearance(),
 ) {
     companion object {
         val DEFAULT = SubtitleStyleState()

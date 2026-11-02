@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
@@ -30,7 +29,6 @@ import androidx.compose.ui.input.key.type
 import com.nuvio.app.core.ui.NuvioToastController
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
@@ -53,11 +51,8 @@ import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.LocalFold
 import com.nuvio.app.features.p2p.P2pStreamingState
@@ -490,6 +485,22 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         ?: extractTmdbId(targetMeta?.id)
     val partyControls = if (isDesktop) rememberPartyControlsState() else PlayerControlPartyState()
     val playerBadges = if (isDesktop) rememberPlayerBadges() else emptyList()
+    val installedSubtitleFonts = remember(showSubtitleModal, subtitleFontsRevision, subtitleStyle.importedFontId) { if (isDesktop) SubtitleFonts.installed() else emptyList() }
+    if (isDesktop) {
+        val importSubtitleFont = rememberSubtitleFontImporter { result ->
+            subtitleFontImportFailed = result.isFailure
+            result.getOrNull()?.let {
+                subtitleFontsRevision++
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(importedFontId = it.id))
+            }
+        }
+        LaunchedEffect(subtitleFontImportToken) {
+            if (subtitleFontImportToken > 0) importSubtitleFont()
+        }
+    }
+    val subtitleFontItems = SubtitleFontOptions.map {
+        PlayerControlSubtitleFont(it, subtitleFontLabel(it, installedSubtitleFonts))
+    } + installedSubtitleFonts.map { PlayerControlSubtitleFont(it.id, it.name) }
     val playbackStatsMetadata = if (isDesktop) {
         rememberPlaybackStatsMetadata(
             addonLogo = activeAddonLogo,
@@ -633,8 +644,18 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         colorLabel = stringResource(Res.string.compose_player_color),
         textOpacityLabel = stringResource(Res.string.compose_player_text_opacity),
         outlineColorLabel = stringResource(Res.string.compose_player_outline_color),
+        fontPicker = PlayerControlSubtitleFonts(
+            label = stringResource(Res.string.subtitle_font),
+            importLabel = stringResource(Res.string.subtitle_font_import),
+            importHint = stringResource(Res.string.subtitle_font_import_hint),
+            importError = stringResource(Res.string.subtitle_font_import_error),
+            doneLabel = stringResource(Res.string.action_done),
+            removeLabel = stringResource(Res.string.subtitle_font_remove, "{name}"),
+            importFailed = subtitleFontImportFailed,
+            items = if (isDesktop) subtitleFontItems else emptyList(),
+        ),
         noSubtitleLinesFoundLabel = stringResource(Res.string.compose_player_no_subtitle_lines_found),
-        resetDefaultsLabel = stringResource(Res.string.compose_player_reset_defaults),
+        resetDefaultsLabel = stringResource(Res.string.subtitle_reset_appearance),
         onLabel = stringResource(Res.string.compose_action_on),
         offLabel = stringResource(Res.string.compose_action_off),
         themeAccentColor = themeColors.accent.toCssColorString(),
@@ -853,30 +874,35 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 }
             ),
     ) {
+        val playbackKey = activePlaybackKey
+        val sourcePlaybackKey = playbackKey.copy(playbackEngine = null)
+
+        LaunchedEffect(sourcePlaybackKey) {
+            engineFailoverTriggered = false
+            engineFailoverDisarmed = false
+            playbackEngineOverride = null
+        }
+
+        val resolvedAutoEngineState = remember(sourcePlaybackKey) {
+            mutableStateOf<AndroidPlaybackEngine?>(null)
+        }
+        if (!initialLoadCompleted || resolvedAutoEngineState.value == null) {
+            resolvedAutoEngineState.value = resolveAutoPlaybackEngine(
+                playbackEngineSetting = playerSettingsUiState.androidPlaybackEngine,
+                videoId = activeVideoId,
+                streamFilename = activeTorrentFilename ?: activeStreamFilename,
+                streamName = activeStreamTitle,
+                streamDescription = activeStreamSubtitle,
+                contentTitle = title,
+                genres = playerMeta?.genres.orEmpty(),
+                country = playerMeta?.country,
+            )
+        }
+        val resolvedAutoEngine = resolvedAutoEngineState.value
+
         if (renderPlayerSurface) {
             val surfaceSource = currentPlayerSurfaceSource
             val sourceAvailable = surfaceSource != null
-            val playbackKey = activePlaybackKey
-            val resolvedAutoEngineState =
-                remember(playbackKey.copy(playbackEngine = null)) { mutableStateOf<AndroidPlaybackEngine?>(null) }
-            if (!initialLoadCompleted || resolvedAutoEngineState.value == null) {
-                resolvedAutoEngineState.value = resolveAutoPlaybackEngine(
-                    playbackEngineSetting = playerSettingsUiState.androidPlaybackEngine,
-                    videoId = activeVideoId,
-                    streamFilename = activeTorrentFilename ?: activeStreamFilename,
-                    streamName = activeStreamTitle,
-                    streamDescription = activeStreamSubtitle,
-                    contentTitle = title,
-                    genres = playerMeta?.genres.orEmpty(),
-                    country = playerMeta?.country,
-                )
-            }
-            val resolvedAutoEngine = resolvedAutoEngineState.value
-            LaunchedEffect(playbackKey.copy(playbackEngine = null)) {
-                engineFailoverTriggered = false
-                engineFailoverDisarmed = false
-                playbackEngineOverride = null
-            }
             PlatformPlayerSurface(
                 sourceUrl = surfaceSource?.sourceUrl.orEmpty(),
                 sourceAvailable = sourceAvailable,
@@ -1411,7 +1437,7 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
     return true
 }
 
-private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: Double): Boolean {
+internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: Double): Boolean {
     if (type.shouldLogPlayerControlsEvent()) {
         playerControlsLog.d { "event type=$type value=$value ${playerControlLogContext()}" }
     }
@@ -1604,7 +1630,7 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
                 "selectAddonSubtitle index=${value.toInt()} addonId=${addon.id} language=${addon.language} ${playerControlLogContext()}"
             }
             isUserExplicitSubtitleSelection = true
-            selectedAddonSubtitleId = addon.id
+            selectedAddonSubtitleId = addon.selectionKey
             selectedSubtitleIndex = -1
             useCustomSubtitles = true
             preferredSubtitleSelectionApplied = true
@@ -1659,10 +1685,35 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = color))
         }
         "subtitleOutlineColor" -> {
-            SubtitleOutlineColorSwatches.getOrNull(value.toInt())?.let { color ->
-                PlayerSettingsRepository.setSubtitleStyle(
-                    subtitleStyle.copy(outlineEnabled = true, outlineColor = color),
-                )
+            SubtitleColorSwatches.getOrNull(value.toInt())?.let { color ->
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineColor = color))
+            }
+        }
+        "subtitleBackgroundColor" -> {
+            SubtitleColorSwatches.getOrNull(value.toInt())?.let { color ->
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = color.copy(alpha = subtitleStyle.backgroundColor.alpha)))
+            }
+        }
+        "subtitleBackgroundOpacity" -> {
+            val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)))
+        }
+        "subtitleFont" -> {
+            val fonts = SubtitleFontOptions + SubtitleFonts.installed().map { it.id }
+            fonts.getOrNull(value.toInt())?.let { PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.selectFont(it)) }
+        }
+        "subtitleFontImport" -> {
+            subtitleFontImportFailed = false
+            subtitleFontImportToken++
+        }
+        "subtitleFontRemove" -> {
+            val fonts = SubtitleFonts.installed()
+            fonts.getOrNull(value.toInt() - SubtitleFontOptions.size)?.let { font ->
+                SubtitleFonts.remove(font.id)
+                subtitleFontsRevision++
+                if (subtitleStyle.importedFontId == font.id) {
+                    PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(importedFontId = null))
+                }
             }
         }
         "subtitleOutlineColorRgb" -> {
@@ -1684,11 +1735,11 @@ private fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: D
             val currentIndex = SubtitleFontOptions.indexOf(subtitleStyle.fontName).coerceAtLeast(0)
             val delta = value.toInt()
             val nextIndex = (currentIndex + delta).mod(SubtitleFontOptions.size)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = SubtitleFontOptions[nextIndex]))
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = SubtitleFontOptions[nextIndex], importedFontId = null))
         }
         "subtitleFontIndex" -> {
             SubtitleFontOptions.getOrNull(value.toInt())?.let { font ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = font))
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = font, importedFontId = null))
             }
         }
         "subtitleOutlineEffectDelta" -> {

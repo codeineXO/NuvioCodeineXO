@@ -428,6 +428,7 @@ fun NuvioInputField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    shape: Shape = MaterialTheme.nuvio.shapes.compactCard,
     trailingContent: (@Composable (() -> Unit))? = null,
     useGlass: Boolean = false,
     glassBackdropState: HazeState? = null,

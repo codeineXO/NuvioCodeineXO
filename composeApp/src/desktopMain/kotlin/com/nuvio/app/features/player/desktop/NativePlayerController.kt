@@ -36,9 +36,9 @@ import com.nuvio.app.features.player.PlayerPlaybackSnapshot
 import com.nuvio.app.features.player.PlayerPlaybackStats
 import com.nuvio.app.features.player.PlayerResizeMode
 import com.nuvio.app.features.player.SUBTITLE_DELAY_MAX_MS
-import com.nuvio.app.features.player.findPreferredAudioTrackIndex
 import com.nuvio.app.features.player.SUBTITLE_DELAY_MIN_MS
 import com.nuvio.app.features.player.SubtitleColorSwatches
+import com.nuvio.app.features.player.SubtitleFontResolver
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.core.storage.DesktopStorage
@@ -2264,6 +2264,26 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         append(',')
         appendJsonField("outlineColorLabel", outlineColorLabel)
         append(',')
+        appendJsonField("fontLabel", fontPicker.label)
+        append(',')
+        appendJsonField("fontImportLabel", fontPicker.importLabel)
+        append(',')
+        appendJsonField("fontImportHint", fontPicker.importHint)
+        append(',')
+        appendJsonField("fontImportError", fontPicker.importError)
+        append(',')
+        appendJsonField("doneLabel", fontPicker.doneLabel)
+        append(',')
+        appendJsonField("fontRemoveLabel", fontPicker.removeLabel)
+        append(',')
+        appendJsonField("subtitleFontImportFailed", fontPicker.importFailed)
+        append(',')
+        appendJsonArrayField("subtitleFonts", fontPicker.items) {
+            append("{\"id\":").append(it.id.toJsonString())
+            append(",\"label\":").append(it.label.toJsonString())
+            append('}')
+        }
+        append(',')
         appendJsonField("noSubtitleLinesFoundLabel", noSubtitleLinesFoundLabel)
         append(',')
         appendJsonField("resetDefaultsLabel", resetDefaultsLabel)
@@ -2829,6 +2849,8 @@ private fun StringBuilder.appendSubtitleStyleJson(style: SubtitleStyleState) {
     appendJsonField("fontSizeSp", style.fontSizeSp)
     append(',')
     appendJsonField("bottomOffset", style.bottomOffset)
+    append(',')
+    appendJsonField("fontId", style.importedFontId ?: style.fontName)
     append(',')
     appendJsonField("fontName", style.fontName)
     append(',')

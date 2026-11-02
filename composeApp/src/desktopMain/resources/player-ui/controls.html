@@ -654,7 +654,7 @@
                       <span class="style-label" id="fontLabel">Font</span>
                       <div class="stepper">
                         <button class="round-step" id="fontMinus" type="button">-</button>
-                        <span class="stepper-value wide" id="fontValue">Inter</span>
+                        <button class="panel-button stepper-value wide" id="fontValue" type="button">Arial</button>
                         <button class="round-step" id="fontPlus" type="button">+</button>
                       </div>
                     </div>
@@ -918,6 +918,20 @@
               <button class="party-button" id="partyConfirmCancel" type="button">Cancel</button>
               <button class="party-button danger" id="partyConfirmAccept" type="button"></button>
             </div>
+          </div>
+        </div>
+      </section>
+      <section class="modal-layer" id="subtitleFontModal" aria-label="Font" hidden>
+        <div class="track-panel font-picker-panel">
+          <div class="track-header-row">
+            <div class="track-title" id="subtitleFontModalTitle">Font</div>
+          </div>
+          <div class="track-list" id="subtitleFontList"></div>
+          <div class="stream-subtitle" id="subtitleFontHint"></div>
+          <div class="stream-subtitle font-picker-error" id="subtitleFontError" hidden></div>
+          <div class="panel-actions">
+            <button class="panel-button" id="subtitleFontImport" type="button">Import font</button>
+            <button class="panel-button primary" id="subtitleFontDone" type="button">Done</button>
           </div>
         </div>
       </section>

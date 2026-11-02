@@ -420,7 +420,9 @@ internal object WindowsMpvSubStyleHelper {
 
                 // 1. Set font
                 if (style.fontName.isNotBlank()) {
-                    setProp("sub-font", style.fontName)
+                    val imported = style.importedFontId?.let { com.nuvio.app.features.player.SubtitleFontResolver.resolveImported(it) }
+                    if (imported != null) setProp("sub-fonts-dir", com.nuvio.app.features.player.SubtitleFontResolver.fontsDir())
+                    setProp("sub-font", imported ?: style.fontName)
                 }
 
                 // 2. Set shadow color
