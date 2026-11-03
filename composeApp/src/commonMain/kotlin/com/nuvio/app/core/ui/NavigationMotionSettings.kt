@@ -26,7 +26,7 @@ internal data class NavigationMotionProfile(
 }
 
 private val smoothMotion = NavigationMotionProfile(20.0, 16.0, 1f, 200f, true)
-private val snappyMotion = NavigationMotionProfile(48.0, 44.0, 0.4f, 1_200f, false)
+private val snappyMotion = NavigationMotionProfile(48.0, 44.0, 0.4f, 1_200f, true)
 internal val NavigationFeel.motionProfile: NavigationMotionProfile
     get() = if (this == NavigationFeel.Smooth) smoothMotion else snappyMotion
 
