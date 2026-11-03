@@ -1648,6 +1648,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             }
             true
         }
+        "subtitleVisibility" -> playerController?.setSubtitleVisible(value != 0.0)
         "subtitleDelayDelta" -> setSubtitleDelay((subtitleDelayMs + value.toInt()).coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS))
         "subtitleDelayReset" -> setSubtitleDelay(0)
         "subtitleAutoSyncCapture" -> captureSubtitleAutoSyncTime()
