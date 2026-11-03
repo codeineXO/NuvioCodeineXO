@@ -114,7 +114,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -155,6 +154,7 @@ import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.TrackingListPickerDialog
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.rememberHeroStretchState
+import com.nuvio.app.core.ui.heroStretchOverscroll
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.features.details.components.DetailActions
@@ -2067,7 +2067,7 @@ fun MetaDetailsScreen(
                                             .padding(top = secondaryPageTopPadding)
                                             .fillMaxSize()
                                             .onGloballyPositioned { pageBoundary.viewportBounds = it.boundsInRoot() }
-                                            .then(if (useEnhancedLayout) Modifier else Modifier.nestedScroll(heroStretchState.nestedScrollConnection)),
+                                            .then(if (useEnhancedLayout) Modifier else Modifier.heroStretchOverscroll(heroStretchState)),
                                         content = detailContent,
                                     )
                                 }

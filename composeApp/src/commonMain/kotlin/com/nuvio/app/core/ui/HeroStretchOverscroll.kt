@@ -5,16 +5,24 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.modifier.modifierLocalOf
+import androidx.compose.ui.modifier.modifierLocalProvider
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -22,6 +30,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -39,24 +48,48 @@ private val HeroStretchBounceSpring = spring<Float>(
     stiffness = 110f,
 )
 
+internal val ModifierLocalHeroWheelStretch = modifierLocalOf<HeroStretchState?> { null }
+
+/** Advertise wheel overscroll only to the list associated with this hero. */
+@Composable
+internal fun Modifier.heroStretchOverscroll(state: HeroStretchState): Modifier {
+    DisposableEffect(state) { onDispose { state.reset() } }
+    return modifierLocalProvider(ModifierLocalHeroWheelStretch) { state }
+        .nestedScroll(state.nestedScrollConnection)
+}
+
 @Stable
 class HeroStretchState internal constructor(
     private val scope: CoroutineScope,
     private val maxStretchPx: Float,
+    private val scrollState: ScrollableState? = null,
     private val isAtTop: () -> Boolean,
 ) {
-    private val stretchAnim = Animatable(0f)
+    private var stretch by mutableFloatStateOf(0f)
     private var settleJob: Job? = null
     private var flingAbsorbed = false
 
-    val stretchPx: Float get() = stretchAnim.value
+    val stretchPx: Float get() = stretch
+
+    internal fun acceptsWheelOverscroll(state: ScrollableState, delta: Float, reverseScrolling: Boolean): Boolean {
+        if (state !== scrollState) return false
+        val physicalY = delta * if (reverseScrolling) 1f else -1f
+        return if (physicalY > 0f) isAtTop() else physicalY < 0f && stretchPx > 0f
+    }
+
+    internal fun reset() {
+        settleJob?.cancel()
+        stretch = 0f
+        flingAbsorbed = false
+    }
 
     val nestedScrollConnection: NestedScrollConnection = object : NestedScrollConnection {
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
             if (source == NestedScrollSource.UserInput) {
                 flingAbsorbed = false
+                if (available.y != 0f) settleJob?.cancel()
             }
-            val stretch = stretchAnim.value
+            val stretch = stretchPx
             if (available.y < 0f && stretch > 0f) {
                 val consumedY = available.y.coerceAtLeast(-stretch)
                 snapTo(stretch + consumedY)
@@ -73,7 +106,7 @@ class HeroStretchState internal constructor(
             if (available.y <= 0f || !isAtTop()) return Offset.Zero
 
             if (source == NestedScrollSource.UserInput) {
-                val stretch = stretchAnim.value
+                val stretch = stretchPx
                 val resistance = HERO_STRETCH_DRAG_RESISTANCE *
                     (1f - stretch / maxStretchPx).coerceIn(0f, 1f)
                 snapTo(stretch + available.y * resistance)
@@ -87,7 +120,7 @@ class HeroStretchState internal constructor(
         }
 
         override suspend fun onPreFling(available: Velocity): Velocity {
-            if (stretchAnim.value <= 0.5f) return Velocity.Zero
+            if (stretchPx <= 0f) return Velocity.Zero
             if (settleJob?.isActive != true) {
                 settle(available.y * HERO_STRETCH_RELEASE_ABSORB, HeroStretchReleaseSpring)
             }
@@ -96,7 +129,7 @@ class HeroStretchState internal constructor(
 
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
             flingAbsorbed = false
-            if (stretchAnim.value > 0.5f && settleJob?.isActive != true) {
+            if (stretchPx > 0f && settleJob?.isActive != true) {
                 settle(0f, HeroStretchReleaseSpring)
             }
             return if (available.y > 0f && isAtTop()) {
@@ -108,16 +141,20 @@ class HeroStretchState internal constructor(
     }
 
     private fun snapTo(value: Float) {
-        scope.launch { stretchAnim.snapTo(value.coerceIn(0f, maxStretchPx)) }
+        settleJob?.cancel()
+        stretch = value.coerceIn(0f, maxStretchPx)
     }
 
     private fun settle(initialVelocity: Float, spec: SpringSpec<Float>) {
-        settleJob = scope.launch {
-            stretchAnim.animateTo(
+        settleJob?.cancel()
+        val animation = Animatable(stretchPx)
+        settleJob = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            animation.animateTo(
                 targetValue = 0f,
                 animationSpec = spec,
                 initialVelocity = initialVelocity,
-            )
+            ) { stretch = value.coerceIn(0f, maxStretchPx) }
+            stretch = 0f
         }
     }
 }
@@ -126,9 +163,15 @@ class HeroStretchState internal constructor(
 fun rememberHeroStretchState(listState: LazyListState): HeroStretchState {
     val scope = rememberCoroutineScope()
     val maxStretchPx = with(LocalDensity.current) { HERO_STRETCH_MAX.toPx() }
-    return remember(listState, maxStretchPx) {
-        HeroStretchState(scope, maxStretchPx) { !listState.canScrollBackward }
+    val state = remember(listState, maxStretchPx) {
+        HeroStretchState(scope, maxStretchPx, listState) { !listState.canScrollBackward }
     }
+    val active = LocalScreenActive.current
+    DisposableEffect(state, active) {
+        if (!active) state.reset()
+        onDispose { state.reset() }
+    }
+    return state
 }
 
 fun Modifier.heroStretchHeight(baseHeight: Dp, stretchPx: () -> Float): Modifier =

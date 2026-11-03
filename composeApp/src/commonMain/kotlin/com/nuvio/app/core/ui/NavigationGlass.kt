@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
 import com.nuvio.app.features.settings.SurfaceStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.HazeState
@@ -71,8 +72,11 @@ internal fun Modifier.navigationGlass(
     hazeState: HazeState? = LocalNavigationGlassState.current,
     backgroundOnly: Boolean = false,
     stableBackdropFill: Boolean = false,
+    blurRadius: Dp = if (panel) 16.dp else 10.dp,
+    forceRedraw: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
+    val effectBlurRadius = blurRadius
     if (LocalSettingsSurfaceStyleEnabled.current && LocalSettingsPanelPresent.current && !panel) return clip(shape)
     val surfaceStyle = LocalSurfaceStyle.current
     val frostedGlassEnabled = LocalFrostedGlassEnabled.current && surfaceStyle == SurfaceStyle.FrostedGlass
@@ -110,9 +114,11 @@ internal fun Modifier.navigationGlass(
             if (backdropState != null) {
                 Modifier.hazeEffect(backdropState) {
                     if (backgroundOnly) canDrawArea = { it.zIndex < 1f }
-                    forceInvalidateOnPreDraw = true
+                    // Source content/layer changes already invalidate Haze. Forcing
+                    // every pre-draw repeats work while the aura is animating.
+                    forceInvalidateOnPreDraw = forceRedraw
                     backgroundColor = tokens.colors.background
-                    blurRadius = if (panel) 16.dp else 10.dp
+                    this.blurRadius = effectBlurRadius
                     inputScale = HazeInputScale.Auto
                     noiseFactor = 0.02f
                     tints = listOf(HazeTint(tint))

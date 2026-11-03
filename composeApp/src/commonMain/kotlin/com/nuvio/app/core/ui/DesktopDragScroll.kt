@@ -3,25 +3,27 @@ package com.nuvio.app.core.ui
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Velocity
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -33,6 +35,47 @@ import kotlin.math.sign
 
 private class DesktopDragMotion {
     var job: Job? = null
+}
+
+/** Finish a claimed drag even without momentum so parent stretch/chrome can settle. */
+internal suspend fun ScrollScope.flingWithNestedParents(
+    velocity: Float,
+    dispatcher: NestedScrollDispatcher,
+    orientation: Orientation,
+    direction: Float,
+    fling: FlingBehavior,
+    momentumEnabled: Boolean,
+) {
+    fun vector(value: Float) = when {
+        value == 0f -> Velocity.Zero
+        orientation == Orientation.Vertical -> Velocity(0f, value * direction)
+        else -> Velocity(value * direction, 0f)
+    }
+    fun amount(value: Velocity) = (if (orientation == Orientation.Vertical) value.y else value.x) * direction
+
+    val initial = if (momentumEnabled) velocity else 0f
+    val preConsumed = dispatcher.dispatchPreFling(vector(initial))
+    val available = initial - amount(preConsumed)
+    var remaining = available
+    var completed = false
+    try {
+        if (momentumEnabled && available != 0f) {
+            val direct = this
+            val nested = object : ScrollScope {
+                override fun scrollBy(pixels: Float): Float = direct.scrollWithNestedParents(
+                    pixels, dispatcher, orientation, direction, NestedScrollSource.SideEffect,
+                )
+            }
+            remaining = with(fling) { nested.performFling(available) }
+        }
+        completed = true
+    } finally {
+        // Interrupted motion must settle parents without handing off stale velocity.
+        dispatcher.dispatchPostFling(
+            consumed = if (completed) vector(available - remaining) else Velocity.Zero,
+            available = if (completed) vector(remaining) else Velocity.Zero,
+        )
+    }
 }
 
 /** Adds mouse-compatible dragging; native touch and child gestures keep first refusal. */
@@ -47,7 +90,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
     if (!isDesktop || !enabled) return this
     return composed {
         val active = LocalScreenActive.current
-        val fling = flingBehavior ?: ScrollableDefaults.flingBehavior()
+        val fling = flingBehavior ?: rememberNuvioFlingBehavior()
         if (!active) return@composed this
         val direction = dragScrollDirection(orientation, reverseDirection, LocalLayoutDirection.current)
         val dispatcher = remember { NestedScrollDispatcher() }
@@ -69,9 +112,10 @@ internal fun Modifier.nuvioDesktopDragScroll(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
                     motion.job?.cancel()
+                    if (down.type != PointerType.Mouse) return@awaitEachGesture
                     scope.launch(start = CoroutineStart.UNDISPATCHED) { state.stopScroll() }
                     val tracker = VelocityTracker()
-                    tracker.addPosition(down.uptimeMillis, down.position)
+                    tracker.addPointerInputChange(down)
                     var total = Offset.Zero
                     var deltas: Channel<Unit>? = null
                     var pendingDelta = 0f
@@ -81,7 +125,9 @@ internal fun Modifier.nuvioDesktopDragScroll(
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            tracker.addPosition(change.uptimeMillis, change.position)
+                            // Match native touch tracking: preserve historical movement,
+                            // ignore stationary up samples, and reset after a release pause.
+                            tracker.addPointerInputChange(change)
                             if (!change.pressed) {
                                 released = !change.isConsumed && event.changes.none { it.pressed }
                                 if (released && deltas != null) {
@@ -110,25 +156,28 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                 val channel = Channel<Unit>(Channel.CONFLATED)
                                 deltas = channel
                                 motion.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                                    state.scroll(MutatePriority.UserInput) {
-                                        for (signal in channel) {
-                                            withFrameNanos { }
-                                            val value = pendingDelta
-                                            pendingDelta = 0f
-                                            // These signals describe movement already included in value.
-                                            while (channel.tryReceive().isSuccess) Unit
-                                            if (value != 0f) scrollWithNestedParents(value, dispatcher, orientation, direction)
-                                        }
-                                    }
-                                    if (released && momentumEnabled && NavigationMotionSettings.profile.dragMomentum) {
-                                        state.scroll {
-                                            val direct = this
-                                            val nested = object : ScrollScope {
-                                                override fun scrollBy(pixels: Float): Float =
-                                                    direct.scrollWithNestedParents(pixels, dispatcher, orientation, direction)
+                                    var releaseStarted = false
+                                    try {
+                                        state.scroll(MutatePriority.UserInput) {
+                                            for (signal in channel) {
+                                                val value = pendingDelta
+                                                pendingDelta = 0f
+                                                // These signals describe movement already included in value.
+                                                while (channel.tryReceive().isSuccess) Unit
+                                                if (value != 0f) scrollWithNestedParents(value, dispatcher, orientation, direction)
                                             }
-                                            with(fling) { nested.performFling(velocity) }
                                         }
+                                        if (released) {
+                                            state.scroll {
+                                                releaseStarted = true
+                                                flingWithNestedParents(
+                                                    velocity, dispatcher, orientation, direction, fling,
+                                                    momentumEnabled && NavigationMotionSettings.profile.dragMomentum,
+                                                )
+                                            }
+                                        }
+                                    } finally {
+                                        if (!releaseStarted) dispatcher.dispatchPostFling(Velocity.Zero, Velocity.Zero)
                                     }
                                 }
                             }

@@ -33,7 +33,6 @@ import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +54,7 @@ import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.rememberHeroStretchState
+import com.nuvio.app.core.ui.heroStretchOverscroll
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.addons.AddonRepository
@@ -1042,7 +1042,7 @@ fun HomeScreen(
 
         val heroStretchState = rememberHeroStretchState(homeListState)
         val heroStretchModifier = if (showHeroSlot) {
-            Modifier.nestedScroll(heroStretchState.nestedScrollConnection)
+            Modifier.heroStretchOverscroll(heroStretchState)
         } else {
             Modifier
         }

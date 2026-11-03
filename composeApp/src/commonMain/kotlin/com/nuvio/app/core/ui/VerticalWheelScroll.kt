@@ -25,6 +25,7 @@ internal val ModifierLocalSoftWheelRoute = modifierLocalOf<SoftWheelRoute?> { nu
 
 internal class SoftWheelRoute {
     var parent: SoftWheelRoute? = null
+    var heroStretch: HeroStretchState? = null
     private var eventTime: Long? = null
     private var pointerId: Long? = null
     private var owner: SoftWheelRoute? = null
@@ -59,16 +60,21 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
         val scope = rememberCoroutineScope()
         val dispatcher = remember { NestedScrollDispatcher() }
         val connection = remember { object : NestedScrollConnection {} }
-        val wheel = remember(state, scope, reverseScrolling) {
-            SoftWheelScroll(state, scope, dispatcher, reverseScrolling)
-        }
         val route = remember { SoftWheelRoute() }
+        val wheel = remember(state, scope, reverseScrolling) {
+            SoftWheelScroll(state, scope, dispatcher, reverseScrolling) { delta ->
+                route.heroStretch?.acceptsWheelOverscroll(state, delta, reverseScrolling) == true
+            }
+        }
         DisposableEffect(wheel, active) {
             if (!active) wheel.cancel()
             onDispose { wheel.cancel() }
         }
         if (!active) return@composed this
-        modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
+        modifierLocalConsumer {
+            route.parent = ModifierLocalSoftWheelRoute.current
+            route.heroStretch = ModifierLocalHeroWheelStretch.current
+        }
             .modifierLocalProvider(ModifierLocalSoftWheelRoute) { route }
             .nestedScroll(connection, dispatcher)
             .pointerInput(wheel, route, reverseScrolling) {
@@ -86,7 +92,7 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
                         // can still be taken over by the innermost scrollable child.
                         if (event.changes.any { it.isConsumed } && route.parent?.hasClaim(event) != true) continue
                         val delta = y * stepPx * direction
-                        if ((delta > 0f && !state.canScrollForward) || (delta < 0f && !state.canScrollBackward)) continue
+                        if (!wheel.canScrollBy(delta)) continue
                         route.claim(event)
                         event.changes.forEach { it.consume() }
                         awaitPointerEvent(PointerEventPass.Main)

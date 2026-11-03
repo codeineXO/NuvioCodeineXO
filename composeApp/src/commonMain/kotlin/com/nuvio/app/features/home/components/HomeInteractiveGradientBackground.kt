@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.nuvio.app.core.ui.*
 import com.nuvio.app.core.ui.navigationGlassSource
 import kotlin.math.PI
@@ -43,17 +43,18 @@ fun HomeInteractiveGradientBackground(
     val tokens = MaterialTheme.nuvio
     val baseBackground = tokens.colors.background
 
-    val glows = resolveAuraPalette(settings, MaterialTheme.themePalette)
+    val palette = MaterialTheme.themePalette
+    val glows = remember(settings, palette) { resolveAuraPalette(settings, palette) }
     val intensity = settings.intensity.multiplier
     val motion = if (settings.animated) rememberAuraMotion() else remember { AuraMotion() }
 
-    val scrollShift by remember(listState, gridState, settings.animated) {
-        derivedStateOf {
-            if (!settings.animated) 0f else when {
-                listState != null -> (listState.firstVisibleItemIndex * 400f + listState.firstVisibleItemScrollOffset) * 0.15f
-                gridState != null -> (gridState.firstVisibleItemIndex * 250f + gridState.firstVisibleItemScrollOffset) * 0.15f
-                else -> 0f
-            }
+    val scrollShift by rememberAuraScrollShift(listState, gridState, settings.animated)
+    val colorStops = remember(glows, intensity) {
+        val inner = listOf(0.26f, 0.22f, 0.18f, 0.15f)
+        val outer = listOf(0.12f, 0.10f, 0.08f, 0.05f)
+        glows.mapIndexed { index, glow ->
+            listOf(glow.inner.copy(alpha = intensity * inner[index]),
+                glow.outer.copy(alpha = intensity * outer[index]), Color.Transparent)
         }
     }
 
@@ -80,19 +81,7 @@ fun HomeInteractiveGradientBackground(
                 y = (h * 0.22f) + (sin(phase1) * 70f) - (scrollShift * 0.5f),
             )
             val orb1Radius = (w * 0.46f * pulse).coerceAtLeast(180f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glows[0].inner.copy(alpha = intensity * 0.26f),
-                        glows[0].outer.copy(alpha = intensity * 0.12f),
-                        Color.Transparent,
-                    ),
-                    center = orb1Center,
-                    radius = orb1Radius,
-                ),
-                center = orb1Center,
-                radius = orb1Radius,
-            )
+            drawAuraOrb(colorStops[0], orb1Center, orb1Radius)
 
             // Orb 2: Electric Cyan / Turquoise (Top-Right quadrant)
             val orb2Center = Offset(
@@ -100,19 +89,7 @@ fun HomeInteractiveGradientBackground(
                 y = (h * 0.36f) + (cos(phase2) * 60f) - (scrollShift * 0.6f),
             )
             val orb2Radius = (w * 0.42f * pulse).coerceAtLeast(160f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glows[1].inner.copy(alpha = intensity * 0.22f),
-                        glows[1].outer.copy(alpha = intensity * 0.10f),
-                        Color.Transparent,
-                    ),
-                    center = orb2Center,
-                    radius = orb2Radius,
-                ),
-                center = orb2Center,
-                radius = orb2Radius,
-            )
+            drawAuraOrb(colorStops[1], orb2Center, orb2Radius)
 
             // Orb 3: Magenta / Fuchsia (Mid-Bottom Center)
             val orb3Center = Offset(
@@ -120,19 +97,7 @@ fun HomeInteractiveGradientBackground(
                 y = (h * 0.68f) + (sin(phase3) * 80f) - (scrollShift * 0.7f),
             )
             val orb3Radius = (w * 0.50f * pulse).coerceAtLeast(200f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glows[2].inner.copy(alpha = intensity * 0.18f),
-                        glows[2].outer.copy(alpha = intensity * 0.08f),
-                        Color.Transparent,
-                    ),
-                    center = orb3Center,
-                    radius = orb3Radius,
-                ),
-                center = orb3Center,
-                radius = orb3Radius,
-            )
+            drawAuraOrb(colorStops[2], orb3Center, orb3Radius)
 
             // Orb 4: Rose / Coral Sunset (Bottom-Right quadrant)
             val orb4Center = Offset(
@@ -140,21 +105,13 @@ fun HomeInteractiveGradientBackground(
                 y = (h * 0.85f) - (cos(phase4) * 50f) - (scrollShift * 0.4f),
             )
             val orb4Radius = (w * 0.38f * pulse).coerceAtLeast(150f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glows[3].inner.copy(alpha = intensity * 0.15f),
-                        glows[3].outer.copy(alpha = intensity * 0.05f),
-                        Color.Transparent,
-                    ),
-                    center = orb4Center,
-                    radius = orb4Radius,
-                ),
-                center = orb4Center,
-                radius = orb4Radius,
-            )
+            drawAuraOrb(colorStops[3], orb4Center, orb4Radius)
         }
     }
+}
+
+private fun DrawScope.drawAuraOrb(colors: List<Color>, center: Offset, radius: Float) {
+    drawCircle(Brush.radialGradient(colors, center, radius), radius, center)
 }
 
 private data class AuraMotion(

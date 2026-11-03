@@ -208,6 +208,7 @@ fun <T> NuvioShelfSection(
         PosterShelfScrollOwner(shelfController) {
             LazyRow(
                 state = state,
+                flingBehavior = rememberNuvioFlingBehavior(),
                 modifier = Modifier.remoteNavigationGroup()
                     .nuvioHorizontalScrollBleed(LocalVerticalBarPadding.current)
                     .then(effectiveRowModifier),

@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -46,14 +47,15 @@ internal fun ScrollScope.scrollWithNestedParents(
     dispatcher: NestedScrollDispatcher?,
     orientation: Orientation = Orientation.Vertical,
     direction: Float = -1f,
+    source: NestedScrollSource = NestedScrollSource.UserInput,
 ): Float {
     if (dispatcher == null) return scrollBy(delta)
     fun offset(value: Float) = if (orientation == Orientation.Vertical) Offset(0f, value * direction) else Offset(value * direction, 0f)
     fun amount(value: Offset) = (if (orientation == Orientation.Vertical) value.y else value.x) * direction
     val input = offset(delta)
-    val pre = dispatcher.dispatchPreScroll(input, NestedScrollSource.UserInput)
+    val pre = dispatcher.dispatchPreScroll(input, source)
     val consumed = scrollBy(delta - amount(pre))
-    val post = dispatcher.dispatchPostScroll(offset(consumed), input - pre - offset(consumed), NestedScrollSource.UserInput)
+    val post = dispatcher.dispatchPostScroll(offset(consumed), input - pre - offset(consumed), source)
     return amount(pre) + consumed + amount(post)
 }
 
@@ -63,6 +65,7 @@ internal class SoftWheelScroll(
     private val scope: CoroutineScope,
     private val nestedScrollDispatcher: NestedScrollDispatcher? = null,
     private val reverseScrolling: Boolean = false,
+    private val canOverscroll: (Float) -> Boolean = { false },
 ) {
     private class Target(var remaining: Float, var velocity: Float = 0f)
     private var job: Job? = null
@@ -70,12 +73,14 @@ internal class SoftWheelScroll(
 
     fun cancel() {
         job?.cancel()
-        target = null
     }
 
+    fun canScrollBy(delta: Float): Boolean = delta.isFinite() && delta != 0f &&
+        (if (delta > 0f) state.canScrollForward || canOverscroll(delta)
+        else state.canScrollBackward || canOverscroll(delta))
+
     fun scrollBy(delta: Float) {
-        if (delta == 0f || !delta.isFinite()) return
-        if ((delta > 0f && !state.canScrollForward) || (delta < 0f && !state.canScrollBackward)) return
+        if (!canScrollBy(delta)) return
         val current = target
         if (job?.isActive == true && current != null) {
             if (current.remaining * delta < 0f) {
@@ -111,7 +116,13 @@ internal class SoftWheelScroll(
                     }
                 }
             } finally {
-                if (target === next) target = null
+                if (target === next) {
+                    target = null
+                    // Wheel bursts have no pointer-up event. Complete their lifecycle
+                    // without adding a fling, including interruption and cancellation.
+                    nestedScrollDispatcher?.dispatchPreFling(Velocity.Zero)
+                    nestedScrollDispatcher?.dispatchPostFling(Velocity.Zero, Velocity.Zero)
+                }
             }
         }
     }
