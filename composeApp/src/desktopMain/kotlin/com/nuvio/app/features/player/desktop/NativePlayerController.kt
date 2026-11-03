@@ -2336,6 +2336,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         append(',')
         appendJsonField("isPlaying", isPlaying)
         append(',')
+        appendJsonField("isEnded", isEnded)
+        append(',')
         appendJsonField("isLoading", isLoading)
         append(',')
         appendJsonField(
@@ -2604,8 +2606,7 @@ private fun PlayerControlPartyState.withWebviewImages(onImageReady: () -> Unit):
 
 private fun PlayerControlsState.nativeControlsStructureKey(): PlayerControlsState =
     copy(
-        isPlaying = false,
-        isLoading = false,
+        playback = playback.copy(isPlaying = false, isLoading = false),
         durationMs = 0L,
         positionMs = 0L,
         bufferedPositionMs = 0L,

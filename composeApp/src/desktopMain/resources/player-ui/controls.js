@@ -449,6 +449,7 @@ let state = {
   themeTextMutedColor: "rgba(255, 255, 255, .6)",
   themeBorderDefaultColor: "rgba(255, 255, 255, .12)",
   isPlaying: false,
+  isEnded: false,
   isLoading: true,
   isMiniPlayer: false,
   controlsVisible: true,
@@ -1556,6 +1557,7 @@ const syncPauseMetadataTimer = showOpening => {
   const eligible = Boolean(
     state.pauseOverlayEnabled &&
     !state.isPlaying &&
+    !state.isEnded &&
     durationMs > 0 &&
     !showOpening,
   );
@@ -1572,7 +1574,7 @@ const syncPauseMetadataTimer = showOpening => {
     pauseMetadataTimer = 0;
     pauseMetadataReady = true;
     renderChrome();
-  }, prefersReducedMotion ? 1 : 5000);
+  }, 5000);
 };
 
 const renderPauseMetadataOverlay = showOpening => {
@@ -1586,6 +1588,8 @@ const renderPauseMetadataOverlay = showOpening => {
   const showOverlay = Boolean(
     state.pauseOverlayEnabled &&
     pauseMetadataReady &&
+    !state.isPlaying &&
+    !state.isEnded &&
     !state.controlsVisible &&
     !hasOpenModal() &&
     !showOpening,
@@ -4067,6 +4071,7 @@ const isInteractingWithChrome = () =>
 
 const canAutoHideChrome = showOpening => Boolean(
   state.controlsVisible &&
+  !state.isEnded &&
   !chromeAutoHidePinned &&
   !isQuickMenuOpen &&
   !state.isLoading &&
@@ -4661,8 +4666,29 @@ const clearPressedButton = () => {
   pressedButton = null;
 };
 
+const isChromeContextButton = target => Boolean(
+  !hasOpenModal() &&
+  target && target.closest &&
+  target.closest("button") &&
+  root.contains(target),
+);
+
+const finishChromeContextInteraction = event => {
+  if (isChromeContextButton(document.activeElement)) {
+    focusShortcutRoot();
+  }
+  isChromeFocusInside = isChromeInteractionTarget(document.activeElement);
+  finishChromePointerInteraction(event);
+};
+
 document.addEventListener("pointerdown", event => {
   updatePointerCoordinates(event);
+  if (event.button === 2 && isChromeContextButton(event.target)) {
+    // A secondary click must not leave a toolbar button focused or pressed.
+    event.preventDefault();
+    finishChromeContextInteraction(event);
+    return;
+  }
   if (event.button === 3) {
     showCommandToast("seekBack");
     send("seekBack", 0);
@@ -4689,6 +4715,14 @@ document.addEventListener("pointerdown", event => {
   clearPressedButton();
   pressedButton = button;
   button.classList.add("is-pressed");
+}, true);
+
+document.addEventListener("contextmenu", event => {
+  // Capture cleanup before audio/subtitle shortcuts stop propagation.
+  // Keyboard context menus retain their focused control.
+  if (event.button === 2 && isChromeContextButton(event.target)) {
+    finishChromeContextInteraction(event);
+  }
 }, true);
 
 document.addEventListener("pointermove", event => {

@@ -138,6 +138,12 @@ data class PlaybackStatsMetadata(
     val subtitleSourceLabel: String = "Source",
 )
 
+data class PlayerControlPlaybackState(
+    val isPlaying: Boolean = false,
+    val isEnded: Boolean = false,
+    val isLoading: Boolean = false,
+)
+
 data class PlayerControlsState(
     val title: String = "",
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
@@ -273,8 +279,7 @@ data class PlayerControlsState(
     val themeTextMutedColor: String = "rgba(255, 255, 255, .60)",
     val themeBorderDefaultColor: String = "rgba(255, 255, 255, .12)",
     val themeDangerColor: String = "#e5484d",
-    val isPlaying: Boolean = false,
-    val isLoading: Boolean = false,
+    val playback: PlayerControlPlaybackState = PlayerControlPlaybackState(),
     val isLocked: Boolean = false,
     val lockedOverlayVisible: Boolean = false,
     val controlsVisible: Boolean = true,
@@ -375,7 +380,11 @@ data class PlayerControlsState(
     val chapterRemainingTemplate: String = "{time} left",
     val autoSyncedLabel: String = "Auto synced",
     val playbackStatsMetadata: PlaybackStatsMetadata? = null,
-)
+) {
+    val isPlaying: Boolean get() = playback.isPlaying
+    val isEnded: Boolean get() = playback.isEnded
+    val isLoading: Boolean get() = playback.isLoading
+}
 
 data class PlayerControlFilterItem(
     val id: String = "",

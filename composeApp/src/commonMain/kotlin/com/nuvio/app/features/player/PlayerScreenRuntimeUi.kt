@@ -682,8 +682,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         themeTextMutedColor = themeColors.textMuted.toCssColorString(),
         themeBorderDefaultColor = themeColors.borderDefault.toCssColorString(),
         themeDangerColor = themeColors.danger.toCssColorString(),
-        isPlaying = playbackSnapshot.isPlaying,
-        isLoading = playbackSnapshot.isLoading,
+        playback = PlayerControlPlaybackState(
+            isPlaying = playbackSnapshot.isPlaying,
+            isEnded = playbackSnapshot.isEnded,
+            isLoading = playbackSnapshot.isLoading,
+        ),
         isLocked = playerControlsLocked,
         lockedOverlayVisible = lockedOverlayVisible,
         controlsVisible = !args.isMiniPlayer && controlsVisible && !playerControlsLocked,
@@ -939,10 +942,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     playerControllerSourceUrl = surfaceSource?.sourceUrl
                 },
                 onSnapshot = { snapshot ->
+                    val wasEnded = playbackSnapshotKey == activePlaybackKey && playbackSnapshot.isEnded
                     if (!updatePlaybackSnapshot(snapshot)) return@PlatformPlayerSurface
                     refreshAudioTracksIfChanged()
                     if (!snapshot.isLoading) initialLoadCompleted = true
-                    if (snapshot.isEnded) {
+                    if (snapshot.isEnded && !wasEnded) {
                         shouldPlay = false
                         controlsVisible = !playerControlsLocked
                     }
@@ -966,7 +970,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
 
         if (!args.isMiniPlayer) {
             androidx.compose.animation.AnimatedVisibility(
-                visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !controlsVisible && !playerControlsLocked && !isInPip && fold == null,
+                visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !playbackSnapshot.isPlaying && !playbackSnapshot.isEnded && !controlsVisible && !playerControlsLocked && !isInPip && fold == null,
                 enter = fadeIn(animationSpec = tween(durationMillis = 220)),
                 exit = fadeOut(animationSpec = tween(durationMillis = 180)),
             ) {
