@@ -626,7 +626,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         subtitleBuiltInTabLabel = stringResource(Res.string.compose_player_built_in),
         subtitleAddonsTabLabel = stringResource(Res.string.addon_title),
         subtitleStyleTabLabel = stringResource(Res.string.compose_player_style),
-        customSubtitleStyleLabel = stringResource(Res.string.compose_player_use_custom_styling),
         forcedLabel = stringResource(Res.string.settings_playback_option_forced),
         noneLabel = stringResource(Res.string.compose_player_none),
         fetchSubtitlesLabel = stringResource(Res.string.compose_player_fetch_subtitles),
@@ -738,7 +737,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         isLoadingAddonSubtitles = isLoadingAddonSubtitles,
         selectedAddonSubtitleId = selectedAddonSubtitleId.orEmpty(),
         useCustomSubtitles = useCustomSubtitles,
-        customSubtitleStylingEnabled = !playerSettingsUiState.useLibass,
         subtitleStyle = subtitleStyle,
         subtitleDelayMs = subtitleDelayMs,
         hasSelectedAddonSubtitle = selectedAddonSubtitle != null,
@@ -1660,9 +1658,6 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         "setShowRemainingTime" -> {
             PlayerSettingsRepository.setShowRemainingTime(value.toInt() == 1)
         }
-        "subtitleCustomStyleToggle" -> {
-            PlayerSettingsRepository.setUseLibass(!playerSettingsUiState.useLibass)
-        }
         "subtitleFontSizeDelta" -> {
             PlayerSettingsRepository.setSubtitleStyle(
                 subtitleStyle.copy(fontSizeSp = (subtitleStyle.fontSizeSp + value.toInt()).coerceIn(subtitleFontSizeRangeSp)),
@@ -2564,8 +2559,15 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         sourceStreamsState = sourceStreamsState,
         contentTitle = title,
         activeEpisodeTitle = activeEpisodeTitle,
-        activeSourceUrl = activeSourceUrl,
-        activeStreamTitle = activeStreamTitle,
+        currentStream = PlayerCurrentStream(
+            url = activeSourceUrl,
+            name = activeStreamTitle,
+            description = activeStreamSubtitle,
+            addonId = activeProviderAddonId,
+            infoHash = activeStream?.p2pInfoHash ?: activeTorrentInfoHash,
+            fileIdx = activeStream?.p2pFileIdx ?: activeTorrentFileIdx,
+            filename = activeSourceFilename,
+        ),
         onSourceFilterSelected = PlayerStreamsRepository::selectSourceFilter,
         onSourceStreamSelected = { stream -> switchToSource(stream) },
         onReloadSources = {

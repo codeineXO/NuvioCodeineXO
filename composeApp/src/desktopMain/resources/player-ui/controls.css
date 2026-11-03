@@ -619,31 +619,31 @@ button:disabled {
 .player-badges {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   max-width: min(760px, 100%);
-  padding: 4px 0;
+  padding: 6px 0;
   overflow: hidden;
 }
 
 .player-badge {
   flex: none;
   box-sizing: border-box;
-  height: 17px;
-  padding: 2px 3px;
+  height: 28px;
+  padding: 3px 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .player-badge img {
   display: block;
-  height: 13px;
-  min-width: 28px;
-  max-width: 78px;
+  height: 22px;
+  min-width: 46px;
+  max-width: 128px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .parental-guide {
@@ -2724,25 +2724,8 @@ button:disabled {
   min-width: 0;
 }
 
-.style-toggle-section {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-}
-
 .custom-subtitle-style-controls {
   display: contents;
-}
-
-.custom-subtitle-style-controls.disabled > * {
-  opacity: .42;
-  pointer-events: none;
-}
-
-.custom-subtitle-style-controls.disabled > .style-always {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .font-row {
@@ -2792,9 +2775,14 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.font-picker-panel .panel-actions {
+  justify-content: center;
+}
+
 .subtitle-font-manager-button {
   width: 100%;
   white-space: normal;
+}
 }
 
 .font-option {
@@ -4797,7 +4785,7 @@ svg {
 .player.ui-codeinexo .codeine-player-badges .player-badge {
   background: rgba(0, 0, 0, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  border-radius: 8px;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }

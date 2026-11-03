@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import java.awt.FileDialog
+import javax.swing.SwingUtilities
 import java.awt.Frame
 import java.awt.KeyboardFocusManager
 import java.nio.file.Files

@@ -47,6 +47,7 @@ internal data class PlayerScreenArgs(
     val initialPositionMs: Long,
     val initialProgressFraction: Float?,
     val contentLanguage: String? = null,
+    val subtitleExtras: SubtitleRequestExtras? = null,
     val launchId: Long? = null,
     val streamLaunchId: Long? = null,
     val isMiniPlayer: Boolean = false,

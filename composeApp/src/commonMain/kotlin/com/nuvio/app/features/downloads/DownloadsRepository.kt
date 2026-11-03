@@ -1,5 +1,6 @@
 package com.nuvio.app.features.downloads
 
+import com.nuvio.app.features.player.SubtitleRequestExtras
 import com.nuvio.app.features.player.addonSubtitleRequests
 import com.nuvio.app.features.player.MediaClassifier
 import com.nuvio.app.features.player.classificationFilename
@@ -213,7 +214,11 @@ object DownloadsRepository {
             sourceUrl = sourceUrl,
             sourceHeaders = sanitizeRequestHeaders(stream.behaviorHints.proxyHeaders?.request),
             sourceResponseHeaders = sanitizeResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
-            subtitleRequests = addonSubtitleRequests(contentType, videoId),
+            subtitleRequests = addonSubtitleRequests(
+                type = contentType,
+                videoId = videoId,
+                extras = SubtitleRequestExtras.from(stream.behaviorHints, sourceUrl),
+            ),
             sourceSubtitles = stream.externalSubtitles,
             localFileUri = null,
             fileName = fileName,

@@ -51,6 +51,7 @@ data class PlayerLaunch(
     val contentLanguage: String? = null,
     val streamLaunchId: Long? = null,
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
+    val subtitleExtras: SubtitleRequestExtras? = null,
     val sourceFilename: String? = null,
     val stream: com.nuvio.app.features.streams.StreamItem? = null,
     val classificationHint: MediaClassificationHint? = null,

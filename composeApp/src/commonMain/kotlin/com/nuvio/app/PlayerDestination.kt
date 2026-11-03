@@ -119,6 +119,7 @@ internal fun PlayerDestination(
             initialPositionMs = launch.initialPositionMs,
             initialProgressFraction = launch.initialProgressFraction,
             contentLanguage = launch.contentLanguage,
+            subtitleExtras = launch.subtitleExtras,
             launchId = route.launchId,
             streamLaunchId = launch.streamLaunchId,
             mediaContentType = launch.mediaContentType,
@@ -156,6 +157,7 @@ internal fun PlayerDestination(
                     parentMetaId = launch.parentMetaId,
                     parentMetaType = launch.parentMetaType,
                     initialPositionMs = request.resumePositionMs,
+                    subtitleExtras = launch.subtitleExtras,
                     streamLaunchId = launch.streamLaunchId,
                 )
                 onExternalPlayerLaunch(playerLaunch)

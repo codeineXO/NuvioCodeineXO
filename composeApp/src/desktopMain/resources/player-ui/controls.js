@@ -162,9 +162,6 @@ const subtitleStyleRail = document.getElementById("subtitleStyleRail");
 const subtitleStyleRailTitle = document.getElementById("subtitleStyleRailTitle");
 const addonSubtitleList = document.getElementById("addonSubtitleList");
 const subtitleStylePanel = document.getElementById("subtitleStylePanel");
-const customSubtitleStyleLabel = document.getElementById("customSubtitleStyleLabel");
-const customSubtitleStyleToggle = document.getElementById("customSubtitleStyleToggle");
-const customSubtitleStyleControls = document.getElementById("customSubtitleStyleControls");
 const subtitleDelayLabel = document.getElementById("subtitleDelayLabel");
 const subtitleDelayMinus = document.getElementById("subtitleDelayMinus");
 const subtitleDelayValue = document.getElementById("subtitleDelayValue");
@@ -403,7 +400,6 @@ let state = {
   subtitleBuiltInTabLabel: "Built-in",
   subtitleAddonsTabLabel: "Addons",
   subtitleStyleTabLabel: "Style",
-  customSubtitleStyleLabel: "Use custom styling",
   forcedLabel: "Forced",
   noneLabel: "None",
   fetchSubtitlesLabel: "Tap to fetch subtitles",
@@ -531,7 +527,6 @@ let state = {
   isLoadingAddonSubtitles: false,
   selectedAddonSubtitleId: "",
   useCustomSubtitles: false,
-  customSubtitleStylingEnabled: true,
   subtitleDelayMs: 0,
   hasSelectedAddonSubtitle: false,
   subtitleAutoSyncCapturedPositionMs: -1,
@@ -631,8 +626,6 @@ let pendingIsPlaying = null;
 let pendingPlaybackTimer = 0;
 let lastNativeIsPlaying = true;
 let suppressNextPointerToggleClick = false;
-let pendingCustomSubtitleStyling = null;
-let pendingCustomSubtitleStylingTimer = 0;
 let pendingSpeedIndex = null;
 let pendingSpeedTimer = 0;
 let submitIntroDraft = {
@@ -2563,27 +2556,12 @@ const handleFontPickerKey = event => {
 const renderSubtitleStylePanel = () => {
   subtitleFontManager.textContent = state.fontImportLabel || "Import font";
   const style = state.subtitleStyle || {};
-  const storedCustomStyling = state.customSubtitleStylingEnabled !== false;
-  if (pendingCustomSubtitleStyling !== null && pendingCustomSubtitleStyling === storedCustomStyling) {
-    pendingCustomSubtitleStyling = null;
-    window.clearTimeout(pendingCustomSubtitleStylingTimer);
-    pendingCustomSubtitleStylingTimer = 0;
-  }
-  const customStylingEnabled = pendingCustomSubtitleStyling ?? storedCustomStyling;
   subtitleDelayLabel.textContent = state.subtitleDelayLabel || "Subtitle Delay";
   subtitleDelayValue.textContent = formatDelay(state.subtitleDelayMs);
   subtitleDelayReset.textContent = state.resetLabel || "Reset";
   autoSyncLabel.textContent = state.autoSyncLabel || "Auto Sync";
   autoSyncReload.textContent = state.reloadSmallLabel || "Reload";
   autoSyncCapture.textContent = state.captureLineLabel || "Capture";
-  customSubtitleStyleLabel.textContent = state.customSubtitleStyleLabel || "Use custom styling";
-  customSubtitleStyleToggle.textContent = customStylingEnabled
-    ? (state.onLabel || "On")
-    : (state.offLabel || "Off");
-  customSubtitleStyleToggle.classList.toggle("primary", customStylingEnabled);
-  customSubtitleStyleToggle.setAttribute("aria-pressed", customStylingEnabled ? "true" : "false");
-  customSubtitleStyleControls.classList.toggle("disabled", !customStylingEnabled);
-  customSubtitleStyleControls.setAttribute("aria-disabled", customStylingEnabled ? "false" : "true");
   fontSizeLabel.textContent = state.fontSizeLabel || "Font Size";
   fontSizeValue.textContent = `${Number(style.fontSizeSp) || 18}sp`;
   if (fontLabel) fontLabel.textContent = state.fontLabel || "Font";
@@ -5035,19 +5013,6 @@ autoSyncReload.addEventListener("click", event => {
 autoSyncCapture.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleAutoSyncCapture", 0);
-});
-customSubtitleStyleToggle.addEventListener("click", event => {
-  event.stopPropagation();
-  if (pendingCustomSubtitleStyling !== null) return;
-  pendingCustomSubtitleStyling = !(state.customSubtitleStylingEnabled !== false);
-  renderSubtitleStylePanel();
-  send("subtitleCustomStyleToggle", 0);
-  window.clearTimeout(pendingCustomSubtitleStylingTimer);
-  pendingCustomSubtitleStylingTimer = window.setTimeout(() => {
-    pendingCustomSubtitleStyling = null;
-    pendingCustomSubtitleStylingTimer = 0;
-    renderSubtitleStylePanel();
-  }, 1500);
 });
 fontSizeMinus.addEventListener("click", event => {
   event.stopPropagation();

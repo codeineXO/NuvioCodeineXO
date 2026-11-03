@@ -13,6 +13,7 @@ data class CachedStreamLink(
     val requestHeaders: Map<String, String> = emptyMap(),
     val responseHeaders: Map<String, String> = emptyMap(),
     val filename: String? = null,
+    val videoHash: String? = null,
     val videoSize: Long? = null,
     val infoHash: String? = null,
     val fileIdx: Int? = null,
@@ -20,6 +21,8 @@ data class CachedStreamLink(
     val bingeGroup: String? = null,
     val streamType: String? = null,
     val contentLanguage: String? = null,
+    val addonLogo: String? = null,
+    val streamDescription: String? = null,
     val releaseText: String? = null,
     val classificationHint: com.nuvio.app.features.player.MediaClassificationHint? = null,
 )
@@ -28,16 +31,17 @@ internal expect fun epochMs(): Long
 
 internal fun CachedStreamLink.toPlaybackStream(): StreamItem = StreamItem(
     name = streamName,
-    description = releaseText,
+    description = releaseText ?: streamDescription,
     url = url.takeIf(String::isNotBlank),
     infoHash = infoHash,
     fileIdx = fileIdx,
     sources = sources,
     addonName = addonName,
     addonId = addonId,
+    addonLogo = addonLogo,
     streamType = streamType,
     classificationHint = classificationHint,
-    behaviorHints = StreamBehaviorHints(filename = filename, videoSize = videoSize, bingeGroup = bingeGroup),
+    behaviorHints = StreamBehaviorHints(filename = filename, videoSize = videoSize, videoHash = videoHash, bingeGroup = bingeGroup),
 )
 
 object StreamLinkCacheRepository {
@@ -67,6 +71,7 @@ object StreamLinkCacheRepository {
         requestHeaders: Map<String, String> = emptyMap(),
         responseHeaders: Map<String, String> = emptyMap(),
         filename: String? = null,
+        videoHash: String? = null,
         videoSize: Long? = null,
         infoHash: String? = null,
         fileIdx: Int? = null,
@@ -74,6 +79,8 @@ object StreamLinkCacheRepository {
         bingeGroup: String? = null,
         streamType: String? = null,
         contentLanguage: String? = null,
+        addonLogo: String? = null,
+        streamDescription: String? = null,
         releaseText: String? = null,
         classificationHint: com.nuvio.app.features.player.MediaClassificationHint? = null,
     ) {
@@ -91,6 +98,7 @@ object StreamLinkCacheRepository {
             requestHeaders = requestHeaders,
             responseHeaders = responseHeaders,
             filename = filename,
+            videoHash = videoHash,
             videoSize = videoSize,
             infoHash = infoHash,
             fileIdx = fileIdx,
@@ -98,6 +106,8 @@ object StreamLinkCacheRepository {
             bingeGroup = bingeGroup,
             streamType = streamType,
             contentLanguage = contentLanguage,
+            addonLogo = addonLogo,
+            streamDescription = streamDescription,
             releaseText = releaseText,
             classificationHint = com.nuvio.app.features.player.MediaClassification.fromHint(classificationHint)?.toHint(),
         )
@@ -144,6 +154,25 @@ object StreamLinkCacheRepository {
             return null
         }
         return entry
+    }
+
+    /**
+     * Patches only the videoHash (and optionally videoSize) on an existing cache
+     * entry without touching any other fields or resetting cachedAtMs.
+     * Does nothing when no entry exists for [contentKey].
+     */
+    fun updateVideoHash(contentKey: String, videoHash: String?, videoSize: Long?) {
+        val hashed = hashedKey(contentKey)
+        val raw = StreamLinkCacheStorage.loadEntry(hashed) ?: return
+        val existing = runCatching {
+            json.decodeFromString(CachedStreamLink.serializer(), raw)
+        }.getOrNull() ?: return
+        val updated = existing.copy(
+            videoHash = videoHash ?: existing.videoHash,
+            videoSize = videoSize ?: existing.videoSize,
+        )
+        val payload = json.encodeToString(CachedStreamLink.serializer(), updated)
+        StreamLinkCacheStorage.saveEntry(hashed, payload)
     }
 
     private fun hashedKey(contentKey: String): String {
