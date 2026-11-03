@@ -628,22 +628,22 @@ button:disabled {
 .player-badge {
   flex: none;
   box-sizing: border-box;
-  height: 28px;
-  padding: 3px 5px;
+  height: 20px;
+  padding: 2px 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .player-badge img {
   display: block;
-  height: 22px;
-  min-width: 46px;
-  max-width: 128px;
+  height: 16px;
+  min-width: 32px;
+  max-width: 90px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .parental-guide {
@@ -4785,7 +4785,7 @@ svg {
 .player.ui-codeinexo .codeine-player-badges .player-badge {
   background: rgba(0, 0, 0, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
+  border-radius: 6px;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -6072,6 +6072,7 @@ svg {
   border-color: rgba(255, 255, 255, 0.24);
 }
 
+.player.ui-codeinexo #sourceModal .track-row.source-row.selected,
 .player.ui-codeinexo #episodesModal .track-row.episode-row.selected {
   border: 2px solid var(--theme-accent, #3b82f6) !important;
   background: color-mix(in srgb, var(--theme-accent, #3b82f6) 24%, rgba(15, 17, 24, 0.95)) !important;
@@ -6079,6 +6080,7 @@ svg {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
 }
 
+.player.ui-codeinexo #sourceModal .track-row.source-row.selected:hover:not(:disabled),
 .player.ui-codeinexo #episodesModal .track-row.episode-row.selected:hover:not(:disabled) {
   background: color-mix(in srgb, var(--theme-accent, #3b82f6) 32%, rgba(15, 17, 24, 0.95)) !important;
 }

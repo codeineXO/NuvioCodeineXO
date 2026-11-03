@@ -2132,13 +2132,44 @@ private fun formatStreamVideoSize(bytes: Long?): String {
 private fun PlayerScreenRuntime.isCurrentPlayerControlStream(stream: StreamItem): Boolean {
     val activeKey = activeSourceIdentityKey
     val streamKey = stream.playerSourceIdentityKey()
-    if (activeKey != null) {
-        return streamKey == activeKey
+    if (activeKey != null && streamKey != null && streamKey == activeKey) {
+        return true
+    }
+    activeStream?.let { active ->
+        if (stream == active) return true
+        val activeKeyFromStream = active.playerSourceIdentityKey()
+        if (streamKey != null && activeKeyFromStream != null && streamKey == activeKeyFromStream) return true
     }
     val directUrl = stream.playableDirectUrl
-    if (directUrl != null && directUrl == activeSourceUrl) return true
-    val infoHash = stream.p2pInfoHash
-    if (infoHash != null && infoHash == activeTorrentInfoHash) return true
+    if (directUrl != null && (directUrl == activeSourceUrl || directUrl == activeStream?.playableDirectUrl)) return true
+
+    val infoHash = stream.p2pInfoHash ?: stream.infoHash
+    val targetHash = activeStream?.p2pInfoHash ?: activeStream?.infoHash ?: activeTorrentInfoHash
+    if (infoHash != null && targetHash != null && infoHash.equals(targetHash, ignoreCase = true)) {
+        val streamIdx = stream.p2pFileIdx ?: stream.fileIdx
+        val targetIdx = activeStream?.p2pFileIdx ?: activeStream?.fileIdx ?: activeTorrentFileIdx
+        if (targetIdx == null || streamIdx == null || streamIdx == targetIdx) {
+            if (activeProviderAddonId.isNullOrBlank() || stream.addonId == activeProviderAddonId) {
+                return true
+            }
+        }
+    }
+
+    val activeFilename = activeSourceFilename ?: activeStreamFilename ?: activeStream?.classificationFilename
+    if (!activeFilename.isNullOrBlank()) {
+        val streamFilename = stream.classificationFilename ?: stream.behaviorHints.filename ?: stream.clientResolve?.filename
+        if (streamFilename == activeFilename && (activeProviderAddonId.isNullOrBlank() || stream.addonId == activeProviderAddonId)) {
+            return true
+        }
+    }
+
+    if (!activeStreamTitle.isNullOrBlank()) {
+        if (stream.streamLabel.equals(activeStreamTitle, ignoreCase = true) &&
+            (activeProviderAddonId.isNullOrBlank() || stream.addonId == activeProviderAddonId) &&
+            (activeStreamSubtitle.isNullOrBlank() || stream.streamSubtitle == activeStreamSubtitle)) {
+            return true
+        }
+    }
     return false
 }
 
@@ -2564,9 +2595,9 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
             name = activeStreamTitle,
             description = activeStreamSubtitle,
             addonId = activeProviderAddonId,
-            infoHash = activeStream?.p2pInfoHash ?: activeTorrentInfoHash,
-            fileIdx = activeStream?.p2pFileIdx ?: activeTorrentFileIdx,
-            filename = activeSourceFilename,
+            infoHash = activeStream?.p2pInfoHash ?: activeStream?.infoHash ?: activeTorrentInfoHash,
+            fileIdx = activeStream?.p2pFileIdx ?: activeStream?.fileIdx ?: activeTorrentFileIdx,
+            filename = activeSourceFilename ?: activeStream?.classificationFilename ?: activeStreamFilename,
         ),
         onSourceFilterSelected = PlayerStreamsRepository::selectSourceFilter,
         onSourceStreamSelected = { stream -> switchToSource(stream) },

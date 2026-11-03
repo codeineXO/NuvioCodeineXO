@@ -186,6 +186,7 @@ internal class PlayerScreenRuntime(
     var activeTorrentTrackers by mutableStateOf(torrentTrackers)
     var p2pResolvedSourceUrl by mutableStateOf<String?>(null)
     var activeSourceIdentityKey by mutableStateOf(
+        args.stream?.playerSourceIdentityKey() ?:
         torrentInfoHash?.trim()?.lowercase()?.takeIf { it.isNotBlank() }?.let { hash ->
             "torrent:$hash:${torrentFileIdx ?: -1}"
         } ?: sourceUrl.trim().takeIf { it.isNotBlank() }?.let { url -> "url:$url" },
@@ -198,8 +199,8 @@ internal class PlayerScreenRuntime(
     var activeProviderAddonId by mutableStateOf(providerAddonId)
     var activeStream by mutableStateOf(args.stream)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)
-    var currentStreamFilename by mutableStateOf(args.stream?.behaviorHints?.filename)
-    var currentStreamInfoHash by mutableStateOf(args.stream?.infoHash)
+    var currentStreamFilename by mutableStateOf(args.stream?.behaviorHints?.filename ?: args.sourceFilename ?: args.torrentFilename)
+    var currentStreamInfoHash by mutableStateOf(args.stream?.p2pInfoHash ?: args.stream?.infoHash ?: torrentInfoHash)
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
     var activeEpisodeTitle by mutableStateOf(episodeTitle)

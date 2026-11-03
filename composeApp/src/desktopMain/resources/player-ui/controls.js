@@ -1737,7 +1737,11 @@ const openPlayerModal = modal => {
       setSubtitleTab("subtitles");
     }
   }
-  renderActiveModal(true);
+  try {
+    renderActiveModal(true);
+  } catch (err) {
+    console.error("renderActiveModal error:", err);
+  }
   modalElements.forEach(modalElement => {
     setModalVisibility(modalElement, modalElement === targetModal);
   });
@@ -3666,7 +3670,6 @@ const getSubtitlesModalSignature = () => {
     state.subtitleBuiltInTabLabel || "",
     state.subtitleAddonsTabLabel || "",
     state.subtitleStyleTabLabel || "",
-    state.customSubtitleStyleLabel || "",
     state.noneLabel || "",
     state.fetchSubtitlesLabel || "",
     state.subtitleDelayLabel || "",
@@ -3697,8 +3700,6 @@ const getSubtitlesModalSignature = () => {
     state.selectedSubtitleOptionId || "",
     state.selectedAddonSubtitleId || "",
     Boolean(state.useCustomSubtitles),
-    Boolean(state.customSubtitleStylingEnabled),
-    pendingCustomSubtitleStyling,
     Number(state.subtitleDelayMs) || 0,
     Boolean(state.hasSelectedAddonSubtitle),
     Number(state.subtitleAutoSyncCapturedPositionMs) || 0,
@@ -6109,7 +6110,11 @@ window.playerUpdate = update => {
   }
   if ((audioTracksChanged && activeModal === "audio") ||
       (subtitleTracksChanged && activeModal === "subtitles")) {
+    try {
     renderActiveModal(true);
+  } catch (err) {
+    console.error("renderActiveModal error:", err);
+  }
   }
 };
 
