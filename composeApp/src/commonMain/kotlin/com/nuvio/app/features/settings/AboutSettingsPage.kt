@@ -3,11 +3,18 @@ package com.nuvio.app.features.settings
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.Policy
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
+import com.nuvio.app.core.build.AppVersionPolicy
+import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.about_licenses_attributions_subtitle
 import nuvio.composeapp.generated.resources.about_supporters_contributors_subtitle
+import nuvio.composeapp.generated.resources.compose_settings_open_on_github
 import nuvio.composeapp.generated.resources.compose_settings_page_licenses_attributions
 import nuvio.composeapp.generated.resources.compose_settings_page_privacy_policy
 import nuvio.composeapp.generated.resources.compose_settings_page_supporters_contributors
@@ -20,6 +27,7 @@ import nuvio.composeapp.generated.resources.updates_debug_test_title
 import org.jetbrains.compose.resources.stringResource
 
 private const val PRIVACY_POLICY_URL = "https://nuvio.tv/privacy-policy"
+private const val GITHUB_REPO_URL = "https://github.com/codeineXO/NuvioCodeineXO"
 
 internal fun LazyListScope.aboutSettingsContent(
     isTablet: Boolean,
@@ -70,7 +78,29 @@ internal fun LazyListScope.aboutSettingsContent(
                         description = stringResource(Res.string.compose_settings_root_check_updates_description),
                         icon = SettingsSearchTarget.CheckForUpdates.icon,
                         isTablet = isTablet,
+                        trailingContent = {
+                            val versionName = AppVersionPolicy.displayVersionName
+                            val formattedVersion = if (versionName.startsWith("v", ignoreCase = true)) {
+                                versionName
+                            } else {
+                                "v$versionName"
+                            }
+                            Text(
+                                text = formattedVersion,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.nuvio.colors.textMuted,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        },
                         onClick = onCheckForUpdatesClick,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.compose_settings_open_on_github),
+                        description = null,
+                        icon = Icons.Rounded.OpenInBrowser,
+                        isTablet = isTablet,
+                        onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
                     )
                 }
                 if (onTestUpdateBannerClick != null) {

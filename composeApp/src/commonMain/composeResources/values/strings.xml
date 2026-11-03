@@ -547,6 +547,7 @@
     <string name="compose_settings_page_plugins">Plugins</string>
     <string name="compose_settings_page_poster_customization">Poster Card Style</string>
     <string name="compose_settings_page_privacy_policy">Privacy Policy</string>
+    <string name="compose_settings_open_on_github">Open on GitHub</string>
     <string name="compose_settings_page_root">Settings</string>
     <string name="compose_settings_page_streams">Streams</string>
     <string name="settings_appearance_section_streams">STREAMS</string>
