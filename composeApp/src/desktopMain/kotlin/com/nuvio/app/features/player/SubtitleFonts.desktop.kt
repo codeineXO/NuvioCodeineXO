@@ -6,11 +6,14 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.platform.Font
 import com.nuvio.app.core.storage.DesktopStorage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.KeyboardFocusManager
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -49,21 +52,26 @@ internal actual fun rememberSubtitleFontImporter(onResult: (Result<SubtitleFont>
     val latestResult = rememberUpdatedState(onResult)
     return {
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val dialog = FileDialog(null as Frame?, "Import font", FileDialog.LOAD).apply {
-                        setFilenameFilter { _, name -> name.lowercase().let { it.endsWith(".ttf") || it.endsWith(".otf") } }
-                        isVisible = true
+            val result = runCatching {
+                val path = withContext(Dispatchers.Swing) {
+                    val parent = KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow as? Frame
+                        ?: Frame.getFrames().firstOrNull { it.isVisible }
+                    val dialog = FileDialog(parent, "Import font", FileDialog.LOAD)
+                    try {
+                        dialog.setFilenameFilter { _, name -> name.lowercase().let { it.endsWith(".ttf") || it.endsWith(".otf") } }
+                        dialog.isVisible = true
+                        val name = dialog.file ?: return@withContext null
+                        Path.of(dialog.directory, name)
+                    } finally {
+                        dialog.dispose()
                     }
-                    val name = dialog.file
-                    val directory = dialog.directory
-                    dialog.dispose()
-                    if (name == null) return@runCatching null
-                    val path = Path.of(directory, name)
+                } ?: return@runCatching null
+                withContext(Dispatchers.IO) {
                     require(Files.size(path) <= MaxSubtitleFontBytes)
-                    SubtitleFonts.import(name, Files.readAllBytes(path))
+                    SubtitleFonts.import(path.fileName.toString(), Files.readAllBytes(path))
                 }
             }
+            result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             result.getOrNull()?.let { latestResult.value(Result.success(it)) }
                 ?: result.exceptionOrNull()?.let { latestResult.value(Result.failure(it)) }
         }
