@@ -75,7 +75,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
-import com.nuvio.app.core.ui.NuvioDesktopImageScaling
+import com.nuvio.app.core.ui.ArtworkRole
+import com.nuvio.app.core.ui.heroArtworkHeadroom
+import com.nuvio.app.core.ui.rememberArtworkRequest
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
@@ -91,7 +93,6 @@ import com.nuvio.app.core.ui.withVerticalBar
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.heroRatings
 import com.nuvio.app.features.home.stableKey
-import com.nuvio.app.features.tmdb.originalTmdbImageUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -322,7 +323,11 @@ private fun HeroBackgroundLayers(
                 .heroStretchZoom(stretchPx)
         }
         AsyncImage(
-            model = if (desktopFrame) originalTmdbImageUrl(imageUrl) else imageUrl,
+            model = rememberArtworkRequest(
+                imageUrl,
+                if (item.banner != null) ArtworkRole.Backdrop else ArtworkRole.Poster,
+                if (desktopFrame) heroArtworkHeadroom(layout.heroHeight.value, backgroundMotionStrength) else 1.25,
+            ),
             contentDescription = item.name,
             desktopAnimation = NuvioDesktopAnimation.Always,
             modifier = backgroundModifier
@@ -355,7 +360,6 @@ private fun HeroBackgroundLayers(
                 else -> Alignment.Center
             },
             contentScale = ContentScale.Crop,
-            desktopImageScaling = NuvioDesktopImageScaling.Disabled,
         )
     }
 }

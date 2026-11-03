@@ -5,7 +5,7 @@ import coil3.ImageLoader
 import coil3.memory.MemoryCache
 import kotlinx.coroutines.Dispatchers
 
-private const val ImageMemoryCacheBytes = 96L * 1024 * 1024
+private const val ImageMemoryCacheBytes = 256L * 1024 * 1024
 
 /** Bound combined still/animated decode work so image arrivals cannot occupy every CPU worker. */
 internal fun desktopArtworkDecodeParallelism(processors: Int): Int =
@@ -26,6 +26,8 @@ internal actual fun ImageLoader.Builder.configurePlatformImageLoader(): ImageLoa
 }
 
 internal actual fun ComponentRegistry.Builder.addPlatformDecoders() {
+    add(DesktopArtworkInterceptor())
     add(SkiaGifDecoder.Factory())
     add(SvgEmbeddedImageDecoder.Factory())
+    add(DesktopRasterDecoder.Factory())
 }

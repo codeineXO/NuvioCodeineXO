@@ -25,7 +25,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-private val HERO_STRETCH_MAX = 200.dp
+internal const val HeroStretchMaxDp = 200f
+private val HERO_STRETCH_MAX = HeroStretchMaxDp.dp
 private const val HERO_STRETCH_DRAG_RESISTANCE = 0.55f
 private const val HERO_STRETCH_RELEASE_ABSORB = 0.35f
 private const val HERO_STRETCH_FRAME_TO_VELOCITY = 60f

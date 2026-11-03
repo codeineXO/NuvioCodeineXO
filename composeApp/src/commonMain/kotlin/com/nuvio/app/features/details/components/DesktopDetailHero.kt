@@ -68,7 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
-import com.nuvio.app.core.ui.NuvioDesktopImageScaling
+import com.nuvio.app.core.ui.ArtworkRole
+import com.nuvio.app.core.ui.rememberArtworkRequest
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
@@ -79,7 +80,6 @@ import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
 import com.nuvio.app.core.ui.WideDesktopViewportAspectRatio
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.formatRuntimeForDisplay
-import com.nuvio.app.features.tmdb.originalTmdbImageUrl
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.detail_logo_content_description
 import nuvio.composeapp.generated.resources.hero_add_to_library
@@ -176,13 +176,12 @@ fun DesktopDetailBackdrop(
         val imageUrl = meta.background ?: meta.poster
         if (imageUrl != null) {
             AsyncImage(
-                model = originalTmdbImageUrl(imageUrl),
+                model = rememberArtworkRequest(imageUrl, if (meta.background != null) ArtworkRole.Backdrop else ArtworkRole.Poster),
                 contentDescription = meta.name,
                 desktopAnimation = NuvioDesktopAnimation.Always,
                 modifier = artworkModifier.navigationGlassSource(enabled = enableGlassSource),
                 alignment = BiasAlignment(0f, DesktopBackdropVerticalBias),
                 contentScale = if (removeSideFade) ContentScale.Crop else if (useWideArtworkFrame && !cropSideBackdrop) ContentScale.Fit else ContentScale.Crop,
-                desktopImageScaling = NuvioDesktopImageScaling.Disabled,
                 onSuccess = { state -> onBackdropLoaded(state.painter) },
             )
         } else {

@@ -491,7 +491,7 @@ fun NuvioPosterCard(
                     }
                 }
                 NuvioAsyncImage(
-                    model = imageModel,
+                    model = rememberArtworkRequest(imageModel, if (shape == NuvioPosterShape.Landscape) ArtworkRole.Backdrop else ArtworkRole.Poster),
                     contentDescription = title,
                     modifier = Modifier.matchParentSize(),
                     contentScale = ContentScale.Crop,
