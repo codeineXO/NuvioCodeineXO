@@ -617,7 +617,10 @@ internal fun RowsContent(
                 Box(Modifier.fillMaxWidth().padding(start = sidebarInset).height(slotHeight)) {
                     if (section == null || section.items.isEmpty()) {
                         if (slot.tab.isLoading) {
-                            HomeSkeletonRow(horizontalPadding = effectivePosterSectionPadding)
+                            HomeSkeletonRow(
+                                horizontalPadding = effectivePosterSectionPadding,
+                                useGutterLayout = useGutterLayout,
+                            )
                         } else {
                             Column(Modifier.fillMaxSize().padding(horizontal = effectivePosterSectionPadding ?: 16.dp)) {
                                 Box(Modifier.fillMaxWidth().height(headerHeight), contentAlignment = Alignment.CenterStart) {

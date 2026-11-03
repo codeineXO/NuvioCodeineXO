@@ -9,13 +9,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.isDesktop
 
 @Composable
 internal fun SkeletonBlock(
@@ -69,12 +72,26 @@ internal fun SkeletonPosterRow(
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = 0.dp,
     showDetail: Boolean = true,
+    useGutterLayout: Boolean = false,
 ) {
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val count = ((maxWidth - horizontalPadding) / (width + 10.dp)).toInt().coerceAtLeast(0) + 2
+    val glowEnabled = isDesktop && rememberPosterCardStyleUiState().glowEnabled
+    val rowHoverInset = maxOf(DesktopPosterRowHoverInset, if (glowEnabled) PosterGlowOutset else 0.dp)
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth().then(
+            if (useGutterLayout) Modifier.padding(horizontal = horizontalPadding).clipToBounds()
+            else Modifier,
+        ),
+    ) {
+        val countWidth = if (useGutterLayout) maxWidth else maxWidth - horizontalPadding
+        val count = (countWidth / (width + 10.dp)).toInt().coerceAtLeast(0) + 2
         LazyRow(
-            modifier = Modifier.remoteNavigationGroup().then(Modifier.fillMaxWidth()),
-            contentPadding = PaddingValues(horizontal = horizontalPadding),
+            modifier = Modifier.remoteNavigationGroup().fillMaxWidth().then(
+                // Match the loaded shelf's overdraw and content inset, while the
+                // enclosing clip keeps placeholders and labels out of its gutters.
+                if (useGutterLayout) Modifier.nuvioShelfHoverOverdraw(0.dp, rowHoverInset)
+                else Modifier,
+            ),
+            contentPadding = PaddingValues(horizontal = if (useGutterLayout) rowHoverInset else horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             userScrollEnabled = false,
         ) {

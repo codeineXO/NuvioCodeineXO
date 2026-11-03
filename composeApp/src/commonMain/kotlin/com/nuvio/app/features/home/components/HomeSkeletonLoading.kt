@@ -148,6 +148,7 @@ fun HomeSkeletonHero(
 fun HomeSkeletonRow(
     modifier: Modifier = Modifier,
     horizontalPadding: Dp? = null,
+    useGutterLayout: Boolean = false,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val basePosterWidthDp = if (isDesktop) {
@@ -185,6 +186,7 @@ fun HomeSkeletonRow(
                 height = skeletonHeight,
                 cornerRadius = posterCardStyle.cornerRadiusDp.dp,
                 horizontalPadding = sectionPadding,
+                useGutterLayout = useGutterLayout,
                 showLabels = !posterCardStyle.hideLabelsEnabled,
                 showDetail = !posterCardStyle.catalogLandscapeModeEnabled,
             )

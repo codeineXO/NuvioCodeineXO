@@ -1171,6 +1171,7 @@ fun HomeScreen(
                         HomeSkeletonRow(
                             modifier = Modifier.padding(start = sidebarContentInset),
                             horizontalPadding = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                            useGutterLayout = useGutterLayout,
                         )
                     }
                 }

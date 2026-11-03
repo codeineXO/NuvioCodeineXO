@@ -539,6 +539,7 @@ fun SearchScreen(
                         items(2) {
                             HomeSkeletonRow(
                                 horizontalPadding = effectivePosterSectionPadding,
+                                useGutterLayout = useGutterLayout,
                             )
                         }
                     }
@@ -547,6 +548,7 @@ fun SearchScreen(
                         items(2) {
                             HomeSkeletonRow(
                                 horizontalPadding = effectivePosterSectionPadding,
+                                useGutterLayout = useGutterLayout,
                             )
                         }
                     }
@@ -600,6 +602,7 @@ fun SearchScreen(
                             item(key = "search_loading_more") {
                                 HomeSkeletonRow(
                                     horizontalPadding = effectivePosterSectionPadding,
+                                    useGutterLayout = useGutterLayout,
                                 )
                             }
                         }

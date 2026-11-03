@@ -541,6 +541,7 @@ fun LibraryScreen(
                                 HomeSkeletonRow(
                                     modifier = Modifier.padding(bottom = posterSectionBottomPadding),
                                     horizontalPadding = posterSectionPadding,
+                                    useGutterLayout = useGutterLayout,
                                 )
                             }
                         }
