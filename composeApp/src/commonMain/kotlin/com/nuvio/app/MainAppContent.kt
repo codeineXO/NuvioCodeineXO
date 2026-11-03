@@ -1531,7 +1531,7 @@ internal fun MainAppContent(
                         .then(if (captureSidebarBackdrop) Modifier.hazeSource(sidebarGlassState) else Modifier)
                         .background(MaterialTheme.nuvio.colors.background),
                 ) {
-                val pageTravelPx = with(LocalDensity.current) { 12.dp.roundToPx() }
+                val pageTravelPx = with(LocalDensity.current) { 4.dp.roundToPx() }
                 NavDisplay(
                     backStack = navBackStack,
                     modifier = Modifier

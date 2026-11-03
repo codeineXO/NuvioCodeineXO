@@ -1,6 +1,7 @@
 package com.nuvio.app.navigation
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,14 +15,14 @@ internal fun pageNavigationMotion(forward: Boolean, distancePx: Int): ContentTra
     val motion = NavigationMotionSettings.profile
     val duration = motion.duration(NuvioTokens.Motion.sheetEnterMillis)
     val exitDuration = motion.duration(NuvioTokens.Motion.normalMillis)
-    val enter = fadeIn(tween(duration, easing = NuvioTokens.Motion.standard)) +
-        slideInVertically(tween(duration, easing = NuvioTokens.Motion.standard)) {
+    val enter = fadeIn(tween(duration, easing = FastOutSlowInEasing)) +
+        slideInVertically(tween(duration, easing = FastOutSlowInEasing)) {
             distancePx.coerceAtLeast(0) * if (forward) 1 else -1
         }
     val exit = fadeOut(tween(
         durationMillis = exitDuration,
         delayMillis = duration - exitDuration,
-        easing = NuvioTokens.Motion.standard,
+        easing = FastOutSlowInEasing,
     ))
     return enter togetherWith exit
 }

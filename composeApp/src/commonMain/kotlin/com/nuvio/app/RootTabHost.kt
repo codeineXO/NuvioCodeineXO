@@ -2,6 +2,7 @@ package com.nuvio.app
 
 import androidx.compose.foundation.focusGroup
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Box
@@ -107,7 +108,7 @@ private fun RootTabPane(
     LaunchedEffect(active) {
         if (active) {
             entrance.snapTo(0f)
-            entrance.animateTo(1f, tween(navigationMotionDuration(NuvioTokens.Motion.normalMillis), easing = NuvioTokens.Motion.standard))
+            entrance.animateTo(1f, tween(navigationMotionDuration(NuvioTokens.Motion.normalMillis), easing = FastOutSlowInEasing))
         } else entrance.snapTo(1f)
     }
     val lifecycleOwner = rememberLifecycleOwner(
@@ -121,8 +122,8 @@ private fun RootTabPane(
             Box(
                 Modifier.fillMaxSize()
                     .graphicsLayer {
-                        alpha = 0.94f + 0.06f * entrance.value
-                        translationY = (1f - entrance.value) * 6.dp.toPx()
+                        alpha = 0.92f + 0.08f * entrance.value
+                        translationY = (1f - entrance.value) * 2.dp.toPx()
                     }
                     // An active pane must not turn a descendant focusGroup into a focus stop.
                     .then(if (active) Modifier else Modifier.focusProperties { canFocus = false })
