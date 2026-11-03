@@ -189,6 +189,22 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     onCheckedChange = HomeCatalogSettingsRepository::setAlwaysAnimateCollectionCards,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_poster_hide_labels),
+                    description = stringResource(Res.string.settings_poster_hide_labels_description),
+                    checked = posterCardStyle.hideLabelsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PosterCardStyleRepository::setHideLabelsEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_poster_hide_year),
+                    description = stringResource(Res.string.settings_poster_hide_year_description),
+                    checked = posterCardStyle.hideYearEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PosterCardStyleRepository::setHideYearEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 MetaEpisodeCardStyleSelector(
                     isTablet = isTablet,
                     selectedStyle = metaScreenSettings.episodeCardStyle,

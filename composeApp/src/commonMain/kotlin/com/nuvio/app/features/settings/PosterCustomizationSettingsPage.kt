@@ -115,6 +115,7 @@ import nuvio.composeapp.generated.resources.settings_poster_animated_artwork_alw
 import nuvio.composeapp.generated.resources.settings_poster_animated_artwork_off
 import nuvio.composeapp.generated.resources.settings_poster_animated_artwork_on_hover
 import nuvio.composeapp.generated.resources.settings_poster_hide_labels
+import nuvio.composeapp.generated.resources.settings_poster_hide_year
 import nuvio.composeapp.generated.resources.settings_poster_glow
 import nuvio.composeapp.generated.resources.settings_poster_glow_description
 import nuvio.composeapp.generated.resources.settings_poster_always_show_landscape_clearlogo
@@ -172,6 +173,7 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                     cornerRadiusDp = uiState.cornerRadiusDp,
                     catalogLandscapeModeEnabled = uiState.catalogLandscapeModeEnabled,
                     hideLabelsEnabled = uiState.hideLabelsEnabled,
+                    hideYearEnabled = uiState.hideYearEnabled,
                     alwaysShowLandscapeClearlogo = uiState.alwaysShowLandscapeClearlogo,
                     animatedArtworkMode = uiState.animatedArtworkMode,
                     glowEnabled = uiState.glowEnabled,
@@ -179,6 +181,7 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
                     onCornerRadiusSelected = PosterCardStyleRepository::setCornerRadiusDp,
                     onCatalogLandscapeModeChange = PosterCardStyleRepository::setCatalogLandscapeModeEnabled,
                     onHideLabelsChange = PosterCardStyleRepository::setHideLabelsEnabled,
+                    onHideYearChange = PosterCardStyleRepository::setHideYearEnabled,
                     onAlwaysShowLandscapeClearlogoChange = PosterCardStyleRepository::setAlwaysShowLandscapeClearlogo,
                     onAnimatedArtworkModeSelected = PosterCardStyleRepository::setAnimatedArtworkMode,
                     onGlowEnabledChange = PosterCardStyleRepository::setGlowEnabled,
@@ -733,6 +736,7 @@ private fun PosterCardStyleControls(
     cornerRadiusDp: Int,
     catalogLandscapeModeEnabled: Boolean,
     hideLabelsEnabled: Boolean,
+    hideYearEnabled: Boolean,
     alwaysShowLandscapeClearlogo: Boolean,
     animatedArtworkMode: AnimatedArtworkMode,
     glowEnabled: Boolean,
@@ -740,6 +744,7 @@ private fun PosterCardStyleControls(
     onCornerRadiusSelected: (Int) -> Unit,
     onCatalogLandscapeModeChange: (Boolean) -> Unit,
     onHideLabelsChange: (Boolean) -> Unit,
+    onHideYearChange: (Boolean) -> Unit,
     onAlwaysShowLandscapeClearlogoChange: (Boolean) -> Unit,
     onAnimatedArtworkModeSelected: (AnimatedArtworkMode) -> Unit,
     onGlowEnabledChange: (Boolean) -> Unit,
@@ -808,6 +813,11 @@ private fun PosterCardStyleControls(
             onCheckedChange = onHideLabelsChange,
         )
         PosterToggleRow(
+            title = stringResource(Res.string.settings_poster_hide_year),
+            checked = hideYearEnabled,
+            onCheckedChange = onHideYearChange,
+        )
+        PosterToggleRow(
             title = stringResource(Res.string.settings_poster_always_show_landscape_clearlogo),
             checked = alwaysShowLandscapeClearlogo,
             onCheckedChange = onAlwaysShowLandscapeClearlogoChange,
@@ -843,7 +853,13 @@ private fun PosterToggleRow(
     description: String? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .remoteNavigationTarget(
+                shape = RoundedCornerShape(8.dp),
+                onSelect = { onCheckedChange(!checked) },
+            )
+            .clickable { onCheckedChange(!checked) },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -874,7 +890,7 @@ private fun PosterToggleRow(
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outlineVariant,
             ),
-         modifier = Modifier.remoteNavigationTarget())
+        )
     }
 }
 

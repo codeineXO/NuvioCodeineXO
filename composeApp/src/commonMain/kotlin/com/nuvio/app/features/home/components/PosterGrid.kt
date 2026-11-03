@@ -210,7 +210,7 @@ private fun PosterGridTile(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val detail = item.releaseInfo?.let { formatReleaseDateForDisplay(it) }
+                val detail = if (!posterCardStyle.hideYearEnabled) item.releaseInfo?.let { formatReleaseDateForDisplay(it) } else null
                 if (detail != null) {
                     Text(
                         text = detail,

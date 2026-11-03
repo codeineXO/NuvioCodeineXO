@@ -859,6 +859,9 @@
     <string name="settings_poster_custom">Custom</string>
     <string name="settings_poster_description">Tune card width and corner radius.</string>
     <string name="settings_poster_hide_labels">Hide labels</string>
+    <string name="settings_poster_hide_labels_description">Hide both titles and release years under posters</string>
+    <string name="settings_poster_hide_year">Hide release year</string>
+    <string name="settings_poster_hide_year_description">Hide the release year displayed under poster titles</string>
     <string name="settings_poster_always_show_landscape_clearlogo">Always backdrop with logo for landscape posters</string>
     <string name="settings_poster_animated_artwork">Animated artwork</string>
     <string name="settings_poster_glow">Adaptive Card Glow</string>

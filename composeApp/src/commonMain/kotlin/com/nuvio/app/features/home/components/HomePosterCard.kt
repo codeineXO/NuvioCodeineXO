@@ -49,7 +49,7 @@ fun HomePosterCard(
             fallbackImageUrl = fallbackImageUrl,
             basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp),
             shape = if (isLandscapeMode) NuvioPosterShape.Landscape else item.posterShape.toNuvioPosterShape(),
-            detailLine = if (isLandscapeMode || posterCardStyle.hideLabelsEnabled) null else item.releaseInfo?.let { formatReleaseDateForDisplay(it) },
+            detailLine = if (isLandscapeMode || posterCardStyle.hideLabelsEnabled || posterCardStyle.hideYearEnabled) null else item.releaseInfo?.let { formatReleaseDateForDisplay(it) },
             showTitleBelow = !posterCardStyle.hideLabelsEnabled,
             bottomLeftLogoUrl = if (isLandscapeMode && showLandscapeOverlay && effectiveLandscapePoster.isNullOrBlank()) item.logo else null,
             bottomLeftText = if (isLandscapeMode && showLandscapeOverlay && effectiveLandscapePoster.isNullOrBlank() && item.logo.isNullOrBlank() && !posterCardStyle.hideLabelsEnabled) item.name else null,

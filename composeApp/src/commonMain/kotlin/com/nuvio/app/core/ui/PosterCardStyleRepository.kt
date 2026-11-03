@@ -42,6 +42,7 @@ private data class StoredPosterCardStylePreferences(
     val cornerRadiusDp: Int = DefaultPosterCardCornerRadiusDp,
     val catalogLandscapeModeEnabled: Boolean = false,
     val hideLabelsEnabled: Boolean = false,
+    val hideYearEnabled: Boolean = false,
     val hoverPreviewEnabled: Boolean = true,
     val hoverPreviewOpenDelayMillis: Int = DefaultHoverPreviewOpenDelayMillis,
     val hoverPreviewTrailerEnabled: Boolean = false,
@@ -58,6 +59,7 @@ data class PosterCardStyleUiState(
     val cornerRadiusDp: Int = DefaultPosterCardCornerRadiusDp,
     val catalogLandscapeModeEnabled: Boolean = false,
     val hideLabelsEnabled: Boolean = false,
+    val hideYearEnabled: Boolean = false,
     val hoverPreviewEnabled: Boolean = true,
     val hoverPreviewOpenDelayMillis: Int = DefaultHoverPreviewOpenDelayMillis,
     val hoverPreviewTrailerEnabled: Boolean = false,
@@ -122,6 +124,13 @@ object PosterCardStyleRepository {
         ensureLoaded()
         if (_uiState.value.hideLabelsEnabled == enabled) return
         _uiState.value = _uiState.value.copy(hideLabelsEnabled = enabled)
+        persist()
+    }
+
+    fun setHideYearEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (_uiState.value.hideYearEnabled == enabled) return
+        _uiState.value = _uiState.value.copy(hideYearEnabled = enabled)
         persist()
     }
 
@@ -224,6 +233,7 @@ object PosterCardStyleRepository {
                 cornerRadiusDp = cornerRadiusDp,
                 catalogLandscapeModeEnabled = stored.catalogLandscapeModeEnabled,
                 hideLabelsEnabled = stored.hideLabelsEnabled,
+                hideYearEnabled = stored.hideYearEnabled,
                 hoverPreviewEnabled = stored.hoverPreviewEnabled,
                 hoverPreviewOpenDelayMillis = normalizeHoverPreviewOpenDelayMillis(
                     stored.hoverPreviewOpenDelayMillis,
@@ -253,6 +263,7 @@ object PosterCardStyleRepository {
                     cornerRadiusDp = _uiState.value.cornerRadiusDp,
                     catalogLandscapeModeEnabled = _uiState.value.catalogLandscapeModeEnabled,
                     hideLabelsEnabled = _uiState.value.hideLabelsEnabled,
+                    hideYearEnabled = _uiState.value.hideYearEnabled,
                     hoverPreviewEnabled = _uiState.value.hoverPreviewEnabled,
                     hoverPreviewOpenDelayMillis = _uiState.value.hoverPreviewOpenDelayMillis,
                     hoverPreviewTrailerEnabled = _uiState.value.hoverPreviewTrailerEnabled,

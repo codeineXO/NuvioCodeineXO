@@ -335,6 +335,7 @@ fun CatalogScreen(
                                         item = item,
                                         cornerRadiusDp = posterCardStyle.cornerRadiusDp,
                                         hideLabels = posterCardStyle.hideLabelsEnabled,
+                                        hideYear = posterCardStyle.hideYearEnabled,
                                         isWatched = isWatched,
                                         onClick = onPosterClick?.let { { it(item) } },
                                         onLongClick = onPosterLongClick?.let { { it(item) } },
@@ -470,6 +471,7 @@ private fun CatalogPosterTile(
     item: MetaPreview,
     cornerRadiusDp: Int,
     hideLabels: Boolean,
+    hideYear: Boolean = false,
     isWatched: Boolean,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
@@ -538,7 +540,7 @@ private fun CatalogPosterTile(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val detail = item.releaseInfo?.let { formatReleaseDateForDisplay(it) }
+                val detail = if (!hideYear) item.releaseInfo?.let { formatReleaseDateForDisplay(it) } else null
                 if (detail != null) {
                     Text(
                         text = detail,

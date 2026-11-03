@@ -448,6 +448,7 @@ fun NuvioPosterCard(
         shape = shape,
     )
     val shouldShowTitleBelow = showTitleBelow && !posterCardStyle.hideLabelsEnabled
+    val shouldShowDetailLine = !detailLine.isNullOrBlank() && !posterCardStyle.hideYearEnabled
 
     Column(
         modifier = Modifier
@@ -565,7 +566,7 @@ fun NuvioPosterCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (!detailLine.isNullOrBlank()) {
+            if (shouldShowDetailLine) {
                 Text(
                     text = detailLine,
                     style = MaterialTheme.typography.labelSmall,
