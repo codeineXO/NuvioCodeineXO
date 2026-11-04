@@ -1020,7 +1020,29 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                     folded = fold != null,
                 )
             }
+        }
+    }
+
+        if (args.isMiniPlayer) {
+            val miniSubtitle = if (isEpisode) {
+                val base = "S${seasonNumber}E${episodeNumber}"
+                val displayTitle = localizedEpisodeTitle(episodeTitle, episodeNumber)
+                if (!displayTitle.isNullOrBlank()) "$base • $displayTitle" else base
+            } else {
+                activeStreamTitle.ifBlank { activeProviderName }
             }
+
+            InAppMiniPlayerControls(
+                title = title,
+                subtitle = miniSubtitle,
+                isPlaying = playbackSnapshot.isPlaying,
+                progressFraction = if (playbackSnapshot.durationMs > 0L) {
+                    (displayedPositionMs.toFloat() / playbackSnapshot.durationMs.toFloat()).coerceIn(0f, 1f)
+                } else 0f,
+                onTogglePlayback = { togglePlayback() },
+                onExpand = { args.onExpand?.invoke() },
+                onClose = { args.onClose?.invoke() },
+            )
         }
     }
 
@@ -1036,28 +1058,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             }
             RenderPlayerModals(displayedPositionMs = displayedPositionMs)
         }
-    }
-
-    if (args.isMiniPlayer) {
-        val miniSubtitle = if (isEpisode) {
-            val base = "S${seasonNumber}E${episodeNumber}"
-            val displayTitle = localizedEpisodeTitle(episodeTitle, episodeNumber)
-            if (!displayTitle.isNullOrBlank()) "$base • $displayTitle" else base
-        } else {
-            activeStreamTitle.ifBlank { activeProviderName }
-        }
-
-        InAppMiniPlayerControls(
-            title = title,
-            subtitle = miniSubtitle,
-            isPlaying = playbackSnapshot.isPlaying,
-            progressFraction = if (playbackSnapshot.durationMs > 0L) {
-                (displayedPositionMs.toFloat() / playbackSnapshot.durationMs.toFloat()).coerceIn(0f, 1f)
-            } else 0f,
-            onTogglePlayback = { togglePlayback() },
-            onExpand = { args.onExpand?.invoke() },
-            onClose = { args.onClose?.invoke() },
-        )
     }
 }
 
