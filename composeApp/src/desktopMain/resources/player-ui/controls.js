@@ -2112,13 +2112,16 @@ let eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
 let eyeFilterColorDebounceTimer = null;
 
 const syncEyeFilterOverlay = () => {
-  if (!eyeFilterOverlay) return;
   const enabled = Boolean(state.eyeFilterEnabled);
-  const color = state.eyeFilterColor || "#000000";
-  const opacity = state.eyeFilterOpacity != null ? Math.max(0.10, Math.min(0.80, Number(state.eyeFilterOpacity))) : 0.35;
-  eyeFilterOverlay.classList.toggle("is-active", enabled);
-  eyeFilterOverlay.style.backgroundColor = color;
-  eyeFilterOverlay.style.opacity = String(opacity);
+  if (eyeFilterOverlay) {
+    const color = state.eyeFilterColor || "#000000";
+    const opacity = state.eyeFilterOpacity != null ? Math.max(0.10, Math.min(0.80, Number(state.eyeFilterOpacity))) : 0.35;
+    eyeFilterOverlay.classList.toggle("is-active", enabled);
+    eyeFilterOverlay.style.backgroundColor = color;
+    eyeFilterOverlay.style.opacity = String(opacity);
+  }
+  if (eyeFilterButton) eyeFilterButton.classList.toggle("active", enabled);
+  if (codeineEyeFilterButton) codeineEyeFilterButton.classList.toggle("active", enabled);
 };
 
 const applyEyeFilterColor = color => {
