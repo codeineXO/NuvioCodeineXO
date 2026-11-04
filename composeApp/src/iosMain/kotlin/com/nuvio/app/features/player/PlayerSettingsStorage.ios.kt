@@ -122,6 +122,9 @@ actual object PlayerSettingsStorage {
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val seekrApiKeyKey = "seekr_api_key"
     private const val showRemainingTimeKey = "show_remaining_time"
+    private const val eyeFilterEnabledKey = "eye_filter_enabled"
+    private const val eyeFilterColorKey = "eye_filter_color"
+    private const val eyeFilterOpacityKey = "eye_filter_opacity"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -1278,6 +1281,33 @@ actual object PlayerSettingsStorage {
 
     actual fun saveShowRemainingTime(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(showRemainingTimeKey))
+    }
+
+    actual fun loadEyeFilterEnabled(): Boolean? {
+        val key = ProfileScopedKey.of(eyeFilterEnabledKey)
+        val defaults = NSUserDefaults.standardUserDefaults
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+
+    actual fun saveEyeFilterEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(eyeFilterEnabledKey))
+    }
+
+    actual fun loadEyeFilterColor(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(eyeFilterColorKey))
+
+    actual fun saveEyeFilterColor(color: String) {
+        NSUserDefaults.standardUserDefaults.setObject(color, forKey = ProfileScopedKey.of(eyeFilterColorKey))
+    }
+
+    actual fun loadEyeFilterOpacity(): Float? {
+        val key = ProfileScopedKey.of(eyeFilterOpacityKey)
+        val defaults = NSUserDefaults.standardUserDefaults
+        return if (defaults.objectForKey(key) != null) defaults.floatForKey(key) else null
+    }
+
+    actual fun saveEyeFilterOpacity(opacity: Float) {
+        NSUserDefaults.standardUserDefaults.setFloat(opacity, forKey = ProfileScopedKey.of(eyeFilterOpacityKey))
     }
 
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {

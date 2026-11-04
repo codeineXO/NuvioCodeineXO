@@ -229,6 +229,12 @@ internal expect object PlayerSettingsStorage {
     fun saveSeekrApiKey(apiKey: String)
     fun loadShowRemainingTime(): Boolean?
     fun saveShowRemainingTime(enabled: Boolean)
+    fun loadEyeFilterEnabled(): Boolean?
+    fun saveEyeFilterEnabled(enabled: Boolean)
+    fun loadEyeFilterColor(): String?
+    fun saveEyeFilterColor(color: String)
+    fun loadEyeFilterOpacity(): Float?
+    fun saveEyeFilterOpacity(opacity: Float)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

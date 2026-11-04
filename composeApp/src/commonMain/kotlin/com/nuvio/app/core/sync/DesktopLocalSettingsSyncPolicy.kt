@@ -72,6 +72,9 @@ internal fun playerSettingsSyncState(state: PlayerSettingsUiState, desktop: Bool
         seekPreviewWhileKeyboardSeeking = true,
         seekPreviewThumbnailCount = 5,
         seekrApiKey = "",
+        eyeFilterEnabled = false,
+        eyeFilterColor = "#000000",
+        eyeFilterOpacity = 0.35f,
         subtitleStyle = state.subtitleStyle.copy(
             fontName = SubtitleStyleState.DEFAULT.fontName,
             outlineEffect = SubtitleStyleState.DEFAULT.outlineEffect,

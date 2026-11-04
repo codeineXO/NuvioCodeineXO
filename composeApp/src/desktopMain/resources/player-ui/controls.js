@@ -90,6 +90,25 @@ const codeineSpeedButton = document.getElementById("codeineSpeedButton");
 const codeineResizeButton = document.getElementById("codeineResizeButton");
 const codeineFullscreenButton = document.getElementById("codeineFullscreenButton");
 const codeineFullscreenIcon = document.getElementById("codeineFullscreenIcon");
+const eyeFilterButton = document.getElementById("eyeFilterButton");
+const codeineEyeFilterButton = document.getElementById("codeineEyeFilterButton");
+const eyeFilterOverlay = document.getElementById("eyeFilterOverlay");
+const eyeFilterModal = document.getElementById("eyeFilterModal");
+const eyeFilterCloseButton = document.getElementById("eyeFilterCloseButton");
+const eyeFilterToggleSwitch = document.getElementById("eyeFilterToggleSwitch");
+const eyeFilterOpacitySlider = document.getElementById("eyeFilterOpacitySlider");
+const eyeFilterOpacityValue = document.getElementById("eyeFilterOpacityValue");
+const eyeFilterPresetBlack = document.getElementById("eyeFilterPresetBlack");
+const eyeFilterPresetNavy = document.getElementById("eyeFilterPresetNavy");
+const eyeFilterCustomToggle = document.getElementById("eyeFilterCustomToggle");
+const eyeFilterCustomPicker = document.getElementById("eyeFilterCustomPicker");
+const eyeFilterHueSlider = document.getElementById("eyeFilterHueSlider");
+const eyeFilterHueValue = document.getElementById("eyeFilterHueValue");
+const eyeFilterSatSlider = document.getElementById("eyeFilterSatSlider");
+const eyeFilterSatValue = document.getElementById("eyeFilterSatValue");
+const eyeFilterBriSlider = document.getElementById("eyeFilterBriSlider");
+const eyeFilterBriValue = document.getElementById("eyeFilterBriValue");
+const eyeFilterHexInput = document.getElementById("eyeFilterHexInput");
 const openingOverlay = document.getElementById("openingOverlay");
 const openingArtwork = document.getElementById("openingArtwork");
 const openingBackButton = document.getElementById("openingBackButton");
@@ -330,6 +349,9 @@ let isPlaybackStatsVisible = false;
 
 let state = {
   playerUiMode: "codeine_xo",
+  eyeFilterEnabled: false,
+  eyeFilterColor: "#000000",
+  eyeFilterOpacity: 0.35,
   showPlaybackTimeOverlay: false,
   showTorrentStatsOverlay: true,
   torrentStatsText: "",
@@ -1631,6 +1653,7 @@ const modalByName = {
   subtitles: subtitleModal,
   speed: speedModal,
   shaders: shaderModal,
+  eyeFilter: eyeFilterModal,
   sources: sourceModal,
   episodes: episodesModal,
   chapters: chaptersModal,
@@ -2082,6 +2105,230 @@ const renderShaderOptionList = () => {
 
   lastRenderedModal = "shaders";
   lastRenderedModalSignature = getShaderModalSignature();
+};
+
+let isEyeFilterSliderDragging = false;
+let eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
+let eyeFilterColorDebounceTimer = null;
+
+const syncEyeFilterOverlay = () => {
+  if (!eyeFilterOverlay) return;
+  const enabled = Boolean(state.eyeFilterEnabled);
+  const color = state.eyeFilterColor || "#000000";
+  const opacity = state.eyeFilterOpacity != null ? Math.max(0.10, Math.min(0.80, Number(state.eyeFilterOpacity))) : 0.35;
+  eyeFilterOverlay.classList.toggle("is-active", enabled);
+  eyeFilterOverlay.style.backgroundColor = color;
+  eyeFilterOverlay.style.opacity = String(opacity);
+};
+
+const applyEyeFilterColor = color => {
+  const norm = (color || "#000000").toUpperCase();
+  state.eyeFilterColor = norm;
+  if (norm === "#000000") {
+    eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
+  } else if (norm === "#0F172A") {
+    eyeFilterHsv = { hue: 222, saturation: 0.64, brightness: 0.16 };
+  } else {
+    const parsed = parseArgb(norm);
+    const hsv = rgbToHsv(parsed.red, parsed.green, parsed.blue);
+    eyeFilterHsv = { hue: hsv.hue, saturation: hsv.saturation, brightness: hsv.brightness };
+  }
+  syncEyeFilterOverlay();
+  renderEyeFilterModal();
+  const hex = norm.replace("#", "");
+  const rgbInt = parseInt(hex, 16);
+  if (!Number.isNaN(rgbInt)) {
+    send("setEyeFilterColor", rgbInt);
+  }
+};
+
+const renderEyeFilterModal = () => {
+  if (!eyeFilterModal) return;
+  const enabled = Boolean(state.eyeFilterEnabled);
+  const color = (state.eyeFilterColor || "#000000").toUpperCase();
+  const opacity = state.eyeFilterOpacity != null ? Math.max(0.10, Math.min(0.80, Number(state.eyeFilterOpacity))) : 0.35;
+  const opacityPercent = Math.round(opacity * 100);
+
+  if (eyeFilterToggleSwitch) {
+    eyeFilterToggleSwitch.classList.toggle("is-checked", enabled);
+    eyeFilterToggleSwitch.setAttribute("aria-checked", String(enabled));
+  }
+
+  if (eyeFilterOpacitySlider) {
+    eyeFilterOpacitySlider.value = String(opacityPercent);
+  }
+  if (eyeFilterOpacityValue) {
+    eyeFilterOpacityValue.textContent = `${opacityPercent}%`;
+  }
+
+  if (eyeFilterPresetBlack) {
+    eyeFilterPresetBlack.classList.toggle("selected", color === "#000000");
+  }
+  if (eyeFilterPresetNavy) {
+    eyeFilterPresetNavy.classList.toggle("selected", color === "#0F172A");
+  }
+
+  if (eyeFilterHexInput && document.activeElement !== eyeFilterHexInput) {
+    eyeFilterHexInput.value = color;
+  }
+  if (eyeFilterHueSlider && eyeFilterSatSlider && eyeFilterBriSlider) {
+    const isFocused = document.activeElement === eyeFilterHueSlider ||
+      document.activeElement === eyeFilterSatSlider ||
+      document.activeElement === eyeFilterBriSlider;
+    if (!isEyeFilterSliderDragging && !isFocused) {
+      if (color === "#000000") {
+        eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
+      } else if (color === "#0F172A") {
+        eyeFilterHsv = { hue: 222, saturation: 0.64, brightness: 0.16 };
+      } else {
+        const parsed = parseArgb(color);
+        const hsv = rgbToHsv(parsed.red, parsed.green, parsed.blue);
+        if (hsv.brightness > 0.05 && hsv.saturation > 0.05) {
+          eyeFilterHsv.hue = hsv.hue;
+          eyeFilterHsv.saturation = hsv.saturation;
+        }
+        eyeFilterHsv.brightness = hsv.brightness;
+      }
+      eyeFilterHueSlider.value = String(Math.round(eyeFilterHsv.hue));
+      eyeFilterSatSlider.value = String(Math.round(eyeFilterHsv.saturation * 100));
+      eyeFilterBriSlider.value = String(Math.round(eyeFilterHsv.brightness * 100));
+      if (eyeFilterHueValue) eyeFilterHueValue.textContent = `${Math.round(eyeFilterHsv.hue)}°`;
+      if (eyeFilterSatValue) eyeFilterSatValue.textContent = `${Math.round(eyeFilterHsv.saturation * 100)}%`;
+      if (eyeFilterBriValue) eyeFilterBriValue.textContent = `${Math.round(eyeFilterHsv.brightness * 100)}%`;
+      eyeFilterSatSlider.style.background = `linear-gradient(to right, #ffffff, hsl(${eyeFilterHsv.hue}, 100%, 50%))`;
+      eyeFilterBriSlider.style.background = `linear-gradient(to right, #000000, hsl(${eyeFilterHsv.hue}, ${Math.round(eyeFilterHsv.saturation * 100)}%, 50%))`;
+    }
+  }
+
+  lastRenderedModal = "eyeFilter";
+  lastRenderedModalSignature = `${enabled}##${color}##${opacity}`;
+};
+
+const updateEyeFilterFromSliders = (channel, commit = false) => {
+  if (!eyeFilterHueSlider || !eyeFilterSatSlider || !eyeFilterBriSlider) return;
+  if (channel === "hue") {
+    eyeFilterHsv.hue = Number(eyeFilterHueSlider.value);
+  } else if (channel === "saturation") {
+    eyeFilterHsv.saturation = Number(eyeFilterSatSlider.value) / 100;
+  } else if (channel === "brightness") {
+    eyeFilterHsv.brightness = Number(eyeFilterBriSlider.value) / 100;
+  }
+  const h = eyeFilterHsv.hue;
+  const s = eyeFilterHsv.saturation;
+  const v = eyeFilterHsv.brightness;
+
+  if (eyeFilterHueValue) eyeFilterHueValue.textContent = `${Math.round(h)}°`;
+  if (eyeFilterSatValue) eyeFilterSatValue.textContent = `${Math.round(s * 100)}%`;
+  if (eyeFilterBriValue) eyeFilterBriValue.textContent = `${Math.round(v * 100)}%`;
+  eyeFilterSatSlider.style.background = `linear-gradient(to right, #ffffff, hsl(${h}, 100%, 50%))`;
+  eyeFilterBriSlider.style.background = `linear-gradient(to right, #000000, hsl(${h}, ${Math.round(s * 100)}%, 50%))`;
+
+  const rgb = hsvToRgb(h, s, v);
+  const hex = toHex6(rgb.red, rgb.green, rgb.blue);
+  if (eyeFilterHexInput && document.activeElement !== eyeFilterHexInput) {
+    eyeFilterHexInput.value = hex;
+  }
+  state.eyeFilterColor = hex;
+  syncEyeFilterOverlay();
+
+  if (eyeFilterPresetBlack) {
+    eyeFilterPresetBlack.classList.toggle("selected", hex === "#000000");
+  }
+  if (eyeFilterPresetNavy) {
+    eyeFilterPresetNavy.classList.toggle("selected", hex === "#0F172A");
+  }
+
+  if (commit) {
+    if (eyeFilterColorDebounceTimer) clearTimeout(eyeFilterColorDebounceTimer);
+    send("setEyeFilterColor", rgb.rgbInt);
+  } else {
+    if (eyeFilterColorDebounceTimer) clearTimeout(eyeFilterColorDebounceTimer);
+    eyeFilterColorDebounceTimer = setTimeout(() => {
+      send("setEyeFilterColor", rgb.rgbInt);
+    }, 60);
+  }
+};
+
+const initEyeFilterListeners = () => {
+  if (eyeFilterCloseButton) {
+    eyeFilterCloseButton.addEventListener("click", event => {
+      event.stopPropagation();
+      closePlayerModal();
+    });
+  }
+  if (eyeFilterToggleSwitch) {
+    eyeFilterToggleSwitch.addEventListener("click", event => {
+      event.stopPropagation();
+      const next = !state.eyeFilterEnabled;
+      state.eyeFilterEnabled = next;
+      syncEyeFilterOverlay();
+      renderEyeFilterModal();
+      send("setEyeFilterEnabled", next ? 1 : 0);
+    });
+  }
+  if (eyeFilterOpacitySlider) {
+    eyeFilterOpacitySlider.addEventListener("input", () => {
+      const val = Math.max(0.10, Math.min(0.80, Number(eyeFilterOpacitySlider.value) / 100));
+      state.eyeFilterOpacity = val;
+      if (eyeFilterOpacityValue) eyeFilterOpacityValue.textContent = `${eyeFilterOpacitySlider.value}%`;
+      syncEyeFilterOverlay();
+      send("setEyeFilterOpacity", val);
+    });
+  }
+  if (eyeFilterPresetBlack) {
+    eyeFilterPresetBlack.addEventListener("click", event => {
+      event.stopPropagation();
+      applyEyeFilterColor("#000000");
+    });
+  }
+  if (eyeFilterPresetNavy) {
+    eyeFilterPresetNavy.addEventListener("click", event => {
+      event.stopPropagation();
+      applyEyeFilterColor("#0F172A");
+    });
+  }
+  if (eyeFilterCustomToggle && eyeFilterCustomPicker) {
+    eyeFilterCustomToggle.addEventListener("click", event => {
+      event.stopPropagation();
+      eyeFilterCustomPicker.hidden = !eyeFilterCustomPicker.hidden;
+    });
+  }
+  const handleDragStart = () => {
+    isEyeFilterSliderDragging = true;
+  };
+  const handleDragEnd = channel => () => {
+    isEyeFilterSliderDragging = false;
+    updateEyeFilterFromSliders(channel, true);
+  };
+  [eyeFilterHueSlider, eyeFilterSatSlider, eyeFilterBriSlider].forEach(slider => {
+    if (!slider) return;
+    slider.addEventListener("pointerdown", handleDragStart);
+    slider.addEventListener("touchstart", handleDragStart);
+    slider.addEventListener("mousedown", handleDragStart);
+  });
+  if (eyeFilterHueSlider) {
+    eyeFilterHueSlider.addEventListener("input", () => updateEyeFilterFromSliders("hue", false));
+    eyeFilterHueSlider.addEventListener("change", handleDragEnd("hue"));
+    eyeFilterHueSlider.addEventListener("pointerup", handleDragEnd("hue"));
+  }
+  if (eyeFilterSatSlider) {
+    eyeFilterSatSlider.addEventListener("input", () => updateEyeFilterFromSliders("saturation", false));
+    eyeFilterSatSlider.addEventListener("change", handleDragEnd("saturation"));
+    eyeFilterSatSlider.addEventListener("pointerup", handleDragEnd("saturation"));
+  }
+  if (eyeFilterBriSlider) {
+    eyeFilterBriSlider.addEventListener("input", () => updateEyeFilterFromSliders("brightness", false));
+    eyeFilterBriSlider.addEventListener("change", handleDragEnd("brightness"));
+    eyeFilterBriSlider.addEventListener("pointerup", handleDragEnd("brightness"));
+  }
+  if (eyeFilterHexInput) {
+    eyeFilterHexInput.addEventListener("change", () => {
+      const hex = eyeFilterHexInput.value.trim().replace("#", "");
+      if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+        applyEyeFilterColor("#" + hex.toUpperCase());
+      }
+    });
+  }
 };
 
 const renderAudioTrackList = () => {
@@ -3804,6 +4051,7 @@ const getActiveModalSignature = modal => {
   if (modal === "subtitles") return getSubtitlesModalSignature();
   if (modal === "speed") return getSpeedModalSignature();
   if (modal === "shaders") return getShaderModalSignature();
+  if (modal === "eyeFilter") return `${state.eyeFilterEnabled}##${state.eyeFilterColor}##${state.eyeFilterOpacity}`;
   if (modal === "sources") return getSourcesModalSignature();
   if (modal === "episodes") return getEpisodesModalSignature();
   if (modal === "submitIntro") return getSubmitIntroModalSignature();
@@ -3830,6 +4078,7 @@ const renderActiveModal = (modalOpened = false, force = false) => {
   else if (activeModal === "subtitles") renderSubtitleModal();
   else if (activeModal === "speed") renderSpeedOptionList();
   else if (activeModal === "shaders") renderShaderOptionList();
+  else if (activeModal === "eyeFilter") renderEyeFilterModal();
   else if (activeModal === "sources") renderSourceModal(modalOpened);
   else if (activeModal === "episodes") renderEpisodesModal(modalOpened);
   else if (activeModal === "chapters") renderChaptersModal(modalOpened);
@@ -4893,6 +5142,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
     }
     if (command === "shaders") {
       openPlayerModal("shaders");
+      return;
+    }
+    if (command === "eyeFilter") {
+      openPlayerModal("eyeFilter");
       return;
     }
     if (command === "sources") {
@@ -6157,6 +6410,19 @@ window.playerControls = nextState => {
     timeLabelShowRemaining = nextState.showRemainingTime;
     codeineShowRemaining = nextState.showRemainingTime;
   }
+  if (typeof nextState.eyeFilterEnabled === "boolean") {
+    state.eyeFilterEnabled = nextState.eyeFilterEnabled;
+  }
+  if (typeof nextState.eyeFilterColor === "string" && nextState.eyeFilterColor) {
+    state.eyeFilterColor = nextState.eyeFilterColor;
+  }
+  if (typeof nextState.eyeFilterOpacity === "number") {
+    state.eyeFilterOpacity = nextState.eyeFilterOpacity;
+  }
+  syncEyeFilterOverlay();
+  if (activeModal === "eyeFilter") {
+    renderEyeFilterModal();
+  }
   if (typeof state.volumeLevel === "number" && state.volumeLevel > 0) {
     preMuteVolumeLevel = state.volumeLevel;
   }
@@ -6795,6 +7061,20 @@ document.addEventListener("keydown", event => {
     return;
   }
 
+  if (event.code === "Digit0" || event.code === "Numpad0") {
+    clearSpaceHoldTimerAndStopSpeedBoost();
+    event.preventDefault();
+    const next = !state.eyeFilterEnabled;
+    state.eyeFilterEnabled = next;
+    syncEyeFilterOverlay();
+    if (activeModal === "eyeFilter") {
+      renderEyeFilterModal();
+    }
+    send("setEyeFilterEnabled", next ? 1 : 0);
+    showPlayerToast(next ? "Eye filter: On" : "Eye filter: Off");
+    return;
+  }
+
   if ((activeModal === "episodes" || activeModal === "sources") && (event.code === "ArrowLeft" || event.code === "ArrowRight")) {
     const chips = Array.from(document.querySelectorAll('.filter-chip:not([hidden])')).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
     if (chips.length > 0) {
@@ -7224,8 +7504,10 @@ window.addEventListener("drop", async event => {
   }
 });
 
+initEyeFilterListeners();
 setProgress(0, 0, 0);
 focusShortcutRoot();
+syncEyeFilterOverlay();
 render();
 syncSeekrPreviews();
 send("controlsReady", 0);

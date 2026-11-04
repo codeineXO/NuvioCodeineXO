@@ -542,6 +542,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         seekrEpisode = activeEpisodeNumber ?: 0,
         showSeekbarWhileSeeking = playerSettingsUiState.showSeekbarWhileSeeking,
         showRemainingTime = playerSettingsUiState.showRemainingTime,
+        eyeFilterEnabled = playerSettingsUiState.eyeFilterEnabled,
+        eyeFilterColor = playerSettingsUiState.eyeFilterColor,
+        eyeFilterOpacity = playerSettingsUiState.eyeFilterOpacity,
         showPlaybackTimeOverlay = playerSettingsUiState.showClockInPlayer &&
             (isP2pPlaybackActive || (activeSourceUrl != null && !playbackSnapshot.isEnded)) &&
             !hasActivePlayerPanel,
@@ -1467,6 +1470,20 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         "setPlaybackSpeed" -> {
             if (!isPartySynced) return false
             selectPlaybackSpeed(value.toFloat())
+        }
+        "setEyeFilterEnabled" -> {
+            PlayerSettingsRepository.setEyeFilterEnabled(value >= 0.5)
+            true
+        }
+        "setEyeFilterOpacity" -> {
+            PlayerSettingsRepository.setEyeFilterOpacity(value.toFloat())
+            true
+        }
+        "setEyeFilterColor" -> {
+            val colorInt = (value.toLong().toInt()) and 0xFFFFFF
+            val hex = "#" + colorInt.toString(16).padStart(6, '0').uppercase()
+            PlayerSettingsRepository.setEyeFilterColor(hex)
+            true
         }
         "selectChapter" -> {
             selectChapter(value.toInt())

@@ -164,9 +164,13 @@
     <symbol id="icon-chevron-down" viewBox="0 0 24 24">
       <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" fill="currentColor"/>
     </symbol>
+    <symbol id="icon-eye" viewBox="0 0 24 24">
+      <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+    </symbol>
   </svg>
 
   <div class="player" id="playerRoot" tabindex="-1">
+    <div class="eye-filter-overlay" id="eyeFilterOverlay" aria-hidden="true"></div>
     <div class="top-gradient"></div>
     <div class="bottom-gradient"></div>
     <div class="pip-lock-overlay" id="pipLockOverlay" aria-hidden="true"></div>
@@ -458,6 +462,7 @@
             <button class="action" data-command="subtitles"><svg><use href="#icon-subs"></use></svg><span id="subtitlesLabel">Subs</span></button>
             <button class="action" data-command="audio"><svg><use href="#icon-audio"></use></svg><span id="audioLabel">Audio</span></button>
             <button class="action" id="shadersButton" data-command="shaders" aria-label="Enhancements" title="Enhancements"><svg><use href="#icon-wand"></use></svg><span id="shadersLabel">Enhancements</span></button>
+            <button class="action" id="eyeFilterButton" data-command="eyeFilter" aria-label="Eye filter" title="Eye filter"><svg><use href="#icon-eye"></use></svg><span id="eyeFilterLabel">Eye Filter</span></button>
             <button class="action optional" id="sourcesButton" data-command="sources"><svg><use href="#icon-source"></use></svg><span id="sourcesLabel">Sources</span></button>
             <button class="action optional" id="episodesButton" data-command="episodes"><svg><use href="#icon-episodes"></use></svg><span id="episodesLabel">Episodes</span></button>
             <button class="action optional" id="chaptersButton" data-command="chapters" hidden><svg><use href="#icon-chapters"></use></svg><span id="chaptersLabel">Chapters</span></button>
@@ -528,6 +533,9 @@
                 <button class="codeine-menu-action codeine-stats-btn" id="codeineStatsButton" type="button" tabindex="-1" aria-label="Playback statistics" title="Playback statistics (i)">
                   <svg><use href="#icon-info-circle"></use></svg><span>Playback statistics</span>
                 </button>
+                <button class="codeine-menu-action" id="codeineEyeFilterButton" data-command="eyeFilter" type="button" tabindex="-1" aria-label="Eye filter" title="Eye filter">
+                  <svg><use href="#icon-eye"></use></svg><span>Eye filter</span>
+                </button>
                 <button class="codeine-menu-action" id="codeineChaptersButton" data-command="chapters" type="button" tabindex="-1" aria-label="Chapters" hidden>
                   <svg><use href="#icon-chapters"></use></svg><span>Chapters</span>
                 </button>
@@ -567,6 +575,81 @@
             </div>
           </div>
           <div class="track-list" id="shaderOptionList"></div>
+        </div>
+      </section>
+      <section class="modal-layer player-rail-modal" id="eyeFilterModal" aria-label="Eye filter" hidden>
+        <div class="track-panel audio-rail-panel eye-filter-panel">
+          <div class="track-header-row">
+            <div class="track-title track-header" id="eyeFilterPanelTitle">Eye Filter</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="eyeFilterCloseButton" type="button">Close</button>
+            </div>
+          </div>
+          <div class="track-list eye-filter-track-list">
+            <div class="style-section eye-filter-toggle-card">
+              <div class="eye-filter-toggle-row">
+                <div class="eye-filter-toggle-info">
+                  <span class="eye-filter-toggle-title">Eye Filter</span>
+                  <span class="eye-filter-toggle-desc">Warm tint or screen dimmer to reduce eye strain</span>
+                </div>
+                <button class="filter-switch" id="eyeFilterToggleSwitch" type="button" role="switch" aria-checked="false">
+                  <span class="filter-switch-thumb"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="style-section eye-filter-opacity-card" id="eyeFilterOpacityCard">
+              <div class="slider-header eye-filter-slider-header">
+                <span class="style-label">Opacity</span>
+                <span class="eye-filter-opacity-val" id="eyeFilterOpacityValue">35%</span>
+              </div>
+              <input type="range" min="10" max="80" value="35" class="color-slider eye-filter-slider" id="eyeFilterOpacitySlider" aria-label="Opacity" />
+            </div>
+
+            <div class="style-section eye-filter-color-card" id="eyeFilterColorCard">
+              <div class="style-header-row">
+                <span class="style-label">Color</span>
+                <button class="panel-button small" id="eyeFilterCustomToggle" type="button">Custom</button>
+              </div>
+              <div class="eye-filter-presets">
+                <button class="preset-chip selected" id="eyeFilterPresetBlack" type="button" data-color="#000000">
+                  <span class="preset-chip-color" style="background:#000000; border: 1px solid rgba(255,255,255,0.3);"></span>
+                  <span>Black</span>
+                </button>
+                <button class="preset-chip" id="eyeFilterPresetNavy" type="button" data-color="#0F172A">
+                  <span class="preset-chip-color" style="background:#0F172A; border: 1px solid rgba(255,255,255,0.3);"></span>
+                  <span>Deep Navy</span>
+                </button>
+              </div>
+              <div class="custom-color-picker" id="eyeFilterCustomPicker" hidden>
+                <div class="slider-row">
+                  <div class="slider-header">
+                    <span>Hue</span>
+                    <span id="eyeFilterHueValue">0°</span>
+                  </div>
+                  <input type="range" min="0" max="359" value="0" class="color-slider hue-slider" id="eyeFilterHueSlider" />
+                </div>
+                <div class="slider-row">
+                  <div class="slider-header">
+                    <span>Saturation</span>
+                    <span id="eyeFilterSatValue">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="color-slider sat-slider" id="eyeFilterSatSlider" />
+                </div>
+                <div class="slider-row">
+                  <div class="slider-header">
+                    <span>Brightness</span>
+                    <span id="eyeFilterBriValue">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="color-slider bri-slider" id="eyeFilterBriSlider" />
+                </div>
+                <div class="hex-row">
+                  <span>Hex</span>
+                  <input type="text" class="color-hex-input" id="eyeFilterHexInput" placeholder="#000000" maxlength="7" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       <section class="modal-layer player-rail-modal" id="audioModal" aria-label="Audio tracks" hidden>

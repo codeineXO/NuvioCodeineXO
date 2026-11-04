@@ -34,6 +34,9 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val seekPreviewThumbnailCountKey = "seek_preview_thumbnail_count"
     private const val seekrApiKeyKey = "seekr_api_key"
     private const val showRemainingTimeKey = "show_remaining_time"
+    private const val eyeFilterEnabledKey = "eye_filter_enabled"
+    private const val eyeFilterColorKey = "eye_filter_color"
+    private const val eyeFilterOpacityKey = "eye_filter_opacity"
     private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
     private const val exoNativeMemoryEnabledKey = "exo_native_memory_enabled"
@@ -379,6 +382,12 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
 
     actual fun loadShowRemainingTime(): Boolean? = loadBoolean(showRemainingTimeKey)
     actual fun saveShowRemainingTime(enabled: Boolean) = saveBoolean(showRemainingTimeKey, enabled)
+    actual fun loadEyeFilterEnabled(): Boolean? = loadBoolean(eyeFilterEnabledKey)
+    actual fun saveEyeFilterEnabled(enabled: Boolean) = saveBoolean(eyeFilterEnabledKey, enabled)
+    actual fun loadEyeFilterColor(): String? = loadString(eyeFilterColorKey)
+    actual fun saveEyeFilterColor(color: String) = saveString(eyeFilterColorKey, color)
+    actual fun loadEyeFilterOpacity(): Float? = loadFloat(eyeFilterOpacityKey)
+    actual fun saveEyeFilterOpacity(opacity: Float) = saveFloat(eyeFilterOpacityKey, opacity)
 
     private fun scoped(key: String): String = ProfileScopedKey.of(key)
     private fun loadString(key: String): String? = store.getString(scoped(key))

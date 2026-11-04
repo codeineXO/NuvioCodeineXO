@@ -230,6 +230,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }.collectAsStateWithLifecycle()
 
         var showPlayerUiDialog by rememberSaveable { mutableStateOf(false) }
+        var showEyeFilterColorDialog by rememberSaveable { mutableStateOf(false) }
+        var showEyeFilterOpacityDialog by rememberSaveable { mutableStateOf(false) }
 
         SettingsSection(
             title = stringResource(Res.string.settings_playback_section_player),
@@ -272,6 +274,32 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setShowSeekbarWhileSeeking,
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = "Enable Eye Filter",
+                    description = "Reduce eye strain with a night light or screen dimmer overlay",
+                    checked = playerSettings.eyeFilterEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setEyeFilterEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = "Eye Filter Color",
+                    description = when (playerSettings.eyeFilterColor.uppercase()) {
+                        "#000000" -> "Black"
+                        "#0F172A", "#1C2833" -> "Deep Navy"
+                        else -> "Custom (${playerSettings.eyeFilterColor})"
+                    },
+                    isTablet = isTablet,
+                    onClick = { showEyeFilterColorDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = "Eye Filter Opacity",
+                    description = "${(playerSettings.eyeFilterOpacity * 100).toInt()}%",
+                    isTablet = isTablet,
+                    onClick = { showEyeFilterOpacityDialog = true },
+                )
 
             }
         }
@@ -288,6 +316,41 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     showPlayerUiDialog = false
                 },
                 onDismiss = { showPlayerUiDialog = false },
+            )
+        }
+
+        if (showEyeFilterColorDialog) {
+            val colorOptions = listOf(
+                "#000000" to "Black",
+                "#0F172A" to "Deep Navy",
+            )
+            IosEnumSelectionDialog(
+                title = "Eye Filter Color",
+                options = colorOptions.map { it.first },
+                selected = colorOptions.firstOrNull { it.first.equals(playerSettings.eyeFilterColor, ignoreCase = true) }?.first ?: "#000000",
+                label = { hex -> colorOptions.firstOrNull { it.first == hex }?.second ?: hex },
+                description = { hex -> hex },
+                onSelect = { hex ->
+                    PlayerSettingsRepository.setEyeFilterColor(hex)
+                    showEyeFilterColorDialog = false
+                },
+                onDismiss = { showEyeFilterColorDialog = false },
+            )
+        }
+
+        if (showEyeFilterOpacityDialog) {
+            val opacityOptions = listOf(0.10f, 0.20f, 0.30f, 0.35f, 0.40f, 0.50f, 0.60f, 0.70f, 0.80f)
+            IosEnumSelectionDialog(
+                title = "Eye Filter Opacity",
+                options = opacityOptions,
+                selected = opacityOptions.minByOrNull { kotlin.math.abs(it - playerSettings.eyeFilterOpacity) } ?: 0.35f,
+                label = { opacity -> if (opacity == 0.35f) "35% (Default)" else "${(opacity * 100).toInt()}%" },
+                description = { "" },
+                onSelect = { opacity ->
+                    PlayerSettingsRepository.setEyeFilterOpacity(opacity)
+                    showEyeFilterOpacityDialog = false
+                },
+                onDismiss = { showEyeFilterOpacityDialog = false },
             )
         }
 

@@ -130,6 +130,9 @@ data class PlayerSettingsUiState(
     val seekPreviewThumbnailCount: Int = 5,
     val seekrApiKey: String = "",
     val showRemainingTime: Boolean = false,
+    val eyeFilterEnabled: Boolean = false,
+    val eyeFilterColor: String = "#000000",
+    val eyeFilterOpacity: Float = 0.35f,
 )
 
 object PlayerSettingsRepository {
@@ -233,6 +236,9 @@ object PlayerSettingsRepository {
     private var seekPreviewThumbnailCount = 5
     private var seekrApiKey = ""
     private var showRemainingTime = false
+    private var eyeFilterEnabled = false
+    private var eyeFilterColor = "#000000"
+    private var eyeFilterOpacity = 0.35f
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -342,6 +348,9 @@ object PlayerSettingsRepository {
         seekPreviewThumbnailCount = 5
         seekrApiKey = ""
         showRemainingTime = false
+        eyeFilterEnabled = false
+        eyeFilterColor = "#000000"
+        eyeFilterOpacity = 0.35f
         publish()
     }
 
@@ -545,6 +554,9 @@ object PlayerSettingsRepository {
         seekPreviewThumbnailCount = PlayerSettingsStorage.loadSeekPreviewThumbnailCount()?.takeIf { it in listOf(1, 3, 5) } ?: 5
         seekrApiKey = PlayerSettingsStorage.loadSeekrApiKey() ?: ""
         showRemainingTime = PlayerSettingsStorage.loadShowRemainingTime() ?: false
+        eyeFilterEnabled = PlayerSettingsStorage.loadEyeFilterEnabled() ?: false
+        eyeFilterColor = PlayerSettingsStorage.loadEyeFilterColor() ?: "#000000"
+        eyeFilterOpacity = PlayerSettingsStorage.loadEyeFilterOpacity()?.coerceIn(0.10f, 0.80f) ?: 0.35f
         publish()
     }
 
@@ -1263,6 +1275,32 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveShowRemainingTime(enabled)
     }
 
+    fun setEyeFilterEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (eyeFilterEnabled == enabled) return
+        eyeFilterEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveEyeFilterEnabled(enabled)
+    }
+
+    fun setEyeFilterColor(color: String) {
+        ensureLoaded()
+        val normalized = color.trim().ifEmpty { "#000000" }
+        if (eyeFilterColor == normalized) return
+        eyeFilterColor = normalized
+        publish()
+        PlayerSettingsStorage.saveEyeFilterColor(normalized)
+    }
+
+    fun setEyeFilterOpacity(opacity: Float) {
+        ensureLoaded()
+        val clamped = opacity.coerceIn(0.10f, 0.80f)
+        if (eyeFilterOpacity == clamped) return
+        eyeFilterOpacity = clamped
+        publish()
+        PlayerSettingsStorage.saveEyeFilterOpacity(clamped)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1550,6 +1588,9 @@ object PlayerSettingsRepository {
             seekPreviewThumbnailCount = seekPreviewThumbnailCount,
             seekrApiKey = seekrApiKey,
             showRemainingTime = showRemainingTime,
+            eyeFilterEnabled = eyeFilterEnabled,
+            eyeFilterColor = eyeFilterColor,
+            eyeFilterOpacity = eyeFilterOpacity,
         )
     }
 

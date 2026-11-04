@@ -124,6 +124,9 @@ actual object PlayerSettingsStorage {
     private const val seekPreviewEnabledKey = "seek_preview_enabled"
     private const val seekrApiKeyKey = "seekr_api_key"
     private const val showRemainingTimeKey = "show_remaining_time"
+    private const val eyeFilterEnabledKey = "eye_filter_enabled"
+    private const val eyeFilterColorKey = "eye_filter_color"
+    private const val eyeFilterOpacityKey = "eye_filter_opacity"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -1578,6 +1581,33 @@ actual object PlayerSettingsStorage {
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(showRemainingTimeKey), enabled)
             ?.apply()
+    }
+
+    actual fun loadEyeFilterEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(eyeFilterEnabledKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, false) else null
+        }
+
+    actual fun saveEyeFilterEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(eyeFilterEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadEyeFilterColor(): String? =
+        preferences?.getString(ProfileScopedKey.of(eyeFilterColorKey), null)
+
+    actual fun saveEyeFilterColor(color: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(eyeFilterColorKey), color)?.apply()
+    }
+
+    actual fun loadEyeFilterOpacity(): Float? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(eyeFilterOpacityKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getFloat(key, 0.35f) else null
+        }
+
+    actual fun saveEyeFilterOpacity(opacity: Float) {
+        preferences?.edit()?.putFloat(ProfileScopedKey.of(eyeFilterOpacityKey), opacity)?.apply()
     }
 
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
