@@ -1654,8 +1654,9 @@ JNIEXPORT jlong JNICALL NP(create)(
 
         mpv_set_option_string(m, "cache", "yes");
         mpv_set_option_string(m, "demuxer-seekable-cache", "yes");
-        mpv_set_option_string(m, "demuxer-lavf-buffersize", "4194304");
-        mpv_set_option_string(m, "stream-buffer-size", "8388608");
+        mpv_set_option_string(m, "cache-pause-initial", "no");
+        mpv_set_option_string(m, "demuxer-lavf-buffersize", "262144");
+        mpv_set_option_string(m, "stream-buffer-size", "524288");
         mpv_set_option_string(m, "stream-lavf-o", "reconnect=1,reconnect_streamed=1,reconnect_delay_max=5,multiple_requests=1");
         mpv_set_option_string(m, "demuxer-max-bytes", "1073741824");
         mpv_set_option_string(m, "demuxer-readahead-secs", "36000");

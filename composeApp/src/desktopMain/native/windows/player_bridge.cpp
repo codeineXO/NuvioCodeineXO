@@ -1478,6 +1478,7 @@ public:
                 mpvApi().setPropertyString(mpv, "vf", "");
             }
             mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
+            mpvApi().setPropertyString(mpv, "vd-queue-max-samples", "1");
             restoreStreamingCacheLocked();
             logSvpEvent("SVP FILTER DETACHED from MPV pipeline");
             return true;
@@ -2175,36 +2176,32 @@ private:
             setMpvOptionStringLocked("force-seekable", "yes");
             setMpvOptionStringLocked(
                 "stream-lavf-o",
-                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=%23%408,429,500,502,503,504,reconnect_delay_max=15,multiple_requests=1"
+                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=408,429,500,502,503,504,reconnect_delay_max=15,multiple_requests=1"
             );
             setMpvOptionStringLocked("network-timeout", "30");
             setMpvOptionStringLocked("hr-seek", "default");
+            setMpvOptionStringLocked("cache-pause-initial", "no");
 
-            // Expand the network and demuxer buffers from mpv defaults (32KB lavf, 128KB stream)
-            // to allow full bandwidth saturation on high-speed internet connections (matching VLC).
-            setMpvOptionStringLocked("demuxer-lavf-buffersize", "4194304"); // 4 MiB (default: 32 KiB)
-            setMpvOptionStringLocked("stream-buffer-size", "8388608");       // 8 MiB (default: 128 KiB)
+            // Optimal demuxer and stream read chunk sizes for network streams:
+            setMpvOptionStringLocked("demuxer-lavf-buffersize", "262144"); // 256 KiB (default: 32 KiB)
+            setMpvOptionStringLocked("stream-buffer-size", "524288");       // 512 KiB (default: 128 KiB)
             setMpvOptionStringLocked("vd-queue-enable", "yes");
-            setMpvOptionStringLocked("vd-queue-max-samples", "120");
-            setMpvOptionStringLocked("vd-queue-max-secs", "60");
+            setMpvOptionStringLocked("vd-queue-max-samples", "1");
 
             std::string shaderCacheDirectory = mpvShaderCacheDirectory();
             if (!shaderCacheDirectory.empty()) {
                 setMpvOptionStringLocked("gpu-shader-cache-dir", shaderCacheDirectory.c_str());
             }
 
-            bool isLoopback = sourceUrl.find("127.0.0.1") != std::string::npos ||
-                              sourceUrl.find("localhost") != std::string::npos;
-            if (initialPositionMs > 0 && isLoopback) {
+            if (initialPositionMs > 0) {
                 // mpv starts prefetching into the demuxer cache from the start of
                 // the file as soon as the file opens, but a `loadfile ... start=`
                 // resume only issues its seek after that open. With the full
                 // streaming window, the cache therefore races a large forward
-                // read-ahead of the head of the file, which on a torrent-backed
-                // stream makes the engine download from byte 0 before playback
-                // resumes at the saved position. Open with a window just large
-                // enough for the container index and stream probing, and widen it
-                // once the initial seek has landed (see promoteResumeCache).
+                // read-ahead of the head of the file before playback resumes at
+                // the saved position. Open with a window just large enough for the
+                // container index and stream probing, and widen it once the initial
+                // seek has landed (see promoteResumeCache).
                 setCacheWindowLocked(kResumeCacheWindow);
                 resumeCachePending.store(true);
             } else {
