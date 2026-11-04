@@ -38,6 +38,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
@@ -132,6 +134,7 @@ internal fun HomePosterHoverPreview(
     val previewInteractionSource = remember { MutableInteractionSource() }
     val anchorHovered by anchorInteractionSource.collectIsRemoteHoveredAsState()
     val previewHovered by previewInteractionSource.collectIsRemoteHoveredAsState()
+    var anchorFocused by remember(item.type, item.id) { mutableStateOf(false) }
     var previewVisible by remember(item.type, item.id) { mutableStateOf(false) }
     var popupMounted by remember(item.type, item.id) { mutableStateOf(false) }
     var previewDismissedByScroll by remember(item.type, item.id) { mutableStateOf(false) }
@@ -140,6 +143,17 @@ internal fun HomePosterHoverPreview(
     var trailerPlaybackSource by remember(item.type, item.id) {
         mutableStateOf<TrailerPlaybackSource?>(null)
     }
+
+    DisposableEffect(item.type, item.id) {
+        onDispose {
+            anchorFocused = false
+            previewVisible = false
+            popupMounted = false
+            trailerResolutionPending = false
+            trailerPlaybackSource = null
+        }
+    }
+
     val density = LocalDensity.current
     val positionProvider = remember(density) {
         HomePosterPreviewPositionProvider(
@@ -147,26 +161,29 @@ internal fun HomePosterHoverPreview(
         )
     }
 
+    val isKeyboardTarget = keyboardNavigation && anchorFocused
+    val isHoverTarget = !keyboardNavigation && (anchorHovered || previewHovered)
+    val isPreviewActive = isKeyboardTarget || isHoverTarget
+
     LaunchedEffect(
-        anchorHovered,
-        previewHovered,
+        isPreviewActive,
         actionMenuOpen,
         keyboardNavigation,
         posterCardStyle.hoverPreviewOpenDelayMillis,
         previewDismissedByScroll,
     ) {
-        if (keyboardNavigation || actionMenuOpen) {
+        if (actionMenuOpen) {
             previewVisible = false
             popupMounted = false
             return@LaunchedEffect
         }
         if (previewDismissedByScroll) {
-            if (!anchorHovered && !previewHovered) {
+            if (!isPreviewActive) {
                 previewDismissedByScroll = false
             }
             return@LaunchedEffect
         }
-        if (anchorHovered || previewHovered) {
+        if (isPreviewActive) {
             if (!popupMounted) {
                 delay(posterCardStyle.hoverPreviewOpenDelayMillis.toLong())
                 popupMounted = true
@@ -174,18 +191,23 @@ internal fun HomePosterHoverPreview(
             }
             previewVisible = true
         } else if (popupMounted) {
-            delay(HoverPreviewCloseDelayMillis)
-            previewVisible = false
-            delay(HoverPreviewExitDurationMillis.toLong())
-            popupMounted = false
+            if (keyboardNavigation) {
+                previewVisible = false
+                popupMounted = false
+            } else {
+                delay(HoverPreviewCloseDelayMillis)
+                previewVisible = false
+                delay(HoverPreviewExitDurationMillis.toLong())
+                popupMounted = false
+            }
         }
     }
 
-    LaunchedEffect(anchorHovered, trailerPlaybackEnabled, keyboardNavigation) {
+    val trailerActive = trailerPlaybackEnabled && (if (keyboardNavigation) anchorFocused else anchorHovered)
+
+    LaunchedEffect(trailerActive, trailerPlaybackEnabled, keyboardNavigation) {
         if (
-            !keyboardNavigation &&
-            anchorHovered &&
-            trailerPlaybackEnabled &&
+            trailerActive &&
             trailerPlaybackSource == null &&
             !trailerResolutionPending
         ) {
@@ -198,11 +220,11 @@ internal fun HomePosterHoverPreview(
     LaunchedEffect(
         trailerRequestId,
         trailerPlaybackEnabled,
-        keyboardNavigation,
+        trailerActive,
         item.type,
         item.id,
     ) {
-        if (!trailerPlaybackEnabled || keyboardNavigation) {
+        if (!trailerActive) {
             trailerRequestId = 0
             trailerPlaybackSource = null
             trailerResolutionPending = false
@@ -218,10 +240,14 @@ internal fun HomePosterHoverPreview(
 
     Box(modifier = modifier) {
         CompositionLocalProvider(LocalActionMenuSource provides actionMenuSource) {
-            content(Modifier.hoverable(anchorInteractionSource, enabled = !keyboardNavigation))
+            content(
+                Modifier
+                    .onFocusChanged { anchorFocused = it.hasFocus }
+                    .hoverable(anchorInteractionSource, enabled = !keyboardNavigation)
+            )
         }
 
-        if (popupMounted && !keyboardNavigation && !actionMenuOpen) {
+        if (popupMounted && !actionMenuOpen) {
             val previewState = rememberHomePosterPreviewState(item)
             val glowOutset = if (posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp
             val windowSize = LocalWindowInfo.current.containerSize
