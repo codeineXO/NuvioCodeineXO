@@ -1403,9 +1403,13 @@ public:
     bool setSvpFilter(bool enabled, const std::string &vpyPath) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return false;
+        if (enabled == (!activeSvpScript.empty()) && (!enabled || activeSvpScript == vpyPath)) {
+            return true;
+        }
         if (enabled && !vpyPath.empty()) {
             if (!ensureVapourSynthLoaded()) {
                 svpCacheOverride = false;
+                activeSvpScript.clear();
                 restoreStreamingCacheLocked();
                 sendPlayerEvent("svp_unavailable", 0.0);
                 return false;
@@ -1431,6 +1435,7 @@ public:
             bool success = executeMpvCommandSeh(mpv, cmd);
             if (!success) {
                 svpCacheOverride = false;
+                activeSvpScript.clear();
                 const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
                 executeMpvCommandSeh(mpv, remCmd);
                 if (nvidiaRtxSuperResolutionActive) {
@@ -1449,10 +1454,19 @@ public:
                 sendPlayerEvent("svp_error", 1.0);
                 return false;
             }
+            activeSvpScript = vpyPath;
             logSvpEvent("SVP FILTER ATTACHED to MPV pipeline");
+
+            int isPaused = 0;
+            mpvApi().getProperty(mpv, "pause", MPV_FORMAT_FLAG, &isPaused);
+            if (!isPaused) {
+                const char *resyncCmd[] = {"seek", "0", "relative+exact", nullptr};
+                executeMpvCommandSeh(mpv, resyncCmd);
+            }
             return true;
         } else {
             svpCacheOverride = false;
+            activeSvpScript.clear();
             const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
             executeMpvCommandSeh(mpv, remCmd);
             if (nvidiaRtxSuperResolutionActive) {
@@ -1462,10 +1476,8 @@ public:
                 const char *clrCmd[] = {"vf", "clr", "", nullptr};
                 executeMpvCommandSeh(mpv, clrCmd);
                 mpvApi().setPropertyString(mpv, "vf", "");
-                mpvApi().setPropertyString(mpv, "hwdec", "auto");
             }
             mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
-            mpvApi().setPropertyString(mpv, "vd-queue-enable", "no");
             restoreStreamingCacheLocked();
             logSvpEvent("SVP FILTER DETACHED from MPV pipeline");
             return true;
@@ -1691,6 +1703,7 @@ private:
     EventRegistrationToken navigationToken = {};
     static constexpr unsigned kMaxWebViewFailures = 5;
     static constexpr ULONGLONG kWebViewStartupTimeoutMs = 15000;
+    std::string activeSvpScript; // Guarded by mpvMutex.
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
