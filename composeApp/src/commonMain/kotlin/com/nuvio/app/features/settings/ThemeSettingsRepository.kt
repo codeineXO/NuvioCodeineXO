@@ -60,6 +60,22 @@ object ThemeSettingsRepository {
     private val _auraSettings = MutableStateFlow(AuraSettings())
     val auraSettings: StateFlow<AuraSettings> = _auraSettings.asStateFlow()
 
+    private val _appScale = MutableStateFlow(100)
+    val appScale: StateFlow<Int> = _appScale.asStateFlow()
+
+    fun setAppScale(scale: Int) {
+        ensureLoaded()
+        val clamped = scale.coerceIn(50, 150)
+        if (_appScale.value == clamped) return
+        _appScale.value = clamped
+        ThemeSettingsStorage.saveAppScale(clamped)
+    }
+
+    fun stepAppScale(delta: Int) {
+        ensureLoaded()
+        setAppScale(_appScale.value + delta)
+    }
+
     fun setAuraSettings(settings: AuraSettings) {
         ensureLoaded()
         if (_auraSettings.value == settings) return
@@ -83,6 +99,7 @@ object ThemeSettingsRepository {
     fun clearLocalState() {
         hasLoaded = false
         _selectedThemePreference.value = null
+        _appScale.value = 100
         _selectedTheme.value = AppTheme.WHITE
         _customThemePreference.value = CustomThemeColors.Default
         _customThemeColors.value = CustomThemeColors.solid(CustomThemeColors.Default.second)
@@ -132,6 +149,7 @@ object ThemeSettingsRepository {
         _navBarStyle.value = NavBarStyle.fromKey(ThemeSettingsStorage.loadNavBarStyle())
         _auraBackgroundEnabled.value = ThemeSettingsStorage.loadAuraBackgroundEnabled() ?: true
         _auraSettings.value = AuraSettings.decode(ThemeSettingsStorage.loadAuraSettings())
+        _appScale.value = ThemeSettingsStorage.loadAppScale()?.coerceIn(50, 150) ?: 100
     }
 
     fun setTheme(theme: AppTheme) {

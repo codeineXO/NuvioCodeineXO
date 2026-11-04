@@ -118,13 +118,19 @@ internal fun AppEnvironment(content: @Composable () -> Unit) {
 
     val auraSettings by ThemeSettingsRepository.auraSettings.collectAsStateWithLifecycle()
     val customThemeColors by ThemeSettingsRepository.customThemeColors.collectAsStateWithLifecycle()
+    val appScale by remember {
+        ThemeSettingsRepository.ensureLoaded()
+        ThemeSettingsRepository.appScale
+    }.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val baseScale = desktopUiScaleForWindow(maxWidth.value, maxHeight.value)
+        val effectiveScale = if (isDesktop) baseScale * (appScale / 100f) else baseScale
         NuvioTheme(
             appTheme = selectedTheme,
             amoled = amoledEnabled,
             customThemeColors = customThemeColors,
-            desktopUiScale = desktopUiScaleForWindow(maxWidth.value, maxHeight.value),
+            desktopUiScale = effectiveScale,
             auraEnabled = auraBackgroundEnabled,
             auraSettings = auraSettings,
         ) {

@@ -235,6 +235,8 @@ internal expect object PlayerSettingsStorage {
     fun saveEyeFilterColor(color: String)
     fun loadEyeFilterOpacity(): Float?
     fun saveEyeFilterOpacity(opacity: Float)
+    fun loadPlayerUiScale(): Int?
+    fun savePlayerUiScale(scale: Int)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

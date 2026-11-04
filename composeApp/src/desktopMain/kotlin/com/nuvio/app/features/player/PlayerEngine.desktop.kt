@@ -162,6 +162,7 @@ private fun NativePlayerSurface(
     val animeUpscalerMode = playerSettings.animeUpscalerMode
     val svpMotionOption = playerSettings.svpMotionOption
     val audioNightModeEnabled = playerSettings.audioNightModeEnabled
+    val playerUiScale = playerSettings.playerUiScale
 
     SideEffect {
         if (!sourceAvailable || !controller.isAttachedTo(sourceUrl, playbackHeaders)) {
@@ -280,7 +281,7 @@ private fun NativePlayerSurface(
         controller.setAudioNightMode(audioNightModeEnabled)
     }
 
-    LaunchedEffect(controller, playerControlsState) {
+    LaunchedEffect(controller, playerControlsState, playerUiScale) {
         controller.updateControls(playerControlsState)
         DesktopPlayerPictureInPicture.setWindowTitle(playerControlsState.pipWindowTitle)
     }

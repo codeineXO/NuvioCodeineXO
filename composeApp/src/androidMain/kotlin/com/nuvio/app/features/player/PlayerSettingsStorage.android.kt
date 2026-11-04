@@ -1610,6 +1610,10 @@ actual object PlayerSettingsStorage {
         preferences?.edit()?.putFloat(ProfileScopedKey.of(eyeFilterOpacityKey), opacity)?.apply()
     }
 
+    actual fun loadPlayerUiScale(): Int? = null
+
+    actual fun savePlayerUiScale(scale: Int) {}
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadShowPlayerLoadingStatus()?.let { put(showPlayerLoadingStatusKey, encodeSyncBoolean(it)) }

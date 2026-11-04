@@ -36,6 +36,18 @@ internal fun PlaybackInterfaceSettings(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                if (isDesktop) {
+                    SettingsDropdownRow(
+                        title = stringResource(Res.string.settings_playback_player_ui_scale),
+                        description = stringResource(Res.string.settings_playback_player_ui_scale_description),
+                        selectedKey = settings.playerUiScale.toString(),
+                        selectedLabel = "${settings.playerUiScale}%",
+                        options = uiScaleDropdownOptions,
+                        isTablet = isTablet,
+                        onSelected = { option -> option.key.toIntOrNull()?.let(PlayerSettingsRepository::setPlayerUiScale) },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                }
                 if (!isDesktop) {
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_playback_legacy_layout),

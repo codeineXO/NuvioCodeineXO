@@ -39,6 +39,7 @@ import com.nuvio.app.features.player.desktop.NativePlayerBridge
 import com.nuvio.app.features.player.desktop.applyNativeDesktopWindowChrome
 import com.nuvio.app.features.player.desktop.configureMacosWindowBeforePeer
 import com.nuvio.app.features.player.desktop.installDesktopAppFullscreenShortcuts
+import com.nuvio.app.features.settings.installDesktopAppScaleShortcuts
 import com.nuvio.app.features.player.desktop.preloadNativePlayerBridgeAsync
 import com.nuvio.app.features.player.desktop.registerDesktopAppFullscreenToggle
 import com.nuvio.app.features.player.desktop.trackMaximizedBoundsForCurrentScreen
@@ -231,12 +232,14 @@ fun main(args: Array<String>) {
                 )
                 val uninstallFullscreenShortcuts = installDesktopAppFullscreenShortcuts(window)
                 val uninstallGlobalBackNavigation = installDesktopGlobalBackNavigation(window)
+                val uninstallAppScaleShortcuts = installDesktopAppScaleShortcuts(window)
                 val untrackMaximizedBounds = window.trackMaximizedBoundsForCurrentScreen()
                 onDispose {
                     DesktopSingleInstanceController.detachWindow()
                     fullscreenController.dispose(window)
                     uninstallFullscreenShortcuts()
                     uninstallGlobalBackNavigation()
+                    uninstallAppScaleShortcuts()
                     untrackMaximizedBounds()
                     unregisterFullscreenToggle()
                 }

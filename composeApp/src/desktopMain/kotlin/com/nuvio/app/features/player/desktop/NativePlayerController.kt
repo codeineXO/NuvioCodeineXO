@@ -621,10 +621,12 @@ internal class NativePlayerController(
         currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
         controlsState = stateWithEnhancements
         val isFullscreen = isDesktopAppFullscreen(SwingUtilities.getWindowAncestor(host))
+        val currentUiScale = PlayerSettingsRepository.uiState.value.playerUiScale
         val structureKey = NativeControlsStructureKey(
             state = stateWithEnhancements.nativeControlsStructureKey(),
             isFullscreen = isFullscreen,
             isInPip = DesktopPlayerPictureInPicture.isEnabled,
+            playerUiScale = currentUiScale,
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
@@ -914,6 +916,9 @@ internal class NativePlayerController(
                 if (!handled) {
                     seekTo(value.toLong())
                 }
+            }
+            "playerUiScale" -> {
+                PlayerSettingsRepository.setPlayerUiScale(kotlin.math.round(value).toInt().coerceIn(50, 150))
             }
             "toggleFullscreen" -> {
                 if (onEvent(type, value)) 
@@ -2047,6 +2052,7 @@ private data class NativeControlsStructureKey(
     val state: PlayerControlsState,
     val isFullscreen: Boolean,
     val isInPip: Boolean,
+    val playerUiScale: Int = 100,
 )
 
 internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageReady: () -> Unit = {}): String =
@@ -2111,6 +2117,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("eyeFilterColor", eyeFilterColor)
         append(',')
         appendJsonField("eyeFilterOpacity", eyeFilterOpacity)
+        append(',')
+        appendJsonField("playerUiScale", PlayerSettingsRepository.uiState.value.playerUiScale)
         append(',')
         appendJsonField("title", title)
         append(',')

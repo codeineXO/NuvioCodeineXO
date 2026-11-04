@@ -162,6 +162,10 @@ actual object ThemeSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadAppScale(): Int? = null
+
+    actual fun saveAppScale(scale: Int) {}
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadSelectedTheme()?.let { put(selectedThemeKey, encodeSyncString(it)) }
         loadCustomThemeColors()?.let { put(customThemeColorsKey, encodeSyncString(it)) }

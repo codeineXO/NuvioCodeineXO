@@ -35,6 +35,8 @@ internal expect object ThemeSettingsStorage : AuraSettingsStore {
     fun saveNavBarGlowEnabled(enabled: Boolean)
     fun loadAuraBackgroundEnabled(): Boolean?
     fun saveAuraBackgroundEnabled(enabled: Boolean)
+    fun loadAppScale(): Int?
+    fun saveAppScale(scale: Int)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

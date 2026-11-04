@@ -211,6 +211,8 @@ private const val NuvioDesktopBaseWidthDp = 1280f
 private const val NuvioDesktopBaseHeightDp = 820f
 private const val NuvioDesktopMinUiScale = 1f
 private const val NuvioDesktopMaxUiScale = 1.18f
+private const val NuvioDesktopMinTotalScale = 0.5f
+private const val NuvioDesktopMaxTotalScale = 2.0f
 
 internal fun desktopUiScaleForWindow(widthDp: Float, heightDp: Float): Float {
     if (!isDesktop || widthDp <= 0f || heightDp <= 0f) return NuvioDesktopMinUiScale
@@ -241,7 +243,7 @@ fun NuvioTheme(
 
     val density = LocalDensity.current
     val effectiveDesktopUiScale = if (isDesktop) {
-        desktopUiScale.coerceIn(NuvioDesktopMinUiScale, NuvioDesktopMaxUiScale)
+        desktopUiScale.coerceIn(NuvioDesktopMinTotalScale, NuvioDesktopMaxTotalScale)
     } else {
         NuvioDesktopMinUiScale
     }

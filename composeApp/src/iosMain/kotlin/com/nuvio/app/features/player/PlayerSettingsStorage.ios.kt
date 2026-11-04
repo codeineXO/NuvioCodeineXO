@@ -1310,6 +1310,10 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setFloat(opacity, forKey = ProfileScopedKey.of(eyeFilterOpacityKey))
     }
 
+    actual fun loadPlayerUiScale(): Int? = null
+
+    actual fun savePlayerUiScale(scale: Int) {}
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadShowPlayerLoadingStatus()?.let { put(showPlayerLoadingStatusKey, encodeSyncBoolean(it)) }

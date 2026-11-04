@@ -33,6 +33,7 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
     private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
     private const val auraSettingsKey = "aura_settings"
     private const val auraBackgroundEnabledKey = "aura_background_enabled"
+    private const val appScaleKey = "app_scale"
     // Aura, surface style, and the legacy player preference remain local to each profile.
     private val deviceLocale = Locale.getDefault()
     private val store = DesktopStorage.store("nuvio_theme_settings")
@@ -112,6 +113,13 @@ internal actual object ThemeSettingsStorage : AuraSettingsStore {
 
     actual fun saveAuraBackgroundEnabled(enabled: Boolean) {
         store.putBoolean(ProfileScopedKey.of(auraBackgroundEnabledKey), enabled)
+    }
+
+    actual fun loadAppScale(): Int? =
+        store.getInt(ProfileScopedKey.of(appScaleKey))
+
+    actual fun saveAppScale(scale: Int) {
+        store.putInt(ProfileScopedKey.of(appScaleKey), scale)
     }
 
     private val auraStorage = DesktopAuraSettingsStorage(store) { ProfileScopedKey.of(auraSettingsKey) }

@@ -133,6 +133,7 @@ data class PlayerSettingsUiState(
     val eyeFilterEnabled: Boolean = false,
     val eyeFilterColor: String = "#000000",
     val eyeFilterOpacity: Float = 0.35f,
+    val playerUiScale: Int = 100,
 )
 
 object PlayerSettingsRepository {
@@ -239,6 +240,7 @@ object PlayerSettingsRepository {
     private var eyeFilterEnabled = false
     private var eyeFilterColor = "#000000"
     private var eyeFilterOpacity = 0.35f
+    private var playerUiScale = 100
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -351,6 +353,7 @@ object PlayerSettingsRepository {
         eyeFilterEnabled = false
         eyeFilterColor = "#000000"
         eyeFilterOpacity = 0.35f
+        playerUiScale = 100
         publish()
     }
 
@@ -557,6 +560,7 @@ object PlayerSettingsRepository {
         eyeFilterEnabled = PlayerSettingsStorage.loadEyeFilterEnabled() ?: false
         eyeFilterColor = PlayerSettingsStorage.loadEyeFilterColor() ?: "#000000"
         eyeFilterOpacity = PlayerSettingsStorage.loadEyeFilterOpacity()?.coerceIn(0.10f, 0.80f) ?: 0.35f
+        playerUiScale = PlayerSettingsStorage.loadPlayerUiScale()?.coerceIn(50, 150) ?: 100
         publish()
     }
 
@@ -1301,6 +1305,20 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveEyeFilterOpacity(clamped)
     }
 
+    fun setPlayerUiScale(scale: Int) {
+        ensureLoaded()
+        val clamped = scale.coerceIn(50, 150)
+        if (playerUiScale == clamped) return
+        playerUiScale = clamped
+        publish()
+        PlayerSettingsStorage.savePlayerUiScale(clamped)
+    }
+
+    fun stepPlayerUiScale(delta: Int) {
+        ensureLoaded()
+        setPlayerUiScale(playerUiScale + delta)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1591,6 +1609,7 @@ object PlayerSettingsRepository {
             eyeFilterEnabled = eyeFilterEnabled,
             eyeFilterColor = eyeFilterColor,
             eyeFilterOpacity = eyeFilterOpacity,
+            playerUiScale = playerUiScale,
         )
     }
 

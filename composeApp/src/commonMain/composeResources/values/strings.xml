@@ -774,6 +774,11 @@
     <string name="settings_appearance_liquid_glass_description">Use the native iPhone tab bar on iOS 26 and later.</string>
     <string name="settings_appearance_poster_customization_description">Tune card width and corner radius.</string>
     <string name="settings_appearance_section_display">DISPLAY</string>
+    <string name="settings_appearance_app_scale">App Scale</string>
+    <string name="settings_appearance_app_scale_description">Scale the desktop user interface</string>
+    <string name="settings_playback_player_ui_scale">Player UI Scale</string>
+    <string name="settings_playback_player_ui_scale_description">Scale player controls and overlays</string>
+    <string name="settings_scale_percentage_format">%1$d%%</string>
     <string name="settings_appearance_section_home">HOME</string>
     <string name="settings_appearance_section_theme">THEME</string>
     <string name="settings_homescreen_collection_with_addon">Collection • %1$s</string>

@@ -30,7 +30,9 @@ import com.nuvio.app.core.ui.NuvioModalBottomSheet
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.dismissNuvioBottomSheet
 import com.nuvio.app.core.ui.labelRes
+import com.nuvio.app.isDesktop
 import com.nuvio.app.isIos
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.cd_selected
@@ -41,8 +43,11 @@ import nuvio.composeapp.generated.resources.settings_appearance_app_language
 import nuvio.composeapp.generated.resources.settings_appearance_app_language_restart_message
 import nuvio.composeapp.generated.resources.settings_appearance_app_language_restart_title
 import nuvio.composeapp.generated.resources.settings_appearance_app_language_sheet_title
+import nuvio.composeapp.generated.resources.settings_appearance_app_scale
+import nuvio.composeapp.generated.resources.settings_appearance_app_scale_description
 import nuvio.composeapp.generated.resources.settings_appearance_section_display
 import nuvio.composeapp.generated.resources.settings_appearance_section_theme
+import nuvio.composeapp.generated.resources.settings_scale_percentage_format
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -89,6 +94,22 @@ internal fun LazyListScope.appearanceSettingsContent(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                if (isDesktop) {
+                    val appScale by remember {
+                        ThemeSettingsRepository.ensureLoaded()
+                        ThemeSettingsRepository.appScale
+                    }.collectAsStateWithLifecycle()
+                    SettingsDropdownRow(
+                        title = stringResource(Res.string.settings_appearance_app_scale),
+                        description = stringResource(Res.string.settings_appearance_app_scale_description),
+                        selectedKey = appScale.toString(),
+                        selectedLabel = "${appScale}%",
+                        options = uiScaleDropdownOptions,
+                        isTablet = isTablet,
+                        onSelected = { option -> option.key.toIntOrNull()?.let(ThemeSettingsRepository::setAppScale) },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                }
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_appearance_amoled_black),
                     description = stringResource(Res.string.settings_appearance_amoled_description),

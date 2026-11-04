@@ -352,6 +352,7 @@ let state = {
   eyeFilterEnabled: false,
   eyeFilterColor: "#000000",
   eyeFilterOpacity: 0.35,
+  playerUiScale: 100,
   showPlaybackTimeOverlay: false,
   showTorrentStatsOverlay: true,
   torrentStatsText: "",
@@ -2110,6 +2111,15 @@ const renderShaderOptionList = () => {
 let isEyeFilterSliderDragging = false;
 let eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
 let eyeFilterColorDebounceTimer = null;
+
+const applyPlayerUiScale = (scale, notifyHost) => {
+  const clamped = Math.min(150, Math.max(50, Math.round(Number(scale) || 100)));
+  state.playerUiScale = clamped;
+  document.documentElement.style.zoom = String(clamped / 100);
+  if (notifyHost) {
+    send("playerUiScale", clamped);
+  }
+};
 
 const syncEyeFilterOverlay = () => {
   const enabled = Boolean(state.eyeFilterEnabled);
@@ -6422,6 +6432,11 @@ window.playerControls = nextState => {
   if (typeof nextState.eyeFilterOpacity === "number") {
     state.eyeFilterOpacity = nextState.eyeFilterOpacity;
   }
+  if (typeof nextState.playerUiScale === "number" && nextState.playerUiScale >= 50 && nextState.playerUiScale <= 150) {
+    if (state.playerUiScale !== nextState.playerUiScale) {
+      applyPlayerUiScale(nextState.playerUiScale, false);
+    }
+  }
   syncEyeFilterOverlay();
   if (activeModal === "eyeFilter") {
     renderEyeFilterModal();
@@ -7055,6 +7070,26 @@ document.addEventListener("keydown", event => {
     focusShortcutRoot();
     togglePlayerFullscreen();
     return;
+  }
+  if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+    if (event.key === "=" || event.key === "+" || event.code === "Equal" || event.code === "NumpadAdd") {
+      clearSpaceHoldTimerAndStopSpeedBoost();
+      event.preventDefault();
+      applyPlayerUiScale((state.playerUiScale || 100) + 10, true);
+      return;
+    }
+    if (event.key === "-" || event.code === "Minus" || event.code === "NumpadSubtract") {
+      clearSpaceHoldTimerAndStopSpeedBoost();
+      event.preventDefault();
+      applyPlayerUiScale((state.playerUiScale || 100) - 10, true);
+      return;
+    }
+    if (event.key === "0" || event.code === "Digit0" || event.code === "Numpad0") {
+      clearSpaceHoldTimerAndStopSpeedBoost();
+      event.preventDefault();
+      applyPlayerUiScale(100, true);
+      return;
+    }
   }
   if (event.metaKey || event.ctrlKey || event.altKey || event.key === "Alt" || event.key === "Control" || event.key === "Meta") {
     clearSpaceHoldTimerAndStopSpeedBoost();

@@ -152,6 +152,36 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 AuraCustomizationRow(isTablet = isTablet)
+                if (isDesktop) {
+                    val appScale by remember {
+                        ThemeSettingsRepository.ensureLoaded()
+                        ThemeSettingsRepository.appScale
+                    }.collectAsStateWithLifecycle()
+                    val playerSettings by remember {
+                        PlayerSettingsRepository.ensureLoaded()
+                        PlayerSettingsRepository.uiState
+                    }.collectAsStateWithLifecycle()
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsDropdownRow(
+                        title = stringResource(Res.string.settings_appearance_app_scale),
+                        description = stringResource(Res.string.settings_appearance_app_scale_description),
+                        selectedKey = appScale.toString(),
+                        selectedLabel = "${appScale}%",
+                        options = uiScaleDropdownOptions,
+                        isTablet = isTablet,
+                        onSelected = { option -> option.key.toIntOrNull()?.let(ThemeSettingsRepository::setAppScale) },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsDropdownRow(
+                        title = stringResource(Res.string.settings_playback_player_ui_scale),
+                        description = stringResource(Res.string.settings_playback_player_ui_scale_description),
+                        selectedKey = playerSettings.playerUiScale.toString(),
+                        selectedLabel = "${playerSettings.playerUiScale}%",
+                        options = uiScaleDropdownOptions,
+                        isTablet = isTablet,
+                        onSelected = { option -> option.key.toIntOrNull()?.let(PlayerSettingsRepository::setPlayerUiScale) },
+                    )
+                }
                 SettingsGroupDivider(isTablet = isTablet)
                 SurfaceStyleSettingsRow(
                     selectedStyle = surfaceStyle,
