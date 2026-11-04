@@ -264,7 +264,7 @@ button:disabled {
 
 .player-toast {
   position: absolute;
-  top: calc(96px + env(safe-area-inset-top));
+  top: calc(124px + env(safe-area-inset-top));
   left: 50%;
   z-index: 24;
   max-width: min(320px, calc(100% - 40px));
@@ -4767,7 +4767,7 @@ svg {
 }
 
 .player.ui-codeinexo.party-pill-visible .player-toast {
-  top: calc(96px + env(safe-area-inset-top));
+  top: calc(124px + env(safe-area-inset-top));
 }
 
 .player.ui-codeinexo .parental-guide-label,
