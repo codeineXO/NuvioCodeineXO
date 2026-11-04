@@ -53,6 +53,8 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.unit.Dp
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.LocalFold
 import com.nuvio.app.features.p2p.P2pStreamingState
@@ -82,7 +84,11 @@ import org.jetbrains.compose.resources.stringResource
 private val playerControlsLog = Logger.withTag("PlayerControls")
 
 @Composable
-internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
+internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
+    partyPanelWidth: Dp,
+    partyPanelInset: Dp,
+    dockPartyPanel: Boolean,
+) {
     val runtime = this
     val systemBackRegistration = args.onSystemBackHandlerChanged
     DisposableEffect(runtime, systemBackRegistration) {
@@ -819,6 +825,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .padding(end = partyPanelInset)
+            .clipToBounds()
             .then(
                 if (args.isMiniPlayer) {
                     Modifier
@@ -919,7 +927,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 playWhenReady = shouldPlay && sourceAvailable,
                 initialPositionMs = surfaceSource?.initialPositionMs,
                 initialPositionRequestKey = surfaceSource?.initialPositionRequestKey,
-                resizeMode = resizeMode,
+                resizeMode = if (partyPanelInset > 0.dp) PlayerResizeMode.Fit else resizeMode,
                 playbackEngine = playbackEngineOverride ?: resolvedAutoEngine,
                 playerControlsState = playerControlsState,
                 onPlayerControlsAction = { action -> handlePlayerControlsAction(action) },
@@ -1012,12 +1020,21 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     folded = fold != null,
                 )
             }
-            Box(modifier = panelModifier) {
-                RenderPlayerModals(displayedPositionMs = displayedPositionMs)
             }
+        }
+    }
+
+    if (!args.isMiniPlayer) {
+        Box(modifier = panelModifier) {
             if (!isDesktop) {
-                RenderParty(runtime = runtime)
+                RenderParty(
+                    runtime = runtime,
+                    panelWidth = partyPanelWidth,
+                    modal = !dockPartyPanel,
+                    panelVisible = showPartyPanel && !isInPip,
+                )
             }
+            RenderPlayerModals(displayedPositionMs = displayedPositionMs)
         }
     }
 
@@ -1041,7 +1058,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             onExpand = { args.onExpand?.invoke() },
             onClose = { args.onClose?.invoke() },
         )
-    }
     }
 }
 

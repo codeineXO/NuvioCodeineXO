@@ -50,9 +50,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.PlatformBackHandler
@@ -73,6 +75,7 @@ internal fun PlayerSidePanel(
     visible: Boolean,
     onDismiss: () -> Unit,
     width: Dp = 520.dp,
+    modal: Boolean = true,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = LocalPlayerHazeState.current,
     content: @Composable ColumnScope.() -> Unit,
@@ -80,6 +83,7 @@ internal fun PlayerSidePanel(
     val tokens = MaterialTheme.nuvio
     val backgroundInteraction = remember { MutableInteractionSource() }
     val panelInteraction = remember { MutableInteractionSource() }
+    val slideDirection = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
 
     PlatformBackHandler(enabled = visible, onBack = onDismiss)
 
@@ -92,55 +96,60 @@ internal fun PlayerSidePanel(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.34f))
-                .clickable(
-                    interactionSource = backgroundInteraction,
-                    indication = null,
-                    onClick = onDismiss,
+                .then(
+                    if (modal) {
+                        Modifier
+                            .background(Color.Black.copy(alpha = 0.34f))
+                            .clickable(
+                                interactionSource = backgroundInteraction,
+                                indication = null,
+                                onClick = onDismiss,
+                            )
+                    } else {
+                        Modifier
+                    },
                 ),
         ) {
             val resolvedWidth = minOf(maxWidth, width)
             val shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 
-            AnimatedVisibility(
-                visible = visible,
-                enter = slideInHorizontally(tween(250)) { it },
-                exit = slideOutHorizontally(tween(200)) { it },
-                modifier = Modifier.align(Alignment.CenterEnd),
-            ) {
-                CompositionLocalProvider(LocalPlayerHazeState provides hazeState) {
-                    Column(
-                        modifier = Modifier
-                            .width(resolvedWidth)
-                            .fillMaxHeight()
-                            .clip(shape)
-                            .then(
-                                if (LocalFrostedGlassEnabled.current && hazeState != null) {
-                                    Modifier.hazeEffect(state = hazeState) {
-                                        blurRadius = 100.dp
-                                        noiseFactor = 0f
-                                        backgroundColor = Color.Black.copy(alpha = 0.58f)
-                                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.58f)))
-                                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
-                                    }
-                                } else {
-                                    Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.90f) else tokens.colors.surfacePopover.copy(alpha = 1f))
-                                },
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
-                                shape = shape,
-                            )
-                            .clickable(
-                                interactionSource = panelInteraction,
-                                indication = null,
-                                onClick = {},
-                            )
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.End)),
-                        content = content,
-                    )
-                }
+            CompositionLocalProvider(LocalPlayerHazeState provides hazeState) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .animateEnterExit(
+                            enter = slideInHorizontally(tween(250)) { it * slideDirection },
+                            exit = slideOutHorizontally(tween(200)) { it * slideDirection },
+                        )
+                        .width(resolvedWidth)
+                        .fillMaxHeight()
+                        .clip(shape)
+                        .then(
+                            if (LocalFrostedGlassEnabled.current && hazeState != null) {
+                                Modifier.hazeEffect(state = hazeState) {
+                                    blurRadius = 100.dp
+                                    noiseFactor = 0f
+                                    backgroundColor = Color.Black.copy(alpha = 0.58f)
+                                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.58f)))
+                                    fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
+                                }
+                            } else {
+                                Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.90f) else tokens.colors.surfacePopover.copy(alpha = 1f))
+                            },
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
+                            shape = shape,
+                        )
+                        .clickable(
+                            interactionSource = panelInteraction,
+                            indication = null,
+                            onClick = {},
+                        )
+                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.End)),
+                    content = content,
+                )
             }
         }
     }

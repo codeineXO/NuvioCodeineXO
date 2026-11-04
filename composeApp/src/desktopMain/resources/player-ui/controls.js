@@ -6375,12 +6375,13 @@ window.playerUpdate = update => {
     syncSeekrPreviews();
   }
   if ((audioTracksChanged && activeModal === "audio") ||
-      (subtitleTracksChanged && activeModal === "subtitles")) {
+      (subtitleTracksChanged && activeModal === "subtitles") ||
+      (nativeIsPlaying && activeModal === "chapters")) {
     try {
-    renderActiveModal(true);
-  } catch (err) {
-    console.error("renderActiveModal error:", err);
-  }
+      renderActiveModal(true);
+    } catch (err) {
+      console.error("renderActiveModal error:", err);
+    }
   }
 };
 

@@ -462,7 +462,7 @@ private fun SubtitleOptionRow(
             val isImported = option.subtitle.language == SubtitleImportedLanguageKey
             sourceLabel = if (isImported) stringResource(Res.string.compose_player_imported) else (option.subtitle.addonName ?: stringResource(Res.string.addon_title))
             title = if (isImported) option.subtitle.display else languageLabelForCode(option.subtitle.language)
-            metadata = if (isImported) null else option.subtitle.display.takeIf { it.isNotBlank() && it != title }
+            metadata = if (isImported) null else (option.subtitle.label ?: option.subtitle.display).takeIf { it.isNotBlank() && it != title }
         }
     }
 
