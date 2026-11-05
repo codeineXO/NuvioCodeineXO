@@ -198,6 +198,7 @@ fun <T> NuvioShelfSection(
                 onTitleClick = onTitleClick,
                 showRowNavigationControls = showRowNavigationControls,
                 state = state,
+                useGutterLayout = useGutterLayout,
                 viewportInset = if (useGutterLayout) {
                     rowHoverInset + ShelfPosterViewportSafetyInset
                 } else {
@@ -222,7 +223,7 @@ fun <T> NuvioShelfSection(
                         contentType = { _, _ -> "poster" },
                     ) { index, keyedEntry ->
                         PosterRowItem(
-                            viewport = if (useGutterLayout || glowEnabled) hoverViewport else null,
+                            viewport = if (useGutterLayout) hoverViewport else null,
                             modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
                         ) {
                             CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, keyedEntry.lazyKey, index) }) {
@@ -236,7 +237,7 @@ fun <T> NuvioShelfSection(
                         contentType = { _, _ -> "poster" },
                     ) { index, entry ->
                         PosterRowItem(
-                            viewport = if (useGutterLayout || glowEnabled) hoverViewport else null,
+                            viewport = if (useGutterLayout) hoverViewport else null,
                             modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
                         ) {
                             CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, key?.invoke(entry) ?: index, index) }) {
@@ -591,6 +592,7 @@ private fun NuvioShelfSectionHeader(
     onTitleClick: (() -> Unit)? = null,
     showRowNavigationControls: Boolean = false,
     state: LazyListState,
+    useGutterLayout: Boolean,
     viewportInset: Dp,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -622,12 +624,14 @@ private fun NuvioShelfSectionHeader(
                     state = state,
                     arrowScroll = arrowScroll,
                     direction = ShelfScrollDirection.Backward,
+                    useGutterLayout = useGutterLayout,
                     viewportInset = viewportInset,
                 )
                 ShelfRowNavigationButton(
                     state = state,
                     arrowScroll = arrowScroll,
                     direction = ShelfScrollDirection.Forward,
+                    useGutterLayout = useGutterLayout,
                     viewportInset = viewportInset,
                 )
             }
@@ -656,6 +660,7 @@ private fun ShelfRowNavigationButton(
     state: LazyListState,
     arrowScroll: SoftArrowScroll,
     direction: ShelfScrollDirection,
+    useGutterLayout: Boolean,
     viewportInset: Dp,
 ) {
     val viewportInsetPx = with(LocalDensity.current) { viewportInset.roundToPx() }
@@ -672,7 +677,7 @@ private fun ShelfRowNavigationButton(
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides NuvioTokens.Space.none) {
         IconButton(
             onClick = {
-                val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx)
+                val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx, useGutterLayout)
                 arrowScroll.scrollBy(scrollDistance)
             },
             enabled = enabled,
@@ -698,12 +703,15 @@ private fun shelfViewportScrollDistance(
     state: LazyListState,
     direction: ShelfScrollDirection,
     viewportInsetPx: Int,
+    useGutterLayout: Boolean,
 ): Float {
     val layout = state.layoutInfo
-    // LazyListInfo's scroll bounds include content padding. Use the visible row
-    // bounds instead, excluding the desktop hover overdraw inset when enabled.
-    val viewportStart = viewportInsetPx.toFloat()
-    val viewportEnd = (layout.viewportSize.width - viewportInsetPx).toFloat()
+    // Item offsets start after the leading content padding; the visible viewport
+    // starts before it. Keep the existing gutter paging bounds in enabled mode.
+    val viewportStart = if (useGutterLayout) viewportInsetPx.toFloat()
+        else (layout.viewportStartOffset + viewportInsetPx).toFloat()
+    val viewportEnd = if (useGutterLayout) (layout.viewportSize.width - viewportInsetPx).toFloat()
+        else (layout.viewportEndOffset - viewportInsetPx).toFloat()
     if (viewportEnd <= viewportStart) return 0f
 
     val visibleItems = layout.visibleItemsInfo
@@ -718,11 +726,26 @@ private fun shelfViewportScrollDistance(
         }
     }
     if (clippedAtEdge != null) {
+        // Keep one neighbouring poster for context, using measured widths so
+        // mixed shapes and custom sizes work too. Fall back when both cannot fit
+        // or keeping the neighbour would prevent movement in this direction.
+        val neighbour = visibleItems.firstOrNull {
+            it.index == clippedAtEdge.index + if (direction == ShelfScrollDirection.Forward) -1 else 1
+        }
+        val viewportWidth = viewportEnd - viewportStart
         return when (direction) {
-            // Bring a left-clipped card fully into view, aligned to the right edge.
-            ShelfScrollDirection.Backward -> clippedAtEdge.offset + clippedAtEdge.size - viewportEnd
-            // Bring a right-clipped card fully into view, aligned to the left edge.
-            ShelfScrollDirection.Forward -> clippedAtEdge.offset - viewportStart
+            ShelfScrollDirection.Backward -> {
+                val end = neighbour?.let { it.offset + it.size }
+                    ?.takeIf { it - clippedAtEdge.offset <= viewportWidth && it < viewportEnd - 0.5f }
+                    ?: (clippedAtEdge.offset + clippedAtEdge.size)
+                end - viewportEnd
+            }
+            ShelfScrollDirection.Forward -> {
+                val start = neighbour?.offset
+                    ?.takeIf { clippedAtEdge.offset + clippedAtEdge.size - it <= viewportWidth && it > viewportStart + 0.5f }
+                    ?: clippedAtEdge.offset
+                start - viewportStart
+            }
         }
     }
 
