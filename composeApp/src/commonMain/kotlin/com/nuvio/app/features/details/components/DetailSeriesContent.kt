@@ -40,8 +40,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.SizeTransform
@@ -126,6 +124,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
@@ -135,13 +135,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import co.touchlab.kermit.Logger
@@ -167,7 +160,6 @@ import com.nuvio.app.core.ui.DesktopPosterRowHoverInset
 import com.nuvio.app.core.ui.PosterRowHoverViewport
 import com.nuvio.app.core.ui.PosterRowItem
 import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
-import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
@@ -1172,6 +1164,7 @@ private fun SeasonTextChipScrollRow(
     isEnhanced: Boolean = false,
     seasonListState: LazyListState = rememberLazyListState(),
 ) {
+    var previewRowBounds by remember { mutableStateOf(Rect.Zero) }
     val rowNavigation = rememberSeriesRowNavigation(seasonListState, seasons)
     BindRemoteNavigationFocusDestination(navigationEntry) {
         val index = seasons.indexOf(currentSeason).coerceAtLeast(0)
@@ -1269,7 +1262,8 @@ private fun SeasonTextChipScrollRow(
                     .remoteNavigationDown(onSeasonDown.takeIf { isEnhanced })
                     .then(rowModifier)
                     .let { if (isEnhanced) it.nuvioPosterRowEdgeFade(seasonListState) else it }
-                    .then(rowGlassSource),
+                    .then(rowGlassSource)
+                    .onGloballyPositioned { previewRowBounds = it.boundsInRoot() },
                 contentPadding = rowContentPadding,
                 horizontalArrangement = Arrangement.spacedBy(sizing.seasonChipGap),
             ) {
@@ -1282,7 +1276,12 @@ private fun SeasonTextChipScrollRow(
                         val posterUrl = seasonPosterForSeason?.invoke(season)
 
                         Box(
-                            modifier = Modifier.wrapContentSize(),
+                            modifier = Modifier.wrapContentSize().seasonPosterPreviewAnchor(
+                                posterUrl = posterUrl.takeIf { showHoverPosterPreview },
+                                hovered = isChipHovered,
+                                rowBounds = previewRowBounds,
+                                rowState = seasonListState,
+                            ),
                             contentAlignment = Alignment.Center,
                         ) {
                             Box(
@@ -1334,13 +1333,6 @@ private fun SeasonTextChipScrollRow(
                                     },
                                 )
                             }
-
-                            if (showHoverPosterPreview && !posterUrl.isNullOrBlank() && ActionMenuCoordinator.active == null) {
-                                SeasonPosterHoverPreviewOverlay(
-                                    isHovered = isChipHovered,
-                                    posterUrl = posterUrl,
-                                )
-                            }
                         }
                     }
                 }
@@ -1378,80 +1370,6 @@ private fun SeasonTextChipScrollRow(
                         seasonArrows.scrollPage(forward = true)
                     },
                 )
-            }
-        }
-    }
-}
-
-private class SeasonPosterHoverPositionProvider(
-    private val spacingPx: Int = 10,
-) : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ): IntOffset {
-        val centeredX = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
-        val maxX = (windowSize.width - popupContentSize.width - 8).coerceAtLeast(8)
-        val x = centeredX.coerceIn(8, maxX)
-        val preferredY = anchorBounds.top - popupContentSize.height - spacingPx
-        val y = preferredY.coerceAtLeast(8)
-        return IntOffset(x = x, y = y)
-    }
-}
-
-@Composable
-private fun SeasonPosterHoverPreviewOverlay(
-    isHovered: Boolean,
-    posterUrl: String,
-) {
-    var popupMounted by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isHovered) {
-        if (isHovered) {
-            popupMounted = true
-        } else {
-            delay(130L)
-            popupMounted = false
-        }
-    }
-
-    if (popupMounted) {
-        Popup(
-            popupPositionProvider = remember { SeasonPosterHoverPositionProvider() },
-            properties = PopupProperties(focusable = false),
-        ) {
-            AnimatedVisibility(
-                visible = isHovered,
-                enter = fadeIn(animationSpec = tween(140)) + scaleIn(initialScale = 0.94f, animationSpec = tween(140)),
-                exit = fadeOut(animationSpec = tween(120)) + scaleOut(targetScale = 0.94f, animationSpec = tween(120)),
-            ) {
-                val posterCardStyle = rememberPosterCardStyleUiState()
-                val cornerRadius = posterCardStyle.cornerRadiusDp.dp
-                val cardShape = RoundedCornerShape(cornerRadius)
-
-                Box(
-                    modifier = Modifier
-                        .width(110.dp)
-                        .height(165.dp)
-                        .shadow(elevation = 8.dp, shape = cardShape)
-                        .nuvioCardDepth(shape = cardShape, surface = NuvioCardDepthSurface.Posters)
-                        .clip(cardShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .border(
-                            width = 1.dp,
-                            color = Color.White.copy(alpha = 0.12f),
-                            shape = cardShape,
-                        ),
-                ) {
-                    AsyncImage(
-                        model = rememberSeasonPosterHoverRequest(posterUrl),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
             }
         }
     }

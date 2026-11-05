@@ -14,6 +14,10 @@ import com.nuvio.app.core.ui.rememberRemoteNextSectionFocus
 import com.nuvio.app.core.ui.BindRemotePrimaryFocusReveal
 import com.nuvio.app.features.details.components.EnhancedDetailPage
 import com.nuvio.app.features.details.components.EnhancedDetailsScrollButton
+import com.nuvio.app.features.details.components.LocalSeasonPosterPreview
+import com.nuvio.app.features.details.components.SeasonPosterPreviewController
+import com.nuvio.app.features.details.components.SeasonPosterPreviewOverlay
+import com.nuvio.app.features.details.components.rememberSeasonPreviewScrollSuppressed
 import com.nuvio.app.core.ui.remoteNavigationUp
 import com.nuvio.app.core.ui.remoteNavigationDown
 import com.nuvio.app.core.ui.remoteNavigationFocusDestination
@@ -1187,6 +1191,8 @@ fun MetaDetailsScreen(
                 var enhancedSecondPage by rememberSaveable(type, id) { mutableStateOf(false) }
                 val firstPageState = rememberSaveable(type, id, saver = LazyListState.Saver) { LazyListState() }
                 val secondPageState = rememberSaveable(type, id, saver = LazyListState.Saver) { LazyListState() }
+                val seasonPreviewController = remember(type, id) { SeasonPosterPreviewController() }
+                val seasonPreviewScrolling = rememberSeasonPreviewScrollSuppressed(listOf(firstPageState, secondPageState))
                 val pageStateHolder = rememberSaveableStateHolder()
                 val pageTransition = remember(type, id) { EnhancedDetailsPageTransition() }
                 val horizontalWheelEvents = remember(type, id) { HorizontalWheelEvents() }
@@ -2056,6 +2062,7 @@ fun MetaDetailsScreen(
                                 .then(if (useEnhancedLayout) Modifier.enhancedDetailsPageTransition(pageTransition) else Modifier),
                         ) {
                             CompositionLocalProvider(
+                                LocalSeasonPosterPreview provides seasonPreviewController,
                                 LocalHorizontalWheelEvents provides horizontalWheelEvents,
                                 LocalRemoteNavigationPageBoundary provides pageBoundary.takeIf { useEnhancedLayout },
                             ) {
@@ -2073,6 +2080,12 @@ fun MetaDetailsScreen(
                                 }
                             }
                         }
+                        SeasonPosterPreviewOverlay(
+                            controller = seasonPreviewController,
+                            suppressed = !useEnhancedLayout || enhancedSecondPage || switchingPage ||
+                                isLeavingDetails || seasonPreviewScrolling || showLibraryListPicker || showShuffle || selectedTrailer != null,
+                            modifier = Modifier.zIndex(4f),
+                        )
                         NuvioDesktopVerticalScrollbar(
                             state = listState,
                             backgroundColor = extractedDominantColor.takeIf { adaptiveScrollbarColorEnabled },
