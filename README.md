@@ -27,6 +27,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ### 🎬 Player & Playback
 * **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
 * **Seek Previews (Seekr.tv):** Highly customizable animated seek preview thumbnails on hover and scrub powered by the Seekr.tv API.
+* **Eye Filter:** Optional night-light or dimmer overlay with configurable color and opacity, plus an instant keyboard toggle.
 * **In Player Playback Statistics Overlay:** View Stats for Nerds in player with all kinds of statistics.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
@@ -37,7 +38,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
-* **Typography & Outline Styles:** 10 curated clean fonts, outline thickness stepper, and selectable outline effects (`Classic Outline`, `Glow`, `Halo`, `Background Box`, and `None`) that update live without player reload.
+* **Typography & Outline Styles:** 10 curated clean fonts (and custom fonts), outline thickness modifier, and selectable outline effects (`Classic Outline`, `Glow`, `Halo`, `Background Box`, and `None`).
 * **Import External Subtitles:** Option to import external subtitle of choice. 
 
 ### ✨ Visuals, UX & Settings
@@ -47,9 +48,11 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
 * **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
 * **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
+* **Poster Hover Previews:** Redesigned landscape hover preview with details and ratings.
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
 * **Catalog Navigation & Polish:** Drag-to-scroll and directional arrow buttons on carousels, sidebar quick exit button, and copy addon manifest link shortcuts.
+* **App & Player UI Scaling:** Independently adjust the application interface and player-control size.
 * **Enhanced Discord Rich Presence:** Richer Discord RPC with customizable activity types ("Watching" vs. "Playing"), uncropped full portrait posters, small badge display for episode thumbnails, active mini-player tracking, and interactive artwork linking directly to IMDb.
 * **Addon & Plugin Management:** One-click bulk refresh for addons and plugins, plus master switches to enable or disable entire plugin sources.
 * **Custom Download Folder:** Uncapped download speed and option to choose download folder with auto transfer from old folder. 
@@ -86,6 +89,10 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 | `A` / `S` | Open audio / subtitle selection panels |
 | `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
 | `I`  | Show / Hide Playback Stats for Nerds |
+| `0` (Zero) | Toggle eye filter |
+| `Ctrl` + `+` / `=` | Increase UI scale by 10 percentage points |
+| `Ctrl` + `−` | Decrease UI scale by 10 percentage points |
+| `Ctrl` + `0` | Reset UI scale to 100% |
 
 ---
 
