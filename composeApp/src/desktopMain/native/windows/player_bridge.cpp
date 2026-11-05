@@ -1552,7 +1552,7 @@ public:
     ) {
         double size = std::max(18.0, std::min(96.0, fontSize));
         int64_t position = std::max(0, std::min(150, subPos));
-        double scale = 1.0;
+        double scale = useLibass ? size / 54.0 : 1.0;
         double outline = std::max(0.0, std::min(8.0, outlineSize));
         std::string resolvedTextColor = textColor.empty() ? "#FFFFFFFF" : textColor;
         std::string resolvedBackgroundColor = backgroundColor.empty() ? "#00000000" : backgroundColor;
@@ -1571,12 +1571,16 @@ public:
         bool stripSdhChanged = !hasAppliedSubtitleStyle || appliedSubtitleStripSdh != stripSdh;
 
         if (modeChanged) {
-            setStringProperty("sub-ass-override", "scale");
+            setStringProperty("sub-ass-override", useLibass ? "scale" : "force");
         }
-        if (modeChanged) {
+        if (modeChanged || (!useLibass && boldChanged)) {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (!mpv) return;
-            const char *styleOverridesCommand[] = {"change-list", "sub-ass-style-overrides", "clr", "", nullptr};
+            const char *styleOverridesCommand[] = {
+                "change-list", "sub-ass-style-overrides",
+                useLibass ? "clr" : "set",
+                useLibass ? "" : (bold ? "Bold=1" : "Bold=0"), nullptr
+            };
             mpvApi().command(mpv, styleOverridesCommand);
         }
         if (modeChanged || sizeChanged || positionChanged) {

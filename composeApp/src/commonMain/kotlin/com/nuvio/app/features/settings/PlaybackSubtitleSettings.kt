@@ -3,6 +3,8 @@ package com.nuvio.app.features.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -131,14 +133,17 @@ internal fun PlaybackSubtitleSettings(
             )
             val showLibassSettings = !isIos && (isDesktop || settings.androidPlaybackEngine != AndroidPlaybackEngine.Libmpv)
             if (showLibassSettings) {
+                Spacer(Modifier.height(if (isTablet) 18.dp else 12.dp))
                 SettingsGroup(isTablet = isTablet) {
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_playback_enable_libass),
-                        description = stringResource(Res.string.settings_playback_enable_libass_description),
-                        checked = settings.useLibass,
+                        title = stringResource(if (isDesktop) Res.string.settings_playback_custom_subtitle_styling else Res.string.settings_playback_enable_libass),
+                        description = stringResource(if (isDesktop) Res.string.settings_playback_custom_subtitle_styling_description else Res.string.settings_playback_enable_libass_description),
+                        checked = if (isDesktop) !settings.useLibass else settings.useLibass,
                         enabled = subtitleRenderingEnabled,
                         isTablet = isTablet,
-                        onCheckedChange = PlayerSettingsRepository::setUseLibass,
+                        onCheckedChange = { enabled ->
+                            PlayerSettingsRepository.setUseLibass(if (isDesktop) !enabled else enabled)
+                        },
                     )
                     if (settings.useLibass && !isDesktop) {
                         SettingsGroupDivider(isTablet = isTablet)

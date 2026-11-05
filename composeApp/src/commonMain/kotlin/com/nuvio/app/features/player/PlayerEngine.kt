@@ -351,7 +351,7 @@ data class PlayerControlsState(
     val isLoadingAddonSubtitles: Boolean = false,
     val selectedAddonSubtitleId: String = "",
     val useCustomSubtitles: Boolean = false,
-    val subtitleStyle: SubtitleStyleState = SubtitleStyleState.DEFAULT,
+    val subtitleAppearance: PlayerControlSubtitleAppearance = PlayerControlSubtitleAppearance(),
     val subtitleDelayMs: Int = 0,
     val hasSelectedAddonSubtitle: Boolean = false,
     val subtitleAutoSyncCapturedPositionMs: Long = -1L,
@@ -386,7 +386,16 @@ data class PlayerControlsState(
     val isPlaying: Boolean get() = playback.isPlaying
     val isEnded: Boolean get() = playback.isEnded
     val isLoading: Boolean get() = playback.isLoading
+    val subtitleStyle: SubtitleStyleState get() = subtitleAppearance.style
+    val customSubtitleStyleLabel: String get() = subtitleAppearance.customStyleLabel
+    val customSubtitleStylingEnabled: Boolean get() = subtitleAppearance.customStylingEnabled
 }
+
+data class PlayerControlSubtitleAppearance(
+    val style: SubtitleStyleState = SubtitleStyleState.DEFAULT,
+    val customStyleLabel: String = "Use custom styling",
+    val customStylingEnabled: Boolean = true,
+)
 
 data class PlayerControlFilterItem(
     val id: String = "",

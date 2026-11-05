@@ -2736,6 +2736,16 @@ button:disabled {
   display: contents;
 }
 
+.custom-subtitle-style-controls.disabled > .style-section {
+  opacity: .45;
+}
+
+.style-toggle-section {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .font-row {
   display: flex;
   width: 100%;

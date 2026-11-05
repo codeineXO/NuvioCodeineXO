@@ -2048,20 +2048,24 @@ JNIEXPORT void JNICALL NP(applySubtitleStyle)(
     jboolean useLibass, jboolean stripSdh) {
     Player *p = asPlayer(handle);
     if (!p) return;
-    mpv_set_property_string(p->mpv, "sub-ass-override", "scale");
+    mpv_set_property_string(p->mpv, "sub-ass-override", useLibass == JNI_TRUE ? "scale" : "force");
+    const char *styleOverridesCommand[] = {
+        "change-list", "sub-ass-style-overrides",
+        useLibass == JNI_TRUE ? "clr" : "set",
+        useLibass == JNI_TRUE ? "" : (bold == JNI_TRUE ? "Bold=1" : "Bold=0"), nullptr
+    };
+    mpv_command(p->mpv, styleOverridesCommand);
+    const double fontScale = useLibass == JNI_TRUE ? std::clamp<double>(fontSize, 18.0, 96.0) / 54.0 : 1.0;
+    mpvSetDouble(p->mpv, "sub-scale", fontScale);
     mpv_set_property_string(p->mpv, "sub-color", jstringToUtf8(env, textColor).c_str());
-    const std::string background = jstringToUtf8(env, backgroundColor);
+    std::string background = jstringToUtf8(env, backgroundColor);
+    if (background.empty()) background = "#00000000";
     mpv_set_property_string(p->mpv, "sub-back-color", background.c_str());
     const bool hasBackground = background.rfind("#00", 0) != 0;
     mpv_set_property_string(p->mpv, "sub-border-style", hasBackground ? "background-box" : "outline-and-shadow");
     mpv_set_property_string(p->mpv, "sub-shadow-offset", hasBackground ? "4" : "0");
     mpv_set_property_string(p->mpv, "sub-blur", "0");
     mpv_set_property_string(p->mpv, "sub-border-color", jstringToUtf8(env, outlineColor).c_str());
-    std::string background = jstringToUtf8(env, backgroundColor);
-    if (background.empty()) background = "#00000000";
-    mpv_set_property_string(p->mpv, "sub-back-color", background.c_str());
-    mpv_set_property_string(p->mpv, "sub-border-style",
-                            background.rfind("#00", 0) == 0 ? "outline-and-shadow" : "background-box");
     std::string border = std::to_string(outlineSize);
     mpv_set_property_string(p->mpv, "sub-border-size", border.c_str());
     mpv_set_property_string(p->mpv, "sub-bold", bold == JNI_TRUE ? "yes" : "no");

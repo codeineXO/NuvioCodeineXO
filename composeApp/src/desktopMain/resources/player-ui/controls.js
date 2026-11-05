@@ -181,6 +181,11 @@ const subtitleStyleRail = document.getElementById("subtitleStyleRail");
 const subtitleStyleRailTitle = document.getElementById("subtitleStyleRailTitle");
 const addonSubtitleList = document.getElementById("addonSubtitleList");
 const subtitleStylePanel = document.getElementById("subtitleStylePanel");
+const customSubtitleStyleLabel = document.getElementById("customSubtitleStyleLabel");
+const customSubtitleStyleToggle = document.getElementById("customSubtitleStyleToggle");
+const customSubtitleStyleControls = document.getElementById("customSubtitleStyleControls");
+let pendingCustomSubtitleStyling = null;
+let pendingCustomSubtitleStylingTimer = 0;
 const subtitleDelayLabel = document.getElementById("subtitleDelayLabel");
 const subtitleDelayMinus = document.getElementById("subtitleDelayMinus");
 const subtitleDelayValue = document.getElementById("subtitleDelayValue");
@@ -423,6 +428,7 @@ let state = {
   subtitleBuiltInTabLabel: "Built-in",
   subtitleAddonsTabLabel: "Addons",
   subtitleStyleTabLabel: "Style",
+  customSubtitleStyleLabel: "Use custom styling",
   forcedLabel: "Forced",
   noneLabel: "None",
   fetchSubtitlesLabel: "Tap to fetch subtitles",
@@ -550,6 +556,7 @@ let state = {
   isLoadingAddonSubtitles: false,
   selectedAddonSubtitleId: "",
   useCustomSubtitles: false,
+  customSubtitleStylingEnabled: true,
   subtitleDelayMs: 0,
   hasSelectedAddonSubtitle: false,
   subtitleAutoSyncCapturedPositionMs: -1,
@@ -2824,6 +2831,18 @@ const handleFontPickerKey = event => {
 const renderSubtitleStylePanel = () => {
   subtitleFontManager.textContent = state.fontImportLabel || "Import font";
   const style = state.subtitleStyle || {};
+  const storedCustomStyling = state.customSubtitleStylingEnabled !== false;
+  if (pendingCustomSubtitleStyling === storedCustomStyling) {
+    pendingCustomSubtitleStyling = null;
+    window.clearTimeout(pendingCustomSubtitleStylingTimer);
+  }
+  const customStylingEnabled = pendingCustomSubtitleStyling ?? storedCustomStyling;
+  customSubtitleStyleLabel.textContent = state.customSubtitleStyleLabel || "Use custom styling";
+  customSubtitleStyleToggle.textContent = customStylingEnabled ? (state.onLabel || "On") : (state.offLabel || "Off");
+  customSubtitleStyleToggle.classList.toggle("primary", customStylingEnabled);
+  customSubtitleStyleToggle.setAttribute("aria-pressed", String(customStylingEnabled));
+  customSubtitleStyleControls.classList.toggle("disabled", !customStylingEnabled);
+  customSubtitleStyleControls.setAttribute("aria-disabled", String(!customStylingEnabled));
   subtitleDelayLabel.textContent = state.subtitleDelayLabel || "Subtitle Delay";
   subtitleDelayValue.textContent = formatDelay(state.subtitleDelayMs);
   subtitleDelayReset.textContent = state.resetLabel || "Reset";
@@ -2851,8 +2870,8 @@ const renderSubtitleStylePanel = () => {
     // Reuse the thickness stepper for box opacity; keep the separate legacy section hidden.
     if (outlineThicknessSection) outlineThicknessSection.hidden = false;
     if (bgOpacitySection) bgOpacitySection.hidden = true;
-    if (outlineThicknessMinus)   outlineThicknessMinus.disabled = isNone;
-    if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = isNone;
+    if (outlineThicknessMinus)   outlineThicknessMinus.disabled = !customStylingEnabled || isNone;
+    if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = !customStylingEnabled || isNone;
   }
   if (outlineThicknessValue) {
     const isBackgroundBox = String(style.outlineEffect || "").toLowerCase() === "background_box";
@@ -2883,6 +2902,12 @@ const renderSubtitleStylePanel = () => {
   renderSwatches(outlineColorSwatches, state.subtitleOutlineColorSwatches, style.outlineColor, "subtitleOutlineColor");
   syncColorPickerUi("subtitleText", style.textColor);
   syncColorPickerUi("subtitleOutline", style.outlineColor);
+  customSubtitleStyleControls.querySelectorAll("button, input, select").forEach(control => {
+    if (control !== outlineThicknessMinus && control !== outlineThicknessPlus) {
+      control.disabled = !customStylingEnabled;
+    }
+  });
+  if (!customStylingEnabled && fontPickerOpen) setFontPickerOpen(false);
   if (fontPickerOpen) renderFontPicker();
   renderAutoSyncCues();
 };
@@ -3934,6 +3959,8 @@ const getSubtitlesModalSignature = () => {
     state.subtitleBuiltInTabLabel || "",
     state.subtitleAddonsTabLabel || "",
     state.subtitleStyleTabLabel || "",
+    state.customSubtitleStyleLabel || "",
+    state.customSubtitleStylingEnabled !== false,
     state.noneLabel || "",
     state.fetchSubtitlesLabel || "",
     state.subtitleDelayLabel || "",
@@ -5284,6 +5311,18 @@ autoSyncReload.addEventListener("click", event => {
 autoSyncCapture.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleAutoSyncCapture", 0);
+});
+customSubtitleStyleToggle.addEventListener("click", event => {
+  event.stopPropagation();
+  if (pendingCustomSubtitleStyling !== null) return;
+  pendingCustomSubtitleStyling = !(state.customSubtitleStylingEnabled !== false);
+  renderSubtitleStylePanel();
+  send("subtitleCustomStyleToggle", 0);
+  window.clearTimeout(pendingCustomSubtitleStylingTimer);
+  pendingCustomSubtitleStylingTimer = window.setTimeout(() => {
+    pendingCustomSubtitleStyling = null;
+    renderSubtitleStylePanel();
+  }, 1500);
 });
 fontSizeMinus.addEventListener("click", event => {
   event.stopPropagation();

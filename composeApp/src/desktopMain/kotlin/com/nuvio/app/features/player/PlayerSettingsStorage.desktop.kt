@@ -420,6 +420,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     ) {
         private fun scoped(key: String): String = profileKey(key)
 
+        // Appearance and renderer preferences stay local to this profile.
         private val syncKeys = listOf(
             showLoadingOverlayKey,
             showPlayerLoadingStatusKey,
@@ -437,11 +438,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             secondaryPreferredAudioLanguageKey,
             preferredSubtitleLanguageKey,
             secondaryPreferredSubtitleLanguageKey,
-            subtitleBackgroundColorKey,
-            subtitleOutlineEnabledKey,
-            subtitleBoldKey,
-            subtitleFontSizeSpKey,
-            subtitleBottomOffsetKey,
             subtitleStripSdhKey,
             subtitleUseForcedSubtitlesKey,
             subtitleShowOnlyPreferredLanguagesKey,
@@ -488,10 +484,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             nextEpisodeThresholdModeKey,
             nextEpisodeThresholdPercentKey,
             nextEpisodeThresholdMinutesBeforeEndKey,
-            useLibassKey,
-            libassRenderTypeKey,
-            libassRenderScaleKey,
-            libassRenderModeKey,
             iosVideoOutputPresetKey,
             iosToneMappingModeKey,
             iosTargetPrimariesKey,
@@ -526,11 +518,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             store.getString(scoped(secondaryPreferredAudioLanguageKey))?.let { put(secondaryPreferredAudioLanguageKey, encodeSyncString(it)) }
             store.getString(scoped(preferredSubtitleLanguageKey))?.let { put(preferredSubtitleLanguageKey, encodeSyncString(it)) }
             store.getString(scoped(secondaryPreferredSubtitleLanguageKey))?.let { put(secondaryPreferredSubtitleLanguageKey, encodeSyncString(it)) }
-            store.getString(scoped(subtitleBackgroundColorKey))?.let { put(subtitleBackgroundColorKey, encodeSyncString(it)) }
-            store.getBoolean(scoped(subtitleOutlineEnabledKey))?.let { put(subtitleOutlineEnabledKey, encodeSyncBoolean(it)) }
-            store.getBoolean(scoped(subtitleBoldKey))?.let { put(subtitleBoldKey, encodeSyncBoolean(it)) }
-            store.getInt(scoped(subtitleFontSizeSpKey))?.let { put(subtitleFontSizeSpKey, encodeSyncInt(it)) }
-            store.getInt(scoped(subtitleBottomOffsetKey))?.let { put(subtitleBottomOffsetKey, encodeSyncInt(it)) }
             store.getBoolean(scoped(subtitleStripSdhKey))?.let { put(subtitleStripSdhKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(subtitleUseForcedSubtitlesKey))?.let { put(subtitleUseForcedSubtitlesKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(subtitleShowOnlyPreferredLanguagesKey))?.let { put(subtitleShowOnlyPreferredLanguagesKey, encodeSyncBoolean(it)) }
@@ -565,9 +552,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             store.getString(scoped(nextEpisodeThresholdModeKey))?.let { put(nextEpisodeThresholdModeKey, encodeSyncString(it)) }
             store.getFloat(scoped(nextEpisodeThresholdPercentKey))?.let { put(nextEpisodeThresholdPercentKey, encodeSyncFloat(it)) }
             store.getFloat(scoped(nextEpisodeThresholdMinutesBeforeEndKey))?.let { put(nextEpisodeThresholdMinutesBeforeEndKey, encodeSyncFloat(it)) }
-            store.getBoolean(scoped(useLibassKey))?.let { put(useLibassKey, encodeSyncBoolean(it)) }
-            store.getString(scoped(libassRenderTypeKey))?.let { put(libassRenderTypeKey, encodeSyncString(it)) }
-            store.getString(scoped(libassRenderScaleKey))?.let { put(libassRenderScaleKey, encodeSyncString(it)) }
             store.getString(scoped(iosVideoOutputPresetKey))?.let { put(iosVideoOutputPresetKey, encodeSyncString(it)) }
             store.getString(scoped(iosToneMappingModeKey))?.let { put(iosToneMappingModeKey, encodeSyncString(it)) }
             store.getString(scoped(iosTargetPrimariesKey))?.let { put(iosTargetPrimariesKey, encodeSyncString(it)) }
@@ -603,11 +587,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncString(secondaryPreferredAudioLanguageKey)?.let { store.putString(scoped(secondaryPreferredAudioLanguageKey), it.takeIf(String::isNotBlank)) }
             payload.decodeSyncString(preferredSubtitleLanguageKey)?.let { store.putString(scoped(preferredSubtitleLanguageKey), it) }
             payload.decodeSyncString(secondaryPreferredSubtitleLanguageKey)?.let { store.putString(scoped(secondaryPreferredSubtitleLanguageKey), it.takeIf(String::isNotBlank)) }
-            payload.decodeSyncString(subtitleBackgroundColorKey)?.let { store.putString(scoped(subtitleBackgroundColorKey), it) }
-            payload.decodeSyncBoolean(subtitleOutlineEnabledKey)?.let { store.putBoolean(scoped(subtitleOutlineEnabledKey), it) }
-            payload.decodeSyncBoolean(subtitleBoldKey)?.let { store.putBoolean(scoped(subtitleBoldKey), it) }
-            payload.decodeSyncInt(subtitleFontSizeSpKey)?.let { store.putInt(scoped(subtitleFontSizeSpKey), it) }
-            payload.decodeSyncInt(subtitleBottomOffsetKey)?.let { store.putInt(scoped(subtitleBottomOffsetKey), it) }
             payload.decodeSyncBoolean(subtitleStripSdhKey)?.let { store.putBoolean(scoped(subtitleStripSdhKey), it) }
             payload.decodeSyncBoolean(subtitleUseForcedSubtitlesKey)?.let { store.putBoolean(scoped(subtitleUseForcedSubtitlesKey), it) }
             payload.decodeSyncBoolean(subtitleShowOnlyPreferredLanguagesKey)?.let { store.putBoolean(scoped(subtitleShowOnlyPreferredLanguagesKey), it) }
@@ -645,10 +624,6 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncString(nextEpisodeThresholdModeKey)?.let { store.putString(scoped(nextEpisodeThresholdModeKey), it) }
             payload.decodeSyncFloat(nextEpisodeThresholdPercentKey)?.let { store.putFloat(scoped(nextEpisodeThresholdPercentKey), it) }
             payload.decodeSyncFloat(nextEpisodeThresholdMinutesBeforeEndKey)?.let { store.putFloat(scoped(nextEpisodeThresholdMinutesBeforeEndKey), it) }
-            payload.decodeSyncBoolean(useLibassKey)?.let { store.putBoolean(scoped(useLibassKey), it) }
-            payload.decodeSyncString(libassRenderTypeKey)?.let { store.putString(scoped(libassRenderTypeKey), it) }
-            payload.decodeSyncString(libassRenderScaleKey)?.let { store.putString(scoped(libassRenderScaleKey), it) }
-            payload.decodeSyncString(libassRenderModeKey)?.let { store.putString(scoped(libassRenderModeKey), it) }
             payload.decodeSyncString(iosVideoOutputPresetKey)?.let { store.putString(scoped(iosVideoOutputPresetKey), it) }
             payload.decodeSyncString(iosToneMappingModeKey)?.let { store.putString(scoped(iosToneMappingModeKey), it) }
             payload.decodeSyncString(iosTargetPrimariesKey)?.let { store.putString(scoped(iosTargetPrimariesKey), it) }

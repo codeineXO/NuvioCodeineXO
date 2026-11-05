@@ -1752,7 +1752,7 @@ internal class NativePlayerController(
     }
 
     private fun applySubtitleStyle(handle: Long, style: SubtitleStyleState, useLibass: Boolean) {
-        val applyLibass = useLibass && style.outlineEffect != SubtitleOutlineEffect.BACKGROUND_BOX
+        val applyLibass = useLibass
         val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
         val resolvedBoxColor = if (style.backgroundColor.alpha == 0f) {
             androidx.compose.ui.graphics.Color(0, 0, 0, (0.65f * 255f).toInt())
@@ -1795,6 +1795,20 @@ internal class NativePlayerController(
             stripSdh = style.stripSdh,
         )
 
+        if (!applyLibass) {
+            val importedFont = style.importedFontId?.let {
+                com.nuvio.app.features.player.SubtitleFontResolver.resolveImported(it)
+            }
+            NativePlayerBridge.setSubtitleAppearance(
+                handle = handle,
+                font = importedFont ?: style.fontName,
+                fontsDir = com.nuvio.app.features.player.SubtitleFontResolver.fontsDir(),
+                shadowColor = style.outlineColor.toMpvColorString(),
+                shadowOffset = if (style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) {
+                    (style.outlineWidth + 1).coerceIn(2, 5).toFloat()
+                } else if (isBackgroundBox) 4f else 0f,
+            )
+        }
         WindowsMpvSubStyleHelper.applyExtendedSubtitleStyle(
             bridgeHandle = handle,
             style = style,
@@ -2246,6 +2260,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         append(',')
         appendJsonField("subtitleStyleTabLabel", subtitleStyleTabLabel)
         append(',')
+        appendJsonField("customSubtitleStyleLabel", customSubtitleStyleLabel)
+        append(',')
         appendJsonField("forcedLabel", forcedLabel)
         append(',')
         appendJsonField("noneLabel", noneLabel)
@@ -2508,6 +2524,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("selectedAddonSubtitleId", selectedAddonSubtitleId)
         append(',')
         appendJsonField("useCustomSubtitles", useCustomSubtitles)
+        append(',')
+        appendJsonField("customSubtitleStylingEnabled", customSubtitleStylingEnabled)
         append(',')
         appendJsonField("subtitleDelayMs", subtitleDelayMs)
         append(',')

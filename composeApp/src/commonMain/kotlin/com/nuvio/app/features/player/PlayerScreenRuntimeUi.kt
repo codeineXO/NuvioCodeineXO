@@ -746,7 +746,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         isLoadingAddonSubtitles = isLoadingAddonSubtitles,
         selectedAddonSubtitleId = selectedAddonSubtitleId.orEmpty(),
         useCustomSubtitles = useCustomSubtitles,
-        subtitleStyle = subtitleStyle,
+        subtitleAppearance = PlayerControlSubtitleAppearance(
+            style = subtitleStyle,
+            customStyleLabel = stringResource(Res.string.compose_player_use_custom_styling),
+            customStylingEnabled = !playerSettingsUiState.useLibass,
+        ),
         subtitleDelayMs = subtitleDelayMs,
         hasSelectedAddonSubtitle = selectedAddonSubtitle != null,
         subtitleAutoSyncCapturedPositionMs = subtitleAutoSyncState.capturedPositionMs ?: -1L,
@@ -1690,6 +1694,9 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         }
         "setShowRemainingTime" -> {
             PlayerSettingsRepository.setShowRemainingTime(value.toInt() == 1)
+        }
+        "subtitleCustomStyleToggle" -> {
+            PlayerSettingsRepository.setUseLibass(!playerSettingsUiState.useLibass)
         }
         "subtitleFontSizeDelta" -> {
             PlayerSettingsRepository.setSubtitleStyle(

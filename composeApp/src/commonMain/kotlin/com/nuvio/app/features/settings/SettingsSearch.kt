@@ -744,7 +744,11 @@ internal fun settingsSearchEntries(
             section = playbackSubtitleRendering,
             page = SettingsPage.PlaybackSubtitles,
             rows = buildList {
-                add(PlaybackSearchRow("libass", stringResource(Res.string.settings_playback_enable_libass), stringResource(Res.string.settings_playback_enable_libass_description)))
+                add(PlaybackSearchRow(
+                    "libass",
+                    stringResource(if (isDesktop) Res.string.settings_playback_custom_subtitle_styling else Res.string.settings_playback_enable_libass),
+                    stringResource(if (isDesktop) Res.string.settings_playback_custom_subtitle_styling_description else Res.string.settings_playback_enable_libass_description),
+                ))
                 if (!isDesktop) {
                     add(PlaybackSearchRow("libass-render-mode", stringResource(Res.string.settings_playback_render_mode), stringResource(Res.string.settings_playback_render_mode_description)))
                     add(PlaybackSearchRow("libass-render", stringResource(Res.string.settings_playback_render_scale)))

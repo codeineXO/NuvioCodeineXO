@@ -1,4 +1,5 @@
 <resources>
+    <string name="compose_player_use_custom_styling">Use custom styling</string>
     <string name="theme_gold">Gold</string>
     <string name="theme_jade">Jade</string>
     <string name="theme_rose_gold">Rose Gold</string>
@@ -1192,6 +1193,8 @@
     <string name="settings_playback_duration_hours">%1$d hours</string>
     <string name="settings_playback_enable_libass">Use libass for ASS/SSA subtitles</string>
     <string name="settings_playback_enable_libass_description">Experimental: advanced ASS/SSA rendering (styles, positioning, animations)</string>
+    <string name="settings_playback_custom_subtitle_styling">Use custom subtitle styling</string>
+    <string name="settings_playback_custom_subtitle_styling_description">Override embedded ASS/SSA styles with your subtitle appearance settings. Turn off to preserve original styles, positioning, and effects.</string>
     <string name="settings_playback_external_player">External Player</string>
     <string name="settings_playback_external_player_app">External Player App</string>
     <string name="settings_playback_external_player_description_android">Open new playback with Android&apos;s default video app or system chooser.</string>
