@@ -107,8 +107,10 @@ fun CollectionManagementScreen(
             stickyHeader {
                 NuvioScreenHeader(
                     title = stringResource(Res.string.collections_header),
+                    backgroundColor = Color.Transparent,
                     onBack = onBack,
                     backButtonKeyboardNavigationEnabled = false,
+                    showFullscreenAction = false,
                 ) {
                     IconButton(onClick = {
                         val json = CollectionRepository.exportToJson()

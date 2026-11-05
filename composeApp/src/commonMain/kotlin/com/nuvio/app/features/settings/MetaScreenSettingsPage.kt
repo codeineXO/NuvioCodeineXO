@@ -51,6 +51,7 @@ import nuvio.composeapp.generated.resources.shuffle_save_failed
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -280,7 +281,11 @@ private fun MetaSectionReorderableList(
             ReorderableItem(reorderableLazyListState, key = item.key.name) { isDragging ->
                 val elevation by animateDpAsState(if (isDragging) 4.dp else 0.dp)
 
-                Surface(shadowElevation = elevation) {
+                Surface(
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    shadowElevation = elevation,
+                ) {
                     Column {
                         if (index > 0) {
                             SettingsGroupDivider(isTablet = isTablet)
