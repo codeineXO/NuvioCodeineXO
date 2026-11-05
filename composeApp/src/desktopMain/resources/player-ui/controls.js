@@ -668,6 +668,7 @@ let submitIntroDraft = {
   status: "",
 };
 let hasReceivedPlayerControls = false;
+let hasReceivedNativePlaybackUpdate = false;
 let parentalGuideRunId = 0;
 let parentalGuideStartedKey = "";
 let parentalGuideCompletedKey = "";
@@ -1617,7 +1618,7 @@ const renderPauseMetadataOverlay = showOpening => {
     pauseMetadataReady &&
     !state.isPlaying &&
     !state.isEnded &&
-    !state.controlsVisible &&
+    (!state.controlsVisible || (state.isInPip && isPipPointerOutside)) &&
     !hasOpenModal() &&
     !showOpening,
   );
@@ -2288,6 +2289,7 @@ const initEyeFilterListeners = () => {
       syncEyeFilterOverlay();
       renderEyeFilterModal();
       send("setEyeFilterEnabled", next ? 1 : 0);
+      showPlayerToast(next ? "Eye filter: On" : "Eye filter: Off");
     });
   }
   if (eyeFilterOpacitySlider) {
@@ -6350,6 +6352,7 @@ if (codeinePosition) {
 }
 
 window.playerUpdate = update => {
+  hasReceivedNativePlaybackUpdate = true;
   const durationMs = Math.round((Number(update.duration) || 0) * 1000);
   const positionMs = Math.round((Number(update.position) || 0) * 1000);
   const reportedVolumeLevel = Number(update.volumeLevel);
@@ -6451,9 +6454,17 @@ window.playerControls = nextState => {
     ? state.isPlaying
     : pendingIsPlaying;
   const currentVolumeLevel = hasReceivedPlayerControls ? state.volumeLevel : undefined;
+  // Native progress owns the clock once initialized. Settings updates (including
+  // wheel volume changes) carry a cached Kotlin snapshot that may be older.
+  const currentProgress = hasReceivedNativePlaybackUpdate ? {
+    positionMs: state.positionMs,
+    durationMs: state.durationMs,
+    bufferedPositionMs: state.bufferedPositionMs,
+  } : {};
   state = {
     ...state,
     ...nextState,
+    ...currentProgress,
     isPlaying: currentPlaybackState,
     volumeLevel: currentVolumeLevel ?? nextState.volumeLevel,
     controlsVisible: nextState.isMiniPlayer ? false : (nextState.controlsVisible ?? true),

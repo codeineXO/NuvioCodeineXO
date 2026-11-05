@@ -1526,6 +1526,47 @@ button:disabled {
   }
 }
 
+.player.mini-player-mode .pause-metadata-content {
+  padding: min(12px, 4vh) min(14px, 4vw);
+  gap: min(4px, 1.5vh);
+  overflow: hidden;
+}
+
+.player.mini-player-mode .pause-clock {
+  top: min(10px, 4vh);
+  right: min(12px, 4vw);
+  font-size: min(22px, 9vh, 7vw);
+}
+
+.player.mini-player-mode .pause-logo {
+  width: min(160px, 48vw);
+  height: min(40px, 20vh);
+  flex-shrink: 0;
+}
+
+.player.mini-player-mode .pause-title {
+  max-width: 72%;
+  margin-top: 0;
+  font-size: min(18px, 9vh, 5vw);
+  -webkit-line-clamp: 1;
+}
+
+.player.mini-player-mode .pause-episode-info,
+.player.mini-player-mode .pause-episode-title {
+  max-width: 82%;
+  margin-top: 0;
+  font-size: min(12px, 6vh, 3.5vw);
+  line-height: 1.25;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 1;
+}
+
+.player.mini-player-mode .pause-description {
+  display: none;
+}
+
 .opening-overlay {
   position: absolute;
   inset: 0;
