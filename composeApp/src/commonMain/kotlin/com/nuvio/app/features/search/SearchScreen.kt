@@ -370,7 +370,7 @@ fun SearchScreen(
             homeSectionHorizontalPaddingForWidth(maxWidth.value)
         }
         val effectivePosterSectionPadding = if (useGutterLayout) {
-            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth, gutterSize = homeCatalogSettings.posterGutterSize)
         } else {
             homeSectionPadding
         }

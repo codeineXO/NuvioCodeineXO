@@ -562,7 +562,7 @@ internal fun RowsContent(
             basePosterWidthDp.dp
         }
         val effectivePosterSectionPadding = if (useGutterLayout) {
-            homePosterGutterPaddingForWidth(contentWidth.value, effectivePosterWidth)
+            homePosterGutterPaddingForWidth(contentWidth.value, effectivePosterWidth, gutterSize = homeCatalogSettings.posterGutterSize)
         } else {
             homeSectionPadding
         }

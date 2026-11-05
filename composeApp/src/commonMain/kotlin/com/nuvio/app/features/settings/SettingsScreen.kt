@@ -89,6 +89,7 @@ import com.nuvio.app.features.addons.isWaitingForFirstEnabledManifest
 import com.nuvio.app.features.debrid.DebridSettings
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
+import com.nuvio.app.features.home.PosterGutterSize
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
@@ -461,6 +462,7 @@ fun SettingsScreen(
                 homescreenShowCatalogType = homescreenSettingsUiState.showCatalogType,
                 homescreenHideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
                 homescreenScrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
+                homescreenPosterGutterSize = homescreenSettingsUiState.posterGutterSize,
                 homescreenAlwaysAnimateCollectionCards = homescreenSettingsUiState.alwaysAnimateCollectionCards,
                 auraBackgroundEnabled = auraBackgroundEnabled,
                 homescreenItems = homescreenSettingsUiState.items,
@@ -515,6 +517,7 @@ fun SettingsScreen(
                 homescreenShowCatalogType = homescreenSettingsUiState.showCatalogType,
                 homescreenHideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
                 homescreenScrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
+                homescreenPosterGutterSize = homescreenSettingsUiState.posterGutterSize,
                 homescreenAlwaysAnimateCollectionCards = homescreenSettingsUiState.alwaysAnimateCollectionCards,
                 auraBackgroundEnabled = auraBackgroundEnabled,
                 homescreenItems = homescreenSettingsUiState.items,
@@ -582,6 +585,7 @@ private fun MobileSettingsScreen(
     homescreenShowCatalogType: Boolean,
     homescreenHideUnreleasedContent: Boolean,
     homescreenScrollPostersLayoutEnabled: Boolean = false,
+    homescreenPosterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     homescreenAlwaysAnimateCollectionCards: Boolean = false,
     auraBackgroundEnabled: Boolean = true,
     homescreenItems: List<HomeCatalogSettingsItem>,
@@ -846,6 +850,7 @@ private fun MobileSettingsScreen(
                     showCatalogType = homescreenShowCatalogType,
                     hideUnreleasedContent = homescreenHideUnreleasedContent,
                     scrollPostersLayoutEnabled = homescreenScrollPostersLayoutEnabled,
+                    posterGutterSize = homescreenPosterGutterSize,
                     alwaysAnimateCollectionCards = homescreenAlwaysAnimateCollectionCards,
                     items = homescreenItems,
                     isCatalogLoading = homescreenCatalogLoading,
@@ -965,6 +970,7 @@ private fun TabletSettingsScreen(
     homescreenShowCatalogType: Boolean,
     homescreenHideUnreleasedContent: Boolean,
     homescreenScrollPostersLayoutEnabled: Boolean = false,
+    homescreenPosterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     homescreenAlwaysAnimateCollectionCards: Boolean = false,
     auraBackgroundEnabled: Boolean = true,
     homescreenItems: List<HomeCatalogSettingsItem>,
@@ -1318,6 +1324,7 @@ private fun TabletSettingsScreen(
                                     showCatalogType = homescreenShowCatalogType,
                                     hideUnreleasedContent = homescreenHideUnreleasedContent,
                                     scrollPostersLayoutEnabled = homescreenScrollPostersLayoutEnabled,
+                                    posterGutterSize = homescreenPosterGutterSize,
                                     alwaysAnimateCollectionCards = homescreenAlwaysAnimateCollectionCards,
                                     items = homescreenItems,
                                     isCatalogLoading = homescreenCatalogLoading,

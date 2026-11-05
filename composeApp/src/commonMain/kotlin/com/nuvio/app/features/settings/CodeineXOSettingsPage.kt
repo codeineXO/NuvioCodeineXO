@@ -209,6 +209,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         isTablet = isTablet,
                         onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
                     )
+                    if (homeCatalogSettings.scrollPostersLayoutEnabled) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        PosterGutterSizeSettingsRow(size = homeCatalogSettings.posterGutterSize, isTablet = isTablet)
+                    }
                 }
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(

@@ -994,7 +994,7 @@ fun HomeScreen(
             basePosterWidthDp.dp
         }
         val effectivePosterSectionPadding = if (useGutterLayout) {
-            homePosterGutterPaddingForWidth(contentWidth.value, effectivePosterWidth)
+            homePosterGutterPaddingForWidth(contentWidth.value, effectivePosterWidth, gutterSize = homeSettingsUiState.posterGutterSize)
         } else {
             homeSectionPadding
         }

@@ -2656,7 +2656,7 @@
     <string name="stream_info_player_engine">Player Engine</string>
     <string name="stream_info_server">Server</string>
     <string name="settings_homescreen_scroll_posters_layout">Scroll Posters Layout</string>
-    <string name="settings_homescreen_scroll_posters_layout_description">Scroll posters with scroll wheel when cursor is hovering over poster</string>
+    <string name="settings_homescreen_scroll_posters_layout_description">Use the mouse wheel over poster rows to scroll sideways. Move the pointer into either side empty space to scroll the page up or down.</string>
     <string name="settings_keyboard_navigation">Keyboard navigation</string>
     <string name="settings_keyboard_navigation_description">Use Arrow keys, Backspace, Enter and Esc to navigate the app</string>
     <string name="settings_homescreen_always_animate_collections">Always animate collection cards</string>
@@ -2724,4 +2724,9 @@
     <string name="subtitle_shadow_opacity">Shadow opacity</string>
     <string name="subtitle_shadow_size">Shadow size</string>
     <string name="subtitle_reset_appearance">Reset appearance</string>
+    <string name="settings_poster_gutter_size">Gutter size</string>
+    <string name="settings_poster_gutter_size_description">Adjust the side space used to scroll the page.</string>
+    <string name="settings_poster_gutter_size_default">Default</string>
+    <string name="settings_poster_gutter_size_narrow">Narrow</string>
+    <string name="settings_poster_gutter_size_wide">Wide</string>
 </resources>

@@ -64,8 +64,12 @@ internal fun mergeHomeCatalogSettingsJson(
     remoteJson: JsonObject?,
     localJson: JsonObject,
 ): JsonObject = buildJsonObject {
-    remoteJson?.forEach { (key, value) -> put(key, value) }
-    localJson.forEach { (key, value) -> put(key, value) }
+    val localOnlyKeys = setOf(
+        "scrollPostersLayoutEnabled", "scroll_posters_layout_enabled",
+        "posterGutterSize", "poster_gutter_size",
+    )
+    remoteJson?.forEach { (key, value) -> if (key !in localOnlyKeys) put(key, value) }
+    localJson.forEach { (key, value) -> if (key !in localOnlyKeys) put(key, value) }
 }
 
 object HomeCatalogSettingsSyncService {

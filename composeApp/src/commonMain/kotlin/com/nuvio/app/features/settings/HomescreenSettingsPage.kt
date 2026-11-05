@@ -44,6 +44,7 @@ import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
+import com.nuvio.app.features.home.PosterGutterSize
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
 import nuvio.composeapp.generated.resources.Res
@@ -87,6 +88,7 @@ internal fun LazyListScope.homescreenSettingsContent(
     showCatalogType: Boolean,
     hideUnreleasedContent: Boolean,
     scrollPostersLayoutEnabled: Boolean = false,
+    posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     alwaysAnimateCollectionCards: Boolean = false,
     items: List<HomeCatalogSettingsItem>,
     isCatalogLoading: Boolean,
@@ -148,6 +150,10 @@ internal fun LazyListScope.homescreenSettingsContent(
                         isTablet = isTablet,
                         onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
                     )
+                    if (scrollPostersLayoutEnabled) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        PosterGutterSizeSettingsRow(size = posterGutterSize, isTablet = isTablet)
+                    }
                 }
             }
         }

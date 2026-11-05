@@ -161,6 +161,7 @@ import com.nuvio.app.core.ui.PosterRowHoverViewport
 import com.nuvio.app.core.ui.PosterRowItem
 import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.home.PosterGutterSize
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
 import com.nuvio.app.features.details.EpisodeRatingsVisibility
@@ -340,6 +341,7 @@ fun DetailSeriesContent(
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val scrollPostersLayoutEnabled = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+    val posterGutterSize = homeCatalogSettings.posterGutterSize
 
     val isAnime = remember(meta) {
         MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
@@ -432,6 +434,7 @@ fun DetailSeriesContent(
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
                 scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                posterGutterSize = posterGutterSize,
                 episodeCardStyle = episodeCardStyle,
                 onSelect = { selectedSeasonOverride = it },
                 onLongPress = onSeasonLongPress,
@@ -610,6 +613,7 @@ fun DetailSeriesContent(
                                 preferredEpisodeNumber = preferredEpisodeNumber,
                             ),
                             scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                            posterGutterSize = posterGutterSize,
                             isEnhanced = isEnhanced,
                             listState = episodeListState,
                             onEpisodeClick = onEpisodeClick,
@@ -669,6 +673,7 @@ internal fun DetailSeriesListHeader(
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val scrollPostersLayoutEnabled = homeCatalogSettings.scrollPostersLayoutEnabled && isDesktop
+    val posterGutterSize = homeCatalogSettings.posterGutterSize
 
     val isAnime = remember(meta) {
         MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
@@ -688,6 +693,7 @@ internal fun DetailSeriesListHeader(
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
                 scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                posterGutterSize = posterGutterSize,
                 onSelect = onSeasonSelect,
                 onLongPress = onSeasonLongPress,
             )
@@ -772,6 +778,7 @@ private fun SeriesSeasonSelector(
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
     scrollPostersLayoutEnabled: Boolean = false,
+    posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Horizontal,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
@@ -918,6 +925,7 @@ private fun SeriesSeasonSelector(
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
                 scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                posterGutterSize = posterGutterSize,
                 showHoverPosterPreview = true,
                 seasonPosterForSeason = { season ->
                     resolveSeasonPoster(
@@ -949,6 +957,7 @@ private fun SeriesSeasonSelector(
                         sizing = sizing,
                         horizontalScrollPadding = horizontalScrollPadding,
                         scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                        posterGutterSize = posterGutterSize,
                         onSelect = onSelect,
                         onLongPress = onLongPress,
                     )
@@ -961,6 +970,7 @@ private fun SeriesSeasonSelector(
                         sizing = sizing,
                         horizontalScrollPadding = horizontalScrollPadding,
                         scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                        posterGutterSize = posterGutterSize,
                         onSelect = onSelect,
                         onLongPress = onLongPress,
                     )
@@ -976,6 +986,7 @@ private fun SeriesSeasonSelector(
                 sizing = sizing,
                 horizontalScrollPadding = horizontalScrollPadding,
                 scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                posterGutterSize = posterGutterSize,
                 onSelect = onSelect,
                 onLongPress = onLongPress,
             )
@@ -1154,6 +1165,7 @@ private fun SeasonTextChipScrollRow(
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
     scrollPostersLayoutEnabled: Boolean = false,
+    posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     showHoverPosterPreview: Boolean = false,
     seasonPosterForSeason: ((Int) -> String?)? = null,
     onSelect: (Int) -> Unit,
@@ -1179,7 +1191,9 @@ private fun SeasonTextChipScrollRow(
     } else {
         if (isDesktop) 28.dp else 16.dp
     }
-    val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
+    val effectiveGutterPadding = if (isDesktop) {
+        ((bleedPadding + SeriesScrollPostersExtraGutter) * posterGutterSize.multiplier).coerceAtLeast(bleedPadding)
+    } else bleedPadding
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -1387,6 +1401,7 @@ private fun SeasonPosterScrollRow(
     sizing: SeriesContentSizing,
     horizontalScrollPadding: Dp,
     scrollPostersLayoutEnabled: Boolean = false,
+    posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     onSelect: (Int) -> Unit,
     onLongPress: ((Int) -> Unit)?,
 ) {
@@ -1406,7 +1421,9 @@ private fun SeasonPosterScrollRow(
     } else {
         if (isDesktop) 28.dp else 16.dp
     }
-    val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
+    val effectiveGutterPadding = if (isDesktop) {
+        ((bleedPadding + SeriesScrollPostersExtraGutter) * posterGutterSize.multiplier).coerceAtLeast(bleedPadding)
+    } else bleedPadding
     var hasPositionedSeasonRow by remember(seasons) { mutableStateOf(false) }
 
     LaunchedEffect(seasons, currentSeason) {
@@ -1794,6 +1811,7 @@ private fun EpisodeHorizontalRow(
     blurUnwatchedEpisodes: Boolean,
     preferredEpisodeNumber: Int? = null,
     scrollPostersLayoutEnabled: Boolean = false,
+    posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     isEnhanced: Boolean = false,
     listState: LazyListState = rememberLazyListState(),
     onEpisodeClick: ((MetaVideo) -> Unit)?,
@@ -1834,7 +1852,9 @@ private fun EpisodeHorizontalRow(
     } else {
         desktopPageHorizontalPaddingForWidth(maxWidthDp)
     }
-    val effectiveGutterPadding = bleedPadding + if (isDesktop) SeriesScrollPostersExtraGutter else 0.dp
+    val effectiveGutterPadding = if (isDesktop) {
+        ((bleedPadding + SeriesScrollPostersExtraGutter) * posterGutterSize.multiplier).coerceAtLeast(bleedPadding)
+    } else bleedPadding
     LaunchedEffect(listState) {
         androidx.compose.runtime.snapshotFlow { listState.isScrollInProgress }.collect { if (it) hasPositioned = true }
     }

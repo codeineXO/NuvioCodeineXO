@@ -352,7 +352,7 @@ fun LibraryScreen(
             basePosterWidthDp.dp
         }
         val posterSectionPadding = if (useGutterLayout) {
-            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth)
+            homePosterGutterPaddingForWidth(maxWidth.value, effectivePosterWidth, gutterSize = homeCatalogSettings.posterGutterSize)
         } else {
             16.dp
         }

@@ -45,6 +45,7 @@ data class HomeCatalogSettingsUiState(
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val scrollPostersLayoutEnabled: Boolean = false,
+    val posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     val alwaysAnimateCollectionCards: Boolean = false,
     val items: List<HomeCatalogSettingsItem> = emptyList(),
 ) {
@@ -57,6 +58,8 @@ data class HomeCatalogSettingsUiState(
             append(hideUnreleasedContent)
             append('|')
             append(scrollPostersLayoutEnabled)
+            append('|')
+            append(posterGutterSize.key)
             append('|')
             append(
                 items.joinToString(separator = "|") { item ->
@@ -78,6 +81,7 @@ internal data class HomeCatalogSettingsSnapshot(
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
     val scrollPostersLayoutEnabled: Boolean = false,
+    val posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     val alwaysAnimateCollectionCards: Boolean = false,
     val preferences: Map<String, HomeCatalogPreference>,
 )
@@ -97,6 +101,7 @@ private data class StoredHomeCatalogSettingsPayload(
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val scrollPostersLayoutEnabled: Boolean = false,
+    val posterGutterSize: String = PosterGutterSize.Default.key,
     val alwaysAnimateCollectionCards: Boolean = false,
     val items: List<StoredHomeCatalogPreference> = emptyList(),
 )
@@ -139,6 +144,7 @@ object HomeCatalogSettingsRepository {
     private var showCatalogType = true
     private var hideUnreleasedContent = false
     private var scrollPostersLayoutEnabled = false
+    private var posterGutterSize = PosterGutterSize.Default
     private var alwaysAnimateCollectionCards = false
 
     fun onProfileChanged() {
@@ -148,6 +154,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         scrollPostersLayoutEnabled = false
+        posterGutterSize = PosterGutterSize.Default
         alwaysAnimateCollectionCards = false
         definitions = emptyList()
         collectionDefinitions = emptyList()
@@ -169,6 +176,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         scrollPostersLayoutEnabled = false
+        posterGutterSize = PosterGutterSize.Default
         alwaysAnimateCollectionCards = false
         snapshotRef.value = emptySnapshot
         lastPersistedPayload = null
@@ -273,6 +281,15 @@ object HomeCatalogSettingsRepository {
         persist()
     }
 
+    // Desktop layout preferences are local to the active profile and never trigger account sync.
+    fun setPosterGutterSize(size: PosterGutterSize) {
+        ensureLoaded()
+        if (posterGutterSize == size) return
+        posterGutterSize = size
+        publish()
+        persist()
+    }
+
     fun setScrollPostersLayoutEnabled(enabled: Boolean) {
         ensureLoaded()
         if (scrollPostersLayoutEnabled == enabled) return
@@ -365,6 +382,7 @@ object HomeCatalogSettingsRepository {
             showCatalogType = parsedPayload.showCatalogType
             hideUnreleasedContent = parsedPayload.hideUnreleasedContent
             scrollPostersLayoutEnabled = parsedPayload.scrollPostersLayoutEnabled
+            posterGutterSize = PosterGutterSize.fromKey(parsedPayload.posterGutterSize)
             alwaysAnimateCollectionCards = parsedPayload.alwaysAnimateCollectionCards
             preferences = parsedPayload.items.associateBy { it.key }
             publish()
@@ -433,6 +451,7 @@ object HomeCatalogSettingsRepository {
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
             scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+            posterGutterSize = posterGutterSize,
             alwaysAnimateCollectionCards = alwaysAnimateCollectionCards,
             preferences = preferences.mapValues { (_, value) ->
                 HomeCatalogPreference(
@@ -481,6 +500,7 @@ object HomeCatalogSettingsRepository {
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
             scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+            posterGutterSize = posterGutterSize,
             alwaysAnimateCollectionCards = alwaysAnimateCollectionCards,
             items = items,
         )
@@ -494,6 +514,7 @@ object HomeCatalogSettingsRepository {
                 showCatalogType = showCatalogType,
                 hideUnreleasedContent = hideUnreleasedContent,
                 scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                posterGutterSize = posterGutterSize.key,
                 alwaysAnimateCollectionCards = alwaysAnimateCollectionCards,
                 items = preferences.values.sortedBy { it.order },
             ),
