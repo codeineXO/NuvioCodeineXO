@@ -605,6 +605,8 @@ const SubtitleOutlineEffects = [
 ];
 let isScrubbing = false;
 let scrubPositionMs = 0;
+let frozenSeekTimePositionMs = null;
+let renderedTimePositionMs = 0;
 let seekSuppressBufferingUntil = 0;
 let seekSeenLoading = false;
 let bufferingDebounceTimer = 0;
@@ -1414,6 +1416,8 @@ const formatTime = milliseconds => {
 };
 
 const setProgress = (positionMs, durationMs, bufferedPositionMs = state.bufferedPositionMs) => {
+  const timePositionMs = frozenSeekTimePositionMs ?? positionMs;
+  renderedTimePositionMs = timePositionMs;
   const percent = durationMs > 0 ? Math.max(0, Math.min(100, positionMs / durationMs * 100)) : 0;
   seek.value = Math.round(percent * 10);
   seek.style.setProperty("--progress", `${percent}%`);
@@ -1432,22 +1436,22 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
     codeineSeekContainer.style.setProperty("--buffered", `${bufferedPercent}%`);
   }
   seek.style.setProperty("--bufferProgress", `${bufferedPercent}%`);
-  positionLabel.textContent = formatTime(positionMs);
+  positionLabel.textContent = formatTime(timePositionMs);
   durationLabel.textContent = formatTime(durationMs);
   if (timeLabel) {
     durationMs = durationMs - (durationMs % 1000);
     if (timeLabelShowRemaining) {
-      let remainingTimeMs = durationMs - positionMs + (positionMs % 1000 == 0 ? 0 : 1000);
+      let remainingTimeMs = durationMs - timePositionMs + (timePositionMs % 1000 == 0 ? 0 : 1000);
       timeLabel.textContent = `-${formatTime(remainingTimeMs)}`;
     } else {
-      timeLabel.textContent = `${formatTime(positionMs)} / ${formatTime(durationMs)}`;
+      timeLabel.textContent = `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`;
     }
   }
   if (codeineTimeLabel) {
-    codeineTimeLabel.textContent = `${formatTime(positionMs)} / ${formatTime(durationMs)}`;
+    codeineTimeLabel.textContent = `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`;
   }
   if (codeinePosition) {
-    const posText = formatTime(positionMs);
+    const posText = formatTime(timePositionMs);
     if (codeinePosition.textContent !== posText) {
       codeinePosition.textContent = posText;
     }
@@ -1455,7 +1459,7 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
   if (codeineDuration) {
     let durText;
     if (codeineShowRemaining && durationMs > 0) {
-      const remainingMs = Math.max(0, durationMs - positionMs);
+      const remainingMs = Math.max(0, durationMs - timePositionMs);
       durText = `-${formatTime(remainingMs)}`;
     } else {
       durText = formatTime(durationMs);
@@ -5676,6 +5680,7 @@ function seekHoverSourceKey() {
 }
 
 function clearSeekPreviewInteraction() {
+  frozenSeekTimePositionMs = null;
   window.clearTimeout(seekKeyboardTimer);
   seekKeyboardTimer = 0;
   seekKeyboardPositionMs = null;
@@ -5998,6 +6003,7 @@ seek.addEventListener("input", () => {
 });
 
 seek.addEventListener("change", () => {
+  frozenSeekTimePositionMs = null;
   noteChromeActivity();
   triggerSeekbarOnlyOnSeek();
   scrubPositionMs = rangePositionMs();
@@ -6042,6 +6048,7 @@ seek.addEventListener("pointerleave", () => {
 });
 seek.addEventListener("pointerdown", event => {
   if (event.pointerType && event.pointerType !== "mouse") return;
+  frozenSeekTimePositionMs = renderedTimePositionMs;
   seekPointerDownX = event.clientX;
   seekDragActive = false;
   window.clearTimeout(seekKeyboardTimer);
@@ -6052,6 +6059,7 @@ seek.addEventListener("pointerdown", event => {
 });
 window.addEventListener("pointerup", event => {
   if (seekPointerDownX === null) return;
+  frozenSeekTimePositionMs = null;
   seekPointerDownX = null;
   seekDragActive = false;
   const rect = seek.getBoundingClientRect();
