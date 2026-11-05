@@ -175,6 +175,13 @@ fun <T> NuvioShelfSection(
         )
     }
 
+    val arrowScroll = rememberSoftArrowScroll(state)
+    val verticalBar = LocalVerticalBarPadding.current
+    BindArrowScrollViewport(
+        arrowScroll,
+        horizontalOverflow + ShelfPosterViewportSafetyInset + verticalBar.calculateStartPadding(direction),
+        horizontalOverflow + ShelfPosterViewportSafetyInset + verticalBar.calculateEndPadding(direction),
+    )
     val sectionModifier = if (useGutterLayout) {
         Modifier
             .fillMaxWidth()
@@ -198,12 +205,7 @@ fun <T> NuvioShelfSection(
                 onTitleClick = onTitleClick,
                 showRowNavigationControls = showRowNavigationControls,
                 state = state,
-                useGutterLayout = useGutterLayout,
-                viewportInset = if (useGutterLayout) {
-                    rowHoverInset + ShelfPosterViewportSafetyInset
-                } else {
-                    horizontalOverflow + ShelfPosterViewportSafetyInset
-                },
+                arrowScroll = arrowScroll,
             )
         }
         PosterShelfScrollOwner(shelfController) {
@@ -592,11 +594,9 @@ private fun NuvioShelfSectionHeader(
     onTitleClick: (() -> Unit)? = null,
     showRowNavigationControls: Boolean = false,
     state: LazyListState,
-    useGutterLayout: Boolean,
-    viewportInset: Dp,
+    arrowScroll: SoftArrowScroll,
 ) {
     val tokens = MaterialTheme.nuvio
-    val arrowScroll = rememberSoftArrowScroll(state)
     Column(
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -624,15 +624,11 @@ private fun NuvioShelfSectionHeader(
                     state = state,
                     arrowScroll = arrowScroll,
                     direction = ShelfScrollDirection.Backward,
-                    useGutterLayout = useGutterLayout,
-                    viewportInset = viewportInset,
                 )
                 ShelfRowNavigationButton(
                     state = state,
                     arrowScroll = arrowScroll,
                     direction = ShelfScrollDirection.Forward,
-                    useGutterLayout = useGutterLayout,
-                    viewportInset = viewportInset,
                 )
             }
             val viewAllPlaceholderModifier = if (onViewAllClick == null) {
@@ -660,10 +656,7 @@ private fun ShelfRowNavigationButton(
     state: LazyListState,
     arrowScroll: SoftArrowScroll,
     direction: ShelfScrollDirection,
-    useGutterLayout: Boolean,
-    viewportInset: Dp,
 ) {
-    val viewportInsetPx = with(LocalDensity.current) { viewportInset.roundToPx() }
     val enabled = when (direction) {
         ShelfScrollDirection.Backward -> state.canScrollBackward
         ShelfScrollDirection.Forward -> state.canScrollForward
@@ -677,8 +670,7 @@ private fun ShelfRowNavigationButton(
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides NuvioTokens.Space.none) {
         IconButton(
             onClick = {
-                val scrollDistance = shelfViewportScrollDistance(state, direction, viewportInsetPx, useGutterLayout)
-                arrowScroll.scrollBy(scrollDistance)
+                arrowScroll.scrollPage(forward = direction == ShelfScrollDirection.Forward)
             },
             enabled = enabled,
             modifier = Modifier
@@ -695,69 +687,6 @@ private fun ShelfRowNavigationButton(
                 contentDescription = contentDescription,
                 tint = MaterialTheme.nuvio.colors.textMuted,
             )
-        }
-    }
-}
-
-private fun shelfViewportScrollDistance(
-    state: LazyListState,
-    direction: ShelfScrollDirection,
-    viewportInsetPx: Int,
-    useGutterLayout: Boolean,
-): Float {
-    val layout = state.layoutInfo
-    // Item offsets start after the leading content padding; the visible viewport
-    // starts before it. Keep the existing gutter paging bounds in enabled mode.
-    val viewportStart = if (useGutterLayout) viewportInsetPx.toFloat()
-        else (layout.viewportStartOffset + viewportInsetPx).toFloat()
-    val viewportEnd = if (useGutterLayout) (layout.viewportSize.width - viewportInsetPx).toFloat()
-        else (layout.viewportEndOffset - viewportInsetPx).toFloat()
-    if (viewportEnd <= viewportStart) return 0f
-
-    val visibleItems = layout.visibleItemsInfo
-    if (visibleItems.isEmpty()) return 0f
-
-    val clippedAtEdge = when (direction) {
-        ShelfScrollDirection.Backward -> visibleItems.firstOrNull { item ->
-            item.offset < viewportStart && item.offset + item.size > viewportStart
-        }
-        ShelfScrollDirection.Forward -> visibleItems.lastOrNull { item ->
-            item.offset < viewportEnd && item.offset + item.size > viewportEnd
-        }
-    }
-    if (clippedAtEdge != null) {
-        // Keep one neighbouring poster for context, using measured widths so
-        // mixed shapes and custom sizes work too. Fall back when both cannot fit
-        // or keeping the neighbour would prevent movement in this direction.
-        val neighbour = visibleItems.firstOrNull {
-            it.index == clippedAtEdge.index + if (direction == ShelfScrollDirection.Forward) -1 else 1
-        }
-        val viewportWidth = viewportEnd - viewportStart
-        return when (direction) {
-            ShelfScrollDirection.Backward -> {
-                val end = neighbour?.let { it.offset + it.size }
-                    ?.takeIf { it - clippedAtEdge.offset <= viewportWidth && it < viewportEnd - 0.5f }
-                    ?: (clippedAtEdge.offset + clippedAtEdge.size)
-                end - viewportEnd
-            }
-            ShelfScrollDirection.Forward -> {
-                val start = neighbour?.offset
-                    ?.takeIf { clippedAtEdge.offset + clippedAtEdge.size - it <= viewportWidth && it > viewportStart + 0.5f }
-                    ?: clippedAtEdge.offset
-                start - viewportStart
-            }
-        }
-    }
-
-    val spacing = layout.mainAxisItemSpacing
-    return when (direction) {
-        ShelfScrollDirection.Backward -> {
-            val first = visibleItems.firstOrNull { it.offset + it.size > viewportStart } ?: return 0f
-            first.offset - spacing - viewportEnd
-        }
-        ShelfScrollDirection.Forward -> {
-            val last = visibleItems.lastOrNull { it.offset < viewportEnd } ?: return 0f
-            last.offset + last.size + spacing - viewportStart
         }
     }
 }

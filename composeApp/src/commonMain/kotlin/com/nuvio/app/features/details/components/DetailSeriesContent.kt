@@ -2,6 +2,8 @@ package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.softScrollToItem
 import com.nuvio.app.core.ui.navigationMotionDuration
+import com.nuvio.app.core.ui.SoftArrowScroll
+import com.nuvio.app.core.ui.BindArrowScrollViewport
 import com.nuvio.app.core.ui.rememberSoftArrowScroll
 
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
@@ -503,8 +505,6 @@ fun DetailSeriesContent(
                             offset = Offset(0f, 2f),
                             blurRadius = 8f,
                         )
-                        val density = LocalDensity.current
-                        val episodeScrollOffsetPx = remember(density) { with(density) { (-48.dp).toPx().toInt() } }
                         Row(
                             modifier = Modifier.fillMaxWidth().remoteNavigationGroup(rememberRow = true),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -528,14 +528,14 @@ fun DetailSeriesContent(
                                     direction = ScrollNavDirection.Left,
                                     enabled = canScrollBack,
                                     onClick = {
-                                        episodeArrows.scrollPage(forward = false, scrollOffset = episodeScrollOffsetPx)
+                                        episodeArrows.scrollPage(forward = false)
                                     },
                                 )
                                 HeaderScrollArrowButton(
                                     direction = ScrollNavDirection.Right,
                                     enabled = canScrollFwd,
                                     onClick = {
-                                        episodeArrows.scrollPage(forward = true, scrollOffset = episodeScrollOffsetPx)
+                                        episodeArrows.scrollPage(forward = true)
                                     },
                                 )
                                 ViewListButton(
@@ -616,6 +616,7 @@ fun DetailSeriesContent(
                             posterGutterSize = posterGutterSize,
                             isEnhanced = isEnhanced,
                             listState = episodeListState,
+                            episodeArrows = episodeArrows,
                             onEpisodeClick = onEpisodeClick,
                             onEpisodeLongPress = onEpisodeLongPress,
                         )
@@ -936,6 +937,7 @@ private fun SeriesSeasonSelector(
                 },
                 isEnhanced = true,
                 seasonListState = seasonListState,
+                seasonArrows = seasonArrows,
                 onSelect = onSelect,
                 onLongPress = onLongPress,
             )
@@ -1175,6 +1177,7 @@ private fun SeasonTextChipScrollRow(
     onSeasonUp: (suspend () -> Unit)? = null,
     isEnhanced: Boolean = false,
     seasonListState: LazyListState = rememberLazyListState(),
+    seasonArrows: SoftArrowScroll = rememberSoftArrowScroll(seasonListState),
 ) {
     var previewRowBounds by remember { mutableStateOf(Rect.Zero) }
     val rowNavigation = rememberSeriesRowNavigation(seasonListState, seasons)
@@ -1183,7 +1186,7 @@ private fun SeasonTextChipScrollRow(
         val visible = seasonListState.layoutInfo.visibleItemsInfo.any { it.index == index }
         if (!visible) seasonListState.softScrollToItem((index - if (rowNavigation.controller != null) 1 else 0).coerceAtLeast(0))
     }
-    val seasonArrows = rememberSoftArrowScroll(seasonListState)
+    BindArrowScrollViewport(seasonArrows, 0.dp)
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val bleedPadding = if (horizontalScrollPadding > 0.dp) {
@@ -1414,6 +1417,7 @@ private fun SeasonPosterScrollRow(
         }
     }
     val seasonArrows = rememberSoftArrowScroll(seasonListState)
+    BindArrowScrollViewport(seasonArrows, 0.dp)
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val bleedPadding = if (horizontalScrollPadding > 0.dp) {
@@ -1814,6 +1818,7 @@ private fun EpisodeHorizontalRow(
     posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
     isEnhanced: Boolean = false,
     listState: LazyListState = rememberLazyListState(),
+    episodeArrows: SoftArrowScroll = rememberSoftArrowScroll(listState),
     onEpisodeClick: ((MetaVideo) -> Unit)?,
     onEpisodeLongPress: ((MetaVideo) -> Unit)?,
 ) {
@@ -1844,7 +1849,6 @@ private fun EpisodeHorizontalRow(
         if (fixedPath) listState.revealShelfItem(entryIndex)
         androidx.compose.runtime.withFrameNanos { }
     }
-    val episodeArrows = rememberSoftArrowScroll(listState)
     val density = LocalDensity.current
     val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
     val bleedPadding = if (horizontalScrollPadding > 0.dp) {
@@ -1881,6 +1885,7 @@ private fun EpisodeHorizontalRow(
     val glowOutset = if (isDesktop && rememberPosterCardStyleUiState().glowEnabled) PosterGlowOutset else 0.dp
     val rowHoverInset = maxOf(if (isDesktop) DesktopPosterRowHoverInset else 0.dp, glowOutset)
     val horizontalOverflow = if (scrollPostersLayoutEnabled) rowHoverInset else glowOutset
+    BindArrowScrollViewport(episodeArrows, horizontalOverflow)
     val hoverViewport = remember { PosterRowHoverViewport() }
     hoverViewport.inset = horizontalOverflow
     val rowGlassSource = if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(rowHazeState) else Modifier
