@@ -63,6 +63,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.ui.FrostedGlassTokens
+import com.nuvio.app.core.ui.frostedGlassShadow
+import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.nuvio
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
@@ -113,22 +116,38 @@ internal fun ProfilePopupContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .onGloballyPositioned { panelBounds = it.boundsInParent() }
-                    .shadow(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) 0.dp else 12.dp, shape)
+                    .then(
+                        if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) {
+                            Modifier
+                        } else if (LocalFrostedGlassEnabled.current && hazeState != null) {
+                            Modifier.frostedGlassShadow(shape, 12.dp)
+                        } else {
+                            Modifier.shadow(12.dp, shape)
+                        },
+                    )
                     .clip(shape)
                     .then(
                         if (LocalFrostedGlassEnabled.current && hazeState != null) {
-                            Modifier.hazeEffect(hazeState) {
-                                blurRadius = 24.dp
-                                backgroundColor = Color(0xFF1C1C1E)
-                                tints = listOf(HazeTint(Color(0xFF1C1C1E).copy(alpha = 0.55f)))
-                                fallbackTint = HazeTint(Color(0xFF1C1C1E).copy(alpha = 0.94f))
-                                noiseFactor = 0f
-                            }
+                            Modifier
+                                .hazeEffect(hazeState) {
+                                    blurRadius = FrostedGlassTokens.PanelBlurRadius
+                                    noiseFactor = FrostedGlassTokens.NoiseFactor
+                                    inputScale = FrostedGlassTokens.PanelInputScale
+                                    backgroundColor = tokens.colors.background
+                                    tints = listOf(HazeTint(FrostedGlassTokens.PanelTintColor))
+                                    fallbackTint = HazeTint(FrostedGlassTokens.FallbackColor)
+                                }
                         } else {
-                            Modifier.background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) tokens.colors.background else tokens.colors.surfacePopover.copy(alpha = 1f))
+                            Modifier.background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.FallbackColor else tokens.colors.surfacePopover.copy(alpha = 1f))
                         },
                     )
-                    .border(0.5.dp, tokens.colors.borderDefault, shape)
+                    .then(
+                        if (LocalFrostedGlassEnabled.current) {
+                            Modifier.frostedGlassBorder(shape)
+                        } else {
+                            Modifier.border(0.5.dp, tokens.colors.borderDefault, shape)
+                        },
+                    )
                     .padding(12.dp),
             ) {
                 AnimatedContent(

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -175,20 +176,33 @@ fun NuvioNavigationBar(
         contentAlignment = Alignment.BottomCenter,
     ) {
         // The floating pill
+        val pillShape = RoundedCornerShape(NuvioTokens.Radius.full)
         val pillModifier = Modifier
             .padding(horizontal = horizontalPadding)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(NuvioTokens.Radius.full))
+            .then(
+                if (LocalFrostedGlassEnabled.current && hazeState != null) {
+                    Modifier.frostedGlassShadow(pillShape, 6.dp)
+                } else {
+                    Modifier
+                },
+            )
+            .clip(pillShape)
+            .then(if (LocalFrostedGlassEnabled.current) Modifier.frostedGlassBorder(pillShape) else Modifier)
             .then(
                 if (LocalFrostedGlassEnabled.current && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 24.dp
+                        blurRadius = FrostedGlassTokens.BlurRadius
+                        noiseFactor = FrostedGlassTokens.NoiseFactor
+                        tints = emptyList()
+                        fallbackTint = HazeTint(FrostedGlassTokens.FallbackColor)
+                        inputScale = FrostedGlassTokens.InputScale
                     }
                 } else {
                     Modifier
                 },
             )
-            .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) Color(0xFF1C1C1E).copy(alpha = if (hazeState != null) 0.55f else 0.82f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
+            .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) (if (hazeState?.areas?.isNotEmpty() == true) FrostedGlassTokens.TintColor else FrostedGlassTokens.FallbackColor) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f))
 
         Box(modifier = pillModifier) {
             Row(

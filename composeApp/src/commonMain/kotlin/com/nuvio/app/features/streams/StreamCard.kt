@@ -64,10 +64,7 @@ import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.navigationGlassFeedback
 import com.nuvio.app.core.ui.SkeletonBlock
 import com.nuvio.app.features.debrid.DebridProviders
-import com.nuvio.app.features.player.LocalPlayerHazeState
 import com.nuvio.app.isDesktop
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 
 internal val LocalStreamHighlight = staticCompositionLocalOf<(StreamItem) -> String?> { { null } }
 
@@ -107,7 +104,6 @@ internal fun StreamCard(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
     val interactionSource = remember { MutableInteractionSource() }
-    val playerHazeState = LocalPlayerHazeState.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceStyle = LocalSurfaceStyle.current
     val cardElevation = if (surfaceStyle == SurfaceStyle.DarkGlass) 0.dp else 2.dp
@@ -135,32 +131,6 @@ internal fun StreamCard(
                     Modifier.background(DarkGlassSurfaceColor).then(
                         if (marked) Modifier.background(primaryColor.copy(alpha = 0.12f)) else Modifier,
                     )
-                } else if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
-                    Modifier.hazeEffect(state = playerHazeState) {
-                        blurRadius = 160.dp
-                        noiseFactor = 0f
-                        backgroundColor = if (marked) {
-                            primaryColor.copy(alpha = 0.25f)
-                        } else {
-                            Color.Black.copy(alpha = 0.68f)
-                        }
-                        tints = listOf(
-                            HazeTint(
-                                if (marked) {
-                                    primaryColor.copy(alpha = 0.25f)
-                                } else {
-                                    Color.Black.copy(alpha = 0.68f)
-                                },
-                            ),
-                        )
-                        fallbackTint = HazeTint(
-                            if (marked) {
-                                primaryColor.copy(alpha = 0.35f)
-                            } else {
-                                Color.Black.copy(alpha = 0.95f)
-                            },
-                        )
-                    }
                 } else {
                     Modifier.background(
                         if (!LocalFrostedGlassEnabled.current) {
@@ -183,12 +153,6 @@ internal fun StreamCard(
                     )
                 } else if (resultsGlass) {
                     Modifier.streamResultsBorder(cardShape)
-                } else if (playerHazeState != null) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else MaterialTheme.nuvio.colors.borderDefault,
-                        shape = cardShape,
-                    )
                 } else {
                     Modifier
                 },
@@ -311,7 +275,6 @@ internal fun StreamCard(
 
 @Composable
 internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
-    val playerHazeState = LocalPlayerHazeState.current
     val cardShape = RoundedCornerShape(12.dp)
     Column(
         modifier = modifier
@@ -323,14 +286,6 @@ internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
                     Modifier.streamResultsSurface()
                 } else if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) {
                     Modifier.background(DarkGlassSurfaceColor)
-                } else if (LocalFrostedGlassEnabled.current && playerHazeState != null) {
-                    Modifier.hazeEffect(state = playerHazeState) {
-                        blurRadius = 160.dp
-                        noiseFactor = 0f
-                        backgroundColor = Color.Black.copy(alpha = 0.65f)
-                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.65f)))
-                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
-                    }
                 } else {
                     Modifier.background(if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.05f) else MaterialTheme.nuvio.colors.surfaceCard.copy(alpha = 1f))
                 },
@@ -338,12 +293,6 @@ internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
             .then(
                 if (LocalStreamResultsGlass.current) {
                     Modifier.streamResultsBorder(cardShape)
-                } else if (playerHazeState != null) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else MaterialTheme.nuvio.colors.borderDefault,
-                        shape = cardShape,
-                    )
                 } else {
                     Modifier
                 },

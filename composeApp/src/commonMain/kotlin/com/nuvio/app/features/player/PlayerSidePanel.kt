@@ -37,13 +37,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -68,7 +63,6 @@ import nuvio.composeapp.generated.resources.collections_tab_all
 import nuvio.composeapp.generated.resources.streams_refresh
 import org.jetbrains.compose.resources.stringResource
 
-internal val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
 
 @Composable
 internal fun PlayerSidePanel(
@@ -77,7 +71,6 @@ internal fun PlayerSidePanel(
     width: Dp = 520.dp,
     modal: Boolean = true,
     modifier: Modifier = Modifier,
-    hazeState: HazeState? = LocalPlayerHazeState.current,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -113,44 +106,32 @@ internal fun PlayerSidePanel(
             val resolvedWidth = minOf(maxWidth, width)
             val shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
 
-            CompositionLocalProvider(LocalPlayerHazeState provides hazeState) {
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .animateEnterExit(
-                            enter = slideInHorizontally(tween(250)) { it * slideDirection },
-                            exit = slideOutHorizontally(tween(200)) { it * slideDirection },
-                        )
-                        .width(resolvedWidth)
-                        .fillMaxHeight()
-                        .clip(shape)
-                        .then(
-                            if (LocalFrostedGlassEnabled.current && hazeState != null) {
-                                Modifier.hazeEffect(state = hazeState) {
-                                    blurRadius = 100.dp
-                                    noiseFactor = 0f
-                                    backgroundColor = Color.Black.copy(alpha = 0.58f)
-                                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.58f)))
-                                    fallbackTint = HazeTint(Color.Black.copy(alpha = 0.92f))
-                                }
-                            } else {
-                                Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.90f) else tokens.colors.surfacePopover.copy(alpha = 1f))
-                            },
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
-                            shape = shape,
-                        )
-                        .clickable(
-                            interactionSource = panelInteraction,
-                            indication = null,
-                            onClick = {},
-                        )
-                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.End)),
-                    content = content,
-                )
-            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .animateEnterExit(
+                        enter = slideInHorizontally(tween(250)) { it * slideDirection },
+                        exit = slideOutHorizontally(tween(200)) { it * slideDirection },
+                    )
+                    .width(resolvedWidth)
+                    .fillMaxHeight()
+                    .clip(shape)
+                    .then(
+                        Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.90f) else tokens.colors.surfacePopover.copy(alpha = 1f)),
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.10f) else tokens.colors.borderDefault,
+                        shape = shape,
+                    )
+                    .clickable(
+                        interactionSource = panelInteraction,
+                        indication = null,
+                        onClick = {},
+                    )
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.End)),
+                content = content,
+            )
         }
     }
 }
@@ -193,28 +174,17 @@ internal fun PlayerDialogButton(
     enabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
-    val hazeState = LocalPlayerHazeState.current
 
     Box(
         modifier = modifier
             .alpha(if (enabled) 1f else tokens.opacity.disabled)
             .clip(RoundedCornerShape(12.dp))
             .then(
-                if (LocalFrostedGlassEnabled.current && hazeState != null) {
-                    Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 120.dp
-                        noiseFactor = 0f
-                        backgroundColor = Color.Black.copy(alpha = 0.65f)
-                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.65f)))
-                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
-                    }
-                } else {
-                    Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.88f) else MaterialTheme.nuvio.colors.surfaceCard.copy(alpha = 1f))
-                },
+                Modifier.background(if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.88f) else MaterialTheme.nuvio.colors.surfaceCard.copy(alpha = 1f)),
             )
             .border(
                 width = 1.dp,
-                color = if (!LocalFrostedGlassEnabled.current) tokens.colors.borderDefault else if (hazeState != null) Color.White.copy(alpha = 0.10f) else Color.Transparent,
+                color = if (!LocalFrostedGlassEnabled.current) tokens.colors.borderDefault else Color.Transparent,
                 shape = RoundedCornerShape(12.dp),
             )
             .clickable(enabled = enabled, onClick = onClick)
@@ -294,7 +264,6 @@ private fun AddonFilterChip(
     iconModifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
-    val hazeState = LocalPlayerHazeState.current
     val containerColor = when {
         hasError -> tokens.colors.danger.copy(alpha = 0.06f)
         isSelected -> tokens.colors.accent
@@ -310,24 +279,13 @@ private fun AddonFilterChip(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .then(
-                if (LocalFrostedGlassEnabled.current && !isSelected && !hasError && hazeState != null) {
-                    Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 120.dp
-                        noiseFactor = 0f
-                        backgroundColor = containerColor
-                        tints = listOf(HazeTint(containerColor))
-                        fallbackTint = HazeTint(Color.Black.copy(alpha = 0.94f))
-                    }
-                } else {
-                    Modifier.background(if (!LocalFrostedGlassEnabled.current && !isSelected) tokens.colors.surfaceCard.copy(alpha = 1f) else if (hasError || isSelected) containerColor else Color.Black.copy(alpha = 0.88f))
-                },
+                Modifier.background(if (!LocalFrostedGlassEnabled.current && !isSelected) tokens.colors.surfaceCard.copy(alpha = 1f) else if (hasError || isSelected) containerColor else Color.Black.copy(alpha = 0.88f)),
             )
             .border(
                 1.dp,
                 when {
                     hasError -> tokens.colors.danger.copy(alpha = 0.7f)
                     isSelected -> Color.Transparent
-                    LocalFrostedGlassEnabled.current && hazeState != null -> Color.White.copy(alpha = 0.10f)
                     else -> tokens.colors.borderDefault
                 },
                 RoundedCornerShape(20.dp),

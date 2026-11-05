@@ -1,5 +1,8 @@
 package com.nuvio.app
 
+import com.nuvio.app.core.ui.FrostedGlassTokens
+import com.nuvio.app.core.ui.frostedGlassShadow
+import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.core.ui.DarkGlassSurfaceColor
 import com.nuvio.app.core.ui.DarkGlassPanelContent
@@ -131,6 +134,7 @@ import com.nuvio.app.isDesktop
 import com.nuvio.app.navigation.AppRoute
 import com.nuvio.app.navigation.NuvioNavigator
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.flow.Flow
 import nuvio.composeapp.generated.resources.Res
@@ -382,11 +386,16 @@ internal fun TabletFloatingTopBar(
     val isScrolled = supportsScrollFrostedHaze && isScrolledAwayFromTop
     val isFrosted = isScrolled || isHovered || isProfileSwitcherOpen
 
+    val glassElevation by animateFloatAsState(
+        targetValue = if (LocalFrostedGlassEnabled.current && isFrosted) 6f else 0f,
+        animationSpec = tween(320),
+        label = "glass_elevation",
+    )
     val surfaceColor by animateColorAsState(
         targetValue = if (isFrosted) {
-            Color(0xFF1C1C1E).copy(alpha = 0.30f)
+            FrostedGlassTokens.TintColor
         } else {
-            Color(0xFF0F0F11).copy(alpha = 0.20f)
+            Color.White.copy(alpha = 0.04f)
         },
         animationSpec = tween(
             durationMillis = 320,
@@ -424,14 +433,6 @@ internal fun TabletFloatingTopBar(
         label = "top_bar_label_fraction",
     )
 
-    val frostedSheenAlpha by animateFloatAsState(
-        targetValue = if (isFrosted) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = 320,
-            easing = FastOutSlowInEasing,
-        ),
-        label = "top_bar_sheen_alpha",
-    )
 
     val pillHeight = when {
         isNarrowWindow -> 34.dp
@@ -504,11 +505,23 @@ internal fun TabletFloatingTopBar(
     ) {
         val chipShape = tokens.shapes.chip
         val pillModifier = Modifier
+            .then(
+                if (LocalFrostedGlassEnabled.current) {
+                    Modifier.frostedGlassShadow(chipShape, glassElevation.dp)
+                } else {
+                    Modifier
+                },
+            )
             .clip(chipShape)
+            .then(if (LocalFrostedGlassEnabled.current) Modifier.frostedGlassBorder(chipShape) else Modifier)
             .then(
                 if (LocalFrostedGlassEnabled.current && isFrosted && hazeState != null) {
                     Modifier.hazeEffect(state = hazeState) {
-                        blurRadius = 14.dp
+                        blurRadius = FrostedGlassTokens.BlurRadius
+                        noiseFactor = FrostedGlassTokens.NoiseFactor
+                        tints = emptyList()
+                        fallbackTint = HazeTint(FrostedGlassTokens.FallbackColor)
+                        inputScale = FrostedGlassTokens.InputScale
                     }
                 } else {
                     Modifier
@@ -517,30 +530,13 @@ internal fun TabletFloatingTopBar(
             .hoverable(interactionSource)
 
         Surface(
-            color = if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) surfaceColor else tokens.colors.surfacePopover.copy(alpha = 1f),
+            color = if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) (if (isFrosted && hazeState?.areas?.isNotEmpty() != true) FrostedGlassTokens.FallbackColor else surfaceColor) else tokens.colors.surfacePopover.copy(alpha = 1f),
             shape = chipShape,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             modifier = pillModifier,
         ) {
             Box {
-                if (LocalFrostedGlassEnabled.current && frostedSheenAlpha > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .clip(chipShape)
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.14f * frostedSheenAlpha),
-                                        Color.White.copy(alpha = 0.03f * frostedSheenAlpha),
-                                        Color.Transparent,
-                                    ),
-                                ),
-                            ),
-                    )
-                }
-
                 Row(
                     modifier = Modifier.padding(
                         horizontal = if (isNarrowWindow) 8.dp else if (isLargeWindow) 12.dp else NuvioTokens.Space.s10,

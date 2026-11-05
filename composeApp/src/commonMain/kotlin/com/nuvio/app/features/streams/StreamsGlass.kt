@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.FrostedGlassTokens
+import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.nuvio
 
 /** Only the desktop results panel provides this; player cards retain their own styling. */
@@ -30,7 +32,7 @@ internal fun Modifier.streamResultsSurface(): Modifier {
                 Color.White.copy(alpha = 0.07f)
             }
             surfaceStyle == SurfaceStyle.FrostedGlass || LocalFrostedGlassEnabled.current -> {
-                tokens.colors.textPrimary.copy(alpha = tokens.opacity.subtle)
+                FrostedGlassTokens.InsetColor
             }
             else -> {
                 Color.White.copy(alpha = 0.07f).compositeOver(tokens.colors.surfaceCard)
@@ -50,7 +52,7 @@ internal fun Modifier.streamResultsBorder(shape: Shape): Modifier {
             shape = shape,
         )
     } else {
-        this
+        frostedGlassBorder(shape, inset = true)
     }
 }
 

@@ -62,6 +62,9 @@ import com.nuvio.app.core.ui.StreamResultsWideArtworkAspectRatio
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
 import com.nuvio.app.core.ui.dominantBackdropBlendColor
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.FrostedGlassTokens
+import com.nuvio.app.core.ui.frostedGlassShadow
+import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.navigationGlass
 import com.kmpalette.extensions.painter.rememberPainterDominantColorState
@@ -72,6 +75,7 @@ import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.isIos
 import com.nuvio.app.isDesktop
 import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -473,17 +477,25 @@ private fun LegacyTabletStreamsLayout(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .then(
+                            if (LocalFrostedGlassEnabled.current) {
+                                Modifier.frostedGlassShadow(RoundedCornerShape(24.dp), 12.dp)
+                            } else Modifier,
+                        )
                         .clip(RoundedCornerShape(24.dp))
+                        .then(if (LocalFrostedGlassEnabled.current) Modifier.frostedGlassBorder(RoundedCornerShape(24.dp)) else Modifier)
                         .then(
                             if (LocalFrostedGlassEnabled.current) {
                                 Modifier.hazeEffect(state = hazeState) {
-                                    inputScale = HazeInputScale.Fixed(0.66f)
-                                    blurRadius = 56.dp
-                                    noiseFactor = 0f
+                                    inputScale = FrostedGlassTokens.PanelInputScale
+                                    blurRadius = FrostedGlassTokens.PanelBlurRadius
+                                    noiseFactor = FrostedGlassTokens.NoiseFactor
+                                    tints = emptyList()
+                                    fallbackTint = HazeTint(FrostedGlassTokens.FallbackColor)
                                 }
                             } else Modifier,
                         )
-                        .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) Color.Black.copy(alpha = 0.36f) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
+                        .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) (if (hazeState.areas.isNotEmpty()) FrostedGlassTokens.PanelTintColor else FrostedGlassTokens.FallbackColor) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
                 ) {
                     DarkGlassPanelContent {
                         CompositionLocalProvider(

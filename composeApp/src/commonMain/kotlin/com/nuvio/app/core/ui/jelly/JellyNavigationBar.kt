@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.nuvio.app.core.ui.frostedGlassShadow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ internal fun JellyNavigationBar(
     glowStrength: Float = 1f,
     horizontalLabels: Boolean = false,
     iconSize: Dp = if (compactSize) 24.dp else 28.dp,
+    surfaceShadowElevation: Dp = 0.dp,
     surface: @Composable BoxScope.() -> Unit,
 ) {
     if (items.isEmpty()) return
@@ -105,6 +107,7 @@ internal fun JellyNavigationBar(
                 ) {
                     Box(
                         Modifier.matchParentSize()
+                            .frostedGlassShadow(RoundedCornerShape(50), surfaceShadowElevation)
                             .clip(RoundedCornerShape(50))
                             .drawWithContent {
                                 drawContent()

@@ -53,6 +53,8 @@ internal fun SettingsAwareSurface(
     val glass = enabled && LocalSurfaceStyle.current != SurfaceStyle.Flat
     Surface(
         modifier = modifier.then(
+            if (glass && nested && border == null && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass) Modifier.frostedGlassBorder(shape, inset = true) else Modifier,
+        ).then(
             if (glass && !nested) Modifier.navigationGlass(shape, panel = panel, backgroundOnly = true)
             else Modifier,
         ),
@@ -60,7 +62,7 @@ internal fun SettingsAwareSurface(
         color = when {
             !enabled -> color
             glass && !nested -> Color.Transparent
-            glass && color.alpha == 1f -> Color.Transparent
+            glass && color.alpha == 1f -> if (LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass) FrostedGlassTokens.InsetColor else Color.Transparent
             !nested -> color.copy(alpha = 1f)
             else -> color
         },

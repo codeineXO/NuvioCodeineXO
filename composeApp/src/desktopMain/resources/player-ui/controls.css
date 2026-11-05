@@ -1203,7 +1203,6 @@ button:disabled {
   margin: -26px 0 0 -26px;
   border-radius: 50%;
   background: rgba(18, 19, 24, 0.82);
-  backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #ffffff;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
@@ -1580,8 +1579,6 @@ button:disabled {
   place-items: center;
   border-radius: 999px;
   background: rgba(0, 0, 0, .34);
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
   box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
   color: #fff;
   transition: background var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out);
@@ -2402,8 +2399,6 @@ button:disabled {
   border-left: 1px solid rgba(255, 255, 255, .12);
   border-radius: 16px 0 0 16px;
   background: rgba(0, 0, 0, .58);
-  backdrop-filter: blur(100px) saturate(160%);
-  -webkit-backdrop-filter: blur(100px) saturate(160%);
   box-shadow: -18px 0 54px rgba(0, 0, 0, .55);
   transform: translateX(100%);
 }
@@ -2539,8 +2534,6 @@ button:disabled {
 .player-side-panel .panel-button,
 .player-side-panel .filter-chip {
   background: rgba(0, 0, 0, .65);
-  backdrop-filter: blur(120px) saturate(160%);
-  -webkit-backdrop-filter: blur(120px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, .14);
   color: rgba(255, 255, 255, .88);
 }
@@ -3494,8 +3487,6 @@ button:disabled {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, .12);
   background: rgba(0, 0, 0, .68);
-  backdrop-filter: blur(160px) saturate(160%);
-  -webkit-backdrop-filter: blur(160px) saturate(160%);
   box-shadow: 0 4px 16px rgba(0, 0, 0, .36);
 }
 
@@ -3898,8 +3889,6 @@ button:disabled {
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, .12);
   background: rgba(0, 0, 0, .68);
-  backdrop-filter: blur(160px) saturate(160%);
-  -webkit-backdrop-filter: blur(160px) saturate(160%);
   box-shadow: 0 4px 16px rgba(0, 0, 0, .36);
 }
 
@@ -4793,8 +4782,6 @@ svg {
   background: transparent;
   border: none;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -4960,8 +4947,6 @@ svg {
   background: rgba(0, 0, 0, 0.90);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 /* CodeineXO Seekbar Row: flanking time & buffer fill */
@@ -5672,8 +5657,6 @@ svg {
 .player.ui-codeinexo .player-rail-modal .track-panel,
 .player.ui-codeinexo .player-side-modal .player-side-panel {
   background: rgba(0, 0, 0, 0.90) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
   border: 0 !important;
   border-left: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 16px 0 0 16px !important;
@@ -5760,8 +5743,6 @@ svg {
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button {
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, .14);
   color: rgba(255, 255, 255, .88);
   min-height: 40px;
@@ -5831,8 +5812,6 @@ svg {
   min-height: 48px;
   font-size: 15px;
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
@@ -5874,8 +5853,6 @@ svg {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   flex: 0 0 auto;
 }
@@ -5987,8 +5964,6 @@ svg {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   pointer-events: none;
   animation: subtitleDropFadeIn .15s ease-out;
 }
@@ -6044,8 +6019,6 @@ svg {
   font-size: 13px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, .14);
   color: rgba(255, 255, 255, .88);
   cursor: pointer;
@@ -6220,8 +6193,6 @@ svg {
 .player.ui-codeinexo #subtitleModal .style-section {
   width: 100%;
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   padding: 12px 14px;
@@ -6236,8 +6207,6 @@ svg {
 .player.ui-codeinexo #sourceModal .track-row.source-row,
 .player.ui-codeinexo #episodesModal .track-row.episode-row {
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
@@ -6271,8 +6240,6 @@ svg {
 
 .player.ui-codeinexo #subtitleModal .style-section:has(#subtitleStyleReset) {
   background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 0;
   box-shadow: none;
   padding: 8px 0 0;
@@ -6284,8 +6251,6 @@ svg {
 
 .player.ui-codeinexo #shaderModal .enhancement-stepper-card {
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -6295,8 +6260,6 @@ svg {
 
 .player.ui-codeinexo #shaderModal .enhancement-detected-card {
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -6415,8 +6378,6 @@ svg {
   height: 80%;
   max-height: 80%;
   background: rgba(0, 0, 0, 0.90);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   z-index: 60;
   display: flex;
   flex-direction: column;
