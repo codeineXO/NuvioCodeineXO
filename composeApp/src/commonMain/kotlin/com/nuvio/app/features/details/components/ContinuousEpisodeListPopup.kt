@@ -1,7 +1,5 @@
 package com.nuvio.app.features.details.components
 
-import com.nuvio.app.core.ui.softScrollToItem
-
 import androidx.compose.foundation.border
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
@@ -146,7 +144,7 @@ internal fun ContinuousEpisodeListPopup(
     var railFocusedIndex by remember { mutableStateOf<Int?>(null) }
     var railScrubbing by remember { mutableStateOf(false) }
     var scrubbedSeason by remember { mutableStateOf<Int?>(null) }
-    var seasonGlide by remember { mutableStateOf<Job?>(null) }
+    var seasonScroll by remember { mutableStateOf<Job?>(null) }
     val activeSeason by remember(entries, state) {
         derivedStateOf {
             val first = state.scroll.layoutInfo.visibleItemsInfo.firstOrNull {
@@ -307,18 +305,19 @@ internal fun ContinuousEpisodeListPopup(
                                     val header = entries.indexOfFirst { it.season == season && it.episode == null }
                                     val episodeIndex = episodeIndices.firstOrNull { entries[it].season == season }
                                     if (episodeIndex != null) state.focusedIndex = episodeIndex
-                                    seasonGlide?.cancel()
-                                    if (header >= 0) seasonGlide = scope.launch { state.scroll.softScrollToItem(header) }
+                                    seasonScroll?.cancel()
+                                    // Scrubbing should track the selected season without measuring every intervening episode.
+                                    if (header >= 0) seasonScroll = scope.launch { state.scroll.scrollToItem(header) }
                                 }
                             },
                             onEnd = {
                                 val season = scrubbedSeason
-                                val glide = seasonGlide
+                                val scroll = seasonScroll
                                 scrubbedSeason = null
                                 railScrubbing = false
                                 if (season != null) scope.launch {
-                                    // Let the last animation settle instead of snapping on release.
-                                    glide?.join()
+                                    // Wait for the selected season to be laid out before restoring focus.
+                                    scroll?.join()
                                     withFrameNanos { }
                                     val firstEpisode = episodeIndices.firstOrNull { entries[it].season == season }
                                     if (!railScrubbing && firstEpisode != null && firstEpisode == state.focusedIndex &&

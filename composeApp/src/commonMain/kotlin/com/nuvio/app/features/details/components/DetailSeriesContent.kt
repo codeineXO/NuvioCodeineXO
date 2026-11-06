@@ -1,6 +1,10 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+import com.nuvio.app.core.ui.FrostedGlassTokens
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.core.ui.frostedGlassBorder
+import com.nuvio.app.features.settings.SurfaceStyle
 
 import com.nuvio.app.core.ui.softScrollToItem
 import com.nuvio.app.core.ui.navigationMotionDuration
@@ -2506,12 +2510,15 @@ private fun EpisodeListCard(
         modifier = modifier
             .fillMaxWidth()
             .then(if (popupPresentation) Modifier else Modifier.height(sizing.cardHeight))
-            .clip(cardShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.1f),
-                shape = cardShape,
+            .then(
+                if (LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass && LocalFrostedGlassEnabled.current) {
+                    Modifier
+                        .clip(cardShape)
+                        .background(FrostedGlassTokens.InsetColor)
+                        .frostedGlassBorder(cardShape, inset = true)
+                } else {
+                    Modifier.navigationGlass(shape = cardShape, backgroundOnly = true)
+                },
             )
             .posterCardClickable(
                 onClick = onClick,
