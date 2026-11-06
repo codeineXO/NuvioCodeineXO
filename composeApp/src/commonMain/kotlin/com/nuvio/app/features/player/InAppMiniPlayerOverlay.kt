@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -112,7 +114,7 @@ internal fun InAppMiniPlayerControls(
                             fontSize = 10.sp,
                             lineHeight = 13.sp,
                         ),
-                        color = Color.White.copy(alpha = 0.65f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.65f)),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

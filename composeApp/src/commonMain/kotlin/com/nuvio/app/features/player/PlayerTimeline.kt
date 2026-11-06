@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -91,7 +93,7 @@ internal fun PlayerTimelineDetails(
             Text(
                 text = releaseInfo,
                 style = typeScale.labelSm.copy(fontSize = metrics.metadataSize),
-                color = Color.White.copy(alpha = 0.68f),
+                color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.68f)),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

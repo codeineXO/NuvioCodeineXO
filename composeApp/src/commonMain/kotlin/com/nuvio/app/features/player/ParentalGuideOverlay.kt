@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -124,7 +126,7 @@ internal fun ParentalGuideOverlay(
                     Text(
                         text = warning.label,
                         fontSize = 13.2.sp,
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.85f)),
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
@@ -135,7 +137,7 @@ internal fun ParentalGuideOverlay(
                     Text(
                         text = warning.severity,
                         fontSize = 13.2.sp,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.5f)),
                     )
                 }
             }

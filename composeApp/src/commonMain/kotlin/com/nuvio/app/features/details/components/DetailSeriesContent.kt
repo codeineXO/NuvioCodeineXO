@@ -1,5 +1,7 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import com.nuvio.app.core.ui.softScrollToItem
 import com.nuvio.app.core.ui.navigationMotionDuration
 import com.nuvio.app.core.ui.SoftArrowScroll
@@ -2490,6 +2492,7 @@ private fun EpisodeListCard(
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
     val cardShape = RoundedCornerShape(cornerRadius)
+    val secondaryContentColor = frostedGlassSecondaryContentColor(MaterialTheme.colorScheme.onSurfaceVariant)
     val ratingLabel = remember(imdbRating, episodeRatingsVisibility, isWatched) {
         imdbRating?.takeIf { it > 0.0 && episodeRatingsVisibility.showRating(isWatched) }
             ?.let(::formatEpisodeRating)
@@ -2638,7 +2641,7 @@ private fun EpisodeListCard(
                                 text = runtime,
                                 modifier = Modifier.align(Alignment.CenterVertically),
                                 style = MaterialTheme.typography.labelMedium.copy(fontSize = sizing.metaTextSize),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = secondaryContentColor,
                             )
                         }
                         formattedDate?.let { date ->
@@ -2649,7 +2652,7 @@ private fun EpisodeListCard(
                                     fontSize = sizing.metaTextSize,
                                     fontWeight = FontWeight.Medium,
                                 ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                color = frostedGlassSecondaryContentColor(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -2679,7 +2682,7 @@ private fun EpisodeListCard(
                             fontSize = sizing.bodyTextSize,
                             lineHeight = sizing.bodyLineHeight,
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = secondaryContentColor,
                         maxLines = sizing.overviewMaxLines,
                         overflow = TextOverflow.Ellipsis,
                     )

@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -363,7 +364,15 @@ internal val LocalNuvioThemeTokens = staticCompositionLocalOf {
 val MaterialTheme.nuvio: NuvioThemeTokens
     @Composable
     @Stable
-    get() = LocalNuvioThemeTokens.current
+    get() {
+        val tokens = LocalNuvioThemeTokens.current
+        val secondary = frostedGlassSecondaryContentColor(tokens.colors.textSecondary)
+        return remember(tokens, secondary) {
+            if (secondary == tokens.colors.textSecondary) tokens else tokens.copy(
+                colors = tokens.colors.copy(textSecondary = secondary, textMuted = secondary),
+            )
+        }
+    }
 
 internal fun defaultNuvioThemeTokens(
     palette: ThemeColorPalette,

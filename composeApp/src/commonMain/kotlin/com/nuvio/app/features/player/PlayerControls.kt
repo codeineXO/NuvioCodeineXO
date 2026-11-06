@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -491,7 +493,7 @@ private fun PlayerHeader(
                                 fontSize = metrics.metadataSize,
                                 lineHeight = metrics.metadataSize * 1.25f,
                             ),
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.7f)),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -502,7 +504,7 @@ private fun PlayerHeader(
                                 lineHeight = metrics.metadataSize * 1.25f,
                                 fontStyle = FontStyle.Italic,
                             ),
-                            color = Color.White.copy(alpha = 0.7f),
+                            color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.7f)),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

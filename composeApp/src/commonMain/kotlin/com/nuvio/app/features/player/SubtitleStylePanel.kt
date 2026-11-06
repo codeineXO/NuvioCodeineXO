@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -401,7 +403,7 @@ private fun SubtitleResetAction(
 private fun SubtitleHelperText(text: String) {
     Text(
         text = text,
-        color = Color.White.copy(alpha = 0.7f),
+        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.7f)),
         style = MaterialTheme.typography.bodySmall,
     )
 }
@@ -554,7 +556,7 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
                 ) {
                     Text(
                         text = "Outline Thickness",
-                        color = Color.White.copy(alpha = 0.72f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.72f)),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     SubtitleStyleStepper(
@@ -576,7 +578,7 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
             ) {
                 Text(
                     text = stringResource(if (isBackgroundBox) Res.string.compose_player_box_color else Res.string.compose_player_outline_color),
-                    color = Color.White.copy(alpha = 0.72f),
+                    color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.72f)),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 if (effectColorEnabled) {

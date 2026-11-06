@@ -240,7 +240,7 @@ fun NuvioScreenHeader(
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),
-                            tint = if (isDesktop) MaterialTheme.colorScheme.onBackground else tokens.colors.textPrimary,
+                            tint = frostedGlassSecondaryContentColor(if (isDesktop) MaterialTheme.colorScheme.onBackground else tokens.colors.textPrimary),
                             modifier = if (isDesktop) Modifier.size(desktopBackButtonIconSize) else Modifier,
                         )
                     }
@@ -380,7 +380,8 @@ fun NuvioBackButton(
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
             contentDescription = contentDescription,
-            tint = if (desktopPageStyle) MaterialTheme.colorScheme.onBackground else contentColor,
+            tint = if (usePageStyle) frostedGlassSecondaryContentColor(if (desktopPageStyle) MaterialTheme.colorScheme.onBackground else contentColor)
+                else if (desktopPageStyle) MaterialTheme.colorScheme.onBackground else contentColor,
             modifier = Modifier.size(if (desktopPageStyle) desktopBackButtonIconSize else iconSize),
         )
     }

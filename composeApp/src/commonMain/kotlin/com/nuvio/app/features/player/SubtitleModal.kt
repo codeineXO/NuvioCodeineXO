@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -238,7 +240,7 @@ fun SubtitleModal(
                                 ) {
                                     Text(
                                         text = stringResource(Res.string.compose_player_import),
-                                        color = Color.White.copy(alpha = 0.78f),
+                                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.78f)),
                                         style = MaterialTheme.typography.labelSmall,
                                     )
                                 }

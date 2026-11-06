@@ -40,6 +40,7 @@ internal object FrostedGlassTokens {
     val InputScale: HazeInputScale = HazeInputScale.Auto
     const val TintAlpha: Float = 0.05f
     val TintColor: Color = Color.White.copy(alpha = TintAlpha)
+    val SecondaryContentColor: Color = Color.White.copy(alpha = 0.80f)
     val PanelBlurRadius = 36.dp
     val PanelTintColor = Color.White.copy(alpha = 0.08f)
     val PanelInputScale: HazeInputScale = HazeInputScale.Fixed(0.66f)
@@ -49,6 +50,13 @@ internal object FrostedGlassTokens {
     val ShadowAmbientColor: Color = Color.Black.copy(alpha = 0.12f)
     val ShadowSpotColor: Color = Color.Black.copy(alpha = 0.18f)
 }
+
+/** Brighter secondary foregrounds for frosted glass, preserving other surface styles. */
+@Composable
+internal fun frostedGlassSecondaryContentColor(fallback: Color): Color =
+    if (LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass) {
+        FrostedGlassTokens.SecondaryContentColor
+    } else fallback
 
 /** Soothing ambient drop shadow around borderless glass elements. */
 internal fun Modifier.frostedGlassShadow(

@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.FloatingNavigationItem
+import com.nuvio.app.core.ui.FrostedGlassTokens
+import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.gradientMask
 import com.nuvio.app.core.ui.nuvio
@@ -63,7 +65,7 @@ internal fun JellyTabRow(
 ) {
     val tokens = MaterialTheme.nuvio
     val palette = MaterialTheme.themePalette
-    val color = if (horizontalLabels && active) tokens.colors.textPrimary else if (active) tokens.colors.accent else tokens.colors.textMuted
+    val color = if (horizontalLabels && active) tokens.colors.textPrimary else if (active) tokens.colors.accent else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textMuted
     val iconModifier = Modifier.size(if (horizontalLabels) iconSize - 10.dp else iconSize)
         .then(if (active && !horizontalLabels) Modifier.gradientMask(palette.accentBrush()) else Modifier)
     val iconTint = if (active) Color.White else color

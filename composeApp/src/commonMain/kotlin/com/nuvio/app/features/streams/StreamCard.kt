@@ -5,6 +5,7 @@ import com.nuvio.app.core.ui.DarkGlassSurfaceColor
 import com.nuvio.app.features.settings.SurfaceStyle
 
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
@@ -98,11 +99,11 @@ internal fun StreamCard(
     val markedLabel = if (isCurrent) currentLabel else highlightLabel
     val cardShape = RoundedCornerShape(12.dp)
     val resultsGlass = LocalStreamResultsGlass.current
-    val detailColor = if (resultsGlass) {
+    val detailColor = frostedGlassSecondaryContentColor(if (resultsGlass) {
         lerp(MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.colorScheme.onSurface, 0.4f)
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    })
     val interactionSource = remember { MutableInteractionSource() }
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceStyle = LocalSurfaceStyle.current

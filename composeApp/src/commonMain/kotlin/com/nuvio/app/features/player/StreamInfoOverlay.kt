@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -178,7 +180,7 @@ private fun StreamInfoSection(
             text = title.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            color = Color.White.copy(alpha = 0.5f),
+            color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.5f)),
         )
         Spacer(Modifier.height(4.dp))
         content()
@@ -206,7 +208,7 @@ private fun StreamInfoItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.5f),
+            color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.5f)),
         )
         Text(
             text = value,
@@ -226,7 +228,7 @@ private fun StreamInfoSecondaryText(
     Text(
         text = text.replace("\n", " · "),
         style = MaterialTheme.typography.bodyMedium,
-        color = Color.White.copy(alpha = 0.7f),
+        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.7f)),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,

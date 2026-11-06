@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player.skip
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -189,7 +191,7 @@ fun NextEpisodeCard(
                 ) {
                     Text(
                         text = stringResource(Res.string.player_next_episode),
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.8f)),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                     )
@@ -228,7 +230,7 @@ fun NextEpisodeCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = autoPlayStatus,
-                        color = Color.White.copy(alpha = 0.78f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.78f)),
                         fontSize = 10.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

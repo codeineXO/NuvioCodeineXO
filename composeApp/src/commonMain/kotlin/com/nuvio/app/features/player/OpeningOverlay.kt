@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -248,7 +250,7 @@ internal fun OpeningOverlay(
                             if (loadingMessage != null) {
                                 Text(
                                     text = loadingMessage,
-                                    color = Color.White.copy(alpha = 0.72f),
+                                    color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.72f)),
                                     textAlign = TextAlign.Center,
                                     maxLines = 2,
                                     style = MaterialTheme.typography.labelMedium,

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -380,7 +382,7 @@ private fun NowPlayingTile(
                     Text(
                         text = if (displayEpisodeTitle.isNullOrBlank()) episodeCode else "$episodeCode • $displayEpisodeTitle",
                         style = typeScale.labelSm,
-                        color = Color.White.copy(alpha = 0.64f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.64f)),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -416,7 +418,7 @@ private fun ActionTile(action: PlayerControlAction, onClick: () -> Unit) {
             Text(
                 text = action.description,
                 style = MaterialTheme.nuvioTypeScale.labelSm.copy(fontSize = 11.sp, lineHeight = 13.sp),
-                color = Color.White.copy(alpha = 0.8f),
+                color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.8f)),
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -431,7 +433,7 @@ private fun TimeLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         style = MaterialTheme.nuvioTypeScale.labelSm,
-        color = Color.White.copy(alpha = 0.85f),
+        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.85f)),
         maxLines = 1,
         modifier = modifier,
     )

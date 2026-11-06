@@ -562,7 +562,7 @@ internal fun TabletFloatingTopBar(
                                 tint = if (selectedTab == AppScreenTab.Home) {
                                     tokens.colors.textPrimary
                                 } else {
-                                    if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.70f) else tokens.colors.textSecondary
+                                    if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textSecondary
                                 },
                             )
                         },
@@ -584,7 +584,7 @@ internal fun TabletFloatingTopBar(
                                 tint = if (selectedTab == AppScreenTab.Search) {
                                     tokens.colors.textPrimary
                                 } else {
-                                    if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.70f) else tokens.colors.textSecondary
+                                    if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textSecondary
                                 },
                             )
                         },
@@ -606,7 +606,7 @@ internal fun TabletFloatingTopBar(
                                 tint = if (selectedTab == AppScreenTab.Library) {
                                     tokens.colors.textPrimary
                                 } else {
-                                    if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.70f) else tokens.colors.textSecondary
+                                    if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textSecondary
                                 },
                             )
                         },
@@ -702,7 +702,7 @@ private fun TabletTopPillItem(
                     color = if (selected) {
                         tokens.colors.textPrimary
                     } else {
-                        if (LocalFrostedGlassEnabled.current) Color.White.copy(alpha = 0.75f) else tokens.colors.textSecondary
+                        if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textSecondary
                     },
                     maxLines = 1,
                     softWrap = false,

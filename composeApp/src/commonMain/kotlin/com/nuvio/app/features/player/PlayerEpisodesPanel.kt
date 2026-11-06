@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import com.nuvio.app.core.ui.softScrollToItem
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.NuvioLazyColumn
@@ -628,7 +630,7 @@ internal fun PlayerEpisodeRatingBadge(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.sp,
                 ),
-                color = Color.White.copy(alpha = 0.78f),
+                color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.78f)),
                 maxLines = 1,
             )
         }

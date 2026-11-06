@@ -276,7 +276,7 @@ private class NuvioNavigationBarScopeImpl(
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
         val iconColor by animateColorAsState(
-            targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            targetValue = if (selected) tokens.colors.accent else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textMuted,
             label = "nav_icon_color",
         )
         // Selected item gets a pill-shaped highlight using accent at low opacity
@@ -326,7 +326,7 @@ private class NuvioNavigationBarScopeImpl(
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
         val iconColor by animateColorAsState(
-            targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            targetValue = if (selected) tokens.colors.accent else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textMuted,
             label = "nav_icon_color",
         )
         val selectedBgColor by animateColorAsState(
@@ -378,7 +378,7 @@ private class NuvioNavigationBarScopeImpl(
             label = "nav_bg_color",
         )
         val iconColor by animateColorAsState(
-            targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            targetValue = if (selected) tokens.colors.accent else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textMuted,
             label = "nav_icon_color",
         )
 
@@ -481,7 +481,7 @@ private class NuvioClassicNavigationBarScopeImpl(
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
         val iconColor by animateColorAsState(
-            targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            targetValue = if (selected) tokens.colors.accent else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textMuted,
             label = "classic_nav_icon_color",
         )
         with(rowScope) {
@@ -519,7 +519,7 @@ private class NuvioClassicNavigationBarScopeImpl(
         val tokens = MaterialTheme.nuvio
         val palette = MaterialTheme.themePalette
         val iconColor by animateColorAsState(
-            targetValue = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+            targetValue = if (selected) tokens.colors.accent else if (LocalFrostedGlassEnabled.current) FrostedGlassTokens.SecondaryContentColor else tokens.colors.textMuted,
             label = "classic_nav_icon_color",
         )
         with(rowScope) {

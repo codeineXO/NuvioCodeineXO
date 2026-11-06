@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -71,7 +73,7 @@ fun AudioTrackModal(
                 if (audioTracks.isEmpty()) {
                     Text(
                         text = stringResource(Res.string.compose_player_no_audio_tracks_available),
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.7f)),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
                     )
