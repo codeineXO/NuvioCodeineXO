@@ -57,6 +57,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.nuvio.app.core.ui.ActionMenuInvocation
+import com.nuvio.app.core.ui.ActionMenuInvocationHolder
+import com.nuvio.app.core.ui.secondaryClickAt
 import com.nuvio.app.core.ui.secondaryClick
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.navigationGlassFeedback
@@ -100,6 +110,22 @@ fun DetailActionButtons(
     val buttonHeight = if (isTablet) 56.dp else 52.dp
     val iconButtonSize = buttonHeight
     val playShape = RoundedCornerShape(40.dp)
+    val playFocusRequester = remember { FocusRequester() }
+    var playBounds by remember { mutableStateOf<Rect?>(null) }
+    DisposableEffect(Unit) {
+        onDispose { playBounds = null }
+    }
+    fun openPlayMenu(pointer: Offset? = null) {
+        if (!playEnabled || onPlayLongClick == null) return
+        ActionMenuInvocationHolder.stash(ActionMenuInvocation(
+            cardBounds = playBounds,
+            pointerPosition = pointer,
+            sourceAvailable = { playBounds != null },
+            restoreFocus = { playFocusRequester.requestFocus() },
+        ))
+        onPlayLongClick()
+    }
+    val onPlayContext: (() -> Unit)? = onPlayLongClick?.takeIf { playEnabled }?.let { { openPlayMenu() } }
     val hapticFeedback = LocalHapticFeedback.current
     var actionsExpanded by remember { mutableStateOf(false) }
     val menuInteractionSource = remember { MutableInteractionSource() }
@@ -136,15 +162,18 @@ fun DetailActionButtons(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .remoteNavigationTarget(shape = playShape, initialFocus = true, onSelect = onPlayClick.takeIf { playEnabled }, onContext = onPlayLongClick).combinedClickable(
+                        .focusRequester(playFocusRequester)
+                        .onGloballyPositioned { playBounds = it.boundsInRoot() }
+                        .remoteNavigationTarget(shape = playShape, initialFocus = true, onSelect = onPlayClick.takeIf { playEnabled }, onContext = onPlayContext)
+                        .combinedClickable(
                             enabled = playEnabled,
                             onClick = {
                                 onPlayClick()
                             },
-                            onLongClick = onPlayLongClick,
+                            onLongClick = onPlayContext,
                             role = Role.Button,
                         )
-                        .secondaryClick(onPlayLongClick)
+                        .secondaryClickAt(onPlayContext?.let { { local -> openPlayMenu(playBounds?.topLeft?.plus(local)) } })
                         .height(buttonHeight),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,

@@ -70,6 +70,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAddCheckCircle
 import androidx.compose.material.icons.filled.Shuffle
@@ -320,6 +321,7 @@ fun MetaDetailsScreen(
     onBack: () -> Unit,
     onPlay: ((type: String, videoId: String, parentMetaId: String, parentMetaType: String, title: String, logo: String?, poster: String?, background: String?, seasonNumber: Int?, episodeNumber: Int?, episodeTitle: String?, episodeThumbnail: String?, pauseDescription: String?, resumePositionMs: Long?) -> Unit)? = null,
     onPlayManually: ((type: String, videoId: String, parentMetaId: String, parentMetaType: String, title: String, logo: String?, poster: String?, background: String?, seasonNumber: Int?, episodeNumber: Int?, episodeTitle: String?, episodeThumbnail: String?, pauseDescription: String?, resumePositionMs: Long?) -> Unit)? = null,
+    onStartFromBeginning: ((type: String, videoId: String, parentMetaId: String, parentMetaType: String, title: String, logo: String?, poster: String?, background: String?, seasonNumber: Int?, episodeNumber: Int?, episodeTitle: String?, episodeThumbnail: String?, pauseDescription: String?, resumePositionMs: Long?) -> Unit)? = null,
     onOpenMeta: ((MetaPreview) -> Unit)? = null,
     onCastClick: ((MetaPerson, String?) -> Unit)? = null,
     onCompanyClick: ((MetaCompany, String) -> Unit)? = null,
@@ -405,16 +407,19 @@ fun MetaDetailsScreen(
     var observedOfflineState by remember(type, id) { mutableStateOf(false) }
     var selectedEpisodeForActions by remember(type, id) { mutableStateOf<MetaVideo?>(null) }
     var selectedEpisodeMenuInvocation by remember(type, id) { mutableStateOf<ActionMenuInvocation?>(null) }
+    var primaryPlayMenu by remember(type, id) { mutableStateOf<Pair<ActionMenuInvocation, List<ActionMenuAction>>?>(null) }
     val episodeOverlayHazeState = rememberHazeState()
     var selectedSeasonForActions by remember(type, id) { mutableStateOf<Int?>(null) }
     var selectedSeasonMenuInvocation by remember(type, id) { mutableStateOf<ActionMenuInvocation?>(null) }
     val openEpisodeActions: (MetaVideo) -> Unit = { video ->
+        primaryPlayMenu = null
         selectedSeasonForActions = null
         selectedSeasonMenuInvocation = null
         selectedEpisodeMenuInvocation = ActionMenuInvocationHolder.consume()
         selectedEpisodeForActions = video
     }
     val openSeasonActions: (Int) -> Unit = { season ->
+        primaryPlayMenu = null
         selectedEpisodeForActions = null
         selectedEpisodeMenuInvocation = null
         selectedSeasonMenuInvocation = ActionMenuInvocationHolder.consume()
@@ -648,7 +653,7 @@ fun MetaDetailsScreen(
                 .fillMaxSize()
                 .then(
                     if (LocalFrostedGlassEnabled.current &&
-                        (selectedEpisodeMenuInvocation != null || selectedSeasonMenuInvocation != null)) {
+                        (selectedEpisodeMenuInvocation != null || selectedSeasonMenuInvocation != null || primaryPlayMenu != null)) {
                         Modifier.hazeSource(state = episodeOverlayHazeState)
                     } else {
                         Modifier
@@ -1057,8 +1062,8 @@ fun MetaDetailsScreen(
                 }
                 val manualPlayHandler = onPlayManually
                 val showManualPlayOption = manualPlayHandler != null && StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState)
-                val onPrimaryPlayLongClick: (() -> Unit)? = manualPlayHandler
-                    ?.takeIf { !shufflePoolEmpty && showManualPlayOption && playbackAvailability.canStream(meta.type, primaryVideoId) }
+                val onPrimaryManualPlayClick: (() -> Unit)? = manualPlayHandler
+                    ?.takeIf { !shufflePoolEmpty && isPrimaryPlayEnabled && playbackAvailability.canStream(meta.type, primaryVideoId) }
                     ?.let { manualPlay ->
                         {
                             when {
@@ -1102,6 +1107,69 @@ fun MetaDetailsScreen(
                             }
                         }
                     }
+                val onPrimaryRestartClick: () -> Unit = {
+                    when {
+                        shufflePoolEmpty -> showShuffle = true
+                        (meta.type == "series" || hasEpisodes) && seriesAction != null -> {
+                            onStartFromBeginning?.invoke(
+                                meta.type,
+                                seriesStreamVideoId ?: seriesAction.videoId,
+                                meta.id,
+                                meta.type,
+                                meta.name,
+                                meta.logo,
+                                meta.poster,
+                                meta.background,
+                                seriesAction.seasonNumber,
+                                seriesAction.episodeNumber,
+                                seriesAction.episodeTitle,
+                                seriesAction.episodeThumbnail,
+                                seriesPauseDescription,
+                                0L,
+                            )
+                        }
+
+                        else -> {
+                            onStartFromBeginning?.invoke(
+                                meta.type,
+                                meta.id,
+                                meta.id,
+                                meta.type,
+                                meta.name,
+                                meta.logo,
+                                meta.poster,
+                                meta.background,
+                                null,
+                                null,
+                                null,
+                                null,
+                                meta.description,
+                                0L,
+                            )
+                        }
+                    }
+                }
+                val manualPlayLabel = stringResource(Res.string.play_manually)
+                val restartLabel = stringResource(Res.string.cw_action_start_from_beginning)
+                val onPrimaryPlayLongClick: (() -> Unit)? = if (
+                    !shufflePoolEmpty && isPrimaryPlayEnabled &&
+                    (onPrimaryManualPlayClick != null || onStartFromBeginning != null)
+                ) {
+                    {
+                        selectedEpisodeForActions = null
+                        selectedEpisodeMenuInvocation = null
+                        selectedSeasonForActions = null
+                        selectedSeasonMenuInvocation = null
+                        primaryPlayMenu = ActionMenuInvocationHolder.consume() to buildList {
+                            onPrimaryManualPlayClick?.let { manualPlay ->
+                                add(ActionMenuAction(Icons.Default.PlayArrow, manualPlayLabel, onSelected = manualPlay))
+                            }
+                            if (onStartFromBeginning != null) {
+                                add(ActionMenuAction(Icons.Default.Replay, restartLabel, onSelected = onPrimaryRestartClick))
+                            }
+                        }
+                    }
+                } else null
                 val onEpisodePlayClick: (MetaVideo) -> Unit = { video ->
                     val season = video.season
                     val episode = video.episode
@@ -1182,7 +1250,9 @@ fun MetaDetailsScreen(
                         onPlay = onEpisodePlayClick,
                         onPlayManually = onEpisodeManualPlayClick.takeIf { showManualPlayOption },
                         onStartFromBeginning = { video ->
-                            onPlay?.invoke(meta.type, video.id, meta.id, meta.type, meta.name, meta.logo,
+                            val playbackVideoId = buildPlaybackVideoId(meta.id, video.season, video.episode, video.id)
+                            val streamVideoId = video.id.takeIf { it.isNotBlank() } ?: playbackVideoId
+                            onStartFromBeginning?.invoke(meta.type, streamVideoId, meta.id, meta.type, meta.name, meta.logo,
                                 meta.poster, meta.background, video.season, video.episode, video.title,
                                 video.thumbnail, video.overview, 0L)
                         },
@@ -1591,7 +1661,7 @@ fun MetaDetailsScreen(
                                                         HeroTrailerAudioState.toggleMuted()
                                                     },
                                                     onPlayClick = onPrimaryPlayClick,
-                                                    onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
+                                                    onPlayLongClick = onPrimaryPlayLongClick,
                                                     onShuffleClick = if (showShuffleButton) ({
                                                         if (shuffleSettings.enabled) saveShuffle(shuffleSettings.copy(enabled = false)) else showShuffle = true
                                                     }) else null,
@@ -1760,7 +1830,7 @@ fun MetaDetailsScreen(
                                             HeroTrailerAudioState.toggleMuted()
                                         },
                                         onPlayClick = onPrimaryPlayClick,
-                                        onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
+                                        onPlayLongClick = onPrimaryPlayLongClick,
                                         onShuffleClick = if (showShuffleButton) ({
                                             if (shuffleSettings.enabled) saveShuffle(shuffleSettings.copy(enabled = false)) else showShuffle = true
                                         }) else null,
@@ -1888,7 +1958,7 @@ fun MetaDetailsScreen(
                                                         isTablet = true,
                                                         shuffleEnabled = shuffleSettings.enabled,
                                                         onPlayClick = onPrimaryPlayClick,
-                                                        onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
+                                                        onPlayLongClick = onPrimaryPlayLongClick,
                                                         onShuffleClick = onShuffleClick,
                                                         onWatchedClick = toggleWatched,
                                                         onSaveClick = toggleSaved,
@@ -2354,6 +2424,17 @@ fun MetaDetailsScreen(
         }
         }
 
+        primaryPlayMenu?.let { (invocation, actions) ->
+            NuvioActionMenu(
+                invocation = invocation,
+                actions = actions,
+                hazeState = episodeOverlayHazeState,
+                onDismissed = {
+                    if (primaryPlayMenu?.first === invocation) primaryPlayMenu = null
+                },
+            )
+        }
+
         val meta = displayedMeta
         val selectedEpisode = selectedEpisodeForActions
         val zoomAnchor = selectedEpisodeMenuInvocation
@@ -2488,6 +2569,32 @@ fun MetaDetailsScreen(
                                 },
                             ),
                         )
+                    }
+                    val playbackVideoId = buildPlaybackVideoId(
+                        parentMetaId = meta.id,
+                        seasonNumber = selectedEpisode.season,
+                        episodeNumber = selectedEpisode.episode,
+                        fallbackVideoId = selectedEpisode.id,
+                    )
+                    val streamVideoId = selectedEpisode.id.takeIf { it.isNotBlank() } ?: playbackVideoId
+                    if (onStartFromBeginning != null && playbackAvailability.canPlay(
+                            type = meta.type,
+                            videoId = streamVideoId,
+                            parentMetaId = meta.id,
+                            seasonNumber = selectedEpisode.season,
+                            episodeNumber = selectedEpisode.episode,
+                        )) {
+                        add(ActionMenuAction(
+                            icon = Icons.Default.Replay,
+                            label = stringResource(Res.string.cw_action_start_from_beginning),
+                            onSelected = {
+                                onStartFromBeginning.invoke(
+                                    meta.type, streamVideoId, meta.id, meta.type, meta.name, meta.logo,
+                                    meta.poster, meta.background, selectedEpisode.season, selectedEpisode.episode,
+                                    selectedEpisode.title, selectedEpisode.thumbnail, selectedEpisode.overview, 0L,
+                                )
+                            },
+                        ))
                     }
                 },
                 hazeState = episodeOverlayHazeState,
@@ -3088,7 +3195,7 @@ private fun ConfiguredMetaSections(
                     isTablet = isTablet,
                     shuffleEnabled = shuffleEnabled,
                     onPlayClick = onPrimaryPlayClick,
-                    onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
+                    onPlayLongClick = onPrimaryPlayLongClick,
                     onShuffleClick = onShuffleClick,
                     onWatchedClick = onWatchedClick,
                     onSaveClick = onSaveClick,
