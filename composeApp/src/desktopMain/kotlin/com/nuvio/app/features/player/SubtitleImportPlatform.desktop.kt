@@ -9,9 +9,18 @@ import java.awt.dnd.DropTarget
 import java.awt.dnd.DropTargetAdapter
 import java.awt.dnd.DropTargetDropEvent
 import java.io.File
+import java.net.URI
+import com.nuvio.app.features.autosync.SubtitleCharsetDetector
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal actual object SubtitleImportPlatform {
     private val supportedExtensions = setOf("srt", "vtt", "ass", "ssa", "sub")
+
+    actual suspend fun readSubtitleText(path: String): String = withContext(Dispatchers.IO) {
+        val file = if (path.startsWith("file:", ignoreCase = true)) File(URI(path)) else File(path)
+        SubtitleCharsetDetector.decode(file.readBytes())
+    }
 
     actual fun pickSubtitleFile(): ImportedSubtitleFile? {
         val parent = KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow as? Frame

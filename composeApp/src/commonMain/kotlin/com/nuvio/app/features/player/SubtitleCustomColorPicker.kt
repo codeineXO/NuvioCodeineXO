@@ -75,6 +75,7 @@ fun SubtitleCustomColorPicker(
     showAlpha: Boolean = false,
     previewStyle: SubtitleStyleState? = null,
     target: SubtitleColorEditTarget = SubtitleColorEditTarget.TEXT,
+    enabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
     val selectedRgb = remember(selectedColor) { selectedColor.toRgbInt() }
@@ -161,6 +162,7 @@ fun SubtitleCustomColorPicker(
                             .remoteNavigationTarget(shape = CircleShape)
                             .clip(CircleShape)
                             .selectable(
+                                enabled = enabled,
                                 selected = isSelected,
                                 role = Role.RadioButton,
                                 onClick = {
@@ -185,6 +187,7 @@ fun SubtitleCustomColorPicker(
         // HSV Sliders matching ThemeColorPicker
         ColorChannelSlider(
             title = stringResource(Res.string.custom_theme_hue),
+            enabled = enabled,
             value = hsv.hue,
             valueRange = 0f..359f,
             valueLabel = "${hsv.hue.roundToInt()}°",
@@ -194,6 +197,7 @@ fun SubtitleCustomColorPicker(
 
         ColorChannelSlider(
             title = stringResource(Res.string.custom_theme_saturation),
+            enabled = enabled,
             value = hsv.saturation,
             valueLabel = "${(hsv.saturation * 100).roundToInt()}%",
             brush = Brush.horizontalGradient(listOf(Color.White, Color.hsv(hsv.hue, 1f, 1f))),
@@ -202,6 +206,7 @@ fun SubtitleCustomColorPicker(
 
         ColorChannelSlider(
             title = stringResource(Res.string.custom_theme_brightness),
+            enabled = enabled,
             value = hsv.brightness,
             valueLabel = "${(hsv.brightness * 100).roundToInt()}%",
             brush = Brush.horizontalGradient(listOf(Color.Black, Color.hsv(hsv.hue, hsv.saturation, 1f))),
@@ -211,6 +216,7 @@ fun SubtitleCustomColorPicker(
         if (showAlpha) {
             ColorChannelSlider(
                 title = "Opacity",
+                enabled = enabled,
                 value = selectedColor.alpha,
                 valueLabel = "${(selectedColor.alpha * 100).roundToInt()}%",
                 brush = Brush.horizontalGradient(
@@ -234,6 +240,7 @@ fun SubtitleCustomColorPicker(
                 color = tokens.colors.textPrimary,
             )
             NuvioInputField(
+                enabled = enabled,
                 value = hexCode,
                 onValueChange = ::updateColorFromHex,
                 placeholder = "#FFFFFF",
@@ -384,6 +391,7 @@ private fun ColorChannelSlider(
     brush: Brush,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    enabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
     val sliderState = remember(valueRange) { SliderState(trackRange = valueRange) }
@@ -394,6 +402,7 @@ private fun ColorChannelSlider(
             Text(valueLabel, style = MaterialTheme.typography.labelLarge, color = tokens.colors.textSecondary)
         }
         Slider(
+            enabled = enabled,
             state = sliderState,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = title }.remoteNavigationTarget(adjustable = true),

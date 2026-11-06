@@ -11,4 +11,5 @@ internal object SubtitleImportBridge {
 
 internal expect object SubtitleImportPlatform {
     fun pickSubtitleFile(): ImportedSubtitleFile?
+    suspend fun readSubtitleText(path: String): String
 }

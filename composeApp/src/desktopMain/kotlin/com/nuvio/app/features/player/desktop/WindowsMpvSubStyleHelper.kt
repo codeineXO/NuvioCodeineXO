@@ -432,7 +432,10 @@ internal object WindowsMpvSubStyleHelper {
 
                 // 3. Set outline effect & thickness
                 val width = style.outlineWidth.coerceIn(0.5f, 8f)
-                when (style.outlineEffect) {
+                val effect = if (style.outlineEffect.needsOutline && !style.outlineEnabled) {
+                    SubtitleOutlineEffect.NONE
+                } else style.outlineEffect
+                when (effect) {
                     SubtitleOutlineEffect.NONE -> {
                         setProp("sub-border-style", "outline-and-shadow")
                         setProp("sub-outline-size", "0")

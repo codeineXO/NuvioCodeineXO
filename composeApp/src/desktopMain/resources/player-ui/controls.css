@@ -2765,7 +2765,9 @@ button:disabled {
   gap: 16px;
 }
 
-#outlineThicknessSection[aria-disabled="true"] {
+#outlineThicknessSection[aria-disabled="true"],
+#outlineColorSection[aria-disabled="true"],
+#outlineOpacitySection[aria-disabled="true"] {
   opacity: .45;
 }
 

@@ -1756,7 +1756,7 @@ internal class NativePlayerController(
         val applyLibass = useLibass
         val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
         val resolvedBoxColor = style.backgroundBoxColor
-        val resolvedOutlineSize = when (style.outlineEffect) {
+        val resolvedOutlineSize = if (!style.outlineEnabled) 0f else when (style.outlineEffect) {
             SubtitleOutlineEffect.NONE -> 0f
             SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
             SubtitleOutlineEffect.SOFT_GLOW -> (style.outlineWidth.toFloat() * 1.5f).coerceAtLeast(3f)
@@ -1801,7 +1801,7 @@ internal class NativePlayerController(
                 font = importedFont ?: style.fontName,
                 fontsDir = com.nuvio.app.features.player.SubtitleFontResolver.fontsDir(),
                 shadowColor = style.outlineColor.toMpvColorString(),
-                shadowOffset = if (style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) {
+                shadowOffset = if (style.outlineEnabled && style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) {
                     (style.outlineWidth + 1f).coerceIn(2f, 5f)
                 } else if (isBackgroundBox) 4f else 0f,
             )

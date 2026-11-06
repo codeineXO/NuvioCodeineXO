@@ -433,12 +433,14 @@ fun NuvioInputField(
     trailingContent: (@Composable (() -> Unit))? = null,
     useGlass: Boolean = false,
     glassBackdropState: HazeState? = null,
+    enabled: Boolean = true,
 ) {
     val tokens = MaterialTheme.nuvio
     var isEditing by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(NuvioTokens.Radius.lg)
     val interactionSource = remember { MutableInteractionSource() }
     OutlinedTextField(
+        enabled = enabled,
         value = value,
         onValueChange = onValueChange,
         readOnly = isRemoteKeyboardNavigationActive && !isEditing,

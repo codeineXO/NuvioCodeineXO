@@ -78,6 +78,27 @@ class PlayerBuiltInSubtitleSelectionTest {
         assertEquals(listOf(frenchAddon.url), controller.subtitleUrls)
     }
 
+    @Test
+    fun importedSubtitleWinsOverPendingSavedSelection() {
+        PlayerTrackPreferenceStorage.save(
+            "tt2026",
+            PersistedPlayerTrackPreference(subtitleType = PersistedSubtitleSelectionType.DISABLED),
+        )
+        val controller = RecordingController()
+        val runtime = runtime(controller)
+        runtime.playbackSnapshot = PlayerPlaybackSnapshot(isLoading = false)
+        val path = "E:/Subtitles/episode 1.srt"
+
+        runtime.importExternalSubtitle(path, "episode 1.srt")
+        runtime.refreshTracks()
+
+        assertTrue(runtime.isUserExplicitSubtitleSelection)
+        assertTrue(runtime.useCustomSubtitles)
+        assertEquals(path, runtime.selectedAddonSubtitle?.url)
+        assertEquals(listOf(path), controller.subtitleUrls)
+        assertTrue(controller.subtitleSelections.isEmpty())
+    }
+
     private fun addonSubtitle(language: String) = AddonSubtitle(
         id = "addon-$language",
         url = "https://example.com/episode-1-$language.srt",

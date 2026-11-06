@@ -2873,11 +2873,14 @@ const renderSubtitleStylePanel = () => {
                    SubtitleOutlineEffects[0];
     outlineEffectValue.textContent = effect.label;
     const isNone = effect.id === "none";
-    outlineColorSection.hidden = isNone;
-    outlineOpacitySection.hidden = isNone;
+    for (const section of [outlineColorSection, outlineOpacitySection]) {
+      section.hidden = false;
+      section.setAttribute("aria-disabled", String(!customStylingEnabled || isNone));
+      section.inert = !customStylingEnabled || isNone;
+    }
     if (outlineThicknessLabel) outlineThicknessLabel.textContent = state.outlineThicknessLabel || "Outline Thickness";
     if (outlineThicknessSection) {
-      outlineThicknessSection.hidden = isNone;
+      outlineThicknessSection.hidden = false;
       outlineThicknessSection.setAttribute("aria-disabled", String(!customStylingEnabled || isBackgroundBox || isNone));
     }
     if (outlineThicknessMinus)   outlineThicknessMinus.disabled = !customStylingEnabled || isBackgroundBox || isNone;
@@ -2905,7 +2908,9 @@ const renderSubtitleStylePanel = () => {
   syncColorPickerUi("subtitleOutline", effectColor);
   customSubtitleStyleControls.querySelectorAll("button, input, select").forEach(control => {
     if (control !== outlineThicknessMinus && control !== outlineThicknessPlus) {
-      control.disabled = !customStylingEnabled;
+      const effectDisabled = control.closest("#outlineColorSection, #outlineOpacitySection")
+        ?.getAttribute("aria-disabled") === "true";
+      control.disabled = !customStylingEnabled || effectDisabled;
     }
   });
   if (!customStylingEnabled && fontPickerOpen) setFontPickerOpen(false);

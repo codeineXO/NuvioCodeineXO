@@ -2762,6 +2762,7 @@ internal fun PlayerScreenRuntime.importExternalSubtitle(path: String, fileName: 
         display = cleanName,
     )
     importedSubtitles = (importedSubtitles.filter { it.url != path } + imported)
+    isUserExplicitSubtitleSelection = true
     selectedAddonSubtitleId = imported.id
     selectedSubtitleIndex = -1
     useCustomSubtitles = true

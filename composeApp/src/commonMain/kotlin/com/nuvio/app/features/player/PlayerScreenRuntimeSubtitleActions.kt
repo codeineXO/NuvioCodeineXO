@@ -71,12 +71,13 @@ internal fun PlayerScreenRuntime.setSubtitleDelay(delayMs: Int) {
 internal fun PlayerScreenRuntime.loadSubtitleAutoSyncCues(force: Boolean = false) {
     val subtitle = selectedAddonSubtitle ?: return
     if (!force && subtitleAutoSyncState.cues.isNotEmpty()) return
-    // Offline: the cue download would only hang, so skip it and leave the state as is.
-    if (isNetworkOffline()) return
+    val isLocalSubtitle = subtitle.language == SubtitleImportedLanguageKey ||
+        subtitle.url.startsWith("file:", ignoreCase = true)
+    if (!isLocalSubtitle && isNetworkOffline()) return
     subtitleAutoSyncState = subtitleAutoSyncState.copy(isLoading = true, errorMessage = null)
     scope.launch {
         val result = runCatching {
-            val body = httpGetTextWithHeaders(
+            val body = if (isLocalSubtitle) SubtitleImportPlatform.readSubtitleText(subtitle.url) else httpGetTextWithHeaders(
                 url = subtitle.url,
                 headers = sanitizePlaybackHeaders(activeSourceHeaders),
             )

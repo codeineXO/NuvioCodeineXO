@@ -126,7 +126,7 @@ val SubtitleColorSwatches = listOf(
     Color(0xFFFF5C5C),
     Color(0xFF00FF88),
     Color(0xFF9B59B6),
-    Color(0xFFF97316),
+    Color(0xFFFFD700),
     Color(0xFF22C55E),
     Color(0xFF3B82F6),
     Color.Black,
