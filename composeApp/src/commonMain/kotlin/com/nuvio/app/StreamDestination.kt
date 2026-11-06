@@ -62,6 +62,8 @@ import com.nuvio.app.features.party.matches
 import com.nuvio.app.features.party.partyMediaKey
 import com.nuvio.app.features.streams.LocalSharedStream
 import com.nuvio.app.features.streams.LocalStreamHighlight
+import com.nuvio.app.features.streams.StreamResumeState
+import com.nuvio.app.features.streams.forPlayback
 import com.nuvio.app.features.streams.SharedStream
 
 private data class PendingP2pStreamOpen(
@@ -71,6 +73,7 @@ private data class PendingP2pStreamOpen(
     val forceExternal: Boolean,
     val forceInternal: Boolean,
     val isAutoPlay: Boolean,
+    val startFromBeginning: Boolean,
 )
 
 @Composable
@@ -184,8 +187,8 @@ internal fun StreamDestination(
         )
     }
 
-    suspend fun serverResumePositionMs(stream: StreamItem): Long? {
-        if (stream.serverTarget == null || launch.startFromBeginning) return null
+    suspend fun serverResumePositionMs(stream: StreamItem, startFromBeginning: Boolean = launch.startFromBeginning): Long? {
+        if (stream.serverTarget == null || startFromBeginning) return null
         val saved = WatchProgressRepository.progressForVideo(
             videoId = effectiveVideoId,
             parentMetaId = launch.parentMetaId,
@@ -200,7 +203,10 @@ internal fun StreamDestination(
         resolvedResumePositionMs: Long?,
         resolvedResumeProgressFraction: Float?,
         replaceStreamRoute: Boolean,
+        startFromBeginning: Boolean = launch.startFromBeginning,
     ) {
+        val playbackResume = StreamResumeState(resolvedResumePositionMs, resolvedResumeProgressFraction)
+            .forPlayback(startFromBeginning)
         val infoHash = stream.p2pInfoHash ?: return
         val sentinelUrl = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
         if (playerSettings.streamReuseLastLinkEnabled) {
@@ -262,8 +268,8 @@ internal fun StreamDestination(
             torrentFilename = stream.classificationFilename,
             torrentTrackers = stream.p2pTrackers,
             subtitleExtras = SubtitleRequestExtras.from(stream.behaviorHints),
-            initialPositionMs = resolvedResumePositionMs ?: 0L,
-            initialProgressFraction = resolvedResumeProgressFraction,
+            initialPositionMs = playbackResume.positionMs ?: 0L,
+            initialProgressFraction = playbackResume.progressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
             streamLaunchId = route.launchId,
             mediaContentType = resolveLaunchClassification(stream).type,
@@ -290,6 +296,7 @@ internal fun StreamDestination(
         forceExternal: Boolean,
         forceInternal: Boolean,
         isAutoPlay: Boolean,
+        startFromBeginning: Boolean = launch.startFromBeginning,
     ) {
         if (stream.p2pInfoHash == null) {
             if (isAutoPlay) StreamsRepository.skipAutoPlayStream(stream)
@@ -307,6 +314,7 @@ internal fun StreamDestination(
                 forceExternal = forceExternal,
                 forceInternal = forceInternal,
                 isAutoPlay = isAutoPlay,
+                startFromBeginning = startFromBeginning,
             )
             return
         }
@@ -315,6 +323,7 @@ internal fun StreamDestination(
             resolvedResumePositionMs = resolvedResumePositionMs,
             resolvedResumeProgressFraction = resolvedResumeProgressFraction,
             replaceStreamRoute = isAutoPlay,
+            startFromBeginning = startFromBeginning,
         )
     }
 
@@ -612,7 +621,10 @@ internal fun StreamDestination(
         forceExternal: Boolean,
         forceInternal: Boolean,
         saveForReuse: Boolean = true,
+        startFromBeginning: Boolean = launch.startFromBeginning,
     ) {
+        val playbackResume = StreamResumeState(resolvedResumePositionMs, resolvedResumeProgressFraction)
+            .forPlayback(startFromBeginning)
         if (stream.needsServerPreparation) {
             if (preparingServerStream) return
             streamRouteScope.launch {
@@ -624,14 +636,15 @@ internal fun StreamDestination(
                         NuvioToastController.show(error.serverPlaybackMessage())
                         return@launch
                     }
-                val serverResumeMs = serverResumePositionMs(prepared)
+                val serverResumeMs = serverResumePositionMs(prepared, startFromBeginning)
                 preparingServerStream = false
                 openSelectedStream(
                     stream = prepared,
-                    resolvedResumePositionMs = serverResumeMs ?: resolvedResumePositionMs,
-                    resolvedResumeProgressFraction = resolvedResumeProgressFraction.takeIf { serverResumeMs == null },
+                    resolvedResumePositionMs = serverResumeMs ?: playbackResume.positionMs,
+                    resolvedResumeProgressFraction = playbackResume.progressFraction.takeIf { serverResumeMs == null },
                     forceExternal = false,
                     forceInternal = true,
+                    startFromBeginning = startFromBeginning,
                 )
             }
             return
@@ -649,10 +662,11 @@ internal fun StreamDestination(
                 when (resolved) {
                     is DirectDebridPlayableResult.Success -> openSelectedStream(
                         stream = resolved.stream,
-                        resolvedResumePositionMs = resolvedResumePositionMs,
-                        resolvedResumeProgressFraction = resolvedResumeProgressFraction,
+                        resolvedResumePositionMs = playbackResume.positionMs,
+                        resolvedResumeProgressFraction = playbackResume.progressFraction,
                         forceExternal = forceExternal,
                         forceInternal = forceInternal,
+                        startFromBeginning = startFromBeginning,
                     )
                     else -> {
                         resolved.toastMessage()?.let { NuvioToastController.show(it) }
@@ -674,11 +688,12 @@ internal fun StreamDestination(
         if (stream.needsLocalDebridResolve && stream.p2pInfoHash != null) {
             requestOrOpenP2pStream(
                 stream = stream,
-                resolvedResumePositionMs = resolvedResumePositionMs,
-                resolvedResumeProgressFraction = resolvedResumeProgressFraction,
+                resolvedResumePositionMs = playbackResume.positionMs,
+                resolvedResumeProgressFraction = playbackResume.progressFraction,
                 forceExternal = forceExternal,
                 forceInternal = forceInternal,
                 isAutoPlay = false,
+                startFromBeginning = startFromBeginning,
             )
             return
         }
@@ -694,10 +709,11 @@ internal fun StreamDestination(
                 }
                 openSelectedStream(
                     stream = resolved,
-                    resolvedResumePositionMs = resolvedResumePositionMs,
-                    resolvedResumeProgressFraction = resolvedResumeProgressFraction,
+                    resolvedResumePositionMs = playbackResume.positionMs,
+                    resolvedResumeProgressFraction = playbackResume.progressFraction,
                     forceExternal = forceExternal,
                     forceInternal = forceInternal,
+                    startFromBeginning = startFromBeginning,
                     // The resolved URL expires after a few hours, so it isn't kept for reuse.
                     saveForReuse = false,
                 )
@@ -771,8 +787,8 @@ internal fun StreamDestination(
             torrentFileIdx = stream.p2pFileIdx ?: stream.fileIdx,
             torrentFilename = stream.classificationFilename,
             torrentTrackers = stream.p2pTrackers,
-            initialPositionMs = resolvedResumePositionMs ?: 0L,
-            initialProgressFraction = resolvedResumeProgressFraction,
+            initialPositionMs = playbackResume.positionMs ?: 0L,
+            initialProgressFraction = playbackResume.progressFraction,
             subtitleExtras = SubtitleRequestExtras.from(stream.behaviorHints, sourceUrl),
             contentLanguage = resolveLaunchContentLanguage(),
             streamLaunchId = route.launchId,
@@ -850,7 +866,7 @@ internal fun StreamDestination(
                 resumeProgressFraction = launch.resumeProgressFraction,
                 manualSelection = launch.manualSelection,
                 startFromBeginning = launch.startFromBeginning,
-                onStreamSelected = { stream, resolvedResumePositionMs, resolvedResumeProgressFraction ->
+                onStreamSelected = { stream, resolvedResumePositionMs, resolvedResumeProgressFraction, restartSelected ->
                     openSelectedStream(
                         stream = stream,
                         resolvedResumePositionMs = resolvedResumePositionMs,
@@ -858,15 +874,17 @@ internal fun StreamDestination(
                         forceExternal = false,
                         forceInternal = false,
                         saveForReuse = stream != sharedStream?.stream,
+                        startFromBeginning = restartSelected,
                     )
                 },
-                onStreamActionOpen = { stream, openExternally, resolvedResumePositionMs, resolvedResumeProgressFraction ->
+                onStreamActionOpen = { stream, openExternally, resolvedResumePositionMs, resolvedResumeProgressFraction, restartSelected ->
                     openSelectedStream(
                         stream = stream,
                         resolvedResumePositionMs = resolvedResumePositionMs,
                         resolvedResumeProgressFraction = resolvedResumeProgressFraction,
                         forceExternal = openExternally,
                         forceInternal = !openExternally,
+                        startFromBeginning = restartSelected,
                     )
                 },
                 onBack = onBack,
@@ -883,6 +901,7 @@ internal fun StreamDestination(
                         resolvedResumePositionMs = pending.resumePositionMs,
                         resolvedResumeProgressFraction = pending.resumeProgressFraction,
                         replaceStreamRoute = pending.isAutoPlay,
+                        startFromBeginning = pending.startFromBeginning,
                     )
                 },
                 onDismiss = {

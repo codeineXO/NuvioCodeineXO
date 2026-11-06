@@ -70,7 +70,7 @@ internal fun ProviderFilterRow(
         RefreshChip(isLoading = isLoading, onClick = onClick)
     },
     filterChip: @Composable (AddonStreamGroup?, Boolean, () -> Unit) -> Unit = { group, isSelected, onClick ->
-        FilterChip(
+        StreamFilterChip(
             initialFocus = group == null,
             modifier = Modifier.streamResultsFocus(isTab = true, id = group?.addonId),
             label = group?.addonName ?: stringResource(Res.string.collections_tab_all),
@@ -139,7 +139,7 @@ private fun RefreshChip(
     onClick: () -> Unit,
 ) {
     val rotation = rememberRefreshRotation(isLoading)
-    FilterChip(
+    StreamFilterChip(
         icon = Icons.Rounded.Refresh,
         contentDescription = stringResource(Res.string.streams_refresh),
         iconModifier = Modifier.graphicsLayer { rotationZ = rotation.value },
@@ -149,7 +149,7 @@ private fun RefreshChip(
 }
 
 @Composable
-private fun FilterChip(
+internal fun StreamFilterChip(
     modifier: Modifier = Modifier,
     initialFocus: Boolean = false,
     label: String? = null,

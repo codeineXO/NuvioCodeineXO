@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -157,13 +159,14 @@ fun StreamsScreen(
     manualSelection: Boolean = false,
     startFromBeginning: Boolean = false,
     showLoadingScreen: Boolean = false,
-    onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit = { _, _, _ -> },
+    onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?, startFromBeginning: Boolean) -> Unit = { _, _, _, _ -> },
     onStreamActionOpen: (
         stream: StreamItem,
         openExternally: Boolean,
         resumePositionMs: Long?,
         resumeProgressFraction: Float?,
-    ) -> Unit = { _, _, _, _ -> },
+        startFromBeginning: Boolean,
+    ) -> Unit = { _, _, _, _, _ -> },
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -212,17 +215,30 @@ fun StreamsScreen(
         seasonNumber = seasonNumber,
         episodeNumber = episodeNumber,
     )
+    var restartSelected by remember(type, videoId, parentMetaId, seasonNumber, episodeNumber) {
+        mutableStateOf(startFromBeginning)
+    }
+    val availableResumeState = resolveStreamResumeState(
+        progress = episodeProgress,
+        initialPositionMs = resumePositionMs,
+        initialProgressFraction = resumeProgressFraction,
+        startFromBeginning = false,
+    )
+    val resumeControls: @Composable (Modifier) -> Unit = { bannerModifier ->
+        ResumeBanner(
+            positionMs = availableResumeState.positionMs,
+            progressFraction = availableResumeState.progressFraction,
+            startFromBeginning = restartSelected,
+            onStartFromBeginningChange = { restartSelected = it },
+            modifier = bannerModifier,
+        )
+    }
     val storedProgress = if (startFromBeginning) {
         null
     } else {
         episodeProgress
     }
-    val resumeState = resolveStreamResumeState(
-        progress = episodeProgress,
-        initialPositionMs = resumePositionMs,
-        initialProgressFraction = resumeProgressFraction,
-        startFromBeginning = startFromBeginning,
-    )
+    val resumeState = availableResumeState.forPlayback(restartSelected)
     val effectiveResumePositionMs = resumeState.positionMs
     val effectiveResumeProgressFraction = resumeState.progressFraction
 
@@ -324,9 +340,10 @@ fun StreamsScreen(
                 appendInstantServiceToDefaultName = debridSettings.canResolvePlayableLinks && !debridSettings.hasCustomStreamFormatting,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
+                resumeControls = resumeControls,
                 dominantColorEnabled = dominantColorEnabled,
                 onStreamSelected = { stream, positionMs, progressFraction ->
-                    onStreamSelected(stream, positionMs, progressFraction)
+                    onStreamSelected(stream, positionMs, progressFraction, restartSelected)
                 },
                 onStreamLongPress = { stream ->
                     streamActionsTarget = StreamActionsTarget(stream = stream)
@@ -354,8 +371,9 @@ fun StreamsScreen(
                 appendInstantServiceToDefaultName = debridSettings.canResolvePlayableLinks && !debridSettings.hasCustomStreamFormatting,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
+                resumeControls = resumeControls,
                 onStreamSelected = { stream, positionMs, progressFraction ->
-                    onStreamSelected(stream, positionMs, progressFraction)
+                    onStreamSelected(stream, positionMs, progressFraction, restartSelected)
                 },
                 onStreamLongPress = { stream ->
                     streamActionsTarget = StreamActionsTarget(stream = stream)
@@ -498,6 +516,7 @@ fun StreamsScreen(
                     openExternally,
                     effectiveResumePositionMs,
                     effectiveResumeProgressFraction,
+                    restartSelected,
                 )
             },
         )
@@ -522,6 +541,7 @@ private fun MobileStreamsLayout(
     appendInstantServiceToDefaultName: Boolean,
     resumePositionMs: Long?,
     resumeProgressFraction: Float?,
+    resumeControls: @Composable (Modifier) -> Unit,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit,
     onStreamLongPress: (StreamItem) -> Unit,
     onStreamSecondaryClick: (StreamItem, Offset) -> Unit,
@@ -603,13 +623,7 @@ private fun MobileStreamsLayout(
                 }
 
                 Column(modifier = Modifier.fillMaxSize()) {
-                    if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
-                        ResumeBanner(
-                            positionMs = resumePositionMs,
-                            progressFraction = resumeProgressFraction,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        )
-                    }
+                    resumeControls(Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                     metadataInfoContent?.invoke()
                     ProviderFilterRow(
                         desktopDragMomentumEnabled = true,
@@ -641,6 +655,9 @@ internal data class StreamResumeState(
     val progressFraction: Float? = null,
 )
 
+internal fun StreamResumeState.forPlayback(startFromBeginning: Boolean): StreamResumeState =
+    if (startFromBeginning) StreamResumeState(positionMs = 0L) else this
+
 internal fun resolveStreamResumeState(
     progress: WatchProgressEntry?,
     initialPositionMs: Long?,
@@ -655,10 +672,13 @@ internal fun resolveStreamResumeState(
     return StreamResumeState(positionMs = position, progressFraction = fraction)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ResumeBanner(
     positionMs: Long?,
     progressFraction: Float? = null,
+    startFromBeginning: Boolean,
+    onStartFromBeginningChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val resumeText = when {
@@ -679,12 +699,31 @@ internal fun ResumeBanner(
             .then(if (LocalStreamResultsGlass.current) Modifier.streamResultsSurface().streamResultsBorder(RoundedCornerShape(18.dp)) else Modifier.background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        Text(
-            text = resumeText,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.remoteNavigationGroup(),
+        ) {
+            Text(
+                text = resumeText,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterVertically),
+            )
+            StreamFilterChip(
+                isSelected = !startFromBeginning,
+                onClick = { onStartFromBeginningChange(false) },
+                label = stringResource(Res.string.action_resume),
+                modifier = Modifier.align(Alignment.CenterVertically),
+            )
+            StreamFilterChip(
+                isSelected = startFromBeginning,
+                onClick = { onStartFromBeginningChange(true) },
+                label = stringResource(Res.string.cw_action_start_from_beginning),
+                modifier = Modifier.align(Alignment.CenterVertically),
+            )
+        }
     }
 }
 

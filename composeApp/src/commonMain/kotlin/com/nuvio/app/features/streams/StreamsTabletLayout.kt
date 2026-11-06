@@ -101,6 +101,7 @@ internal fun TabletStreamsLayout(
     appendInstantServiceToDefaultName: Boolean,
     resumePositionMs: Long?,
     resumeProgressFraction: Float?,
+    resumeControls: @Composable (Modifier) -> Unit,
     dominantColorEnabled: Boolean,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit,
     onStreamLongPress: (StreamItem) -> Unit,
@@ -126,6 +127,7 @@ internal fun TabletStreamsLayout(
             appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
             resumePositionMs = resumePositionMs,
             resumeProgressFraction = resumeProgressFraction,
+            resumeControls = resumeControls,
             onStreamSelected = onStreamSelected,
             onStreamLongPress = onStreamLongPress,
             onStreamSecondaryClick = onStreamSecondaryClick,
@@ -301,13 +303,7 @@ internal fun TabletStreamsLayout(
                             .fillMaxSize()
                             .padding(16.dp),
                     ) {
-                        if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
-                            ResumeBanner(
-                                positionMs = resumePositionMs,
-                                progressFraction = resumeProgressFraction,
-                                modifier = Modifier.padding(bottom = 8.dp),
-                            )
-                        }
+                        resumeControls(Modifier.padding(bottom = 8.dp))
 
                         metadataInfoContent?.invoke()
                         ProviderFilterRow(
@@ -361,6 +357,7 @@ private fun LegacyTabletStreamsLayout(
     appendInstantServiceToDefaultName: Boolean,
     resumePositionMs: Long?,
     resumeProgressFraction: Float?,
+    resumeControls: @Composable (Modifier) -> Unit,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit,
     onStreamLongPress: (StreamItem) -> Unit,
     onStreamSecondaryClick: (StreamItem, Offset) -> Unit,
@@ -506,13 +503,7 @@ private fun LegacyTabletStreamsLayout(
                                     .fillMaxSize()
                                     .padding(16.dp),
                             ) {
-                                if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
-                                    ResumeBanner(
-                                        positionMs = resumePositionMs,
-                                        progressFraction = resumeProgressFraction,
-                                        modifier = Modifier.padding(bottom = 8.dp),
-                                    )
-                                }
+                                resumeControls(Modifier.padding(bottom = 8.dp))
 
                                 metadataInfoContent?.invoke()
                                 ProviderFilterRow(
