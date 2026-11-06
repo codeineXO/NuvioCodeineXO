@@ -85,16 +85,16 @@ val SubtitleFontOptions = listOf(
 )
 
 data class SubtitleStyleState(
-    val textColor: Color = Color.White,
+    val textColor: Color = Color(0xFFFFF3B2),
     val backgroundColor: Color = Color.Transparent,
     val outlineColor: Color = Color.Black,
     val outlineEnabled: Boolean = true,
-    val outlineWidth: Int = 2,
+    val outlineWidth: Float = 1f,
     val outlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE_AND_SHADOW,
     val fontName: String = "Arial",
     val importedFontId: String? = null,
     val bold: Boolean = true,
-    val fontSizeSp: Int = 12,
+    val fontSizeSp: Int = 10,
     val bottomOffset: Int = 10,
     val stripSdh: Boolean = false,
     val useForcedSubtitles: Boolean = false,
@@ -121,7 +121,7 @@ data class SubtitleAutoSyncUiState(
 
 val SubtitleColorSwatches = listOf(
     Color.White,
-    Color(0xFFFFD700),
+    SubtitleStyleState.DEFAULT.textColor,
     Color(0xFF00E5FF),
     Color(0xFFFF5C5C),
     Color(0xFF00FF88),
@@ -150,6 +150,53 @@ val SubtitleOutlineColorSwatches = listOf(
     Color(0xFF00FF88),
     Color(0xFF9B59B6),
 )
+
+internal val SubtitleOutlineWidths = listOf(0.5f, 1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f)
+
+internal fun normalizeSubtitleOutlineWidth(width: Float): Float {
+    val finiteWidth = width.takeIf { it.isFinite() } ?: 1f
+    return SubtitleOutlineWidths.minBy { kotlin.math.abs(it - finiteWidth) }
+}
+
+internal fun stepSubtitleOutlineWidth(width: Float, direction: Int): Float {
+    val index = SubtitleOutlineWidths.indexOf(normalizeSubtitleOutlineWidth(width))
+    return SubtitleOutlineWidths[(index + direction.coerceIn(-1, 1)).coerceIn(SubtitleOutlineWidths.indices)]
+}
+
+internal fun Float.outlineWidthLabel(): String = if (this == toInt().toFloat()) toInt().toString() else toString()
+
+internal fun SubtitleStyleState.withOutlineColor(color: Color): SubtitleStyleState =
+    copy(outlineColor = color.copy(alpha = outlineColor.alpha))
+
+internal fun SubtitleStyleState.withOutlineOpacity(percent: Int): SubtitleStyleState =
+    copy(outlineColor = outlineColor.copy(alpha = percent.coerceIn(0, 100) / 100f))
+
+internal val SubtitleStyleState.backgroundBoxColor: Color
+    get() = if (backgroundColor.alpha == 0f && !appearance.backgroundBoxColorConfigured) {
+        Color.Black.copy(alpha = 0.65f)
+    } else backgroundColor
+
+internal val SubtitleStyleState.effectColor: Color
+    get() = if (outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) backgroundBoxColor else outlineColor
+
+internal fun SubtitleStyleState.withEffectColor(color: Color): SubtitleStyleState =
+    if (outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
+        copy(
+            backgroundColor = color.copy(alpha = backgroundBoxColor.alpha),
+            appearance = appearance.copy(backgroundBoxColorConfigured = true),
+        )
+    } else withOutlineColor(color)
+
+internal fun SubtitleStyleState.withEffectOpacity(percent: Int): SubtitleStyleState =
+    if (outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
+        copy(
+            backgroundColor = backgroundBoxColor.copy(alpha = percent.coerceIn(0, 100) / 100f),
+            appearance = appearance.copy(backgroundBoxColorConfigured = true),
+        )
+    } else withOutlineOpacity(percent)
+
+internal fun SubtitleStyleState.withEffectSwatch(index: Int): SubtitleStyleState =
+    SubtitleOutlineColorSwatches.getOrNull(index)?.let { withEffectColor(it) } ?: this
 
 fun Color.toStorageHexString(): String {
     fun component(value: Float): String =

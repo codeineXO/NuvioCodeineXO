@@ -151,7 +151,10 @@ fun SubtitleCustomColorPicker(
                 verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
             ) {
                 swatches.forEach { swatch ->
-                    val isSelected = isSameColor(selectedColor, swatch)
+                    val isSelected = isSameColor(
+                        selectedColor,
+                        if (target == SubtitleColorEditTarget.OUTLINE) swatch.copy(alpha = selectedColor.alpha) else swatch,
+                    )
                     Box(
                         modifier = Modifier
                             .size(NuvioTokens.Space.s36)
@@ -161,7 +164,7 @@ fun SubtitleCustomColorPicker(
                                 selected = isSelected,
                                 role = Role.RadioButton,
                                 onClick = {
-                                    onColorChanged(swatch)
+                                    onColorChanged(if (target == SubtitleColorEditTarget.OUTLINE) swatch.copy(alpha = selectedColor.alpha) else swatch)
                                 },
                             )
                             .semantics { contentDescription = swatch.toStorageHexString() }
@@ -267,12 +270,12 @@ private fun SubtitleLivePreviewCard(
         else -> style.backgroundColor
     }
     val isBold = style.bold
-    val outlineWidth = style.outlineWidth.coerceIn(1, 8)
+    val outlineWidth = style.outlineWidth.coerceIn(0.5f, 8f)
     val fontFamily = getSubtitleFontFamily(style.fontName)
 
     val effectiveBgColor = when (style.outlineEffect) {
         SubtitleOutlineEffect.BACKGROUND_BOX -> {
-            if (bgColor.alpha == 0f) Color.Black.copy(alpha = 0.70f) else bgColor
+            if (target == SubtitleColorEditTarget.BACKGROUND) selectedColor else style.backgroundBoxColor
         }
         else -> bgColor
     }
@@ -324,7 +327,7 @@ private fun SubtitleLivePreviewCard(
                     fontSize = 18.sp,
                     fontFamily = fontFamily,
                     fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
-                    color = outlineColor.copy(alpha = 0.85f),
+                    color = outlineColor.copy(alpha = outlineColor.alpha * 0.85f),
                     modifier = Modifier.offset(x = shadowOffset, y = shadowOffset),
                     style = MaterialTheme.typography.titleMedium,
                 )
@@ -341,7 +344,7 @@ private fun SubtitleLivePreviewCard(
                         fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
                         style = MaterialTheme.typography.titleMedium.copy(
                             drawStyle = Stroke(width = strokeWidth, join = StrokeJoin.Round),
-                            color = outlineColor.copy(alpha = 0.9f),
+                            color = outlineColor.copy(alpha = outlineColor.alpha * 0.9f),
                         ),
                     )
                 }

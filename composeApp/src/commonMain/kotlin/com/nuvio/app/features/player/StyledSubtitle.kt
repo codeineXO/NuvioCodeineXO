@@ -85,14 +85,14 @@ internal fun StyledSubtitleText(
             val left = (size.width - boxWidth) / 2f
             val origin = Offset(left + paddingX, paddingY)
             drawRoundRect(
-                color = style.backgroundColor,
+                color = if (style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) style.backgroundBoxColor else style.backgroundColor,
                 topLeft = Offset(left, 0f),
                 size = androidx.compose.ui.geometry.Size(boxWidth, size.height),
                 cornerRadius = CornerRadius(radius),
             )
             if (style.outlineEnabled && outline > 0) {
                 drawText(
-                    layout, color = style.outlineColor.copy(alpha = style.outlineColor.alpha * style.textColor.alpha),
+                    layout, color = style.outlineColor,
                     topLeft = origin, drawStyle = Stroke(outline * 2), shadow = Shadow.None,
                 )
             }

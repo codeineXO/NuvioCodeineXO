@@ -42,12 +42,22 @@ import com.nuvio.app.features.player.selectFont
 import com.nuvio.app.features.player.SubtitleColorEditTarget
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
+import com.nuvio.app.features.player.SubtitleOutlineWidths
+import com.nuvio.app.features.player.SubtitleOutlineEffect
+import com.nuvio.app.features.player.outlineWidthLabel
+import com.nuvio.app.features.player.effectColor
+import com.nuvio.app.features.player.withEffectColor
+import com.nuvio.app.features.player.withEffectOpacity
+import kotlin.math.roundToInt
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
 import com.nuvio.app.isWindows
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_player_outline_opacity
+import nuvio.composeapp.generated.resources.compose_player_box_color
+import nuvio.composeapp.generated.resources.compose_player_box_opacity
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_all
 import nuvio.composeapp.generated.resources.settings_advanced_discord_activity_mode_only_watching
@@ -561,6 +571,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
         var showSubtitleOutlineColorDialog by rememberSaveable { mutableStateOf(false) }
 
         val subtitleStyle = playerSettings.subtitleStyle
+        val isBackgroundBox = subtitleStyle.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
 
         SettingsSection(
             title = stringResource(Res.string.settings_playback_section_subtitle_rendering),
@@ -580,17 +591,18 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onClick = { showSubtitleOutlineEffectDialog = true },
                 )
-                if (subtitleStyle.outlineEnabled) {
+                if (isBackgroundBox || (subtitleStyle.outlineEnabled && subtitleStyle.outlineEffect.needsOutline)) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSliderRow(
                         title = "Outline Thickness",
-                        value = subtitleStyle.outlineWidth,
-                        valueText = { "$it px" },
-                        valueRange = 1..8,
+                        enabled = !isBackgroundBox,
+                        value = SubtitleOutlineWidths.indexOf(subtitleStyle.outlineWidth).coerceAtLeast(0),
+                        valueText = { "${SubtitleOutlineWidths[it].outlineWidthLabel()} px" },
+                        valueRange = SubtitleOutlineWidths.indices,
                         step = 1,
                         isTablet = isTablet,
                         onValueChange = { value ->
-                            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = value))
+                            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = SubtitleOutlineWidths[value]))
                         },
                     )
                 }
@@ -601,13 +613,25 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     isTablet = isTablet,
                     onClick = { showSubtitleTextColorDialog = true },
                 )
-                if (subtitleStyle.outlineEnabled) {
+                if (isBackgroundBox || (subtitleStyle.outlineEnabled && subtitleStyle.outlineEffect.needsOutline)) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_playback_subtitle_outline_color),
-                        description = subtitleColorLabel(subtitleStyle.outlineColor),
+                        title = stringResource(if (isBackgroundBox) Res.string.compose_player_box_color else Res.string.settings_playback_subtitle_outline_color),
+                        description = subtitleColorLabel(subtitleStyle.effectColor),
                         isTablet = isTablet,
                         onClick = { showSubtitleOutlineColorDialog = true },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSliderRow(
+                        title = stringResource(if (isBackgroundBox) Res.string.compose_player_box_opacity else Res.string.compose_player_outline_opacity),
+                        value = (subtitleStyle.effectColor.alpha * 100f).roundToInt(),
+                        valueText = { "$it%" },
+                        valueRange = 0..100,
+                        step = 10,
+                        isTablet = isTablet,
+                        onValueChange = { value ->
+                            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectOpacity(value))
+                        },
                     )
                 }
             }
@@ -652,13 +676,13 @@ internal fun LazyListScope.codeineXOSettingsContent(
 
         if (showSubtitleOutlineColorDialog) {
             SubtitleColorDialog(
-                title = stringResource(Res.string.settings_playback_subtitle_outline_color),
+                title = stringResource(if (isBackgroundBox) Res.string.compose_player_box_color else Res.string.settings_playback_subtitle_outline_color),
                 colors = SubtitleOutlineColorSwatches,
-                selectedColor = playerSettings.subtitleStyle.outlineColor,
+                selectedColor = playerSettings.subtitleStyle.effectColor,
                 previewStyle = playerSettings.subtitleStyle,
-                target = SubtitleColorEditTarget.OUTLINE,
+                target = if (isBackgroundBox) SubtitleColorEditTarget.BACKGROUND else SubtitleColorEditTarget.OUTLINE,
                 onColorSelected = { color ->
-                    PlayerSettingsRepository.setSubtitleStyle(playerSettings.subtitleStyle.copy(outlineColor = color))
+                    PlayerSettingsRepository.setSubtitleStyle(playerSettings.subtitleStyle.withEffectColor(color))
                 },
                 onDismiss = { showSubtitleOutlineColorDialog = false },
             )

@@ -54,6 +54,9 @@ import nuvio.composeapp.generated.resources.compose_player_loading_lines
 import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
 import nuvio.composeapp.generated.resources.compose_player_outline
 import nuvio.composeapp.generated.resources.compose_player_outline_color
+import nuvio.composeapp.generated.resources.compose_player_outline_opacity
+import nuvio.composeapp.generated.resources.compose_player_box_color
+import nuvio.composeapp.generated.resources.compose_player_box_opacity
 import nuvio.composeapp.generated.resources.compose_player_reload
 import nuvio.composeapp.generated.resources.compose_player_reset
 import nuvio.composeapp.generated.resources.compose_player_reset_defaults
@@ -156,6 +159,7 @@ private fun SubtitleStyleStepper(
     onIncrease: () -> Unit,
     valueWidth: Dp = 84.dp,
     fontFamily: androidx.compose.ui.text.font.FontFamily? = null,
+    enabled: Boolean = true,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -164,6 +168,7 @@ private fun SubtitleStyleStepper(
         SubtitleStepperButton(
             icon = Icons.Rounded.Remove,
             onClick = onDecrease,
+            enabled = enabled,
         )
         Box(
             modifier = Modifier
@@ -183,6 +188,7 @@ private fun SubtitleStyleStepper(
         SubtitleStepperButton(
             icon = Icons.Rounded.Add,
             onClick = onIncrease,
+            enabled = enabled,
         )
     }
 }
@@ -191,13 +197,14 @@ private fun SubtitleStyleStepper(
 private fun SubtitleStepperButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White.copy(alpha = 0.08f))
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -527,44 +534,21 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
         }
 
         val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
+        val showOutlineControls = style.outlineEffect.needsOutline
+        val showEffectColorControls = isBackgroundBox || showOutlineControls
+        val effectColorEnabled = isBackgroundBox || style.outlineEnabled
         SubtitleStyleSection(
             title = if (isBackgroundBox) "Subtitle Box" else stringResource(Res.string.compose_player_outline),
         ) {
-            if (isBackgroundBox) {
-                val opacity = ((style.backgroundColor.alpha.takeIf { it >= 0.2f } ?: 0.65f) * 100f)
-                    .roundToInt()
-                    .coerceIn(20, 100)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Subtitle Box Opacity",
-                        color = Color.White.copy(alpha = 0.72f),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    SubtitleStyleStepper(
-                        value = "$opacity%",
-                        onDecrease = {
-                            val alpha = ((opacity - 10).coerceAtLeast(20)) / 100f
-                            onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
-                        },
-                        onIncrease = {
-                            val alpha = ((opacity + 10).coerceAtMost(100)) / 100f
-                            onStyleChanged(style.copy(backgroundColor = style.backgroundColor.copy(alpha = alpha)))
-                        },
-                    )
-                }
-            } else {
+            if (!isBackgroundBox) {
                 SubtitleToggleChip(
                     enabled = style.outlineEnabled,
                     onClick = { onStyleChanged(style.copy(outlineEnabled = !style.outlineEnabled)) },
                 )
             }
-            if (!isBackgroundBox && style.outlineEnabled) {
+            if (isBackgroundBox || (showOutlineControls && style.outlineEnabled)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().alpha(if (isBackgroundBox) 0.45f else 1f),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -574,27 +558,28 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
                         style = MaterialTheme.typography.bodySmall,
                     )
                     SubtitleStyleStepper(
-                        value = "${style.outlineWidth} px",
+                        value = "${style.outlineWidth.outlineWidthLabel()} px",
+                        enabled = !isBackgroundBox,
                         onDecrease = {
-                            onStyleChanged(style.copy(outlineWidth = (style.outlineWidth - 1).coerceAtLeast(1)))
+                            onStyleChanged(style.copy(outlineWidth = stepSubtitleOutlineWidth(style.outlineWidth, -1)))
                         },
                         onIncrease = {
-                            onStyleChanged(style.copy(outlineWidth = (style.outlineWidth + 1).coerceAtMost(8)))
+                            onStyleChanged(style.copy(outlineWidth = stepSubtitleOutlineWidth(style.outlineWidth, 1)))
                         },
                     )
                 }
             }
-            if (!isBackgroundBox) Row(
+            if (showEffectColorControls) Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(Res.string.compose_player_outline_color),
+                    text = stringResource(if (isBackgroundBox) Res.string.compose_player_box_color else Res.string.compose_player_outline_color),
                     color = Color.White.copy(alpha = 0.72f),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (style.outlineEnabled) {
+                if (effectColorEnabled) {
                     SubtitleToggleChip(
                         enabled = showCustomOutlineColorPicker,
                         label = "Custom",
@@ -602,26 +587,38 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
                     )
                 }
             }
-            if (!isBackgroundBox) {
+            if (showEffectColorControls) {
                 SubtitleColorPicker(
                     colors = SubtitleOutlineColorSwatches,
-                    selectedColor = style.outlineColor,
-                    enabled = style.outlineEnabled,
+                    selectedColor = style.effectColor,
+                    enabled = effectColorEnabled,
                     onColorSelected = { color ->
-                        onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
+                        onStyleChanged(style.withEffectColor(color))
                     },
                 )
             }
-            if (!isBackgroundBox && style.outlineEnabled) {
+            if (showEffectColorControls && effectColorEnabled) {
                 AnimatedVisibility(visible = showCustomOutlineColorPicker) {
                     SubtitleCustomColorPicker(
-                        selectedColor = style.outlineColor,
+                        selectedColor = style.effectColor,
                         onColorChanged = { color ->
-                            onStyleChanged(style.copy(outlineEnabled = true, outlineColor = color))
+                            onStyleChanged(style.withEffectColor(color))
                         },
                         swatches = emptyList(),
                         previewStyle = style,
-                        target = SubtitleColorEditTarget.OUTLINE,
+                        target = if (isBackgroundBox) SubtitleColorEditTarget.BACKGROUND else SubtitleColorEditTarget.OUTLINE,
+                    )
+                }
+                SubtitleStyleSection(title = stringResource(if (isBackgroundBox) Res.string.compose_player_box_opacity else Res.string.compose_player_outline_opacity)) {
+                    val opacity = (style.effectColor.alpha * 100f).roundToInt().coerceIn(0, 100)
+                    SubtitleStyleStepper(
+                        value = "$opacity%",
+                        onDecrease = {
+                            onStyleChanged(style.withEffectOpacity(opacity - 10))
+                        },
+                        onIncrease = {
+                            onStyleChanged(style.withEffectOpacity(opacity + 10))
+                        },
                     )
                 }
             }

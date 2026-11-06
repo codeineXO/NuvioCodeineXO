@@ -121,6 +121,9 @@ import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerUiMode
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.player.SubtitleOutlineEffect
+import com.nuvio.app.features.player.SubtitleStyleState
+import com.nuvio.app.features.player.outlineWidthLabel
+import com.nuvio.app.features.player.toStorageHexString
 import com.nuvio.app.features.player.SvpMotionOption
 import com.nuvio.app.features.player.SvpRuntimeDownloadState
 import com.nuvio.app.features.player.SvpRuntimeStatus
@@ -143,9 +146,9 @@ data class RecommendedPresetState(
     val animeUpscalerMode: AnimeUpscalerMode = AnimeUpscalerMode.FAST,
     val svpMotionOption: SvpMotionOption = SvpMotionOption.OFF,
     val animeFillerDetectionEnabled: Boolean = true,
-    val subtitleOutlineEffect: SubtitleOutlineEffect = SubtitleOutlineEffect.OUTLINE_AND_SHADOW,
-    val subtitleOutlineWidth: Int = 1,
-    val subtitleColor: Color = Color(0xFFFFF6B3),
+    val subtitleOutlineEffect: SubtitleOutlineEffect = SubtitleStyleState.DEFAULT.outlineEffect,
+    val subtitleOutlineWidth: Float = SubtitleStyleState.DEFAULT.outlineWidth,
+    val subtitleColor: Color = SubtitleStyleState.DEFAULT.textColor,
     val episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Enhanced,
     val showTorrentStatsOverlay: Boolean = true,
 )
@@ -1187,7 +1190,7 @@ private fun RecommendedPresetReviewDialog(
                             OnboardingSettingsGroup {
                                 PresetSegmentRow<SubtitleOutlineEffect>(
                                     title = "Outline Style",
-                                    description = "Subtitle edge effect with 1px width and #FFF6B3 text color",
+                                    description = "Subtitle edge effect with ${state.subtitleOutlineWidth.outlineWidthLabel()}px width and #${state.subtitleColor.toStorageHexString().takeLast(6)} text color",
                                     options = listOf(
                                         SubtitleOutlineEffect.OUTLINE_AND_SHADOW to "Halo",
                                         SubtitleOutlineEffect.OUTLINE to SubtitleOutlineEffect.OUTLINE.label,

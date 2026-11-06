@@ -222,6 +222,12 @@ const textOpacityMinus = document.getElementById("textOpacityMinus");
 const textOpacityValue = document.getElementById("textOpacityValue");
 const textOpacityPlus = document.getElementById("textOpacityPlus");
 const outlineColorLabel = document.getElementById("outlineColorLabel");
+const outlineColorSection = document.getElementById("outlineColorSection");
+const outlineOpacitySection = document.getElementById("outlineOpacitySection");
+const outlineOpacityLabel = document.getElementById("outlineOpacityLabel");
+const outlineOpacityValue = document.getElementById("outlineOpacityValue");
+const outlineOpacityMinus = document.getElementById("outlineOpacityMinus");
+const outlineOpacityPlus = document.getElementById("outlineOpacityPlus");
 const subtitleOutlineCustomToggle = document.getElementById("subtitleOutlineCustomToggle");
 const outlineColorSwatches = document.getElementById("outlineColorSwatches");
 const subtitleOutlineColorPicker = document.getElementById("subtitleOutlineColorPicker");
@@ -256,10 +262,6 @@ const outlineThicknessLabel = document.getElementById("outlineThicknessLabel");
 const outlineThicknessValue = document.getElementById("outlineThicknessValue");
 const outlineThicknessMinus = document.getElementById("outlineThicknessMinus");
 const outlineThicknessPlus = document.getElementById("outlineThicknessPlus");
-const bgOpacitySection = document.getElementById("bgOpacitySection");
-const bgOpacityMinus = document.getElementById("bgOpacityMinus");
-const bgOpacityPlus = document.getElementById("bgOpacityPlus");
-const bgOpacityValue = document.getElementById("bgOpacityValue");
 const subtitleStyleReset = document.getElementById("subtitleStyleReset");
 const sourceModal = document.getElementById("sourceModal");
 const sourcePanelTitle = document.getElementById("sourcePanelTitle");
@@ -564,15 +566,15 @@ let state = {
   subtitleAutoSyncIsLoading: false,
   subtitleAutoSyncErrorMessage: "",
   subtitleStyle: {
-    textColor: "#FFFFFFFF",
+    textColor: "#FFFFF3B2",
     outlineColor: "#FF000000",
     outlineEnabled: true,
     bold: false,
-    fontSizeSp: 18,
+    fontSizeSp: 10,
     bottomOffset: 20,
     fontName: "Arial",
     outlineEffect: "outline",
-    outlineWidth: 2,
+    outlineWidth: 1,
   },
   subtitleColorSwatches: [],
   subtitleOutlineColorSwatches: [],
@@ -2830,9 +2832,13 @@ const handleFontPickerKey = event => {
   return true;
 };
 
+const subtitleEffectColor = style => style.outlineEffect === "background_box" ? style.backgroundColor : style.outlineColor;
+
 const renderSubtitleStylePanel = () => {
   subtitleFontManager.textContent = state.fontImportLabel || "Import font";
   const style = state.subtitleStyle || {};
+  const isBackgroundBox = style.outlineEffect === "background_box";
+  const effectColor = subtitleEffectColor(style);
   const storedCustomStyling = state.customSubtitleStylingEnabled !== false;
   if (pendingCustomSubtitleStyling === storedCustomStyling) {
     pendingCustomSubtitleStyling = null;
@@ -2852,7 +2858,7 @@ const renderSubtitleStylePanel = () => {
   autoSyncReload.textContent = state.reloadSmallLabel || "Reload";
   autoSyncCapture.textContent = state.captureLineLabel || "Capture";
   fontSizeLabel.textContent = state.fontSizeLabel || "Font Size";
-  fontSizeValue.textContent = `${Number(style.fontSizeSp) || 18}sp`;
+  fontSizeValue.textContent = `${Number(style.fontSizeSp) || 10}sp`;
   if (fontLabel) fontLabel.textContent = state.fontLabel || "Font";
   if (fontValue) {
     const font = (state.subtitleFonts || []).find(item => item.id === style.fontId)?.label || style.fontName || "Arial";
@@ -2866,28 +2872,19 @@ const renderSubtitleStylePanel = () => {
                    SubtitleOutlineEffects.find(e => e.id.toLowerCase() === rawEffect) ||
                    SubtitleOutlineEffects[0];
     outlineEffectValue.textContent = effect.label;
-    const isBackgroundBox = effect.id === "background_box";
     const isNone = effect.id === "none";
-    if (outlineThicknessLabel) outlineThicknessLabel.textContent = isBackgroundBox ? "Subtitle Box Opacity" : (state.outlineThicknessLabel || "Outline Thickness");
-    // Reuse the thickness stepper for box opacity; keep the separate legacy section hidden.
-    if (outlineThicknessSection) outlineThicknessSection.hidden = false;
-    if (bgOpacitySection) bgOpacitySection.hidden = true;
-    if (outlineThicknessMinus)   outlineThicknessMinus.disabled = !customStylingEnabled || isNone;
-    if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = !customStylingEnabled || isNone;
+    outlineColorSection.hidden = isNone;
+    outlineOpacitySection.hidden = isNone;
+    if (outlineThicknessLabel) outlineThicknessLabel.textContent = state.outlineThicknessLabel || "Outline Thickness";
+    if (outlineThicknessSection) {
+      outlineThicknessSection.hidden = isNone;
+      outlineThicknessSection.setAttribute("aria-disabled", String(!customStylingEnabled || isBackgroundBox || isNone));
+    }
+    if (outlineThicknessMinus)   outlineThicknessMinus.disabled = !customStylingEnabled || isBackgroundBox || isNone;
+    if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = !customStylingEnabled || isBackgroundBox || isNone;
   }
   if (outlineThicknessValue) {
-    const isBackgroundBox = String(style.outlineEffect || "").toLowerCase() === "background_box";
-    if (isBackgroundBox) {
-      const opacity = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
-      outlineThicknessValue.textContent = `${Math.max(20, opacity || 65)}%`;
-    } else {
-      const thickness = Number(style.outlineWidth) || 2;
-      outlineThicknessValue.textContent = String(thickness);
-    }
-  }
-  if (bgOpacityValue) {
-    const bgAlpha = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
-    bgOpacityValue.textContent = `${bgAlpha}%`;
+    outlineThicknessValue.textContent = String(Number(style.outlineWidth) || 1);
   }
   boldLabel.textContent = state.boldLabel || "Bold";
   boldToggle.textContent = style.bold ? (state.onLabel || "On") : (state.offLabel || "Off");
@@ -2898,12 +2895,14 @@ const renderSubtitleStylePanel = () => {
   textOpacityLabel.textContent = state.textOpacityLabel || "Text Opacity";
   const textAlpha = Math.round((parseArgb(style.textColor).alpha / 255) * 100);
   textOpacityValue.textContent = `${textAlpha}%`;
-  outlineColorLabel.textContent = state.outlineColorLabel || "Outline Color";
+  outlineColorLabel.textContent = isBackgroundBox ? "Box Color" : (state.outlineColorLabel || "Outline Color");
+  outlineOpacityLabel.textContent = isBackgroundBox ? "Box Opacity" : (state.outlineOpacityLabel || "Outline Opacity");
+  outlineOpacityValue.textContent = `${Math.round((parseArgb(effectColor).alpha / 255) * 100)}%`;
   subtitleStyleReset.textContent = state.resetDefaultsLabel || "Reset Defaults";
   renderSwatches(subtitleColorSwatches, state.subtitleColorSwatches, style.textColor, "subtitleTextColor");
-  renderSwatches(outlineColorSwatches, state.subtitleOutlineColorSwatches, style.outlineColor, "subtitleOutlineColor");
+  renderSwatches(outlineColorSwatches, state.subtitleOutlineColorSwatches, effectColor, "subtitleOutlineColor");
   syncColorPickerUi("subtitleText", style.textColor);
-  syncColorPickerUi("subtitleOutline", style.outlineColor);
+  syncColorPickerUi("subtitleOutline", effectColor);
   customSubtitleStyleControls.querySelectorAll("button, input, select").forEach(control => {
     if (control !== outlineThicknessMinus && control !== outlineThicknessPlus) {
       control.disabled = !customStylingEnabled;
@@ -3982,6 +3981,7 @@ const getSubtitlesModalSignature = () => {
     state.colorLabel || "",
     state.textOpacityLabel || "",
     state.outlineColorLabel || "",
+    state.outlineOpacityLabel || "",
     state.noSubtitleLinesFoundLabel || "",
     state.resetDefaultsLabel || "",
     state.onLabel || "",
@@ -4002,14 +4002,14 @@ const getSubtitlesModalSignature = () => {
     style.outlineColor || "",
     Boolean(style.outlineEnabled),
     Boolean(style.bold),
-    style.fontSizeSp || 18,
+    style.fontSizeSp || 10,
     style.bottomOffset || 20,
     style.fontName || "",
     style.fontId || "",
     Boolean(state.subtitleFontImportFailed),
     JSON.stringify(state.subtitleFonts || []),
     style.outlineEffect || "",
-    style.outlineWidth || 2,
+    style.outlineWidth || 1,
     style.backgroundColor || "",
     (state.subtitleLanguageItems || []).map(l => `${l.key || ""}:${l.count || 0}:${l.label || ""}:${l.isSelected ? 1 : 0}`).join(";"),
     (state.subtitleOptionItems || []).map(o => `${o.id || ""}:${o.kind || ""}:${o.languageKey || ""}:${o.sourceLabel || ""}:${o.title || ""}:${o.metadata || ""}:${o.isSelected ? 1 : 0}:${o.index || 0}`).join(";"),
@@ -5375,22 +5375,6 @@ if (outlineThicknessPlus) {
     send("subtitleOutlineThicknessDelta", 1);
   });
 }
-if (bgOpacityMinus) {
-  bgOpacityMinus.addEventListener("click", event => {
-    event.stopPropagation();
-    const style = state.subtitleStyle || {};
-    const current = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
-    send("subtitleBackgroundOpacity", Math.max(0, current - 10));
-  });
-}
-if (bgOpacityPlus) {
-  bgOpacityPlus.addEventListener("click", event => {
-    event.stopPropagation();
-    const style = state.subtitleStyle || {};
-    const current = Math.round((parseArgb(style.backgroundColor).alpha / 255) * 100);
-    send("subtitleBackgroundOpacity", Math.min(100, current + 10));
-  });
-}
 boldToggle.addEventListener("click", event => {
   event.stopPropagation();
   send("subtitleBoldToggle", 0);
@@ -5414,6 +5398,16 @@ textOpacityPlus.addEventListener("click", event => {
   const style = state.subtitleStyle || {};
   const next = Math.min(100, Math.round((parseArgb(style.textColor).alpha / 255) * 100) + 10);
   send("subtitleTextOpacity", next);
+});
+outlineOpacityMinus.addEventListener("click", event => {
+  event.stopPropagation();
+  const opacity = Math.round(parseArgb(subtitleEffectColor(state.subtitleStyle || {})).alpha / 255 * 100);
+  send("subtitleOutlineOpacity", Math.max(0, opacity - 10));
+});
+outlineOpacityPlus.addEventListener("click", event => {
+  event.stopPropagation();
+  const opacity = Math.round(parseArgb(subtitleEffectColor(state.subtitleStyle || {})).alpha / 255 * 100);
+  send("subtitleOutlineOpacity", Math.min(100, opacity + 10));
 });
 subtitleStyleReset.addEventListener("click", event => {
   event.stopPropagation();

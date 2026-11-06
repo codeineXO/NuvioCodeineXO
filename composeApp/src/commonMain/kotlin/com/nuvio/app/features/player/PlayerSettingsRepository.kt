@@ -403,8 +403,8 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.outlineColor,
             outlineEnabled = PlayerSettingsStorage.loadSubtitleOutlineEnabled()
                 ?: SubtitleStyleState.DEFAULT.outlineEnabled,
-            outlineWidth = PlayerSettingsStorage.loadSubtitleOutlineWidth()
-                ?: SubtitleStyleState.DEFAULT.outlineWidth,
+            outlineWidth = decodeSubtitleAppearance(PlayerSettingsStorage.loadSubtitleAppearance())
+                .resolveOutlineWidth(PlayerSettingsStorage.loadSubtitleOutlineWidth()),
             outlineEffect = SubtitleOutlineEffect.fromId(PlayerSettingsStorage.loadSubtitleOutlineEffect()),
             fontName = PlayerSettingsStorage.loadSubtitleFont() ?: SubtitleStyleState.DEFAULT.fontName,
             importedFontId = decodeSubtitleAppearance(PlayerSettingsStorage.loadSubtitleAppearance()).fontId.takeIf { it.startsWith("custom-") },
@@ -743,6 +743,7 @@ object PlayerSettingsRepository {
             style.outlineEnabled
         }
         val normalized = style.copy(
+            outlineWidth = normalizeSubtitleOutlineWidth(style.outlineWidth),
             fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp),
             outlineEnabled = outlineEnabled,
             bottomOffset = style.bottomOffset.coerceIn(0, 200),
@@ -752,10 +753,10 @@ object PlayerSettingsRepository {
         publish()
         PlayerSettingsStorage.saveSubtitleTextColor(normalized.textColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleBackgroundColor(normalized.backgroundColor.toStorageHexString())
-        PlayerSettingsStorage.saveSubtitleAppearance(normalized.appearance.copy(fontId = normalized.importedFontId ?: "default").encode())
+        PlayerSettingsStorage.saveSubtitleAppearance(normalized.appearanceForStorage().encode())
         PlayerSettingsStorage.saveSubtitleOutlineColor(normalized.outlineColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleOutlineEnabled(normalized.outlineEnabled)
-        PlayerSettingsStorage.saveSubtitleOutlineWidth(normalized.outlineWidth)
+        PlayerSettingsStorage.saveSubtitleOutlineWidth(normalized.outlineWidth.toInt().coerceAtLeast(1))
         PlayerSettingsStorage.saveSubtitleOutlineEffect(normalized.outlineEffect.id)
         PlayerSettingsStorage.saveSubtitleFont(normalized.fontName)
         PlayerSettingsStorage.saveSubtitleBold(normalized.bold)

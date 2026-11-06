@@ -2765,6 +2765,10 @@ button:disabled {
   gap: 16px;
 }
 
+#outlineThicknessSection[aria-disabled="true"] {
+  opacity: .45;
+}
+
 .style-section {
   display: flex;
   flex-direction: column;

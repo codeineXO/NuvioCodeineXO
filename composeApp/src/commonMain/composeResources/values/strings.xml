@@ -2724,6 +2724,9 @@
     <string name="subtitle_shadow_opacity">Shadow opacity</string>
     <string name="subtitle_shadow_size">Shadow size</string>
     <string name="subtitle_reset_appearance">Reset appearance</string>
+    <string name="compose_player_outline_opacity">Outline Opacity</string>
+    <string name="compose_player_box_color">Box Color</string>
+    <string name="compose_player_box_opacity">Box Opacity</string>
     <string name="settings_poster_gutter_size">Gutter size</string>
     <string name="settings_poster_gutter_size_description">Adjust the side space used to scroll the page.</string>
     <string name="settings_poster_gutter_size_default">Default</string>

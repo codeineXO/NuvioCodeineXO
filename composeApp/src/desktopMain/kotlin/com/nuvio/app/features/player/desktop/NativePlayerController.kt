@@ -41,6 +41,7 @@ import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleFontResolver
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineEffect
+import com.nuvio.app.features.player.backgroundBoxColor
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.features.addons.encodeUnsafeHttpUrlCharacters
 import com.nuvio.app.features.player.SubtitleStyleState
@@ -1754,11 +1755,7 @@ internal class NativePlayerController(
     private fun applySubtitleStyle(handle: Long, style: SubtitleStyleState, useLibass: Boolean) {
         val applyLibass = useLibass
         val isBackgroundBox = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
-        val resolvedBoxColor = if (style.backgroundColor.alpha == 0f) {
-            androidx.compose.ui.graphics.Color(0, 0, 0, (0.65f * 255f).toInt())
-        } else {
-            style.backgroundColor
-        }
+        val resolvedBoxColor = style.backgroundBoxColor
         val resolvedOutlineSize = when (style.outlineEffect) {
             SubtitleOutlineEffect.NONE -> 0f
             SubtitleOutlineEffect.BACKGROUND_BOX -> 0f
@@ -1805,7 +1802,7 @@ internal class NativePlayerController(
                 fontsDir = com.nuvio.app.features.player.SubtitleFontResolver.fontsDir(),
                 shadowColor = style.outlineColor.toMpvColorString(),
                 shadowOffset = if (style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) {
-                    (style.outlineWidth + 1).coerceIn(2, 5).toFloat()
+                    (style.outlineWidth + 1f).coerceIn(2f, 5f)
                 } else if (isBackgroundBox) 4f else 0f,
             )
         }
@@ -2873,7 +2870,7 @@ private fun StringBuilder.appendSubtitleStyleJson(style: SubtitleStyleState) {
     append(',')
     appendJsonField("outlineColor", style.outlineColor.toStorageHexString())
     append(',')
-    appendJsonField("backgroundColor", style.backgroundColor.toStorageHexString())
+    appendJsonField("backgroundColor", (if (style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) style.backgroundBoxColor else style.backgroundColor).toStorageHexString())
     append(',')
     appendJsonField("outlineEnabled", style.outlineEnabled)
     append(',')

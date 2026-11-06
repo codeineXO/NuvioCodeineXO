@@ -5,6 +5,7 @@ import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.features.player.PlayerPlaybackStats
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SubtitleStyleState
+import com.nuvio.app.features.player.backgroundBoxColor
 import java.io.File
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
@@ -430,7 +431,7 @@ internal object WindowsMpvSubStyleHelper {
                 setProp("sub-shadow-color", shadowColorStr)
 
                 // 3. Set outline effect & thickness
-                val width = style.outlineWidth.coerceIn(1, 8)
+                val width = style.outlineWidth.coerceIn(0.5f, 8f)
                 when (style.outlineEffect) {
                     SubtitleOutlineEffect.NONE -> {
                         setProp("sub-border-style", "outline-and-shadow")
@@ -462,7 +463,7 @@ internal object WindowsMpvSubStyleHelper {
                         val size = if (style.outlineEffect.needsOutline) width.toString() else "0"
                         setProp("sub-border-style", "outline-and-shadow")
                         setProp("sub-outline-size", size)
-                        val offset = (width + 1).coerceIn(2, 5).toString()
+                        val offset = (width + 1f).coerceIn(2f, 5f).toString()
                         setProp("sub-shadow-offset", offset)
                         // The halo look depends on this blur. Note that mpv applies
                         // sub-blur as a gaussian pass over the whole composited
@@ -475,11 +476,7 @@ internal object WindowsMpvSubStyleHelper {
                     SubtitleOutlineEffect.BACKGROUND_BOX -> {
                         // Use one padded panel for the whole caption block instead of
                         // drawing separate boxes tightly around each line.
-                        val boxColor = if (style.backgroundColor.alpha == 0f) {
-                            Color.Black.copy(alpha = 0.65f)
-                        } else {
-                            style.backgroundColor
-                        }
+                        val boxColor = style.backgroundBoxColor
                         setProp("sub-border-style", "background-box")
                         setProp("sub-outline-color", boxColor.toMpvHexColor())
                         setProp("sub-back-color", boxColor.toMpvHexColor())

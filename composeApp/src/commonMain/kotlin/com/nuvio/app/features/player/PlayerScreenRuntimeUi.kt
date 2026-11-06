@@ -1725,9 +1725,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = color))
         }
         "subtitleOutlineColor" -> {
-            SubtitleColorSwatches.getOrNull(value.toInt())?.let { color ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineColor = color))
-            }
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectSwatch(value.toInt()))
         }
         "subtitleBackgroundColor" -> {
             SubtitleColorSwatches.getOrNull(value.toInt())?.let { color ->
@@ -1735,8 +1733,9 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             }
         }
         "subtitleBackgroundOpacity" -> {
-            val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)))
+            if (subtitleStyle.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectOpacity(value.toInt()))
+            }
         }
         "subtitleFont" -> {
             val fonts = SubtitleFontOptions + SubtitleFonts.installed().map { it.id }
@@ -1760,16 +1759,15 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             val rgb = value.toLong().toInt() and 0xFFFFFF
             val color = Color(0xFF000000.toInt() or rgb)
             PlayerSettingsRepository.setSubtitleStyle(
-                subtitleStyle.copy(outlineEnabled = true, outlineColor = color),
+                subtitleStyle.withEffectColor(color),
             )
+        }
+        "subtitleOutlineOpacity" -> {
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectOpacity(value.toInt()))
         }
         "subtitleTextOpacity" -> {
             val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = subtitleStyle.textColor.copy(alpha = alpha)))
-        }
-        "subtitleBackgroundOpacity" -> {
-            val alpha = (value.toFloat() / 100f).coerceIn(0.2f, 1f)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)))
         }
         "subtitleFontDelta" -> {
             val currentIndex = SubtitleFontOptions.indexOf(subtitleStyle.fontName).coerceAtLeast(0)
@@ -1795,22 +1793,12 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             }
         }
         "subtitleOutlineThickness" -> {
-            val thickness = value.toInt().coerceIn(1, 8)
+            val thickness = normalizeSubtitleOutlineWidth(value.toFloat())
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
         }
         "subtitleOutlineThicknessDelta" -> {
-            if (subtitleStyle.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
-                val currentPercent = (subtitleStyle.backgroundColor.alpha * 100f)
-                    .roundToInt()
-                    .takeIf { it >= 20 }
-                    ?: 65
-                val nextPercent = (currentPercent + value.toInt() * 10).coerceIn(20, 100)
-                val alpha = nextPercent / 100f
-                PlayerSettingsRepository.setSubtitleStyle(
-                    subtitleStyle.copy(backgroundColor = subtitleStyle.backgroundColor.copy(alpha = alpha)),
-                )
-            } else {
-                val thickness = (subtitleStyle.outlineWidth + value.toInt()).coerceIn(1, 8)
+            if (subtitleStyle.outlineEffect.needsOutline) {
+                val thickness = stepSubtitleOutlineWidth(subtitleStyle.outlineWidth, value.toInt())
                 PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
             }
         }
