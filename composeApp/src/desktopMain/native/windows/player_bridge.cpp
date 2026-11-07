@@ -2204,9 +2204,12 @@ private:
             setMpvOptionStringLocked("cache", "yes");
             setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
             setMpvOptionStringLocked("force-seekable", "yes");
+            // Let FFmpeg close each HTTP response: persistent requests can stall
+            // CNO HLS playlists at EOF and trigger an endless reconnect loop.
+            // Length-quote the HTTP status list so mpv preserves its commas.
             setMpvOptionStringLocked(
                 "stream-lavf-o",
-                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=408,429,500,502,503,504,reconnect_delay_max=15,multiple_requests=1"
+                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=%23%408,429,500,502,503,504,reconnect_delay_max=15"
             );
             setMpvOptionStringLocked("network-timeout", "30");
             setMpvOptionStringLocked("hr-seek", "default");
