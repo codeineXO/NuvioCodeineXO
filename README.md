@@ -26,6 +26,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 
 ### 🎬 Player & Playback
 * **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
+* **Random Title Picker ("Shuffle"):** Shuffle tool that lets you roll for random movies, shows and anime with handy filters and a quick preview before diving in.
 * **Seek Previews (Seekr.tv):** Highly customizable animated seek preview thumbnails on hover and scrub powered by the Seekr.tv API.
 * **Eye Filter:** Optional night-light or dimmer overlay with configurable color and opacity, plus an instant keyboard toggle.
 * **In Player Playback Statistics Overlay:** View Stats for Nerds in player with all kinds of statistics.
