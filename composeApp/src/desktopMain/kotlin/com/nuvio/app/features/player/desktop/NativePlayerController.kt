@@ -1799,7 +1799,7 @@ internal class NativePlayerController(
             NativePlayerBridge.setSubtitleAppearance(
                 handle = handle,
                 font = importedFont ?: style.fontName,
-                fontsDir = com.nuvio.app.features.player.SubtitleFontResolver.fontsDir(),
+                fontsDir = if (importedFont != null) com.nuvio.app.features.player.SubtitleFontResolver.fontsDir() else "",
                 shadowColor = style.outlineColor.toMpvColorString(),
                 shadowOffset = if (style.outlineEnabled && style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) {
                     (style.outlineWidth + 1f).coerceIn(2f, 5f)

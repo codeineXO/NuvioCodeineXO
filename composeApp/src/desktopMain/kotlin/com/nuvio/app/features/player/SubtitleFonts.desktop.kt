@@ -89,7 +89,8 @@ internal object SubtitleFontResolver {
         else -> activate(id) ?: "sans-serif"
     }
 
-    fun fontsDir(): String = activeDir.takeIf(Files::isDirectory)?.toString().orEmpty()
+    fun fontsDir(): String = activeId?.let { activeDir.resolve(it) }
+        ?.takeIf(Files::isDirectory)?.toString().orEmpty()
 
     fun resolveImported(id: String): String? = runCatching { activate(id) }.getOrNull()
 
@@ -98,12 +99,13 @@ internal object SubtitleFontResolver {
 
     @Synchronized
     private fun activate(id: String): String? {
-        if (activeId == id && Files.isRegularFile(DesktopStorage.rootDir.resolve("subtitle-fonts").resolve(id)) && Files.isDirectory(activeDir)) return activeFamily
+        val directory = activeDir.resolve(id)
+        if (activeId == id && Files.isRegularFile(DesktopStorage.rootDir.resolve("subtitle-fonts").resolve(id)) && Files.isRegularFile(directory.resolve("$id.ttf"))) return activeFamily
         val bytes = SubtitleFontStorage.read(id) ?: return null
         val family = familyName(bytes) ?: return null
-        Files.createDirectories(activeDir)
-        Files.list(activeDir).use { it.forEach(Files::deleteIfExists) }
-        Files.write(activeDir.resolve("$id.ttf"), bytes)
+        // A distinct directory also distinguishes fonts that share the same family name.
+        Files.createDirectories(directory)
+        Files.write(directory.resolve("$id.ttf"), bytes)
         activeId = id
         activeFamily = family
         return family

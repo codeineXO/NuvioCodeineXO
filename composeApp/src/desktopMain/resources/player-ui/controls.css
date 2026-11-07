@@ -2848,18 +2848,33 @@ button:disabled {
   width: 100%;
   white-space: normal;
 }
-}
 
 .font-option {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
 .font-option .track-row {
-  flex: 1;
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
+}
+
+.font-option .track-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.font-option > .panel-button {
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  padding: 8px;
 }
 
 .font-option-sample {
@@ -2915,6 +2930,26 @@ button:disabled {
 
 .stepper-value.wide {
   min-width: 140px;
+}
+
+#fontValue {
+  box-sizing: border-box;
+  display: block;
+  flex: 0 0 140px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  height: 40px;
+  padding: 8px 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#fontMinus,
+#fontPlus {
+  flex-shrink: 0;
 }
 
 .stepper-value.extra-wide {

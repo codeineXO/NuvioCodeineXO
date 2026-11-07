@@ -25,9 +25,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -154,6 +160,7 @@ private fun SubtitleStyleSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SubtitleStyleStepper(
     value: String,
@@ -162,19 +169,12 @@ private fun SubtitleStyleStepper(
     valueWidth: Dp = 84.dp,
     fontFamily: androidx.compose.ui.text.font.FontFamily? = null,
     enabled: Boolean = true,
+    fixedValueSize: Boolean = false,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SubtitleStepperButton(
-            icon = Icons.Rounded.Remove,
-            onClick = onDecrease,
-            enabled = enabled,
-        )
+    val valueContent: @Composable () -> Unit = {
         Box(
             modifier = Modifier
-                .widthIn(min = valueWidth)
+                .then(if (fixedValueSize) Modifier.size(width = valueWidth, height = 40.dp) else Modifier.widthIn(min = valueWidth))
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color.White.copy(alpha = 0.06f))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -185,7 +185,31 @@ private fun SubtitleStyleStepper(
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium,
                 fontFamily = fontFamily,
+                maxLines = if (fixedValueSize) 1 else Int.MAX_VALUE,
+                softWrap = !fixedValueSize,
+                overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SubtitleStepperButton(
+            icon = Icons.Rounded.Remove,
+            onClick = onDecrease,
+            enabled = enabled,
+        )
+        if (fixedValueSize) {
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = { PlainTooltip { Text(value) } },
+                state = rememberTooltipState(),
+                focusable = false,
+                content = valueContent,
+            )
+        } else {
+            valueContent()
         }
         SubtitleStepperButton(
             icon = Icons.Rounded.Add,
@@ -448,19 +472,21 @@ internal fun SubtitleStyleControls(style: SubtitleStyleState, onStyleChanged: (S
         }
 
         SubtitleStyleSection(title = "Font") {
-            val currentIndex = SubtitleFontOptions.indexOf(style.fontName).coerceAtLeast(0)
+            val fontRevision by SubtitleFonts.revision.collectAsState()
+            val fonts = remember(fontRevision) { SubtitleFonts.installed() }
+            val fontIds = remember(fonts) { subtitleFontIds(fonts) }
             SubtitleStyleStepper(
-                value = subtitleFontLabel(style.importedFontId ?: style.fontName),
+                value = subtitleFontLabel(style.importedFontId ?: style.fontName, fonts),
                 onDecrease = {
-                    val prevIndex = if (currentIndex > 0) currentIndex - 1 else SubtitleFontOptions.lastIndex
-                    onStyleChanged(style.copy(fontName = SubtitleFontOptions[prevIndex], importedFontId = null))
+                    onStyleChanged(style.cycleFont(-1, fontIds))
                 },
                 onIncrease = {
-                    val nextIndex = if (currentIndex < SubtitleFontOptions.lastIndex) currentIndex + 1 else 0
-                    onStyleChanged(style.copy(fontName = SubtitleFontOptions[nextIndex], importedFontId = null))
+                    onStyleChanged(style.cycleFont(1, fontIds))
                 },
                 valueWidth = 140.dp,
-                fontFamily = getSubtitleFontFamily(style.fontName),
+                fixedValueSize = true,
+                fontFamily = style.importedFontId?.let { rememberSubtitleFontFamily(it) }
+                    ?: getSubtitleFontFamily(style.fontName),
             )
             SubtitleFontImportControl(style, onStyleChanged)
         }

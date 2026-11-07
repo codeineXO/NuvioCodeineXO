@@ -419,12 +419,7 @@ internal object WindowsMpvSubStyleHelper {
                     setPropertyStringHandle?.invoke(mpvCtx, pName, pVal)
                 }
 
-                // 1. Set font
-                if (style.fontName.isNotBlank()) {
-                    val imported = style.importedFontId?.let { com.nuvio.app.features.player.SubtitleFontResolver.resolveImported(it) }
-                    if (imported != null) setProp("sub-fonts-dir", com.nuvio.app.features.player.SubtitleFontResolver.fontsDir())
-                    setProp("sub-font", imported ?: style.fontName)
-                }
+                // Font activation and decoder refresh are handled together by the native bridge.
 
                 // 2. Set shadow color
                 val shadowColorStr = style.outlineColor.toMpvHexColor()

@@ -1531,11 +1531,33 @@ public:
         const std::string &shadowColor,
         double shadowOffset
     ) {
-        if (!fontsDir.empty()) setStringProperty("sub-fonts-dir", fontsDir);
-        setStringProperty("sub-font", font);
-        setStringProperty("sub-shadow-color", shadowColor);
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
+        const bool directoryOk = mpvApi().setPropertyString(mpv, "sub-fonts-dir", fontsDir.c_str()) >= 0;
+        const bool fontOk = mpvApi().setPropertyString(mpv, "sub-font", font.c_str()) >= 0;
+        const bool fontChanged = font != appliedSubtitleFont || fontsDir != appliedSubtitleFontsDir;
+        // The directory contents are read when the subtitle decoder is created. A new
+        // imported font can replace the file in the same directory, so compare family too.
+        if (directoryOk && fontOk && fontChanged) {
+            bool refreshed = true;
+            if (!fontsDir.empty() || !appliedSubtitleFontsDir.empty()) {
+                int64_t sid = 0;
+                const int result = mpvApi().getProperty(mpv, "sid", MPV_FORMAT_INT64, &sid);
+                if (result >= 0 && sid > 0) {
+                    if (mpvApi().setPropertyString(mpv, "sid", "no") >= 0) {
+                        refreshed = mpvApi().setProperty(mpv, "sid", MPV_FORMAT_INT64, &sid) >= 0;
+                    } else {
+                        refreshed = false;
+                    }
+                }
+                // A disabled subtitle track needs no refresh; its next decoder sees the font.
+            }
+            if (refreshed) {
+                appliedSubtitleFont = font;
+                appliedSubtitleFontsDir = fontsDir;
+            }
+        }
+        mpvApi().setPropertyString(mpv, "sub-shadow-color", shadowColor.c_str());
         mpvApi().setProperty(mpv, "sub-shadow-offset", MPV_FORMAT_DOUBLE, &shadowOffset);
     }
 
@@ -1709,6 +1731,8 @@ private:
     static constexpr unsigned kMaxWebViewFailures = 5;
     static constexpr ULONGLONG kWebViewStartupTimeoutMs = 15000;
     std::string activeSvpScript; // Guarded by mpvMutex.
+    std::string appliedSubtitleFont; // Guarded by mpvMutex; per player instance.
+    std::string appliedSubtitleFontsDir;
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -2125,6 +2149,8 @@ private:
             if (setlocale(LC_NUMERIC, "C") == nullptr) {
                 throw std::runtime_error("setlocale(LC_NUMERIC, \"C\") failed.");
             }
+            appliedSubtitleFont.clear();
+            appliedSubtitleFontsDir.clear();
             mpv = api.create();
             if (!mpv) {
                 throw std::runtime_error("mpv_create failed.");

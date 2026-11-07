@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.text.font.FontFamily
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -17,6 +20,9 @@ internal const val MaxSubtitleFontBytes = 10 * 1024 * 1024
 internal data class SubtitleFont(val id: String, val name: String)
 
 internal object SubtitleFonts {
+    private val mutableRevision = MutableStateFlow(0)
+    val revision = mutableRevision.asStateFlow()
+
     fun installed(): List<SubtitleFont> = runCatching {
         val bytes = SubtitleFontStorage.read("fonts.json") ?: return emptyList()
         Json.decodeFromString<List<SubtitleFont>>(bytes.decodeToString()).filter {
@@ -38,13 +44,25 @@ internal object SubtitleFonts {
             SubtitleFontStorage.remove(font.id)
             throw error
         }
+        mutableRevision.update { it + 1 }
         return font
     }
 
     fun remove(id: String) {
         SubtitleFontStorage.write("fonts.json", Json.encodeToString(installed().filterNot { it.id == id }).encodeToByteArray())
         SubtitleFontStorage.remove(id)
+        mutableRevision.update { it + 1 }
     }
+}
+
+internal fun subtitleFontIds(fonts: List<SubtitleFont> = SubtitleFonts.installed()): List<String> =
+    SubtitleFontOptions + fonts.map { it.id }
+
+internal fun SubtitleStyleState.cycleFont(delta: Int, ids: List<String> = subtitleFontIds()): SubtitleStyleState {
+    if (ids.isEmpty()) return this
+    val current = ids.indexOf(importedFontId ?: fontName).takeIf { it >= 0 }
+        ?: ids.indexOf(fontName).coerceAtLeast(0)
+    return selectFont(ids[(current + delta).mod(ids.size)])
 }
 
 internal fun isSupportedSubtitleFont(name: String, bytes: ByteArray): Boolean {

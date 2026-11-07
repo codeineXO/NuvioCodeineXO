@@ -1738,7 +1738,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             }
         }
         "subtitleFont" -> {
-            val fonts = SubtitleFontOptions + SubtitleFonts.installed().map { it.id }
+            val fonts = subtitleFontIds()
             fonts.getOrNull(value.toInt())?.let { PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.selectFont(it)) }
         }
         "subtitleFontImport" -> {
@@ -1770,14 +1770,11 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = subtitleStyle.textColor.copy(alpha = alpha)))
         }
         "subtitleFontDelta" -> {
-            val currentIndex = SubtitleFontOptions.indexOf(subtitleStyle.fontName).coerceAtLeast(0)
-            val delta = value.toInt()
-            val nextIndex = (currentIndex + delta).mod(SubtitleFontOptions.size)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = SubtitleFontOptions[nextIndex], importedFontId = null))
+            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.cycleFont(value.toInt()))
         }
         "subtitleFontIndex" -> {
-            SubtitleFontOptions.getOrNull(value.toInt())?.let { font ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(fontName = font, importedFontId = null))
+            subtitleFontIds().getOrNull(value.toInt())?.let { font ->
+                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.selectFont(font))
             }
         }
         "subtitleOutlineEffectDelta" -> {

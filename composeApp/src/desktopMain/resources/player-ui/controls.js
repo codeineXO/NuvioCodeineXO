@@ -2863,6 +2863,7 @@ const renderSubtitleStylePanel = () => {
   if (fontValue) {
     const font = (state.subtitleFonts || []).find(item => item.id === style.fontId)?.label || style.fontName || "Arial";
     fontValue.textContent = font;
+    fontValue.title = font;
     fontValue.style.fontFamily = `"${font}", sans-serif`;
   }
   if (outlineEffectLabel) outlineEffectLabel.textContent = state.outlineEffectLabel || "Outline Style";
