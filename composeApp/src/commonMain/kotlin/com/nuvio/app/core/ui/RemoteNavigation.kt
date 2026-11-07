@@ -62,12 +62,16 @@ internal class RemoteNavigationSession {
     var streamSourceMovedDuringHold = false
     val rememberedFocus = mutableMapOf<Any, Int>()
     val rememberedContentFocus = mutableMapOf<Any, Int>()
+    val rememberedPosterFocus = mutableMapOf<Any, PosterNavigationItem>()
+    val rememberedPosterByPage = mutableMapOf<String, PosterNavigationItem>()
+    val rememberedContentByPage = mutableMapOf<String, Int>()
     var lastFocused: FocusRequester? = null
     val targets = mutableStateListOf<RemoteFocusTarget>()
     var explicitFocusTransfers = 0
     val explicitFocusTransfer get() = explicitFocusTransfers > 0
     val primaryRevealers = mutableStateMapOf<Any, suspend () -> Unit>()
     var focusedTarget by mutableStateOf<RemoteFocusTarget?>(null)
+    var lastFocusedRole = RemoteNavigationRole.Default
     val rememberedBounds = mutableMapOf<Any, Rect>()
     val posterPages = mutableMapOf<String, PosterNavigationPage>()
     var posterMoveJob: Job? = null
@@ -88,8 +92,104 @@ internal class RemoteNavigationSession {
     var preferContentEntry = false
     val rowMemoryRoutes = mutableSetOf<Any>()
     val rowMemories = mutableMapOf<Pair<Any, Int>, RemoteRowBookmark>()
+    val controlRowMemories = mutableMapOf<Pair<Any, Int>, Int>()
     var rowMoveJob: Job? = null
     var focusTransferReason by mutableStateOf(RemoteFocusTransferReason.Navigation)
+
+    fun focusContent(route: Any? = null): Boolean {
+        val activeRoute = targets.firstOrNull { it.role == RemoteNavigationRole.Sidebar && it.focused }?.route
+            ?: targets.firstOrNull { it.focused }?.route
+        val key = route ?: focusedTarget?.route ?: activeRoute
+
+        val pageId = when {
+            candidatePageMatches("library", key) -> "library"
+            candidatePageMatches("search", key) -> "search"
+            candidatePageMatches("home", key) -> "home"
+            else -> null
+        }
+
+        val targetPoster = key?.let { rememberedPosterFocus[it] } ?: pageId?.let { rememberedPosterByPage[it] }
+        val targetIdentity = key?.let { rememberedContentFocus[it] } ?: pageId?.let { rememberedContentByPage[it] }
+        val candidatePosters = targets.filter {
+            (key == null || it.route == key) && it.role != RemoteNavigationRole.Sidebar &&
+                it.poster?.role == PosterTargetRole.Poster && it.bounds != null
+        }
+        val firstPoster = candidatePosters.minWithOrNull(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left })
+        val isLibrary = pageId == "library" || candidatePosters.any { it.poster?.page == "library" } ||
+            targets.any { (key == null || it.route == key) && it.controlRow?.page == "library" }
+
+        if (targetPoster != null) {
+            val page = posterPages[targetPoster.page]
+            val row = page?.rows?.firstOrNull { it.key == targetPoster.row }
+            val rememberedPoster = targets.firstOrNull {
+                (key == null || it.route == key) && it.role != RemoteNavigationRole.Sidebar &&
+                    it.poster?.let { p ->
+                        p.page == targetPoster.page && p.row == targetPoster.row &&
+                            (p.index == targetPoster.index || (targetPoster.content != null && p.content == targetPoster.content))
+                    } == true
+            }
+            if (rememberedPoster != null) {
+                explicitFocusTransfers++
+                try {
+                    if (rememberedPoster.requester.requestFocus()) {
+                        navigationScope?.launch {
+                            if (row != null) revealPosterRow(targetPoster.page, row)
+                        }
+                        return true
+                    }
+                } finally {
+                    explicitFocusTransfers--
+                }
+            }
+            if (page != null && row != null) {
+                navigationScope?.launch {
+                    revealPosterRow(targetPoster.page, row)
+                    val targetIndex = if (row.items.isNotEmpty()) targetPoster.index.coerceIn(0, row.items.lastIndex) else targetPoster.index
+                    focusPoster(targetPoster.page, row, targetIndex)
+                }
+                return true
+            }
+        }
+
+        if (targetIdentity != null && targetPoster == null) {
+            val rememberedControl = targets.firstOrNull {
+                (key == null || it.route == key) && it.identity == targetIdentity && it.role != RemoteNavigationRole.Sidebar
+            }
+            if (rememberedControl?.requester?.requestFocus() == true) {
+                return true
+            }
+        }
+
+        if (isLibrary) {
+            if (firstPoster?.requester?.requestFocus() == true) {
+                return true
+            }
+            val firstRow = posterPages["library"]?.rows?.firstOrNull { it.items.isNotEmpty() }
+            if (firstRow != null) {
+                navigationScope?.launch {
+                    revealPosterRow("library", firstRow)
+                    focusPoster("library", firstRow, 0)
+                }
+                return true
+            }
+        }
+
+        val contentTarget = (if (isLibrary) firstPoster else null)
+            ?: targets.filter {
+                (key == null || it.route == key) && it.role != RemoteNavigationRole.Sidebar && it.bounds != null
+            }.minWithOrNull(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left })
+            ?: firstPoster
+            ?: targets.filter {
+                it.role != RemoteNavigationRole.Sidebar && it.role != RemoteNavigationRole.TopBar && it.bounds != null
+            }.minWithOrNull(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left })
+
+        return contentTarget?.requester?.requestFocus() == true
+    }
+
+    private fun candidatePageMatches(page: String, key: Any?): Boolean {
+        if (key is Pair<*, *> && key.second?.toString()?.equals(page, ignoreCase = true) == true) return true
+        return targets.any { (key == null || it.route == key) && (it.poster?.page == page || it.controlRow?.page == page) }
+    }
 
     fun canEnterSidebar(): Boolean = !leftMovedDuringHold
 
@@ -97,7 +197,7 @@ internal class RemoteNavigationSession {
         (preferContentEntry && contentEntryPending) ||
             // The bookmark exists before the retained page is reactivated and marks
             // restoration pending, so cover that first composition frame as well.
-            posterPages.values.any { it.route == route && it.origin != null } ||
+            posterPages.values.any { it.route == route && !it.active && it.origin != null } ||
             posterRestorationPending(route)
 
     fun resetHoldState() {
@@ -196,20 +296,29 @@ internal class RemoteNavigationSession {
             if (next?.requester?.requestFocus() == true) return true
         }
         if (source?.pageBoundary != null) return movePageFocus(source, direction)
+        if (source?.role == RemoteNavigationRole.TopBar && direction == FocusDirection.Down) {
+            val controls = targets.filter {
+                it.route == route && it.manager === manager && it.controlRow?.allowUpToNavigation == true && it.bounds != null
+            }
+            if (controls.isNotEmpty()) {
+                val remembered = targets.firstOrNull {
+                    it.route == route && it.manager === manager && it.identity == rememberedContentFocus[route] &&
+                        it.role != RemoteNavigationRole.TopBar && it.role != RemoteNavigationRole.Sidebar
+                }
+                val first = controls.minWithOrNull(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left })
+                return (remembered ?: first)?.requester?.requestFocus() == true
+            }
+        }
         source?.let { moveControlFocus(it, direction) }?.let { return it }
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
         val sidebarEntry = targets.firstOrNull {
             it.route == route && it.manager === manager && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+        } ?: targets.firstOrNull {
+            it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
         }
         if (isSourceSidebar && direction == FocusDirection.Right) {
-            val targetIdentity = rememberedContentFocus[route] ?: rememberedFocus[route]
-            val contentTarget = targets.firstOrNull {
-                it.route == route && it.identity == targetIdentity && it.role != RemoteNavigationRole.Sidebar
-            }
-            if (contentTarget?.requester?.requestFocus() == true) {
-                return true
-            }
+            if (focusContent(route)) return true
         }
         val restoreDestinationRow = !horizontal && route in rowMemoryRoutes
         if (restoreDestinationRow) explicitFocusTransfers++
@@ -335,7 +444,7 @@ internal class RemoteNavigationSession {
     }
 }
 
-internal enum class RemoteNavigationRole { Default, Back, Sidebar, StreamSource, PageSwitch }
+internal enum class RemoteNavigationRole { Default, Back, Sidebar, TopBar, StreamSource, PageSwitch }
 
 internal class RemoteFocusTarget(val route: Any, val identity: Int, val requester: FocusRequester, val initialFocus: Boolean, val role: RemoteNavigationRole, val manager: FocusManager, val sidebarEntry: Boolean = false) {
     var rowKey: Int? = null
@@ -370,7 +479,7 @@ internal fun InteractionSource.collectIsRemoteHoveredAsState(): State<Boolean> {
     return remember(hovered, session) { derivedStateOf { hovered.value && session?.keyboard != true } }
 }
 
-private fun Modifier.remoteNavigationPointerIcon(): Modifier = composed {
+internal fun Modifier.remoteNavigationPointerIcon(): Modifier = composed {
     val icon = LocalRemoteHiddenPointerIcon.current
     val session = LocalRemoteNavigation.current
     if (session != null && icon != null) {
@@ -466,6 +575,7 @@ internal fun RemoteNavigationHost(
     backspaceEnabled: Boolean = enabled,
     preferContentEntry: Boolean = false,
     requireInitialContentFocus: Boolean = false,
+    preserveNavigationFocus: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
     if (isDesktop) {
@@ -509,9 +619,25 @@ internal fun RemoteNavigationHost(
     }
     LaunchedEffect(navigationEnabled, restorationKey) {
         if (navigationEnabled) {
+            val navigationRole = session.lastFocusedRole.takeIf {
+                preserveNavigationFocus && (it == RemoteNavigationRole.Sidebar || it == RemoteNavigationRole.TopBar)
+            }
             session.contentEntryPending = preferContentEntry
             // Tab disposal and native player teardown can clear focus after composition.
             withFrameNanos { }
+            if (navigationRole != null) {
+                val navigationTarget = withTimeoutOrNull(500) {
+                    snapshotFlow {
+                        session.targets.firstOrNull {
+                            it.route == restorationKey && it.role == navigationRole && it.sidebarEntry
+                        }
+                    }.first { it != null }
+                }
+                if (navigationTarget?.requester?.requestFocus() == true) {
+                    session.contentEntryPending = false
+                    return@LaunchedEffect
+                }
+            }
             if (session.focusedTarget?.let {
                     !preferContentEntry && !session.sidebarFocusBlocked(restorationKey) &&
                         it.route == restorationKey && it.role == RemoteNavigationRole.Sidebar && it.focused
@@ -712,6 +838,10 @@ internal fun Modifier.remoteNavigationTarget(
                 // Correct the padded edge only after that reveal completes.
                 bringIntoView.bringIntoView()
                 session.revealHorizontallyFocusedPoster(poster)
+            } else if (poster?.role == PosterTargetRole.Poster) {
+                session.posterPages[poster.page]?.let { page ->
+                    page.rows.firstOrNull { it.key == poster.row }?.let { session.revealPosterRow(poster.page, it) }
+                }
             } else {
                 bringIntoView.bringIntoView(target.bounds?.let { Rect(0f, -margin, it.width, it.height + margin) })
             }
@@ -746,9 +876,25 @@ internal fun Modifier.remoteNavigationTarget(
                     parent.focused = false
                 }
                 session.focusedTarget = target
+                session.lastFocusedRole = effectiveRole
                 session.rememberedFocus[route] = identity
-                if (effectiveRole != RemoteNavigationRole.Sidebar) {
+                if (effectiveRole != RemoteNavigationRole.Sidebar && effectiveRole != RemoteNavigationRole.TopBar) {
                     session.rememberedContentFocus[route] = identity
+                    val posterItem = target.poster
+                    val pageId = posterItem?.page ?: target.controlRow?.page ?: (
+                        if (route is Pair<*, *>) route.second?.toString()?.lowercase() else null
+                    )
+                    if (posterItem != null && posterItem.role == PosterTargetRole.Poster) {
+                        session.rememberedPosterFocus[route] = posterItem
+                        session.rememberedPosterByPage[posterItem.page] = posterItem
+                        session.rememberedContentByPage[posterItem.page] = identity
+                    } else {
+                        session.rememberedPosterFocus.remove(route)
+                        if (pageId != null) {
+                            session.rememberedPosterByPage.remove(pageId)
+                            session.rememberedContentByPage[pageId] = identity
+                        }
+                    }
                 }
                 session.lastFocused = requester
                 if (!session.explicitFocusTransfer) session.rememberRow(target)
@@ -1241,7 +1387,7 @@ internal fun Modifier.remoteNavigationScrollToTop(state: LazyListState): Modifie
 }
 
 /** Keep directional movement inside an overlay and return to its opener on dismissal. */
-internal fun Modifier.remoteNavigationModal(): Modifier = composed {
+internal fun Modifier.remoteNavigationModal(trapFocus: Boolean = true): Modifier = composed {
     val session = LocalRemoteNavigation.current ?: return@composed this
     val requester = remember { FocusRequester() }
     val opener = remember { session.lastFocused }
@@ -1267,6 +1413,6 @@ internal fun Modifier.remoteNavigationModal(): Modifier = composed {
                 true
             } else false
         }
-        .focusProperties { onExit = { cancelFocusChange() } }
+        .focusProperties { if (trapFocus) onExit = { cancelFocusChange() } }
         .focusGroup()
 }

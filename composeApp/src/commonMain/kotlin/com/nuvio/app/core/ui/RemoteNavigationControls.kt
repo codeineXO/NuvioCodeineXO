@@ -6,13 +6,15 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.focus.FocusDirection
 import kotlin.math.abs
 
-internal data class RemoteControlRow(val page: String, val index: Int, val verticalEntry: Boolean)
+internal data class RemoteControlRow(val page: String, val index: Int, val verticalEntry: Boolean, val rememberPosition: Boolean = false,
+    val allowUpToNavigation: Boolean = false)
 internal val LocalRemoteControlRow = staticCompositionLocalOf<RemoteControlRow?> { null }
 
 /** Logical control rows keep directional navigation independent of header geometry. */
 @Composable
-internal fun RemoteNavigationControls(page: String, row: Int, verticalEntry: Boolean = true, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalRemoteControlRow provides RemoteControlRow(page, row, verticalEntry), content = content)
+internal fun RemoteNavigationControls(page: String, row: Int, verticalEntry: Boolean = true, rememberPosition: Boolean = false,
+    allowUpToNavigation: Boolean = false, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalRemoteControlRow provides RemoteControlRow(page, row, verticalEntry, rememberPosition, allowUpToNavigation), content = content)
 }
 
 /** Null leaves ordinary spatial navigation in charge of directions outside these rows. */
@@ -25,6 +27,50 @@ internal fun RemoteNavigationSession.moveControlFocus(source: RemoteFocusTarget,
     }
     if (controls.isEmpty()) return null
     val origin = source.bounds ?: return null
+    if (group?.rememberPosition == true) {
+        // Use rendered rows so wrapped filters retain the same arrow-key behavior.
+        val rows = mutableListOf<MutableList<RemoteFocusTarget>>()
+        controls.sortedWith(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left }).forEach { target ->
+            val row = rows.lastOrNull()
+            if (row != null && row.all { it.bounds!!.bottom > target.bounds!!.top && it.bounds!!.top < target.bounds!!.bottom }) row += target
+            else rows += mutableListOf(target)
+        }
+        rows.forEach { it.sortBy { target -> target.bounds!!.left } }
+        val rowIndex = rows.indexOfFirst { source in it }
+        if (rowIndex < 0) return true
+        val row = rows[rowIndex]
+        controlRowMemories[source.route to row.first().identity] = source.identity
+        val horizontal = direction == FocusDirection.Left || direction == FocusDirection.Right
+        val destination = when (direction) {
+            FocusDirection.Left -> row.getOrNull(row.indexOf(source) - 1)
+            FocusDirection.Right -> row.getOrNull(row.indexOf(source) + 1)
+            FocusDirection.Up, FocusDirection.Down -> {
+                val next = rows.getOrNull(rowIndex + if (direction == FocusDirection.Up) -1 else 1)
+                next?.firstOrNull { it.identity == controlRowMemories[source.route to next.first().identity] } ?: next?.firstOrNull()
+            }
+            else -> return null
+        }
+        if (destination != null) {
+            if (destination.requester.requestFocus() && direction == FocusDirection.Left) leftMovedDuringHold = true
+        } else if (direction == FocusDirection.Up && group.allowUpToNavigation) {
+            val topBar = targets.firstOrNull {
+                it.route == source.route && it.manager === source.manager && it.role == RemoteNavigationRole.TopBar && it.sidebarEntry
+            } ?: targets.firstOrNull {
+                it.role == RemoteNavigationRole.TopBar && it.sidebarEntry
+            }
+            if (topBar?.requester?.requestFocus() == true) return true
+            return null
+        } else if (horizontal && direction == FocusDirection.Left && canEnterSidebar()) {
+            val sidebar = targets.firstOrNull {
+                it.route == source.route && it.manager === source.manager && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+            } ?: targets.firstOrNull {
+                it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+            }
+            if (sidebar?.requester?.requestFocus() == true) return true
+            return null
+        }
+        return true
+    }
     fun focus(target: RemoteFocusTarget?): Boolean {
         if (target?.requester?.requestFocus() == true && direction == FocusDirection.Left && leftHeld) {
             leftMovedDuringHold = true
@@ -46,10 +92,14 @@ internal fun RemoteNavigationSession.moveControlFocus(source: RemoteFocusTarget,
         val next = row.getOrNull(index + if (direction == FocusDirection.Right) 1 else -1)
         if (next != null) return focus(next)
         if (direction == FocusDirection.Left && canEnterSidebar()) {
-            targets.firstOrNull {
+            val sidebar = targets.firstOrNull {
                 it.route == source.route && it.manager === source.manager &&
                     it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-            }?.requester?.requestFocus()
+            } ?: targets.firstOrNull {
+                it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+            }
+            if (sidebar?.requester?.requestFocus() == true) return true
+            return null
         }
         return true
     }

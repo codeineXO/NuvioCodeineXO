@@ -257,6 +257,9 @@ internal fun mergeShuffleMeta(meta: MetaDetails, base: MetaDetails): MetaDetails
     genres = meta.genres.ifEmpty { base.genres }, imdbRating = meta.imdbRating ?: base.imdbRating,
     imdbScore = meta.imdbScore ?: base.imdbScore, tmdbScore = meta.tmdbScore ?: base.tmdbScore,
     status = meta.status ?: base.status,
+    runtime = meta.runtime ?: base.runtime, ageRating = meta.ageRating ?: base.ageRating,
+    lastAirDate = meta.lastAirDate ?: base.lastAirDate, language = meta.language ?: base.language,
+    seasonCount = meta.seasonCount ?: base.seasonCount,
 )
 
 /** Only fields whose precedence cannot be changed by enrichment are safe early rejections. */

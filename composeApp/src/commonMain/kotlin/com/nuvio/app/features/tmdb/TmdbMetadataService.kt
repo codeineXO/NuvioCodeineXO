@@ -706,7 +706,8 @@ object TmdbMetadataService {
             backdrop = buildImageUrl(details.backdropPath, "w1280"), poster = buildImageUrl(details.posterPath, "w500"), logo = null,
             people = emptyList(), director = emptyList(), writer = emptyList(),
             releaseInfo = details.releaseDate ?: details.firstAirDate, lastAirDate = details.lastAirDate,
-            rating = details.voteAverage, runtimeMinutes = null, ageRating = null, status = details.status,
+            rating = details.voteAverage, runtimeMinutes = details.runtime ?: details.episodeRunTime.firstOrNull(),
+            ageRating = null, status = details.status,
             countries = details.productionCountries.mapNotNull { it.iso31661 }.ifEmpty { details.originCountry },
             language = details.originalLanguage, productionCompanies = emptyList(), networks = emptyList(),
             isAnimation = details.genres.mapNotNull { it.id }.takeIf { it.isNotEmpty() }?.contains(16),
@@ -717,6 +718,7 @@ object TmdbMetadataService {
         ))
         return updated.copy(
             releaseInfo = updated.releaseInfo ?: enrichment.releaseInfo.takeIf { settings.useBasicInfo },
+            seasonCount = details.numberOfSeasons ?: updated.seasonCount,
             provenance = updated.provenance.copy(knownIds = updated.provenance.knownIds + ("TMDB" to tmdbId)),
         )
     }

@@ -62,6 +62,9 @@ internal object MetaDetailsParser {
             links = links,
             seasonPosters = if (includeDetails) meta.seasonPosters(videos) else emptyMap(),
             videos = videos,
+            seasonCount = meta.array("videos").mapNotNull {
+                ((it as? JsonObject)?.get("season") as? JsonPrimitive)?.intOrNull?.takeIf { season -> season > 0 }
+            }.toSet().size.takeIf { it > 0 },
         )
     }
 

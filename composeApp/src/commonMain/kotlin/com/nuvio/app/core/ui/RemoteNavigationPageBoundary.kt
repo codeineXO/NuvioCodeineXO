@@ -79,6 +79,8 @@ internal fun RemoteNavigationSession.movePageFocus(source: RemoteFocusTarget, di
         val sidebarEntry = targets.firstOrNull {
             it.route == source.route && it.manager === source.manager &&
                 it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
+        } ?: targets.firstOrNull {
+            it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
         }
         return sidebarEntry?.requester?.requestFocus() ?: false
     }

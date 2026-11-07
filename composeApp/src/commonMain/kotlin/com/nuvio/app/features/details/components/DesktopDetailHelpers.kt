@@ -32,6 +32,7 @@ internal fun desktopYearLabel(meta: MetaDetails): String? =
 
 internal fun desktopSeasonCountLabel(meta: MetaDetails): String? {
     val seasons = meta.videos.mapNotNull { it.season }.filter { it > 0 }.toSet().size
+        .takeIf { it > 0 } ?: meta.seasonCount ?: return null
     if (seasons <= 0) return null
     return if (seasons == 1) "1 Season" else "$seasons Seasons"
 }

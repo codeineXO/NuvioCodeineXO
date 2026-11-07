@@ -36,6 +36,9 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +47,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -81,10 +86,19 @@ fun NuvioDropdownChip(
     onExpandedChange: ((Boolean) -> Unit)? = null,
     keyboardNavigationEnabled: Boolean = true,
     wrapFilterLabels: Boolean = false,
+    wrapSelectedLabel: Boolean = wrapFilterLabels,
+    rememberKeyboardSelection: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
     var internalExpanded by remember { mutableStateOf(false) }
     val isSheetVisible = expanded ?: internalExpanded
+    var hasOpened by rememberSaveable { mutableStateOf(false) }
+    val menuFocus = remember { FocusRequester() }
+    val keyboard = isRemoteKeyboardNavigationActive
+    val openingKey = remember(isSheetVisible) {
+        if (!hasOpened) options.firstOrNull()?.key
+        else selectedKey?.takeIf { selected -> options.any { it.key == selected } } ?: options.firstOrNull()?.key
+    }
     fun setExpanded(value: Boolean) {
         internalExpanded = value
         onExpandedChange?.invoke(value)
@@ -126,8 +140,8 @@ fun NuvioDropdownChip(
                     else -> tokens.colors.textPrimary
                 },
                 modifier = if (wrapFilterLabels) Modifier.weight(1f) else Modifier,
-                maxLines = if (wrapFilterLabels) Int.MAX_VALUE else 1,
-                overflow = if (wrapFilterLabels) TextOverflow.Clip else TextOverflow.Ellipsis,
+                maxLines = if (wrapSelectedLabel) Int.MAX_VALUE else 1,
+                overflow = if (wrapSelectedLabel) TextOverflow.Clip else TextOverflow.Ellipsis,
             )
             Icon(
                 imageVector = Icons.Rounded.KeyboardArrowDown,
@@ -160,9 +174,18 @@ fun NuvioDropdownChip(
                 border = if (useGlass) BorderStroke(tokens.borders.thin, tokens.colors.borderDefault) else null,
             ) {
                 AppOverlayInput {
+                    LaunchedEffect(isSheetVisible) {
+                        if (isSheetVisible && rememberKeyboardSelection) {
+                            hasOpened = true
+                            if (keyboard && openingKey != null) {
+                                withFrameNanos { }
+                                menuFocus.requestFocus()
+                            }
+                        }
+                    }
                     // Fix the viewport width before DropdownMenu asks for intrinsic sizes.
                     // Measuring the entire list intrinsically can overflow packed Constraints.
-                    Box(Modifier.then(if (wrapFilterLabels) Modifier.then(FilterDropdownViewport)
+                    Box(Modifier.remoteNavigationPointerIcon().then(if (wrapFilterLabels) Modifier.then(FilterDropdownViewport)
                         .width(320.dp).heightIn(max = 360.dp) else Modifier)) {
                         Column(Modifier.then(if (wrapFilterLabels) Modifier.verticalScroll(scrollState)
                             .nuvioDesktopDragScroll(scrollState, Orientation.Vertical).padding(end = 12.dp) else Modifier)) {
@@ -173,6 +196,7 @@ fun NuvioDropdownChip(
                                         isSelected = option.key == selectedKey,
                                         useGlass = useGlass,
                                         wrapLabel = wrapFilterLabels,
+                                        focusRequester = menuFocus.takeIf { rememberKeyboardSelection && option.key == openingKey },
                                         onClick = {
                                             onSelected(option)
                                             setExpanded(false)
@@ -239,6 +263,7 @@ private fun NuvioDropdownMenuOption(
     isSelected: Boolean,
     useGlass: Boolean,
     wrapLabel: Boolean = false,
+    focusRequester: FocusRequester? = null,
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -250,6 +275,7 @@ private fun NuvioDropdownMenuOption(
     // Page navigation targets would inherit the underlying page's focus boundaries.
     DropdownMenuItem(
         modifier = Modifier
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .padding(horizontal = NuvioTokens.Space.s8)
             .semantics { selected = isSelected }
             .then(if (focused) Modifier.border(2.dp, tokens.colors.focusRing, shape) else Modifier)

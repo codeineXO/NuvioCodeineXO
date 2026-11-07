@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
+import com.nuvio.app.features.mdblist.MdbListMetadataService
+import com.nuvio.app.features.mdblist.MdbListSettings
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
@@ -41,7 +43,7 @@ internal object RandomPickerPreferences {
             status = if (decoded.format == "movie") "" else decoded.status)
         if (version >= 2) {
             return@runCatching decoded.copy(
-                minimumRating = decoded.minimumRating?.takeIf { it in 1..10 },
+                minimumRating = decoded.minimumRating?.takeIf { it in 1..9 },
                 decade = decoded.decade?.takeIf { it == -1 || it in 1900..9990 && it % 10 == 0 },
             )
         }
@@ -64,6 +66,7 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
     )))
     val uiState = state.asStateFlow()
     private var pickingJob: Job? = null
+    private var ratingsJob: Job? = null
     private var backgroundJob: Job? = null
     private var cleanupJob: Job? = null
     private var active = false
@@ -159,11 +162,12 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
             val currentSettings = TmdbSettingsRepository.snapshot()
             if (enrichmentSettings != currentSettings) { enrichmentSettings = currentSettings; invalidate() }
         }
-        if (!visible) { cancel(); artworkPreparer = null }
+        if (!visible) { cancel(); ratingsJob?.cancel(); artworkPreparer = null }
         else scheduleBackground()
     }
 
     fun dismissResult() {
+        ratingsJob?.cancel()
         cancel()
         state.update { it.copy(resultPopupOpen = false) }
         scheduleBackground()
@@ -171,6 +175,34 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
 
     fun stopSearch() {
         cancel()
+    }
+
+    fun loadResultRatings(settings: MdbListSettings) {
+        ratingsJob?.cancel()
+        val result = state.value.result ?: return
+        if (!active || !state.value.resultPopupOpen) return
+        ratingsJob = viewModelScope.launch {
+            val ratings = if (settings.isActive) {
+                try {
+                    withTimeoutOrNull(5_000) {
+                        withContext(Dispatchers.Default) {
+                            if (MdbListMetadataService.shouldFetchForMeta(result.meta, result.preview.id, settings)) {
+                                MdbListMetadataService.enrichMeta(result.meta, result.preview.id, settings).externalRatings
+                            } else {
+                                val lookupId = result.meta.provenance.knownIds["TMDB"]?.let { "tmdb:$it" } ?: result.preview.id
+                                MdbListMetadataService.getRatings(lookupId, result.meta.type, settings)
+                            }
+                        }
+                    }.orEmpty()
+                } catch (error: CancellationException) { throw error }
+                catch (_: Exception) { emptyList() }
+            } else emptyList()
+            state.update { current ->
+                if (current.result?.presentationId == result.presentationId && current.resultPopupOpen) {
+                    current.copy(result = current.result.copy(meta = current.result.meta.copy(externalRatings = ratings)))
+                } else current
+            }
+        }
     }
 
     private fun invalidate() {

@@ -212,6 +212,8 @@ internal fun RemoteNavigationSession.capturePosterOrigin(item: PosterNavigationI
     pendingViewportRoutes -= page.route
     page.cancelRestoration()
     focusTransferReason = RemoteFocusTransferReason.Navigation
+    rememberedPosterFocus[page.route] = item
+    rememberedPosterByPage[item.page] = item
     val shelf = page.shelves[item.row]
     page.origin = PosterOrigin(page.context, item.row, item.content, item.index,
         page.rows.indexOfFirst { it.key == item.row }, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset,
@@ -259,6 +261,11 @@ internal fun RemoteNavigationSession.movePosterHorizontally(source: RemoteFocusT
     if (posterMoveJob?.isActive == true) cancelPosterNavigation()
     val next = item.index + if (direction == FocusDirection.Right) 1 else -1
     if (item.role != PosterTargetRole.Poster || next !in row.items.indices) {
+        if (direction == FocusDirection.Left && canEnterSidebar()) {
+            val sidebar = targets.firstOrNull { it.route == source.route && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
+                ?: targets.firstOrNull { it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
+            if (sidebar?.requester?.requestFocus() == true) return
+        }
         enqueuePosterMove(source, direction)
         return
     }
@@ -382,8 +389,9 @@ private suspend fun RemoteNavigationSession.movePosterInPage(source: RemoteFocus
             targets.firstOrNull { it.poster?.let { p -> p.page == item.page && p.row == item.row && p.role == PosterTargetRole.EndAction } == true }
                 ?.requester?.requestFocus()
         } else if (direction == FocusDirection.Left && canEnterSidebar()) {
-            targets.firstOrNull { it.route == source.route && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
-                ?.requester?.requestFocus()
+            val sidebar = targets.firstOrNull { it.route == source.route && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
+                ?: targets.firstOrNull { it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
+            sidebar?.requester?.requestFocus()
         }
         page.lane = focusedTarget?.bounds?.center?.x ?: source.bounds?.center?.x
         return
@@ -430,12 +438,12 @@ internal suspend fun RemoteNavigationSession.revealPosterRow(
     val visible = info.visibleItemsInfo.firstOrNull { it.index == row.lazyIndex }
     fun viewportStart(layout: LazyListLayoutInfo): Int =
         layout.visibleItemsInfo.firstOrNull { it.index == 0 && it.offset <= layout.viewportStartOffset }
-            ?.takeIf { pageId == "search" }?.let { it.offset + it.size } ?: layout.viewportStartOffset
+            ?.takeIf { pageId == "search" || pageId == "library" }?.let { it.offset + it.size } ?: layout.viewportStartOffset
     val headerBottom = viewportStart(info)
     if (policy == PosterRowReveal.Centered) {
         state.animatePosterScroll(fast = { fastPosterScroll }, onPositioned = onPositioned) { layout ->
             val measured = layout.visibleItemsInfo.firstOrNull { it.index == row.lazyIndex }
-            val nearest = measured ?: layout.visibleItemsInfo.filter { pageId != "search" || it.index != 0 }
+            val nearest = measured ?: layout.visibleItemsInfo.filter { (pageId != "search" && pageId != "library") || it.index != 0 }
                 .minByOrNull { abs(it.index - row.lazyIndex) }
             if (nearest == null) 0f else {
                 val offset = nearest.offset.toFloat() + (row.lazyIndex - nearest.index).toFloat() * (nearest.size + layout.mainAxisItemSpacing)

@@ -282,6 +282,7 @@ internal fun MainAppContent(
         val uriHandler = LocalUriHandler.current
         val coroutineScope = rememberCoroutineScope()
         var selectedTab by rememberSaveable(initialTab) { mutableStateOf(initialTab) }
+        var shuffleSelected by remember(initialTab) { mutableStateOf(false) }
         var searchFocusRequestCount by remember { mutableStateOf(0) }
         val homeScrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         val searchScrollToTopRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
@@ -294,6 +295,16 @@ internal fun MainAppContent(
             warmProfileBoundRepositories()
         }
         val currentRoute = navBackStack.lastOrNull() as? AppRoute
+        val rootFocusKey: Any = if (shuffleSelected) RandomPickerRoute else TabsRoute to selectedTab
+        // Migrate a restored legacy Shuffle route into the root host.
+        LaunchedEffect(currentRoute) {
+            if (currentRoute is RandomPickerRoute) {
+                shuffleSelected = true
+                posterNavigation.clear()
+                while (navBackStack.size > 1) navController.popBackStack()
+                if (navBackStack.firstOrNull() !is TabsRoute) navBackStack[0] = TabsRoute
+            }
+        }
         var registeredPlayerSystemBack by remember {
             mutableStateOf<Pair<PlayerRoute, () -> Unit>?>(null)
         }
@@ -320,7 +331,7 @@ internal fun MainAppContent(
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val posterOverlayHazeState = rememberHazeState()
-        val navigationGlassState = remember(currentRoute, selectedTab) { dev.chrisbanes.haze.HazeState() }
+        val navigationGlassState = remember(currentRoute, selectedTab, shuffleSelected) { dev.chrisbanes.haze.HazeState() }
         val sidebarGlassState = rememberHazeState()
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
         var selectedContinueWatchingMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
@@ -345,7 +356,7 @@ internal fun MainAppContent(
             LibraryRepository.uiState
         }.collectAsStateWithLifecycle()
         val authState by AuthRepository.state.collectAsStateWithLifecycle()
-        LaunchedEffect(currentRoute, selectedTab) {
+        LaunchedEffect(currentRoute, selectedTab, shuffleSelected) {
             selectedPosterActionTarget = null
             selectedPosterMenuInvocation = null
             selectedContinueWatchingForActions = null
@@ -460,6 +471,7 @@ internal fun MainAppContent(
     }
 
     fun activateTab(tab: AppScreenTab) {
+        shuffleSelected = false
         if (useNativeNavigation && onActivate != null) {
             onActivate(tab)
         } else {
@@ -468,6 +480,7 @@ internal fun MainAppContent(
     }
 
     fun handleRootTabClick(tab: AppScreenTab) {
+        val wasShuffleSelected = shuffleSelected
         val poppedAny = navBackStack.size > 1
         if (poppedAny) {
             posterNavigation.clear()
@@ -475,7 +488,7 @@ internal fun MainAppContent(
                 navController.popBackStack()
             }
         }
-        if (selectedTab != tab || poppedAny) {
+        if (selectedTab != tab || poppedAny || wasShuffleSelected) {
             activateTab(tab)
             return
         }
@@ -551,17 +564,21 @@ internal fun MainAppContent(
         }
     }
 
-    LaunchedEffect(selectedTab, navBackStack.lastOrNull()) {
+    LaunchedEffect(selectedTab, shuffleSelected, navBackStack.lastOrNull()) {
         val topRoute = navBackStack.lastOrNull()
+        val presenceTab = if (shuffleSelected) AppScreenTab.Home else selectedTab
         if (topRoute is PlayerRoute) return@LaunchedEffect
         when (topRoute) {
+            is RandomPickerRoute -> {
+                AppPresenceState.publish(PresenceSnapshot.Tab(AppScreenTab.Home))
+            }
             is DetailRoute -> {
                 val detailTitle = topRoute.title
                 val imdbId = extractImdbId(topRoute.id)
                 if (!detailTitle.isNullOrBlank()) {
                     AppPresenceState.publish(PresenceSnapshot.Details(detailTitle, topRoute.posterUrl, imdbId))
                 } else {
-                    AppPresenceState.publish(PresenceSnapshot.Tab(selectedTab))
+                    AppPresenceState.publish(PresenceSnapshot.Tab(presenceTab))
                 }
             }
             is StreamRoute -> {
@@ -583,7 +600,7 @@ internal fun MainAppContent(
                 )
             }
             else -> {
-                AppPresenceState.publish(PresenceSnapshot.Tab(selectedTab))
+                AppPresenceState.publish(PresenceSnapshot.Tab(presenceTab))
             }
         }
     }
@@ -1462,8 +1479,9 @@ internal fun MainAppContent(
         ) {
             com.nuvio.app.core.ui.RemoteNavigationHost(
                 enabled = isDesktop && currentRoute !is PlayerRoute,
-                restorationKey = if (currentRoute is TabsRoute) currentRoute to selectedTab else currentRoute ?: TabsRoute,
-                preferContentEntry = currentRoute != null && currentRoute !is TabsRoute,
+                restorationKey = if (currentRoute is TabsRoute) rootFocusKey else currentRoute ?: TabsRoute,
+                preferContentEntry = currentRoute != null && currentRoute !is TabsRoute && currentRoute !is RandomPickerRoute,
+                preserveNavigationFocus = currentRoute is TabsRoute || currentRoute is RandomPickerRoute,
                 requireInitialContentFocus = currentRoute is StreamRoute,
                 modifier = Modifier
                     .fillMaxSize()
@@ -1546,7 +1564,10 @@ internal fun MainAppContent(
             val captureSidebarBackdrop = useDesktopSidebar &&
                 LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass
             fun openRandomPicker() {
-                if (navController.currentRoute !is RandomPickerRoute) navController.navigate(RandomPickerRoute)
+                posterNavigation.clear()
+                while (navBackStack.size > 1) navController.popBackStack()
+                searchFocusRequestCount = 0
+                shuffleSelected = true
             }
             SharedTransitionLayout {
                 CompositionLocalProvider(
@@ -1596,7 +1617,7 @@ internal fun MainAppContent(
                     MainTabsDestination(
                         selectedTab = selectedTab,
                         initialHomeReady = initialHomeReady,
-                        rootRouteActive = if (picker) currentRoute is RandomPickerRoute else currentRoute is TabsRoute,
+                        rootRouteActive = currentRoute is TabsRoute || currentRoute is RandomPickerRoute,
                         useTabletFloatingTabBar = useTabletFloatingTabBar,
                         useNativeNavigation = useNativeNavigation,
                         useNativeTabBar = useNativeTabBar,
@@ -1770,14 +1791,15 @@ internal fun MainAppContent(
                         },
                         onTabSelected = ::handleRootTabClick,
                         onRandomPickerClick = ::openRandomPicker,
-                        randomPickerContent = if (picker) { {
+                        randomPickerSelected = picker,
+                        randomPickerContent = {
                             com.nuvio.app.features.randompicker.RandomPickerScreen(
                                 model = randomPickerModel,
-                                active = currentRoute is RandomPickerRoute,
+                                active = picker && (currentRoute is TabsRoute || currentRoute is RandomPickerRoute),
                                 onDetails = navController::openPreview,
                                 onBack = { navController.popBackStack() },
                             )
-                        } } else null,
+                        },
                         onProfileSelected = { profile ->
                             profileSwitchLoading = true
                             NativeTabBridge.publishTabBarVisible(false)
@@ -1798,7 +1820,7 @@ internal fun MainAppContent(
                         onAddProfileRequested = onSwitchProfile,
                     )
                 }
-                entry<TabsRoute> { mainTabsContent(false) }
+                entry<TabsRoute> { mainTabsContent(shuffleSelected) }
                 entry<RandomPickerRoute> { mainTabsContent(true) }
                 entry<DetailRoute> { route ->
                     DetailsDestination(
@@ -2022,7 +2044,7 @@ internal fun MainAppContent(
                                 }).let { entry ->
                                     androidx.navigation3.runtime.NavEntry(key = key, contentKey = entry.contentKey, metadata = entry.metadata) {
                                         com.nuvio.app.core.ui.RemoteNavigationEntry(
-                                            routeKey = if (key is TabsRoute) key to selectedTab else key,
+                                            routeKey = if (key is TabsRoute) rootFocusKey else key,
                                             active = key == navBackStack.lastOrNull(),
                                         ) { entry.Content() }
                                     }
@@ -2035,13 +2057,13 @@ internal fun MainAppContent(
 
                 if (useDesktopSidebar) {
                     val currentNavRoute = currentRoute
-                    val sidebarRouteKey = if (currentNavRoute is TabsRoute) currentNavRoute to selectedTab else (currentNavRoute ?: Unit)
+                    val sidebarRouteKey = if (currentNavRoute is TabsRoute) rootFocusKey else (currentNavRoute ?: Unit)
                     CompositionLocalProvider(LocalRemoteRoute provides sidebarRouteKey) {
                         DesktopHoverSidebar(
                             selectedTab = selectedTab,
                             onTabSelected = ::handleRootTabClick,
                             onRandomPickerClick = ::openRandomPicker,
-                            randomPickerSelected = shuffleNavigationSelected(navBackStack),
+                            randomPickerSelected = shuffleSelected || shuffleNavigationSelected(navBackStack),
                             onProfileSelected = { profile ->
                                 profileSwitchLoading = true
                                 NativeTabBridge.publishTabBarVisible(false)
@@ -2067,7 +2089,7 @@ internal fun MainAppContent(
                             onProfileStackVisibleChange = { isProfileStackVisible = it },
                             hazeState = sidebarGlassState,
                             onFocusWithinChanged = { isSidebarFocused = it },
-                            canNavigateBack = isSubpage,
+                            canNavigateBack = isSubpage && currentNavRoute !is RandomPickerRoute,
                             onNavigateBack = {
                                 val routeAtRequest = navController.currentRoute
                                 dispatchNavigationBack(
@@ -2573,6 +2595,7 @@ private fun AppRoute?.drawsUnderVerticalBar(selectedTab: AppScreenTab): Boolean 
         is StreamRoute,
         is PlayerRoute,
         is TabsRoute,
+        is RandomPickerRoute,
         is FolderDetailRoute,
         is CollectionFoldersRoute,
         is DownloadsRoute,

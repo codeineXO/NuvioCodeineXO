@@ -1,6 +1,8 @@
 package com.nuvio.app.core.ui.jelly
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.RemoteNavigationRole
+import com.nuvio.app.isDesktop
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -113,7 +115,8 @@ internal fun JellyTabTargets(
             }
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()
-                    .remoteNavigationTarget().selectable(
+                    .remoteNavigationTarget(role = if (isDesktop) RemoteNavigationRole.TopBar else null,
+                        sidebarEntry = item.selected).selectable(
                         selected = item.selected,
                         role = Role.Tab,
                         interactionSource = null,

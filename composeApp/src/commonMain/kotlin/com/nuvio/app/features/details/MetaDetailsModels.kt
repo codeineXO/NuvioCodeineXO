@@ -44,6 +44,8 @@ data class MetaDetails(
     val provenance: MetadataProvenance = MetadataProvenance(),
     val imdbScore: Double? = null,
     val tmdbScore: Double? = null,
+    /** Summary for lightweight cards that do not load the episode catalogue. */
+    val seasonCount: Int? = null,
 )
 
 /** Provider evidence kept independently of localized display fields. */

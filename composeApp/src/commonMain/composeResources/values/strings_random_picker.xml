@@ -2,8 +2,8 @@
     <string name="picker_title">Shuffle</string>
     <string name="picker_subtitle">Can't decide what to watch? Let's pick one randomly.</string>
     <string name="picker_types">Content types</string>
-    <string name="picker_style">Style</string>
-    <string name="picker_format">Format</string>
+    <string name="picker_style">Category</string>
+    <string name="picker_format">Type</string>
     <string name="picker_live_action">Live Action</string>
     <string name="picker_exclude_watched">Exclude watched titles</string>
     <string name="picker_all">All</string>

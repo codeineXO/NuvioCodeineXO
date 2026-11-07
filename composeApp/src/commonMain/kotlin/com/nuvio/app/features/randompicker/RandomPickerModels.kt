@@ -63,7 +63,7 @@ internal fun pickerDecades(currentYear: Int): List<Int> = ((currentYear / 10 * 1
 internal fun MetaPreview.pickerMeta(): MetaDetails = MetaDetails(
     id = id, type = type, name = name, poster = poster, background = banner, logo = logo,
     description = description, releaseInfo = releaseInfo, genres = genres, imdbRating = imdbRating,
-    runtime = runtime, status = status, language = language,
+    runtime = runtime, status = status, language = language, ageRating = ageRating,
     imdbScore = imdbScore, tmdbScore = tmdbScore, externalRatings = externalRatings,
 )
 

@@ -269,12 +269,16 @@ internal fun AppTabHost(
     state: AppTabState,
     actions: AppTabActions,
     modifier: Modifier = Modifier,
+    shuffleSelected: Boolean = false,
+    shuffleContent: (@Composable () -> Unit)? = null,
 ) {
     RootTabHost(
         selectedTab = selectedTab,
         modifier = modifier,
         active = state.tabsRouteActiveState.value,
         profileId = state.profileId,
+        shuffleSelected = shuffleSelected,
+        shuffleContent = shuffleContent,
     ) { tab ->
         when (tab) {
             AppScreenTab.Home -> {
@@ -282,7 +286,7 @@ internal fun AppTabHost(
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         topChromePadding = state.topChromePadding,
-                        animateCollectionGifs = state.tabsRouteActiveState.value && selectedTab == AppScreenTab.Home,
+                        animateCollectionGifs = state.tabsRouteActiveState.value && !shuffleSelected && selectedTab == AppScreenTab.Home,
                         scrollToTopRequests = requests.homeScrollToTopRequests,
                         onCatalogClick = actions.onCatalogClick,
                         onPosterClick = actions.onPosterClick,
@@ -334,8 +338,8 @@ internal fun AppTabHost(
                     rootActionRequests = requests.settingsRootActionRequests,
                     requestedPageName = state.requestedSettingsPageName,
                     onRequestedPageConsumed = actions.onRequestedSettingsPageConsumed,
-                    rootActionsEnabled = state.tabsRouteActiveState.value,
-                    isSelectedTab = selectedTab == AppScreenTab.Settings,
+                    rootActionsEnabled = state.tabsRouteActiveState.value && !shuffleSelected,
+                    isSelectedTab = !shuffleSelected && selectedTab == AppScreenTab.Settings,
                     onNavigatePage = actions.onSettingsPageClick,
                     onSwitchProfile = actions.onSwitchProfile,
                     onHomescreenClick = actions.onHomescreenSettingsClick,
@@ -907,7 +911,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_home),
                         selected = !randomPickerSelected && selectedTab == AppScreenTab.Home,
                         expanded = sidebarExpanded,
-                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Home,
+                        isEntryTarget = !canNavigateBack && !randomPickerSelected && selectedTab == AppScreenTab.Home,
                         onClick = { selectTab(AppScreenTab.Home) },
                     ) { color ->
                         Icon(
@@ -921,7 +925,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_search),
                         selected = !randomPickerSelected && selectedTab == AppScreenTab.Search,
                         expanded = sidebarExpanded,
-                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Search,
+                        isEntryTarget = !canNavigateBack && !randomPickerSelected && selectedTab == AppScreenTab.Search,
                         onClick = { selectTab(AppScreenTab.Search) },
                     ) { color ->
                         Icon(
@@ -935,8 +939,15 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.picker_title),
                         selected = randomPickerSelected,
                         expanded = sidebarExpanded,
-                        isEntryTarget = randomPickerSelected,
-                        onClick = { onProfileStackVisibleChange(false); onRandomPickerClick() },
+                        isEntryTarget = randomPickerSelected && !canNavigateBack,
+                        onClick = {
+                            onProfileStackVisibleChange(false)
+                            if (randomPickerSelected) {
+                                session?.focusContent()
+                            } else {
+                                onRandomPickerClick()
+                            }
+                        },
                     ) { color ->
                         Icon(Icons.Filled.Casino, stringResource(Res.string.picker_title), Modifier.size(DesktopSidebarIconSize), tint = color)
                     }
@@ -944,7 +955,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_library),
                         selected = !randomPickerSelected && selectedTab == AppScreenTab.Library,
                         expanded = sidebarExpanded,
-                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Library,
+                        isEntryTarget = !canNavigateBack && !randomPickerSelected && selectedTab == AppScreenTab.Library,
                         onClick = { selectTab(AppScreenTab.Library) },
                     ) { color ->
                         Icon(
@@ -958,7 +969,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_settings_page_root),
                         selected = !randomPickerSelected && selectedTab == AppScreenTab.Settings,
                         expanded = sidebarExpanded,
-                        isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Settings,
+                        isEntryTarget = !canNavigateBack && !randomPickerSelected && selectedTab == AppScreenTab.Settings,
                         onClick = { selectTab(AppScreenTab.Settings) },
                     ) { color ->
                         Icon(

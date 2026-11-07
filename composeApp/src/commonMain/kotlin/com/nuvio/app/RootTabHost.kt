@@ -42,13 +42,16 @@ internal fun RootTabHost(
     modifier: Modifier = Modifier,
     active: Boolean = true,
     profileId: Int? = null,
+    shuffleSelected: Boolean = false,
+    shuffleContent: (@Composable () -> Unit)? = null,
     content: @Composable (AppScreenTab) -> Unit,
 ) {
     val parentLifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val hostActive = active && parentLifecycleState.isAtLeast(Lifecycle.State.STARTED)
     val focusManager = LocalFocusManager.current
     var contentHasFocus by remember { mutableStateOf(false) }
-    DisposableEffect(selectedTab, hostActive, profileId) {
+    val selectedKey = if (shuffleSelected) "Shuffle" else selectedTab.name
+    DisposableEffect(selectedKey, hostActive, profileId) {
         onDispose {
             // The sidebar is outside this host and retains focus across tab activation.
             if (contentHasFocus) focusManager.clearFocus(force = true)
@@ -57,9 +60,9 @@ internal fun RootTabHost(
 
     key(profileId) {
         val tabStateHolder = rememberSaveableStateHolder()
-        val visitedTabs = remember { mutableSetOf<AppScreenTab>() }
-        val displayedTabs = remember(selectedTab) {
-            retainedRootTabs(visitedTabs.toList(), selectedTab, if (isDesktop) 2 else Int.MAX_VALUE)
+        val visitedTabs = remember { mutableSetOf<String>() }
+        val displayedTabs = remember(selectedKey) {
+            retainedRootTabs(visitedTabs.toList(), selectedKey, if (isDesktop) 2 else Int.MAX_VALUE)
         }
         SideEffect {
             visitedTabs.clear()
@@ -75,15 +78,17 @@ internal fun RootTabHost(
                     key(tab) {
                         RootTabPane(
                             tab = tab,
-                            active = hostActive && tab == selectedTab,
+                            active = hostActive && tab == selectedKey,
                             stateHolder = tabStateHolder,
-                            content = content,
-                        )
+                        ) {
+                            if (tab == "Shuffle") shuffleContent?.invoke()
+                            else content(AppScreenTab.fromName(tab))
+                        }
                     }
                 }
             },
         ) { measurables, constraints ->
-            val placeable = measurables[displayedTabs.indexOf(selectedTab)].measure(constraints)
+            val placeable = measurables[displayedTabs.indexOf(selectedKey)].measure(constraints)
             layout(placeable.width, placeable.height) {
                 placeable.placeRelative(0, 0)
             }
@@ -91,26 +96,19 @@ internal fun RootTabHost(
     }
 }
 
-internal fun retainedRootTabs(
-    previous: List<AppScreenTab>,
-    selected: AppScreenTab,
+internal fun <T> retainedRootTabs(
+    previous: List<T>,
+    selected: T,
     limit: Int,
-): List<AppScreenTab> = (previous.filterNot { it == selected } + selected).takeLast(limit)
+): List<T> = (previous.filterNot { it == selected } + selected).takeLast(limit)
 
 @Composable
 private fun RootTabPane(
-    tab: AppScreenTab,
+    tab: String,
     active: Boolean,
     stateHolder: SaveableStateHolder,
-    content: @Composable (AppScreenTab) -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    val entrance = remember { Animatable(if (active) 0f else 1f) }
-    LaunchedEffect(active) {
-        if (active) {
-            entrance.snapTo(0f)
-            entrance.animateTo(1f, tween(navigationMotionDuration(NuvioTokens.Motion.normalMillis), easing = FastOutSlowInEasing))
-        } else entrance.snapTo(1f)
-    }
     val lifecycleOwner = rememberLifecycleOwner(
         maxLifecycle = if (active) Lifecycle.State.RESUMED else Lifecycle.State.CREATED,
     )
@@ -118,13 +116,10 @@ private fun RootTabPane(
         LocalLifecycleOwner provides lifecycleOwner,
         LocalScreenActive provides active,
     ) {
-        stateHolder.SaveableStateProvider(tab.name) {
+        stateHolder.SaveableStateProvider(tab) {
             Box(
                 Modifier.fillMaxSize()
-                    .graphicsLayer {
-                        alpha = 0.92f + 0.08f * entrance.value
-                        translationY = (1f - entrance.value) * 2.dp.toPx()
-                    }
+                    .rootTabEntrance(active)
                     // An active pane must not turn a descendant focusGroup into a focus stop.
                     .then(if (active) Modifier else Modifier.focusProperties { canFocus = false })
                     .pointerInput(active) {
@@ -138,8 +133,24 @@ private fun RootTabPane(
                     }
                     .then(if (active) Modifier else Modifier.clearAndSetSemantics {}),
             ) {
-                content(tab)
+                content()
             }
         }
+    }
+}
+
+/** Shared entrance motion for every root pane, including Shuffle. */
+@Composable
+internal fun Modifier.rootTabEntrance(active: Boolean): Modifier {
+    val entrance = remember { Animatable(if (active) 0f else 1f) }
+    LaunchedEffect(active) {
+        if (active) {
+            entrance.snapTo(0f)
+            entrance.animateTo(1f, tween(navigationMotionDuration(NuvioTokens.Motion.normalMillis), easing = FastOutSlowInEasing))
+        } else entrance.snapTo(1f)
+    }
+    return graphicsLayer {
+        alpha = 0.92f + 0.08f * entrance.value
+        translationY = (1f - entrance.value) * 2.dp.toPx()
     }
 }
