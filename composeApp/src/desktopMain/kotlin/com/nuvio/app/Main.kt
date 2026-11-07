@@ -71,6 +71,13 @@ fun main(args: Array<String>) {
         enabled = keyboardNavigationStore.getBoolean("enabled") ?: true,
         save = { keyboardNavigationStore.putBoolean("enabled", it) },
     )
+    val randomPickerStore = com.nuvio.app.core.storage.DesktopStorage.store("nuvio_random_picker")
+    com.nuvio.app.features.randompicker.RandomPickerPreferences.load = { profileId ->
+        randomPickerStore.getString(com.nuvio.app.core.storage.ProfileScopedKey.of("filters", profileId))
+    }
+    com.nuvio.app.features.randompicker.RandomPickerPreferences.save = { profileId, value ->
+        randomPickerStore.putString(com.nuvio.app.core.storage.ProfileScopedKey.of("filters", profileId), value)
+    }
     applyDesktopRendererPreference()
     val navigationFeelStore = com.nuvio.app.core.storage.DesktopStorage.store("nuvio_navigation_feel")
     com.nuvio.app.core.ui.NavigationMotionSettings.initialize(

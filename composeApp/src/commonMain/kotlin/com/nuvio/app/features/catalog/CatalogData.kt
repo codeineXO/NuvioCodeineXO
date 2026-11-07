@@ -76,6 +76,8 @@ suspend fun fetchCatalogPage(
     skip: Int? = null,
     maxItems: Int? = null,
     forceRefresh: Boolean = false,
+    extras: Map<String, String> = emptyMap(),
+    shareInFlight: Boolean = true,
 ): CatalogPage {
     val url = buildCatalogUrl(
         manifestUrl = manifestUrl,
@@ -84,8 +86,9 @@ suspend fun fetchCatalogPage(
         genre = genre,
         search = search,
         skip = skip,
+        extras = extras,
     )
-    val payload = deduplicatedHttpGetText(
+    val payload = if (!shareInFlight) fetchAddonResponseText(url, forceRefresh) else deduplicatedHttpGetText(
         url = url,
         forceRefresh = forceRefresh,
     )
@@ -182,11 +185,17 @@ internal fun buildCatalogUrl(
     genre: String?,
     search: String?,
     skip: Int?,
+    extras: Map<String, String> = emptyMap(),
 ): String {
     val extraParts = buildList {
         if (!search.isNullOrBlank()) add("search=${search.encodeCatalogExtra()}")
         if (!genre.isNullOrBlank()) add("genre=${genre.encodeCatalogExtra()}")
         if (skip != null && skip > 0) add("skip=$skip")
+        extras.entries.sortedBy { it.key }.forEach { (key, value) ->
+            if (key.lowercase() !in setOf("search", "genre", "skip")) {
+                add("${key.encodeCatalogExtra()}=${value.encodeCatalogExtra()}")
+            }
+        }
     }
 
     return buildAddonResourceUrl(

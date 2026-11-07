@@ -691,6 +691,48 @@ object TmdbMetadataService {
         }
     }
 
+    /** A single details request; never fills or reads the full-enrichment cache. */
+    internal suspend fun enrichForShuffle(meta: MetaDetails, fallbackId: String, settings: TmdbSettings, onFailure: () -> Unit = {}): MetaDetails {
+        if (!settings.enabled) return meta
+        val mediaType = normalizeMetaType(meta.type)
+        val tmdbId = TmdbService.ensureTmdbId(meta.id, mediaType, fallbackImdbId = meta.imdbId)
+            ?: TmdbService.ensureTmdbId(fallbackId, mediaType, fallbackImdbId = meta.imdbId) ?: return meta
+        val details = fetch<TmdbDetailsResponse>("$mediaType/$tmdbId", mapOf("language" to normalizeTmdbLanguage(settings.language)))
+            ?: return meta.also { onFailure() }
+        val enrichment = TmdbEnrichment(
+            localizedTitle = listOf(details.title, details.name).firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) },
+            description = details.overview?.trim()?.takeIf(String::isNotBlank),
+            genres = details.genres.mapNotNull { it.name?.trim()?.takeIf(String::isNotBlank) },
+            backdrop = buildImageUrl(details.backdropPath, "w1280"), poster = buildImageUrl(details.posterPath, "w500"), logo = null,
+            people = emptyList(), director = emptyList(), writer = emptyList(),
+            releaseInfo = details.releaseDate ?: details.firstAirDate, lastAirDate = details.lastAirDate,
+            rating = details.voteAverage, runtimeMinutes = null, ageRating = null, status = details.status,
+            countries = details.productionCountries.mapNotNull { it.iso31661 }.ifEmpty { details.originCountry },
+            language = details.originalLanguage, productionCompanies = emptyList(), networks = emptyList(),
+            isAnimation = details.genres.mapNotNull { it.id }.takeIf { it.isNotEmpty() }?.contains(16),
+        )
+        val updated = applyEnrichment(meta, enrichment, emptyMap(), settings.copy(
+            useCredits = false, useProductions = false, useNetworks = false, useEpisodes = false,
+            useSeasonPosters = false, useMoreLikeThis = false, useCollections = false, useTrailers = false,
+        ))
+        return updated.copy(
+            releaseInfo = updated.releaseInfo ?: enrichment.releaseInfo.takeIf { settings.useBasicInfo },
+            provenance = updated.provenance.copy(knownIds = updated.provenance.knownIds + ("TMDB" to tmdbId)),
+        )
+    }
+
+    /** Optional logo lookup is only used for the selected card, not every candidate. */
+    internal suspend fun completeShuffleArtwork(meta: MetaDetails, fallbackId: String): MetaDetails {
+        TmdbSettingsRepository.ensureLoaded()
+        val settings = TmdbSettingsRepository.snapshot()
+        if (!settings.enabled || !settings.useArtwork || meta.logo != null) return meta
+        val mediaType = normalizeMetaType(meta.type)
+        val tmdbId = meta.provenance.knownIds["TMDB"]
+            ?: TmdbService.ensureTmdbId(fallbackId, mediaType, fallbackImdbId = meta.imdbId) ?: return meta
+        val language = normalizeTmdbLanguage(settings.language)
+        val images = fetch<TmdbImagesResponse>("$mediaType/$tmdbId/images", mapOf("include_image_language" to tmdbImageLanguages(language)))
+        return meta.copy(logo = buildImageUrl(images?.logos.orEmpty().selectBestLocalizedImagePath(language), "w500"))
+    }
     suspend fun enrichMeta(
         meta: MetaDetails,
         fallbackItemId: String,
@@ -795,6 +837,7 @@ object TmdbMetadataService {
             lastAirDate = enrichment.lastAirDate,
             status = enrichment.status,
             imdbRating = enrichment.rating?.formatRating(),
+            tmdbScore = enrichment.rating?.takeIf { it in 0.0..10.0 },
             ageRating = enrichment.ageRating,
             runtime = enrichment.runtimeMinutes?.formatRuntime(),
             genres = enrichment.genres,
@@ -828,6 +871,7 @@ object TmdbMetadataService {
         var updated = meta
 
         if (enrichment != null && settings.enabled) {
+            updated = updated.copy(tmdbScore = enrichment.rating?.takeIf { it in 0.0..10.0 } ?: updated.tmdbScore)
             updated = updated.copy(classificationHints = com.nuvio.app.features.details.MetaClassificationHints(
                 isAnimation = enrichment.isAnimation ?: meta.classificationHints?.isAnimation
                     ?: true.takeIf { meta.genres.any { it.trim().equals("animation", true) } },

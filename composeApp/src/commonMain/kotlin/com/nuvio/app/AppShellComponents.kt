@@ -1,5 +1,8 @@
 package com.nuvio.app
 
+import androidx.compose.material.icons.filled.Casino
+import nuvio.composeapp.generated.resources.picker_title
+
 import com.nuvio.app.core.ui.FrostedGlassTokens
 import com.nuvio.app.core.ui.frostedGlassShadow
 import com.nuvio.app.core.ui.frostedGlassBorder
@@ -755,6 +758,8 @@ internal fun AppLaunchOverlay(
 internal fun DesktopHoverSidebar(
     selectedTab: AppScreenTab,
     onTabSelected: (AppScreenTab) -> Unit,
+    onRandomPickerClick: () -> Unit = {},
+    randomPickerSelected: Boolean = false,
     onProfileSelected: (NuvioProfile) -> Unit,
     onAddProfileRequested: () -> Unit,
     sidebarExpanded: Boolean = false,
@@ -900,7 +905,7 @@ internal fun DesktopHoverSidebar(
                 ) {
                     DesktopSidebarItem(
                         label = stringResource(Res.string.compose_nav_home),
-                        selected = selectedTab == AppScreenTab.Home,
+                        selected = !randomPickerSelected && selectedTab == AppScreenTab.Home,
                         expanded = sidebarExpanded,
                         isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Home,
                         onClick = { selectTab(AppScreenTab.Home) },
@@ -914,7 +919,7 @@ internal fun DesktopHoverSidebar(
                     }
                     DesktopSidebarItem(
                         label = stringResource(Res.string.compose_nav_search),
-                        selected = selectedTab == AppScreenTab.Search,
+                        selected = !randomPickerSelected && selectedTab == AppScreenTab.Search,
                         expanded = sidebarExpanded,
                         isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Search,
                         onClick = { selectTab(AppScreenTab.Search) },
@@ -927,8 +932,17 @@ internal fun DesktopHoverSidebar(
                         )
                     }
                     DesktopSidebarItem(
+                        label = stringResource(Res.string.picker_title),
+                        selected = randomPickerSelected,
+                        expanded = sidebarExpanded,
+                        isEntryTarget = randomPickerSelected,
+                        onClick = { onProfileStackVisibleChange(false); onRandomPickerClick() },
+                    ) { color ->
+                        Icon(Icons.Filled.Casino, stringResource(Res.string.picker_title), Modifier.size(DesktopSidebarIconSize), tint = color)
+                    }
+                    DesktopSidebarItem(
                         label = stringResource(Res.string.compose_nav_library),
-                        selected = selectedTab == AppScreenTab.Library,
+                        selected = !randomPickerSelected && selectedTab == AppScreenTab.Library,
                         expanded = sidebarExpanded,
                         isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Library,
                         onClick = { selectTab(AppScreenTab.Library) },
@@ -942,7 +956,7 @@ internal fun DesktopHoverSidebar(
                     }
                     DesktopSidebarItem(
                         label = stringResource(Res.string.compose_settings_page_root),
-                        selected = selectedTab == AppScreenTab.Settings,
+                        selected = !randomPickerSelected && selectedTab == AppScreenTab.Settings,
                         expanded = sidebarExpanded,
                         isEntryTarget = !canNavigateBack && selectedTab == AppScreenTab.Settings,
                         onClick = { selectTab(AppScreenTab.Settings) },

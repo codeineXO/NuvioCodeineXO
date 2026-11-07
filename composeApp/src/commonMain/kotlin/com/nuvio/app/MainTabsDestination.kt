@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Casino
+import nuvio.composeapp.generated.resources.picker_title
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -93,6 +95,8 @@ internal fun MainTabsDestination(
     actions: (isTabletLayout: Boolean) -> AppTabActions,
     onBack: () -> Unit,
     onTabSelected: (AppScreenTab) -> Unit,
+    onRandomPickerClick: () -> Unit = {},
+    randomPickerContent: (@Composable () -> Unit)? = null,
     onProfileSelected: (NuvioProfile) -> Unit,
     onAddProfileRequested: () -> Unit,
 ) {
@@ -179,30 +183,36 @@ internal fun MainTabsDestination(
         var isTopProfileSwitcherOpen by remember { mutableStateOf(false) }
         val floatingNavigationItems = listOf(
             FloatingNavigationItem(
-                selected = selectedTab == AppScreenTab.Home,
+                selected = randomPickerContent == null && selectedTab == AppScreenTab.Home,
                 onClick = { onTabSelected(AppScreenTab.Home) },
                 icon = Icons.Filled.Home,
                 label = stringResource(Res.string.compose_nav_home),
             ),
             FloatingNavigationItem(
-                selected = selectedTab == AppScreenTab.Search,
+                selected = randomPickerContent == null && selectedTab == AppScreenTab.Search,
                 onClick = { onTabSelected(AppScreenTab.Search) },
                 drawable = Res.drawable.sidebar_search,
                 label = stringResource(Res.string.compose_nav_search),
             ),
             FloatingNavigationItem(
-                selected = selectedTab == AppScreenTab.Library,
+                selected = randomPickerContent != null,
+                onClick = onRandomPickerClick,
+                icon = Icons.Filled.Casino,
+                label = stringResource(Res.string.picker_title),
+            ),
+            FloatingNavigationItem(
+                selected = randomPickerContent == null && selectedTab == AppScreenTab.Library,
                 onClick = { onTabSelected(AppScreenTab.Library) },
                 drawable = Res.drawable.sidebar_library,
                 label = stringResource(Res.string.compose_nav_library),
             ),
             FloatingNavigationItem(
-                selected = selectedTab == AppScreenTab.Settings,
+                selected = randomPickerContent == null && selectedTab == AppScreenTab.Settings,
                 onClick = { onTabSelected(AppScreenTab.Settings) },
                 label = stringResource(if (isDesktop) Res.string.compose_nav_settings else Res.string.compose_nav_profile),
                 content = { onClick ->
                     ProfileSwitcherTab(
-                        selected = selectedTab == AppScreenTab.Settings,
+                        selected = randomPickerContent == null && selectedTab == AppScreenTab.Settings,
                         onClick = onClick,
                         onProfileSelected = onProfileSelected,
                         onAddProfileRequested = onAddProfileRequested,
@@ -216,15 +226,15 @@ internal fun MainTabsDestination(
         )
 
         // Poster and settings pages share a full-window background, without a rectangle at the sidebar inset.
-        if (isDesktop && (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library || selectedTab == AppScreenTab.Settings)) {
+        if (isDesktop && usesSharedTabBackground(selectedTab, randomPickerContent != null)) {
             val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
             val backgroundModifier = Modifier.fillMaxSize()
                 .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(navBarHazeState, zIndex = -1f) else Modifier)
-                .then(if (LocalFrostedGlassEnabled.current && selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
+                .then(if (LocalFrostedGlassEnabled.current && randomPickerContent == null && selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
             if (auraBackgroundEnabled) {
                 HomeInteractiveGradientBackground(
                     modifier = backgroundModifier,
-                    listState = if (selectedTab == AppScreenTab.Search) state.searchListState else if (selectedTab == AppScreenTab.Library) libraryListState else null,
+                    listState = if (randomPickerContent != null) null else if (selectedTab == AppScreenTab.Search) state.searchListState else if (selectedTab == AppScreenTab.Library) libraryListState else null,
                 )
             } else {
                 Box(
@@ -245,29 +255,29 @@ internal fun MainTabsDestination(
                 if (!isDesktop && !isTabletLayout && !useNativeBottomTabs && navBarStyleSetting == NavBarStyle.CLASSIC) {
                     NuvioClassicNavigationBar {
                         NavItem(
-                            selected = selectedTab == AppScreenTab.Home,
+                            selected = randomPickerContent == null && selectedTab == AppScreenTab.Home,
                             onClick = { onTabSelected(AppScreenTab.Home) },
                             icon = Icons.Filled.Home,
                             contentDescription = stringResource(Res.string.compose_nav_home),
                         )
                         NavItem(
-                            selected = selectedTab == AppScreenTab.Search,
+                            selected = randomPickerContent == null && selectedTab == AppScreenTab.Search,
                             onClick = { onTabSelected(AppScreenTab.Search) },
                             icon = Res.drawable.sidebar_search,
                             contentDescription = stringResource(Res.string.compose_nav_search),
                         )
                         NavItem(
-                            selected = selectedTab == AppScreenTab.Library,
+                            selected = randomPickerContent == null && selectedTab == AppScreenTab.Library,
                             onClick = { onTabSelected(AppScreenTab.Library) },
                             icon = Res.drawable.sidebar_library,
                             contentDescription = stringResource(Res.string.compose_nav_library),
                         )
                         NavItem(
-                            selected = selectedTab == AppScreenTab.Settings,
+                            selected = randomPickerContent == null && selectedTab == AppScreenTab.Settings,
                             onClick = { onTabSelected(AppScreenTab.Settings) },
                         ) {
                             ProfileSwitcherTab(
-                                selected = selectedTab == AppScreenTab.Settings,
+                                selected = randomPickerContent == null && selectedTab == AppScreenTab.Settings,
                                 onClick = { onTabSelected(AppScreenTab.Settings) },
                                 onProfileSelected = onProfileSelected,
                                 onAddProfileRequested = onAddProfileRequested,
@@ -297,7 +307,7 @@ internal fun MainTabsDestination(
                     LocalNuvioBottomNavigationOverlayPadding provides if (useNativeBottomTabs) 49.dp else if (!isDesktop && !isTabletLayout && navBarStyleSetting != NavBarStyle.CLASSIC) 72.dp else 0.dp,
                     LocalNuvioNavBarScrollState provides navBarScrollState,
                 ) {
-                    AppTabHost(
+                    if (randomPickerContent != null) randomPickerContent() else AppTabHost(
                         selectedTab = selectedTab,
                         requests = requests,
                         state = state.copy(
@@ -380,3 +390,6 @@ internal fun MainTabsDestination(
         }
     }
 }
+
+internal fun usesSharedTabBackground(selectedTab: AppScreenTab, shuffleSelected: Boolean): Boolean =
+    shuffleSelected || selectedTab in setOf(AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Settings)

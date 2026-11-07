@@ -64,6 +64,8 @@ object MdbListMetadataService {
 
         return meta.copy(
             externalRatings = ratings,
+            imdbScore = ratings.firstOrNull { it.source == PROVIDER_IMDB }?.value ?: meta.imdbScore,
+            tmdbScore = ratings.firstOrNull { it.source == PROVIDER_TMDB }?.value?.div(10.0) ?: meta.tmdbScore,
             provenance = meta.provenance.copy(
                 enrichmentSources = if (ratings.isNotEmpty()) meta.provenance.enrichmentSources + "MDBList"
                     else meta.provenance.enrichmentSources - "MDBList",

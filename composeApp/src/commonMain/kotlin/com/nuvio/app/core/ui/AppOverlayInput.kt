@@ -4,6 +4,7 @@ import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
@@ -39,9 +40,10 @@ internal fun AppOverlayInput(content: @Composable () -> Unit) {
 internal fun AppBasicAlertDialog(
     onDismissRequest: () -> Unit,
     properties: DialogProperties = DialogProperties(),
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
+    BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties, modifier = modifier) {
         AppOverlayInput { SettingsOverlaySurfaceLayer(content) }
     }
 }

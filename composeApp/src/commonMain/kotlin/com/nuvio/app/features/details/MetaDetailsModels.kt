@@ -42,6 +42,8 @@ data class MetaDetails(
     val videos: List<MetaVideo> = emptyList(),
     val classificationHints: MetaClassificationHints? = null,
     val provenance: MetadataProvenance = MetadataProvenance(),
+    val imdbScore: Double? = null,
+    val tmdbScore: Double? = null,
 )
 
 /** Provider evidence kept independently of localized display fields. */

@@ -23,13 +23,13 @@ import org.jetbrains.compose.resources.getString
 internal object MetaDetailsParser {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun parse(payload: String): MetaDetails {
+    fun parse(payload: String, includeDetails: Boolean = true): MetaDetails {
         val root = json.parseToJsonElement(payload).asJsonObjectOrNull()
             ?: error("Expected top-level JSON object in response")
         val meta = root.extractMetaObject()
             ?: error("Response did not contain a valid meta object")
-        val links = meta.links()
-        val videos = meta.videos()
+        val links = if (includeDetails) meta.links() else emptyList()
+        val videos = if (includeDetails) meta.videos() else emptyList()
 
         return MetaDetails(
             id = meta.requiredString("id"),
@@ -44,21 +44,23 @@ internal object MetaDetailsParser {
             lastAirDate = meta.string("lastAirDate"),
             status = meta.string("status"),
             imdbRating = meta.string("imdbRating"),
+            imdbScore = meta.string("imdbRating")?.toDoubleOrNull()?.takeIf { it in 0.0..10.0 },
+            tmdbScore = meta.string("tmdbRating")?.toDoubleOrNull()?.takeIf { it in 0.0..10.0 },
             ageRating = meta.ageRating(),
             runtime = meta.string("runtime"),
             genres = meta.stringListOrCsv("genres"),
-            director = meta.directors(links),
-            writer = meta.writers(links),
-            cast = meta.cast(links),
+            director = if (includeDetails) meta.directors(links) else emptyList(),
+            writer = if (includeDetails) meta.writers(links) else emptyList(),
+            cast = if (includeDetails) meta.cast(links) else emptyList(),
             country = meta.stringListOrCsv("country").joinToString(", ").takeIf(String::isNotBlank),
             awards = meta.string("awards"),
             language = meta.stringListOrCsv("language").joinToString(", ").takeIf(String::isNotBlank),
             website = meta.string("website"),
             hasScheduledVideos = meta.behaviorHints().boolean("hasScheduledVideos") == true,
             defaultVideoId = meta.behaviorHints().string("defaultVideoId"),
-            trailers = meta.trailers(),
+            trailers = if (includeDetails) meta.trailers() else emptyList(),
             links = links,
-            seasonPosters = meta.seasonPosters(videos),
+            seasonPosters = if (includeDetails) meta.seasonPosters(videos) else emptyMap(),
             videos = videos,
         )
     }

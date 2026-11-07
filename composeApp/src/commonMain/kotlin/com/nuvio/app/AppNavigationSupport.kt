@@ -24,10 +24,14 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import com.nuvio.app.core.build.AppFeaturePolicy
 
+internal fun shuffleNavigationSelected(routes: List<NavKey>): Boolean =
+    routes.lastOrNull { it is TabsRoute || it is RandomPickerRoute } is RandomPickerRoute
+
 internal val navigationSavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
             subclass(TabsRoute::class, TabsRoute.serializer())
+            subclass(RandomPickerRoute::class, RandomPickerRoute.serializer())
             subclass(DetailRoute::class, DetailRoute.serializer())
             subclass(PersonDetailRoute::class, PersonDetailRoute.serializer())
             subclass(EntityBrowseRoute::class, EntityBrowseRoute.serializer())

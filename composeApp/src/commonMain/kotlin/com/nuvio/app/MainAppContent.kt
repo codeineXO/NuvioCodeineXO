@@ -788,6 +788,9 @@ internal fun MainAppContent(
     var resumePromptItem by remember { mutableStateOf<ContinueWatchingItem?>(null) }
     var lastExternalPlayerLaunch by remember { mutableStateOf<PlayerLaunch?>(null) }
     val activePlaybackProfileId = profileState.activeProfile?.profileIndex ?: ProfileRepository.activeProfileId
+    val randomPickerModel = androidx.lifecycle.viewmodel.compose.viewModel<com.nuvio.app.features.randompicker.RandomPickerViewModel>(
+        key = "random-picker-$activePlaybackProfileId",
+    ) { com.nuvio.app.features.randompicker.RandomPickerViewModel(activePlaybackProfileId) }
     val launchExternalPlayer = rememberExternalPlayerLauncher { result ->
         if (result != null) {
             val fallbackSession = lastExternalPlayerLaunch?.externalPlaybackSession()
@@ -1542,6 +1545,9 @@ internal fun MainAppContent(
             val drawsUnderVerticalBar = currentRoute.drawsUnderVerticalBar(selectedTab)
             val captureSidebarBackdrop = useDesktopSidebar &&
                 LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass
+            fun openRandomPicker() {
+                if (navController.currentRoute !is RandomPickerRoute) navController.navigate(RandomPickerRoute)
+            }
             SharedTransitionLayout {
                 CompositionLocalProvider(
                     com.nuvio.app.core.ui.LocalNavigationGlassState provides navigationGlassState.takeUnless { currentRoute is PlayerRoute },
@@ -1586,11 +1592,11 @@ internal fun MainAppContent(
                     transitionSpec = { pageNavigationMotion(forward = true, pageTravelPx) },
                     popTransitionSpec = { pageNavigationMotion(forward = false, pageTravelPx) },
                     entryProvider = entryProvider<NavKey> {
-                entry<TabsRoute> {
+                val mainTabsContent: @Composable (Boolean) -> Unit = { picker ->
                     MainTabsDestination(
                         selectedTab = selectedTab,
                         initialHomeReady = initialHomeReady,
-                        rootRouteActive = currentRoute is TabsRoute,
+                        rootRouteActive = if (picker) currentRoute is RandomPickerRoute else currentRoute is TabsRoute,
                         useTabletFloatingTabBar = useTabletFloatingTabBar,
                         useNativeNavigation = useNativeNavigation,
                         useNativeTabBar = useNativeTabBar,
@@ -1763,6 +1769,15 @@ internal fun MainAppContent(
                             }
                         },
                         onTabSelected = ::handleRootTabClick,
+                        onRandomPickerClick = ::openRandomPicker,
+                        randomPickerContent = if (picker) { {
+                            com.nuvio.app.features.randompicker.RandomPickerScreen(
+                                model = randomPickerModel,
+                                active = currentRoute is RandomPickerRoute,
+                                onDetails = navController::openPreview,
+                                onBack = { navController.popBackStack() },
+                            )
+                        } } else null,
                         onProfileSelected = { profile ->
                             profileSwitchLoading = true
                             NativeTabBridge.publishTabBarVisible(false)
@@ -1783,6 +1798,8 @@ internal fun MainAppContent(
                         onAddProfileRequested = onSwitchProfile,
                     )
                 }
+                entry<TabsRoute> { mainTabsContent(false) }
+                entry<RandomPickerRoute> { mainTabsContent(true) }
                 entry<DetailRoute> { route ->
                     DetailsDestination(
                         route = route,
@@ -2023,6 +2040,8 @@ internal fun MainAppContent(
                         DesktopHoverSidebar(
                             selectedTab = selectedTab,
                             onTabSelected = ::handleRootTabClick,
+                            onRandomPickerClick = ::openRandomPicker,
+                            randomPickerSelected = shuffleNavigationSelected(navBackStack),
                             onProfileSelected = { profile ->
                                 profileSwitchLoading = true
                                 NativeTabBridge.publishTabBarVisible(false)

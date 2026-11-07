@@ -2,6 +2,7 @@ package com.nuvio.app.core.ui
 
 
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.BorderStroke
@@ -15,10 +16,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -43,11 +46,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.LayoutModifier
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Constraints
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.launch
 
@@ -70,6 +80,7 @@ fun NuvioDropdownChip(
     expanded: Boolean? = null,
     onExpandedChange: ((Boolean) -> Unit)? = null,
     keyboardNavigationEnabled: Boolean = true,
+    wrapFilterLabels: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
     var internalExpanded by remember { mutableStateOf(false) }
@@ -85,6 +96,7 @@ fun NuvioDropdownChip(
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
+                .then(if (wrapFilterLabels) Modifier.fillMaxWidth() else Modifier)
                 .then(if (!keyboardNavigationEnabled) Modifier.excludeFromRemoteNavigation()
                     else if (enabled) Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard) else Modifier)
                 .then(
@@ -108,9 +120,14 @@ fun NuvioDropdownChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
-                color = if (enabled) tokens.colors.textPrimary else tokens.colors.textDisabled,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                color = when {
+                    !enabled -> tokens.colors.textDisabled
+                    wrapFilterLabels && isSheetVisible -> tokens.colors.accent
+                    else -> tokens.colors.textPrimary
+                },
+                modifier = if (wrapFilterLabels) Modifier.weight(1f) else Modifier,
+                maxLines = if (wrapFilterLabels) Int.MAX_VALUE else 1,
+                overflow = if (wrapFilterLabels) TextOverflow.Clip else TextOverflow.Ellipsis,
             )
             Icon(
                 imageVector = Icons.Rounded.KeyboardArrowDown,
@@ -126,8 +143,8 @@ fun NuvioDropdownChip(
             DropdownMenu(
                 expanded = isSheetVisible,
                 onDismissRequest = { setExpanded(false) },
-                scrollState = scrollState,
-                modifier = Modifier.nuvioDesktopDragScroll(scrollState, Orientation.Vertical)
+                scrollState = if (wrapFilterLabels) rememberScrollState() else scrollState,
+                modifier = Modifier.then(if (wrapFilterLabels) Modifier else Modifier.nuvioDesktopDragScroll(scrollState, Orientation.Vertical))
                     .widthIn(min = 180.dp, max = 360.dp)
                     .then(
                         if (useGlass) Modifier.navigationGlass(
@@ -143,17 +160,32 @@ fun NuvioDropdownChip(
                 border = if (useGlass) BorderStroke(tokens.borders.thin, tokens.colors.borderDefault) else null,
             ) {
                 AppOverlayInput {
-                    options.forEach { option ->
-                        key(option.key) {
-                            NuvioDropdownMenuOption(
-                                option = option,
-                                isSelected = option.key == selectedKey,
-                                useGlass = useGlass,
-                                onClick = {
-                                    onSelected(option)
-                                    setExpanded(false)
-                                },
-                            )
+                    // Fix the viewport width before DropdownMenu asks for intrinsic sizes.
+                    // Measuring the entire list intrinsically can overflow packed Constraints.
+                    Box(Modifier.then(if (wrapFilterLabels) Modifier.then(FilterDropdownViewport)
+                        .width(320.dp).heightIn(max = 360.dp) else Modifier)) {
+                        Column(Modifier.then(if (wrapFilterLabels) Modifier.verticalScroll(scrollState)
+                            .nuvioDesktopDragScroll(scrollState, Orientation.Vertical).padding(end = 12.dp) else Modifier)) {
+                            options.forEach { option ->
+                                key(option.key) {
+                                    NuvioDropdownMenuOption(
+                                        option = option,
+                                        isSelected = option.key == selectedKey,
+                                        useGlass = useGlass,
+                                        wrapLabel = wrapFilterLabels,
+                                        onClick = {
+                                            onSelected(option)
+                                            setExpanded(false)
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                        // A fixed upper bound also keeps intrinsic measurement away from the
+                        // desktop scrollbar's unbounded-height measure policy.
+                        if (wrapFilterLabels && scrollState.maxValue > 0) Box(Modifier.matchParentSize()) {
+                            NuvioDesktopVerticalScrollbar(scrollState,
+                                Modifier.align(Alignment.CenterEnd).height(360.dp).padding(vertical = 4.dp))
                         }
                     }
                 }
@@ -188,11 +220,25 @@ fun NuvioDropdownChip(
     }
 }
 
+/** Menu intrinsics describe the viewport, never the full height of the scrollable list. */
+private object FilterDropdownViewport : LayoutModifier {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int) = 320.dp.roundToPx()
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int) = 320.dp.roundToPx()
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int) = 360.dp.roundToPx()
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int) = 360.dp.roundToPx()
+}
+
 @Composable
 private fun NuvioDropdownMenuOption(
     option: NuvioDropdownOption,
     isSelected: Boolean,
     useGlass: Boolean,
+    wrapLabel: Boolean = false,
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -217,10 +263,10 @@ private fun NuvioDropdownMenuOption(
         text = {
             Text(
                 text = option.label,
-                color = tokens.colors.textPrimary,
+                color = if (wrapLabel && isSelected) tokens.colors.accent else tokens.colors.textPrimary,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                maxLines = if (wrapLabel) Int.MAX_VALUE else 1,
+                overflow = if (wrapLabel) TextOverflow.Clip else TextOverflow.Ellipsis,
             )
         },
         trailingIcon = {

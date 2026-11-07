@@ -209,6 +209,38 @@ object MetaDetailsRepository {
         _uiState.value = MetaDetailsUiState()
     }
 
+    /** Intentionally isolated from the full-detail cache and episode/filler enrichment. */
+    internal suspend fun fetchForShuffle(type: String, id: String, fallback: MetaDetails): MetaDetails? {
+        AddonRepository.initialize()
+        val lookupId = resolveMetaLookupId(id, type)
+        var base = fallback
+        var failed = false
+        var found = false
+        for (manifest in findMetaManifests(AddonRepository.uiState.value, type, lookupId)) {
+            val parsed = try {
+                MetaDetailsParser.parse(fetchAddonResponseText(buildAddonResourceUrl(
+                    manifestUrl = manifest.transportUrl, resource = "meta", type = type, id = lookupId,
+                )), includeDetails = false)
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { failed = true; null }
+            if (parsed != null) {
+                found = true
+                base = parsed.copy(
+                    poster = parsed.poster ?: fallback.poster, background = parsed.background ?: fallback.background,
+                    logo = parsed.logo ?: fallback.logo, description = parsed.description ?: fallback.description,
+                    releaseInfo = parsed.releaseInfo ?: fallback.releaseInfo, imdbRating = parsed.imdbRating ?: fallback.imdbRating,
+                    genres = parsed.genres.ifEmpty { fallback.genres }, status = parsed.status ?: fallback.status,
+                    provenance = MetadataProvenance(sourceName = manifest.name, sourceId = manifest.id,
+                        requestedId = id, lookupId = lookupId),
+                )
+                break
+            }
+        }
+        TmdbSettingsRepository.ensureLoaded()
+        val enriched = TmdbMetadataService.enrichForShuffle(base, id, TmdbSettingsRepository.snapshot()) { failed = true }
+        return enriched.takeUnless { failed && !found && enriched === base }
+    }
+
     suspend fun fetch(type: String, id: String, cacheResult: Boolean = true): MetaDetails? {
         val requestKey = "$type:$id"
         cachedMetaByRequestKey[requestKey]?.let { return it.baseMeta }

@@ -34,6 +34,9 @@ sealed interface SettingsDestinationRoute : AppRoute {
 data object TabsRoute : AppRoute
 
 @Serializable
+data object RandomPickerRoute : AppRoute
+
+@Serializable
 data class DetailRoute(
     val type: String,
     val id: String,
