@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -103,6 +104,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.features.details.components.DetailRatingsRow
+import com.nuvio.app.features.details.components.DesktopHeroMetaRow
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -1021,21 +1023,16 @@ private fun DesktopHeroContentBlock(
                 ?.let { extractReleaseYearForDisplay(it)?.toString() ?: it }
                 ?.let(::add)
             formatRuntimeForDisplay(item.runtime)?.takeIf { it.isNotBlank() }?.let(::add)
-            item.ageRating?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
-        }.joinToString(" • ")
+        }
+        val heroRatings = item.heroRatings(showOverallRatings, isMdbListActive)
         Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
         // Keep one line reserved while the existing hero metadata request completes.
-        Text(
-            text = releaseMetadata,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = colorScheme.onSurfaceVariant,
-            minLines = 1,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        DesktopHeroMetaRow(
+            metaItems = releaseMetadata,
+            ageRating = item.ageRating?.trim(),
+            imdbRating = heroRatings.imdb.takeIf { heroRatings.external.isEmpty() },
+            modifier = Modifier.heightIn(min = NuvioTokens.Space.s24),
         )
-
-        val heroRatings = item.heroRatings(showOverallRatings, isMdbListActive)
-        val validImdbRating = heroRatings.imdb
 
         if (heroRatings.external.isNotEmpty()) {
             Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
@@ -1043,26 +1040,6 @@ private fun DesktopHeroContentBlock(
                 ratings = heroRatings.external,
                 modifier = Modifier.widthIn(max = 520.dp),
             )
-        } else if (validImdbRating != null && showOverallRatings) {
-            Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
-            val imdbTextStyle = MaterialTheme.typography.titleSmall.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.sp,
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ImdbRatingSourceLabel(
-                    storeTextStyle = imdbTextStyle,
-                    storeTextColor = ImdbYellow,
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = validImdbRating,
-                    style = imdbTextStyle,
-                    color = ImdbYellow,
-                )
-            }
         }
 
         val genreText = desktopHeroGenreText(item)

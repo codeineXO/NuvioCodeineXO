@@ -539,9 +539,6 @@ private fun DesktopHeroMetaRow(
     showOverallRatings: Boolean,
     textShadow: Shadow? = null,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    val space = NuvioTokens.Space
-    val opacity = NuvioTokens.Opacity
     val metaItems = buildList {
         desktopYearLabel(meta)?.let(::add)
         desktopSeasonCountLabel(meta)?.let(::add)
@@ -549,7 +546,27 @@ private fun DesktopHeroMetaRow(
     }
     val validImdbRating = meta.imdbRating
         ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+    DesktopHeroMetaRow(
+        metaItems = metaItems,
+        ageRating = meta.ageRating,
+        imdbRating = validImdbRating.takeIf { showOverallRatings },
+        textShadow = textShadow,
+    )
+}
+
+@Composable
+internal fun DesktopHeroMetaRow(
+    metaItems: List<String>,
+    ageRating: String?,
+    imdbRating: String?,
+    modifier: Modifier = Modifier,
+    textShadow: Shadow? = null,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val space = NuvioTokens.Space
+    val opacity = NuvioTokens.Opacity
     Row(
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(space.s16),
     ) {
@@ -566,7 +583,7 @@ private fun DesktopHeroMetaRow(
                 maxLines = 1,
             )
         }
-        meta.ageRating?.takeIf { it.isNotBlank() }?.let { rating ->
+        ageRating?.takeIf { it.isNotBlank() }?.let { rating ->
             Box(
                 modifier = Modifier
                     .border(
@@ -588,7 +605,7 @@ private fun DesktopHeroMetaRow(
                 )
             }
         }
-        if (validImdbRating != null && showOverallRatings) {
+        if (imdbRating != null) {
             val imdbTextStyle = MaterialTheme.typography.titleSmall.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.sp,
@@ -603,7 +620,7 @@ private fun DesktopHeroMetaRow(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = validImdbRating,
+                    text = imdbRating,
                     style = imdbTextStyle,
                     color = ImdbYellow,
                 )
