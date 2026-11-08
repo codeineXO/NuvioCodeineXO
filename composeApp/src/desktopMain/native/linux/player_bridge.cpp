@@ -930,9 +930,9 @@ void notifyWarmupDone(bool ok) {
 WebKitWebContext *sharedControlsContext() {
     static WebKitWebContext *ctx = nullptr;
     if (!ctx) {
-        gchar *cacheDir = g_build_filename(g_get_user_cache_dir(), "nuvio",
+        gchar *cacheDir = g_build_filename(g_get_user_cache_dir(), "nuviocodeinexo",
                                            "webkit-cache", nullptr);
-        gchar *dataDir = g_build_filename(g_get_user_cache_dir(), "nuvio",
+        gchar *dataDir = g_build_filename(g_get_user_cache_dir(), "nuviocodeinexo",
                                           "webkit-data", nullptr);
         WebKitWebsiteDataManager *dm = webkit_website_data_manager_new(
             "base-cache-directory", cacheDir,
