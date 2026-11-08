@@ -83,9 +83,9 @@ object AddonRepository {
         )
 
         storedUrls.forEach { manifestUrl ->
-            val existing = existingByUrl[manifestUrl]
             val addon = _uiState.value.addons.firstOrNull { it.manifestUrl == manifestUrl }
-            if (addon?.enabled == true && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
+            // Pending UI state is not proof of a running request; refreshAddon deduplicates jobs.
+            if (addon?.enabled == true && addon.manifest == null) {
                 refreshAddon(manifestUrl)
             }
         }
@@ -146,9 +146,9 @@ object AddonRepository {
             )
             persist()
             urls.forEach { url ->
-                val existing = existingByUrl[url]
                 val addon = _uiState.value.addons.firstOrNull { it.manifestUrl == url }
-                if (addon?.enabled == true && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
+                // Retry unresolved manifests even when the merge marked them as refreshing.
+                if (addon?.enabled == true && addon.manifest == null) {
                     refreshAddon(url)
                 }
             }
