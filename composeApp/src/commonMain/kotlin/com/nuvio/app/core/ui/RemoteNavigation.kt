@@ -247,6 +247,22 @@ internal class RemoteNavigationSession {
 
     fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager, sourceOverride: RemoteFocusTarget? = null): Boolean {
         val source = sourceOverride ?: focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
+        if (source?.role == RemoteNavigationRole.TopBar && direction == FocusDirection.Down) {
+            return focusContent(route)
+        }
+        // Cross the shell boundary explicitly: spatial search can miss a centered
+        // top bar from a wide field or a separately scoped Settings pane.
+        if (source != null && !source.role.isNavigation && source.role != RemoteNavigationRole.Back &&
+            source.pageBoundary == null && direction == FocusDirection.Up && source.bounds != null &&
+            contentViewports.none { it.route == route && it.manager === manager && it.state.canScrollBackward } &&
+            targets.none {
+                it !== source && it.route == route && it.manager === manager && !it.role.isNavigation &&
+                    it.role != RemoteNavigationRole.Back && it.bounds?.let { bounds ->
+                        bounds.width > 0 && bounds.height > 0 && bounds.center.y < source.bounds!!.top
+                    } == true
+            }) {
+            if (navigationTarget(route, manager, RemoteNavigationRole.TopBar)?.requester?.requestFocus() == true) return true
+        }
         if (source?.role == RemoteNavigationRole.SectionNavigation) {
             when (direction) {
                 FocusDirection.Right -> return focusContent(route)
@@ -255,6 +271,9 @@ internal class RemoteNavigationSession {
                     val siblings = targets.filter { it.route == route && it.manager === manager && it.role == source.role && it.bounds != null }
                         .sortedBy { it.bounds!!.top }
                     val next = siblings.getOrNull(siblings.indexOf(source) + if (direction == FocusDirection.Up) -1 else 1)
+                    if (next == null && direction == FocusDirection.Up) {
+                        navigationTarget(route, manager, RemoteNavigationRole.TopBar)?.requester?.requestFocus()
+                    }
                     next?.requester?.requestFocus()
                     return true
                 }
@@ -272,6 +291,7 @@ internal class RemoteNavigationSession {
             // Keep vertical traversal in the content pane, including lazy-list edges.
             if (direction == FocusDirection.Up || direction == FocusDirection.Down) {
                 val moved = manager.moveFocus(direction)
+                if (moved && direction == FocusDirection.Up && focusedTarget?.role == RemoteNavigationRole.TopBar) return true
                 if (moved && (focusedTarget == null || focusedTarget?.role?.isNavigation == true || focusedTarget?.route != route)) {
                     source.requester.requestFocus()
                     return false
@@ -293,19 +313,6 @@ internal class RemoteNavigationSession {
             if (next?.requester?.requestFocus() == true) return true
         }
         if (source?.pageBoundary != null) return movePageFocus(source, direction)
-        if (source?.role == RemoteNavigationRole.TopBar && direction == FocusDirection.Down) {
-            val controls = targets.filter {
-                it.route == route && it.manager === manager && it.controlRow?.allowUpToNavigation == true && it.bounds != null
-            }
-            if (controls.isNotEmpty()) {
-                val remembered = targets.firstOrNull {
-                    it.route == route && it.manager === manager && it.identity == rememberedContentFocus[route] &&
-                        it.role != RemoteNavigationRole.TopBar && it.role != RemoteNavigationRole.Sidebar
-                }
-                val first = controls.minWithOrNull(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left })
-                return (remembered ?: first)?.requester?.requestFocus() == true
-            }
-        }
         source?.let { moveControlFocus(it, direction) }?.let { return it }
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource

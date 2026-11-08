@@ -52,7 +52,7 @@ internal fun RemoteNavigationSession.moveControlFocus(source: RemoteFocusTarget,
         }
         if (destination != null) {
             if (destination.requester.requestFocus() && direction == FocusDirection.Left) leftMovedDuringHold = true
-        } else if (direction == FocusDirection.Up && group.allowUpToNavigation) {
+        } else if (direction == FocusDirection.Up) {
             val topBar = navigationTarget(source.route, source.manager, RemoteNavigationRole.TopBar)
             if (topBar?.requester?.requestFocus() == true) return true
             return null
@@ -95,7 +95,13 @@ internal fun RemoteNavigationSession.moveControlFocus(source: RemoteFocusTarget,
         FocusDirection.Down -> controls.map { it.controlRow!!.index }.filter { it > group.index }.minOrNull()
         else -> return null
     }
-    if (nextRow == null) return if (direction == FocusDirection.Up) true else null
+    if (nextRow == null) {
+        if (direction == FocusDirection.Up) {
+            navigationTarget(source.route, source.manager, RemoteNavigationRole.TopBar)?.requester?.requestFocus()
+            return true
+        }
+        return null
+    }
     val candidates = controls.filter { it.controlRow!!.index == nextRow }
     return focus(candidates.filter { it.controlRow!!.verticalEntry }.ifEmpty { candidates }
         .minByOrNull { abs(it.bounds!!.center.x - origin.center.x) })

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ internal fun DesktopNavigationBar(
     profileSwitcherOpen: Boolean = false,
     windowWidth: Dp? = null,
     glowEnabled: Boolean = true,
+    navigationRoute: Any = LocalRemoteRoute.current,
 ) {
     if (items.isEmpty()) return
     val interactionSource = remember { MutableInteractionSource() }
@@ -91,6 +93,10 @@ internal fun DesktopNavigationBar(
             else -> 28.dp
         }
         val trackWidth = ((iconSize + 20.dp + 64.dp * labelFraction) * items.size + 8.dp).coerceAtMost(maxWidth)
+        CompositionLocalProvider(
+            LocalRemoteNavigationRole provides RemoteNavigationRole.TopBar,
+            LocalRemoteRoute provides navigationRoute,
+        ) {
         JellyNavigationBar(
             items = items,
             labelFraction = labelFraction,
@@ -120,6 +126,7 @@ internal fun DesktopNavigationBar(
                     )
                     .background(if (LocalSurfaceStyle.current == SurfaceStyle.DarkGlass) DarkGlassSurfaceColor else if (LocalFrostedGlassEnabled.current) (if (isFrosted && hazeState?.areas?.isNotEmpty() != true) FrostedGlassTokens.FallbackColor else surfaceColor) else MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 1f)),
             )
+        }
         }
     }
 }

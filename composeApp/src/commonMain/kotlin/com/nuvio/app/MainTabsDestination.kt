@@ -364,6 +364,8 @@ internal fun MainTabsDestination(
                 if (useDesktopTopBar) {
                     DesktopNavigationBar(
                         items = floatingNavigationItems,
+                        navigationRoute = if (randomPickerSelected) com.nuvio.app.navigation.RandomPickerRoute
+                            else com.nuvio.app.navigation.TabsRoute to selectedTab,
                         modifier = Modifier.align(Alignment.TopCenter),
                         contentPadding = PaddingValues(
                             top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 10.dp,
