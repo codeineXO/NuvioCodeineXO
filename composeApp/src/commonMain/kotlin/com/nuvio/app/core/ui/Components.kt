@@ -397,6 +397,7 @@ fun NuvioPrimaryButton(
     val tokens = MaterialTheme.nuvio
     Button(
         onClick = onClick,
+        interactionSource = rememberRemoteInteractionSource(),
         modifier = (modifier
             .fillMaxWidth()
             .height(NuvioTokens.Space.s48 + NuvioTokens.Space.s4)).remoteNavigationTarget(shape = tokens.shapes.button),

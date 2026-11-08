@@ -107,6 +107,8 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
             page.lane = null
             page.context = context
             session.rememberedFocus.remove(route)
+            session.rememberedContentFocus.remove(route)
+            session.rememberedPosterFocus.remove(route)
             session.rememberedBounds.remove(route)
         }
         page.rows = rows
@@ -213,7 +215,6 @@ internal fun RemoteNavigationSession.capturePosterOrigin(item: PosterNavigationI
     page.cancelRestoration()
     focusTransferReason = RemoteFocusTransferReason.Navigation
     rememberedPosterFocus[page.route] = item
-    rememberedPosterByPage[item.page] = item
     val shelf = page.shelves[item.row]
     page.origin = PosterOrigin(page.context, item.row, item.content, item.index,
         page.rows.indexOfFirst { it.key == item.row }, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset,
@@ -262,8 +263,7 @@ internal fun RemoteNavigationSession.movePosterHorizontally(source: RemoteFocusT
     val next = item.index + if (direction == FocusDirection.Right) 1 else -1
     if (item.role != PosterTargetRole.Poster || next !in row.items.indices) {
         if (direction == FocusDirection.Left && canEnterSidebar()) {
-            val sidebar = targets.firstOrNull { it.route == source.route && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
-                ?: targets.firstOrNull { it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
+            val sidebar = navigationTarget(source.route, source.manager)
             if (sidebar?.requester?.requestFocus() == true) return
         }
         enqueuePosterMove(source, direction)
@@ -389,8 +389,7 @@ private suspend fun RemoteNavigationSession.movePosterInPage(source: RemoteFocus
             targets.firstOrNull { it.poster?.let { p -> p.page == item.page && p.row == item.row && p.role == PosterTargetRole.EndAction } == true }
                 ?.requester?.requestFocus()
         } else if (direction == FocusDirection.Left && canEnterSidebar()) {
-            val sidebar = targets.firstOrNull { it.route == source.route && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
-                ?: targets.firstOrNull { it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry }
+            val sidebar = navigationTarget(source.route, source.manager)
             sidebar?.requester?.requestFocus()
         }
         page.lane = focusedTarget?.bounds?.center?.x ?: source.bounds?.center?.x

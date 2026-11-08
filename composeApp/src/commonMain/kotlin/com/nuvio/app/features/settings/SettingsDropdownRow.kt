@@ -24,6 +24,9 @@ import com.nuvio.app.core.ui.NuvioDropdownChip
 import com.nuvio.app.core.ui.NuvioDropdownOption
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.core.ui.RemoteNavigationPopupFocus
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 
 internal val uiScaleDropdownOptions: List<NuvioDropdownOption> by lazy {
     (50..150 step 10).map { scale ->
@@ -46,11 +49,14 @@ internal fun SettingsDropdownRow(
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val verticalPadding = if (isTablet) 16.dp else 14.dp
     var expanded by remember { mutableStateOf(false) }
+    val opener = remember { FocusRequester() }
+    RemoteNavigationPopupFocus(expanded, opener)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 6.dp, vertical = 2.dp)
+            .focusRequester(opener)
             .remoteNavigationTarget(shape = tokens.shapes.card)
             .clickable(enabled = enabled) { expanded = true }
             .padding(

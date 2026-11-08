@@ -185,7 +185,8 @@ internal fun SettingsSidebarItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = tokens.spacing.listGap, vertical = NuvioTokens.Space.s2)
-            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Space.s10))
+            .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Space.s10),
+                role = com.nuvio.app.core.ui.RemoteNavigationRole.SectionNavigation, sidebarEntry = selected)
             .background(background, RoundedCornerShape(NuvioTokens.Space.s10))
             .clickable(onClick = onClick)
             .padding(horizontal = tokens.spacing.screenHorizontal, vertical = tokens.spacing.listGap),

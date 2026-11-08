@@ -53,19 +53,11 @@ internal fun RemoteNavigationSession.moveControlFocus(source: RemoteFocusTarget,
         if (destination != null) {
             if (destination.requester.requestFocus() && direction == FocusDirection.Left) leftMovedDuringHold = true
         } else if (direction == FocusDirection.Up && group.allowUpToNavigation) {
-            val topBar = targets.firstOrNull {
-                it.route == source.route && it.manager === source.manager && it.role == RemoteNavigationRole.TopBar && it.sidebarEntry
-            } ?: targets.firstOrNull {
-                it.role == RemoteNavigationRole.TopBar && it.sidebarEntry
-            }
+            val topBar = navigationTarget(source.route, source.manager, RemoteNavigationRole.TopBar)
             if (topBar?.requester?.requestFocus() == true) return true
             return null
         } else if (horizontal && direction == FocusDirection.Left && canEnterSidebar()) {
-            val sidebar = targets.firstOrNull {
-                it.route == source.route && it.manager === source.manager && it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-            } ?: targets.firstOrNull {
-                it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-            }
+            val sidebar = navigationTarget(source.route, source.manager)
             if (sidebar?.requester?.requestFocus() == true) return true
             return null
         }
@@ -92,12 +84,7 @@ internal fun RemoteNavigationSession.moveControlFocus(source: RemoteFocusTarget,
         val next = row.getOrNull(index + if (direction == FocusDirection.Right) 1 else -1)
         if (next != null) return focus(next)
         if (direction == FocusDirection.Left && canEnterSidebar()) {
-            val sidebar = targets.firstOrNull {
-                it.route == source.route && it.manager === source.manager &&
-                    it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-            } ?: targets.firstOrNull {
-                it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-            }
+            val sidebar = navigationTarget(source.route, source.manager)
             if (sidebar?.requester?.requestFocus() == true) return true
             return null
         }

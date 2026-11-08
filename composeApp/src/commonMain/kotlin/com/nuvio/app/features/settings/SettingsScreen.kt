@@ -5,6 +5,7 @@ import com.nuvio.app.core.ui.desktopBackButtonSize
 import com.nuvio.app.core.ui.NuvioBackButton
 
 import com.nuvio.app.core.ui.remoteNavigationGroup
+import com.nuvio.app.core.ui.RemoteNavigationContentScope
 import com.nuvio.app.core.ui.SettingsSurfaceStyle
 import com.nuvio.app.core.ui.SettingsAwareSurface
 
@@ -611,6 +612,7 @@ private fun MobileSettingsScreen(
 ) {
     val saveableStateHolder = rememberSaveableStateHolder()
     saveableStateHolder.SaveableStateProvider(page.name) {
+        RemoteNavigationContentScope(page) {
         var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
         var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
         var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
@@ -890,6 +892,7 @@ private fun MobileSettingsScreen(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -1009,70 +1012,15 @@ private fun TabletSettingsScreen(
     val saveableStateHolder = rememberSaveableStateHolder()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(start = LocalDesktopSidebarContentInset.current)) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            SettingsAwareSurface(
-                modifier = Modifier
-                    .width(280.dp)
-                    .fillMaxSize(),
-                color = MaterialTheme.colorScheme.surface,
-                panel = true,
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = effectiveTopOffset),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(bottom = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.compose_settings_page_root),
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.displayLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    SettingsCategory.entries.forEach { category ->
-                        SettingsSidebarItem(
-                            label = stringResource(category.labelRes),
-                            icon = category.icon,
-                            selected = category == activeCategory && page != SettingsPage.CodeineXO,
-                            onClick = {
-                                if (category != activeCategory || page != SettingsPage.Root) {
-                                    selectedCategory = category.name
-                                    navBarScrollState?.expand()
-                                    if (page != SettingsPage.Root) {
-                                        onPageChange(SettingsPage.Root)
-                                    }
-                                }
-                            },
-                        )
-                        if (category == SettingsCategory.System) {
-                            SettingsSidebarItem(
-                                label = stringResource(Res.string.compose_settings_page_codeine_xo),
-                                icon = Icons.Rounded.AutoAwesome,
-                                selected = page == SettingsPage.CodeineXO,
-                                onClick = {
-                                    openInlinePage(SettingsPage.CodeineXO)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                saveableStateHolder.SaveableStateProvider(page.name) {
+        SettingsNavigationLayout(page, activeCategory, effectiveTopOffset,
+            onCategorySelected = { category ->
+                selectedCategory = category.name
+                navBarScrollState?.expand()
+                if (page != SettingsPage.Root) onPageChange(SettingsPage.Root)
+            },
+            onCodeineClick = { openInlinePage(SettingsPage.CodeineXO) },
+        ) {
+                saveableStateHolder.SaveableStateProvider(settingsContentKey(page, activeCategory)) {
                     var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
                     var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
                     var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
@@ -1372,7 +1320,6 @@ private fun TabletSettingsScreen(
                         )
                     }
                 }
-            }
         }
     }
 }

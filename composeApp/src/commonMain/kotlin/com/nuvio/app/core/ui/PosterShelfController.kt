@@ -103,12 +103,7 @@ internal class PosterShelfController(
                 // explicit sidebar destination as registered Home poster rows.
                 // Spatial search can choose another row, which this shelf rejects.
                 if (allowSidebarEntry && session.canEnterSidebar()) {
-                    val sidebar = session.targets.firstOrNull {
-                        it.route == source.route && it.manager === source.manager &&
-                            it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-                    } ?: session.targets.firstOrNull {
-                        it.role == RemoteNavigationRole.Sidebar && it.sidebarEntry
-                    }
+                    val sidebar = session.navigationTarget(source.route, source.manager)
                     sidebar?.requester?.requestFocus()
                 }
             } else {

@@ -107,6 +107,11 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
     }
 
     val mouseListener = AWTEventListener { event ->
+        if (event is MouseEvent && (event.id == MouseEvent.MOUSE_PRESSED || event.id == MouseEvent.MOUSE_WHEEL)) {
+            var sourceWindow = (event.component as? Window) ?: SwingUtilities.getWindowAncestor(event.component)
+            while (sourceWindow != null && sourceWindow !== window) sourceWindow = sourceWindow.owner
+            if (sourceWindow === window) RemoteNavigationDispatcher.mouseMoved()
+        }
         if (event is MouseEvent && (event.id == MouseEvent.MOUSE_MOVED || event.id == MouseEvent.MOUSE_DRAGGED)) {
             var sourceWindow = SwingUtilities.getWindowAncestor(event.component)
             while (sourceWindow != null && sourceWindow !== window) sourceWindow = sourceWindow.owner
@@ -136,7 +141,7 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
 
     KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(keyDispatcher)
     runCatching {
-        Toolkit.getDefaultToolkit().addAWTEventListener(mouseListener, AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK)
+        Toolkit.getDefaultToolkit().addAWTEventListener(mouseListener, AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK or AWTEvent.MOUSE_WHEEL_EVENT_MASK)
     }
 
     return {

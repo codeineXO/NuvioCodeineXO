@@ -2,7 +2,6 @@ package com.nuvio.app.core.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,7 +39,7 @@ fun Slider(
     val tokens = MaterialTheme.nuvio
     val state = remember(valueRange, steps) { SliderState(steps = steps, trackRange = valueRange) }
     state.value = value
-    val interactionSource = remember { MutableInteractionSource() }
+    val interactionSource = rememberRemoteInteractionSource()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val thumbColor = when {
         !enabled -> tokens.colors.textMuted

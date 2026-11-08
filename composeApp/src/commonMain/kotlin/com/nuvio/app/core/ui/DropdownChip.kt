@@ -49,6 +49,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -106,10 +111,13 @@ fun NuvioDropdownChip(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
     val interactionSource = remember { MutableInteractionSource() }
+    val opener = remember { FocusRequester() }
+    if (keyboardNavigationEnabled) RemoteNavigationPopupFocus(isSheetVisible, opener)
 
     Box(modifier = modifier) {
         Row(
             modifier = Modifier
+                .focusRequester(opener)
                 .then(if (wrapFilterLabels) Modifier.fillMaxWidth() else Modifier)
                 .then(if (!keyboardNavigationEnabled) Modifier.excludeFromRemoteNavigation()
                     else if (enabled) Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard) else Modifier)
@@ -175,8 +183,8 @@ fun NuvioDropdownChip(
             ) {
                 AppOverlayInput {
                     LaunchedEffect(isSheetVisible) {
-                        if (isSheetVisible && rememberKeyboardSelection) {
-                            hasOpened = true
+                        if (isSheetVisible) {
+                            if (rememberKeyboardSelection) hasOpened = true
                             if (keyboard && openingKey != null) {
                                 withFrameNanos { }
                                 menuFocus.requestFocus()
@@ -185,7 +193,12 @@ fun NuvioDropdownChip(
                     }
                     // Fix the viewport width before DropdownMenu asks for intrinsic sizes.
                     // Measuring the entire list intrinsically can overflow packed Constraints.
-                    Box(Modifier.remoteNavigationPointerIcon().then(if (wrapFilterLabels) Modifier.then(FilterDropdownViewport)
+                    Box(Modifier.remoteNavigationPointerIcon().onPreviewKeyEvent {
+                        if ((it.key == Key.Escape || it.key == Key.Back) && it.type == KeyEventType.KeyDown) {
+                            setExpanded(false)
+                            true
+                        } else false
+                    }.then(if (wrapFilterLabels) Modifier.then(FilterDropdownViewport)
                         .width(320.dp).heightIn(max = 360.dp) else Modifier)) {
                         Column(Modifier.then(if (wrapFilterLabels) Modifier.verticalScroll(scrollState)
                             .nuvioDesktopDragScroll(scrollState, Orientation.Vertical).padding(end = 12.dp) else Modifier)) {
@@ -196,7 +209,7 @@ fun NuvioDropdownChip(
                                         isSelected = option.key == selectedKey,
                                         useGlass = useGlass,
                                         wrapLabel = wrapFilterLabels,
-                                        focusRequester = menuFocus.takeIf { rememberKeyboardSelection && option.key == openingKey },
+                                        focusRequester = menuFocus.takeIf { option.key == openingKey },
                                         onClick = {
                                             onSelected(option)
                                             setExpanded(false)

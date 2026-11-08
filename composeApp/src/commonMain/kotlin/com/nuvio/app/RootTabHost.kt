@@ -33,6 +33,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import com.nuvio.app.core.ui.LocalScreenActive
+import com.nuvio.app.core.ui.LocalRemoteRoute
+import com.nuvio.app.navigation.TabsRoute
+import com.nuvio.app.navigation.RandomPickerRoute
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.navigationMotionDuration
 
@@ -115,6 +118,7 @@ private fun RootTabPane(
     CompositionLocalProvider(
         LocalLifecycleOwner provides lifecycleOwner,
         LocalScreenActive provides active,
+        LocalRemoteRoute provides if (tab == "Shuffle") RandomPickerRoute else TabsRoute to AppScreenTab.fromName(tab),
     ) {
         stateHolder.SaveableStateProvider(tab) {
             Box(
