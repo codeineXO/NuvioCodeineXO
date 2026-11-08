@@ -330,7 +330,7 @@ internal fun PresenceSnapshot.toDiscordActivity(
             details = title,
             detailsUrl = imdbUrl,
             state = playerState,
-            stateUrl = if (isSeriesContent) episodeImdbUrl else null,
+            stateUrl = if (isSeriesContent && episodeNameEnabled) episodeImdbUrl else null,
             statusDisplayType = StatusDisplayTypeDetails,
             timestamps = if (isPlaying) {
                 // start + end -> Discord renders a live progress bar with time remaining.
