@@ -6447,6 +6447,7 @@ window.playerControls = nextState => {
   const previousTitle = state.title || "";
   const previousEpisodeText = state.episodeText || "";
   const previousStreamTitle = state.streamTitle || "";
+  const previousPlayerUiScale = state.playerUiScale;
   const previousParty = state.party;
   const wasMiniPlayer = Boolean(state.isMiniPlayer);
   const replayingParty = !hasReceivedPlayerControls;
@@ -6492,7 +6493,7 @@ window.playerControls = nextState => {
     state.eyeFilterOpacity = nextState.eyeFilterOpacity;
   }
   if (typeof nextState.playerUiScale === "number" && nextState.playerUiScale >= 50 && nextState.playerUiScale <= 150) {
-    if (state.playerUiScale !== nextState.playerUiScale) {
+    if (previousPlayerUiScale !== nextState.playerUiScale) {
       applyPlayerUiScale(nextState.playerUiScale, false);
     }
   }
