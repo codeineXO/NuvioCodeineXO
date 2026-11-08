@@ -11,6 +11,7 @@ internal actual object DiscordRichPresenceStorage {
     private const val activityModeKey = "activity_mode"
     private const val activityTypeKey = "activity_type"
     private const val fullPosterKey = "full_poster_enabled"
+    private const val episodeNameKey = "episode_name_enabled"
     private val store = DesktopStorage.store("nuvio_discord_rich_presence")
     private val episodeSmallImagePreference = DiscordEpisodeSmallImagePreference(store)
 
@@ -44,6 +45,13 @@ internal actual object DiscordRichPresenceStorage {
 
     actual fun saveEpisodeSmallImageEnabled(enabled: Boolean) {
         episodeSmallImagePreference.save(enabled)
+    }
+
+    actual fun loadEpisodeNameEnabled(): Boolean? =
+        if (store.contains(episodeNameKey)) store.getBoolean(episodeNameKey) else null
+
+    actual fun saveEpisodeNameEnabled(enabled: Boolean) {
+        store.putBoolean(episodeNameKey, enabled)
     }
 
     actual fun loadFullPosterEnabled(): Boolean? =

@@ -13,6 +13,8 @@ internal expect object DiscordRichPresenceStorage {
     fun saveActivityType(type: DiscordActivityType)
     fun loadEpisodeSmallImageEnabled(): Boolean?
     fun saveEpisodeSmallImageEnabled(enabled: Boolean)
+    fun loadEpisodeNameEnabled(): Boolean?
+    fun saveEpisodeNameEnabled(enabled: Boolean)
     fun loadFullPosterEnabled(): Boolean?
     fun saveFullPosterEnabled(enabled: Boolean)
 }

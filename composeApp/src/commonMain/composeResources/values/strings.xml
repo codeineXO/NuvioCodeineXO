@@ -611,6 +611,8 @@
     <string name="settings_advanced_discord_activity_type_sheet_title">Presence Style</string>
     <string name="settings_advanced_discord_episode_small_image">Show episode small image</string>
     <string name="settings_advanced_discord_episode_small_image_description">Show the episode thumbnail beside the poster on Discord</string>
+    <string name="settings_advanced_discord_episode_name">Show episode name</string>
+    <string name="settings_advanced_discord_episode_name_description">Show the episode name and number on Discord. When off, show Watching or Paused.</string>
     <string name="settings_advanced_discord_full_poster">Full Portrait Poster</string>
     <string name="settings_advanced_discord_full_poster_description">Fit complete vertical poster on Discord without square cropping</string>
     <string name="sentry_enable_dialog_title">Turn on crash reports?</string>
