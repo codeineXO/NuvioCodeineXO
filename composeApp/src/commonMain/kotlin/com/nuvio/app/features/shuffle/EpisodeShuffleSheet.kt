@@ -33,7 +33,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -79,13 +79,16 @@ internal fun EpisodeShuffleSheet(
     val scope = rememberCoroutineScope()
     val availability = rememberPlaybackAvailability()
     val progress = remember(meta.id, progressEntries) { shuffleEpisodeProgress(meta.id, progressEntries) }
-    val picker by produceState<RandomEpisodePicker?>(null, meta, watchedKeys, progress) {
+    // Keep the previous picker while the new one is being built so keyboard
+    // focus targets stay composed during a rebuild.
+    var picker by remember { mutableStateOf<RandomEpisodePicker?>(null) }
+    LaunchedEffect(meta, watchedKeys, progress) {
         val updated = withContext(Dispatchers.Default) {
             RandomEpisodePicker(meta.id, meta.videos,
                 watchedShuffleEpisodes(meta.id, meta.type, meta.videos, watchedKeys), progress)
         }
-        updated.inheritHistoryFrom(value)
-        value = updated
+        updated.inheritHistoryFrom(picker)
+        picker = updated
     }
     var includeWatched by remember { mutableStateOf(settings.includeWatched) }
     var selected by remember { mutableStateOf<MetaVideo?>(null) }

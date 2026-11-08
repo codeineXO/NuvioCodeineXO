@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -200,12 +201,15 @@ private fun RandomPickerBody(
         val availableHeight = (maxHeight - popupTop - 24.dp).coerceAtLeast(1.dp)
         val popupHeight = with(density) { panelHeight.toDp() }.coerceIn(1.dp, availableHeight)
         val popupOffset = with(density) { IntOffset(((maxWidth - popupWidth) / 2).roundToPx(), popupTop.roundToPx()) }
-        NuvioLazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().testTag("random_picker_list"),
-            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 90.dp, bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+        CompositionLocalProvider(LocalScreenActive provides (active && !state.resultPopupOpen)) {
+            NuvioLazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+                    .focusProperties { canFocus = !state.resultPopupOpen }
+                    .testTag("random_picker_list"),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 90.dp, bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
             item {
                 Column(Modifier.widthIn(max = 1060.dp).fillMaxWidth().testTag("shuffle_header").onSizeChanged { headerHeight = it.height }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -326,6 +330,7 @@ private fun RandomPickerBody(
                 }
             }
         }
+        }
         if (active && state.resultPopupOpen && state.result != null && headerHeight > 0 && panelHeight > 0 &&
             listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
             PickerResultOverlay(state, popupWidth, popupHeight, popupOffset, pick, {
@@ -424,11 +429,17 @@ private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, of
     Box(Modifier.offset { offset }) {
         AppOverlayInput {
         SettingsOverlaySurfaceLayer {
+        LaunchedEffect(state.picking) {
+            if (state.picking) {
+                withFrameNanos { }
+                againFocus.requestFocus()
+            }
+        }
         LaunchedEffect(Unit) {
             withFrameNanos { }
             if (state.picking) againFocus.requestFocus() else modalFocus.requestFocus()
         }
-        RemoteNavigationControls(page = "shuffle_result", row = 0, rememberPosition = true) {
+        RemoteNavigationControls(page = "shuffle_result", row = 0, rememberPosition = true, allowUpToNavigation = true) {
         SettingsAwareSurface(
             modifier = Modifier.width(width).height(maxHeight).remoteNavigationModal(trapFocus = false)
                 .onPreviewKeyEvent { event ->
@@ -464,9 +475,17 @@ private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, of
                 }
                 Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                        Button(details, enabled = !state.picking, modifier = Modifier.focusRequester(modalFocus)
-                            .then(if (!state.picking) Modifier.remoteNavigationTarget(initialFocus = true) else Modifier)
-                            .testTag("shuffle_details")) { Text(pickerText(Res.string.picker_details)) }
+                        // The focus stop survives while the actual button is disabled.
+                        Box(Modifier.focusRequester(modalFocus)
+                            .remoteNavigationTarget(initialFocus = true, onSelect = { if (!state.picking) details() })
+                            .then(if (LocalRemoteNavigation.current != null) Modifier.focusable() else Modifier)
+                            .semantics { if (state.picking) disabled() }
+                            .testTag("shuffle_details")) {
+                            Button(onClick = { if (!state.picking) details() }, enabled = !state.picking,
+                                modifier = Modifier.excludeFromRemoteNavigation()) {
+                                Text(pickerText(Res.string.picker_details))
+                            }
+                        }
                         // The focus stop survives while the actual button is disabled.
                         Box(Modifier.focusRequester(againFocus)
                             .remoteNavigationTarget(onSelect = { if (!state.picking) pick() })

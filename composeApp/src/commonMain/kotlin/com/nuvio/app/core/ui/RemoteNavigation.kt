@@ -248,7 +248,19 @@ internal class RemoteNavigationSession {
     fun moveFocus(route: Any, direction: FocusDirection, manager: FocusManager, sourceOverride: RemoteFocusTarget? = null): Boolean {
         val source = sourceOverride ?: focusedTarget ?: targets.firstOrNull { it.route == route && (it.initialFocus || it.identity == rememberedFocus[route]) }
         if (source?.role == RemoteNavigationRole.TopBar && direction == FocusDirection.Down) {
-            return focusContent(route)
+            if (focusContent(route)) return true
+            if (modalDepth > 0) {
+                val targetRoute = contentRoutes[route] ?: route
+                val targetId = rememberedContentFocus[targetRoute] ?: rememberedContentFocus[route]
+                val modalCandidate = targets.firstOrNull {
+                    (it.route == route || it.route == targetRoute) && it.identity == targetId && !it.role.isNavigation &&
+                        it.bounds?.let { b -> b.width > 0 && b.height > 0 } == true
+                } ?: targets.filter {
+                    (it.route == route || it.route == targetRoute) && !it.role.isNavigation &&
+                        it.bounds?.let { b -> b.width > 0 && b.height > 0 && b.top >= (source.bounds?.bottom ?: 0f) } == true
+                }.minWithOrNull(compareBy<RemoteFocusTarget> { it.bounds!!.top }.thenBy { it.bounds!!.left })
+                if (modalCandidate?.requester?.requestFocus() == true) return true
+            }
         }
         // Cross the shell boundary explicitly: spatial search can miss a centered
         // top bar from a wide field or a separately scoped Settings pane.
@@ -315,6 +327,7 @@ internal class RemoteNavigationSession {
         if (source?.pageBoundary != null) return movePageFocus(source, direction)
         source?.let { moveControlFocus(it, direction) }?.let { return it }
         val isSourceSidebar = source?.role == RemoteNavigationRole.Sidebar
+        val isSourceTopBar = source?.role == RemoteNavigationRole.TopBar
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
         val sidebarEntry = navigationTarget(route, manager)
         if (isSourceSidebar && direction == FocusDirection.Right) {
@@ -394,7 +407,8 @@ internal class RemoteNavigationSession {
         }
         return fallback.sortedBy { candidate ->
             if (source?.role == RemoteNavigationRole.Back && candidate.initialFocus) -1f
-            else if (isSourceSidebar && direction == FocusDirection.Right && candidate.identity == (rememberedContentFocus[route] ?: rememberedFocus[route])) -1f
+            else if (((isSourceSidebar && direction == FocusDirection.Right) || (isSourceTopBar && direction == FocusDirection.Down)) &&
+                candidate.identity == (rememberedContentFocus[route] ?: rememberedFocus[route])) -1f
             else {
                 val b = candidate.bounds!!
                 when (direction) {
