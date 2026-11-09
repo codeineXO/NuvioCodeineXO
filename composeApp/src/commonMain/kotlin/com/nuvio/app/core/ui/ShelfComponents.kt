@@ -69,6 +69,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
@@ -825,28 +826,33 @@ internal fun Modifier.desktopPosterHoverScale(
 
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
     val keyboardNavigation = isRemoteKeyboardNavigationActive
+    var focused by remember { mutableStateOf(false) }
+    // Keyboard focus mirrors the cursor raise; the focus contour uses the same gate.
+    val raised = hovered || (focused && keyboardNavigation)
     val motion = rememberNavigationMotionProfile()
     val animatedScale = animateFloatAsState(
-        targetValue = if (hovered && !keyboardNavigation) DesktopPosterHoverScale else 1f,
+        targetValue = if (raised) DesktopPosterHoverScale else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = motion.scrollStiffness,
         ),
         label = "desktop_poster_hover_scale",
     )
-    val isScaling by remember(hovered, keyboardNavigation, animatedScale) {
-        derivedStateOf { !keyboardNavigation && (hovered || animatedScale.value != 1f) }
+    val isScaling by remember(raised, animatedScale) {
+        derivedStateOf { raised || animatedScale.value != 1f }
     }
     // Read animation state in the parent's draw scope so its clip is invalidated
     // together with the scaled child layer on every animation frame.
-    LocalPosterRowItemHover.current?.scale = { if (keyboardNavigation) 1f else animatedScale.value }
+    LocalPosterRowItemHover.current?.scale = { animatedScale.value }
 
     return this
+        // Must stay outside the focus target so descendant focus reports as hasFocus.
+        .onFocusChanged { focused = it.hasFocus }
         .then(
             if (isScaling) {
                 Modifier
                     .graphicsLayer {
-                        val scale = if (keyboardNavigation) 1f else animatedScale.value
+                        val scale = animatedScale.value
                         scaleX = scale
                         scaleY = scale
                     }
