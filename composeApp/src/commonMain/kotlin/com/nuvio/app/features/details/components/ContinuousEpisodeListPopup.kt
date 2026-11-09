@@ -10,6 +10,8 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import com.nuvio.app.core.ui.NuvioLazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -39,6 +41,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntRect
@@ -142,6 +145,7 @@ internal fun ContinuousEpisodeListPopup(
     val railState = rememberLazyListState()
     val railRequesters = remember(seasons) { seasons.map { FocusRequester() } }
     var railFocusedIndex by remember { mutableStateOf<Int?>(null) }
+    var railHoveredIndex by remember { mutableStateOf<Int?>(null) }
     var railScrubbing by remember { mutableStateOf(false) }
     var scrubbedSeason by remember { mutableStateOf<Int?>(null) }
     var seasonScroll by remember { mutableStateOf<Job?>(null) }
@@ -288,6 +292,14 @@ internal fun ContinuousEpisodeListPopup(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val railItemHeight = when {
+                    seasons.size >= 30 -> 12.dp
+                    seasons.size >= 20 -> 14.dp
+                    seasons.size >= 12 -> 16.dp
+                    else -> 18.dp
+                }
+                val scrubbedIndex = if (railScrubbing) scrubbedSeason?.let { seasons.indexOf(it) }?.takeIf { it >= 0 } else null
+
                 NuvioLazyColumn(
                     state = railState,
                     desktopDragEnabled = false,
@@ -332,6 +344,9 @@ internal fun ContinuousEpisodeListPopup(
                             awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    if (event.type == PointerEventType.Exit) {
+                                        railHoveredIndex = null
+                                    }
                                     if (event.type != PointerEventType.Scroll) continue
                                     val delta = event.changes.sumOf { it.scrollDelta.y.toDouble() }
                                     if (delta == 0.0) continue
@@ -347,11 +362,23 @@ internal fun ContinuousEpisodeListPopup(
                     verticalArrangement = Arrangement.Center,
                 ) {
                     itemsIndexed(seasons, key = { _, season -> season }) { index, season ->
+                        val isAdjacent = (railFocusedIndex != null && abs(index - railFocusedIndex!!) == 1) ||
+                            (railHoveredIndex != null && abs(index - railHoveredIndex!!) == 1) ||
+                            (scrubbedIndex != null && abs(index - scrubbedIndex) == 1)
                         SeasonRailMark(
                             label = if (season <= 0) stringResource(Res.string.episodes_specials)
                                 else stringResource(Res.string.episodes_season, season),
                             active = season == (scrubbedSeason ?: activeSeason),
+                            isAdjacent = isAdjacent,
+                            itemHeight = railItemHeight,
                             onClick = { jumpToSeason(season) },
+                            onHoverChanged = { isHovered ->
+                                if (isHovered) {
+                                    railHoveredIndex = index
+                                } else if (railHoveredIndex == index) {
+                                    railHoveredIndex = null
+                                }
+                            },
                             modifier = Modifier.focusRequester(railRequesters[index]).onFocusChanged {
                                 if (it.hasFocus) railFocusedIndex = index
                                 else if (railFocusedIndex == index) railFocusedIndex = null
@@ -512,13 +539,47 @@ internal fun Modifier.seasonPickerDrag(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SeasonRailMark(label: String, active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SeasonRailMark(
+    label: String,
+    active: Boolean,
+    isAdjacent: Boolean,
+    itemHeight: Dp,
+    onClick: () -> Unit,
+    onHoverChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val tooltip = rememberTooltipState()
     var focused by remember { mutableStateOf(false) }
     val tokens = MaterialTheme.nuvio
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
-    val markWidth by animateDpAsState(if (active || focused || hovered) 28.dp else 16.dp)
+
+    LaunchedEffect(hovered) {
+        onHoverChanged(hovered)
+    }
+
+    val isDirectlyExpanded = active || focused || hovered
+    val markWidth by animateDpAsState(
+        when {
+            isDirectlyExpanded -> 28.dp
+            isAdjacent -> 22.dp
+            else -> 16.dp
+        }
+    )
+    val barThickness by animateDpAsState(
+        when {
+            isDirectlyExpanded -> 4.5.dp
+            isAdjacent -> 4.dp
+            else -> 3.5.dp
+        }
+    )
+    val barAlpha by animateFloatAsState(
+        when {
+            isDirectlyExpanded -> 1f
+            isAdjacent -> 0.85f
+            else -> 0.6f
+        }
+    )
     LaunchedEffect(focused) {
         if (focused) tooltip.show() else tooltip.dismiss()
     }
@@ -529,7 +590,7 @@ private fun SeasonRailMark(label: String, active: Boolean, onClick: () -> Unit, 
         focusable = false,
     ) {
         Box(
-            modifier = modifier.size(width = 48.dp, height = 32.dp)
+            modifier = modifier.size(width = 48.dp, height = itemHeight)
                 .onFocusChanged { focused = it.hasFocus }
                 .navigationGlassFeedback(interactionSource, tokens.shapes.button, selected = active)
                 .hoverable(interactionSource)
@@ -538,9 +599,13 @@ private fun SeasonRailMark(label: String, active: Boolean, onClick: () -> Unit, 
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.width(28.dp).height(3.dp), contentAlignment = Alignment.CenterStart) {
-                Box(Modifier.width(markWidth).height(if (active) 3.dp else 2.dp)
-                    .background(tokens.colors.textPrimary.copy(alpha = if (active || focused || hovered) 1f else 0.6f)))
+            Box(Modifier.width(28.dp).height(5.dp), contentAlignment = Alignment.CenterStart) {
+                Box(
+                    Modifier
+                        .width(markWidth)
+                        .height(barThickness)
+                        .background(tokens.colors.textPrimary.copy(alpha = barAlpha), CircleShape)
+                )
             }
         }
     }
