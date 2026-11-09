@@ -1433,7 +1433,22 @@ internal fun MainAppContent(
         }
 
         val onContinueWatchingClick: (ContinueWatchingItem) -> Unit = { item ->
-            openContinueWatching(item, false, false)
+            // Series/episodic items must open their episode list (detail page) first; only
+            // the user picking an episode there may advance to stream selection.
+            val isEpisodic = item.seasonNumber != null ||
+                item.parentMetaType.lowercase() in setOf("series", "tv", "show", "tvshow")
+            if (isEpisodic) {
+                navController.navigate(
+                    DetailRoute(
+                        type = item.parentMetaType,
+                        id = item.parentMetaId,
+                        title = item.title,
+                        posterUrl = item.poster,
+                    ),
+                )
+            } else {
+                openContinueWatching(item, false, false)
+            }
         }
 
         val onContinueWatchingStartFromBeginning: (ContinueWatchingItem) -> Unit = { item ->
