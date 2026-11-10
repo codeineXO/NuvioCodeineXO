@@ -937,6 +937,7 @@ public:
     void initialize(
         HWND host,
         const std::string &sourceUrl,
+        const std::string &audioUrl,
         const std::vector<std::string> &headerLines,
         bool playWhenReady,
         long long initialPositionMs,
@@ -959,8 +960,8 @@ public:
         auto initState = std::make_shared<InitializationState>();
         auto self = shared_from_this();
         uiThread = std::thread(
-            [self, sourceUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, initState]() {
-                self->runNativeUiThread(sourceUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, initState);
+            [self, sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, initState]() {
+                self->runNativeUiThread(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, initState);
             }
         );
 
@@ -1490,6 +1491,11 @@ public:
         command({"sub-add", url, "select"});
     }
 
+    void addAudioUrl(const std::string &url) {
+        if (url.empty()) return;
+        command({"audio-add", url, "select"});
+    }
+
     std::string popLastImportedSubtitle() {
         std::lock_guard<std::mutex> lock(importedSubtitleMutex);
         std::string result = lastImportedSubtitleInfo;
@@ -1733,12 +1739,14 @@ private:
     std::string activeSvpScript; // Guarded by mpvMutex.
     std::string appliedSubtitleFont; // Guarded by mpvMutex; per player instance.
     std::string appliedSubtitleFontsDir;
+    std::string initialAudioUrl;
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
     void runNativeUiThread(
         std::string sourceUrl,
+        std::string audioUrl,
         std::vector<std::string> headerLines,
         bool playWhenReady,
         long long initialPositionMs,
@@ -1749,7 +1757,7 @@ private:
     ) {
         std::string failure;
         try {
-            initializeOnNativeUiThread(sourceUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled);
+            initializeOnNativeUiThread(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled);
         } catch (const std::exception &error) {
             failure = error.what();
             cleanupUiResources();
@@ -1775,6 +1783,7 @@ private:
 
     void initializeOnNativeUiThread(
         const std::string &sourceUrl,
+        const std::string &audioUrl,
         const std::vector<std::string> &headerLines,
         bool playWhenReady,
         long long initialPositionMs,
@@ -1832,7 +1841,7 @@ private:
         }
 
         startWebView(controlsUrl);
-        startMpv(sourceUrl, headerLines, playWhenReady, initialPositionMs, decoderPriority, nvidiaRtxSuperResolutionEnabled);
+        startMpv(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, decoderPriority, nvidiaRtxSuperResolutionEnabled);
         layoutNativeSubviews();
         if (!SetTimer(messageHwnd, NUVIO_TIMER_ID, 500, nullptr)) {
             throw std::runtime_error("Unable to start native player timer.");
@@ -2133,6 +2142,7 @@ private:
 
     void startMpv(
         const std::string &sourceUrl,
+        const std::string &audioUrl,
         const std::vector<std::string> &headerLines,
         bool playWhenReady,
         long long initialPositionMs,
@@ -2269,9 +2279,15 @@ private:
                     headers.push_back(c);
                 }
             }
+            initialAudioUrl = audioUrl;
             setMpvOptionStringLocked("user-agent", userAgent.c_str());
             if (!headers.empty()) {
                 setMpvOptionStringLocked("http-header-fields", headers.c_str());
+            }
+            if (!audioUrl.empty()) {
+                setMpvOptionStringLocked("audio-file", audioUrl.c_str());
+                setMpvOptionStringLocked("audio-file-auto", "exact");
+                setMpvOptionStringLocked("aid", "auto");
             }
 
             int initResult = api.initialize(mpv);
@@ -2545,6 +2561,9 @@ private:
                 // first one after a resuming load is the one that means the
                 // read-ahead from byte 0 is over.
                 promoteResumeCache();
+                if (!initialAudioUrl.empty()) {
+                    command({"audio-add", initialAudioUrl, "auto"});
+                }
             }
             if (event->event_id == MPV_EVENT_SHUTDOWN) {
                 return;
@@ -2955,6 +2974,7 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
     jobject,
     jlong hostViewPtr,
     jstring sourceUrl,
+    jstring audioUrl,
     jobjectArray headerLines,
     jboolean playWhenReady,
     jlong initialPositionMs,
@@ -2965,6 +2985,7 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
 ) {
     HWND hostHwnd = (HWND)(intptr_t)hostViewPtr;
     std::string sourceUrlText = jstringToUtf8(env, sourceUrl);
+    std::string audioUrlText = jstringToUtf8(env, audioUrl);
     std::vector<std::string> headerLineValues = jstringArrayToVector(env, headerLines);
     std::string controlsPageUrlText = jstringToUtf8(env, controlsPageUrl);
     JavaVM *javaVm = nullptr;
@@ -2989,6 +3010,7 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
         player->initialize(
             hostHwnd,
             sourceUrlText,
+            audioUrlText,
             headerLineValues,
             playWhenReady == JNI_TRUE,
             initialPositionMs,
@@ -3544,6 +3566,12 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addSubtitleUrl(JNIEnv *env, jobject, jlong handle, jstring url) {
     auto player = playerFromHandle(handle);
     if (player) player->addSubtitleUrl(jstringToUtf8(env, url));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addAudioUrl(JNIEnv *env, jobject, jlong handle, jstring url) {
+    auto player = playerFromHandle(handle);
+    if (player) player->addAudioUrl(jstringToUtf8(env, url));
 }
 
 extern "C" JNIEXPORT jstring JNICALL

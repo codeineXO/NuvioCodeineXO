@@ -348,14 +348,16 @@ class InAppYouTubeExtractor {
             }
         }
 
-        val bestProgressive = sortCandidates(progressive).firstOrNull()
+        val eligibleProgressive = progressive.filter { it.height <= 1080 }
+        val bestProgressive = sortCandidates(eligibleProgressive.ifEmpty { progressive }).firstOrNull()
         if (singleUrl) {
             return singleUrlSource(bestManifest, bestProgressive)
         }
         val supportedVideo = adaptiveVideo.filter(TrailerExtractionPlatform::supportsSeparateVideo)
         val supportedAudio = adaptiveAudio.filter(TrailerExtractionPlatform::supportsSeparateAudio)
+        val eligibleVideo = supportedVideo.filter { it.height <= 1080 }
         val bestVideo = pickBestForClient(
-            supportedVideo,
+            eligibleVideo.ifEmpty { supportedVideo },
             PREFERRED_SEPARATE_CLIENT,
         )
         val bestAudio = pickBestForClient(

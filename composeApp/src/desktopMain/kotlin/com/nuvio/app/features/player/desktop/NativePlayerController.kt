@@ -81,6 +81,7 @@ import kotlin.concurrent.Volatile
 internal typealias NativePlayerCreate = (
     Long,
     String,
+    String,
     Array<String>,
     Boolean,
     Long,
@@ -92,9 +93,9 @@ internal typealias NativePlayerCreate = (
 
 internal class NativePlayerController(
     private val host: NativePlayerHost,
-    private val nativeCreate: NativePlayerCreate = { hostViewPtr, source, headers, playWhenReady, positionMs, controlsUrl, decoder, rtx, sink ->
+    private val nativeCreate: NativePlayerCreate = { hostViewPtr, source, audioSource, headers, playWhenReady, positionMs, controlsUrl, decoder, rtx, sink ->
         NativePlayerBridge.ensureLoaded()
-        NativePlayerBridge.create(hostViewPtr, source, headers, playWhenReady, positionMs, controlsUrl, decoder, rtx, sink)
+        NativePlayerBridge.create(hostViewPtr, source, audioSource, headers, playWhenReady, positionMs, controlsUrl, decoder, rtx, sink)
     },
     private val nativeDispose: (Long) -> Unit = NativePlayerBridge::dispose,
     private val nativeSeekTo: (Long, Long) -> Unit = NativePlayerBridge::seekTo,
@@ -152,6 +153,8 @@ internal class NativePlayerController(
     private var cachedAudioTracks: List<NativeMpvTrack> = emptyList()
     @Volatile
     private var pendingSubtitleUri: String? = null
+    @Volatile
+    private var pendingAudioUri: String? = null
 
     private fun ensureScopesActive() {
         synchronized(lifecycleLock) {
@@ -280,6 +283,7 @@ internal class NativePlayerController(
 
     fun attach(
         sourceUrl: String,
+        sourceAudioUrl: String? = null,
         sourceHeaders: Map<String, String>,
         playWhenReady: Boolean,
         initialPositionMs: Long,
@@ -288,8 +292,10 @@ internal class NativePlayerController(
         onError: (String?) -> Unit,
     ) {
         ensureScopesActive()
+        pendingAudioUri = sourceAudioUrl
         val pending = PendingSource(
             sourceUrl = sourceUrl,
+            sourceAudioUrl = sourceAudioUrl,
             headerLines = sourceHeaders.toHeaderLines(),
             playWhenReady = playWhenReady,
             initialPositionMs = initialPositionMs.coerceAtLeast(0L),
@@ -463,6 +469,7 @@ internal class NativePlayerController(
                     nativeCreate(
                         hostViewPtr,
                         resolvedSource,
+                        pending.sourceAudioUrl.orEmpty(),
                         pending.headerLines.toTypedArray(),
                         pending.playWhenReady,
                         pending.initialPositionMs,
@@ -515,6 +522,7 @@ internal class NativePlayerController(
                         applyPendingSubtitleSettings(created)
                         applyPlaybackBufferPreset(created)
                         pendingSubtitleUri?.let { setSubtitleUri(it) }
+                        pendingAudioUri?.let { setAudioUri(it) }
                         applyCoordinatedEnhancements(created)
                         applyAudioNightMode(created, rememberedAudioNightModeEnabled)
                     }
@@ -1395,6 +1403,7 @@ internal class NativePlayerController(
         cachedSubtitleTracks = emptyList()
         cachedAudioTracks = emptyList()
         pendingSubtitleUri = null
+        pendingAudioUri = null
         lastSentControlsStructureKey = null
         current
     }
@@ -1433,6 +1442,7 @@ internal class NativePlayerController(
             cachedSubtitleTracks = emptyList()
             cachedAudioTracks = emptyList()
             pendingSubtitleUri = null
+            pendingAudioUri = null
             lastSentControlsStructureKey = null
             // Register and start teardown atomically so terminal release cannot sample an empty
             // worker slot between detaching the handle and starting native disposal.
@@ -1708,6 +1718,15 @@ internal class NativePlayerController(
             log.d { "clearExternalSubtitleAndSelect trackIndex=$trackIndex trackId=$trackId handle=$activeHandle" }
             NativePlayerBridge.clearExternalSubtitlesAndSelect(activeHandle, trackId)
             applyPendingSubtitleSettingsDirect(activeHandle)
+        }
+    }
+
+    override fun setAudioUri(url: String) {
+        log.d { "setAudioUri ${url.toPlaybackLogKey()} handle=$handle" }
+        pendingAudioUri = url
+        val current = handle.takeIf { it != 0L } ?: return
+        executePlayerCommand { activeHandle ->
+            NativePlayerBridge.addAudioUrl(activeHandle, url)
         }
     }
 
@@ -2002,6 +2021,7 @@ private fun Int.toHexByte(): String {
 
 private data class PendingSource(
     val sourceUrl: String,
+    val sourceAudioUrl: String? = null,
     val headerLines: List<String>,
     val playWhenReady: Boolean,
     val initialPositionMs: Long,

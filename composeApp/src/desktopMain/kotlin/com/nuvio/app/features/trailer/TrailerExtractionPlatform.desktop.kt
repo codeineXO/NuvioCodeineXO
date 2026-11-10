@@ -18,7 +18,8 @@ internal object TrailerExtractionPlatform {
     val diagnosticsEnabled: Boolean = System.getenv("NUVIO_TRAILER_DEBUG")
         ?.trim()
         ?.lowercase()
-        .let { it == "1" || it == "true" || it == "yes" || it == "on" }
+        .let { it == "1" || it == "true" || it == "yes" || it == "on" } ||
+        System.getProperty("nuvio.trailer.debug") == "true"
 
     val defaultHeaders: Map<String, String> = mapOf(
         "accept-language" to "en-US,en;q=0.9",
@@ -42,9 +43,11 @@ internal object TrailerExtractionPlatform {
         .followSslRedirects(true)
         .build()
 
-    fun supportsSeparateVideo(candidate: StreamCandidate): Boolean = candidate.ext == "mp4"
+    fun supportsSeparateVideo(candidate: StreamCandidate): Boolean =
+        (candidate.ext == "mp4" || candidate.ext == "webm") && (candidate.height <= 1080 || candidate.height == 0)
 
-    fun supportsSeparateAudio(candidate: StreamCandidate): Boolean = candidate.ext == "m4a"
+    fun supportsSeparateAudio(candidate: StreamCandidate): Boolean =
+        candidate.ext == "m4a" || candidate.ext == "webm"
 
     fun diagnostic(message: String) {
         if (diagnosticsEnabled) {
@@ -98,64 +101,39 @@ internal object TrailerExtractionPlatform {
         bestVideo: StreamCandidate?,
         bestAudio: StreamCandidate?,
     ): TrailerPlaybackSource? = withContext(Dispatchers.IO) {
-        val bestCombinedIsManifest = bestManifest != null &&
-            (bestProgressive == null || bestManifest.height > bestProgressive.height)
-        val preferManifestPlayback = bestManifest != null &&
-            (bestVideo == null || bestManifest.height >= bestVideo.height)
-        val combinedUrl = if (bestCombinedIsManifest) {
-            bestManifest.manifestUrl
+        val canUseSeparate = bestVideo != null && bestAudio != null &&
+            (bestProgressive == null || bestVideo.height > bestProgressive.height)
+
+        val (videoUrl, audioUrl) = if (canUseSeparate) {
+            val vUrl = bestVideo?.url?.let { resolveReachableUrlOrNull(it) }
+            val aUrl = bestAudio?.url?.let { resolveReachableUrlOrNull(it) }
+            if (vUrl != null && aUrl != null) {
+                vUrl to aUrl
+            } else {
+                (bestProgressive?.url?.let { resolveReachableUrlOrNull(it) } ?: vUrl) to null
+            }
         } else {
-            bestProgressive?.url
+            val vUrl = bestProgressive?.url?.let { resolveReachableUrlOrNull(it) }
+                ?: bestVideo?.url?.let { resolveReachableUrlOrNull(it) }
+            vUrl to null
         }
 
-        val separatedVideoUrl = if (preferManifestPlayback) {
-            null
-        } else {
-            bestVideo?.url?.let { resolveReachableUrlOrNull(it) }
-        }
-        if (!preferManifestPlayback && bestVideo != null && separatedVideoUrl == null) {
-            diagnostic("blocked stage=video_probe candidate=${bestVideo.diagnosticSummary()}")
-        }
-        val separatedAudioUrl = if (!separatedVideoUrl.isNullOrBlank()) {
-            bestAudio?.url?.let { resolveReachableUrlOrNull(it) }
-        } else {
-            null
-        }
-        if (separatedVideoUrl != null && bestAudio != null && separatedAudioUrl == null) {
-            diagnostic("blocked stage=audio_probe candidate=${bestAudio.diagnosticSummary()}")
-        }
-        val useSeparatedStreams = separatedVideoUrl != null && separatedAudioUrl != null
-        val combinedCandidateUrl = if (!useSeparatedStreams) {
-            combinedUrl?.let { resolveReachableUrlOrNull(it) }
-        } else {
-            null
-        }
-        val videoUrl = if (useSeparatedStreams) separatedVideoUrl else combinedCandidateUrl ?: separatedVideoUrl
         if (videoUrl == null) {
             diagnostic("blocked stage=source reason=no_reachable_video")
             return@withContext null
         }
-        val audioUrl = separatedAudioUrl.takeIf { useSeparatedStreams }
+
         val mode = when {
-            useSeparatedStreams -> "adaptive_separate"
-            combinedCandidateUrl != null && bestCombinedIsManifest -> "hls"
-            combinedCandidateUrl != null -> "combined_fallback"
-            else -> "adaptive_video_only"
+            audioUrl != null -> "adaptive_separate"
+            bestProgressive != null && videoUrl == bestProgressive.url -> "progressive"
+            bestManifest != null && videoUrl == bestManifest.manifestUrl -> "hls"
+            else -> "video_only"
         }
-        val videoSummary = when {
-            useSeparatedStreams -> bestVideo.diagnosticSummary()
-            combinedCandidateUrl != null && bestCombinedIsManifest -> bestManifest.diagnosticSummary()
-            combinedCandidateUrl != null -> bestProgressive.diagnosticSummary()
-            else -> bestVideo.diagnosticSummary()
-        }
-        diagnostic(
-            "selected mode=$mode video=[$videoSummary] audio=[${bestAudio.takeIf { useSeparatedStreams }.diagnosticSummary()}]",
-        )
-        diagnostic("source videoUrl=$videoUrl")
-        diagnostic("source audioUrl=${audioUrl ?: "none"}")
+        diagnostic("selected mode=$mode videoUrl=$videoUrl audioUrl=${audioUrl ?: "none"}")
         TrailerPlaybackSource(
             videoUrl = videoUrl,
             audioUrl = audioUrl,
+            headers = defaultHeaders,
         )
     }
 

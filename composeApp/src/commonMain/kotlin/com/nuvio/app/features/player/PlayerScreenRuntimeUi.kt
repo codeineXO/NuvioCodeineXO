@@ -1873,7 +1873,7 @@ private fun PlayerScreenRuntime.prepareSourcesForPlayerControls(forceRefresh: Bo
     )
 }
 
-private fun Color.toCssColorString(): String {
+internal fun Color.toCssColorString(): String {
     val redInt = (red * 255f).roundToInt().coerceIn(0, 255)
     val greenInt = (green * 255f).roundToInt().coerceIn(0, 255)
     val blueInt = (blue * 255f).roundToInt().coerceIn(0, 255)

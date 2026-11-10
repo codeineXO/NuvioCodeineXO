@@ -15,8 +15,7 @@ actual object AppFeaturePolicy {
     actual val personalMediaAddonCopyEnabled: Boolean = false
     actual val p2pEnabled: Boolean = true
     actual val externalPlayerSupported: Boolean = false
-    actual val trailerPlaybackMode: TrailerPlaybackMode =
-        if (isWindowsDesktop) TrailerPlaybackMode.EXTERNAL else TrailerPlaybackMode.IN_APP
+    actual val trailerPlaybackMode: TrailerPlaybackMode = TrailerPlaybackMode.IN_APP
     actual val heroTrailerPlaybackSupported: Boolean = !isWindowsDesktop
     actual val inAppUpdaterEnabled: Boolean = true
     actual val imdbRatingLogoEnabled: Boolean = true

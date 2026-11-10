@@ -76,6 +76,7 @@ actual fun PlatformPlayerSurface(
     ) {
         NativePlayerSurface(
             sourceUrl = sourceUrl,
+            sourceAudioUrl = sourceAudioUrl,
             sourceAvailable = sourceAvailable,
             sourceHeaders = sourceHeaders,
             externalSubtitles = externalSubtitles,
@@ -85,6 +86,7 @@ actual fun PlatformPlayerSurface(
             initialPositionMs = initialPositionMs ?: 0L,
             initialPositionRequestKey = initialPositionRequestKey,
             playerControlsState = playerControlsState,
+            useNativeController = useNativeController,
             onPlayerControlsAction = onPlayerControlsAction,
             onPlayerControlsEvent = onPlayerControlsEvent,
             onPlayerControlsScrubChange = onPlayerControlsScrubChange,
@@ -109,6 +111,7 @@ actual fun PlatformPlayerSurface(
 @Composable
 private fun NativePlayerSurface(
     sourceUrl: String,
+    sourceAudioUrl: String? = null,
     sourceAvailable: Boolean,
     sourceHeaders: Map<String, String>,
     externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle>,
@@ -118,6 +121,7 @@ private fun NativePlayerSurface(
     initialPositionMs: Long,
     initialPositionRequestKey: String?,
     playerControlsState: PlayerControlsState,
+    useNativeController: Boolean = true,
     onPlayerControlsAction: (PlayerControlsAction) -> Boolean,
     onPlayerControlsEvent: (String, Double) -> Boolean,
     onPlayerControlsScrubChange: (Long) -> Boolean,
@@ -222,10 +226,23 @@ private fun NativePlayerSurface(
         onDispose { uninstall?.invoke() }
     }
 
+    LaunchedEffect(host, useNativeController) {
+        if (!useNativeController) {
+            host.setControlsVisible(false)
+        }
+    }
+
+    LaunchedEffect(controller, sourceAudioUrl) {
+        if (!sourceAudioUrl.isNullOrBlank()) {
+            controller.setAudioUri(sourceAudioUrl)
+        }
+    }
+
     LaunchedEffect(
         controller,
         sourceAvailable,
         sourceUrl,
+        sourceAudioUrl,
         playbackHeaders,
         decoderPriority,
         nvidiaRtxSuperResolutionEnabled,
@@ -239,6 +256,7 @@ private fun NativePlayerSurface(
         delay(16L)
         controller.attach(
             sourceUrl = sourceUrl,
+            sourceAudioUrl = sourceAudioUrl,
             sourceHeaders = playbackHeaders,
             playWhenReady = playWhenReady,
             initialPositionMs = initialPositionMs,

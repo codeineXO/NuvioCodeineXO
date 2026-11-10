@@ -154,6 +154,7 @@ static constexpr double kMaxVolumePercent = 200.0;
 - (void)setAudioLanguages:(NSString *)languages;
 - (void)selectSubtitleTrackId:(int)trackId;
 - (void)addSubtitleUrl:(NSString *)url;
+- (void)addAudioUrl:(NSString *)url;
 - (void)removeExternalSubtitles;
 - (void)removeExternalSubtitlesAndSelect:(int)trackId;
 - (void)setSubtitleDelayMs:(int)delayMs;
@@ -2356,6 +2357,11 @@ static void nuvioMpvWakeup(void *ctx) {
     [self command:@[@"sub-add", url, @"select"]];
 }
 
+- (void)addAudioUrl:(NSString *)url {
+    if (!_mpv || url.length == 0) return;
+    [self command:@[@"audio-add", url, @"select"]];
+}
+
 - (void)removeExternalSubtitles {
     if (!_mpv) return;
     [self removeExternalSubtitleTracks];
@@ -3092,6 +3098,7 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
     jobject /* bridge */,
     jlong hostViewPtr,
     jstring sourceUrl,
+    jstring /*audioUrl*/,
     jobjectArray headerLines,
     jboolean playWhenReady,
     jlong initialPositionMs,
@@ -3630,6 +3637,21 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addSubtitleUrl(
     MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
     runOnMainAsync(^{
         [player addSubtitleUrl:[NSString stringWithUTF8String:subtitleUrl.c_str()]];
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addAudioUrl(
+    JNIEnv *env,
+    jobject /* bridge */,
+    jlong handle,
+    jstring url
+) {
+    if (handle == 0) return;
+    std::string audioUrl = jstringToString(env, url);
+    MpvWebPlayer *player = (__bridge MpvWebPlayer *)(void *)(intptr_t)handle;
+    runOnMainAsync(^{
+        [player addAudioUrl:[NSString stringWithUTF8String:audioUrl.c_str()]];
     });
 }
 

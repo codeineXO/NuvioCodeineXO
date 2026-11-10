@@ -1542,6 +1542,7 @@ JNIEXPORT jboolean JNICALL NP(initGtkEarly)(JNIEnv *, jobject) {
 
 JNIEXPORT jlong JNICALL NP(create)(
     JNIEnv *env, jobject /*thiz*/, jlong hostViewPtr, jstring sourceUrl,
+    jstring /*audioUrl*/,
     jobjectArray headerLines, jboolean playWhenReady, jlong initialPositionMs,
     jstring controlsPageUrl, jint decoderPriority,
     jboolean /*nvidiaRtxSuperResolutionEnabled*/, jobject eventSink) {
@@ -2012,6 +2013,14 @@ JNIEXPORT void JNICALL NP(addSubtitleUrl)(JNIEnv *env, jobject, jlong handle, js
     if (!p) return;
     std::string sub = jstringToUtf8(env, url);
     const char *cmd[] = {"sub-add", sub.c_str(), "select", nullptr};
+    mpv_command(p->mpv, cmd);
+}
+
+JNIEXPORT void JNICALL NP(addAudioUrl)(JNIEnv *env, jobject, jlong handle, jstring url) {
+    Player *p = asPlayer(handle);
+    if (!p) return;
+    std::string audio = jstringToUtf8(env, url);
+    const char *cmd[] = {"audio-add", audio.c_str(), "select", nullptr};
     mpv_command(p->mpv, cmd);
 }
 
