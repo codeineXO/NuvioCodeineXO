@@ -930,6 +930,9 @@
     <string name="settings_continue_watching_section_on_launch">ON LAUNCH</string>
     <string name="settings_continue_watching_section_up_next_behavior">NEXT UP BEHAVIOR</string>
     <string name="settings_continue_watching_section_visibility">VISIBILITY</string>
+    <string name="settings_continue_watching_section_open_behavior">OPEN BEHAVIOR</string>
+    <string name="settings_continue_watching_open_episode_list_title">Open Episode List First</string>
+    <string name="settings_continue_watching_open_episode_list_description">When you select a show in Continue Watching, open its episode list instead of jumping straight to stream selection.</string>
     <string name="settings_continue_watching_show_description">Display the Continue Watching shelf on the Home screen.</string>
     <string name="settings_continue_watching_show_title">Show Continue Watching</string>
     <string name="settings_continue_watching_style_card">Card</string>

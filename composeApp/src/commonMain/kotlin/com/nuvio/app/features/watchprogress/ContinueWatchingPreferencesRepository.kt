@@ -24,6 +24,8 @@ private data class StoredContinueWatchingPreferences(
     val showResumePromptOnLaunch: Boolean = true,
     @SerialName("sort_mode")
     val sortMode: ContinueWatchingSortMode = ContinueWatchingSortMode.DEFAULT,
+    @SerialName("open_episode_list_on_continue_watching")
+    val openEpisodeListOnContinueWatching: Boolean = true,
 )
 
 object ContinueWatchingPreferencesRepository {
@@ -100,6 +102,7 @@ object ContinueWatchingPreferencesRepository {
                 dismissedNextUpKeys = stored.dismissedNextUpKeys,
                 showResumePromptOnLaunch = stored.showResumePromptOnLaunch,
                 sortMode = stored.sortMode,
+                openEpisodeListOnContinueWatching = stored.openEpisodeListOnContinueWatching,
             )
         } else {
             ContinueWatchingPreferencesUiState()
@@ -165,6 +168,13 @@ object ContinueWatchingPreferencesRepository {
         persist()
     }
 
+    fun setOpenEpisodeListOnContinueWatching(enabled: Boolean) {
+        ensureLoaded()
+        if (_uiState.value.openEpisodeListOnContinueWatching == enabled) return
+        _uiState.value = _uiState.value.copy(openEpisodeListOnContinueWatching = enabled)
+        persist()
+    }
+
     fun removeDismissedNextUpKeysForContent(contentId: String) {
         ensureLoaded()
         val normalizedContentId = contentId.trim()
@@ -191,6 +201,7 @@ object ContinueWatchingPreferencesRepository {
                     dismissedNextUpKeys = _uiState.value.dismissedNextUpKeys,
                     showResumePromptOnLaunch = _uiState.value.showResumePromptOnLaunch,
                     sortMode = _uiState.value.sortMode,
+                    openEpisodeListOnContinueWatching = _uiState.value.openEpisodeListOnContinueWatching,
                 ),
             ),
         )

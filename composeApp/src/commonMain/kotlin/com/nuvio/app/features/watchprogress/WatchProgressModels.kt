@@ -246,6 +246,7 @@ data class ContinueWatchingPreferencesUiState(
     val dismissedNextUpKeys: Set<String> = emptySet(),
     val showResumePromptOnLaunch: Boolean = true,
     val sortMode: ContinueWatchingSortMode = ContinueWatchingSortMode.DEFAULT,
+    val openEpisodeListOnContinueWatching: Boolean = true,
 )
 
 internal fun nextUpDismissKey(

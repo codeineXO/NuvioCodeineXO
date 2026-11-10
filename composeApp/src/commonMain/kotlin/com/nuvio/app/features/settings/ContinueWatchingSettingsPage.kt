@@ -50,6 +50,9 @@ import nuvio.composeapp.generated.resources.settings_continue_watching_section_o
 import nuvio.composeapp.generated.resources.settings_continue_watching_section_sort_order
 import nuvio.composeapp.generated.resources.settings_continue_watching_section_up_next_behavior
 import nuvio.composeapp.generated.resources.settings_continue_watching_section_visibility
+import nuvio.composeapp.generated.resources.settings_continue_watching_section_open_behavior
+import nuvio.composeapp.generated.resources.settings_continue_watching_open_episode_list_title
+import nuvio.composeapp.generated.resources.settings_continue_watching_open_episode_list_description
 import nuvio.composeapp.generated.resources.settings_continue_watching_show_description
 import nuvio.composeapp.generated.resources.settings_continue_watching_show_title
 import nuvio.composeapp.generated.resources.settings_continue_watching_sort_mode_default
@@ -82,6 +85,7 @@ internal fun LazyListScope.continueWatchingSettingsContent(
     blurNextUp: Boolean,
     showResumePromptOnLaunch: Boolean,
     sortMode: ContinueWatchingSortMode,
+    openEpisodeListOnContinueWatching: Boolean,
 ) {
     item {
         SettingsSection(
@@ -95,6 +99,22 @@ internal fun LazyListScope.continueWatchingSettingsContent(
                     checked = isVisible,
                     isTablet = isTablet,
                     onCheckedChange = ContinueWatchingPreferencesRepository::setVisible,
+                )
+            }
+        }
+    }
+    item {
+        SettingsSection(
+            title = stringResource(Res.string.settings_continue_watching_section_open_behavior),
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_continue_watching_open_episode_list_title),
+                    description = stringResource(Res.string.settings_continue_watching_open_episode_list_description),
+                    checked = openEpisodeListOnContinueWatching,
+                    isTablet = isTablet,
+                    onCheckedChange = ContinueWatchingPreferencesRepository::setOpenEpisodeListOnContinueWatching,
                 )
             }
         }

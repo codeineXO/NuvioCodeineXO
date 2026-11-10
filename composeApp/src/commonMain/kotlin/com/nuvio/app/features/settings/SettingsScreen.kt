@@ -824,6 +824,7 @@ private fun MobileSettingsScreen(
                     blurNextUp = continueWatchingPreferencesUiState.blurNextUp,
                     showResumePromptOnLaunch = continueWatchingPreferencesUiState.showResumePromptOnLaunch,
                     sortMode = continueWatchingPreferencesUiState.sortMode,
+                    openEpisodeListOnContinueWatching = continueWatchingPreferencesUiState.openEpisodeListOnContinueWatching,
                 )
                 SettingsPage.PosterCustomization -> posterCustomizationSettingsContent(
                     isTablet = false,
@@ -1244,6 +1245,7 @@ private fun TabletSettingsScreen(
                                     blurNextUp = continueWatchingPreferencesUiState.blurNextUp,
                                     showResumePromptOnLaunch = continueWatchingPreferencesUiState.showResumePromptOnLaunch,
                                     sortMode = continueWatchingPreferencesUiState.sortMode,
+                                    openEpisodeListOnContinueWatching = continueWatchingPreferencesUiState.openEpisodeListOnContinueWatching,
                                 )
                                 SettingsPage.PosterCustomization -> posterCustomizationSettingsContent(
                                     isTablet = true,
