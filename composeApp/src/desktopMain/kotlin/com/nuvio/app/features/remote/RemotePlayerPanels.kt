@@ -27,6 +27,12 @@ internal object RemotePlayerPanels {
         put("active", state != null)
         if (state == null) return@buildJsonObject
         put("title", state.title)
+        // The artwork, logo and synopsis the player shows on its loading screen and pause overlay.
+        put("artwork", state.openingArtwork.orEmpty())
+        put("logo", (state.pauseOverlayLogo ?: state.openingLogo).orEmpty())
+        put("episodeInfo", state.pauseOverlayEpisodeInfo)
+        put("episodeTitle", state.pauseOverlayEpisodeTitle)
+        put("description", state.pauseOverlayDescription)
         put("playing", state.isPlaying)
         put("volume", state.volumeLevel ?: 1f)
         put("speed", state.playbackSpeedLabel)

@@ -53,6 +53,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
             install(WebSockets)
             routing {
                 get("/") { call.respondText(page(), ContentType.Text.Html) }
+                get("/cuppa.css") { call.respondText(resource("cuppa.css"), ContentType.Text.CSS) }
                 webSocket("/ws") {
                     val nowPlaying = launch {
                         AppPresenceState.current
@@ -130,13 +131,17 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
      * in from its controls page, so the phone shows the same icons.
      */
     private fun page(): String {
-        val html = javaClass.getResource("/remote/index.html")?.readText() ?: return "Remote page missing"
+        val html = resource("index.html")
         val controls = javaClass.getResource("/player-ui/controls.html")?.readText().orEmpty()
         val start = controls.indexOf("<svg width=\"0\"")
         val end = controls.indexOf("</svg>", start)
         val icons = if (start >= 0 && end > start) controls.substring(start, end + "</svg>".length) else ""
         return html.replace("<!-- player icons -->", icons)
     }
+
+    /** A file of the remote page from resources/remote, read on every request so edits show up on a refresh. */
+    private fun resource(name: String): String =
+        javaClass.getResource("/remote/$name")?.readText() ?: "/* $name missing */"
 
     /** The address the phone should use: the interface that routes to the internet. */
     private fun lanAddress(): String = runCatching {
