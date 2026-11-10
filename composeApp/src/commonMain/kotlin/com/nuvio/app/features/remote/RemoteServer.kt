@@ -17,6 +17,7 @@ internal interface RemoteServerPlatform {
 /** Phone remote web server. Desktop installs the platform; other targets show no Remote settings. */
 internal object RemoteServer {
     const val DEFAULT_PORT = 8090
+    val PORTS = 1024..65535
 
     var platform: RemoteServerPlatform? = null
         private set
@@ -44,7 +45,7 @@ internal object RemoteServer {
     }
 
     fun setPort(port: Int) {
-        if (port !in 1024..65535 || port == mutablePort.value) return
+        if (port !in PORTS || port == mutablePort.value) return
         mutablePort.value = port
         platform?.save(mutableEnabled.value, port)
         if (mutableEnabled.value) restart()

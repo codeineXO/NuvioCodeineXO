@@ -67,7 +67,7 @@ private fun RemotePortDialog(initialPort: Int, onSave: (Int) -> Unit, onDismiss:
     val tokens = MaterialTheme.nuvio
     var value by remember { mutableStateOf(initialPort.toString()) }
     var isEditing by remember { mutableStateOf(false) }
-    val parsed = value.toIntOrNull()?.takeIf { it in 1024..65535 }
+    val parsed = value.toIntOrNull()?.takeIf { it in RemoteServer.PORTS }
 
     DialogSurface(onDismissRequest = onDismiss, title = "Remote Port") {
         OutlinedTextField(
@@ -78,7 +78,7 @@ private fun RemotePortDialog(initialPort: Int, onSave: (Int) -> Unit, onDismiss:
                 .remoteNavigationTarget(textField = true, onEditingChange = { isEditing = it }),
             singleLine = true,
             isError = parsed == null,
-            label = { Text("Port (1024-65535)") },
+            label = { Text("Port (${RemoteServer.PORTS.first}-${RemoteServer.PORTS.last})") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = tokens.colors.borderFocus.copy(alpha = tokens.opacity.strong),

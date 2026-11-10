@@ -1,17 +1,27 @@
 package com.nuvio.app.features.remote
 
 import com.nuvio.app.core.storage.DesktopStorage
-import com.sun.net.httpserver.HttpServer
+import io.ktor.http.ContentType
+import io.ktor.server.application.install
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.EmbeddedServer
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
 import java.net.DatagramSocket
 import java.net.InetAddress
-import java.net.InetSocketAddress
 
-/** Serves the phone remote page on the LAN with the JDK's built-in HTTP server. */
+/** Serves the phone remote page on the LAN and takes button presses over a WebSocket. */
 internal object DesktopRemoteServer : RemoteServerPlatform {
     private const val ENABLED_KEY = "enabled"
     private const val PORT_KEY = "port"
     private val store = DesktopStorage.store("nuvio_remote_settings")
-    private var server: HttpServer? = null
+    private var server: EmbeddedServer<*, *>? = null
 
     fun install() = RemoteServer.install(this)
 
@@ -26,23 +36,31 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
 
     @Synchronized
     override fun start(port: Int): String {
-        val http = HttpServer.create(InetSocketAddress(port), 0)
-        http.createContext("/") { exchange ->
-            val body = PAGE.toByteArray()
-            exchange.responseHeaders.add("Content-Type", "text/html; charset=utf-8")
-            exchange.sendResponseHeaders(200, body.size.toLong())
-            exchange.responseBody.use { it.write(body) }
+        val engine = embeddedServer(CIO, port = port, host = "0.0.0.0") {
+            install(WebSockets)
+            routing {
+                get("/") { call.respondText(page(), ContentType.Text.Html) }
+                webSocket("/ws") {
+                    for (frame in incoming) {
+                        if (frame is Frame.Text) RemoteKeyInjector.handle(frame.readText())
+                    }
+                }
+            }
         }
-        http.start()
-        server = http
+        engine.start(wait = false)
+        server = engine
         return "http://${lanAddress()}:$port"
     }
 
     @Synchronized
     override fun stop() {
-        server?.stop(0)
+        server?.stop(gracePeriodMillis = 100, timeoutMillis = 500)
         server = null
     }
+
+    /** Read on every request, so edits to the page show up on a phone refresh. */
+    private fun page(): String =
+        javaClass.getResource("/remote/index.html")?.readText() ?: "Remote page missing"
 
     /** The address the phone should use: the interface that routes to the internet. */
     private fun lanAddress(): String = runCatching {
@@ -51,13 +69,4 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
             it.localAddress.hostAddress
         }
     }.getOrDefault("localhost")
-
-    private val PAGE = """
-        <!doctype html>
-        <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Nuvio Remote</title></head>
-        <body style="font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#111;color:#eee">
-        <h1>Hello world</h1>
-        </body></html>
-    """.trimIndent()
 }

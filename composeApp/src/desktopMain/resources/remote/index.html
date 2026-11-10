@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e1e2e">
+<title>Nuvio Remote</title>
+<style>
+  :root {
+    --base: #1e1e2e; --mantle: #181825; --surface0: #313244; --surface1: #45475a;
+    --text: #cdd6f4; --subtext: #a6adc8; --accent: #cba6f7; --green: #a6e3a1; --red: #f38ba8;
+    --pad: min(82vw, 340px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--base); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, sans-serif; user-select: none; -webkit-user-select: none;
+    touch-action: manipulation; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+  header { position: fixed; top: calc(env(safe-area-inset-top) + 16px); left: 16px; right: 16px;
+    display: flex; justify-content: space-between; align-items: center; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface0); color: var(--subtext); }
+  .pill::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; background: var(--red); vertical-align: 0; }
+  .pill.on::before { background: var(--green); }
+
+  .dpad { position: relative; width: var(--pad); height: var(--pad); border-radius: 50%;
+    background: var(--mantle); box-shadow: inset 0 0 0 1px var(--surface0); }
+  .dpad button { position: absolute; border: 0; background: none; color: var(--subtext); padding: 0;
+    display: grid; place-items: center; cursor: pointer; }
+  .dpad .arrow { width: 34%; height: 34%; }
+  .dpad .arrow svg { width: 36px; height: 36px; }
+  .up    { top: 0;    left: 33%; }
+  .down  { bottom: 0; left: 33%; }
+  .left  { left: 0;   top: 33%; }
+  .right { right: 0;  top: 33%; }
+  .ok { width: 38%; height: 38%; left: 31%; top: 31%; border-radius: 50% !important;
+    background: var(--surface0) !important; color: var(--text) !important; font-size: 18px; font-weight: 600; }
+  .dpad button.pressed { color: var(--accent); }
+  .dpad .ok.pressed { background: var(--surface1) !important; }
+
+  .row { display: flex; gap: 16px; }
+  .round { width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--surface0);
+    color: var(--text); display: grid; place-items: center; cursor: pointer; }
+  .round svg { width: 28px; height: 28px; }
+  .round.pressed { background: var(--surface1); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Nuvio Remote</h1>
+  <span class="pill" id="status">Connecting</span>
+</header>
+
+<div class="dpad">
+  <button class="arrow up" data-cmd="key" data-key="up" aria-label="Up">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+  </button>
+  <button class="arrow left" data-cmd="key" data-key="left" aria-label="Left">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+  </button>
+  <button class="ok" data-cmd="ok" aria-label="OK">OK</button>
+  <button class="arrow right" data-cmd="key" data-key="right" aria-label="Right">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+  </button>
+  <button class="arrow down" data-cmd="key" data-key="down" aria-label="Down">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+  </button>
+</div>
+
+<div class="row">
+  <button class="round" data-cmd="back" aria-label="Back">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+  </button>
+</div>
+
+<script>
+  const statusEl = document.getElementById('status');
+  let ws = null;
+  let retry = 500;
+
+  function connect() {
+    ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onopen = () => { retry = 500; setStatus(true); };
+    ws.onclose = () => { setStatus(false); setTimeout(connect, retry); retry = Math.min(retry * 2, 4000); };
+    ws.onerror = () => ws.close();
+  }
+
+  function setStatus(on) {
+    statusEl.textContent = on ? 'Connected' : 'Offline';
+    statusEl.classList.toggle('on', on);
+  }
+
+  function send(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  }
+
+  // Press on touch-down for a snappy feel; arrows repeat while held, like a TV remote.
+  let repeatTimer = null;
+  function stopRepeat(btn) {
+    clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null;
+    if (btn) btn.classList.remove('pressed');
+  }
+
+  document.querySelectorAll('[data-cmd]').forEach((btn) => {
+    const msg = btn.dataset.key ? { cmd: btn.dataset.cmd, key: btn.dataset.key } : { cmd: btn.dataset.cmd };
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btn.classList.add('pressed');
+      send(msg);
+      if (msg.cmd === 'key') repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => send(msg), 120); }, 400);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, () => stopRepeat(btn)));
+  });
+
+  connect();
+</script>
+</body>
+</html>
