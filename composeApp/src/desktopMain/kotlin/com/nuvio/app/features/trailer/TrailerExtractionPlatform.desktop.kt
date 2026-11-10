@@ -104,17 +104,13 @@ internal object TrailerExtractionPlatform {
         val canUseSeparate = bestVideo != null && bestAudio != null &&
             (bestProgressive == null || bestVideo.height > bestProgressive.height)
 
-        val (videoUrl, audioUrl) = if (canUseSeparate) {
-            val vUrl = bestVideo?.url?.let { resolveReachableUrlOrNull(it) }
-            val aUrl = bestAudio?.url?.let { resolveReachableUrlOrNull(it) }
-            if (vUrl != null && aUrl != null) {
-                vUrl to aUrl
-            } else {
-                (bestProgressive?.url?.let { resolveReachableUrlOrNull(it) } ?: vUrl) to null
-            }
+        val (videoUrl, audioUrl) = if (canUseSeparate && bestVideo != null && bestAudio != null) {
+            val vUrl = resolveReachableUrlOrNull(bestVideo.url) ?: bestVideo.url
+            val aUrl = resolveReachableUrlOrNull(bestAudio.url) ?: bestAudio.url
+            vUrl to aUrl
         } else {
-            val vUrl = bestProgressive?.url?.let { resolveReachableUrlOrNull(it) }
-                ?: bestVideo?.url?.let { resolveReachableUrlOrNull(it) }
+            val vUrl = bestProgressive?.url?.let { resolveReachableUrlOrNull(it) ?: it }
+                ?: bestVideo?.url?.let { resolveReachableUrlOrNull(it) ?: it }
             vUrl to null
         }
 

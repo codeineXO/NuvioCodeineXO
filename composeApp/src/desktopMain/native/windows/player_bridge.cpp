@@ -2285,8 +2285,7 @@ private:
                 setMpvOptionStringLocked("http-header-fields", headers.c_str());
             }
             if (!audioUrl.empty()) {
-                setMpvOptionStringLocked("audio-file", audioUrl.c_str());
-                setMpvOptionStringLocked("audio-file-auto", "exact");
+                setMpvOptionStringLocked("audio-files", audioUrl.c_str());
                 setMpvOptionStringLocked("aid", "auto");
             }
 
@@ -2561,9 +2560,6 @@ private:
                 // first one after a resuming load is the one that means the
                 // read-ahead from byte 0 is over.
                 promoteResumeCache();
-                if (!initialAudioUrl.empty()) {
-                    command({"audio-add", initialAudioUrl, "auto"});
-                }
             }
             if (event->event_id == MPV_EVENT_SHUTDOWN) {
                 return;

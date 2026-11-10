@@ -12,36 +12,7 @@ actual object TrailerPlaybackResolver {
 
     actual suspend fun resolveFromYouTubeUrl(youtubeUrl: String): TrailerPlaybackSource? {
         if (youtubeUrl.isBlank()) return null
-        cacheMutex.lock()
-        try {
-            playbackCache = playbackCache.filterValues { entry ->
-                entry.cachedAt.elapsedNow() < PlaybackCacheTtl
-            }
-            playbackCache[youtubeUrl]?.let { cached ->
-                TrailerExtractionPlatform.diagnostic(
-                    "cache hit ageMs=${cached.cachedAt.elapsedNow().inWholeMilliseconds}",
-                )
-                return cached.source
-            }
-        } finally {
-            cacheMutex.unlock()
-        }
-
-        val source = extractor.extractPlaybackSource(youtubeUrl)
-        if (source != null) {
-            cacheMutex.lock()
-            try {
-                playbackCache = playbackCache + (
-                    youtubeUrl to CachedPlaybackSource(
-                        source = source,
-                        cachedAt = TimeSource.Monotonic.markNow(),
-                    )
-                )
-            } finally {
-                cacheMutex.unlock()
-            }
-        }
-        return source
+        return extractor.extractPlaybackSource(youtubeUrl)
     }
 
     actual suspend fun resolveSingleUrlFromYouTubeUrl(youtubeUrl: String): String? {

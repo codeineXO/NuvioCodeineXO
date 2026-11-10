@@ -522,7 +522,7 @@ internal class NativePlayerController(
                         applyPendingSubtitleSettings(created)
                         applyPlaybackBufferPreset(created)
                         pendingSubtitleUri?.let { setSubtitleUri(it) }
-                        pendingAudioUri?.let { setAudioUri(it) }
+                        pendingAudioUri?.let { if (attachedSource?.sourceAudioUrl != it) setAudioUri(it) }
                         applyCoordinatedEnhancements(created)
                         applyAudioNightMode(created, rememberedAudioNightModeEnabled)
                     }
@@ -1725,6 +1725,7 @@ internal class NativePlayerController(
         log.d { "setAudioUri ${url.toPlaybackLogKey()} handle=$handle" }
         pendingAudioUri = url
         val current = handle.takeIf { it != 0L } ?: return
+        if (attachedSource?.sourceAudioUrl == url) return
         executePlayerCommand { activeHandle ->
             NativePlayerBridge.addAudioUrl(activeHandle, url)
         }
