@@ -189,7 +189,7 @@ fun <T> NuvioShelfSection(
             .then(modifier)
             // Measure the wheel region inside caller padding so the sidebar
             // inset does not shift the left gutter into the consumed center.
-            .nuvioCenterScrollConsumer(headerHorizontalPadding, enabled = true)
+            .nuvioCenterScrollConsumer(headerHorizontalPadding, enabled = true, state = state)
     } else {
         modifier.fillMaxWidth()
     }
@@ -361,6 +361,20 @@ internal fun Modifier.nuvioPosterRowMouseWheelScroll(
         modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
             .onPointerEvent(PointerEventType.Press) { wheel.cancel() }
             .onPointerEvent(PointerEventType.Scroll) { event ->
+                val canScrollHorizontally = state.canScrollBackward || state.canScrollForward
+                if (!canScrollHorizontally) return@onPointerEvent
+
+                val visibleItems = state.layoutInfo.visibleItemsInfo
+                if (visibleItems.isEmpty()) return@onPointerEvent
+
+                val minX = visibleItems.minOf { it.offset }
+                val maxX = visibleItems.maxOf { it.offset + it.size }
+                val isOverContent = event.changes.any { change ->
+                    val x = change.position.x
+                    x in minX.toFloat()..maxX.toFloat()
+                }
+                if (!isOverContent) return@onPointerEvent
+
                 val totalDelta = event.changes.fold(0f) { acc, change ->
                     acc + change.scrollDelta.y + change.scrollDelta.x
                 }
@@ -378,6 +392,7 @@ internal fun Modifier.nuvioPosterRowMouseWheelScroll(
 internal fun Modifier.nuvioCenterScrollConsumer(
     headerHorizontalPadding: Dp,
     enabled: Boolean = true,
+    state: LazyListState? = null,
 ): Modifier {
     if (!isDesktop || !enabled) return this
 
@@ -385,16 +400,25 @@ internal fun Modifier.nuvioCenterScrollConsumer(
         val horizontalEvents = LocalHorizontalWheelEvents.current
         val route = remember { SoftWheelRoute() }
         modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
-            .pointerInput(enabled, headerHorizontalPadding, horizontalEvents) {
+            .pointerInput(enabled, headerHorizontalPadding, horizontalEvents, state) {
             val headerPaddingPx = headerHorizontalPadding.toPx()
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Main)
                     if (event.type == PointerEventType.Scroll) {
+                        if (state != null && !state.canScrollBackward && !state.canScrollForward) {
+                            continue
+                        }
                         val width = size.width.toFloat()
+                        val visibleItems = state?.layoutInfo?.visibleItemsInfo
+                        val maxContentX = if (!visibleItems.isNullOrEmpty()) {
+                            visibleItems.maxOf { it.offset + it.size }.toFloat()
+                        } else null
+
                         event.changes.forEach { change ->
                             val x = change.position.x
-                            if (x >= headerPaddingPx && x <= width - headerPaddingPx) {
+                            val inContent = if (maxContentX != null) x <= maxContentX else true
+                            if (x >= headerPaddingPx && x <= width - headerPaddingPx && inContent) {
                                 route.claim(event)
                                 horizontalEvents?.handled = true
                                 change.consume()
@@ -410,15 +434,17 @@ internal fun Modifier.nuvioCenterScrollConsumer(
 internal fun Modifier.nuvioDesktopDragScroll(
     state: LazyListState,
     momentumEnabled: Boolean = true,
+    enabled: Boolean = true,
 ): Modifier = nuvioDesktopDragScroll(
-    state, androidx.compose.foundation.gestures.Orientation.Horizontal, momentumEnabled = momentumEnabled,
+    state, androidx.compose.foundation.gestures.Orientation.Horizontal, momentumEnabled = momentumEnabled, enabled = enabled,
 )
 
 internal fun Modifier.nuvioDesktopDragScroll(
     state: ScrollState,
     momentumEnabled: Boolean = true,
+    enabled: Boolean = true,
 ): Modifier = nuvioDesktopDragScroll(
-    state, androidx.compose.foundation.gestures.Orientation.Horizontal, momentumEnabled = momentumEnabled,
+    state, androidx.compose.foundation.gestures.Orientation.Horizontal, momentumEnabled = momentumEnabled, enabled = enabled,
 )
 
 @Composable

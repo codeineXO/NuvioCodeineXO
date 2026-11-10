@@ -1231,6 +1231,7 @@ private fun SeasonTextChipScrollRow(
             }
         }
     }
+    val hasOverflowingSeasons by remember { derivedStateOf { canScrollBack || canScrollFwd } }
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
@@ -1241,7 +1242,7 @@ private fun SeasonTextChipScrollRow(
         Modifier
             .nuvioHorizontalScrollBleed(bleedPadding)
             .fillMaxWidth()
-            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = true)
+            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = hasOverflowingSeasons, state = seasonListState)
             .hoverable(interactionSource)
     } else {
         Modifier
@@ -1254,15 +1255,15 @@ private fun SeasonTextChipScrollRow(
             .padding(horizontal = effectiveGutterPadding)
             .fillMaxWidth()
             .nuvioPosterRowGutterClip()
-            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
-            .nuvioDesktopDragScroll(seasonListState)
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx, enabled = hasOverflowingSeasons)
+            .nuvioDesktopDragScroll(seasonListState, enabled = hasOverflowingSeasons)
             .let { if (isDesktop && !isEnhanced) it.padding(bottom = 4.dp) else it }
     } else {
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
-            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
-            .nuvioDesktopDragScroll(seasonListState)
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx, enabled = hasOverflowingSeasons)
+            .nuvioDesktopDragScroll(seasonListState, enabled = hasOverflowingSeasons)
             .let { if (isDesktop && !isEnhanced) it.padding(bottom = 4.dp) else it }
     }
 
@@ -1462,6 +1463,7 @@ private fun SeasonPosterScrollRow(
             }
         }
     }
+    val hasOverflowingSeasons by remember { derivedStateOf { canScrollBack || canScrollFwd } }
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
@@ -1472,7 +1474,7 @@ private fun SeasonPosterScrollRow(
         Modifier
             .nuvioHorizontalScrollBleed(bleedPadding)
             .fillMaxWidth()
-            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = true)
+            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = hasOverflowingSeasons, state = seasonListState)
             .hoverable(interactionSource)
     } else {
         Modifier
@@ -1485,15 +1487,15 @@ private fun SeasonPosterScrollRow(
             .padding(horizontal = effectiveGutterPadding)
             .fillMaxWidth()
             .nuvioPosterRowGutterClip()
-            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
-            .nuvioDesktopDragScroll(seasonListState)
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx, enabled = hasOverflowingSeasons)
+            .nuvioDesktopDragScroll(seasonListState, enabled = hasOverflowingSeasons)
             .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
     } else {
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
-            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx)
-            .nuvioDesktopDragScroll(seasonListState)
+            .nuvioPosterRowMouseWheelScroll(state = seasonListState, scrollStepPx = scrollStepPx, enabled = hasOverflowingSeasons)
+            .nuvioDesktopDragScroll(seasonListState, enabled = hasOverflowingSeasons)
             .let { if (isDesktop) it.padding(bottom = 4.dp) else it }
     }
 
@@ -1885,6 +1887,7 @@ private fun EpisodeHorizontalRow(
 
     val canScrollBack by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 } }
     val canScrollFwd by remember { derivedStateOf { listState.canScrollForward } }
+    val hasOverflowingEpisodes by remember { derivedStateOf { canScrollBack || canScrollFwd } }
     val interactionSource = remember { MutableInteractionSource() }
     val isRowHovered by interactionSource.collectIsRemoteHoveredAsState()
     val showNavButtons = !isDesktop || isRowHovered
@@ -1910,7 +1913,7 @@ private fun EpisodeHorizontalRow(
         Modifier
             .nuvioHorizontalScrollBleed(bleedPadding)
             .fillMaxWidth()
-            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = true)
+            .nuvioCenterScrollConsumer(effectiveGutterPadding, enabled = hasOverflowingEpisodes, state = listState)
             .hoverable(interactionSource)
     } else {
         Modifier
@@ -1922,16 +1925,16 @@ private fun EpisodeHorizontalRow(
         Modifier
             .padding(horizontal = effectiveGutterPadding)
             .fillMaxWidth()
-            .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx)
-            .nuvioDesktopDragScroll(listState)
+            .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx, enabled = hasOverflowingEpisodes)
+            .nuvioDesktopDragScroll(listState, enabled = hasOverflowingEpisodes)
             .then(hoverOverdraw)
             .nuvioPosterRowGutterClip(horizontalOverflow = maxOf(10.dp, glowOutset))
     } else {
         Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
-            .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx)
-            .nuvioDesktopDragScroll(listState)
+            .nuvioPosterRowMouseWheelScroll(state = listState, scrollStepPx = scrollStepPx, enabled = hasOverflowingEpisodes)
+            .nuvioDesktopDragScroll(listState, enabled = hasOverflowingEpisodes)
             .then(hoverOverdraw)
     }
 
