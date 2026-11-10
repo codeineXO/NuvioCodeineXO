@@ -6,12 +6,15 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import java.awt.Desktop
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -52,87 +55,43 @@ internal actual object DownloadsPlatformDownloader {
         val destination = File(downloadsDir, request.destinationFileName)
         val tempFile = File(downloadsDir, "${request.destinationFileName}.part")
         val transfer = scope.launch(start = CoroutineStart.LAZY) {
-
-            try {
-                var resumeFromBytes = tempFile.takeIf { it.exists() }?.length()?.coerceAtLeast(0L) ?: 0L
-                var attemptedRangeRequest = resumeFromBytes > 0L
-                var response = runInterruptible {
-                    sendDownloadRequest(request, if (attemptedRangeRequest) resumeFromBytes else null)
-                }
-
-                if (attemptedRangeRequest && response.statusCode() == 416) {
-                    tempFile.delete()
-                    resumeFromBytes = 0L
-                    attemptedRangeRequest = false
-                    response = runInterruptible { sendDownloadRequest(request, null) }
-                }
-
-                if (response.statusCode() !in 200..299) {
-                    error("Download failed with HTTP ${response.statusCode()}")
-                }
-
-                val isPartialResume = attemptedRangeRequest && response.statusCode() == 206 && resumeFromBytes > 0L
-                val appendToTemp = isPartialResume
-                val startingBytes = if (appendToTemp) resumeFromBytes else 0L
-                if (!appendToTemp && tempFile.exists()) {
-                    tempFile.delete()
-                }
-
-                val totalBytes = resolveTotalBytes(
-                    startingBytes = startingBytes,
-                    isPartialResume = isPartialResume,
-                    contentRangeHeader = response.headers().firstValue("Content-Range").orElse(null),
-                    contentLength = response.headers().firstValue("Content-Length").orElse(null)?.toLongOrNull(),
-                )
-                var downloadedBytes = startingBytes
-                onProgress(downloadedBytes, totalBytes)
-                var lastReportedBytes = downloadedBytes
-                var lastProgressAtNs = System.nanoTime()
-
+            // Dropped connections are retried in place (resuming from the .part file) with backoff.
+            // The retry budget resets whenever an attempt makes progress, so long downloads survive
+            // periodic disconnects and only fail after repeated attempts that receive nothing.
+            var failedAttemptsWithoutProgress = 0
+            while (true) {
+                val bytesBeforeAttempt = tempFile.partialLength()
                 try {
-                    response.body().use { input ->
-                        ensureActive()
-                        FileOutputStream(tempFile, appendToTemp).use { output ->
-                            val buffer = ByteArray(256 * 1024)
-                            while (true) {
-                                ensureActive()
-                                val read = runInterruptible { input.read(buffer) }
-                                ensureActive()
-                                if (read <= 0) break
-                                output.write(buffer, 0, read)
-                                downloadedBytes += read.toLong()
-                                if (System.nanoTime() - lastProgressAtNs >= 250_000_000L) {
-                                    onProgress(downloadedBytes, totalBytes)
-                                    lastReportedBytes = downloadedBytes
-                                    lastProgressAtNs = System.nanoTime()
-                                }
-                            }
-                            output.flush()
-                        }
-                    }
-                } finally {
-                    // Publish pending bytes after closing the streams, including on pause or failure.
-                    if (downloadedBytes != lastReportedBytes) {
-                        onProgress(downloadedBytes, totalBytes)
-                    }
-                }
+                    val totalBytes = transferToTempFile(request, tempFile, onProgress)
 
-                ensureActive()
-                if (destination.exists()) {
-                    destination.delete()
-                }
-                if (!tempFile.renameTo(destination)) {
-                    tempFile.copyTo(destination, overwrite = true)
-                    tempFile.delete()
-                }
+                    if (destination.exists()) {
+                        destination.delete()
+                    }
+                    if (!tempFile.renameTo(destination)) {
+                        tempFile.copyTo(destination, overwrite = true)
+                        tempFile.delete()
+                    }
 
-                val finalSize = destination.length()
-                onSuccess(destination.toURI().toString(), totalBytes ?: finalSize)
-            } catch (error: CancellationException) {
-                onPaused()
-                throw error
-            } catch (error: Throwable) {
-                onFailure(error.message ?: "Download failed")
+                    val finalSize = destination.length()
+                    onSuccess(destination.toURI().toString(), totalBytes ?: finalSize)
+                    return@launch
+                } catch (error: CancellationException) {
+                    onPaused()
+                    throw error
+                } catch (error: IOException) {
+                    if (tempFile.partialLength() > bytesBeforeAttempt) {
+                        failedAttemptsWithoutProgress = 0
+                    }
+                    failedAttemptsWithoutProgress++
+                    if (failedAttemptsWithoutProgress > MaxTransientRetries) {
+                        onFailure(error.message?.takeIf { it.isNotBlank() && it != "closed" } ?: "Connection lost")
+                        return@launch
+                    }
+                    delay(retryDelayMs(failedAttemptsWithoutProgress))
+                } catch (error: Throwable) {
+                    onFailure(error.message ?: "Download failed")
+                    return@launch
+                }
             }
         }
 
@@ -174,6 +133,81 @@ internal actual object DownloadsPlatformDownloader {
         }
 
         return openDirectoryWithPlatformCommand(directory)
+    }
+
+    /** Downloads into [tempFile], resuming from its current length when possible. Returns the total size if known. */
+    private suspend fun transferToTempFile(
+        request: DownloadPlatformRequest,
+        tempFile: File,
+        onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
+    ): Long? {
+        var resumeFromBytes = tempFile.partialLength()
+        var attemptedRangeRequest = resumeFromBytes > 0L
+        var response = sendDownloadRequest(request, if (attemptedRangeRequest) resumeFromBytes else null)
+
+        if (attemptedRangeRequest && response.statusCode() == 416) {
+            response.body().close()
+            tempFile.delete()
+            resumeFromBytes = 0L
+            attemptedRangeRequest = false
+            response = sendDownloadRequest(request, null)
+        }
+
+        val statusCode = response.statusCode()
+        if (statusCode !in 200..299) {
+            response.body().close()
+            if (statusCode == 408 || statusCode == 429 || statusCode in 500..599) {
+                throw IOException("Download failed with HTTP $statusCode")
+            }
+            error("Download failed with HTTP $statusCode")
+        }
+
+        val isPartialResume = attemptedRangeRequest && statusCode == 206 && resumeFromBytes > 0L
+        val appendToTemp = isPartialResume
+        val startingBytes = if (appendToTemp) resumeFromBytes else 0L
+        if (!appendToTemp && tempFile.exists()) {
+            tempFile.delete()
+        }
+
+        val totalBytes = resolveTotalBytes(
+            startingBytes = startingBytes,
+            isPartialResume = isPartialResume,
+            contentRangeHeader = response.headers().firstValue("Content-Range").orElse(null),
+            contentLength = response.headers().firstValue("Content-Length").orElse(null)?.toLongOrNull(),
+        )
+        var downloadedBytes = startingBytes
+        onProgress(downloadedBytes, totalBytes)
+
+        var lastReportedBytes = downloadedBytes
+        var lastProgressAtNs = System.nanoTime()
+
+        response.body().use { input ->
+            FileOutputStream(tempFile, appendToTemp).use { output ->
+                val buffer = ByteArray(256 * 1024)
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val read = runInterruptible { input.read(buffer) }
+                    if (read <= 0) break
+                    output.write(buffer, 0, read)
+                    downloadedBytes += read.toLong()
+                    if (System.nanoTime() - lastProgressAtNs >= 250_000_000L) {
+                        onProgress(downloadedBytes, totalBytes)
+                        lastReportedBytes = downloadedBytes
+                        lastProgressAtNs = System.nanoTime()
+                    }
+                }
+                output.flush()
+            }
+        }
+        if (downloadedBytes != lastReportedBytes) {
+            onProgress(downloadedBytes, totalBytes)
+        }
+
+        // A server that ends the stream early would otherwise leave a truncated file marked as completed.
+        if (totalBytes != null && downloadedBytes < totalBytes) {
+            throw IOException("Connection closed after $downloadedBytes of $totalBytes bytes")
+        }
+        return totalBytes
     }
 
     private fun sendDownloadRequest(
@@ -257,6 +291,16 @@ private class DesktopDownloadsTaskHandle(
         job.cancel()
     }
 }
+
+private const val MaxTransientRetries = 10
+private const val MaxRetryDelayMs = 30_000L
+
+/** 2s, 4s, 8s, 16s, then capped at 30s. */
+private fun retryDelayMs(failedAttempts: Int): Long =
+    (1_000L shl failedAttempts.coerceIn(1, 5)).coerceAtMost(MaxRetryDelayMs)
+
+private fun File.partialLength(): Long =
+    takeIf { it.exists() }?.length()?.coerceAtLeast(0L) ?: 0L
 
 private fun String.toLocalFileOrNull(): File? =
     runCatching {

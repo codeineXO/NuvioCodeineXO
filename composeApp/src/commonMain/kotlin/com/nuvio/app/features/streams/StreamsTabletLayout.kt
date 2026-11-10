@@ -71,6 +71,7 @@ import com.kmpalette.extensions.painter.rememberPainterDominantColorState
 import androidx.compose.ui.platform.LocalLayoutDirection
 import com.nuvio.app.core.ui.platformPhysicalTopInset
 import com.nuvio.app.core.ui.shimmer
+import com.nuvio.app.core.ui.LocalOnBackdrop
 import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.isIos
 import com.nuvio.app.isDesktop
@@ -497,6 +498,7 @@ private fun LegacyTabletStreamsLayout(
                     DarkGlassPanelContent {
                         CompositionLocalProvider(
                             LocalStreamResultsGlass provides true,
+                            LocalOnBackdrop provides true,
                         ) {
                             Column(
                                 modifier = Modifier

@@ -139,7 +139,13 @@ import com.nuvio.app.core.build.TrailerPlaybackMode
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarOutline
+import com.nuvio.app.core.ui.ArtworkBackdrop
+import com.nuvio.app.core.ui.rememberArtworkBackdrop
+import com.nuvio.app.core.ui.LocalOnBackdrop
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
@@ -167,6 +173,7 @@ import com.nuvio.app.features.details.components.CommentDetailSheet
 import com.nuvio.app.features.details.components.DetailAdditionalInfoSection
 import com.nuvio.app.features.details.components.DetailCastSection
 import com.nuvio.app.features.details.components.DetailCommentsSection
+import com.nuvio.app.features.details.components.CinematicHeaderBackdrop
 import com.nuvio.app.features.details.components.DetailFloatingHeader
 import com.nuvio.app.features.details.components.DetailHero
 import com.nuvio.app.features.details.components.DetailMetaInfo
@@ -179,6 +186,11 @@ import com.nuvio.app.features.details.components.DetailSeriesListEpisode
 import com.nuvio.app.features.details.components.DetailSeriesListHeader
 import com.nuvio.app.features.details.components.DetailTrailersSection
 import com.nuvio.app.features.details.components.SeasonWatchedActionMenu
+import com.nuvio.app.features.details.components.RatingSheet
+import com.nuvio.app.features.details.components.formatRating
+import com.nuvio.app.features.details.components.ratingReference
+import com.nuvio.app.features.details.components.rememberRatingState
+import com.nuvio.app.features.details.components.TabletArtworkBackdropAlignment
 import com.nuvio.app.features.details.components.TabletDetailBackdrop
 import com.nuvio.app.features.details.components.TabletDetailHero
 import com.nuvio.app.features.details.components.TrailerPlayerPopup
@@ -212,6 +224,7 @@ import com.nuvio.app.features.tracking.TrackingMembershipApplyResult
 import com.nuvio.app.features.tracking.toggleTrackingLibraryMembership
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
 import com.nuvio.app.features.tracking.TrackingProviderId
+import com.nuvio.app.features.tracking.TrackingRatings
 import com.nuvio.app.features.trailer.TrailerPlaybackResolver
 import com.nuvio.app.features.trailer.TrailerPlaybackSource
 import com.nuvio.app.features.watched.WatchedRepository
@@ -408,6 +421,7 @@ fun MetaDetailsScreen(
     var selectedEpisodeForActions by remember(type, id) { mutableStateOf<MetaVideo?>(null) }
     var selectedEpisodeMenuInvocation by remember(type, id) { mutableStateOf<ActionMenuInvocation?>(null) }
     var primaryPlayMenu by remember(type, id) { mutableStateOf<Pair<ActionMenuInvocation, List<ActionMenuAction>>?>(null) }
+    var episodeToRate by remember(type, id) { mutableStateOf<MetaVideo?>(null) }
     val episodeOverlayHazeState = rememberHazeState()
     var selectedSeasonForActions by remember(type, id) { mutableStateOf<Int?>(null) }
     var selectedSeasonMenuInvocation by remember(type, id) { mutableStateOf<ActionMenuInvocation?>(null) }
@@ -1417,6 +1431,7 @@ fun MetaDetailsScreen(
                         WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 80.dp
                     } else 0.dp
                     val viewportHeight = maxHeight
+                    val screenHeight = maxHeight
                     val desktopPageHorizontalPadding = desktopPageHorizontalPaddingForWidth(screenMaxWidth.value)
                     val sidebarContentInset = LocalDesktopSidebarContentInset.current
                     val contentHorizontalPadding = if (isDesktop) {
@@ -1429,6 +1444,13 @@ fun MetaDetailsScreen(
                     val contentMaxWidth = detailTabletContentMaxWidth(screenMaxWidth, isTablet)
                     val backdropUrl = meta.background ?: meta.poster
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
+                    val cinematicBackground = backgroundMode == MetaScreenBackgroundMode.Cinematic &&
+                        !backdropUrl.isNullOrBlank()
+                    val cinematicBackdrop = if (cinematicBackground) {
+                        rememberArtworkBackdrop(backdropUrl)
+                    } else {
+                        null
+                    }
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&
                         deferredMetaWorkAllowed &&
                         !backdropUrl.isNullOrBlank()
@@ -1498,7 +1520,8 @@ fun MetaDetailsScreen(
                         if (useTabletLayout) {
                             TabletDetailBackdrop(
                                 meta = meta,
-                                cinematic = backgroundMode == MetaScreenBackgroundMode.Cinematic,
+                                cinematic = cinematicBackground,
+                                backdropImage = dominantBackdropImageBitmap,
                                 scrollOffsetPx = detailScrollOffsetPx,
                                 heroHeightPx = { heroHeightPx.intValue },
                                 heroTrailerSourceUrl = heroTrailerSourceUrl,
@@ -1528,25 +1551,30 @@ fun MetaDetailsScreen(
                                         .background(colorScheme.background),
                                 )
                             }
-                            MetaScreenBackgroundMode.Cinematic -> if (deferredMetaWorkAllowed && backdropUrl != null) {
-                                Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f)) {
-                                    AsyncImage(
-                                        model = if (isDesktop) originalTmdbImageUrl(backdropUrl) else backdropUrl,
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(30.dp),
-                                        contentScale = ContentScale.Crop,
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                colorScheme.background.copy(
-                                                    alpha = if (isDesktop) 0.48f else 0.92f,
+                            MetaScreenBackgroundMode.Cinematic -> {
+                                if (cinematicBackground && !useDesktopDetailLayout) {
+                                    ArtworkBackdrop(image = cinematicBackdrop)
+                                }
+                                if (deferredMetaWorkAllowed && backdropUrl != null) {
+                                    Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f)) {
+                                        AsyncImage(
+                                            model = if (isDesktop) originalTmdbImageUrl(backdropUrl) else backdropUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .blur(30.dp),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    colorScheme.background.copy(
+                                                        alpha = if (isDesktop) 0.48f else 0.92f,
+                                                    ),
                                                 ),
-                                            ),
-                                    )
+                                        )
+                                    }
                                 }
                             }
                             MetaScreenBackgroundMode.DominantColor -> if (deferredMetaWorkAllowed) {
@@ -2127,26 +2155,28 @@ fun MetaDetailsScreen(
                                 }
                             }
                         }
-                        Box(
-                            Modifier.fillMaxSize().zIndex(1f)
-                                .then(if (useEnhancedLayout) Modifier.enhancedDetailsPageTransition(pageTransition) else Modifier),
-                        ) {
-                            CompositionLocalProvider(
-                                LocalSeasonPosterPreview provides seasonPreviewController,
-                                LocalHorizontalWheelEvents provides horizontalWheelEvents,
-                                LocalRemoteNavigationPageBoundary provides pageBoundary.takeIf { useEnhancedLayout },
+                        CompositionLocalProvider(LocalOnBackdrop provides backgroundMode.usesBackdropBackground) {
+                            Box(
+                                Modifier.fillMaxSize().zIndex(1f)
+                                    .then(if (useEnhancedLayout) Modifier.enhancedDetailsPageTransition(pageTransition) else Modifier),
                             ) {
-                                pageStateHolder.SaveableStateProvider("$type:$id:${if (useEnhancedLayout) enhancedSecondPage else "standard"}") {
-                                    NuvioLazyColumn(
-                                        state = listState,
-                                        flingBehavior = ScrollableDefaults.flingBehavior(),
-                                        modifier = Modifier.then(if (heroTrailerSourceUrl == null) Modifier.navigationGlassSource(zIndex = 1f) else Modifier).remoteNavigationGroup()
-                                            .padding(top = secondaryPageTopPadding)
-                                            .fillMaxSize()
-                                            .onGloballyPositioned { pageBoundary.viewportBounds = it.boundsInRoot() }
-                                            .then(if (useEnhancedLayout) Modifier else Modifier.heroStretchOverscroll(heroStretchState)),
-                                        content = detailContent,
-                                    )
+                                CompositionLocalProvider(
+                                    LocalSeasonPosterPreview provides seasonPreviewController,
+                                    LocalHorizontalWheelEvents provides horizontalWheelEvents,
+                                    LocalRemoteNavigationPageBoundary provides pageBoundary.takeIf { useEnhancedLayout },
+                                ) {
+                                    pageStateHolder.SaveableStateProvider("$type:$id:${if (useEnhancedLayout) enhancedSecondPage else "standard"}") {
+                                        NuvioLazyColumn(
+                                            state = listState,
+                                            flingBehavior = ScrollableDefaults.flingBehavior(),
+                                            modifier = Modifier.then(if (heroTrailerSourceUrl == null) Modifier.navigationGlassSource(zIndex = 1f) else Modifier).remoteNavigationGroup()
+                                                .padding(top = secondaryPageTopPadding)
+                                                .fillMaxSize()
+                                                .onGloballyPositioned { pageBoundary.viewportBounds = it.boundsInRoot() }
+                                                .then(if (useEnhancedLayout) Modifier else Modifier.heroStretchOverscroll(heroStretchState)),
+                                            content = detailContent,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2256,6 +2286,21 @@ fun MetaDetailsScreen(
                                 progressProvider = headerProgressProvider,
                                 interactive = headerInteractive,
                                 backgroundColor = dominantBackdropColor.takeIf { dominantColorEnabled },
+                                background = if (cinematicBackground) {
+                                    {
+                                        CinematicHeaderBackdrop(
+                                            image = cinematicBackdrop,
+                                            screenHeight = screenHeight,
+                                            alignment = if (useTabletLayout) {
+                                                TabletArtworkBackdropAlignment
+                                            } else {
+                                                Alignment.Center
+                                            },
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
                                 onBack = onBackFromDetails,
                                 onToggleSaved = toggleSaved,
                                 modifier = Modifier.zIndex(2f),
@@ -2479,9 +2524,22 @@ fun MetaDetailsScreen(
             val seasonLabel = selectedEpisode.season?.let {
                 stringResource(Res.string.episodes_season, it)
             } ?: stringResource(Res.string.episodes_specials)
+            val episodeRating = remember(meta, selectedEpisode) {
+                TrackingRatings.current(meta.ratingReference(selectedEpisode))
+            }
             NuvioActionMenu(
                         invocation = zoomAnchor,
                         actions = buildList {
+                    if (episodeRating.isAvailable) {
+                        val rated = episodeRating.rating
+                        add(
+                            ActionMenuAction(
+                                icon = if (rated != null) Icons.Rounded.Star else Icons.Rounded.StarOutline,
+                                label = rated?.let { formatRating(it) } ?: stringResource(Res.string.rating_rate_episode),
+                                onSelected = { episodeToRate = selectedEpisode },
+                            ),
+                        )
+                    }
                     add(
                         ActionMenuAction(
                             icon = Icons.Default.CheckCircle,
@@ -2670,6 +2728,19 @@ fun MetaDetailsScreen(
                         areCurrentlyWatched = false,
                     )
                 },
+            )
+        }
+
+        val ratedEpisode = episodeToRate
+        if (meta != null && ratedEpisode != null) {
+            val ratingMedia = remember(meta, ratedEpisode) { meta.ratingReference(ratedEpisode) }
+            val ratingState by rememberRatingState(ratingMedia)
+            RatingSheet(
+                media = ratingMedia,
+                title = localizedEpisodeTitle(ratedEpisode.title, ratedEpisode.episode) ?: ratedEpisode.title,
+                subtitle = localizedSeasonEpisodeCode(ratedEpisode.season, ratedEpisode.episode),
+                state = ratingState,
+                onDismiss = { episodeToRate = null },
             )
         }
     }

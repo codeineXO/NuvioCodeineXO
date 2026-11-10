@@ -39,7 +39,9 @@ import com.nuvio.app.features.player.desktop.DesktopPlayerPictureInPicture
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
 import com.nuvio.app.features.player.desktop.desktopFullscreenChanges
-import com.nuvio.app.features.autosync.DesktopAutoSyncCoordinator
+import com.nuvio.app.features.autosync.AutoSyncMpvCoordinator
+import com.nuvio.app.features.autosync.DesktopAutoSyncMpvPlatform
+import com.nuvio.app.features.autosync.withAutoSyncMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -138,27 +140,44 @@ private fun NativePlayerSurface(
     val hostFirstFullSizePaintComplete = remember { mutableStateOf(false) }
     val playbackHeaders = remember(sourceHeaders) { sanitizePlaybackHeaders(sourceHeaders) }
     val latestExternalSubtitles = rememberUpdatedState(externalSubtitles)
+    val latestPlayerControlsState = rememberUpdatedState(playerControlsState)
     val autoSyncScope = rememberCoroutineScope()
+    // Kept across sources so its message count, part of the overlay's notification token, only grows.
+    val autoSyncPlatform = remember {
+        DesktopAutoSyncMpvPlatform(
+            currentNotificationToken = { latestPlayerControlsState.value.notificationToken },
+        )
+    }
     val autoSyncCoordinator = remember(sourceUrl, playbackHeaders, autoSyncScope) {
-        DesktopAutoSyncCoordinator(
+        AutoSyncMpvCoordinator(
             scope = autoSyncScope,
             sourceUrl = sourceUrl,
             sourceHeaders = playbackHeaders,
-            getExternalSubtitles = { latestExternalSubtitles.value },
+            getSubtitleHeaders = { subtitleUrl ->
+                latestExternalSubtitles.value
+                    .firstOrNull { it.url == subtitleUrl }
+                    ?.headers
+                    .orEmpty()
+            },
             getPreferredLanguage = { PlayerSettingsRepository.uiState.value.preferredSubtitleLanguage },
+            platform = autoSyncPlatform,
         )
     }
     DisposableEffect(autoSyncCoordinator) {
         onDispose { autoSyncCoordinator.dispose() }
     }
-    val readyController = remember(controller, autoSyncCoordinator) { autoSyncCoordinator.wrap(controller) }
+    val readyController = remember(controller, autoSyncCoordinator) {
+        // setSubtitleUri replaces the external subtitles, so the retimed copy takes the original's place.
+        autoSyncCoordinator.wrap(controller) { _, path -> controller.setSubtitleUri(path) }
+    }
+    val controlsState = playerControlsState.withAutoSyncMessage(autoSyncPlatform.message)
+    val latestControlsState = rememberUpdatedState(controlsState)
     val latestOnPlayerControlsAction = rememberUpdatedState(onPlayerControlsAction)
     val latestOnPlayerControlsEvent = rememberUpdatedState(onPlayerControlsEvent)
     val latestOnPlayerControlsScrubChange = rememberUpdatedState(onPlayerControlsScrubChange)
     val latestOnPlayerControlsScrubFinished = rememberUpdatedState(onPlayerControlsScrubFinished)
     val latestOnInitialPositionHandled = rememberUpdatedState(onInitialPositionHandled)
     val latestOnError = rememberUpdatedState(onError)
-    val latestPlayerControlsState = rememberUpdatedState(playerControlsState)
     val playerSettings by PlayerSettingsRepository.uiState.collectAsState()
     val decoderPriority = playerSettings.decoderPriority
     val nvidiaRtxSuperResolutionEnabled = playerSettings.nvidiaRtxSuperResolutionEnabled
@@ -326,7 +345,7 @@ private fun NativePlayerSurface(
 
     LaunchedEffect(controller) {
         DesktopPlayerPictureInPicture.changes.drop(1).collect {
-            controller.updateControls(latestPlayerControlsState.value)
+            controller.updateControls(latestControlsState.value)
         }
     }
 

@@ -228,6 +228,7 @@ fun NuvioScreenHeader(
             verticalAlignment = if (isDesktop && onBack != null) Alignment.Top else Alignment.Bottom,
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = if (isDesktop && onBack != null) Alignment.Top else Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
@@ -247,13 +248,16 @@ fun NuvioScreenHeader(
                 }
                 AnimatedContent(
                     targetState = title,
+                    modifier = Modifier.weight(1f),
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "screen_header_title",
                 ) { currentTitle ->
                     Text(
                         text = currentTitle,
+                        modifier = Modifier.fillMaxWidth(),
                         style = MaterialTheme.typography.displayLarge,
                         color = tokens.colors.textPrimary,
+                        textAlign = TextAlign.Start,
                     )
                 }
             }

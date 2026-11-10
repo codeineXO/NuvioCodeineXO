@@ -1,6 +1,7 @@
 package com.nuvio.app
 
 import com.nuvio.app.features.autosync.AutoSyncPreferencesDesktop
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.awt.SwingWindow
@@ -40,6 +41,8 @@ import com.nuvio.app.features.player.desktop.applyNativeDesktopWindowChrome
 import com.nuvio.app.features.player.desktop.configureMacosWindowBeforePeer
 import com.nuvio.app.features.player.desktop.installDesktopAppFullscreenShortcuts
 import com.nuvio.app.features.settings.installDesktopAppScaleShortcuts
+import com.nuvio.app.features.player.desktop.macosTitleBarDoubleClick
+import com.nuvio.app.features.player.desktop.MacosAppMenuBar
 import com.nuvio.app.features.player.desktop.preloadNativePlayerBridgeAsync
 import com.nuvio.app.features.player.desktop.registerDesktopAppFullscreenToggle
 import com.nuvio.app.features.player.desktop.trackMaximizedBoundsForCurrentScreen
@@ -149,19 +152,21 @@ fun main(args: Array<String>) {
             placement = initialPlacement,
         )
         val fullscreenController = remember { DesktopAppFullscreenController() }
+        val closeApplication = {
+            DesktopAppShutdown.requestExit(exitApplication = ::exitApplication)
+        }
 
         SwingWindow(
-            onCloseRequest = {
-                // Guaranteed exit: dispose window fast for WM_CLOSE, bounded
-                // cleanup of P2P/Discord/Sentry/native player, then exitProcess.
-                // Bare exitApplication() leaves a windowless JVM locking MSI files.
-                DesktopAppShutdown.requestExit(exitApplication = ::exitApplication)
-            },
+            onCloseRequest = closeApplication,
             title = if (smokePlayerUrl == null) "NuvioCodeineXO" else "NuvioCodeineXO Player Smoke",
             state = windowState,
             icon = painterResource(appIconState.selected.transparentPreviewResource),
             init = ::configureMacosWindowBeforePeer,
         ) {
+            MacosAppMenuBar(
+                onCloseRequest = closeApplication,
+                onMinimizeRequest = { windowState.isMinimized = true },
+            )
             SideEffect {
                 window.background = NuvioDesktopNativeBackground
                 window.rootPane.background = NuvioDesktopNativeBackground
@@ -253,12 +258,18 @@ fun main(args: Array<String>) {
             }
 
             if (smokePlayerUrl == null) {
-                ProvideDesktopWindowInsets(isFullscreen = windowState.placement == WindowPlacement.Fullscreen) {
-                    CompositionLocalProvider(
-                        LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
-                        LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
-                    ) {
-                        MiddleClickAutoscroll { App() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .macosTitleBarDoubleClick(window = window, windowState = windowState),
+                ) {
+                    ProvideDesktopWindowInsets(isFullscreen = windowState.placement == WindowPlacement.Fullscreen) {
+                        CompositionLocalProvider(
+                            LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
+                            LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
+                        ) {
+                            MiddleClickAutoscroll { App() }
+                        }
                     }
                 }
             } else {
@@ -281,6 +292,9 @@ fun main(args: Array<String>) {
 private fun configureDesktopChrome() {
     if (System.getProperty("os.name").contains("mac", ignoreCase = true)) {
         System.setProperty("apple.awt.application.appearance", MacosDarkAquaAppearance)
+        // AWT only installs a window's JMenuBar in the macOS screen menu bar when this is set
+        // before AWT starts; otherwise it would be drawn inside our full-window-content window.
+        System.setProperty("apple.laf.useScreenMenuBar", "true")
     }
 }
 

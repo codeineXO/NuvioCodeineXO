@@ -29,6 +29,7 @@ import com.nuvio.app.features.details.components.formatOneDecimal
 import com.nuvio.app.features.details.formatRuntimeForDisplay
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.heroRatings
+import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.media_movie
 import nuvio.composeapp.generated.resources.media_series
@@ -121,7 +122,7 @@ internal fun HomeHeroMetaRows(
         if (ratings.isNotEmpty()) {
             RatingsRow(
                 ratings = ratings,
-                maxItems = HERO_RATINGS_LIMIT,
+                maxItems = if (isDesktop) Int.MAX_VALUE else HERO_RATINGS_LIMIT,
             )
         }
     }
