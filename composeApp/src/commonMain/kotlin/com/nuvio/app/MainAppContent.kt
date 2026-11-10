@@ -1569,6 +1569,39 @@ internal fun MainAppContent(
                 searchFocusRequestCount = 0
                 shuffleSelected = true
             }
+            // The phone remote: the same actions as the sidebar, a poster and a Continue Watching card.
+            val remoteContinueWatching by rememberUpdatedState(onContinueWatchingClick)
+            val remoteOpenRandomPicker by rememberUpdatedState(::openRandomPicker)
+            LaunchedEffect(Unit) {
+                com.nuvio.app.features.remote.RemoteAppBridge.commands.collect { command ->
+                    when (command) {
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.SelectTab -> handleRootTabClick(command.tab)
+                        com.nuvio.app.features.remote.RemoteAppBridge.Command.Shuffle -> remoteOpenRandomPicker()
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.OpenTitle -> navController.openPreview(command.meta)
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.OpenFolder -> navController.navigate(
+                            FolderDetailRoute(collectionId = command.collectionId, folderId = command.folderId, title = command.title),
+                        )
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.Resume -> remoteContinueWatching(command.item)
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.Search ->
+                            if (selectedTab != AppScreenTab.Search || shuffleSelected || navBackStack.size > 1) {
+                                handleRootTabClick(AppScreenTab.Search)
+                            }
+                        com.nuvio.app.features.remote.RemoteAppBridge.Command.Back ->
+                            if (navBackStack.size > 1 && navController.currentRoute !is PlayerRoute) navController.popBackStack()
+                    }
+                }
+            }
+            LaunchedEffect(currentRoute) {
+                com.nuvio.app.features.remote.RemoteAppBridge.publishRoute(
+                    when (currentRoute) {
+                        null, is TabsRoute, is RandomPickerRoute -> "tabs"
+                        is DetailRoute -> "details"
+                        is StreamRoute -> "streams"
+                        is PlayerRoute -> "player"
+                        else -> "other"
+                    },
+                )
+            }
             SharedTransitionLayout {
                 CompositionLocalProvider(
                     com.nuvio.app.core.ui.LocalNavigationGlassState provides navigationGlassState.takeUnless { currentRoute is PlayerRoute },

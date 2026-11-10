@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 internal object RemotePlayerLink {
     /** The control messages the phone may send, the same ones the player's own on-screen controls send. */
     private val allowed = setOf(
-        "toggle", "seekBack", "seekForward", "volumeChange", "volumeChangeTemporary", "scrubFinish", "selectSource", "reloadSources",
+        "back", "toggle", "seekBack", "seekForward", "volumeChange", "volumeChangeTemporary", "scrubFinish", "selectSource", "reloadSources",
         "selectBuiltInSubtitleTrack", "selectAddonSubtitle", "selectAudioTrack", "toggleAudioNightMode",
         "setAnimeUpscalerOption", "setAnimeUpscalerMode", "setSvpMode",
         "setPlaybackSpeed", "setEyeFilterEnabled", "selectChapter",

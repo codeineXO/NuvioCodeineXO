@@ -1,13 +1,12 @@
 package com.nuvio.app.features.remote
 
 import com.nuvio.app.core.storage.DesktopStorage
-import com.nuvio.app.core.ui.AppPresenceState
-import com.nuvio.app.core.ui.PresenceSnapshot
 import io.ktor.http.ContentType
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.response.header
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -21,12 +20,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 import java.net.InetAddress
 
 /** Serves the phone remote page on the LAN and takes button presses over a WebSocket. */
@@ -52,21 +49,30 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
         val engine = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(WebSockets)
             routing {
-                get("/") { call.respondText(page(), ContentType.Text.Html) }
-                get("/cuppa.css") { call.respondText(resource("cuppa.css"), ContentType.Text.CSS) }
+                // no-store: the phone always gets the current page, never a cached older one.
+                get("/") {
+                    call.response.header("Cache-Control", "no-store")
+                    call.respondText(page(), ContentType.Text.Html)
+                }
+                get("/cuppa.css") {
+                    call.response.header("Cache-Control", "no-store")
+                    call.respondText(resource("cuppa.css"), ContentType.Text.CSS)
+                }
                 webSocket("/ws") {
-                    val nowPlaying = launch {
-                        AppPresenceState.current
-                            .map { it as? PresenceSnapshot.Player }
-                            .map { it?.title to it?.episodeLabel }
-                            .distinctUntilChanged()
-                            .collect { (title, episode) -> send(Frame.Text(nowMessage(title, episode))) }
-                    }
                     val player = launch {
                         RemotePlayerLink.state
                             .map { RemotePlayerPanels.message(it, RemotePlayerLink.audioTracks()) }
                             .distinctUntilChanged()
                             .collect { send(Frame.Text(it)) }
+                    }
+                    // Browsing: Home's rows and the search results.
+                    val home = launch { RemoteHome.homeMessages.collect { send(Frame.Text(it)) } }
+                    val search = launch { RemoteHome.searchMessages.collect { send(Frame.Text(it)) } }
+                    // Following the PC into a title, its sources and the player.
+                    val pages = launch {
+                        launch { RemoteDetails.routeMessages.collect { send(Frame.Text(it)) } }
+                        launch { RemoteDetails.detailsMessages.collect { send(Frame.Text(it)) } }
+                        launch { RemoteDetails.streamsMessages.collect { send(Frame.Text(it)) } }
                     }
                     // The seek bar: position once a second while the player is open.
                     val progress = launch {
@@ -82,9 +88,11 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                             if (frame is Frame.Text) handle(frame.readText())
                         }
                     } finally {
-                        nowPlaying.cancel()
                         player.cancel()
                         progress.cancel()
+                        home.cancel()
+                        search.cancel()
+                        pages.cancel()
                     }
                 }
             }
@@ -107,7 +115,9 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
      */
     private fun handle(message: String) {
         val json = runCatching { Json.parseToJsonElement(message).jsonObject }.getOrNull() ?: return
-        when (json["cmd"]?.jsonPrimitive?.contentOrNull) {
+        when (val cmd = json["cmd"]?.jsonPrimitive?.contentOrNull) {
+            "tab", "open", "folder", "resume", "search" -> RemoteHome.handle(cmd, json)
+            "back", "play", "episode", "saved", "watched", "stream", "reloadStreams", "fromStart" -> RemoteDetails.handle(cmd, json)
             "player" -> {
                 val type = json["type"]?.jsonPrimitive?.contentOrNull ?: return
                 val value = json["value"]?.jsonPrimitive?.doubleOrNull ?: return
@@ -118,13 +128,6 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
             else -> RemoteKeyInjector.handle(json)
         }
     }
-
-    /** `{"k":"now","title":…,"episode":…}`; both are null when nothing is playing. */
-    private fun nowMessage(title: String?, episode: String?): String = buildJsonObject {
-        put("k", "now")
-        put("title", title)
-        put("episode", episode)
-    }.toString()
 
     /**
      * Read on every request, so edits to the page show up on a phone refresh. The player's own icon set is copied

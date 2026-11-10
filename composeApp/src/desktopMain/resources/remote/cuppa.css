@@ -234,8 +234,27 @@ button.row:active { background: var(--ctp-surface0); }
   background: var(--ctp-surface1); font-size: 12px; font-weight: 700; }
 .chip[aria-pressed="true"] .count { background: color-mix(in srgb, var(--ctp-crust) 20%, transparent); }
 
+/* ---------- Loaders: spinner for actions and inline waits, skeletons for page and list loading ---------- */
+.spin-ring { width: 24px; height: 24px; flex: none; border-radius: 9999px; border: 3px solid var(--ctp-surface2);
+  border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+.spin-ring.sm { width: 16px; height: 16px; border-width: 2px; }
+.skel { position: relative; overflow: hidden; border-radius: var(--r-ctl); background: var(--ctp-surface0); }
+.skel::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); animation: shimmer 1.4s infinite;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ctp-text) 9%, transparent), transparent); }
+.loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; font-size: 15px; color: var(--ctp-subtext0); }
+/* Something tapped is on its way (a title opening, a source starting): it dims and spins until the PC gets there. */
+.busy { position: relative; pointer-events: none; }
+.busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 28px; height: 28px; border-radius: 9999px;
+  border: 3px solid color-mix(in srgb, var(--ctp-text) 25%, transparent); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite; }
+.busy > * { opacity: 0.45; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { to { transform: translateX(100%); } }
+
 /* ---------- Sheets (native <dialog>) ---------- */
 dialog { margin: auto; max-width: none; max-height: none; padding: 0; border: 0; background: transparent; color: var(--ctp-text); }
+/* A sheet takes focus itself when it opens (autofocus), so no item inside shows a focus ring until the keyboard moves. */
+dialog:focus, dialog:focus-visible { outline: none; }
 dialog::backdrop { background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); }
 .sheet { width: min(100vw, 560px); max-height: 88dvh; margin: auto auto 0; flex-direction: column;
   border-radius: var(--r-sheet) var(--r-sheet) 0 0; background: var(--ctp-mantle); box-shadow: var(--shadow-3);

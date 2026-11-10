@@ -315,6 +315,30 @@ fun StreamsScreen(
         }
     } else null
 
+    // The phone remote lists these sources and plays one through this page, like a tap here.
+    val remoteStreamsKey = "$type:$videoId"
+    SideEffect {
+        com.nuvio.app.features.remote.RemoteAppBridge.publishStreams(
+            com.nuvio.app.features.remote.RemoteAppBridge.StreamsActions(
+                key = remoteStreamsKey,
+                title = title,
+                logo = logo,
+                background = background ?: poster,
+                episode = if (seasonNumber != null && episodeNumber != null) {
+                    "S$seasonNumber E$episodeNumber" + (episodeTitle?.let { " · $it" } ?: "")
+                } else null,
+                resumeMs = availableResumeState.positionMs?.takeIf { it > 0 },
+                startFromBeginning = restartSelected,
+                setStartFromBeginning = { restartSelected = it },
+                select = { stream -> onStreamSelected(stream, effectiveResumePositionMs, effectiveResumeProgressFraction, restartSelected) },
+                reload = { reloadStreams() },
+            ),
+        )
+    }
+    androidx.compose.runtime.DisposableEffect(remoteStreamsKey) {
+        onDispose { com.nuvio.app.features.remote.RemoteAppBridge.clearStreams(remoteStreamsKey) }
+    }
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()

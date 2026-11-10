@@ -1238,6 +1238,25 @@ fun MetaDetailsScreen(
                         savedProgress?.lastPositionMs,
                     )
                 }
+                // The phone remote shows this page and acts through these same buttons.
+                val remoteDetailsKey = "${meta.type}:${meta.id}"
+                androidx.compose.runtime.SideEffect {
+                    com.nuvio.app.features.remote.RemoteAppBridge.publishDetails(
+                        com.nuvio.app.features.remote.RemoteAppBridge.DetailsActions(
+                            key = remoteDetailsKey,
+                            playLabel = playButtonLabel,
+                            isSaved = isSaved,
+                            isWatched = isWatched,
+                            play = onPrimaryPlayClick,
+                            playEpisode = onEpisodePlayClick,
+                            toggleSaved = { toggleSaved() },
+                            toggleWatched = { toggleWatched() },
+                        ),
+                    )
+                }
+                androidx.compose.runtime.DisposableEffect(remoteDetailsKey) {
+                    onDispose { com.nuvio.app.features.remote.RemoteAppBridge.clearDetails(remoteDetailsKey) }
+                }
                 if (showShuffle && showShuffleButton) {
                     EpisodeShuffleSheet(
                         meta = meta,
