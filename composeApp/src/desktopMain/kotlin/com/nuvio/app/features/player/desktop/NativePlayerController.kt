@@ -2697,6 +2697,8 @@ private fun StringBuilder.appendJsonField(name: String, value: Float?) {
         append("null")
     } else if (name == "holdToSpeedValue") {
         append(value.coerceIn(1f, 4f))
+    } else if (name == "outlineWidth") {
+        append(value.coerceIn(0.5f, 8f))
     } else {
         append(value.coerceIn(0f, 1f))
     }

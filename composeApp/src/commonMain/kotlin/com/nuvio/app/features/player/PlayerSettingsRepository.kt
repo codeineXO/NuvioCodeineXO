@@ -777,6 +777,7 @@ object PlayerSettingsRepository {
             fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp),
             outlineEnabled = outlineEnabled,
             bottomOffset = style.bottomOffset.coerceIn(0, 200),
+            appearance = style.appearanceForStorage(),
         )
         if (subtitleStyle == normalized) return
         subtitleStyle = normalized

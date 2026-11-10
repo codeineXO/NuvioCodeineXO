@@ -2888,7 +2888,8 @@ const renderSubtitleStylePanel = () => {
     if (outlineThicknessPlus)    outlineThicknessPlus.disabled  = !customStylingEnabled || isBackgroundBox || isNone;
   }
   if (outlineThicknessValue) {
-    outlineThicknessValue.textContent = String(Number(style.outlineWidth) || 1);
+    const outlineWidth = Number(style.outlineWidth);
+    outlineThicknessValue.textContent = String(Number.isFinite(outlineWidth) && outlineWidth > 0 ? outlineWidth : 1);
   }
   boldLabel.textContent = state.boldLabel || "Bold";
   boldToggle.textContent = style.bold ? (state.onLabel || "On") : (state.offLabel || "Off");

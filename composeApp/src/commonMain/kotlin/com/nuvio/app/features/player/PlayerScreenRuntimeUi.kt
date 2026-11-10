@@ -1786,13 +1786,15 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             }
         }
         "subtitleOutlineThickness" -> {
+            val currentStyle = PlayerSettingsRepository.uiState.value.subtitleStyle
             val thickness = normalizeSubtitleOutlineWidth(value.toFloat())
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
+            PlayerSettingsRepository.setSubtitleStyle(currentStyle.copy(outlineWidth = thickness))
         }
         "subtitleOutlineThicknessDelta" -> {
-            if (subtitleStyle.outlineEffect.needsOutline) {
-                val thickness = stepSubtitleOutlineWidth(subtitleStyle.outlineWidth, value.toInt())
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineWidth = thickness))
+            val currentStyle = PlayerSettingsRepository.uiState.value.subtitleStyle
+            if (currentStyle.outlineEffect.needsOutline) {
+                val thickness = stepSubtitleOutlineWidth(currentStyle.outlineWidth, value.toInt())
+                PlayerSettingsRepository.setSubtitleStyle(currentStyle.copy(outlineWidth = thickness))
             }
         }
         "subtitleStyleReset" -> PlayerSettingsRepository.setSubtitleStyle(SubtitleStyleState.DEFAULT)
