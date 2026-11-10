@@ -1,6 +1,8 @@
 package com.nuvio.app.features.remote
 
 import com.nuvio.app.core.storage.DesktopStorage
+import com.nuvio.app.core.ui.AppPresenceState
+import com.nuvio.app.core.ui.PresenceSnapshot
 import io.ktor.http.ContentType
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
@@ -14,6 +16,17 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import java.net.DatagramSocket
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.net.InetAddress
 
 /** Serves the phone remote page on the LAN and takes button presses over a WebSocket. */
@@ -41,8 +54,36 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
             routing {
                 get("/") { call.respondText(page(), ContentType.Text.Html) }
                 webSocket("/ws") {
-                    for (frame in incoming) {
-                        if (frame is Frame.Text) RemoteKeyInjector.handle(frame.readText())
+                    val nowPlaying = launch {
+                        AppPresenceState.current
+                            .map { it as? PresenceSnapshot.Player }
+                            .map { it?.title to it?.episodeLabel }
+                            .distinctUntilChanged()
+                            .collect { (title, episode) -> send(Frame.Text(nowMessage(title, episode))) }
+                    }
+                    val player = launch {
+                        RemotePlayerLink.state
+                            .map { RemotePlayerPanels.message(it, RemotePlayerLink.audioTracks()) }
+                            .distinctUntilChanged()
+                            .collect { send(Frame.Text(it)) }
+                    }
+                    // The seek bar: position once a second while the player is open.
+                    val progress = launch {
+                        while (true) {
+                            RemotePlayerLink.progress()?.let { (position, duration) ->
+                                send(Frame.Text("""{"k":"time","position":$position,"duration":$duration}"""))
+                            }
+                            delay(1_000)
+                        }
+                    }
+                    try {
+                        for (frame in incoming) {
+                            if (frame is Frame.Text) handle(frame.readText())
+                        }
+                    } finally {
+                        nowPlaying.cancel()
+                        player.cancel()
+                        progress.cancel()
                     }
                 }
             }
@@ -58,9 +99,44 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
         server = null
     }
 
-    /** Read on every request, so edits to the page show up on a phone refresh. */
-    private fun page(): String =
-        javaClass.getResource("/remote/index.html")?.readText() ?: "Remote page missing"
+    /**
+     * One phone message: `{"cmd":"player","type":"selectSource","value":3}` goes to the player like an on-screen
+     * control, `{"cmd":"click","target":"sources"}` clicks that on-screen control, `{"cmd":"close"}` closes the PC's
+     * open panel, anything else is a key press.
+     */
+    private fun handle(message: String) {
+        val json = runCatching { Json.parseToJsonElement(message).jsonObject }.getOrNull() ?: return
+        when (json["cmd"]?.jsonPrimitive?.contentOrNull) {
+            "player" -> {
+                val type = json["type"]?.jsonPrimitive?.contentOrNull ?: return
+                val value = json["value"]?.jsonPrimitive?.doubleOrNull ?: return
+                RemotePlayerLink.send(type, value)
+            }
+            "click" -> RemotePlayerLink.click(json["target"]?.jsonPrimitive?.contentOrNull ?: return)
+            "close" -> RemotePlayerLink.closePanels()
+            else -> RemoteKeyInjector.handle(json)
+        }
+    }
+
+    /** `{"k":"now","title":…,"episode":…}`; both are null when nothing is playing. */
+    private fun nowMessage(title: String?, episode: String?): String = buildJsonObject {
+        put("k", "now")
+        put("title", title)
+        put("episode", episode)
+    }.toString()
+
+    /**
+     * Read on every request, so edits to the page show up on a phone refresh. The player's own icon set is copied
+     * in from its controls page, so the phone shows the same icons.
+     */
+    private fun page(): String {
+        val html = javaClass.getResource("/remote/index.html")?.readText() ?: return "Remote page missing"
+        val controls = javaClass.getResource("/player-ui/controls.html")?.readText().orEmpty()
+        val start = controls.indexOf("<svg width=\"0\"")
+        val end = controls.indexOf("</svg>", start)
+        val icons = if (start >= 0 && end > start) controls.substring(start, end + "</svg>".length) else ""
+        return html.replace("<!-- player icons -->", icons)
+    }
 
     /** The address the phone should use: the interface that routes to the internet. */
     private fun lanAddress(): String = runCatching {

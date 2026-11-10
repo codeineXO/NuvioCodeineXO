@@ -8,7 +8,7 @@
 <title>Nuvio Remote</title>
 <style>
   :root {
-    --base: #1e1e2e; --mantle: #181825; --surface0: #313244; --surface1: #45475a;
+    --base: #1e1e2e; --mantle: #181825; --crust: #11111b; --surface0: #313244; --surface1: #45475a;
     --text: #cdd6f4; --subtext: #a6adc8; --accent: #cba6f7; --green: #a6e3a1; --red: #f38ba8;
     --pad: min(82vw, 340px);
   }
@@ -16,20 +16,30 @@
   html, body { margin: 0; height: 100%; background: var(--base); color: var(--text);
     font: 16px/1.4 system-ui, -apple-system, sans-serif; user-select: none; -webkit-user-select: none;
     touch-action: manipulation; overscroll-behavior: none; }
-  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px;
-    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
-  header { position: fixed; top: calc(env(safe-area-inset-top) + 16px); left: 16px; right: 16px;
-    display: flex; justify-content: space-between; align-items: center; }
+  body { display: flex; flex-direction: column; gap: 16px;
+    padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px); }
+  header { display: flex; justify-content: space-between; align-items: center; }
   h1 { font-size: 17px; font-weight: 600; margin: 0; }
   .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface0); color: var(--subtext); }
   .pill::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     margin-right: 6px; background: var(--red); vertical-align: 0; }
   .pill.on::before { background: var(--green); }
 
+  .now { padding: 10px 14px; border-radius: 12px; background: var(--mantle); }
+  .now b, .now span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now span { font-size: 13px; color: var(--subtext); }
+
+  main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; }
+  main[hidden] { display: none; }
+  button { border: 0; cursor: pointer; color: var(--text); font: inherit; background: none; padding: 0; }
+  svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2.2;
+    stroke-linecap: round; stroke-linejoin: round; }
+  .ic { fill: currentColor; stroke: none; }
+
+  /* D-pad, for moving around the app. */
   .dpad { position: relative; width: var(--pad); height: var(--pad); border-radius: 50%;
     background: var(--mantle); box-shadow: inset 0 0 0 1px var(--surface0); }
-  .dpad button { position: absolute; border: 0; background: none; color: var(--subtext); padding: 0;
-    display: grid; place-items: center; cursor: pointer; }
+  .dpad button { position: absolute; color: var(--subtext); display: grid; place-items: center; }
   .dpad .arrow { width: 34%; height: 34%; }
   .dpad .arrow svg { width: 36px; height: 36px; }
   .up    { top: 0;    left: 33%; }
@@ -40,12 +50,102 @@
     background: var(--surface0) !important; color: var(--text) !important; font-size: 18px; font-weight: 600; }
   .dpad button.pressed { color: var(--accent); }
   .dpad .ok.pressed { background: var(--surface1) !important; }
-
-  .row { display: flex; gap: 16px; }
-  .round { width: 64px; height: 64px; border-radius: 50%; border: 0; background: var(--surface0);
-    color: var(--text); display: grid; place-items: center; cursor: pointer; }
-  .round svg { width: 28px; height: 28px; }
+  .round { width: 64px; height: 64px; border-radius: 50%; background: var(--surface0); display: grid; place-items: center; }
   .round.pressed { background: var(--surface1); }
+
+  /* Player: the player's own bar, top to bottom. */
+  #player { gap: 28px; width: 100%; max-width: 440px; margin: 0 auto; }
+  .seek { display: flex; align-items: center; gap: 10px; width: 100%; font-size: 13px; color: var(--subtext);
+    font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; accent-color: var(--text); height: 32px; margin: 0; }
+  .transport { display: flex; align-items: center; gap: 16px; width: 100%; }
+  .play { width: 72px; height: 72px; flex: none; border-radius: 50%; background: var(--surface0); display: grid; place-items: center; }
+  .play svg { width: 30px; height: 30px; }
+  .play:active { background: var(--surface1); }
+  .volume { flex: 1; display: flex; align-items: center; gap: 10px; color: var(--subtext); }
+  .volume output { width: 40px; text-align: right; font-size: 13px; }
+  .bar { display: flex; justify-content: space-between; gap: 4px; width: 100%; }
+  .key { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 12px 2px; border-radius: 14px; background: var(--surface0); font-size: 11px; color: var(--subtext); }
+  .key svg { width: 24px; height: 24px; color: var(--text); }
+  .key:active { background: var(--surface1); }
+
+  /* Sheets: the player's panels. */
+  .sheet { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
+    background: rgb(0 0 0 / .55); }
+  .sheet[hidden] { display: none; }
+  .sheet-body { max-height: 85vh; display: flex; flex-direction: column; border-radius: 18px 18px 0 0;
+    background: var(--crust); padding: 16px 0 calc(env(safe-area-inset-bottom) + 8px); }
+  .sheet-head { display: flex; align-items: flex-start; gap: 8px; padding: 0 16px 12px; }
+  .sheet-head .titles { flex: 1; min-width: 0; }
+  .sheet-head h2 { margin: 0; font-size: 22px; font-weight: 500; }
+  .sheet-head p { margin: 2px 0 0; color: var(--subtext); font-size: 14px; }
+  .chip-btn { padding: 8px 14px; border-radius: 12px; font-size: 14px; font-weight: 600;
+    box-shadow: inset 0 0 0 1px var(--surface1); }
+  .chip-btn:active, .chip-btn.on { background: var(--text); color: var(--crust); }
+  .content { overflow-y: auto; padding: 0 16px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .empty { padding: 24px; text-align: center; color: var(--subtext); }
+  .label { font-size: 13px; color: var(--subtext); font-weight: 600; margin: 4px 0; }
+  .section { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--subtext);
+    font-weight: 600; margin: 12px 4px 0; }
+
+  .row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left;
+    border-radius: 14px; box-shadow: inset 0 0 0 1px var(--surface0); }
+  .row .copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .row small { color: var(--subtext); font-size: 13px; }
+  .row .check { visibility: hidden; width: 22px; height: 22px; flex: none; }
+  .row.selected { background: var(--text); color: var(--crust); box-shadow: none; }
+  .row.selected small { color: var(--surface1); }
+  .row.selected .check { visibility: visible; }
+  .row:disabled { opacity: .4; }
+  .tag { align-self: flex-start; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px;
+    background: var(--surface0); color: var(--text); }
+  .row.selected .tag { background: var(--surface1); color: var(--text); }
+  .count { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--surface0); }
+  .row.selected .count { background: var(--subtext); color: var(--crust); }
+
+  .stream { flex-direction: column; align-items: stretch; gap: 6px; }
+  .stream .top { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .stream .sub { white-space: pre-line; color: var(--subtext); font-size: 14px; }
+  .stream.selected { background: var(--surface1); color: var(--text); box-shadow: inset 0 0 0 2px var(--text); }
+  .stream.selected .sub { color: var(--text); }
+  .status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--text); color: var(--crust); }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badges img { height: 18px; }
+  .size { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: var(--crust); }
+
+  .columns { display: grid; grid-template-columns: 2fr 3fr; gap: 10px; align-items: start; }
+  .columns > div { display: flex; flex-direction: column; gap: 8px; }
+  .card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px;
+    box-shadow: inset 0 0 0 1px var(--surface0); }
+  .card .copy { flex: 1; }
+  .stepper { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 14px;
+    box-shadow: inset 0 0 0 1px var(--surface0); }
+  .stepper button { width: 44px; height: 44px; border-radius: 12px; background: var(--surface0); font-size: 20px; font-weight: 700; }
+  .stepper span { flex: 1; text-align: center; padding: 10px; border-radius: 12px; background: var(--surface0); }
+  .note { font-size: 13px; color: var(--subtext); padding: 0 4px; }
+  .chip-btn:disabled, .stepper button:disabled { opacity: .4; }
+  .tabs { display: flex; gap: 8px; align-items: center; }
+  .grow { flex: 1; }
+  .setting { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px;
+    box-shadow: inset 0 0 0 1px var(--surface0); }
+  .setting > .chip-btn { align-self: flex-start; }
+  .inline { display: flex; gap: 8px; align-items: center; }
+  .inline .stepper { flex: 1; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .swatch { width: 32px; height: 32px; border-radius: 50%; background: var(--swatch);
+    box-shadow: inset 0 0 0 1px var(--surface1); }
+  .swatch.selected { box-shadow: 0 0 0 2px var(--crust), 0 0 0 4px var(--text); }
+  .swatch:disabled { opacity: .4; }
+  .custom { position: relative; }
+  .custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; }
+
+  .menu { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0 8px; }
+  .menu button { display: flex; align-items: center; gap: 10px; padding: 14px 10px; border-radius: 12px;
+    text-align: left; font-size: 15px; }
+  .menu button:active { background: var(--surface0); }
+  .menu svg { width: 22px; height: 22px; flex: none; }
+  .menu small { color: var(--subtext); margin-left: auto; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -54,30 +154,87 @@
   <span class="pill" id="status">Connecting</span>
 </header>
 
-<div class="dpad">
-  <button class="arrow up" data-cmd="key" data-key="up" aria-label="Up">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>
+<div class="now" id="now" hidden><b id="now-title"></b><span id="now-episode"></span></div>
+
+<!-- player icons -->
+
+<main id="remote">
+  <div class="dpad">
+    <button class="arrow up" data-cmd="key" data-key="up" data-repeat aria-label="Up">
+      <svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>
+    </button>
+    <button class="arrow left" data-cmd="key" data-key="left" data-repeat aria-label="Left">
+      <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <button class="ok" data-cmd="ok" aria-label="OK">OK</button>
+    <button class="arrow right" data-cmd="key" data-key="right" data-repeat aria-label="Right">
+      <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+    <button class="arrow down" data-cmd="key" data-key="down" data-repeat aria-label="Down">
+      <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+  </div>
+  <button class="round" data-cmd="back" aria-label="Back">
+    <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
   </button>
-  <button class="arrow left" data-cmd="key" data-key="left" aria-label="Left">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-  </button>
-  <button class="ok" data-cmd="ok" aria-label="OK">OK</button>
-  <button class="arrow right" data-cmd="key" data-key="right" aria-label="Right">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-  </button>
-  <button class="arrow down" data-cmd="key" data-key="down" aria-label="Down">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-  </button>
+</main>
+
+<main id="player" hidden>
+  <div class="seek">
+    <span id="position">0:00</span>
+    <input type="range" id="seek" min="0" max="1" step="1000" value="0" aria-label="Seek">
+    <span id="duration">0:00</span>
+  </div>
+  <div class="transport">
+    <button class="play" id="play" aria-label="Play / Pause"><svg class="ic"><use id="play-icon" href="#icon-play"/></svg></button>
+    <label class="volume">
+      <svg class="ic"><use href="#icon-volume-compact"/></svg>
+      <input type="range" id="volume" min="0" max="2" step="0.05" value="1" aria-label="Volume">
+      <output id="volume-label">100%</output>
+    </label>
+  </div>
+  <!-- The player's bar: panels open on the PC and the same panel opens here. -->
+  <div class="bar">
+    <button class="key" data-click="sources" data-panel="sources"><svg class="ic"><use href="#icon-source"/></svg>Sources</button>
+    <button class="key" data-click="subtitles" data-panel="subtitles"><svg class="ic"><use href="#icon-subs"/></svg>Subtitles</button>
+    <button class="key" data-click="audio" data-panel="audio"><svg class="ic"><use href="#icon-audio"/></svg>Audio</button>
+    <button class="key" data-click="enhance" data-panel="enhance"><svg class="ic"><use href="#icon-wand"/></svg>Enhance</button>
+    <button class="key" id="more-open">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>More
+    </button>
+    <button class="key" data-click="fullscreen"><svg class="ic"><use href="#icon-fullscreen"/></svg>Fullscreen</button>
+  </div>
+</main>
+
+<!-- The player's "More playback controls" drawer, item for item. -->
+<div class="sheet" id="more" hidden>
+  <div class="sheet-body">
+    <div class="menu">
+      <button data-click="speed" data-panel="speed"><svg class="ic"><use href="#icon-speed"/></svg>Playback speed</button>
+      <button data-click="aspect" data-stay><svg class="ic"><use href="#icon-aspect"/></svg>Aspect ratio<small id="aspect"></small></button>
+      <button data-click="pip"><svg class="ic"><use href="#icon-pip"/></svg>Picture in picture</button>
+      <button data-click="miniPlayer"><svg class="ic"><use href="#icon-miniplayer"/></svg>Mini player</button>
+      <button data-click="party"><svg class="ic"><use href="#icon-party"/></svg>Watch party</button>
+      <button data-click="stats"><svg class="ic"><use href="#icon-info-circle"/></svg>Playback statistics</button>
+      <button data-click="eyeFilter" data-panel="eyeFilter"><svg class="ic"><use href="#icon-eye"/></svg>Eye filter</button>
+      <button data-click="chapters" data-panel="chapters" id="chapters-item" hidden><svg class="ic"><use href="#icon-chapters"/></svg>Chapters</button>
+    </div>
+  </div>
 </div>
 
-<div class="row">
-  <button class="round" data-cmd="back" aria-label="Back">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
-  </button>
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-body">
+    <div class="sheet-head">
+      <div class="titles"><h2 id="sheet-title"></h2><p id="sheet-subtitle" hidden></p></div>
+      <span id="sheet-actions"></span>
+      <button class="chip-btn" id="sheet-close">Close</button>
+    </div>
+    <div class="content" id="sheet-content"></div>
+  </div>
 </div>
 
 <script>
-  const statusEl = document.getElementById('status');
+  const $ = (id) => document.getElementById(id);
   let ws = null;
   let retry = 500;
 
@@ -86,31 +243,442 @@
     ws.onopen = () => { retry = 500; setStatus(true); };
     ws.onclose = () => { setStatus(false); setTimeout(connect, retry); retry = Math.min(retry * 2, 4000); };
     ws.onerror = () => ws.close();
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.k === 'now') showNow(msg.title, msg.episode);
+      if (msg.k === 'player') showPlayer(msg);
+      if (msg.k === 'time') showTime(msg.position, msg.duration);
+    };
   }
 
   function setStatus(on) {
-    statusEl.textContent = on ? 'Connected' : 'Offline';
-    statusEl.classList.toggle('on', on);
+    $('status').textContent = on ? 'Connected' : 'Offline';
+    $('status').classList.toggle('on', on);
   }
 
   function send(msg) {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
   }
+  const player = (type, value = 0) => send({ cmd: 'player', type, value });
 
-  // Press on touch-down for a snappy feel; arrows repeat while held, like a TV remote.
+  function showNow(title, episode) {
+    $('now').hidden = !title;
+    $('now-title').textContent = title || '';
+    $('now-episode').textContent = episode || '';
+  }
+
+  // ─── The player's bar ───
+  let state = { active: false };
+  let draggingVolume = false;
+  let draggingSeek = false;
+
+  function showPlayer(msg) {
+    state = msg;
+    $('remote').hidden = msg.active;
+    $('player').hidden = !msg.active;
+    if (!msg.active) { openPanel = null; $('sheet').hidden = true; $('more').hidden = true; return; }
+    $('play-icon').setAttribute('href', msg.playing ? '#icon-pause' : '#icon-play');
+    if (!draggingVolume) setVolumeUi(msg.volume);
+    $('aspect').textContent = msg.aspect;
+    $('chapters-item').hidden = !msg.chapters.length;
+    if (openPanel) renderPanel();
+  }
+
+  const clock = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const two = (n) => String(n).padStart(2, '0');
+    return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`;
+  };
+  function showTime(position, duration) {
+    if (draggingSeek) return;
+    $('seek').max = Math.max(1, duration);
+    $('seek').value = position;
+    $('position').textContent = clock(position);
+    $('duration').textContent = clock(duration);
+  }
+  $('seek').addEventListener('input', () => { draggingSeek = true; $('position').textContent = clock(Number($('seek').value)); });
+  $('seek').addEventListener('change', () => { draggingSeek = false; player('scrubFinish', Number($('seek').value)); });
+
+  function setVolumeUi(level) {
+    $('volume').value = level;
+    $('volume-label').textContent = Math.round(level * 100) + '%';
+  }
+  $('volume').addEventListener('input', () => {
+    draggingVolume = true;
+    setVolumeUi(Number($('volume').value));
+    player('volumeChangeTemporary', Number($('volume').value));
+  });
+  $('volume').addEventListener('change', () => { draggingVolume = false; player('volumeChange', Number($('volume').value)); });
+  $('play').addEventListener('click', () => player('toggle'));
+
+  // Buttons click the same control on the PC, so the PC opens its panel, and the same panel opens here.
+  document.querySelectorAll('[data-click]').forEach((btn) => btn.addEventListener('click', () => {
+    send({ cmd: 'click', target: btn.dataset.click });
+    if (btn.dataset.panel) {
+      $('more').hidden = true;
+      openSheet(btn.dataset.panel);
+    } else if (!('stay' in btn.dataset)) {
+      $('more').hidden = true;
+    }
+  }));
+  $('more-open').addEventListener('click', () => { $('more').hidden = false; });
+  $('more').addEventListener('click', (e) => { if (e.target === $('more')) $('more').hidden = true; });
+
+  // ─── The player's panels ───
+  let openPanel = null;
+  let subtitleLanguage = '__off__';
+  let subtitleTab = 'subtitles';
+  let lastSvpMode = 'auto';
+
+  function openSheet(name) {
+    openPanel = name;
+    if (name === 'subtitles') { subtitleLanguage = state.subtitles.language; subtitleTab = 'subtitles'; }
+    renderPanel();
+    $('sheet-content').scrollTop = 0;
+    $('sheet').hidden = false;
+  }
+
+  // Closing here closes the PC's panel too.
+  function closeSheet() {
+    send({ cmd: 'close' });
+    openPanel = null;
+    $('sheet').hidden = true;
+  }
+  $('sheet-close').addEventListener('click', closeSheet);
+  $('sheet').addEventListener('click', (e) => { if (e.target === $('sheet')) closeSheet(); });
+
+  function renderPanel() {
+    const content = $('sheet-content');
+    const scroll = content.scrollTop;
+    content.replaceChildren();
+    $('sheet-actions').replaceChildren();
+    $('sheet-subtitle').hidden = true;
+    panels[openPanel]();
+    content.scrollTop = scroll;
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  const check = () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'check');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.innerHTML = '<path d="m5 12 5 5 9-10"/>';
+    return svg;
+  };
+  function header(title, subtitle) {
+    $('sheet-title').textContent = title;
+    $('sheet-subtitle').textContent = subtitle || '';
+    $('sheet-subtitle').hidden = !subtitle;
+  }
+  function action(label, onClick) {
+    const btn = el('button', 'chip-btn', label);
+    btn.addEventListener('click', onClick);
+    $('sheet-actions').append(btn);
+  }
+  // A selectable row: name, optional detail and tag, a check when selected.
+  function row({ label, detail, tag, selected, disabled, onClick, extra }) {
+    const btn = el('button', 'row' + (selected ? ' selected' : ''));
+    btn.disabled = Boolean(disabled);
+    const copy = el('span', 'copy');
+    if (tag) copy.append(el('span', 'tag', tag));
+    copy.append(el('span', '', label));
+    if (detail) copy.append(el('small', '', detail));
+    btn.append(copy);
+    if (extra) btn.append(extra);
+    btn.append(check());
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+  const add = (...nodes) => $('sheet-content').append(...nodes);
+  const empty = (text) => add(el('div', 'empty', text));
+
+  const languageName = (code, fallback = '') => {
+    const value = String(code || '').trim().toLowerCase().replace(/_/g, '-');
+    if (!value || value === 'und' || value === '__unknown__') return fallback || 'Unknown';
+    try { return new Intl.DisplayNames([navigator.language || 'en'], { type: 'language' }).of(value) || value; }
+    catch (_) { return fallback || value.toUpperCase(); }
+  };
+
+  const speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+  const upscalerOptions = [
+    { key: 'off', label: 'Off', value: 0 }, { key: 'auto', label: 'Anime Only', value: 1 },
+    { key: 'always_on', label: 'All Media', value: 2 },
+  ];
+  const svpOptions = [
+    { mode: 'auto', label: 'Anime Only', description: '60 FPS for Anime and Cartoons only', value: 1 },
+    { mode: 'global', label: 'All Media', description: '60 FPS for all contents', value: 2 },
+  ];
+  const contentLabels = { anime: 'Anime', cartoon: 'Cartoon', live_action: 'Live Action' };
+
+  const panels = {
+    sources() {
+      const sources = state.sources;
+      header('Sources', state.title);
+      action('Reload', () => player('reloadSources'));
+      if (!sources.items.length) return empty(sources.loading ? 'Loading sources…' : 'No streams found');
+      sources.items.forEach((item) => {
+        const card = el('button', 'row stream' + (item.current ? ' selected' : ''));
+        card.disabled = !item.enabled;
+        const top = el('span', 'top', item.label);
+        if (item.current) top.append(el('span', 'status', 'Playing'));
+        card.append(top);
+        if (item.subtitle) card.append(el('span', 'sub', item.subtitle));
+        if (item.badges.length || item.size) {
+          const badges = el('span', 'badges');
+          item.badges.forEach((src) => { const img = el('img'); img.src = src; img.alt = ''; badges.append(img); });
+          if (item.size) badges.append(el('span', 'size', item.size));
+          card.append(badges);
+        }
+        card.addEventListener('click', () => { player('selectSource', item.index); closeSheet(); });
+        add(card);
+      });
+    },
+
+    subtitles() {
+      const subs = state.subtitles;
+      header('Subtitles');
+      // The panel's tabs; switching here switches the PC's tab too.
+      const tabs = el('div', 'tabs');
+      [['subtitles', 'Subtitles', 'subtitleTabSubtitles'], ['customization', 'Customization', 'subtitleTabCustomization']]
+        .forEach(([tab, label, target]) => {
+          const btn = el('button', 'chip-btn' + (subtitleTab === tab ? ' on' : ''), label);
+          btn.addEventListener('click', () => { subtitleTab = tab; send({ cmd: 'click', target }); renderPanel(); });
+          tabs.append(btn);
+        });
+      const spacer = el('span', 'grow');
+      const importBtn = el('button', 'chip-btn', 'Import');
+      importBtn.addEventListener('click', () => send({ cmd: 'click', target: 'subtitleImport' }));
+      tabs.append(spacer, importBtn);
+      add(tabs);
+      if (subtitleTab === 'customization') return customization(subs.style);
+      const languages = subs.languages.some((l) => l.key === '__off__')
+        ? subs.languages : [{ key: '__off__', label: 'None', count: 0 }, ...subs.languages];
+      const left = el('div');
+      left.append(el('div', 'label', 'Languages'));
+      languages.forEach((language) => {
+        const count = language.count > 0 ? el('span', 'count', String(language.count)) : null;
+        const label = language.key === '__off__' ? (language.label || 'None') : (language.label || 'Imported');
+        left.append(row({ label, selected: language.key === subtitleLanguage, extra: count, onClick: () => {
+          subtitleLanguage = language.key;
+          if (language.key === '__off__') player('selectBuiltInSubtitleTrack', -1);
+          renderPanel();
+        } }));
+      });
+      const right = el('div');
+      right.append(el('div', 'label', 'Subtitles'));
+      subs.options.filter((o) => o.language === subtitleLanguage).forEach((option) => {
+        right.append(row({
+          tag: option.source, label: option.title || option.source, detail: option.metadata,
+          selected: option.id === subs.selected || option.selected,
+          onClick: () => player(option.kind === 'addon' ? 'selectAddonSubtitle' : 'selectBuiltInSubtitleTrack', option.index),
+        }));
+      });
+      const columns = el('div', 'columns');
+      columns.append(left, right);
+      add(columns);
+    },
+
+    audio() {
+      const audio = state.audio;
+      header('Audio Tracks');
+      if (!audio.tracks.length) empty('No audio tracks available');
+      audio.tracks.forEach((track) => add(row({
+        label: track.label || languageName(track.language) || `Track ${track.index + 1}`,
+        detail: track.language && track.language !== 'und' ? languageName(track.language) : '',
+        selected: track.selected,
+        onClick: () => { player('selectAudioTrack', track.id >= 0 ? track.id : track.index); closeSheet(); },
+      })));
+      const card = el('div', 'card');
+      const copy = el('span', 'copy');
+      copy.append(el('b', '', 'Night Mode (DRC)'), el('div', 'note', 'Normalize loudness to boost quiet voices'));
+      const toggle = el('button', 'chip-btn' + (audio.nightMode ? ' on' : ''), audio.nightMode ? 'On' : 'Off');
+      toggle.addEventListener('click', () => player('toggleAudioNightMode', audio.nightMode ? 0 : 1));
+      card.append(copy, toggle);
+      add(card);
+    },
+
+    enhance() {
+      const e = state.enhancements;
+      header('Enhancements');
+
+      add(el('div', 'section', 'Anime Upscaler'));
+      let index = Math.max(0, upscalerOptions.findIndex((o) => o.key === e.upscaler));
+      const upscalerOff = upscalerOptions[index].key === 'off';
+      const step = (delta) => player('setAnimeUpscalerOption',
+        upscalerOptions[(index + delta + upscalerOptions.length) % upscalerOptions.length].value);
+      add(stepper(upscalerOptions[index].label, () => step(-1), () => step(1)));
+      e.modes.forEach((mode) => add(row({
+        label: mode.label, detail: mode.description, selected: !upscalerOff && mode.index === e.mode,
+        disabled: upscalerOff, onClick: () => player('setAnimeUpscalerMode', mode.index),
+      })));
+
+      add(el('div', 'section', 'Motion Smoothing (SVP)'));
+      if (!e.svpAvailable) add(el('div', 'note', 'Motion smoothing runtime is unavailable. Check its status in Settings.'));
+      const svpOff = e.svp === 'off' || !e.svpAvailable;
+      if (!svpOff) lastSvpMode = e.svp === 'global' || e.svp === 'cinema' ? 'global' : 'auto';
+      const toggleSvp = () => {
+        if (!e.svpAvailable) return;
+        player('setSvpMode', svpOff ? (lastSvpMode === 'global' ? 2 : 1) : 0);
+      };
+      add(stepper(svpOff ? 'Off' : 'On', toggleSvp, toggleSvp));
+      svpOptions.forEach((option) => add(row({
+        label: option.label, detail: option.description, selected: !svpOff && option.mode === lastSvpMode,
+        disabled: svpOff, onClick: () => { lastSvpMode = option.mode; player('setSvpMode', option.value); },
+      })));
+      const detected = el('div', 'card');
+      detected.append(el('b', 'copy', 'Detected Content:'), el('span', 'chip-btn on', contentLabels[e.content] || 'Unknown'));
+      add(detected);
+    },
+
+    speed() {
+      header('Playback Speed');
+      const current = parseFloat(state.speed);
+      speeds.forEach((speed) => add(row({
+        label: speed === 1 ? '1x (Normal)' : `${speed}x`, selected: Math.abs(speed - current) < 0.01,
+        onClick: () => { player('setPlaybackSpeed', speed); closeSheet(); },
+      })));
+    },
+
+    eyeFilter() {
+      header('Eye Filter');
+      const card = el('div', 'card');
+      const toggle = el('button', 'chip-btn' + (state.eyeFilter ? ' on' : ''), state.eyeFilter ? 'On' : 'Off');
+      toggle.addEventListener('click', () => player('setEyeFilterEnabled', state.eyeFilter ? 0 : 1));
+      card.append(el('b', 'copy', 'Eye filter'), toggle);
+      add(card);
+    },
+
+    chapters() {
+      header('Chapters');
+      state.chapters.forEach((chapter, i) => add(row({
+        label: chapter.title || `Chapter ${i + 1}`, detail: clock(chapter.startMs),
+        onClick: () => { player('selectChapter', i); closeSheet(); },
+      })));
+    },
+  };
+
+  function stepper(value, onMinus, onPlus, disabled = false) {
+    const box = el('div', 'stepper');
+    const minus = el('button', '', '-');
+    const plus = el('button', '', '+');
+    minus.disabled = plus.disabled = disabled;
+    minus.addEventListener('click', onMinus);
+    plus.addEventListener('click', onPlus);
+    box.append(minus, el('span', '', value), plus);
+    return box;
+  }
+
+  // ─── Subtitles → Customization, control for control ───
+  const alphaPercent = (argb) => Math.round(parseInt(String(argb).slice(1, 3), 16) / 255 * 100);
+  const rgbHex = (argb) => '#' + String(argb).slice(3, 9);
+  const cssColor = (argb) => {
+    const n = (i) => parseInt(String(argb).slice(i, i + 2), 16);
+    return `rgba(${n(3)}, ${n(5)}, ${n(7)}, ${n(1) / 255})`;
+  };
+  const formatDelay = (ms) => `${ms >= 0 ? '+' : '-'}${(Math.abs(ms) / 1000).toFixed(3)}s`;
+
+  function setting(label, ...controls) {
+    const section = el('div', 'setting');
+    section.append(el('div', 'label', label), ...controls);
+    return section;
+  }
+  function toggleButton(on, onClick, disabled = false) {
+    const btn = el('button', 'chip-btn' + (on ? ' on' : ''), on ? 'On' : 'Off');
+    btn.disabled = disabled;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+  function plainButton(label, onClick, disabled = false) {
+    const btn = el('button', 'chip-btn', label);
+    btn.disabled = disabled;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+  // The player's swatches, plus "Custom" as the phone's own colour picker.
+  function swatches(colors, selected, type, rgbType, disabled) {
+    const box = el('div', 'swatches');
+    colors.forEach((color, index) => {
+      const swatch = el('button', 'swatch' + (rgbHex(color).toLowerCase() === rgbHex(selected).toLowerCase() ? ' selected' : ''));
+      swatch.style.setProperty('--swatch', cssColor(color));
+      swatch.disabled = disabled;
+      swatch.addEventListener('click', () => player(type, index));
+      box.append(swatch);
+    });
+    const custom = el('label', 'chip-btn custom', 'Custom');
+    const input = el('input');
+    input.type = 'color';
+    input.value = rgbHex(selected);
+    input.disabled = disabled;
+    input.addEventListener('change', () => player(rgbType, parseInt(input.value.slice(1), 16)));
+    custom.append(input);
+    box.append(custom);
+    return box;
+  }
+
+  function customization(style) {
+    const off = !style.custom;
+    const noEffect = style.effect === 'none';
+    const boxed = style.effect === 'background_box';
+    const delay = el('div', 'inline');
+    delay.append(
+      stepper(formatDelay(style.delayMs), () => player('subtitleDelayDelta', -100), () => player('subtitleDelayDelta', 100)),
+      plainButton('Reset', () => player('subtitleDelayReset')),
+    );
+    add(
+      setting('Subtitle Delay', delay),
+      setting('Font Size', stepper(`${style.fontSize}sp`, () => player('subtitleFontSizeDelta', -1), () => player('subtitleFontSizeDelta', 1))),
+      setting('Bottom Offset', stepper(String(style.bottomOffset), () => player('subtitleBottomOffsetDelta', -5), () => player('subtitleBottomOffsetDelta', 5))),
+      setting('Use custom styling', toggleButton(style.custom, () => player('subtitleCustomStyleToggle'))),
+      setting('Font', stepper(style.font, () => player('subtitleFontDelta', -1), () => player('subtitleFontDelta', 1), off)),
+      setting('Bold', toggleButton(style.bold, () => player('subtitleBoldToggle'), off)),
+      setting('Color', swatches(style.textSwatches, style.textColor, 'subtitleTextColor', 'subtitleTextColorRgb', off)),
+      setting('Text Opacity', stepper(`${alphaPercent(style.textColor)}%`,
+        () => player('subtitleTextOpacity', Math.max(0, alphaPercent(style.textColor) - 10)),
+        () => player('subtitleTextOpacity', Math.min(100, alphaPercent(style.textColor) + 10)), off)),
+      setting('Outline Style', stepper(style.effectLabel, () => player('subtitleOutlineEffectDelta', -1), () => player('subtitleOutlineEffectDelta', 1), off)),
+      setting(boxed ? 'Box Color' : 'Outline Color',
+        swatches(style.outlineSwatches, style.effectColor, 'subtitleOutlineColor', 'subtitleOutlineColorRgb', off || noEffect)),
+      setting(boxed ? 'Box Opacity' : 'Outline Opacity', stepper(`${alphaPercent(style.effectColor)}%`,
+        () => player('subtitleOutlineOpacity', Math.max(0, alphaPercent(style.effectColor) - 10)),
+        () => player('subtitleOutlineOpacity', Math.min(100, alphaPercent(style.effectColor) + 10)), off || noEffect)),
+      setting('Outline Thickness', stepper(String(style.outlineWidth), () => player('subtitleOutlineThicknessDelta', -1),
+        () => player('subtitleOutlineThicknessDelta', 1), off || boxed || noEffect)),
+    );
+    // Auto Sync: pick the line being spoken now, and the subtitle shifts to match.
+    const sync = style.autoSync;
+    const syncButtons = el('div', 'inline');
+    syncButtons.append(
+      plainButton('Reload', () => player('subtitleAutoSyncReload'), !sync.enabled),
+      plainButton('Capture', () => player('subtitleAutoSyncCapture'), !sync.enabled),
+    );
+    const status = !sync.enabled ? 'Select an addon subtitle first'
+      : sync.loading ? 'Loading subtitle lines...' : sync.error;
+    const syncSection = setting('Auto Sync', syncButtons);
+    if (status) syncSection.append(el('div', 'note', status));
+    sync.cues.forEach((cue) => syncSection.append(row({
+      label: cue.text, detail: cue.time, onClick: () => player('subtitleAutoSyncCue', cue.index),
+    })));
+    add(syncSection, plainButton('Reset Defaults', () => player('subtitleStyleReset')));
+  }
+
+  // ─── D-pad: press on touch-down for a snappy feel; arrows repeat while held, like a TV remote ───
   let repeatTimer = null;
   function stopRepeat(btn) {
     clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null;
     if (btn) btn.classList.remove('pressed');
   }
-
   document.querySelectorAll('[data-cmd]').forEach((btn) => {
     const msg = btn.dataset.key ? { cmd: btn.dataset.cmd, key: btn.dataset.key } : { cmd: btn.dataset.cmd };
     btn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       btn.classList.add('pressed');
       send(msg);
-      if (msg.cmd === 'key') repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => send(msg), 120); }, 400);
+      if ('repeat' in btn.dataset) repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => send(msg), 120); }, 400);
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, () => stopRepeat(btn)));
   });

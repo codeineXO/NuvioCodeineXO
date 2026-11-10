@@ -2,43 +2,43 @@ package com.nuvio.app.features.remote
 
 import com.nuvio.app.composeInputComponent
 import com.nuvio.app.core.instance.DesktopSingleInstanceController
-import com.nuvio.app.core.ui.PlatformBackDispatcher
 import java.awt.Frame
+import java.awt.Robot
 import java.awt.event.KeyEvent
-import javax.swing.SwingUtilities
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Turns phone remote messages into the key presses the app's keyboard navigation already understands. */
+/**
+ * Turns the phone's D-pad into real keyboard presses, like a physical keyboard, so the app's keyboard navigation
+ * handles them.
+ */
 internal object RemoteKeyInjector {
-    private val arrowKeys = mapOf(
-        "up" to KeyEvent.VK_UP,
-        "down" to KeyEvent.VK_DOWN,
-        "left" to KeyEvent.VK_LEFT,
-        "right" to KeyEvent.VK_RIGHT,
+    private val keys = mapOf(
+        "key:up" to KeyEvent.VK_UP,
+        "key:down" to KeyEvent.VK_DOWN,
+        "key:left" to KeyEvent.VK_LEFT,
+        "key:right" to KeyEvent.VK_RIGHT,
+        "ok:null" to KeyEvent.VK_ENTER,
+        "back:null" to KeyEvent.VK_ESCAPE,
     )
+    private val robot by lazy { Robot() }
 
     /** Handles one phone message, e.g. `{"cmd":"key","key":"up"}`. Anything unknown is ignored. */
-    fun handle(message: String) {
-        val json = runCatching { Json.parseToJsonElement(message).jsonObject }.getOrNull() ?: return
-        when (json["cmd"]?.jsonPrimitive?.contentOrNull) {
-            "key" -> arrowKeys[json["key"]?.jsonPrimitive?.contentOrNull]?.let(::press)
-            "ok" -> press(KeyEvent.VK_ENTER)
-            "back" -> SwingUtilities.invokeLater { PlatformBackDispatcher.dispatch() }
-        }
+    fun handle(json: JsonObject) {
+        val cmd = json["cmd"]?.jsonPrimitive?.contentOrNull
+        val key = json["key"]?.jsonPrimitive?.contentOrNull
+        keys["$cmd:$key"]?.let(::press)
     }
 
-    /** Sends a press and release to the main window's focused component, where real key presses go. */
-    private fun press(keyCode: Int) = SwingUtilities.invokeLater {
-        val frame = Frame.getFrames().firstOrNull { it.isShowing && it.composeInputComponent() != null }
-            ?: return@invokeLater
-        // A TV remote wakes the TV: bring Nuvio to the front if another window is active.
-        if (!frame.isFocused) DesktopSingleInstanceController.restoreAndFocusWindow()
-        val target = frame.mostRecentFocusOwner ?: return@invokeLater
-        val now = System.currentTimeMillis()
-        target.dispatchEvent(KeyEvent(target, KeyEvent.KEY_PRESSED, now, 0, keyCode, KeyEvent.CHAR_UNDEFINED))
-        target.dispatchEvent(KeyEvent(target, KeyEvent.KEY_RELEASED, now, 0, keyCode, KeyEvent.CHAR_UNDEFINED))
+    /** Real key presses go to the foreground window, so only press while Nuvio is in front; else bring it there. */
+    private fun press(keyCode: Int) {
+        val frame = Frame.getFrames().firstOrNull { it.isShowing && it.composeInputComponent() != null } ?: return
+        if (!frame.isActive) {
+            DesktopSingleInstanceController.restoreAndFocusWindow()
+            return
+        }
+        robot.keyPress(keyCode)
+        robot.keyRelease(keyCode)
     }
 }

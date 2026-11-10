@@ -6437,6 +6437,7 @@ window.playerUpdate = update => {
 
 window.playerControls = nextState => {
   const previousCloseToken = Number(state.closeModalsToken) || 0;
+  const previousRemoteClickToken = Number(state.remoteClickToken) || 0;
   const previousSubmitIntroSuccessToken = Number(state.submitIntroSuccessToken) || 0;
   const previousNotificationToken = Number(state.notificationToken) || 0;
   const previousResizeLabel = state.resizeModeLabel || "";
@@ -6509,6 +6510,12 @@ window.playerControls = nextState => {
   const submitIntroSuccessToken = Number(state.submitIntroSuccessToken) || 0;
   if (closeToken !== previousCloseToken) {
     closePlayerModal();
+  }
+  // The phone remote clicks a control here, so the PC opens the same panel the phone shows.
+  const remoteClickToken = Number(state.remoteClickToken) || 0;
+  if (!replayingParty && remoteClickToken !== previousRemoteClickToken && state.remoteClick) {
+    const target = document.getElementById(state.remoteClick);
+    if (target) target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
   }
   if (submitIntroSuccessToken !== previousSubmitIntroSuccessToken) {
     submitIntroDraft.segmentType = "intro";
