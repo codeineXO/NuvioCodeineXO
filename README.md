@@ -28,7 +28,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Motion Smoothing (Frame Interpolation):** Converts videos into fluid high-framerate playback (60fps+) in real time. Automatically applies tailored smoothness for anime versus live-action movies and TV shows, switchable on the fly (`Off`, `Anime Only`, `All Media`) from the player Enhancements menu.
 * **Random Title Picker ("Shuffle"):** Shuffle tool that lets you roll for random movies, shows and anime with handy filters and a quick preview before diving in.
 * **Seek Previews (Seekr.tv):** Highly customizable animated seek preview thumbnails on hover and scrub powered by the Seekr.tv API.
-* **Eye Filter:** Optional night-light or dimmer overlay with configurable color and opacity, plus an instant keyboard toggle.
+* **Eye Filter:** Optional night-light or dimmer overlay with configurable color and opacity, plus an instant keyboard toggle. Frosted haze filter for people with hemophobia.
 * **In Player Playback Statistics Overlay:** View Stats for Nerds in player with all kinds of statistics.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
@@ -36,6 +36,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Live Network & Stream Stats:** Real-time overlay showing download speed, seeders, and peers directly on the player for both P2P and HTTP streams.
 * **Audio Night Mode (Dynamic Range Compression):** Real-time loudness normalization filter accessible in the player audio panel and settings to boost soft dialogue while reducing loud dynamic peaks.
 * **Precision Seeking & Stutter Fixes:** Smooth precision seeking, 10-second seek, 3-second seek and  1-second micro-seeking and optimized streaming buffer cache.
+* **In-app Trailer:** Plays trailer inside the app without opening in a browser.
 
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
@@ -50,6 +51,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
 * **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
 * **Poster Hover Previews:** Redesigned landscape hover preview with details and ratings.
+* **Clickable Ratings:** All rating badges are clickable to open in browser. 
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
 * **Catalog Navigation & Polish:** Drag-to-scroll and directional arrow buttons on carousels, sidebar quick exit button, and copy addon manifest link shortcuts.
