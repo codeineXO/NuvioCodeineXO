@@ -410,6 +410,7 @@ fun DesktopDetailHero(
                 Spacer(modifier = Modifier.height(if (compact) space.s8 else space.s12))
                 DetailRatingsRow(
                     ratings = meta.externalRatings,
+                    imdbId = meta.imdbId ?: meta.id,
                     modifier = Modifier.widthIn(max = 520.dp),
                 )
             }
@@ -550,6 +551,7 @@ private fun DesktopHeroMetaRow(
         metaItems = metaItems,
         ageRating = meta.ageRating,
         imdbRating = validImdbRating.takeIf { showOverallRatings },
+        imdbId = meta.imdbId ?: meta.id,
         textShadow = textShadow,
     )
 }
@@ -559,6 +561,7 @@ internal fun DesktopHeroMetaRow(
     metaItems: List<String>,
     ageRating: String?,
     imdbRating: String?,
+    imdbId: String? = null,
     modifier: Modifier = Modifier,
     textShadow: Shadow? = null,
 ) {
@@ -611,9 +614,7 @@ internal fun DesktopHeroMetaRow(
                 letterSpacing = 0.sp,
                 shadow = textShadow,
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            ClickableRatingBadge(url = formatImdbTitleUrl(imdbId)) {
                 ImdbRatingSourceLabel(
                     storeTextStyle = imdbTextStyle,
                     storeTextColor = ImdbYellow,

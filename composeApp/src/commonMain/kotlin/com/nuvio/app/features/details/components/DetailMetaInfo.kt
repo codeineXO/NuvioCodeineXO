@@ -2,7 +2,9 @@ package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,14 +13,17 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,12 +36,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -136,9 +148,7 @@ fun DetailMetaInfo(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.sp,
                     )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+                    ClickableRatingBadge(url = formatImdbTitleUrl(meta.imdbId ?: meta.id)) {
                         ImdbRatingSourceLabel(storeTextStyle = imdbTextStyle)
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
@@ -165,6 +175,7 @@ fun DetailMetaInfo(
         ) {
             DetailRatingsRow(
                 ratings = meta.externalRatings,
+                imdbId = meta.imdbId ?: meta.id,
                 horizontalScrollPadding = horizontalScrollPadding,
             )
         }
@@ -197,12 +208,14 @@ fun DetailMetaInfo(
 internal fun DetailRatingsRow(
     ratings: List<MetaExternalRating>,
     modifier: Modifier = Modifier,
+    imdbId: String? = null,
     horizontalScrollPadding: Dp = 0.dp,
 ) {
     val scrollState = rememberScrollState()
 
     RatingsRow(
         ratings = ratings,
+        imdbId = imdbId,
         modifier = modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
@@ -217,6 +230,7 @@ internal fun DetailRatingsRow(
 internal fun RatingsRow(
     ratings: List<MetaExternalRating>,
     modifier: Modifier = Modifier,
+    imdbId: String? = null,
     maxItems: Int = Int.MAX_VALUE,
     wrap: Boolean = false,
     compact: Boolean = false,
@@ -239,9 +253,11 @@ internal fun RatingsRow(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.sp,
             )
-            Row(
+            val targetUrl = rating.url
+                ?: if (visuals.source == PROVIDER_IMDB) formatImdbTitleUrl(imdbId) else null
+            ClickableRatingBadge(
+                url = targetUrl,
                 modifier = if (wrap) Modifier.heightIn(min = 24.dp * ratingScale) else Modifier,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
                     ImdbRatingSourceLabel(storeTextStyle = ratingTextStyle)
@@ -271,16 +287,66 @@ internal fun RatingsRow(
     if (wrap) {
         FlowRow(
             modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(14.dp * ratingScale),
-            verticalArrangement = Arrangement.spacedBy(8.dp * ratingScale),
+            horizontalArrangement = Arrangement.spacedBy(10.dp * ratingScale),
+            verticalArrangement = Arrangement.spacedBy(6.dp * ratingScale),
         ) { content() }
     } else {
         Row(
             modifier = modifier,
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp * ratingScale),
+            horizontalArrangement = Arrangement.spacedBy(10.dp * ratingScale),
         ) { content() }
     }
+}
+
+internal fun formatImdbTitleUrl(imdbId: String?): String? {
+    val clean = imdbId?.substringBefore(":")?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val id = when {
+        clean.startsWith("tt", ignoreCase = true) && clean.length > 2 -> clean
+        clean.all { it.isDigit() } -> "tt$clean"
+        else -> null
+    } ?: return null
+    return "https://www.imdb.com/title/$id/"
+}
+
+@Composable
+internal fun ClickableRatingBadge(
+    url: String?,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(6.dp),
+    content: @Composable RowScope.() -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+    val isClickable = !url.isNullOrBlank()
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val containerColor by animateColorAsState(
+        targetValue = if (isClickable && isHovered) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 150),
+        label = "rating_badge_hover",
+    )
+
+    val badgeModifier = if (isClickable) {
+        modifier
+            .clip(shape)
+            .background(containerColor)
+            .pointerHoverIcon(PointerIcon.Hand)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                role = Role.Button,
+                onClick = { runCatching { uriHandler.openUri(url) } },
+            )
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+    } else {
+        modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+    }
+
+    Row(
+        modifier = badgeModifier,
+        verticalAlignment = Alignment.CenterVertically,
+        content = content,
+    )
 }
 
 @Composable

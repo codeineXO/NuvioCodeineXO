@@ -352,6 +352,7 @@ fun TabletDetailHero(
                         Spacer(modifier = Modifier.height(space.s12))
                         DetailRatingsRow(
                             ratings = meta.externalRatings,
+                            imdbId = meta.imdbId ?: meta.id,
                             modifier = Modifier.widthIn(max = 520.dp),
                         )
                     }
@@ -469,7 +470,7 @@ private fun TabletHeroMetaRow(meta: MetaDetails, showImdbRating: Boolean) {
             DetailHeroMetaBadge(text = rating)
         }
         if (validImdbRating != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            ClickableRatingBadge(url = formatImdbTitleUrl(meta.imdbId ?: meta.id)) {
                 ImdbRatingSourceLabel(storeTextStyle = itemStyle)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
