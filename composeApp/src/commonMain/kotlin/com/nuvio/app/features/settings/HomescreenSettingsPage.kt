@@ -88,7 +88,7 @@ internal fun LazyListScope.homescreenSettingsContent(
     showCatalogType: Boolean,
     hideUnreleasedContent: Boolean,
     scrollPostersLayoutEnabled: Boolean = false,
-    posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
+    posterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     alwaysAnimateCollectionCards: Boolean = false,
     items: List<HomeCatalogSettingsItem>,
     isCatalogLoading: Boolean,

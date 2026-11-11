@@ -45,7 +45,7 @@ data class HomeCatalogSettingsUiState(
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val scrollPostersLayoutEnabled: Boolean = false,
-    val posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
+    val posterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     val alwaysAnimateCollectionCards: Boolean = false,
     val items: List<HomeCatalogSettingsItem> = emptyList(),
 ) {
@@ -81,7 +81,7 @@ internal data class HomeCatalogSettingsSnapshot(
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
     val scrollPostersLayoutEnabled: Boolean = false,
-    val posterGutterSize: PosterGutterSize = PosterGutterSize.Default,
+    val posterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     val alwaysAnimateCollectionCards: Boolean = false,
     val preferences: Map<String, HomeCatalogPreference>,
 )
@@ -101,7 +101,7 @@ private data class StoredHomeCatalogSettingsPayload(
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val scrollPostersLayoutEnabled: Boolean = false,
-    val posterGutterSize: String = PosterGutterSize.Default.key,
+    val posterGutterSize: String = PosterGutterSize.Narrow.key,
     val alwaysAnimateCollectionCards: Boolean = false,
     val items: List<StoredHomeCatalogPreference> = emptyList(),
 )
@@ -144,7 +144,7 @@ object HomeCatalogSettingsRepository {
     private var showCatalogType = true
     private var hideUnreleasedContent = false
     private var scrollPostersLayoutEnabled = false
-    private var posterGutterSize = PosterGutterSize.Default
+    private var posterGutterSize = PosterGutterSize.Narrow
     private var alwaysAnimateCollectionCards = false
 
     fun onProfileChanged() {
@@ -154,7 +154,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         scrollPostersLayoutEnabled = false
-        posterGutterSize = PosterGutterSize.Default
+        posterGutterSize = PosterGutterSize.Narrow
         alwaysAnimateCollectionCards = false
         definitions = emptyList()
         collectionDefinitions = emptyList()
@@ -176,7 +176,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         scrollPostersLayoutEnabled = false
-        posterGutterSize = PosterGutterSize.Default
+        posterGutterSize = PosterGutterSize.Narrow
         alwaysAnimateCollectionCards = false
         snapshotRef.value = emptySnapshot
         lastPersistedPayload = null

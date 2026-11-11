@@ -19,7 +19,7 @@ internal fun homePosterGutterPaddingForWidth(
     maxWidthDp: Float,
     posterWidthDp: Dp,
     itemSpacing: Dp = 10.dp,
-    gutterSize: PosterGutterSize = PosterGutterSize.Default,
+    gutterSize: PosterGutterSize = PosterGutterSize.Narrow,
 ): Dp {
     val basePadding = desktopPageHorizontalPaddingForWidth(maxWidthDp)
     val gutterPadding = (basePadding + posterWidthDp + itemSpacing) * 0.70f * gutterSize.multiplier

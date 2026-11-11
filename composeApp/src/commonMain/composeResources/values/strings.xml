@@ -2744,8 +2744,8 @@
     <string name="compose_player_box_opacity">Box Opacity</string>
     <string name="settings_poster_gutter_size">Gutter size</string>
     <string name="settings_poster_gutter_size_description">Adjust the side space used to scroll the page.</string>
-    <string name="settings_poster_gutter_size_default">Default</string>
     <string name="settings_poster_gutter_size_narrow">Narrow</string>
+    <string name="settings_poster_gutter_size_medium">Medium</string>
     <string name="settings_poster_gutter_size_wide">Wide</string>
     <string name="window_menu_file">File</string>
     <string name="window_menu_window">Window</string>
