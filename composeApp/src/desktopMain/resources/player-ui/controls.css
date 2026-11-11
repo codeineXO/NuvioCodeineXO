@@ -5652,9 +5652,6 @@ svg {
   border-radius: 999px;
 }
 .player.ui-codeinexo.pip-mode #codeinePipLabel { display: none; }
-.player.ui-codeinexo.pip-mode .codeine-volume-slider {
-  display: none !important;
-}
 
 .player.mini-player-mode #codeineHeader,
 .player.mini-player-mode #codeineCenterControls,
