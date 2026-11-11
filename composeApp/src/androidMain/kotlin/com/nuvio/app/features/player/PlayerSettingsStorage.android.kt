@@ -134,6 +134,7 @@ actual object PlayerSettingsStorage {
     private const val eyeFilterEnabledKey = "eye_filter_enabled"
     private const val eyeFilterColorKey = "eye_filter_color"
     private const val eyeFilterOpacityKey = "eye_filter_opacity"
+    private const val grainFilterEnabledKey = "grain_filter_enabled"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -1734,6 +1735,16 @@ actual object PlayerSettingsStorage {
 
     actual fun saveEyeFilterOpacity(opacity: Float) {
         preferences?.edit()?.putFloat(ProfileScopedKey.of(eyeFilterOpacityKey), opacity)?.apply()
+    }
+
+    actual fun loadGrainFilterEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(grainFilterEnabledKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, false) else null
+        }
+
+    actual fun saveGrainFilterEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(grainFilterEnabledKey), enabled)?.apply()
     }
 
     actual fun loadPlayerUiScale(): Int? = null

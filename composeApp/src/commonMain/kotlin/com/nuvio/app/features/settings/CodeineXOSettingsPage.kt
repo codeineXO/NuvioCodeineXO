@@ -332,6 +332,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     description = when (playerSettings.eyeFilterColor.uppercase()) {
                         "#000000" -> "Black"
                         "#0F172A", "#1C2833" -> "Deep Navy"
+                        "BW", "#BW" -> "Black & White"
                         else -> "Custom (${playerSettings.eyeFilterColor})"
                     },
                     isTablet = isTablet,
@@ -343,6 +344,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     description = "${(playerSettings.eyeFilterOpacity * 100).toInt()}%",
                     isTablet = isTablet,
                     onClick = { showEyeFilterOpacityDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = "Frosted Matte Filter (Hemophobia Protection)",
+                    description = "Static frosted veil with blood suppression for sensitive scenes without covering subtitles (Shortcut: 9)",
+                    checked = playerSettings.grainFilterEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setGrainFilterEnabled,
                 )
 
             }
@@ -367,6 +376,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
             val colorOptions = listOf(
                 "#000000" to "Black",
                 "#0F172A" to "Deep Navy",
+                "BW" to "Black & White",
             )
             IosEnumSelectionDialog(
                 title = "Eye Filter Color",

@@ -3,6 +3,7 @@ package com.nuvio.app.features.player.desktop
 import androidx.compose.ui.graphics.Color
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.player.AnimeShaderProvider
+import com.nuvio.app.features.player.EyeFilterShaderProvider
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.MediaContentType
@@ -243,6 +244,7 @@ internal class NativePlayerController(
     private var currentPlaybackStats: PlayerPlaybackStats? = null
     private var statsJob: Job? = null
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
+    private var lastEnhancementShadersKey: String? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
     private var onScrubChange: (Long) -> Boolean = { false }
@@ -630,6 +632,14 @@ internal class NativePlayerController(
         )
         currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
         controlsState = stateWithEnhancements
+        val isBwActive = stateWithEnhancements.eyeFilterEnabled &&
+            (stateWithEnhancements.eyeFilterColor.equals("BW", ignoreCase = true) || stateWithEnhancements.eyeFilterColor.equals("#BW", ignoreCase = true))
+        val isGrainActive = PlayerSettingsRepository.uiState.value.grainFilterEnabled
+        val desiredShadersKey = "$animeUpscalerActive-${animeUpscalerMode.index}-$isBwActive-$isGrainActive"
+        if (desiredShadersKey != lastEnhancementShadersKey) {
+            lastEnhancementShadersKey = desiredShadersKey
+            applyCoordinatedEnhancements(current)
+        }
         val isFullscreen = isDesktopAppFullscreen(SwingUtilities.getWindowAncestor(host))
         val currentUiScale = PlayerSettingsRepository.uiState.value.playerUiScale
         val structureKey = NativeControlsStructureKey(
@@ -837,15 +847,23 @@ internal class NativePlayerController(
         svpActive = svpIsActive
         currentSvpProfile = if (isSvpRuntimeAvailable) svpProf else ""
 
-        val shaderPath = if (upscalerActive) {
-            AnimeShaderProvider.getShaderPath(animeUpscalerMode).orEmpty()
-        } else {
-            ""
+        val shaderPaths = mutableListOf<String>()
+        if (upscalerActive) {
+            AnimeShaderProvider.getShaderPath(animeUpscalerMode)?.let { shaderPaths.add(it) }
         }
+        val isBwActive = controlsState.eyeFilterEnabled &&
+            (controlsState.eyeFilterColor.equals("BW", ignoreCase = true) || controlsState.eyeFilterColor.equals("#BW", ignoreCase = true))
+        if (isBwActive) {
+            EyeFilterShaderProvider.getBwShaderPath()?.let { shaderPaths.add(it) }
+        }
+        if (PlayerSettingsRepository.uiState.value.grainFilterEnabled) {
+            EyeFilterShaderProvider.getGrainShaderPath()?.let { shaderPaths.add(it) }
+        }
+        val shaderPath = shaderPaths.filter { it.isNotBlank() }.joinToString(java.io.File.pathSeparator)
         runCatching {
             NativePlayerBridge.setGlslShaders(targetHandle, shaderPath)
         }.onFailure { error ->
-            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle active=$upscalerActive mode=$animeUpscalerMode" }
+            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle active=$upscalerActive mode=$animeUpscalerMode shaders=$shaderPath" }
         }
 
         val scriptPath = if (svpIsActive && svpProf.isNotEmpty()) {
@@ -941,6 +959,18 @@ internal class NativePlayerController(
             }
             "playerUiScale" -> {
                 PlayerSettingsRepository.setPlayerUiScale(kotlin.math.round(value).toInt().coerceIn(50, 150))
+            }
+            "setGrainFilterEnabled" -> {
+                if (onEvent(type, value)) return
+                PlayerSettingsRepository.setGrainFilterEnabled(value >= 0.5)
+            }
+            "setEyeFilterBw" -> {
+                if (onEvent(type, value)) return
+                if (value >= 0.5) {
+                    PlayerSettingsRepository.setEyeFilterColor("BW")
+                } else if (PlayerSettingsRepository.uiState.value.eyeFilterColor.equals("BW", ignoreCase = true)) {
+                    PlayerSettingsRepository.setEyeFilterColor("#000000")
+                }
             }
             "toggleFullscreen" -> {
                 if (onEvent(type, value)) 
@@ -2165,6 +2195,8 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("eyeFilterColor", eyeFilterColor)
         append(',')
         appendJsonField("eyeFilterOpacity", eyeFilterOpacity)
+        append(',')
+        appendJsonField("grainFilterEnabled", PlayerSettingsRepository.uiState.value.grainFilterEnabled)
         append(',')
         appendJsonField("playerUiScale", PlayerSettingsRepository.uiState.value.playerUiScale)
         append(',')

@@ -140,6 +140,7 @@ data class PlayerSettingsUiState(
     val eyeFilterEnabled: Boolean = false,
     val eyeFilterColor: String = "#000000",
     val eyeFilterOpacity: Float = 0.35f,
+    val grainFilterEnabled: Boolean = false,
     val playerUiScale: Int = 100,
 )
 
@@ -254,6 +255,7 @@ object PlayerSettingsRepository {
     private var eyeFilterEnabled = false
     private var eyeFilterColor = "#000000"
     private var eyeFilterOpacity = 0.35f
+    private var grainFilterEnabled = false
     private var playerUiScale = 100
 
     fun ensureLoaded() {
@@ -374,6 +376,7 @@ object PlayerSettingsRepository {
         eyeFilterEnabled = false
         eyeFilterColor = "#000000"
         eyeFilterOpacity = 0.35f
+        grainFilterEnabled = false
         playerUiScale = 100
         publish()
     }
@@ -590,6 +593,7 @@ object PlayerSettingsRepository {
         eyeFilterEnabled = PlayerSettingsStorage.loadEyeFilterEnabled() ?: false
         eyeFilterColor = PlayerSettingsStorage.loadEyeFilterColor() ?: "#000000"
         eyeFilterOpacity = PlayerSettingsStorage.loadEyeFilterOpacity()?.coerceIn(0.10f, 0.80f) ?: 0.35f
+        grainFilterEnabled = PlayerSettingsStorage.loadGrainFilterEnabled() ?: false
         playerUiScale = PlayerSettingsStorage.loadPlayerUiScale()?.coerceIn(50, 150) ?: 100
         publish()
     }
@@ -1395,6 +1399,14 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveEyeFilterOpacity(clamped)
     }
 
+    fun setGrainFilterEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (grainFilterEnabled == enabled) return
+        grainFilterEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveGrainFilterEnabled(enabled)
+    }
+
     fun setPlayerUiScale(scale: Int) {
         ensureLoaded()
         val clamped = scale.coerceIn(50, 150)
@@ -1706,6 +1718,7 @@ object PlayerSettingsRepository {
             eyeFilterEnabled = eyeFilterEnabled,
             eyeFilterColor = eyeFilterColor,
             eyeFilterOpacity = eyeFilterOpacity,
+            grainFilterEnabled = grainFilterEnabled,
             playerUiScale = playerUiScale,
         )
     }

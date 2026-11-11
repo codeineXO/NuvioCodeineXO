@@ -132,6 +132,7 @@ actual object PlayerSettingsStorage {
     private const val eyeFilterEnabledKey = "eye_filter_enabled"
     private const val eyeFilterColorKey = "eye_filter_color"
     private const val eyeFilterOpacityKey = "eye_filter_opacity"
+    private const val grainFilterEnabledKey = "grain_filter_enabled"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -1413,6 +1414,16 @@ actual object PlayerSettingsStorage {
 
     actual fun saveEyeFilterOpacity(opacity: Float) {
         NSUserDefaults.standardUserDefaults.setFloat(opacity, forKey = ProfileScopedKey.of(eyeFilterOpacityKey))
+    }
+
+    actual fun loadGrainFilterEnabled(): Boolean? {
+        val key = ProfileScopedKey.of(grainFilterEnabledKey)
+        val defaults = NSUserDefaults.standardUserDefaults
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+
+    actual fun saveGrainFilterEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(grainFilterEnabledKey))
     }
 
     actual fun loadPlayerUiScale(): Int? = null

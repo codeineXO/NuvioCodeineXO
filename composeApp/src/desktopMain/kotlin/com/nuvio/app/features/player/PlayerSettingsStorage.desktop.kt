@@ -37,6 +37,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val eyeFilterEnabledKey = "eye_filter_enabled"
     private const val eyeFilterColorKey = "eye_filter_color"
     private const val eyeFilterOpacityKey = "eye_filter_opacity"
+    private const val grainFilterEnabledKey = "grain_filter_enabled"
     private const val playerUiScaleKey = "player_ui_scale"
     private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
     private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
@@ -410,6 +411,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun saveEyeFilterColor(color: String) = saveString(eyeFilterColorKey, color)
     actual fun loadEyeFilterOpacity(): Float? = loadFloat(eyeFilterOpacityKey)
     actual fun saveEyeFilterOpacity(opacity: Float) = saveFloat(eyeFilterOpacityKey, opacity)
+    actual fun loadGrainFilterEnabled(): Boolean? = loadBoolean(grainFilterEnabledKey)
+    actual fun saveGrainFilterEnabled(enabled: Boolean) = saveBoolean(grainFilterEnabledKey, enabled)
     actual fun loadPlayerUiScale(): Int? = loadInt(playerUiScaleKey)
     actual fun savePlayerUiScale(scale: Int) = saveInt(playerUiScaleKey, scale)
 

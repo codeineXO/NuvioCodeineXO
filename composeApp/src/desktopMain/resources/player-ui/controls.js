@@ -100,6 +100,9 @@ const eyeFilterOpacitySlider = document.getElementById("eyeFilterOpacitySlider")
 const eyeFilterOpacityValue = document.getElementById("eyeFilterOpacityValue");
 const eyeFilterPresetBlack = document.getElementById("eyeFilterPresetBlack");
 const eyeFilterPresetNavy = document.getElementById("eyeFilterPresetNavy");
+const eyeFilterPresetBw = document.getElementById("eyeFilterPresetBw");
+const eyeFilterPresetGrain = document.getElementById("eyeFilterPresetGrain");
+const grainFilterToggleSwitch = document.getElementById("grainFilterToggleSwitch");
 const eyeFilterCustomToggle = document.getElementById("eyeFilterCustomToggle");
 const eyeFilterCustomPicker = document.getElementById("eyeFilterCustomPicker");
 const eyeFilterHueSlider = document.getElementById("eyeFilterHueSlider");
@@ -359,6 +362,7 @@ let state = {
   eyeFilterEnabled: false,
   eyeFilterColor: "#000000",
   eyeFilterOpacity: 0.35,
+  grainFilterEnabled: false,
   playerUiScale: 100,
   showPlaybackTimeOverlay: false,
   showTorrentStatsOverlay: true,
@@ -2138,7 +2142,9 @@ const applyPlayerUiScale = (scale, notifyHost) => {
 const syncEyeFilterOverlay = () => {
   const enabled = Boolean(state.eyeFilterEnabled);
   if (eyeFilterOverlay) {
-    const color = state.eyeFilterColor || "#000000";
+    const rawColor = state.eyeFilterColor || "#000000";
+    const isBw = rawColor === "BW" || rawColor === "#BW";
+    const color = isBw ? "#000000" : rawColor;
     const opacity = state.eyeFilterOpacity != null ? Math.max(0.10, Math.min(0.80, Number(state.eyeFilterOpacity))) : 0.35;
     eyeFilterOverlay.classList.toggle("is-active", enabled);
     eyeFilterOverlay.style.backgroundColor = color;
@@ -2151,6 +2157,13 @@ const syncEyeFilterOverlay = () => {
 const applyEyeFilterColor = color => {
   const norm = (color || "#000000").toUpperCase();
   state.eyeFilterColor = norm;
+  if (norm === "BW" || norm === "#BW") {
+    eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
+    syncEyeFilterOverlay();
+    renderEyeFilterModal();
+    send("setEyeFilterBw", 1);
+    return;
+  }
   if (norm === "#000000") {
     eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
   } else if (norm === "#0F172A") {
@@ -2194,6 +2207,17 @@ const renderEyeFilterModal = () => {
   if (eyeFilterPresetNavy) {
     eyeFilterPresetNavy.classList.toggle("selected", color === "#0F172A");
   }
+  if (eyeFilterPresetBw) {
+    eyeFilterPresetBw.classList.toggle("selected", color === "BW" || color === "#BW");
+  }
+  const grainActive = Boolean(state.grainFilterEnabled);
+  if (eyeFilterPresetGrain) {
+    eyeFilterPresetGrain.classList.toggle("selected", grainActive);
+  }
+  if (grainFilterToggleSwitch) {
+    grainFilterToggleSwitch.classList.toggle("is-checked", grainActive);
+    grainFilterToggleSwitch.setAttribute("aria-checked", String(grainActive));
+  }
 
   if (eyeFilterHexInput && document.activeElement !== eyeFilterHexInput) {
     eyeFilterHexInput.value = color;
@@ -2228,7 +2252,7 @@ const renderEyeFilterModal = () => {
   }
 
   lastRenderedModal = "eyeFilter";
-  lastRenderedModalSignature = `${enabled}##${color}##${opacity}`;
+  lastRenderedModalSignature = `${enabled}##${color}##${opacity}##${grainActive}`;
 };
 
 const updateEyeFilterFromSliders = (channel, commit = false) => {
@@ -2313,6 +2337,31 @@ const initEyeFilterListeners = () => {
     eyeFilterPresetNavy.addEventListener("click", event => {
       event.stopPropagation();
       applyEyeFilterColor("#0F172A");
+    });
+  }
+  if (eyeFilterPresetBw) {
+    eyeFilterPresetBw.addEventListener("click", event => {
+      event.stopPropagation();
+      applyEyeFilterColor("BW");
+    });
+  }
+  const toggleGrainFilter = () => {
+    const next = !state.grainFilterEnabled;
+    state.grainFilterEnabled = next;
+    renderEyeFilterModal();
+    send("setGrainFilterEnabled", next ? 1 : 0);
+    showPlayerToast(next ? "Frosted matte filter: On" : "Frosted matte filter: Off");
+  };
+  if (eyeFilterPresetGrain) {
+    eyeFilterPresetGrain.addEventListener("click", event => {
+      event.stopPropagation();
+      toggleGrainFilter();
+    });
+  }
+  if (grainFilterToggleSwitch) {
+    grainFilterToggleSwitch.addEventListener("click", event => {
+      event.stopPropagation();
+      toggleGrainFilter();
     });
   }
   if (eyeFilterCustomToggle && eyeFilterCustomPicker) {
@@ -4104,7 +4153,7 @@ const getActiveModalSignature = modal => {
   if (modal === "subtitles") return getSubtitlesModalSignature();
   if (modal === "speed") return getSpeedModalSignature();
   if (modal === "shaders") return getShaderModalSignature();
-  if (modal === "eyeFilter") return `${state.eyeFilterEnabled}##${state.eyeFilterColor}##${state.eyeFilterOpacity}`;
+  if (modal === "eyeFilter") return `${state.eyeFilterEnabled}##${state.eyeFilterColor}##${state.eyeFilterOpacity}##${state.grainFilterEnabled}`;
   if (modal === "sources") return getSourcesModalSignature();
   if (modal === "episodes") return getEpisodesModalSignature();
   if (modal === "submitIntro") return getSubmitIntroModalSignature();
@@ -6493,6 +6542,9 @@ window.playerControls = nextState => {
   if (typeof nextState.eyeFilterOpacity === "number") {
     state.eyeFilterOpacity = nextState.eyeFilterOpacity;
   }
+  if (typeof nextState.grainFilterEnabled === "boolean") {
+    state.grainFilterEnabled = nextState.grainFilterEnabled;
+  }
   if (typeof nextState.playerUiScale === "number" && nextState.playerUiScale >= 50 && nextState.playerUiScale <= 150) {
     if (previousPlayerUiScale !== nextState.playerUiScale) {
       applyPlayerUiScale(nextState.playerUiScale, false);
@@ -7158,6 +7210,19 @@ document.addEventListener("keydown", event => {
     }
     send("setEyeFilterEnabled", next ? 1 : 0);
     showPlayerToast(next ? "Eye filter: On" : "Eye filter: Off");
+    return;
+  }
+
+  if (event.code === "Digit9" || event.code === "Numpad9") {
+    clearSpaceHoldTimerAndStopSpeedBoost();
+    event.preventDefault();
+    const next = !state.grainFilterEnabled;
+    state.grainFilterEnabled = next;
+    if (activeModal === "eyeFilter") {
+      renderEyeFilterModal();
+    }
+    send("setGrainFilterEnabled", next ? 1 : 0);
+    showPlayerToast(next ? "Frosted matte filter: On" : "Frosted matte filter: Off");
     return;
   }
 

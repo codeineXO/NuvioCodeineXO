@@ -1501,6 +1501,18 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             PlayerSettingsRepository.setEyeFilterColor(hex)
             true
         }
+        "setEyeFilterBw" -> {
+            if (value >= 0.5) {
+                PlayerSettingsRepository.setEyeFilterColor("BW")
+            } else if (PlayerSettingsRepository.uiState.value.eyeFilterColor.equals("BW", ignoreCase = true)) {
+                PlayerSettingsRepository.setEyeFilterColor("#000000")
+            }
+            true
+        }
+        "setGrainFilterEnabled" -> {
+            PlayerSettingsRepository.setGrainFilterEnabled(value >= 0.5)
+            true
+        }
         "selectChapter" -> {
             selectChapter(value.toInt())
         }

@@ -588,7 +588,7 @@
             <div class="style-section eye-filter-toggle-card">
               <div class="eye-filter-toggle-row">
                 <div class="eye-filter-toggle-info">
-                  <span class="eye-filter-toggle-title">Eye Filter</span>
+                  <span class="eye-filter-toggle-title">Eye Filter [0]</span>
                   <span class="eye-filter-toggle-desc">Warm tint or screen dimmer to reduce eye strain</span>
                 </div>
                 <button class="filter-switch" id="eyeFilterToggleSwitch" type="button" role="switch" aria-checked="false">
@@ -619,6 +619,10 @@
                   <span class="preset-chip-color" style="background:#0F172A; border: 1px solid rgba(255,255,255,0.3);"></span>
                   <span>Deep Navy</span>
                 </button>
+                <button class="preset-chip" id="eyeFilterPresetBw" type="button" data-color="BW" title="Black and white monochrome filter">
+                  <span class="preset-chip-color" style="background: linear-gradient(135deg, #ffffff 50%, #000000 50%); border: 1px solid rgba(255,255,255,0.3);"></span>
+                  <span>B&W</span>
+                </button>
               </div>
               <div class="custom-color-picker" id="eyeFilterCustomPicker" hidden>
                 <div class="slider-row">
@@ -646,6 +650,18 @@
                   <span>Hex</span>
                   <input type="text" class="color-hex-input" id="eyeFilterHexInput" placeholder="#000000" maxlength="7" />
                 </div>
+              </div>
+            </div>
+
+            <div class="style-section eye-filter-grain-card" id="eyeFilterGrainCard">
+              <div class="eye-filter-toggle-row">
+                <div class="eye-filter-toggle-info">
+                  <span class="eye-filter-toggle-title">Frosted Matte Filter [9]</span>
+                  <span class="eye-filter-toggle-desc">Static frosted veil for hemophobia protection</span>
+                </div>
+                <button class="filter-switch" id="grainFilterToggleSwitch" type="button" role="switch" aria-checked="false">
+                  <span class="filter-switch-thumb"></span>
+                </button>
               </div>
             </div>
           </div>

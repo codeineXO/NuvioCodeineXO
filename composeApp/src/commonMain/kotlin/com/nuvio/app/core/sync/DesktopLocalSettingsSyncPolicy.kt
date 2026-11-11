@@ -75,6 +75,7 @@ internal fun playerSettingsSyncState(state: PlayerSettingsUiState, desktop: Bool
         eyeFilterEnabled = false,
         eyeFilterColor = "#000000",
         eyeFilterOpacity = 0.35f,
+        grainFilterEnabled = false,
         subtitleStyle = state.subtitleStyle.copy(
             fontName = SubtitleStyleState.DEFAULT.fontName,
             outlineEffect = SubtitleStyleState.DEFAULT.outlineEffect,
