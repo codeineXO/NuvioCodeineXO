@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,6 +89,7 @@ import com.nuvio.app.features.home.components.HomeHeroSection
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.home.components.HomeSkeletonHero
 import com.nuvio.app.features.home.components.HomeSkeletonRow
+import com.nuvio.app.features.home.components.ScrollPostersToggleButton
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
 import com.nuvio.app.features.tracking.WatchProgressSource
@@ -1354,13 +1356,13 @@ fun HomeScreen(
             }
         }
 
-        if (isFullscreenActionSupported) {
+        if (isFullscreenActionSupported || isDesktop) {
             val space = NuvioTokens.Space
             val colorScheme = MaterialTheme.colorScheme
             val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
             val desktopButtonSize = desktopTopBarHeight(maxWidth)
             val desktopIconSize = desktopTopBarActionIconSize(maxWidth)
-            FullscreenActionButton(
+            Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
@@ -1369,11 +1371,31 @@ fun HomeScreen(
                             else if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
                         end = actionHorizontalInset,
                     ),
-                buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
-                iconSize = if (isDesktop) desktopIconSize else 24.dp,
-                contentColor = colorScheme.onSurface,
-                hazeState = fullscreenBackdropState,
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (isFullscreenActionSupported) {
+                    FullscreenActionButton(
+                        buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
+                        iconSize = if (isDesktop) desktopIconSize else 24.dp,
+                        contentColor = colorScheme.onSurface,
+                        hazeState = fullscreenBackdropState,
+                    )
+                }
+                if (isDesktop) {
+                    ScrollPostersToggleButton(
+                        isScrollLayout = homeSettingsUiState.scrollPostersLayoutEnabled,
+                        onToggle = {
+                            HomeCatalogSettingsRepository.setScrollPostersLayoutEnabled(
+                                !homeSettingsUiState.scrollPostersLayoutEnabled,
+                            )
+                        },
+                        buttonSize = desktopButtonSize,
+                        iconSize = desktopIconSize,
+                        hazeState = fullscreenBackdropState,
+                    )
+                }
+            }
         }
     }
 }
