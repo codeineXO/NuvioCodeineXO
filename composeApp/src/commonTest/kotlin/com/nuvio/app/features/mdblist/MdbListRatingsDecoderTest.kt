@@ -47,9 +47,9 @@ class MdbListRatingsDecoderTest {
         )
 
         assertEquals(mapOf(
-            "tt1" to listOf(MetaExternalRating("imdb", 1.0)),
-            "tt2" to listOf(MetaExternalRating("imdb", 2.0)),
-            "tt3" to listOf(MetaExternalRating("imdb", 3.0)),
+            "tt1" to listOf(MetaExternalRating("imdb", 1.0, url = "https://www.imdb.com/title/tt1/")),
+            "tt2" to listOf(MetaExternalRating("imdb", 2.0, url = "https://www.imdb.com/title/tt2/")),
+            "tt3" to listOf(MetaExternalRating("imdb", 3.0, url = "https://www.imdb.com/title/tt3/")),
         ), ratings)
     }
 
@@ -87,7 +87,7 @@ class MdbListRatingsDecoderTest {
             """[{"ids":{"imdb":"tt0073195"},"ratings":[{"source":"letterboxd","value":7.8,"score":78}]}]""",
         )
 
-        assertEquals(listOf(MetaExternalRating("letterboxd", 3.9)), single)
+        assertEquals(listOf(MetaExternalRating("letterboxd", 3.9, url = "https://letterboxd.com/imdb/tt0073195")), single)
         assertEquals(single, batch.getValue("tt0073195"))
     }
 }

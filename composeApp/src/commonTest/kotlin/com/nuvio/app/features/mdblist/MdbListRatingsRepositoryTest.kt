@@ -54,7 +54,7 @@ class MdbListRatingsRepositoryTest {
     fun changingSourcesReadsTheCachedResponseInTheRequestedOrder() = runTest {
         val repository = repository()
 
-        assertEquals(listOf(MetaExternalRating("imdb", 8.1)),
+        assertEquals(listOf(MetaExternalRating("imdb", 8.1, url = "https://www.imdb.com/title/tt1234567/")),
             repository.getRatings("movie", "tt1234567", credential, listOf("imdb")))
         val ratings = repository.getRatings("movie", "tt1234567", credential, listOf("mal", "audience", "tmdb"))
 
