@@ -59,7 +59,6 @@ import com.nuvio.app.core.ui.featherArtwork
 import com.nuvio.app.core.ui.heroStretchHeight
 import com.nuvio.app.core.ui.heroStretchZoom
 import com.nuvio.app.features.details.MetaDetails
-import com.nuvio.app.features.tmdb.originalTmdbImageUrl
 import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -140,7 +139,7 @@ fun DetailHero(
                     val backdropScale = if (isTablet) 1f else 1.08f
                     if (imageUrl != null) {
                         AsyncImage(
-                            model = if (isDesktop) originalTmdbImageUrl(imageUrl) else imageUrl,
+                            model = imageUrl,
                             contentDescription = meta.name,
                             desktopAnimation = NuvioDesktopAnimation.Always,
                             modifier = Modifier
@@ -156,7 +155,7 @@ fun DetailHero(
                                 .navigationGlassSource(),
                             alignment = if (isTablet) Alignment.TopCenter else Alignment.Center,
                             contentScale = ContentScale.Crop,
-                            desktopImageScaling = NuvioDesktopImageScaling.Disabled,
+                            desktopImageScaling = NuvioDesktopImageScaling.Auto,
                             onSuccess = { state ->
                                 onBackdropLoaded(
                                     state.painter,
