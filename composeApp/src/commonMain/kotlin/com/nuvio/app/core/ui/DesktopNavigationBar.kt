@@ -92,7 +92,8 @@ internal fun DesktopNavigationBar(
             viewportWidth > 1600.dp -> 30.dp
             else -> 28.dp
         }
-        val trackWidth = ((iconSize + 20.dp + 64.dp * labelFraction) * items.size + 8.dp).coerceAtMost(maxWidth)
+        val trackHeight = desktopTopBarHeight(viewportWidth)
+        val trackWidth = ((trackHeight + 64.dp * labelFraction) * items.size + 8.dp).coerceAtMost(maxWidth)
         CompositionLocalProvider(
             LocalRemoteNavigationRole provides RemoteNavigationRole.TopBar,
             LocalRemoteRoute provides navigationRoute,
@@ -104,7 +105,7 @@ internal fun DesktopNavigationBar(
             surfaceShadowElevation = glassElevation.dp,
             horizontalLabels = true,
             iconSize = iconSize,
-            modifier = Modifier.width(trackWidth).height(iconSize + 20.dp).hoverable(interactionSource),
+            modifier = Modifier.width(trackWidth).height(trackHeight).hoverable(interactionSource),
         ) {
             val pillShape = RoundedCornerShape(50)
             Box(

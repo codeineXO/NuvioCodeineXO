@@ -205,11 +205,13 @@ fun NuvioScreenHeader(
     }
     val insetByScreen = LocalScreenHeaderInset.current
     val resolvedTopPadding = topPadding ?: if (isDesktop) {
-        (if (includeStatusBarPadding) statusBarTop else 0.dp) + desktopBackButtonTopPadding
+        (if (includeStatusBarPadding) statusBarTop else 0.dp) + desktopTopBarTopPadding
     } else if (includeStatusBarPadding) statusBarTop else NuvioTokens.Space.none
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
     ) {
+        val headerButtonSize = if (isDesktop) desktopTopBarHeight(maxWidth) else desktopBackButtonSize
+        val headerIconSize = if (isDesktop) desktopTopBarActionIconSize(maxWidth) else desktopBackButtonIconSize
         val horizontalInset = if (isDesktop && onBack != null && !insetByScreen) {
             desktopPageHorizontalPaddingForWidth(maxWidth.value)
         } else 0.dp
@@ -234,7 +236,7 @@ fun NuvioScreenHeader(
             ) {
                 if (onBack != null && (!LocalDesktopSidebarActive.current || showBackWithDesktopSidebar)) {
                     IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
-                        .size(desktopBackButtonSize)
+                        .size(headerButtonSize)
                     else Modifier).navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
                         Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)
                     } else Modifier.excludeFromRemoteNavigation())) {
@@ -242,7 +244,7 @@ fun NuvioScreenHeader(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),
                             tint = frostedGlassSecondaryContentColor(if (isDesktop) MaterialTheme.colorScheme.onBackground else tokens.colors.textPrimary),
-                            modifier = if (isDesktop) Modifier.size(desktopBackButtonIconSize) else Modifier,
+                            modifier = if (isDesktop) Modifier.size(headerIconSize) else Modifier,
                         )
                     }
                 }
@@ -270,10 +272,10 @@ fun NuvioScreenHeader(
                     FullscreenActionButton(
                         modifier = if (isDesktop) Modifier
                             .align(Alignment.Top)
-                            .offset(y = statusBarTop + desktopBackButtonTopPadding - resolvedTopPadding)
+                            .offset(y = statusBarTop + desktopTopBarTopPadding - resolvedTopPadding)
                         else Modifier,
-                        buttonSize = 48.dp,
-                        iconSize = 24.dp,
+                        buttonSize = if (isDesktop) headerButtonSize else 48.dp,
+                        iconSize = if (isDesktop) headerIconSize else 24.dp,
                         contentColor = tokens.colors.textPrimary,
                     )
                 }

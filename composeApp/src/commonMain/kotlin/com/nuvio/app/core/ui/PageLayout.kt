@@ -10,6 +10,21 @@ internal val desktopBackButtonSize = 48.dp
 internal val desktopBackButtonIconSize = 24.dp
 internal val desktopBackButtonContainerColor = Color.Black.copy(alpha = 0.34f)
 
+/** Desktop top bar layout metrics for vertical alignment and responsive height. */
+internal val desktopTopBarTopPadding = 10.dp
+
+internal fun desktopTopBarHeight(windowWidth: Dp): Dp = when {
+    windowWidth < 800.dp -> 46.dp
+    windowWidth > 1600.dp -> 50.dp
+    else -> 48.dp
+}
+
+internal fun desktopTopBarActionIconSize(windowWidth: Dp): Dp = when {
+    windowWidth < 800.dp -> 22.dp
+    windowWidth > 1600.dp -> 26.dp
+    else -> 24.dp
+}
+
 /**
  * Horizontal inset for top-level desktop page content.
  *

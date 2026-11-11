@@ -68,6 +68,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+import com.nuvio.app.core.ui.desktopTopBarActionIconSize
+import com.nuvio.app.core.ui.desktopTopBarHeight
+import com.nuvio.app.core.ui.desktopTopBarTopPadding
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.isFullscreenActionSupported
@@ -1355,17 +1358,19 @@ fun HomeScreen(
             val space = NuvioTokens.Space
             val colorScheme = MaterialTheme.colorScheme
             val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
+            val desktopButtonSize = desktopTopBarHeight(maxWidth)
+            val desktopIconSize = desktopTopBarActionIconSize(maxWidth)
             FullscreenActionButton(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(
-                        top = if (isDesktop) desktopBackButtonTopPadding
+                        top = if (isDesktop) desktopTopBarTopPadding
                             else if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
                         end = actionHorizontalInset,
                     ),
-                buttonSize = 48.dp,
-                iconSize = 24.dp,
+                buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
+                iconSize = if (isDesktop) desktopIconSize else 24.dp,
                 contentColor = colorScheme.onSurface,
                 hazeState = fullscreenBackdropState,
             )
