@@ -14,12 +14,16 @@ internal object RemotePlayerLink {
         "scrubFinish", "selectSource", "reloadSources", "playNextEpisode", "skipInterval",
         "selectEpisode", "selectEpisodeStream", "backToEpisodes", "reloadEpisodeStreams",
         "enableP2pForPlayerControls", "cancelP2pForPlayerControls",
-        "selectBuiltInSubtitleTrack", "selectAddonSubtitle", "selectAudioTrack", "toggleAudioNightMode",
+        "subtitleSlot", "selectAudioTrack", "toggleAudioNightMode",
         "setAnimeUpscalerOption", "setAnimeUpscalerMode", "setSvpMode",
         "setPlaybackSpeed", "setEyeFilterEnabled", "setGrainFilterEnabled", "selectChapter",
-        // Subtitles → Customization.
+        "subtitleCustomStyleToggle",
+    )
+
+    private val subtitleSlotActions = setOf(
+        "selectBuiltInSubtitleTrack", "selectAddonSubtitle",
         "subtitleDelayDelta", "subtitleDelayReset", "subtitleFontSizeDelta", "subtitleBottomOffsetDelta",
-        "subtitleCustomStyleToggle", "subtitleFontDelta", "subtitleBoldToggle", "subtitleTextColor",
+        "subtitleFontDelta", "subtitleBoldToggle", "subtitleTextColor",
         "subtitleTextColorRgb", "subtitleTextOpacity", "subtitleOutlineEffectDelta", "subtitleOutlineColor",
         "subtitleOutlineColorRgb", "subtitleOutlineOpacity", "subtitleOutlineThicknessDelta",
         "subtitleAutoSyncReload", "subtitleAutoSyncCapture", "subtitleAutoSyncCue", "subtitleStyleReset",
@@ -67,7 +71,13 @@ internal object RemotePlayerLink {
         ?.let { it.positionMs to it.durationMs }
 
     fun send(type: String, value: Double) {
-        if (type in allowed) controller?.remoteEvent(type, value)
+        val activeController = controller ?: return
+        if (type in allowed || type in subtitleSlotActions ||
+            (type.startsWith("secondary:") && type.removePrefix("secondary:") in subtitleSlotActions &&
+                activeController.supportsSecondarySubtitles)
+        ) {
+            activeController.remoteEvent(type, value)
+        }
     }
 
     fun click(name: String) {

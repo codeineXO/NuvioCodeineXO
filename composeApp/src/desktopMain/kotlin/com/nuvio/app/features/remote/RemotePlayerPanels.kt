@@ -126,6 +126,14 @@ internal object RemotePlayerPanels {
     }
 
     private fun JsonObjectBuilder.subtitles(state: PlayerControlsState) = putJsonObject("subtitles") {
+        val slots = state.subtitleAppearance.slots
+        if (slots.supported) {
+            putJsonObject("slots") {
+                put("secondarySelected", slots.secondarySelected)
+                put("primaryLabel", slots.primaryLabel)
+                put("secondaryLabel", slots.secondaryLabel)
+            }
+        }
         put("language", state.selectedSubtitleLanguageKey)
         put("selected", state.selectedSubtitleOptionId)
         putJsonArray("languages") {

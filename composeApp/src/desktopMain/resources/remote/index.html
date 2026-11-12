@@ -692,6 +692,13 @@
       return;
     }
     if (!msg.p2pConsent && openPanel === 'p2pConsent') closeSheetFromPlayer();
+    if (openPanel === 'subtitles' &&
+        Boolean(previous.subtitles?.slots?.secondarySelected) !== Boolean(msg.subtitles.slots?.secondarySelected)) {
+      subtitleLanguage = msg.subtitles.language;
+      $('panel-body').scrollTop = 0;
+      const chips = $('panel-body').querySelector('.subtitle-languages');
+      if (chips) chips.scrollLeft = 0;
+    }
     const openedEpisodeSources = msg.episodes?.streams && !previous.episodes?.streams;
     if (openedEpisodeSources && !msg.p2pConsent && openPanel !== 'episodes') {
       $('more').close();
@@ -1692,6 +1699,21 @@
       const subs = state.subtitles;
       header('Subtitles');
 
+      const secondary = Boolean(subs.slots?.secondarySelected);
+      const sendSubtitle = (type, value) => player(secondary ? `secondary:${type}` : type, value);
+      if (subs.slots) {
+        const slots = el('div', 'seg seg-fill');
+        slots.setAttribute('role', 'group');
+        slots.setAttribute('aria-label', 'Subtitle slot');
+        [subs.slots.primaryLabel, subs.slots.secondaryLabel].forEach((label, index) => {
+          const btn = el('button', '', label);
+          btn.setAttribute('aria-pressed', Number(secondary) === index);
+          btn.addEventListener('click', () => player('subtitleSlot', index));
+          slots.append(btn);
+        });
+        add(slots);
+      }
+
       // The panel's tabs; switching here switches the PC's tab too.
       const tabs = el('div', 'seg seg-fill');
       [['subtitles', 'Subtitles', 'subtitleTabSubtitles'], ['customization', 'Customization', 'subtitleTabCustomization']]
@@ -1708,7 +1730,7 @@
         });
       add(tabs);
       if (subtitleTab === 'customization') {
-        return customization(subs.style);
+        return customization(subs.style, sendSubtitle);
       }
 
       const languages = subs.languages.some((l) => l.key === '__off__')
@@ -1721,7 +1743,7 @@
         if (language.count > 0) chip.append(el('span', 'count', String(language.count)));
         chip.addEventListener('click', () => {
           subtitleLanguage = language.key;
-          if (language.key === '__off__') player('selectBuiltInSubtitleTrack', -1);
+          if (language.key === '__off__') sendSubtitle('selectBuiltInSubtitleTrack', -1);
           renderPanel();
         });
         chips.append(chip);
@@ -1733,7 +1755,7 @@
       add(group(...options.map((option) => choice({
         tag: option.source, label: option.title || option.source, detail: option.metadata,
         checked: option.id === subs.selected || option.selected,
-        onClick: () => player(option.kind === 'addon' ? 'selectAddonSubtitle' : 'selectBuiltInSubtitleTrack', option.index),
+        onClick: () => sendSubtitle(option.kind === 'addon' ? 'selectAddonSubtitle' : 'selectBuiltInSubtitleTrack', option.index),
       }))));
     },
 
@@ -1816,7 +1838,7 @@
   const formatDelay = (ms) => `${ms >= 0 ? '+' : '-'}${(Math.abs(ms) / 1000).toFixed(3)}s`;
 
   // The player's swatches, plus "Custom": the phone's own colour picker.
-  function swatches(label, colors, selected, type, rgbType, disabled) {
+  function swatches(label, colors, selected, onSwatch, onColor, disabled) {
     const row = el('div', 'row row-stack');
     row.append(el('span', 'copy', label));
     const box = el('div', 'swatches');
@@ -1826,7 +1848,7 @@
       swatch.setAttribute('aria-pressed', rgbHex(color).toLowerCase() === rgbHex(selected).toLowerCase());
       swatch.style.setProperty('--swatch', cssColor(color));
       swatch.disabled = disabled;
-      swatch.addEventListener('click', () => player(type, index));
+      swatch.addEventListener('click', () => onSwatch(index));
       box.append(swatch);
     });
     const custom = el('label', 'btn btn-sm btn-gray custom', 'Custom');
@@ -1834,45 +1856,46 @@
     input.type = 'color';
     input.value = rgbHex(selected);
     input.disabled = disabled;
-    input.addEventListener('change', () => player(rgbType, parseInt(input.value.slice(1), 16)));
+    input.addEventListener('change', () => onColor(parseInt(input.value.slice(1), 16)));
     custom.append(input);
     box.append(custom);
     row.append(box);
     return row;
   }
 
-  function customization(style) {
+  function customization(style, sendSubtitle) {
     const off = !style.custom;
     const noEffect = style.effect === 'none';
     const boxed = style.effect === 'background_box';
     const text = alphaPercent(style.textColor);
     const outline = alphaPercent(style.effectColor);
     const delay = stepper('Subtitle Delay', formatDelay(style.delayMs),
-      () => player('subtitleDelayDelta', -100), () => player('subtitleDelayDelta', 100));
+      () => sendSubtitle('subtitleDelayDelta', -100), () => sendSubtitle('subtitleDelayDelta', 100));
     delay.classList.add('row-delay');
     const reset = el('button', 'btn btn-sm btn-gray', 'Reset');
-    reset.addEventListener('click', () => player('subtitleDelayReset'));
+    reset.addEventListener('click', () => sendSubtitle('subtitleDelayReset'));
     delay.querySelector('.value').after(reset);
     add(group(
       delay,
-      stepper('Font Size', `${style.fontSize}sp`, () => player('subtitleFontSizeDelta', -1), () => player('subtitleFontSizeDelta', 1)),
-      stepper('Bottom Offset', String(style.bottomOffset), () => player('subtitleBottomOffsetDelta', -5), () => player('subtitleBottomOffsetDelta', 5)),
+      stepper('Font Size', `${style.fontSize}sp`, () => sendSubtitle('subtitleFontSizeDelta', -1), () => sendSubtitle('subtitleFontSizeDelta', 1)),
+      stepper('Bottom Offset', String(style.bottomOffset), () => sendSubtitle('subtitleBottomOffsetDelta', -5), () => sendSubtitle('subtitleBottomOffsetDelta', 5)),
     ));
 
     add(group(
       toggle('Use custom styling', '', style.custom, () => player('subtitleCustomStyleToggle')),
-      stepper('Font', style.font, () => player('subtitleFontDelta', -1), () => player('subtitleFontDelta', 1), off),
-      toggle('Bold', '', style.bold, () => player('subtitleBoldToggle'), off),
-      swatches('Color', style.textSwatches, style.textColor, 'subtitleTextColor', 'subtitleTextColorRgb', off),
-      stepper('Text Opacity', `${text}%`, () => player('subtitleTextOpacity', Math.max(0, text - 10)),
-        () => player('subtitleTextOpacity', Math.min(100, text + 10)), off),
-      stepper('Outline Style', style.effectLabel, () => player('subtitleOutlineEffectDelta', -1), () => player('subtitleOutlineEffectDelta', 1), off),
+      stepper('Font', style.font, () => sendSubtitle('subtitleFontDelta', -1), () => sendSubtitle('subtitleFontDelta', 1), off),
+      toggle('Bold', '', style.bold, () => sendSubtitle('subtitleBoldToggle'), off),
+      swatches('Color', style.textSwatches, style.textColor,
+        (index) => sendSubtitle('subtitleTextColor', index), (rgb) => sendSubtitle('subtitleTextColorRgb', rgb), off),
+      stepper('Text Opacity', `${text}%`, () => sendSubtitle('subtitleTextOpacity', Math.max(0, text - 10)),
+        () => sendSubtitle('subtitleTextOpacity', Math.min(100, text + 10)), off),
+      stepper('Outline Style', style.effectLabel, () => sendSubtitle('subtitleOutlineEffectDelta', -1), () => sendSubtitle('subtitleOutlineEffectDelta', 1), off),
       swatches(boxed ? 'Box Color' : 'Outline Color', style.outlineSwatches, style.effectColor,
-        'subtitleOutlineColor', 'subtitleOutlineColorRgb', off || noEffect),
-      stepper(boxed ? 'Box Opacity' : 'Outline Opacity', `${outline}%`, () => player('subtitleOutlineOpacity', Math.max(0, outline - 10)),
-        () => player('subtitleOutlineOpacity', Math.min(100, outline + 10)), off || noEffect),
-      stepper('Outline Thickness', String(style.outlineWidth), () => player('subtitleOutlineThicknessDelta', -1),
-        () => player('subtitleOutlineThicknessDelta', 1), off || boxed || noEffect),
+        (index) => sendSubtitle('subtitleOutlineColor', index), (rgb) => sendSubtitle('subtitleOutlineColorRgb', rgb), off || noEffect),
+      stepper(boxed ? 'Box Opacity' : 'Outline Opacity', `${outline}%`, () => sendSubtitle('subtitleOutlineOpacity', Math.max(0, outline - 10)),
+        () => sendSubtitle('subtitleOutlineOpacity', Math.min(100, outline + 10)), off || noEffect),
+      stepper('Outline Thickness', String(style.outlineWidth), () => sendSubtitle('subtitleOutlineThicknessDelta', -1),
+        () => sendSubtitle('subtitleOutlineThicknessDelta', 1), off || boxed || noEffect),
     ));
 
     // Auto Sync: tap the line being spoken now, and the subtitle shifts to match.
@@ -1882,17 +1905,17 @@
     [['Reload', 'subtitleAutoSyncReload'], ['Capture', 'subtitleAutoSyncCapture']].forEach(([label, type]) => {
       const btn = el('button', 'btn btn-sm btn-gray', label);
       btn.disabled = !sync.enabled;
-      btn.addEventListener('click', () => player(type));
+      btn.addEventListener('click', () => sendSubtitle(type));
       buttons.append(btn);
     });
     const status = !sync.enabled ? 'Select an addon subtitle first' : sync.loading ? 'Loading subtitle lines...' : sync.error;
     const rows = [buttons];
     if (status) { const note = el('div', 'row note', status); rows.push(note); }
-    sync.cues.forEach((cue) => rows.push(choice({ label: cue.text, detail: cue.time, onClick: () => player('subtitleAutoSyncCue', cue.index) })));
+    sync.cues.forEach((cue) => rows.push(choice({ label: cue.text, detail: cue.time, onClick: () => sendSubtitle('subtitleAutoSyncCue', cue.index) })));
     add(group(...rows));
 
     const resetAll = el('button', 'btn btn-block btn-gray', 'Reset Defaults');
-    resetAll.addEventListener('click', () => player('subtitleStyleReset'));
+    resetAll.addEventListener('click', () => sendSubtitle('subtitleStyleReset'));
     add(resetAll);
   }
 
