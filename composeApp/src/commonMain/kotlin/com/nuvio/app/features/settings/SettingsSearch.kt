@@ -1,6 +1,8 @@
 package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.features.remote.RemoteServer
+import nuvio.composeapp.generated.resources.compose_settings_remote_search_description
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -250,6 +252,15 @@ internal fun settingsSearchEntries(
         description = stringResource(Res.string.compose_settings_root_codeine_xo_description),
         category = advancedCategory,
     )
+    if (RemoteServer.platform != null) {
+        addPage(
+            page = SettingsPage.Remote,
+            key = "remote",
+            title = pageTitles.getValue(SettingsPage.Remote),
+            description = stringResource(Res.string.compose_settings_remote_search_description),
+            category = advancedCategory,
+        )
+    }
     addPage(
         page = SettingsPage.Appearance,
         key = "appearance",

@@ -4,10 +4,13 @@ import com.nuvio.app.core.ui.PlatformBackDispatcher
 import com.nuvio.app.core.ui.RemoteNavigationDispatcher
 import com.nuvio.app.core.ui.AppBackspaceNavigation
 import com.nuvio.app.core.ui.RemoteTextEditing
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.awt.ComposePanel
 import org.jetbrains.skiko.SkiaLayer
 import java.awt.Component
 import java.awt.Container
+import java.awt.Cursor
 import java.awt.AWTEvent
 import java.awt.KeyEventDispatcher
 import java.awt.KeyboardFocusManager
@@ -24,10 +27,45 @@ import java.awt.MouseInfo
 import java.awt.Point
 import java.awt.image.BufferedImage
 
-internal val desktopNavigationHiddenPointerIcon: PointerIcon by lazy {
-    PointerIcon(Toolkit.getDefaultToolkit().createCustomCursor(
+private val desktopHiddenCursor: Cursor by lazy {
+    Toolkit.getDefaultToolkit().createCustomCursor(
         BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), Point(0, 0), "nuvio-keyboard-navigation",
-    ))
+    )
+}
+
+internal val desktopNavigationHiddenPointerIcon: PointerIcon by lazy {
+    PointerIcon(desktopHiddenCursor)
+}
+
+internal object DesktopRemoteCursorController {
+    private val hidden = mutableStateOf(false)
+    val isHidden: State<Boolean> get() = hidden
+    private val windowCursors = mutableMapOf<Window, Cursor?>()
+    private var hiddenAt: Point? = null
+
+    fun hideCursor() {
+        SwingUtilities.invokeLater {
+            if (!hidden.value) {
+                hiddenAt = runCatching { MouseInfo.getPointerInfo()?.location }.getOrNull()
+                hidden.value = true
+            }
+            Window.getWindows().filter { it.isShowing && it !in windowCursors }.forEach { window ->
+                windowCursors[window] = window.cursor.takeIf { window.isCursorSet }
+                window.cursor = desktopHiddenCursor
+            }
+        }
+    }
+
+    // Mouse events are delivered on the EDT, like the queued remote input update.
+    fun onMouseInput(mousePosition: Point? = null) {
+        if (mousePosition != null && mousePosition == hiddenAt) return
+        RemoteNavigationDispatcher.exitKeyboardNavigation()
+        if (!hidden.value) return
+        windowCursors.forEach { (window, cursor) -> window.cursor = cursor }
+        windowCursors.clear()
+        hiddenAt = null
+        hidden.value = false
+    }
 }
 
 internal fun Component.composeInputComponent(): Component? {
@@ -110,14 +148,18 @@ internal fun installDesktopGlobalBackNavigation(window: Window): () -> Unit {
         if (event is MouseEvent && (event.id == MouseEvent.MOUSE_PRESSED || event.id == MouseEvent.MOUSE_WHEEL)) {
             var sourceWindow = (event.component as? Window) ?: SwingUtilities.getWindowAncestor(event.component)
             while (sourceWindow != null && sourceWindow !== window) sourceWindow = sourceWindow.owner
-            if (sourceWindow === window) RemoteNavigationDispatcher.mouseMoved()
+            if (sourceWindow === window) {
+                DesktopRemoteCursorController.onMouseInput()
+            }
         }
         if (event is MouseEvent && (event.id == MouseEvent.MOUSE_MOVED || event.id == MouseEvent.MOUSE_DRAGGED)) {
             var sourceWindow = SwingUtilities.getWindowAncestor(event.component)
             while (sourceWindow != null && sourceWindow !== window) sourceWindow = sourceWindow.owner
             if (sourceWindow === window) {
                 val position = Point(event.xOnScreen, event.yOnScreen)
-                if (position != lastMousePosition) RemoteNavigationDispatcher.mouseMoved()
+                if (position != lastMousePosition) {
+                    DesktopRemoteCursorController.onMouseInput(position)
+                }
                 lastMousePosition = position
             }
         }

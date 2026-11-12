@@ -2,7 +2,9 @@ package com.nuvio.app.features.remote
 
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AudioTrack
+import com.nuvio.app.features.player.PlayerControlSourceItem
 import com.nuvio.app.features.player.PlayerControlsState
+import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineEffect
@@ -38,7 +40,25 @@ internal object RemotePlayerPanels {
         put("speed", state.playbackSpeedLabel)
         put("aspect", state.resizeModeLabel)
         put("eyeFilter", state.eyeFilterEnabled)
+        put("frostedFilter", PlayerSettingsRepository.uiState.value.grainFilterEnabled)
+        put("nextEpisodePlayable", state.nextEpisodePlayable)
+        put("closeModalsToken", state.closeModalsToken)
+        if (state.showP2pConsent) {
+            putJsonObject("p2pConsent") {
+                put("title", state.p2pConsentTitle)
+                put("body", state.p2pConsentBody)
+                put("enableLabel", state.p2pConsentEnableLabel)
+                put("cancelLabel", state.p2pConsentCancelLabel)
+            }
+        }
+        if (state.skipPromptVisible) {
+            putJsonObject("skipSegment") {
+                put("label", state.skipPromptLabel)
+                put("targetMs", state.skipPromptEndMs)
+            }
+        }
         sources(state)
+        episodes(state)
         subtitles(state)
         audio(state, audioTracks)
         enhancements(state)
@@ -49,17 +69,58 @@ internal object RemotePlayerPanels {
 
     private fun JsonObjectBuilder.sources(state: PlayerControlsState) = putJsonObject("sources") {
         put("loading", state.sourceIsLoading)
-        putJsonArray("items") {
-            state.sourceItems.forEach { item ->
+        sourceItems(state.sourceItems)
+    }
+
+    private fun JsonObjectBuilder.episodes(state: PlayerControlsState) = putJsonObject("episodes") {
+        put("available", state.showEpisodes)
+        put("blurUnwatched", state.blurUnwatchedEpisodes)
+        putJsonArray("seasons") {
+            state.episodeSeasons.forEach { season ->
                 addJsonObject {
-                    put("index", item.index)
-                    put("label", item.label)
-                    put("subtitle", item.subtitle)
-                    put("current", item.isCurrent)
-                    put("enabled", item.isEnabled)
-                    put("size", item.formattedSize)
-                    putJsonArray("badges") { item.badges.filter { it.imageURL.isNotBlank() }.forEach { add(it.imageURL) } }
+                    put("number", season.season)
+                    put("label", season.label)
+                    put("current", season.isSelected)
                 }
+            }
+        }
+        putJsonArray("items") {
+            state.episodeItems.forEach { episode ->
+                addJsonObject {
+                    put("index", episode.index)
+                    put("season", episode.season)
+                    put("code", episode.code)
+                    put("title", episode.title)
+                    put("image", episode.thumbnail)
+                    put("overview", episode.overview)
+                    put("released", episode.released)
+                    put("rating", episode.rating)
+                    put("current", episode.isCurrent)
+                    put("watched", episode.isWatched)
+                    if (episode.isMixed) put("fillerLabel", "Mixed")
+                    else if (episode.isFiller) put("fillerLabel", "Filler")
+                }
+            }
+        }
+        if (state.episodeStreamsVisible) {
+            putJsonObject("streams") {
+                put("title", state.selectedEpisodeLabel)
+                put("loading", state.episodeStreamsIsLoading)
+                sourceItems(state.episodeStreamItems)
+            }
+        }
+    }
+
+    private fun JsonObjectBuilder.sourceItems(items: List<PlayerControlSourceItem>) = putJsonArray("items") {
+        items.forEach { item ->
+            addJsonObject {
+                put("index", item.index)
+                put("label", item.label)
+                put("subtitle", item.subtitle)
+                put("current", item.isCurrent)
+                put("enabled", item.isEnabled)
+                put("size", item.formattedSize)
+                putJsonArray("badges") { item.badges.filter { it.imageURL.isNotBlank() }.forEach { add(it.imageURL) } }
             }
         }
     }

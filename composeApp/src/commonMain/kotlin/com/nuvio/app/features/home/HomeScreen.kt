@@ -130,6 +130,7 @@ import com.nuvio.app.features.watching.domain.WatchingContentRef
 import com.nuvio.app.features.watching.domain.isReleasedBy
 import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.collection.Collection
+import com.nuvio.app.features.collection.collectionFolderCardKey
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.home.components.HomeCollectionRowSection
 import kotlinx.coroutines.Dispatchers
@@ -1072,7 +1073,7 @@ fun HomeScreen(
                 if (keyed.value.isCollection) {
                     collectionsMap[keyed.value.key]?.let { collection ->
                         add(PosterNavigationRow(keyed.lazyKey,
-                            collection.folders.map { "collection_${collection.id}_folder_${it.id}" }, index++))
+                            collection.folders.map { collectionFolderCardKey(collection.id, it.id) }, index++))
                     }
                 } else {
                     val section = sectionsMap[keyed.value.key]

@@ -67,7 +67,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.nuvio.app.core.ui.ActionMenuAction
+import com.nuvio.app.features.remote.RemoteCardMenus
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -444,6 +445,7 @@ fun StreamsScreen(
 
         StreamActionsHost(
             target = streamActionsTarget,
+            remoteStreamsKey = remoteStreamsKey,
             useDesktopContextMenu = isDesktop,
             externalPlayerSupported = AppFeaturePolicy.externalPlayerSupported,
             externalPlayerEnabled = AppFeaturePolicy.externalPlayerSupported && playerSettings.externalPlayerEnabled,
@@ -1341,6 +1343,7 @@ private data class StreamActionsTarget(
 @Composable
 private fun StreamActionsHost(
     target: StreamActionsTarget?,
+    remoteStreamsKey: String,
     useDesktopContextMenu: Boolean,
     externalPlayerSupported: Boolean,
     externalPlayerEnabled: Boolean,
@@ -1350,6 +1353,16 @@ private fun StreamActionsHost(
     onDownload: (StreamItem) -> Unit,
     onOpen: (StreamItem, openExternally: Boolean) -> Unit,
 ) {
+    RemoteCardMenus.Provide { menu ->
+        if (menu is RemoteCardMenus.Target.Source && menu.streamsKey == remoteStreamsKey) {
+            val stream = menu.stream
+            if (stream.playableDirectUrl != null || stream.shouldOpenExternally || stream.isAddonDebridCandidate) {
+                desktopStreamActions(
+                    stream, externalPlayerSupported, externalPlayerEnabled, showDownloadAction, onCopyLink, onDownload, onOpen,
+                )
+            } else emptyList()
+        } else null
+    }
     if (target == null) return
 
     if (useDesktopContextMenu) {
@@ -1379,11 +1392,49 @@ private fun StreamActionsHost(
     }
 }
 
-private data class DesktopStreamAction(
-    val icon: ImageVector,
-    val title: String,
-    val onClick: () -> Unit,
-)
+@Composable
+private fun desktopStreamActions(
+    stream: StreamItem,
+    externalPlayerSupported: Boolean,
+    externalPlayerEnabled: Boolean,
+    showDownloadAction: Boolean,
+    onCopyLink: (StreamItem) -> Unit,
+    onDownload: (StreamItem) -> Unit,
+    onOpen: (StreamItem, openExternally: Boolean) -> Unit,
+): List<ActionMenuAction> =
+    buildList {
+        add(
+            ActionMenuAction(
+                icon = Icons.Rounded.ContentCopy,
+                label = stringResource(Res.string.streams_copy_link),
+                onSelected = { onCopyLink(stream) },
+            ),
+        )
+        if (externalPlayerSupported) {
+            add(
+                ActionMenuAction(
+                    icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                    label = stringResource(
+                        if (externalPlayerEnabled) {
+                            Res.string.streams_open_internal_player
+                        } else {
+                            Res.string.streams_open_external_player
+                        },
+                    ),
+                    onSelected = { onOpen(stream, !externalPlayerEnabled) },
+                ),
+            )
+        }
+        if (showDownloadAction) {
+            add(
+                ActionMenuAction(
+                    icon = Icons.Rounded.Download,
+                    label = stringResource(Res.string.streams_download_file),
+                    onSelected = { onDownload(stream) },
+                ),
+            )
+        }
+    }
 
 @Composable
 private fun DesktopStreamActionsMenu(
@@ -1400,39 +1451,9 @@ private fun DesktopStreamActionsMenu(
     val density = LocalDensity.current
     val edgeMarginPx = with(density) { 8.dp.roundToPx() }
     val menuShape = RoundedCornerShape(8.dp)
-    val actions = buildList {
-        add(
-            DesktopStreamAction(
-                icon = Icons.Rounded.ContentCopy,
-                title = stringResource(Res.string.streams_copy_link),
-                onClick = { onCopyLink(stream) },
-            ),
-        )
-        if (externalPlayerSupported) {
-            add(
-                DesktopStreamAction(
-                    icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                    title = stringResource(
-                        if (externalPlayerEnabled) {
-                            Res.string.streams_open_internal_player
-                        } else {
-                            Res.string.streams_open_external_player
-                        },
-                    ),
-                    onClick = { onOpen(stream, !externalPlayerEnabled) },
-                ),
-            )
-        }
-        if (showDownloadAction) {
-            add(
-                DesktopStreamAction(
-                    icon = Icons.Rounded.Download,
-                    title = stringResource(Res.string.streams_download_file),
-                    onClick = { onDownload(stream) },
-                ),
-            )
-        }
-    }
+    val actions = desktopStreamActions(
+        stream, externalPlayerSupported, externalPlayerEnabled, showDownloadAction, onCopyLink, onDownload, onOpen,
+    )
 
     AppPopup(
         popupPositionProvider = remember(anchorInRoot, edgeMarginPx) {
@@ -1464,7 +1485,7 @@ private fun DesktopStreamActionsMenu(
                         action = action,
                         onSelected = {
                             onDismiss()
-                            action.onClick()
+                            action.onSelected()
                         },
                     )
                 }
@@ -1475,7 +1496,7 @@ private fun DesktopStreamActionsMenu(
 
 @Composable
 private fun DesktopStreamActionRow(
-    action: DesktopStreamAction,
+    action: ActionMenuAction,
     onSelected: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -1504,7 +1525,7 @@ private fun DesktopStreamActionRow(
             modifier = Modifier.size(17.dp),
         )
         Text(
-            text = action.title,
+            text = action.label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,

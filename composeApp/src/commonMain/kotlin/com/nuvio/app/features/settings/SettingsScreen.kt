@@ -740,6 +740,7 @@ private fun MobileSettingsScreen(
                     isTablet = false,
                     onOnboardingClick = onOnboardingClick,
                 )
+                SettingsPage.Remote -> item { RemoteSettings(isTablet = false) }
                 SettingsPage.SupportersContributors -> {
                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
                         supportersContributorsContent(isTablet = false)
@@ -1019,6 +1020,7 @@ private fun TabletSettingsScreen(
                 if (page != SettingsPage.Root) onPageChange(SettingsPage.Root)
             },
             onCodeineClick = { openInlinePage(SettingsPage.CodeineXO) },
+            onRemoteClick = { openInlinePage(SettingsPage.Remote) },
         ) {
                 saveableStateHolder.SaveableStateProvider(settingsContentKey(page, activeCategory)) {
                     var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
@@ -1158,6 +1160,7 @@ private fun TabletSettingsScreen(
                                     isTablet = true,
                                     onOnboardingClick = onOnboardingClick,
                                 )
+                                SettingsPage.Remote -> item { RemoteSettings(isTablet = true) }
                                 SettingsPage.SupportersContributors -> {
                                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
                                         supportersContributorsContent(isTablet = true)

@@ -11,6 +11,7 @@ import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.remote.RemoteAppBridge.Command
 import com.nuvio.app.features.search.SearchRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
+import com.nuvio.app.features.watchprogress.continueWatchingItemKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -85,15 +86,7 @@ internal object RemoteHome {
                 else -> AppScreenTab.entries.firstOrNull { it.name.equals(tab, ignoreCase = true) }
                     ?.let { RemoteAppBridge.send(Command.SelectTab(it)) }
             }
-            "open" -> {
-                val meta = when (json["from"]?.jsonPrimitive?.contentOrNull) {
-                    "hero" -> HomeRepository.uiState.value.heroItems.getOrNull(item ?: -1)
-                    "row" -> HomeRepository.uiState.value.sections.firstOrNull { it.key == row }?.items?.getOrNull(item ?: -1)
-                    "search" -> SearchRepository.uiState.value.sections.getOrNull(row?.toIntOrNull() ?: -1)?.items?.getOrNull(item ?: -1)
-                    else -> null
-                }
-                meta?.let { RemoteAppBridge.send(Command.OpenTitle(it)) }
-            }
+            "open" -> posterAt(json)?.let { RemoteAppBridge.send(Command.OpenTitle(it)) }
             "folder" -> {
                 val collection = CollectionRepository.collections.value.firstOrNull { it.id == row }
                 val folder = collection?.folders?.getOrNull(item ?: -1) ?: return
@@ -107,8 +100,25 @@ internal object RemoteHome {
         }
     }
 
-    private fun kotlinx.serialization.json.JsonObjectBuilder.hero(meta: MetaPreview) {
+    fun posterAt(json: JsonObject): MetaPreview? {
+        val item = json["item"]?.jsonPrimitive?.intOrNull ?: return null
+        val row = json["row"]?.jsonPrimitive?.contentOrNull
+        return when (json["from"]?.jsonPrimitive?.contentOrNull) {
+            "hero" -> HomeRepository.uiState.value.heroItems.getOrNull(item)
+            "row" -> HomeRepository.uiState.value.sections.firstOrNull { it.key == row }?.items?.getOrNull(item)
+            "search" -> SearchRepository.uiState.value.sections.getOrNull(row?.toIntOrNull() ?: -1)?.items?.getOrNull(item)
+            else -> null
+        }
+    }
+
+    private fun kotlinx.serialization.json.JsonObjectBuilder.posterIdentity(meta: MetaPreview) {
+        put("id", meta.id)
+        put("type", meta.type)
         put("name", meta.name)
+    }
+
+    private fun kotlinx.serialization.json.JsonObjectBuilder.hero(meta: MetaPreview) {
+        posterIdentity(meta)
         put("image", meta.banner ?: meta.landscapePoster ?: meta.poster)
         put("logo", meta.logo)
         put("description", meta.description)
@@ -118,6 +128,7 @@ internal object RemoteHome {
     }
 
     private fun kotlinx.serialization.json.JsonObjectBuilder.continueWatching(item: ContinueWatchingItem) {
+        put("key", continueWatchingItemKey(item))
         put("title", item.title)
         put("episode", if (item.seasonNumber != null && item.episodeNumber != null) "S${item.seasonNumber} E${item.episodeNumber}" else null)
         put("subtitle", item.episodeTitle ?: item.subtitle.takeIf { it.isNotBlank() })
@@ -154,7 +165,7 @@ internal object RemoteHome {
     }
 
     private fun JsonArrayBuilder.poster(meta: MetaPreview, landscape: Boolean) = addJsonObject {
-        put("name", meta.name)
+        posterIdentity(meta)
         put("image", if (landscape) meta.landscapePoster ?: meta.banner ?: meta.poster else meta.poster ?: meta.landscapePoster)
     }
 }

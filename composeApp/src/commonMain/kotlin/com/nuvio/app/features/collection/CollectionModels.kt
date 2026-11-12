@@ -183,6 +183,9 @@ data class TmdbPresetSource(
     val source: CollectionSource,
 )
 
+internal fun collectionFolderCardKey(collectionId: String, folderId: String): String =
+    "collection_${collectionId}_folder_$folderId"
+
 @Immutable
 @Serializable
 data class CollectionFolder(

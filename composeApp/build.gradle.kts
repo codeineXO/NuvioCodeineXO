@@ -1247,6 +1247,7 @@ kotlin {
                 implementation(libs.ktor.client.cio)
                 implementation(libs.ktor.server.cio)
                 implementation(libs.ktor.server.websockets)
+                implementation(libs.zxing.core)
                 implementation("com.squareup.okhttp3:okhttp:4.12.0")
                 implementation(libs.quickjs.kt)
                 implementation(libs.ksoup)

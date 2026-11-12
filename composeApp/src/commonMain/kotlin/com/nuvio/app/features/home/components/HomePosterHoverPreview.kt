@@ -19,6 +19,8 @@ import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
+import com.nuvio.app.core.ui.LocalRemoteCursorHidden
+import com.nuvio.app.core.ui.remoteNavigationPointerIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,6 +122,7 @@ internal fun HomePosterHoverPreview(
 
     val posterCardStyle = rememberPosterCardStyleUiState()
     val keyboardNavigation = isRemoteKeyboardNavigationActive
+    val remoteCursorHidden = LocalRemoteCursorHidden.current?.value == true
     val trailerPlaybackEnabled = AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP &&
         posterCardStyle.hoverPreviewTrailerEnabled
     if (!posterCardStyle.hoverPreviewEnabled) {
@@ -169,6 +172,7 @@ internal fun HomePosterHoverPreview(
         isPreviewActive,
         actionMenuOpen,
         keyboardNavigation,
+        remoteCursorHidden,
         posterCardStyle.hoverPreviewOpenDelayMillis,
         previewDismissedByScroll,
     ) {
@@ -191,7 +195,7 @@ internal fun HomePosterHoverPreview(
             }
             previewVisible = true
         } else if (popupMounted) {
-            if (keyboardNavigation) {
+            if (keyboardNavigation || remoteCursorHidden) {
                 previewVisible = false
                 popupMounted = false
             } else {
@@ -301,6 +305,7 @@ internal fun HomePosterHoverPreview(
                             trailerStartSeconds = posterCardStyle.hoverPreviewTrailerStartSeconds,
                             trailerPlaybackSource = trailerPlaybackSource,
                             modifier = Modifier
+                                .remoteNavigationPointerIcon()
                                 .padding(glowOutset)
                                 .hoverable(previewInteractionSource)
                                 .onPointerEvent(PointerEventType.Scroll) {

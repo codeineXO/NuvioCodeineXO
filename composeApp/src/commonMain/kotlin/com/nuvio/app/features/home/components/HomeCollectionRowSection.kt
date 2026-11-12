@@ -51,6 +51,7 @@ import com.nuvio.app.core.ui.posterGlow
 import com.nuvio.app.core.ui.LocalPosterGlowImageState
 import com.nuvio.app.features.collection.Collection
 import com.nuvio.app.features.collection.CollectionFolder
+import com.nuvio.app.features.collection.collectionFolderCardKey
 import com.nuvio.app.features.home.PosterShape
 
 @Composable
@@ -109,7 +110,7 @@ private fun HomeCollectionRowSectionContent(
         useGutterLayout = useGutterLayout,
         onViewAllClick = onViewAllClick,
         showRowNavigationControls = true,
-        key = { folder -> "collection_${collection.id}_folder_${folder.id}" },
+        key = { folder -> collectionFolderCardKey(collection.id, folder.id) },
     ) { folder ->
         CollectionFolderCard(
             folder = folder,

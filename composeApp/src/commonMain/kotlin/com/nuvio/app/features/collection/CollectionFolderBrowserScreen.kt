@@ -116,7 +116,7 @@ fun CollectionFolderBrowserScreen(
                 ) {
                     items(
                         items = folders,
-                        key = { folder -> "collection_${collectionId}_folder_${folder.id}" },
+                        key = { folder -> collectionFolderCardKey(collectionId, folder.id) },
                     ) { folder ->
                         Box(
                             modifier = Modifier.fillMaxWidth(),

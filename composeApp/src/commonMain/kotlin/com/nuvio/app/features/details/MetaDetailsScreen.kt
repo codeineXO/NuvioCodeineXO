@@ -159,6 +159,7 @@ import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.ActionMenuInvocation
 import com.nuvio.app.core.ui.ActionMenuInvocationHolder
 import com.nuvio.app.core.ui.ActionMenuAction
+import com.nuvio.app.features.remote.RemoteCardMenus
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.ScreenActivityEffect
@@ -1265,6 +1266,8 @@ fun MetaDetailsScreen(
                             playEpisode = onEpisodePlayClick,
                             toggleSaved = { toggleSaved() },
                             toggleWatched = { toggleWatched() },
+                            preferredSeasonNumber = seriesAction?.seasonNumber,
+                            preferredEpisodeNumber = seriesAction?.episodeNumber,
                         ),
                     )
                 }
@@ -2500,9 +2503,7 @@ fun MetaDetailsScreen(
         }
 
         val meta = displayedMeta
-        val selectedEpisode = selectedEpisodeForActions
-        val zoomAnchor = selectedEpisodeMenuInvocation
-        if (meta != null && selectedEpisode != null && zoomAnchor != null) {
+        val episodeMenuActions: @Composable (MetaDetails, MetaVideo) -> List<ActionMenuAction> = { meta, selectedEpisode ->
             val todayIsoDate = CurrentDateProvider.todayIsoDate()
             val isSelectedEpisodeWatched = remember(meta, selectedEpisode, watchedUiState.watchedKeys, progressByVideoId) {
                 isEpisodeWatchedForActions(
@@ -2546,134 +2547,146 @@ fun MetaDetailsScreen(
             val episodeRating = remember(meta, selectedEpisode) {
                 TrackingRatings.current(meta.ratingReference(selectedEpisode))
             }
-            NuvioActionMenu(
-                        invocation = zoomAnchor,
-                        actions = buildList {
-                    if (episodeRating.isAvailable) {
-                        val rated = episodeRating.rating
-                        add(
-                            ActionMenuAction(
-                                icon = if (rated != null) Icons.Rounded.Star else Icons.Rounded.StarOutline,
-                                label = rated?.let { formatRating(it) } ?: stringResource(Res.string.rating_rate_episode),
-                                onSelected = { episodeToRate = selectedEpisode },
-                            ),
-                        )
-                    }
+            buildList {
+                if (episodeRating.isAvailable) {
+                    val rated = episodeRating.rating
                     add(
                         ActionMenuAction(
-                            icon = Icons.Default.CheckCircle,
-                            label = if (isSelectedEpisodeWatched) {
-                                stringResource(Res.string.episode_mark_unwatched)
+                            icon = if (rated != null) Icons.Rounded.Star else Icons.Rounded.StarOutline,
+                            label = rated?.let { formatRating(it) } ?: stringResource(Res.string.rating_rate_episode),
+                            onSelected = { episodeToRate = selectedEpisode },
+                        ),
+                    )
+                }
+                add(
+                    ActionMenuAction(
+                        icon = Icons.Default.CheckCircle,
+                        label = if (isSelectedEpisodeWatched) {
+                            stringResource(Res.string.episode_mark_unwatched)
+                        } else {
+                            stringResource(Res.string.episode_mark_watched)
+                        },
+                        onSelected = {
+                            WatchingActions.toggleEpisodeWatched(
+                                meta = meta,
+                                episode = selectedEpisode,
+                                isCurrentlyWatched = isSelectedEpisodeWatched,
+                            )
+                        },
+                    ),
+                )
+                if (previousEpisodes.isNotEmpty()) {
+                    add(
+                        ActionMenuAction(
+                            icon = Icons.Default.DoneAll,
+                            label = if (arePreviousEpisodesWatched) {
+                                stringResource(Res.string.episode_mark_previous_unwatched)
                             } else {
-                                stringResource(Res.string.episode_mark_watched)
+                                stringResource(Res.string.episode_mark_previous_watched)
                             },
                             onSelected = {
-                                WatchingActions.toggleEpisodeWatched(
+                                WatchingActions.togglePreviousEpisodesWatched(
                                     meta = meta,
-                                    episode = selectedEpisode,
-                                    isCurrentlyWatched = isSelectedEpisodeWatched,
+                                    episodes = previousEpisodes,
+                                    areCurrentlyWatched = arePreviousEpisodesWatched,
                                 )
                             },
                         ),
                     )
-                    if (previousEpisodes.isNotEmpty()) {
-                        add(
-                            ActionMenuAction(
-                                icon = Icons.Default.DoneAll,
-                                label = if (arePreviousEpisodesWatched) {
-                                    stringResource(Res.string.episode_mark_previous_unwatched)
-                                } else {
-                                    stringResource(Res.string.episode_mark_previous_watched)
-                                },
-                                onSelected = {
-                                    WatchingActions.togglePreviousEpisodesWatched(
-                                        meta = meta,
-                                        episodes = previousEpisodes,
-                                        areCurrentlyWatched = arePreviousEpisodesWatched,
-                                    )
-                                },
-                            ),
-                        )
-                    }
+                }
+                add(
+                    ActionMenuAction(
+                        icon = Icons.Default.PlaylistAddCheckCircle,
+                        label = if (isSeasonWatched) {
+                            stringResource(Res.string.episode_mark_season_unwatched, seasonLabel)
+                        } else {
+                            stringResource(Res.string.episode_mark_season_watched, seasonLabel)
+                        },
+                        onSelected = {
+                            WatchingActions.toggleSeasonWatched(
+                                meta = meta,
+                                episodes = seasonEpisodes,
+                                areCurrentlyWatched = isSeasonWatched,
+                            )
+                        },
+                    ),
+                )
+                if (onPlayManually != null && StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState)) {
                     add(
                         ActionMenuAction(
-                            icon = Icons.Default.PlaylistAddCheckCircle,
-                            label = if (isSeasonWatched) {
-                                stringResource(Res.string.episode_mark_season_unwatched, seasonLabel)
-                            } else {
-                                stringResource(Res.string.episode_mark_season_watched, seasonLabel)
-                            },
+                            icon = Icons.Default.PlayArrow,
+                            label = stringResource(Res.string.play_manually),
                             onSelected = {
-                                WatchingActions.toggleSeasonWatched(
-                                    meta = meta,
-                                    episodes = seasonEpisodes,
-                                    areCurrentlyWatched = isSeasonWatched,
+                                val playbackVideoId = buildPlaybackVideoId(
+                                    parentMetaId = meta.id,
+                                    seasonNumber = selectedEpisode.season,
+                                    episodeNumber = selectedEpisode.episode,
+                                    fallbackVideoId = selectedEpisode.id,
+                                )
+                                val streamVideoId = selectedEpisode.id.takeIf { it.isNotBlank() } ?: playbackVideoId
+                                val savedProgress = progressByVideoId[streamVideoId]
+                                    ?.takeUnless { it.isCompleted }
+                                onPlayManually.invoke(
+                                    meta.type,
+                                    streamVideoId,
+                                    meta.id,
+                                    meta.type,
+                                    meta.name,
+                                    meta.logo,
+                                    meta.poster,
+                                    meta.background,
+                                    selectedEpisode.season,
+                                    selectedEpisode.episode,
+                                    selectedEpisode.title,
+                                    selectedEpisode.thumbnail,
+                                    selectedEpisode.overview,
+                                    savedProgress?.lastPositionMs,
                                 )
                             },
                         ),
                     )
-                    if (onPlayManually != null && StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState)) {
-                        add(
-                            ActionMenuAction(
-                                icon = Icons.Default.PlayArrow,
-                                label = stringResource(Res.string.play_manually),
-                                onSelected = {
-                                    val playbackVideoId = buildPlaybackVideoId(
-                                        parentMetaId = meta.id,
-                                        seasonNumber = selectedEpisode.season,
-                                        episodeNumber = selectedEpisode.episode,
-                                        fallbackVideoId = selectedEpisode.id,
-                                    )
-                                    val streamVideoId = selectedEpisode.id.takeIf { it.isNotBlank() } ?: playbackVideoId
-                                    val savedProgress = progressByVideoId[streamVideoId]
-                                        ?.takeUnless { it.isCompleted }
-                                    onPlayManually.invoke(
-                                        meta.type,
-                                        streamVideoId,
-                                        meta.id,
-                                        meta.type,
-                                        meta.name,
-                                        meta.logo,
-                                        meta.poster,
-                                        meta.background,
-                                        selectedEpisode.season,
-                                        selectedEpisode.episode,
-                                        selectedEpisode.title,
-                                        selectedEpisode.thumbnail,
-                                        selectedEpisode.overview,
-                                        savedProgress?.lastPositionMs,
-                                    )
-                                },
-                            ),
-                        )
-                    }
-                    val playbackVideoId = buildPlaybackVideoId(
+                }
+                val playbackVideoId = buildPlaybackVideoId(
+                    parentMetaId = meta.id,
+                    seasonNumber = selectedEpisode.season,
+                    episodeNumber = selectedEpisode.episode,
+                    fallbackVideoId = selectedEpisode.id,
+                )
+                val streamVideoId = selectedEpisode.id.takeIf { it.isNotBlank() } ?: playbackVideoId
+                if (onStartFromBeginning != null && playbackAvailability.canPlay(
+                        type = meta.type,
+                        videoId = streamVideoId,
                         parentMetaId = meta.id,
                         seasonNumber = selectedEpisode.season,
                         episodeNumber = selectedEpisode.episode,
-                        fallbackVideoId = selectedEpisode.id,
-                    )
-                    val streamVideoId = selectedEpisode.id.takeIf { it.isNotBlank() } ?: playbackVideoId
-                    if (onStartFromBeginning != null && playbackAvailability.canPlay(
-                            type = meta.type,
-                            videoId = streamVideoId,
-                            parentMetaId = meta.id,
-                            seasonNumber = selectedEpisode.season,
-                            episodeNumber = selectedEpisode.episode,
-                        )) {
-                        add(ActionMenuAction(
-                            icon = Icons.Default.Replay,
-                            label = stringResource(Res.string.cw_action_start_from_beginning),
-                            onSelected = {
-                                onStartFromBeginning.invoke(
-                                    meta.type, streamVideoId, meta.id, meta.type, meta.name, meta.logo,
-                                    meta.poster, meta.background, selectedEpisode.season, selectedEpisode.episode,
-                                    selectedEpisode.title, selectedEpisode.thumbnail, selectedEpisode.overview, 0L,
-                                )
-                            },
-                        ))
-                    }
-                },
+                    )) {
+                    add(ActionMenuAction(
+                        icon = Icons.Default.Replay,
+                        label = stringResource(Res.string.cw_action_start_from_beginning),
+                        onSelected = {
+                            onStartFromBeginning.invoke(
+                                meta.type, streamVideoId, meta.id, meta.type, meta.name, meta.logo,
+                                meta.poster, meta.background, selectedEpisode.season, selectedEpisode.episode,
+                                selectedEpisode.title, selectedEpisode.thumbnail, selectedEpisode.overview, 0L,
+                            )
+                        },
+                    ))
+                }
+            }
+        }
+
+        RemoteCardMenus.Provide { target ->
+            if (target is RemoteCardMenus.Target.Episode && meta != null && target.detailsKey == "${meta.type}:${meta.id}") {
+                episodeMenuActions(meta, target.episode)
+            } else null
+        }
+
+        val selectedEpisode = selectedEpisodeForActions
+        val zoomAnchor = selectedEpisodeMenuInvocation
+        if (meta != null && selectedEpisode != null && zoomAnchor != null) {
+            NuvioActionMenu(
+                invocation = zoomAnchor,
+                actions = episodeMenuActions(meta, selectedEpisode),
                 hazeState = episodeOverlayHazeState,
                 onDismissed = {
                     if (selectedEpisodeMenuInvocation === zoomAnchor) {

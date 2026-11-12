@@ -1,5 +1,6 @@
 package com.nuvio.app.features.remote
 
+import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,9 +10,10 @@ internal interface RemoteServerPlatform {
     fun loadPort(): Int?
     fun save(enabled: Boolean, port: Int)
 
-    /** Starts serving on [port]; returns the URL to show, or throws if the port can't be used. */
-    fun start(port: Int): String
+    /** Starts serving on [port] and returns the LAN URL when available. */
+    fun start(port: Int): String?
     fun stop()
+    fun qrCode(url: String): ImageBitmap
 }
 
 /** Phone remote web server. Desktop installs the platform; other targets show no Remote settings. */
@@ -27,9 +29,10 @@ internal object RemoteServer {
     private val mutablePort = MutableStateFlow(DEFAULT_PORT)
     val port: StateFlow<Int> = mutablePort.asStateFlow()
 
-    /** URL while running, or the error from the last start attempt. */
-    private val mutableStatus = MutableStateFlow<String?>(null)
-    val status: StateFlow<String?> = mutableStatus.asStateFlow()
+    data class Connection(val url: String? = null, val error: String? = null)
+
+    private val mutableConnection = MutableStateFlow(Connection())
+    val connection: StateFlow<Connection> = mutableConnection.asStateFlow()
 
     fun install(backend: RemoteServerPlatform) {
         platform = backend
@@ -54,11 +57,12 @@ internal object RemoteServer {
     private fun restart() {
         val backend = platform ?: return
         backend.stop()
-        mutableStatus.value = if (mutableEnabled.value) {
-            runCatching { backend.start(mutablePort.value) }
-                .getOrElse { "Couldn't start on port ${mutablePort.value}: ${it.message}" }
+        mutableConnection.value = if (mutableEnabled.value) {
+            val port = mutablePort.value
+            runCatching { Connection(url = backend.start(port)) }
+                .getOrElse { Connection(error = "Couldn't start on port $port: ${it.message}") }
         } else {
-            null
+            Connection()
         }
     }
 }

@@ -256,14 +256,16 @@ dialog { margin: auto; max-width: none; max-height: none; padding: 0; border: 0;
 /* A sheet takes focus itself when it opens (autofocus), so no item inside shows a focus ring until the keyboard moves. */
 dialog:focus, dialog:focus-visible { outline: none; }
 dialog::backdrop { background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); }
-.sheet { width: min(100vw, 560px); max-height: 88dvh; margin: auto auto 0; flex-direction: column;
+.sheet { width: min(100vw, 560px); max-height: 88dvh; margin: auto auto 0; flex-direction: column; overflow: hidden;
   border-radius: var(--r-sheet) var(--r-sheet) 0 0; background: var(--ctp-mantle); box-shadow: var(--shadow-3);
   transform: translateY(100%); transition: transform 0.45s var(--ease), display 0.45s allow-discrete, overlay 0.45s allow-discrete; }
 .sheet[open] { display: flex; transform: none; }
 @starting-style { .sheet[open] { transform: translateY(100%); } }
-.sheet-head { flex: none; padding: 8px 16px 12px; touch-action: none; }
+#panel { height: 88dvh; }
+.sheet-head { flex: 0 0 auto; padding: 8px 16px 12px; touch-action: none; }
 .sheet-head .grip { width: 40px; height: 6px; margin: 0 auto 12px; border-radius: 9999px; background: var(--ctp-surface2); }
 .sheet-head .bar { display: flex; align-items: center; gap: 8px; }
 .sheet-head .bar > :first-child { flex: 1; min-width: 0; }
-.sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: 0 16px calc(env(safe-area-inset-bottom) + 16px);
+.sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; padding: 12px 16px calc(env(safe-area-inset-bottom) + 24px);
   display: flex; flex-direction: column; gap: 12px; }
+#panel-body > * { flex-shrink: 0; }

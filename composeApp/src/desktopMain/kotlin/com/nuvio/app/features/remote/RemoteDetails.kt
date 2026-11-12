@@ -1,6 +1,9 @@
 package com.nuvio.app.features.remote
 
+import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.normalizeSeasonNumber
+import com.nuvio.app.features.player.MediaClassifier
 import com.nuvio.app.features.remote.RemoteAppBridge.Command
 import com.nuvio.app.features.streams.StreamsRepository
 import javax.swing.SwingUtilities
@@ -30,12 +33,21 @@ internal object RemoteDetails {
     }.distinctUntilChanged()
 
     /** `{"k":"details",…}`: the open title, like its page on the PC. */
-    val detailsMessages: Flow<String> = combine(MetaDetailsRepository.uiState, RemoteAppBridge.details) { state, actions ->
+    val detailsMessages: Flow<String> = combine(
+        MetaDetailsRepository.uiState,
+        RemoteAppBridge.details,
+        AnimeFillerSettingsRepository.enabled,
+        AnimeFillerSettingsRepository.hideFillers,
+    ) { state, actions, fillerEnabled, hideFillers ->
         val meta = state.meta
         buildJsonObject {
             put("k", "details")
             put("loading", state.isLoading)
             if (meta == null) return@buildJsonObject
+            val key = "${meta.type}:${meta.id}"
+            val details = actions?.takeIf { it.key == key }
+            put("key", key)
+            put("preferredSeason", details?.preferredSeasonNumber)
             put("name", meta.name)
             put("logo", meta.logo)
             put("background", meta.background ?: meta.poster)
@@ -50,25 +62,44 @@ internal object RemoteDetails {
             }
             put("genres", meta.genres.take(4).joinToString(" · "))
             put("description", meta.description)
-            put("playLabel", actions?.playLabel)
-            put("saved", actions?.isSaved == true)
-            put("watched", actions?.isWatched == true)
-            val seasons = meta.videos.withIndex().filter { it.value.season != null }.groupBy { it.value.season!! }
+            put("playLabel", details?.playLabel)
+            put("saved", details?.isSaved == true)
+            put("watched", details?.isWatched == true)
+            val isAnime = MediaClassifier.classify(meta).isAnime || meta.videos.any { it.isFiller || it.isMixed }
+            if (isAnime) {
+                put("fillerDetection", fillerEnabled)
+                put("hideFillers", fillerEnabled && hideFillers)
+            }
+            val seasons = meta.videos.withIndex()
+                .filter { it.value.season != null || it.value.episode != null }
+                .groupBy { normalizeSeasonNumber(it.value.season) }
             putJsonArray("seasons") {
                 seasons.keys.sortedWith(compareBy({ it == 0 }, { it })).forEach { season ->
                     addJsonObject {
+                        put("number", season)
                         put("label", if (season == 0) "Specials" else "Season $season")
                         putJsonArray("episodes") {
                             seasons.getValue(season).sortedBy { it.value.episode ?: 0 }.forEach { (index, video) ->
+                                if (isAnime && fillerEnabled && hideFillers && video.isFiller && !video.isMixed) {
+                                    return@forEach
+                                }
                                 addJsonObject {
                                     put("index", index)
-                                    put("code", "S${video.season} E${video.episode ?: ""}")
+                                    put("id", video.id)
+                                    if (details != null && season == details.preferredSeasonNumber && video.episode != null &&
+                                        video.episode == details.preferredEpisodeNumber
+                                    ) put("preferred", true)
+                                    put("code", "S$season E${video.episode ?: ""}")
                                     put("title", video.title)
                                     put("overview", video.overview)
                                     put("image", video.thumbnail ?: meta.background)
                                     put("runtime", video.runtime?.let { "${it}m" })
                                     put("rating", video.rating?.takeIf { it > 0 })
                                     put("released", video.released?.take(10))
+                                    if (isAnime && fillerEnabled) {
+                                        if (video.isMixed) put("fillerLabel", "Mixed")
+                                        else if (video.isFiller) put("fillerLabel", "Filler")
+                                    }
                                 }
                             }
                         }
@@ -84,6 +115,7 @@ internal object RemoteDetails {
             put("k", "streams")
             put("loading", state.isAnyLoading)
             if (page != null) {
+                put("key", page.key)
                 put("title", page.title)
                 put("logo", page.logo)
                 put("background", page.background)
@@ -101,6 +133,7 @@ internal object RemoteDetails {
                             group.streams.forEach { stream ->
                                 addJsonObject {
                                     put("name", stream.streamLabel)
+                                    put("menuId", stream.hashCode())
                                     put("details", stream.description ?: stream.title)
                                     putJsonArray("badges") { stream.badges.forEach { add(it.name) } }
                                 }
@@ -121,10 +154,19 @@ internal object RemoteDetails {
         val details = RemoteAppBridge.details.value
         val page = RemoteAppBridge.streams.value
         val action: (() -> Unit)? = when (cmd) {
-            "back" -> ({ RemoteAppBridge.send(Command.Back) })
+            "back" -> ({ RemoteAppBridge.send(Command.Back()) })
             "play" -> details?.play
             "saved" -> details?.toggleSaved
             "watched" -> details?.toggleWatched
+            "fillerDetection" -> json["value"]?.jsonPrimitive?.booleanOrNull?.let { enabled ->
+                { AnimeFillerSettingsRepository.setEnabled(enabled) }
+            }
+            "hideFillers" -> json["value"]?.jsonPrimitive?.booleanOrNull?.let { hide ->
+                {
+                    if (hide) AnimeFillerSettingsRepository.setEnabled(true)
+                    AnimeFillerSettingsRepository.setHideFillers(hide)
+                }
+            }
             "episode" -> MetaDetailsRepository.uiState.value.meta?.videos?.getOrNull(item)
                 ?.let { video -> details?.let { { it.playEpisode(video) } } }
             "stream" -> {

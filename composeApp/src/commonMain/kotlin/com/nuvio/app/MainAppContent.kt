@@ -88,6 +88,8 @@ import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.DisintegrationRequestController
 import com.nuvio.app.core.ui.LocalRemoteRoute
+import com.nuvio.app.core.ui.LocalRemoteNavigation
+import com.nuvio.app.core.ui.PlatformBackDispatcher
 import com.nuvio.app.core.ui.NativeTabBridge
 import com.nuvio.app.core.ui.NuvioFloatingPrompt
 import com.nuvio.app.core.ui.actionMenuInput
@@ -98,6 +100,7 @@ import com.nuvio.app.core.ui.NuvioToastHost
 import com.nuvio.app.core.ui.ActionMenuInvocation
 import com.nuvio.app.core.ui.ActionMenuInvocationHolder
 import com.nuvio.app.core.ui.ActionMenuAction
+import com.nuvio.app.features.remote.RemoteCardMenus
 import com.nuvio.app.core.ui.TrackingListPickerDialog
 import com.nuvio.app.core.ui.isLiquidGlassNativeTabBarSupported
 import com.nuvio.app.core.ui.localizedContinueWatchingSubtitle
@@ -1572,22 +1575,57 @@ internal fun MainAppContent(
             // The phone remote: the same actions as the sidebar, a poster and a Continue Watching card.
             val remoteContinueWatching by rememberUpdatedState(onContinueWatchingClick)
             val remoteOpenRandomPicker by rememberUpdatedState(::openRandomPicker)
+            val remoteNavigation by rememberUpdatedState(LocalRemoteNavigation.current)
+            fun clearKeyboardNavigationForPhoneBrowsing() {
+                remoteNavigation?.exitKeyboardNavigation(discardPosterOrigins = true)
+            }
             LaunchedEffect(Unit) {
                 com.nuvio.app.features.remote.RemoteAppBridge.commands.collect { command ->
                     when (command) {
-                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.SelectTab -> handleRootTabClick(command.tab)
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.SelectTab -> {
+                            if (command.tab == AppScreenTab.Home || command.tab == AppScreenTab.Search) {
+                                clearKeyboardNavigationForPhoneBrowsing()
+                            }
+                            handleRootTabClick(command.tab)
+                        }
                         com.nuvio.app.features.remote.RemoteAppBridge.Command.Shuffle -> remoteOpenRandomPicker()
-                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.OpenTitle -> navController.openPreview(command.meta)
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.OpenTitle -> {
+                            clearKeyboardNavigationForPhoneBrowsing()
+                            navController.openPreview(command.meta)
+                        }
                         is com.nuvio.app.features.remote.RemoteAppBridge.Command.OpenFolder -> navController.navigate(
                             FolderDetailRoute(collectionId = command.collectionId, folderId = command.folderId, title = command.title),
                         )
-                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.Resume -> remoteContinueWatching(command.item)
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.Resume ->
+                            remoteContinueWatching(command.item)
                         is com.nuvio.app.features.remote.RemoteAppBridge.Command.Search ->
                             if (selectedTab != AppScreenTab.Search || shuffleSelected || navBackStack.size > 1) {
+                                clearKeyboardNavigationForPhoneBrowsing()
                                 handleRootTabClick(AppScreenTab.Search)
                             }
-                        com.nuvio.app.features.remote.RemoteAppBridge.Command.Back ->
-                            if (navBackStack.size > 1 && navController.currentRoute !is PlayerRoute) navController.popBackStack()
+                        is com.nuvio.app.features.remote.RemoteAppBridge.Command.Back -> {
+                            val previousRoute = navController.currentRoute
+                            val previousDepth = navBackStack.size
+                            if (command.fromDpad) {
+                                PlatformBackDispatcher.dispatch()
+                            } else if (previousDepth > 1 && previousRoute !is PlayerRoute) {
+                                navController.popBackStack()
+                            }
+                            if (navBackStack.size < previousDepth) {
+                                val destination = navController.currentRoute
+                                val returningHome = destination is TabsRoute && selectedTab == AppScreenTab.Home
+                                val phoneBrowsingPage = when (destination) {
+                                    is TabsRoute -> returningHome || selectedTab == AppScreenTab.Search
+                                    is DetailRoute, is StreamRoute -> true
+                                    else -> false
+                                }
+                                val clearHomeFocus = returningHome &&
+                                    (previousRoute is DetailRoute || previousRoute is FolderDetailRoute || previousRoute is CollectionFoldersRoute)
+                                if (clearHomeFocus || (!command.fromDpad && phoneBrowsingPage)) {
+                                    clearKeyboardNavigationForPhoneBrowsing()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -2155,146 +2193,218 @@ internal fun MainAppContent(
             }
             }
 
-            selectedPosterActionTarget?.let { posterActionTarget ->
-                selectedPosterMenuInvocation?.let { invocation ->
-                    val preview = posterActionTarget.preview
-                    val isSaved = LibraryRepository.isSaved(preview.id, preview.type)
-                    val isWatched = WatchingState.isPosterWatched(
-                        watchedKeys = watchedUiState.watchedKeys,
-                        item = preview,
-                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                    )
-                    val removesFromLibrary = isSaved &&
-                        (posterActionTarget.libraryItem != null || !isRemoteLibrarySource)
-                    NuvioActionMenu(
-                        invocation = invocation,
-                        actions = listOf(
-                            ActionMenuAction(
-                                icon = if (isSaved) Icons.Default.DeleteOutline else Icons.Default.Add,
-                                label = if (isSaved) {
-                                    stringResource(Res.string.hero_remove_from_library)
-                                } else {
-                                    stringResource(Res.string.hero_add_to_library)
-                                },
-                                isDestructive = removesFromLibrary,
-                                onSelected = {
-                                    val libraryItem = posterActionTarget.libraryItem
-                                        ?: preview.toLibraryItem(savedAtEpochMs = 0L)
-                                    if (posterActionTarget.libraryItem != null) {
-                                        val animationKey = posterActionTarget.libraryListKey
-                                            ?.let { listKey -> librarySectionItemKey(listKey, libraryItem) }
-                                        if (isRemoteLibrarySource) {
-                                            coroutineScope.launch {
-                                                val listKey = posterActionTarget.libraryListKey
-                                                val removeMembership: suspend (Set<TrackingProviderId>) ->
-                                                    TrackingMembershipApplyResult = { confirmedProviders ->
-                                                    if (listKey.isNullOrBlank()) {
-                                                        val currentMembership = LibraryRepository.getMembershipSnapshot(libraryItem)
-                                                        LibraryRepository.applyMembershipChanges(
-                                                            item = libraryItem,
-                                                            desiredMembership = currentMembership.mapValues { false },
-                                                            confirmedRemovalProviders = confirmedProviders,
-                                                        )
-                                                    } else {
-                                                        LibraryRepository.removeFromList(
-                                                            item = libraryItem,
-                                                            listKey = listKey,
-                                                            confirmedRemovalProviders = confirmedProviders,
-                                                        )
-                                                    }
-                                                }
-                                                val removeMembershipWithAnimation:
-                                                    suspend (Set<TrackingProviderId>) -> TrackingMembershipApplyResult =
-                                                    { confirmedProviders ->
-                                                        val request = if (removesFromLibrary) {
-                                                            animationKey?.let(libraryDisintegrationRequests::arm)
-                                                        } else {
-                                                            null
-                                                        }
-                                                        try {
-                                                            removeMembership(confirmedProviders).also { result ->
-                                                                if (result.requiresRemovalConfirmation && request != null) {
-                                                                    libraryDisintegrationRequests.cancel(request)
-                                                                }
-                                                            }
-                                                        } catch (error: Throwable) {
-                                                            request?.let(libraryDisintegrationRequests::cancel)
-                                                            throw error
-                                                        }
-                                                    }
-                                                executeTrackingMembershipOperation(
-                                                    operation = { removeMembershipWithAnimation(emptySet()) },
-                                                    onSuccess = { result ->
-                                                        if (result.requiresRemovalConfirmation) {
-                                                            pendingTrackingRemoval = PendingTrackingMembershipRemoval(
-                                                                itemTitle = libraryItem.name,
-                                                                confirmations = result.requiredRemovalConfirmations,
-                                                                retry = removeMembershipWithAnimation,
-                                                                onApplied = {},
-                                                                onFailure = { error ->
-                                                                    NuvioToastController.show(
-                                                                        error.message
-                                                                            ?: trackingListsUpdateFailedMessage,
-                                                                    )
-                                                                },
-                                                            )
-                                                        }
-                                                    },
-                                                    onFailure = { error ->
-                                                        NuvioToastController.show(
-                                                            error.message ?: trackingListsUpdateFailedMessage,
-                                                        )
-                                                    },
+            val posterMenuActions: @Composable (PosterActionTarget) -> List<ActionMenuAction> = { posterActionTarget ->
+                val preview = posterActionTarget.preview
+                val isSaved = LibraryRepository.isSaved(preview.id, preview.type)
+                val isWatched = WatchingState.isPosterWatched(
+                    watchedKeys = watchedUiState.watchedKeys,
+                    item = preview,
+                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                )
+                val removesFromLibrary = isSaved &&
+                    (posterActionTarget.libraryItem != null || !isRemoteLibrarySource)
+                listOf(
+                    ActionMenuAction(
+                        icon = if (isSaved) Icons.Default.DeleteOutline else Icons.Default.Add,
+                        label = if (isSaved) {
+                            stringResource(Res.string.hero_remove_from_library)
+                        } else {
+                            stringResource(Res.string.hero_add_to_library)
+                        },
+                        isDestructive = removesFromLibrary,
+                        onSelected = {
+                            val libraryItem = posterActionTarget.libraryItem
+                                ?: preview.toLibraryItem(savedAtEpochMs = 0L)
+                            if (posterActionTarget.libraryItem != null) {
+                                val animationKey = posterActionTarget.libraryListKey
+                                    ?.let { listKey -> librarySectionItemKey(listKey, libraryItem) }
+                                if (isRemoteLibrarySource) {
+                                    coroutineScope.launch {
+                                        val listKey = posterActionTarget.libraryListKey
+                                        val removeMembership: suspend (Set<TrackingProviderId>) ->
+                                            TrackingMembershipApplyResult = { confirmedProviders ->
+                                            if (listKey.isNullOrBlank()) {
+                                                val currentMembership = LibraryRepository.getMembershipSnapshot(libraryItem)
+                                                LibraryRepository.applyMembershipChanges(
+                                                    item = libraryItem,
+                                                    desiredMembership = currentMembership.mapValues { false },
+                                                    confirmedRemovalProviders = confirmedProviders,
+                                                )
+                                            } else {
+                                                LibraryRepository.removeFromList(
+                                                    item = libraryItem,
+                                                    listKey = listKey,
+                                                    confirmedRemovalProviders = confirmedProviders,
                                                 )
                                             }
-                                        } else {
-                                            if (removesFromLibrary) {
-                                                animationKey?.let(libraryDisintegrationRequests::arm)
-                                            }
-                                            LibraryRepository.remove(libraryItem.id)
                                         }
-                                    } else {
-                                        if (!isRemoteLibrarySource) {
-                                            LibraryRepository.toggleLocalSaved(libraryItem)
-                                        } else {
-                                            pickerItem = libraryItem
-                                            pickerTitle = preview.name
-                                            pickerTabs = LibraryRepository.libraryListTabs(libraryItem)
-                                            pickerMembership = pickerTabs.associate { it.key to false }
-                                            pickerPending = true
-                                            pickerError = null
-                                            showLibraryListPicker = true
-                                            coroutineScope.launch {
-                                                runCatching {
-                                                    val snapshot = LibraryRepository.getMembershipSnapshot(libraryItem)
-                                                    val tabs = LibraryRepository.libraryListTabs(libraryItem)
-                                                    pickerTabs = tabs
-                                                    pickerMembership = tabs.associate { tab ->
-                                                        tab.key to (snapshot[tab.key] == true)
-                                                    }
-                                                }.onFailure { error ->
-                                                    pickerError = error.message ?: getString(Res.string.trakt_lists_load_failed)
+                                        val removeMembershipWithAnimation:
+                                            suspend (Set<TrackingProviderId>) -> TrackingMembershipApplyResult =
+                                            { confirmedProviders ->
+                                                val request = if (removesFromLibrary) {
+                                                    animationKey?.let(libraryDisintegrationRequests::arm)
+                                                } else {
+                                                    null
                                                 }
-                                                pickerPending = false
+                                                try {
+                                                    removeMembership(confirmedProviders).also { result ->
+                                                        if (result.requiresRemovalConfirmation && request != null) {
+                                                            libraryDisintegrationRequests.cancel(request)
+                                                        }
+                                                    }
+                                                } catch (error: Throwable) {
+                                                    request?.let(libraryDisintegrationRequests::cancel)
+                                                    throw error
+                                                }
                                             }
-                                        }
+                                        executeTrackingMembershipOperation(
+                                            operation = { removeMembershipWithAnimation(emptySet()) },
+                                            onSuccess = { result ->
+                                                if (result.requiresRemovalConfirmation) {
+                                                    pendingTrackingRemoval = PendingTrackingMembershipRemoval(
+                                                        itemTitle = libraryItem.name,
+                                                        confirmations = result.requiredRemovalConfirmations,
+                                                        retry = removeMembershipWithAnimation,
+                                                        onApplied = {},
+                                                        onFailure = { error ->
+                                                            NuvioToastController.show(
+                                                                error.message
+                                                                    ?: trackingListsUpdateFailedMessage,
+                                                            )
+                                                        },
+                                                    )
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                NuvioToastController.show(
+                                                    error.message ?: trackingListsUpdateFailedMessage,
+                                                )
+                                            },
+                                        )
                                     }
-                                },
-                            ),
-                            ActionMenuAction(
-                                icon = if (isWatched) Icons.Default.CheckCircle else Icons.Default.CheckCircleOutline,
-                                label = if (isWatched) {
-                                    stringResource(Res.string.hero_mark_unwatched)
                                 } else {
-                                    stringResource(Res.string.hero_mark_watched)
-                                },
-                                onSelected = {
-                                    coroutineScope.launch {
-                                        WatchingActions.togglePosterWatched(preview)
+                                    if (removesFromLibrary) {
+                                        animationKey?.let(libraryDisintegrationRequests::arm)
                                     }
+                                    LibraryRepository.remove(libraryItem.id)
+                                }
+                            } else {
+                                if (!isRemoteLibrarySource) {
+                                    LibraryRepository.toggleLocalSaved(libraryItem)
+                                } else {
+                                    pickerItem = libraryItem
+                                    pickerTitle = preview.name
+                                    pickerTabs = LibraryRepository.libraryListTabs(libraryItem)
+                                    pickerMembership = pickerTabs.associate { it.key to false }
+                                    pickerPending = true
+                                    pickerError = null
+                                    showLibraryListPicker = true
+                                    coroutineScope.launch {
+                                        runCatching {
+                                            val snapshot = LibraryRepository.getMembershipSnapshot(libraryItem)
+                                            val tabs = LibraryRepository.libraryListTabs(libraryItem)
+                                            pickerTabs = tabs
+                                            pickerMembership = tabs.associate { tab ->
+                                                tab.key to (snapshot[tab.key] == true)
+                                            }
+                                        }.onFailure { error ->
+                                            pickerError = error.message ?: getString(Res.string.trakt_lists_load_failed)
+                                        }
+                                        pickerPending = false
+                                    }
+                                }
+                            }
+                        },
+                    ),
+                    ActionMenuAction(
+                        icon = if (isWatched) Icons.Default.CheckCircle else Icons.Default.CheckCircleOutline,
+                        label = if (isWatched) {
+                            stringResource(Res.string.hero_mark_unwatched)
+                        } else {
+                            stringResource(Res.string.hero_mark_watched)
+                        },
+                        onSelected = {
+                            coroutineScope.launch {
+                                WatchingActions.togglePosterWatched(preview)
+                            }
+                        },
+                    ),
+                )
+            }
+
+            val continueWatchingMenuActions: @Composable (ContinueWatchingItem) -> List<ActionMenuAction> = { item ->
+                val showManualPlayOption = StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState) && canSelectContinueWatchingStreams(item)
+                val showDetailsOption = !item.isCloudLibraryContinueWatchingItem()
+                buildList {
+                    if (showDetailsOption) {
+                        add(
+                            ActionMenuAction(
+                                icon = Icons.Default.Info,
+                                label = stringResource(Res.string.cw_action_go_to_details),
+                                onSelected = {
+                                    navController.navigate(
+                                        DetailRoute(
+                                            type = item.parentMetaType,
+                                            id = item.parentMetaId,
+                                            title = item.title,
+                                            posterUrl = item.poster,
+                                        ),
+                                    )
                                 },
                             ),
+                        )
+                    }
+                    if (showManualPlayOption) {
+                        add(
+                            ActionMenuAction(
+                                icon = Icons.Default.PlayArrow,
+                                label = stringResource(Res.string.play_manually),
+                                onSelected = { onContinueWatchingPlayManually(item) },
+                            ),
+                        )
+                    }
+                    if (!item.isNextUp && canPlayContinueWatching(item)) {
+                        add(
+                            ActionMenuAction(
+                                icon = Icons.Default.Replay,
+                                label = stringResource(Res.string.cw_action_start_from_beginning),
+                                onSelected = { onContinueWatchingStartFromBeginning(item) },
+                            ),
+                        )
+                    }
+                    if (item.canMarkWatched()) {
+                        add(
+                            ActionMenuAction(
+                                icon = Icons.Default.CheckCircle,
+                                label = stringResource(Res.string.hero_mark_watched),
+                                onSelected = { onContinueWatchingMarkWatched(item) },
+                            ),
+                        )
+                    }
+                    add(
+                        ActionMenuAction(
+                            icon = Icons.Default.DeleteOutline,
+                            label = stringResource(Res.string.cw_action_remove),
+                            isDestructive = true,
+                            onSelected = { onContinueWatchingRemove(item) },
                         ),
+                    )
+                }
+            }
+
+            RemoteCardMenus.Provide { target ->
+                when (target) {
+                    is RemoteCardMenus.Target.Poster -> posterMenuActions(PosterActionTarget(preview = target.preview))
+                    is RemoteCardMenus.Target.ContinueWatching -> continueWatchingMenuActions(target.item)
+                    else -> null
+                }
+            }
+
+            selectedPosterActionTarget?.let { posterActionTarget ->
+                selectedPosterMenuInvocation?.let { invocation ->
+                    NuvioActionMenu(
+                        invocation = invocation,
+                        actions = posterMenuActions(posterActionTarget),
                         hazeState = posterOverlayHazeState,
                         onDismissed = {
                             if (selectedPosterMenuInvocation === invocation) {
@@ -2309,65 +2419,9 @@ internal fun MainAppContent(
             selectedContinueWatchingForActions?.let { item ->
                 selectedContinueWatchingMenuInvocation?.let { anchor ->
                     key(item.videoId, anchor) {
-                        val showManualPlayOption = StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState) && canSelectContinueWatchingStreams(item)
-                        val showDetailsOption = !item.isCloudLibraryContinueWatchingItem()
                         NuvioActionMenu(
                             invocation = anchor,
-                            actions = buildList {
-                                if (showDetailsOption) {
-                                    add(
-                                        ActionMenuAction(
-                                            icon = Icons.Default.Info,
-                                            label = stringResource(Res.string.cw_action_go_to_details),
-                                            onSelected = {
-                                                navController.navigate(
-                                                    DetailRoute(
-                                                        type = item.parentMetaType,
-                                                        id = item.parentMetaId,
-                                                        title = item.title,
-                                                        posterUrl = item.poster,
-                                                    ),
-                                                )
-                                            },
-                                        ),
-                                    )
-                                }
-                                if (showManualPlayOption) {
-                                    add(
-                                        ActionMenuAction(
-                                            icon = Icons.Default.PlayArrow,
-                                            label = stringResource(Res.string.play_manually),
-                                            onSelected = { onContinueWatchingPlayManually(item) },
-                                        ),
-                                    )
-                                }
-                                if (!item.isNextUp && canPlayContinueWatching(item)) {
-                                    add(
-                                        ActionMenuAction(
-                                            icon = Icons.Default.Replay,
-                                            label = stringResource(Res.string.cw_action_start_from_beginning),
-                                            onSelected = { onContinueWatchingStartFromBeginning(item) },
-                                        ),
-                                    )
-                                }
-                                if (item.canMarkWatched()) {
-                                    add(
-                                        ActionMenuAction(
-                                            icon = Icons.Default.CheckCircle,
-                                            label = stringResource(Res.string.hero_mark_watched),
-                                            onSelected = { onContinueWatchingMarkWatched(item) },
-                                        ),
-                                    )
-                                }
-                                add(
-                                    ActionMenuAction(
-                                        icon = Icons.Default.DeleteOutline,
-                                        label = stringResource(Res.string.cw_action_remove),
-                                        isDestructive = true,
-                                        onSelected = { onContinueWatchingRemove(item) },
-                                    ),
-                                )
-                            },
+                            actions = continueWatchingMenuActions(item),
                             hazeState = posterOverlayHazeState,
                             onDismissed = {
                                 if (selectedContinueWatchingMenuInvocation === anchor) {

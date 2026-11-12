@@ -675,7 +675,12 @@ internal class NativePlayerController(
 
     /** A control message from the phone remote, handled like one from the on-screen controls. */
     fun remoteEvent(type: String, value: Double) {
-        SwingUtilities.invokeLater { handlePlayerEvent(type, value) }
+        SwingUtilities.invokeLater {
+            if (type == "skipInterval" &&
+                (!controlsState.skipPromptVisible || value != controlsState.skipPromptEndMs.toDouble())
+            ) return@invokeLater
+            handlePlayerEvent(type, value)
+        }
     }
 
     fun closeRemotePanels() {

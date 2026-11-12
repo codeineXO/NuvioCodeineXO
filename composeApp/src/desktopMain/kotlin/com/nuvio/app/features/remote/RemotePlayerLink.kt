@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.StateFlow
 internal object RemotePlayerLink {
     /** The control messages the phone may send, the same ones the player's own on-screen controls send. */
     private val allowed = setOf(
-        "back", "toggle", "seekBack", "seekForward", "volumeChange", "volumeChangeTemporary", "scrubFinish", "selectSource", "reloadSources",
+        "back", "toggle", "keyboardSeek10Back", "keyboardSeek10Forward", "volumeChange", "volumeChangeTemporary",
+        "scrubFinish", "selectSource", "reloadSources", "playNextEpisode", "skipInterval",
+        "selectEpisode", "selectEpisodeStream", "backToEpisodes", "reloadEpisodeStreams",
+        "enableP2pForPlayerControls", "cancelP2pForPlayerControls",
         "selectBuiltInSubtitleTrack", "selectAddonSubtitle", "selectAudioTrack", "toggleAudioNightMode",
         "setAnimeUpscalerOption", "setAnimeUpscalerMode", "setSvpMode",
-        "setPlaybackSpeed", "setEyeFilterEnabled", "selectChapter",
+        "setPlaybackSpeed", "setEyeFilterEnabled", "setGrainFilterEnabled", "selectChapter",
         // Subtitles → Customization.
         "subtitleDelayDelta", "subtitleDelayReset", "subtitleFontSizeDelta", "subtitleBottomOffsetDelta",
         "subtitleCustomStyleToggle", "subtitleFontDelta", "subtitleBoldToggle", "subtitleTextColor",
@@ -25,19 +28,16 @@ internal object RemotePlayerLink {
     /** The on-screen controls the phone may click, by name: the bar's panels and the "More playback controls". */
     private val clickable = mapOf(
         "sources" to "codeineSourcesButton",
+        "episodes" to "codeineEpisodesButton",
         "subtitles" to "codeineSubtitlesButton",
         "audio" to "codeineAudioButton",
         "enhance" to "codeineShadersButton",
         "speed" to "codeineSpeedButton",
         "aspect" to "codeineResizeButton",
-        "pip" to "codeinePipButton",
-        "miniPlayer" to "codeineMiniPlayerButton",
-        "party" to "codeinePartyButton",
         "stats" to "codeineStatsButton",
         "eyeFilter" to "codeineEyeFilterButton",
         "chapters" to "codeineChaptersButton",
         "fullscreen" to "codeineFullscreenButton",
-        "subtitleImport" to "subtitleImportBtn",
         "subtitleTabSubtitles" to "subtitleTabSubtitlesBtn",
         "subtitleTabCustomization" to "subtitleTabCustomizationBtn",
     )

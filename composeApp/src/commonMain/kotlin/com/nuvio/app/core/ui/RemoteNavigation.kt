@@ -162,6 +162,14 @@ internal class RemoteNavigationSession {
             posterPages.values.any { it.route == route && !it.active && it.origin != null } ||
             posterRestorationPending(route)
 
+    fun exitKeyboardNavigation(discardPosterOrigins: Boolean = false) {
+        keyboard = false
+        resetHoldState()
+        if (discardPosterOrigins) {
+            posterPages.values.forEach { it.cancelRestoration(discardBookmark = true) }
+        }
+    }
+
     fun resetHoldState() {
         contentFocusJob?.cancel()
         rowMoveJob?.cancel()
@@ -474,6 +482,7 @@ internal class RemoteFocusTarget(val route: Any, val identity: Int, val requeste
     var visibleBounds: Rect? = null
     var focused by mutableStateOf(false)
     var reveal: suspend () -> Unit = {}
+    var openContextMenu: (() -> Unit)? = null
 }
 
 internal val LocalRemoteNavigationRole = staticCompositionLocalOf { RemoteNavigationRole.Default }
@@ -483,6 +492,7 @@ internal val LocalRemoteNavigation = staticCompositionLocalOf<RemoteNavigationSe
 internal val LocalRemoteRoute = staticCompositionLocalOf<Any> { Unit }
 internal val LocalRemotePlatformFocus = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalRemoteHiddenPointerIcon = staticCompositionLocalOf<PointerIcon?> { null }
+internal val LocalRemoteCursorHidden = staticCompositionLocalOf<State<Boolean>?> { null }
 
 internal val isRemoteKeyboardNavigationActive: Boolean
     @Composable get() = LocalRemoteNavigation.current?.keyboard == true
@@ -492,15 +502,20 @@ internal val isRemoteKeyboardNavigationActive: Boolean
 internal fun InteractionSource.collectIsRemoteHoveredAsState(): State<Boolean> {
     val hovered = collectIsHoveredAsState()
     val session = LocalRemoteNavigation.current
-    return remember(hovered, session) { derivedStateOf { hovered.value && session?.keyboard != true } }
+    val remoteCursorHidden = LocalRemoteCursorHidden.current
+    return remember(hovered, session, remoteCursorHidden) {
+        derivedStateOf { hovered.value && session?.keyboard != true && remoteCursorHidden?.value != true }
+    }
 }
 
 internal fun Modifier.remoteNavigationPointerIcon(): Modifier = composed {
     val icon = LocalRemoteHiddenPointerIcon.current
     val session = LocalRemoteNavigation.current
-    if (session != null && icon != null) {
+    val remoteCursorHidden = LocalRemoteCursorHidden.current
+    if (icon != null && (session != null || remoteCursorHidden != null)) {
+        val hidden = session?.keyboard == true || remoteCursorHidden?.value == true
         // Keep the hover node attached so a stationary cursor updates immediately on key input.
-        this.pointerHoverIcon(if (session.keyboard) icon else PointerIcon.Default, overrideDescendants = session.keyboard)
+        this.pointerHoverIcon(if (hidden) icon else PointerIcon.Default, overrideDescendants = hidden)
     } else this
 }
 
@@ -510,14 +525,22 @@ internal fun Modifier.excludeFromRemoteNavigation(): Modifier = composed {
 
 /** The desktop key entry point can recover even when no Compose target owns focus. */
 internal object RemoteNavigationDispatcher {
-    private data class Registration(val recover: (Boolean) -> Boolean, val mouseMoved: () -> Unit, val cancelHeld: () -> Unit)
+    private data class Registration(
+        val recover: (Boolean) -> Boolean,
+        val exitKeyboardNavigation: (Boolean) -> Unit,
+        val cancelHeld: () -> Unit,
+        val openContextMenu: () -> Unit,
+    )
     private val handlers = mutableListOf<Registration>()
-    fun register(handler: (Boolean) -> Boolean, mouseMoved: () -> Unit, cancelHeld: () -> Unit) {
-        handlers += Registration(handler, mouseMoved, cancelHeld)
+    fun register(handler: (Boolean) -> Boolean, exitKeyboardNavigation: (Boolean) -> Unit, cancelHeld: () -> Unit, openContextMenu: () -> Unit) {
+        handlers += Registration(handler, exitKeyboardNavigation, cancelHeld, openContextMenu)
     }
     fun unregister(handler: (Boolean) -> Boolean) { handlers.removeAll { it.recover === handler } }
     fun recoverFocus(force: Boolean = false): Boolean = handlers.lastOrNull()?.recover?.invoke(force) ?: false
-    fun mouseMoved() { handlers.lastOrNull()?.mouseMoved?.invoke() }
+    fun exitKeyboardNavigation(discardPosterOrigins: Boolean = false) {
+        handlers.lastOrNull()?.exitKeyboardNavigation?.invoke(discardPosterOrigins)
+    }
+    fun openContextMenu() { handlers.lastOrNull()?.openContextMenu?.invoke() }
     fun focusLost() { handlers.lastOrNull()?.cancelHeld?.invoke() }
     val isEnabled: Boolean get() = handlers.isNotEmpty()
 }
@@ -713,10 +736,18 @@ internal fun RemoteNavigationHost(
         session.resetHoldState()
         session.enterHeld = false
         val handler: (Boolean) -> Boolean = { recoverFocus(it) }
-        if (navigationEnabled) RemoteNavigationDispatcher.register(handler, mouseMoved = {
-            session.keyboard = false
-            session.resetHoldState()
-        }, cancelHeld = session::resetHoldState)
+        if (navigationEnabled) RemoteNavigationDispatcher.register(
+            handler,
+            exitKeyboardNavigation = session::exitKeyboardNavigation,
+            cancelHeld = session::resetHoldState,
+            openContextMenu = {
+                session.focusedTarget?.takeIf { it.focused }?.openContextMenu?.let { open ->
+                    session.keyboard = true
+                    session.resetHoldState()
+                    open()
+                }
+            },
+        )
         onDispose { session.cancelPosterNavigation(); RemoteNavigationDispatcher.unregister(handler) }
     }
     LaunchedEffect(navigationEnabled, restorationKey) {
@@ -862,6 +893,7 @@ internal fun Modifier.remoteNavigationTarget(
     val longPressTimeout = LocalViewConfiguration.current.longPressTimeoutMillis
     val select by rememberUpdatedState(onSelect)
     val context by rememberUpdatedState(onContext)
+    SideEffect { target.openContextMenu = onContext }
     val editingCallback by rememberUpdatedState(onEditingChange)
     var enterJob by remember { mutableStateOf<Job?>(null) }
     var held by remember { mutableStateOf(false) }

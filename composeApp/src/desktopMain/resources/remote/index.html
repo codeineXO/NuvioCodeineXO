@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="en" class="mocha">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#181825">
-<title>Nuvio Remote</title>
+<title>NuvioCodeineXO</title>
 <link rel="stylesheet" href="/cuppa.css">
 <script>
   // The cuppa theme: flavor (Auto follows the phone), accent and corner radius, set before first paint.
   (() => {
-    const FLAVORS = ['latte', 'frappe', 'macchiato', 'mocha'];
+    const ALL_FLAVORS = ['latte', 'frappe', 'macchiato', 'mocha'];
     const RADII = { tight: 0.55, apple: 1, soft: 1.5 };
     const dark = matchMedia('(prefers-color-scheme: dark)');
     const get = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } };
@@ -19,9 +19,9 @@
       set(key, value) { try { localStorage.setItem(key, value); } catch (_) {} this.apply(); },
       apply() {
         const flavor = get('ui-flavor', 'auto'), accent = get('ui-accent', 'lavender'), radius = get('ui-radius', 'apple');
-        const shown = flavor === 'auto' ? (dark.matches ? 'mocha' : 'latte') : flavor;
+        const shown = flavor === 'auto' ? (dark.matches ? 'macchiato' : 'latte') : (flavor === 'light' || flavor === 'latte' ? 'latte' : 'macchiato');
         const root = document.documentElement;
-        FLAVORS.forEach((f) => root.classList.toggle(f, f === shown));
+        ALL_FLAVORS.forEach((f) => root.classList.toggle(f, f === shown));
         root.style.setProperty('--accent', `var(--ctp-${accent})`);
         root.style.setProperty('--r-scale', RADII[radius] || 1);
         document.querySelectorAll('[data-flavor]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.flavor === flavor));
@@ -40,19 +40,20 @@
     max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; user-select: none; -webkit-user-select: none;
     touch-action: manipulation; overscroll-behavior: none;
     padding: calc(env(safe-area-inset-top) + 12px) max(16px, env(safe-area-inset-right))
-      calc(env(safe-area-inset-bottom) + 16px) max(16px, env(safe-area-inset-left)); min-height: 100dvh; }
+      calc(env(safe-area-inset-bottom) + 84px) max(16px, env(safe-area-inset-left)); min-height: 100dvh; }
   header { display: flex; align-items: center; gap: 10px; }
   header h1 { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .status { flex: none; white-space: nowrap; }
-  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ctp-red); }
-  .status.on .dot { background: var(--ctp-green); }
+  .status { flex: none; width: 16px; height: 16px; display: grid; place-items: center; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ctp-green); }
+  .status.on .spin-ring, .status:not(.on) .dot { display: none; }
   main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; }
   .line { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
   .ic { width: 24px; height: 24px; fill: currentColor; flex: none; }
 
   /* D-pad */
   .dpad { position: relative; width: min(80vw, 55dvh, 320px); aspect-ratio: 1; border-radius: 50%; background: var(--ctp-base); }
-  .dpad button { position: absolute; display: grid; place-items: center; color: var(--ctp-subtext0); transition: color 0.15s; }
+  .dpad button { position: absolute; display: grid; place-items: center; color: var(--ctp-subtext0); transition: color 0.15s;
+    touch-action: none; user-select: none; -webkit-touch-callout: none; }
   .dpad button.pressed { color: var(--accent); }
   .dpad .line { width: 36px; height: 36px; }
   .dpad .arrow { width: 34%; height: 34%; }
@@ -60,21 +61,27 @@
   .dpad .ok { width: 38%; height: 38%; left: 31%; top: 31%; border-radius: 50%; background: var(--ctp-surface0);
     color: var(--ctp-text); font-size: 20px; font-weight: 600; transition: transform 0.15s var(--ease); }
   .dpad .ok.pressed { transform: scale(0.95); background: var(--ctp-surface1); color: var(--ctp-text); }
-  .round { width: 64px; height: 64px; border-radius: 50%; background: var(--ctp-surface0); display: grid; place-items: center; }
-  .round.pressed { background: var(--ctp-surface1); }
 
   /* Browsing: Home's hero and rows, Search, and the sidebar as a tab bar. */
   .btn[aria-pressed="true"] { background: var(--accent); color: var(--ctp-crust); }
   .browse { justify-content: flex-start; align-items: stretch; gap: 22px; width: 100%; }
-  body:has(#tabbar:not([hidden])) { padding-bottom: calc(env(safe-area-inset-bottom) + 84px); }
-  .tabbar { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
-    bottom: calc(env(safe-area-inset-bottom) + 10px); display: flex; gap: 2px; padding: 6px;
+  .bottom-controls { position: fixed; z-index: 5; left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right)); bottom: calc(env(safe-area-inset-bottom) + 10px);
+    display: flex; justify-content: center; pointer-events: none; }
+  .bottom-bar { --bottom-tab-width: clamp(44px, 16vw, 60px); position: relative; display: flex; gap: 8px; }
+  .tabbar, .action-pill { display: flex; gap: 2px; padding: 6px; pointer-events: auto;
     border-radius: 9999px; background: color-mix(in srgb, var(--ctp-base) 88%, transparent);
     backdrop-filter: blur(20px); box-shadow: var(--shadow-3); }
-  .tab { min-width: 60px; height: 52px; padding-inline: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  /* Keep the tabs' space during playback so the Back pill stays in place. */
+  body:has(#player:not([hidden])) .tabbar { visibility: hidden; }
+  .tab { min-width: var(--bottom-tab-width); height: 52px; padding-inline: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 2px; border-radius: 9999px; font-size: 11px; font-weight: 500; color: var(--ctp-subtext0); transition: background-color 0.2s, color 0.2s; }
-  .tab .line { width: 22px; height: 22px; }
+  .tab :is(.line, .ic) { width: 22px; height: 22px; }
   .tab[aria-selected="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .playback-pill { position: absolute; bottom: 0; }
+  #next-episode-pill { left: 0; }
+  #skip-segment-pill { left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * (var(--bottom-tab-width) + 20px)); }
+  #skip-segment { min-width: 0; font-size: 13px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
   .pc-note { text-align: center; }
 
   .hero-strip, .row-scroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
@@ -145,11 +152,16 @@
   .detail-actions .btn-filled { flex: 1; background: var(--ctp-text); color: var(--ctp-crust); }
   .detail-actions .btn-filled .ic { width: 18px; height: 18px; }
   .episodes { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  [data-card-menu], [data-card-menu] img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  #card-menu-actions .destructive { color: var(--ctp-red); }
+  #d-filler { margin-bottom: 12px; }
   .episode { display: flex; gap: 12px; text-align: left; padding: 8px; border-radius: var(--r-card); background: var(--ctp-base);
     transition: transform 0.15s var(--ease); }
   .episode:active { transform: scale(0.98); }
   .episode .thumb { position: relative; flex: none; width: 40%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-ctl); background: var(--ctp-surface0); }
   .episode .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .episode .thumb .blurred { filter: blur(12px); }
+  .episode[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
   .episode .thumb .code { position: absolute; left: 6px; bottom: 6px; padding: 1px 6px; border-radius: 6px; font-size: 12px; font-weight: 700;
     background: color-mix(in srgb, var(--ctp-crust) 80%, transparent); }
   .episode .copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -164,7 +176,6 @@
   .stream-card b { font-size: 16px; }
   .stream-card .sub { white-space: pre-line; font-size: 13px; color: var(--ctp-subtext1); }
   .stream-card .badges { display: flex; flex-wrap: wrap; gap: 6px; }
-  #remote-back { margin-top: -12px; }
 
   /* Loading: skeletons shaped like the page while it loads, spinners for actions */
   .home-skeleton, .detail-skeleton { display: flex; flex-direction: column; gap: 14px; }
@@ -180,9 +191,6 @@
   .sk-episode { height: 92px; border-radius: var(--r-card); }
   #details.is-loading > :not(.page-bar):not(#d-skeleton) { display: none; }
   #details:not(.is-loading) #d-skeleton { display: none; }
-  .status .spin-ring { display: none; }
-  .status:not(.on) .spin-ring { display: block; }
-  .status:not(.on) .dot { display: none; }
   .addon-loading { display: flex; align-items: center; gap: 8px; }
   .resume-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
     padding: 10px 12px; border-radius: var(--r-card); background: color-mix(in srgb, var(--ctp-base) 85%, transparent); }
@@ -196,7 +204,8 @@
   .stream .top { flex-wrap: wrap; }
 
   /* Playing screen: artwork first, then the controls. */
-  #player { width: 100%; justify-content: flex-start; gap: 20px; }
+  body:has(#player:not([hidden])) { height: 100dvh; }
+  #player { width: 100%; min-height: 0; justify-content: flex-end; gap: 20px; }
   /* The artwork, blurred and dimmed behind the whole page. */
   .backdrop { position: fixed; inset: 0; z-index: -1; background: center / cover no-repeat var(--art, none);
     filter: blur(48px) saturate(1.2); transform: scale(1.3); opacity: 0; transition: opacity 0.5s var(--ease); }
@@ -222,33 +231,40 @@
 
   .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card);
     background: color-mix(in srgb, var(--ctp-base) 80%, transparent); backdrop-filter: blur(20px); }
-  .seek { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ctp-subtext0); font-variant-numeric: tabular-nums; }
-  .transport { display: flex; align-items: center; justify-content: center; gap: 28px; }
+  .seek { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .seek-times { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ctp-subtext0); font-variant-numeric: tabular-nums; }
+  .transport { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(4px, 3vw, 16px); }
+  #seek-back { justify-self: end; }
   .play { width: 72px; height: 72px; flex: none; border-radius: 50%; display: grid; place-items: center;
     background: var(--accent); color: var(--ctp-crust); transition: transform 0.15s var(--ease); }
   .play:active, .skip:active { transform: scale(0.92); }
   .play .ic { width: 30px; height: 30px; }
-  .skip { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; color: var(--ctp-text);
+  .skip { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; color: var(--ctp-text);
     transition: transform 0.15s var(--ease); }
   .skip .ic { width: 30px; height: 30px; }
-  .volume { display: flex; align-items: center; gap: 10px; color: var(--ctp-subtext0); }
-  .volume output { width: 44px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .seek-step { background: color-mix(in srgb, var(--ctp-surface1) 55%, transparent); }
+  .seek-step .ic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .seek-step:active { background: var(--ctp-surface1); }
+  .volume { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; column-gap: 10px; align-items: center; color: var(--ctp-subtext0); }
+  .volume .range { grid-column: 2; min-width: 0; }
+  .volume output { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
 
   .tools { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: 100%; }
   .tool { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--ctp-subtext0); white-space: nowrap; }
   .tool > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%;
     background: color-mix(in srgb, var(--ctp-surface0) 80%, transparent); color: var(--ctp-text); transition: transform 0.15s var(--ease); }
   .tool:active > span { transform: scale(0.92); background: var(--ctp-surface1); }
+  .tool:disabled { opacity: 0.45; }
   .tool .ic { width: 22px; height: 22px; }
   .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-  .media { gap: 14px; }
+  .media { min-height: 0; max-height: 100%; overflow-y: auto; gap: 14px; }
+  .deck { flex-shrink: 0; }
   .hero { max-height: 36dvh; }
 
   /* ─── Responsive ─── */
   /* Small phones (iPhone SE, mini): tighter transport, the tools on two rows so the labels fit. */
   @media (max-width: 374px) {
     body { gap: 12px; }
-    .transport { gap: 16px; }
     .play { width: 64px; height: 64px; }
     .skip { width: 44px; height: 44px; }
     .controls { padding: 12px; }
@@ -272,10 +288,10 @@
     .synopsis { -webkit-line-clamp: 1; }
     .hero { max-height: 24dvh; }
   }
-  /* Landscape phones and tablets: artwork on the left, controls on the right; D-pad beside Back. */
+  /* Landscape phones and tablets: artwork on the left, controls on the right. */
   @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
     body { max-width: 1040px; }
-    #player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr); align-items: start; gap: 24px; }
+    #player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr); align-content: end; align-items: end; gap: 24px; }
     #player[hidden] { display: none; }
     .deck { position: sticky; top: 12px; }
     #remote { flex-direction: row; gap: 48px; }
@@ -292,7 +308,7 @@
     .skip { width: 44px; height: 44px; }
     .tool > span { width: 40px; height: 40px; }
     .deck { gap: 12px; }
-    .dpad { width: min(64dvh, 300px); }
+    .dpad { width: min(48dvh, 300px); }
     .sheet { max-height: 94dvh; }
   }
 
@@ -305,7 +321,7 @@
   .stream img { height: 18px; }
   .more { display: grid; grid-template-columns: 1fr 1fr; }
   .more .row + .row::before { display: none; }
-  .swatches { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px 0; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 12px; padding: 6px 6px; margin: 0 2px; }
   .swatch { width: 32px; height: 32px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px var(--ctp-surface1); }
   .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ctp-base), 0 0 0 4px var(--ctp-text); }
   .swatch:disabled { opacity: 0.4; }
@@ -317,24 +333,25 @@
 </head>
 <body>
 <header>
-  <h1 class="t-headline">Nuvio Remote</h1>
-  <span class="badge badge-tint status" id="status"><span class="dot"></span><span class="spin-ring sm"></span><span id="status-text">Connecting</span></span>
+  <h1 class="t-headline">NuvioCodeineXO</h1>
+  <span class="status" id="status" role="img" aria-label="Connecting"><span class="dot"></span><span class="spin-ring sm"></span></span>
   <button class="btn btn-icon btn-gray" id="dpad-toggle" aria-label="Remote D-pad" aria-pressed="false"><svg class="line"><use href="#i-remote"/></svg></button>
-  <button class="btn btn-icon btn-gray" id="settings-open" aria-label="Settings">
-    <svg class="line" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  <button class="btn btn-icon btn-gray" id="appearance-open" aria-label="Appearance">
+    <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 1.1-2.5 1.5 1.5 0 0 1 1.1-2.5H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><path d="M7.5 12h.01M9 8h.01M13 7h.01M17 10h.01"/></svg>
   </button>
 </header>
 
 
 <!-- player icons -->
 
-<!-- The remote's own icons (Lucide shapes), drawn as outlines. -->
+<!-- The remote's own outline icons. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-seek-arrow" viewBox="0 0 24 24"><path d="M4.2 8.1a8.8 8.8 0 1 1 0 7.8M4.2 4v4.1h4.1"/></symbol>
+  <symbol id="i-seek-ten" viewBox="0 0 24 24"><path d="m8.2 10.3 1.6-1.1v5.6m3-4.2a1.6 1.6 0 0 1 3.2 0v2.8a1.6 1.6 0 0 1-3.2 0z"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
   <symbol id="i-shuffle" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"/></symbol>
   <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
-  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
   <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
 </svg>
 
@@ -364,7 +381,6 @@
 
 <!-- A title's page, following the PC: tap Play, an episode, watched or library, as on the PC. -->
 <main id="details" class="browse" hidden>
-  <div class="page-bar"><button class="btn btn-sm btn-gray" data-back>Back</button></div>
   <!-- While the title loads: its page's shape, shimmering. -->
   <div class="detail-skeleton" id="d-skeleton">
     <div class="skel sk-detail"></div>
@@ -390,6 +406,7 @@
     <button class="btn btn-icon btn-gray" id="d-saved" aria-label="Library" aria-pressed="false"><svg class="line" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
   </div>
   <section id="d-episodes-section">
+    <div class="group-list" id="d-filler" hidden></div>
     <h3 class="row-title">Seasons</h3>
     <div class="chips" id="d-seasons"></div>
     <div class="episodes" id="d-episodes"></div>
@@ -417,36 +434,42 @@
   <div class="card t-sub text-sub" id="s-empty" hidden></div>
 </main>
 
-<main id="remote">
+<main id="remote" hidden>
   <div class="t-sub text-sub pc-note" id="pc-note" hidden></div>
-  <button class="btn btn-sm btn-gray" data-back id="remote-back" hidden>Back</button>
   <div class="dpad">
-    <button class="arrow up" data-cmd="key" data-key="up" data-repeat aria-label="Up"><svg class="line" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
-    <button class="arrow left" data-cmd="key" data-key="left" data-repeat aria-label="Left"><svg class="line" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
-    <button class="ok" data-cmd="ok" aria-label="OK">OK</button>
-    <button class="arrow right" data-cmd="key" data-key="right" data-repeat aria-label="Right"><svg class="line" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-    <button class="arrow down" data-cmd="key" data-key="down" data-repeat aria-label="Down"><svg class="line" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+    <button class="arrow up" data-key="up" aria-label="Up"><svg class="line" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+    <button class="arrow left" data-key="left" aria-label="Left"><svg class="line" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button class="ok" id="dpad-ok">OK</button>
+    <button class="arrow right" data-key="right" aria-label="Right"><svg class="line" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    <button class="arrow down" data-key="down" aria-label="Down"><svg class="line" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
   </div>
-  <button class="round" data-cmd="back" aria-label="Back"><svg class="line" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
 </main>
 
-<!-- The sidebar, as a tab bar: each tab switches the PC too. -->
-<nav class="tabbar" id="tabbar" hidden>
-  <button class="tab" data-tab="home" aria-selected="true"><svg class="line"><use href="#i-home"/></svg>Home</button>
-  <button class="tab" data-tab="search" aria-selected="false"><svg class="line"><use href="#i-search"/></svg>Search</button>
-  <button class="tab" data-tab="shuffle" aria-selected="false"><svg class="line"><use href="#i-shuffle"/></svg>Shuffle</button>
-  <button class="tab" data-tab="library" aria-selected="false"><svg class="line"><use href="#i-library"/></svg>Library</button>
-  <button class="tab" data-tab="settings" aria-selected="false"><svg class="line"><use href="#i-settings"/></svg>Settings</button>
-</nav>
+<div class="bottom-controls">
+  <div class="bottom-bar">
+    <nav class="tabbar" aria-label="Desktop tabs">
+      <button class="tab" data-tab="home" aria-selected="true"><svg class="line"><use href="#i-home"/></svg>Home</button>
+      <button class="tab" data-tab="search" aria-selected="false"><svg class="line"><use href="#i-search"/></svg>Search</button>
+      <button class="tab" data-tab="shuffle" aria-selected="false"><svg class="line"><use href="#i-shuffle"/></svg>Shuffle</button>
+      <button class="tab" data-tab="library" aria-selected="false"><svg class="line"><use href="#i-library"/></svg>Library</button>
+    </nav>
+    <div class="action-pill playback-pill" id="next-episode-pill" hidden>
+      <button class="tab" id="next-episode" aria-label="Next episode"><svg class="ic" aria-hidden="true"><use href="#icon-skip-next"/></svg>Next</button>
+    </div>
+    <div class="action-pill playback-pill" id="skip-segment-pill" hidden>
+      <button class="tab" id="skip-segment"></button>
+    </div>
+    <div class="action-pill back-pill">
+      <button class="tab" data-back><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 14-5-5 5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Back</button>
+    </div>
+  </div>
+</div>
 
 <div class="backdrop" id="backdrop"></div>
 
 <main id="player" hidden>
   <!-- What's playing: the artwork and logo the player shows, then the episode and its synopsis. -->
   <section class="media">
-  <div class="page-bar">
-    <button class="btn btn-sm btn-gray" id="player-back"><svg class="ic"><use href="#icon-arrow-back"/></svg>Back</button>
-  </div>
   <div class="hero">
     <img id="art" alt="">
     <div class="shade"></div>
@@ -463,14 +486,13 @@
   <section class="deck">
   <div class="controls">
     <div class="seek">
-      <span id="position">0:00</span>
+      <div class="seek-times"><span id="position">0:00</span><span id="duration">0:00</span></div>
       <input class="range" type="range" id="seek" min="0" max="1" step="1000" value="0" aria-label="Seek">
-      <span id="duration">0:00</span>
     </div>
     <div class="transport">
-      <button class="skip" id="seek-back" aria-label="Back 10 seconds"><svg class="ic"><use href="#icon-replay10"/></svg></button>
+      <button class="skip seek-step" id="seek-back" aria-label="Back 10 seconds"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-seek-arrow"/><use href="#i-seek-ten"/></svg></button>
       <button class="play" id="play" aria-label="Play / Pause"><svg class="ic"><use id="play-icon" href="#icon-play"/></svg></button>
-      <button class="skip" id="seek-forward" aria-label="Forward 10 seconds"><svg class="ic"><use href="#icon-forward10"/></svg></button>
+      <button class="skip seek-step" id="seek-forward" aria-label="Forward 10 seconds"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-seek-arrow" transform="translate(24 0) scale(-1 1)"/><use href="#i-seek-ten"/></svg></button>
     </div>
     <label class="volume">
       <svg class="ic"><use href="#icon-volume-compact"/></svg>
@@ -482,25 +504,23 @@
   <!-- The player's bar: each opens its panel on the PC and the same panel here. -->
   <div class="tools">
     <button class="tool" data-click="sources" data-panel="sources"><span><svg class="ic"><use href="#icon-source"/></svg></span>Sources</button>
+    <button class="tool" id="player-episodes" data-click="episodes" data-panel="episodes" disabled><span><svg class="ic"><use href="#icon-episodes"/></svg></span>Episodes</button>
     <button class="tool" data-click="subtitles" data-panel="subtitles"><span><svg class="ic"><use href="#icon-subs"/></svg></span>Subtitles</button>
     <button class="tool" data-click="audio" data-panel="audio"><span><svg class="ic"><use href="#icon-audio"/></svg></span>Audio</button>
-    <button class="tool" data-click="enhance" data-panel="enhance"><span><svg class="ic"><use href="#icon-wand"/></svg></span>Enhance</button>
     <button class="tool" id="more-open"><span><svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>More</button>
     <button class="tool" data-click="fullscreen"><span><svg class="ic"><use href="#icon-fullscreen"/></svg></span>Fullscreen</button>
   </div>
   </section>
 </main>
 
-<!-- The player's "More playback controls" drawer, item for item. -->
+<!-- More playback controls available on the phone. -->
 <dialog class="sheet" id="more" autofocus tabindex="-1">
   <div class="sheet-head"><div class="grip"></div><div class="bar"><h2 class="t-title2">More playback controls</h2></div></div>
   <div class="sheet-body">
     <div class="group-list more">
       <button class="row" data-click="speed" data-panel="speed"><svg class="ic"><use href="#icon-speed"/></svg>Playback speed</button>
       <button class="row" data-click="aspect" data-stay><svg class="ic"><use href="#icon-aspect"/></svg><span class="copy">Aspect ratio<small id="aspect"></small></span></button>
-      <button class="row" data-click="pip"><svg class="ic"><use href="#icon-pip"/></svg>Picture in picture</button>
-      <button class="row" data-click="miniPlayer"><svg class="ic"><use href="#icon-miniplayer"/></svg>Mini player</button>
-      <button class="row" data-click="party"><svg class="ic"><use href="#icon-party"/></svg>Watch party</button>
+      <button class="row" data-click="enhance" data-panel="enhance"><svg class="ic"><use href="#icon-wand"/></svg>Enhance</button>
       <button class="row" data-click="stats"><svg class="ic"><use href="#icon-info-circle"/></svg>Playback statistics</button>
       <button class="row" data-click="eyeFilter" data-panel="eyeFilter"><svg class="ic"><use href="#icon-eye"/></svg>Eye filter</button>
       <button class="row" data-click="chapters" data-panel="chapters" id="chapters-item" hidden><svg class="ic"><use href="#icon-chapters"/></svg>Chapters</button>
@@ -513,24 +533,33 @@
     <div class="bar">
       <div><h2 class="t-title2" id="panel-title"></h2><div class="t-sub text-sub" id="panel-subtitle" hidden></div></div>
       <span id="panel-actions"></span>
-      <button class="btn btn-sm btn-gray" data-dismiss>Close</button>
+      <button class="btn btn-sm btn-gray" id="panel-close" data-dismiss>Close</button>
     </div>
   </div>
   <div class="sheet-body" id="panel-body"></div>
 </dialog>
 
-<!-- Appearance: the cuppa theme picker. -->
-<dialog class="sheet" id="settings" autofocus tabindex="-1">
+<dialog class="sheet" id="card-menu" aria-labelledby="card-menu-title" tabindex="-1">
   <div class="sheet-head"><div class="grip"></div>
-    <div class="bar"><h2 class="t-title2">Settings</h2><button class="btn btn-sm btn-plain" data-dismiss>Done</button></div>
+    <div class="bar"><h2 class="t-title2" id="card-menu-title"></h2><button class="btn btn-sm btn-plain" data-dismiss>Close</button></div>
   </div>
   <div class="sheet-body">
-    <div class="section-title">Appearance</div>
+    <p class="t-sub text-sub" id="card-menu-description" hidden></p>
+    <div class="group-list" id="card-menu-actions"></div>
+  </div>
+</dialog>
+
+<!-- Appearance: the cuppa theme picker. -->
+<dialog class="sheet" id="appearance" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div>
+    <div class="bar"><h2 class="t-title2">Appearance</h2><button class="btn btn-sm btn-plain" data-dismiss>Done</button></div>
+  </div>
+  <div class="sheet-body">
     <div class="group-list">
-      <div class="row row-stack"><span class="t-sub text-sub">Flavor</span>
-        <div class="chips"><button class="chip" data-flavor="auto">Auto</button><button class="chip" data-flavor="latte">Latte</button><button class="chip" data-flavor="frappe">Frapp&eacute;</button><button class="chip" data-flavor="macchiato">Macchiato</button><button class="chip" data-flavor="mocha">Mocha</button></div></div>
+      <div class="row row-stack"><span class="t-sub text-sub">Theme</span>
+        <div class="chips"><button class="chip" data-flavor="auto">Auto</button><button class="chip" data-flavor="latte">Light</button><button class="chip" data-flavor="macchiato">Dark</button></div></div>
       <div class="row row-stack"><span class="t-sub text-sub">Corner radius</span>
-        <div class="chips"><button class="chip" data-radius="tight">Tight</button><button class="chip" data-radius="apple">Apple</button><button class="chip" data-radius="soft">Soft</button></div></div>
+        <div class="chips"><button class="chip" data-radius="tight">Subtle</button><button class="chip" data-radius="apple">Classic</button><button class="chip" data-radius="soft">Pill</button></div></div>
       <div class="row row-stack"><span class="t-sub text-sub">Accent</span><div class="swatches" id="accents"></div></div>
     </div>
   </div>
@@ -544,7 +573,13 @@
   function connect() {
     ws = new WebSocket(`ws://${location.host}/ws`);
     ws.onopen = () => { retry = 500; setStatus(true); };
-    ws.onclose = () => { setStatus(false); setTimeout(connect, retry); retry = Math.min(retry * 2, 4000); };
+    ws.onclose = () => {
+      stopDpadPress();
+      $('card-menu').close();
+      setStatus(false);
+      setTimeout(connect, retry);
+      retry = Math.min(retry * 2, 4000);
+    };
     ws.onerror = () => ws.close();
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
@@ -555,12 +590,14 @@
       if (msg.k === 'route') { pcRoute = msg.route; updateView(); }
       if (msg.k === 'details') showDetails(msg);
       if (msg.k === 'streams') showStreams(msg);
+      if (msg.k === 'cardMenu') showCardMenuActions(msg);
     };
   }
 
   function setStatus(on) {
-    $('status-text').textContent = on ? 'Connected' : 'Reconnecting';
-    $('status').classList.toggle('on', on);
+    const status = $('status');
+    status.setAttribute('aria-label', on ? 'Connected' : 'Reconnecting');
+    status.classList.toggle('on', on);
   }
 
   function send(msg) {
@@ -592,7 +629,18 @@
     sheet.showModal();
     sheet.focus({ preventScroll: true });
   }
-  $('settings-open').addEventListener('click', () => present($('settings')));
+  let cardMenuPointerDown = false;
+  let cardMenuRequest = 0;
+  $('card-menu').addEventListener('pointerdown', () => { cardMenuPointerDown = true; });
+  $('card-menu').addEventListener('click', (event) => {
+    // Releasing the hold can send a click to the newly opened dialog.
+    if (event.detail !== 0 && !cardMenuPointerDown) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+    cardMenuPointerDown = false;
+  }, true);
+  $('appearance-open').addEventListener('click', () => present($('appearance')));
 
   // The accent swatches: one per Catppuccin accent, painted with that accent.
   theme.ACCENTS.forEach((accent) => {
@@ -618,22 +666,47 @@
   let draggingSeek = false;
 
   function showPlayer(msg) {
+    const previous = state;
     state = msg;
     updateView();
-    if (!msg.active) { $('panel').close(); $('more').close(); return; }
+    if (!msg.active) { closeSheetFromPlayer(); $('more').close(); return; }
     showMedia(msg);
     $('play-icon').setAttribute('href', msg.playing ? '#icon-pause' : '#icon-play');
     if (!draggingVolume) setRange($('volume'), msg.volume);
     $('volume-label').textContent = Math.round(Number($('volume').value) * 100) + '%';
     $('aspect').textContent = msg.aspect;
     $('chapters-item').hidden = !msg.chapters.length;
-    if (openPanel) renderPanel();
+    $('skip-segment').textContent = msg.skipSegment?.label || '';
+    $('player-episodes').disabled = !msg.episodes?.available;
+    if (previous.active && previous.closeModalsToken !== msg.closeModalsToken) closeSheetFromPlayer();
+    if (msg.p2pConsent && !previous.p2pConsent) {
+      $('more').close();
+      openSheet('p2pConsent');
+      return;
+    }
+    if (!msg.p2pConsent && openPanel === 'p2pConsent') closeSheetFromPlayer();
+    const openedEpisodeSources = msg.episodes?.streams && !previous.episodes?.streams;
+    if (openedEpisodeSources && !msg.p2pConsent && openPanel !== 'episodes') {
+      $('more').close();
+      openSheet('episodes');
+      return;
+    }
+    if (openPanel === 'episodes') {
+      if (!msg.episodes?.available || (previous.episodeInfo && previous.episodeInfo !== msg.episodeInfo)) {
+        closeSheetFromPlayer();
+        return;
+      }
+      if (Boolean(previous.episodes?.streams) !== Boolean(msg.episodes.streams)) $('panel-body').scrollTop = 0;
+    }
+    if (openPanel && (!['subtitles', 'episodes'].includes(openPanel) ||
+        JSON.stringify(previous[openPanel]) !== JSON.stringify(msg[openPanel]))) renderPanel();
   }
 
   // ─── Which screen: the player while something plays; otherwise browsing, or the D-pad when toggled on ───
-  const TAB_NAMES = { home: 'Home', search: 'Search', shuffle: 'Shuffle', library: 'Library', settings: 'Settings' };
+  const TAB_NAMES = { home: 'Home', search: 'Search', shuffle: 'Shuffle', library: 'Library' };
   let browseTab = 'home';
   let dpadMode = false;
+  let dpadPress = null;
   try { dpadMode = localStorage.getItem('nuvio_dpad') === '1'; } catch (_) {}
 
   // The page the PC shows; the phone follows it into a title, its sources and the player.
@@ -659,47 +732,74 @@
   }
 
   let wasPlaying = false;
-  function updateView() {
+  let homeScroll = 0;
+  function restoreViewScroll(id, top) {
+    requestAnimationFrame(() => {
+      if (!$(id).hidden) scrollTo(0, top);
+    });
+  }
+
+  function updateView({ switchingTabs = false } = {}) {
     // Something is playing on the PC: the phone goes straight to the playing screen, whatever it showed.
     const playing = state.active || pcRoute === 'player';
-    if (playing && !wasPlaying) scrollTo({ top: 0 });
+    const enteredPlayer = playing && !wasPlaying;
     wasPlaying = playing;
     // The PC moved on: whatever was spinning has arrived.
     const view = `${playing}|${pcRoute}`;
-    if (view !== lastView) { clearBusy(); lastView = view; }
+    if (view !== lastView) { clearBusy(); $('card-menu').close(); lastView = view; }
     const browsing = !playing && !dpadMode;
     const onTabs = browsing && pcRoute === 'tabs';
+    const homeVisible = onTabs && browseTab === 'home';
+    const homeWasVisible = !$('home').hidden;
+    if (homeWasVisible && !homeVisible) homeScroll = scrollY;
     // Pages the phone can't show (Shuffle, Library, Settings, a folder…) are driven with the D-pad.
     const pcTab = onTabs && browseTab !== 'home' && browseTab !== 'search';
     const pcPage = browsing && pcRoute === 'other';
     setHidden('player', !playing);
-    setHidden('home', !(onTabs && browseTab === 'home'));
+    setHidden('next-episode-pill', !(state.active && state.nextEpisodePlayable));
+    setHidden('skip-segment-pill', !(state.active && state.skipSegment));
+    setHidden('home', !homeVisible);
     setHidden('search', !(onTabs && browseTab === 'search'));
-    setHidden('details', !(browsing && pcRoute === 'details'));
+    const detailsVisible = browsing && pcRoute === 'details';
+    const detailsWasHidden = $('details').hidden;
+    setHidden('details', !detailsVisible);
+    if (onTabs) {
+      season = null;
+      detailsEpisodePositioned = false;
+    }
+    if (detailsVisible && detailsWasHidden && !awaitingDetails && details?.name) renderEpisodes();
     setHidden('streams', !(browsing && pcRoute === 'streams'));
-    setHidden('remote', playing || !(dpadMode || pcTab || pcPage));
+    const hideDpad = playing || !(dpadMode || pcTab || pcPage);
+    if (hideDpad) {
+      stopDpadPress();
+      if (!playing && !switchingTabs && !$('remote').hidden) send({ cmd: 'exitDpad' });
+    }
+    setHidden('remote', hideDpad);
     $('pc-note').hidden = !(pcTab || pcPage);
     $('pc-note').textContent = pcTab ? `${TAB_NAMES[browseTab]} is open on your PC. Use the D-pad to move around.`
       : pcPage ? 'This page is open on your PC. Use the D-pad to move around.' : '';
-    $('remote-back').hidden = !pcPage;
-    $('tabbar').hidden = playing;
     $('dpad-toggle').hidden = playing;
     $('dpad-toggle').setAttribute('aria-pressed', dpadMode);
     document.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', t.dataset.tab === browseTab));
+    if (enteredPlayer) restoreViewScroll('player', 0);
+    if (homeVisible && !homeWasVisible) restoreViewScroll('home', homeScroll);
+  }
+
+  function setDpadMode(enabled) {
+    dpadMode = enabled;
+    try { localStorage.setItem('nuvio_dpad', enabled ? '1' : '0'); } catch (_) {}
   }
 
   document.querySelectorAll('[data-tab]').forEach((tab) => tab.addEventListener('click', () => {
+    const returningHome = tab.dataset.tab === 'home' && $('home').hidden;
     browseTab = tab.dataset.tab;
-    dpadMode = false;
-    try { localStorage.setItem('nuvio_dpad', '0'); } catch (_) {}
+    setDpadMode(false);
     send({ cmd: 'tab', tab: browseTab });
-    updateView();
-    if (browseTab === 'search') $('search-input').focus();
-    else scrollTo({ top: 0 });
+    updateView({ switchingTabs: true });
+    if (!returningHome) scrollTo({ top: 0 });
   }));
   $('dpad-toggle').addEventListener('click', () => {
-    dpadMode = !dpadMode;
-    try { localStorage.setItem('nuvio_dpad', dpadMode ? '1' : '0'); } catch (_) {}
+    setDpadMode(!dpadMode);
     updateView();
   });
 
@@ -707,14 +807,90 @@
   const img = (src, className) => {
     const image = el('img', className);
     image.alt = '';
+    image.draggable = false;
     image.loading = 'lazy';
     image.decoding = 'async';
     if (src) image.src = src;
     return image;
   };
 
+  function showCardMenuActions(msg) {
+    const menu = $('card-menu');
+    if (!menu.open || msg.menu !== cardMenuRequest) return;
+    if (!msg.actions.length) {
+      menu.close();
+      return;
+    }
+    $('card-menu-actions').replaceChildren(...msg.actions.map((action, index) => {
+      const button = el('button', action.destructive ? 'row destructive' : 'row', action.label);
+      button.addEventListener('click', () => {
+        menu.close();
+        send({ cmd: 'cardMenuAction', menu: msg.menu, action: index });
+      });
+      return button;
+    }));
+  }
+
+  function bindCardMenu(card, onSelect, options = null) {
+    card.dataset.cardMenu = '';
+    if (!options) {
+      card.addEventListener('contextmenu', (e) => e.preventDefault());
+      card.addEventListener('click', onSelect);
+      return;
+    }
+    card.setAttribute('aria-haspopup', 'dialog');
+    let press = null;
+    let menuOpened = false;
+
+    function cancelHold() {
+      if (!press) return;
+      clearTimeout(press.timer);
+      press = null;
+    }
+
+    function openMenu() {
+      cancelHold();
+      if (!card.isConnected || card.disabled) return;
+      menuOpened = true;
+      const menu = $('card-menu');
+      if (menu.open || !ws || ws.readyState !== WebSocket.OPEN) return;
+      cardMenuPointerDown = false;
+      $('card-menu-title').textContent = options.title;
+      const summary = $('card-menu-description');
+      summary.textContent = options.description || '';
+      summary.hidden = !options.description;
+      $('card-menu-actions').replaceChildren(loader('Loading actions…'));
+      present(menu);
+      send({ cmd: 'cardMenu', menu: ++cardMenuRequest, ...options.target });
+    }
+
+    card.addEventListener('pointerdown', (e) => {
+      if (!e.isPrimary || e.button !== 0 || card.disabled) return;
+      cancelHold();
+      menuOpened = false;
+      press = { id: e.pointerId, x: e.clientX, y: e.clientY, timer: setTimeout(openMenu, 500) };
+    });
+    card.addEventListener('pointermove', (e) => {
+      if (press?.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelHold();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((event) => card.addEventListener(event, (e) => {
+      if (press?.id === e.pointerId) cancelHold();
+    }));
+    card.addEventListener('contextmenu', (e) => { e.preventDefault(); openMenu(); });
+    card.addEventListener('click', (e) => {
+      if (menuOpened && e.detail !== 0) return;
+      onSelect();
+    });
+  }
+
+  function posterMenu(item, location) {
+    return { title: item.name, description: item.description,
+      target: { kind: 'poster', ...location, id: item.id, type: item.type } };
+  }
+
   function heroCard(hero, index) {
-    const open = () => { markBusy(card); awaitingDetails = true; send({ cmd: 'open', from: 'hero', item: index }); };
+    const location = { from: 'hero', item: index };
+    const open = () => { markBusy(card); awaitingDetails = true; send({ cmd: 'open', ...location }); };
     const card = el('div', 'hero-card');
     card.append(img(hero.image, 'bg'), el('div', 'shade'));
     const info = el('div', 'info');
@@ -734,16 +910,21 @@
     const details = el('button', 'btn btn-sm', 'View Details');
     info.append(details);
     card.append(info);
-    card.addEventListener('click', open);
+    bindCardMenu(card, open, posterMenu(hero, location));
     return card;
   }
 
-  function posterTile(item, shape, onClick) {
+  function posterTile(item, shape, location, folder = false) {
     const tile = el('button', `tile ${shape}`);
     const art = el('div', 'art');
     art.append(img(item.image));
     tile.append(art, el('span', 'name', item.name));
-    tile.addEventListener('click', () => { markBusy(art); awaitingDetails = true; onClick(); });
+    const open = () => {
+      markBusy(art);
+      if (!folder) awaitingDetails = true;
+      send({ cmd: folder ? 'folder' : 'open', ...location });
+    };
+    bindCardMenu(tile, open, folder ? null : posterMenu(item, location));
     return tile;
   }
 
@@ -763,7 +944,12 @@
     art.append(resume);
     tile.append(art);
     if (item.subtitle) tile.append(el('span', 'name', item.subtitle));
-    tile.addEventListener('click', () => { markBusy(art); send({ cmd: 'resume', item: index }); });
+    const resumePlayback = () => { markBusy(art); send({ cmd: 'resume', item: index }); };
+    bindCardMenu(tile, resumePlayback, {
+      title: item.title,
+      description: [item.episode, item.subtitle].filter(Boolean).join(' · '),
+      target: { kind: 'continue', item: index, key: item.key },
+    });
     return tile;
   }
 
@@ -793,20 +979,29 @@
     if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile)));
     // Catalog rows open a title; collection rows (Discover, Streaming…) open a folder.
     msg.rows.forEach((row) => sections.push(rowSection(row.title,
-      row.items.map((item, i) => posterTile(item, row.shape, () => send(row.kind === 'collection'
-        ? { cmd: 'folder', row: row.key, item: i }
-        : { cmd: 'open', from: 'row', row: row.key, item: i }))))));
+      row.items.map((item, i) => posterTile(item, row.shape,
+        { from: 'row', row: row.key, item: i }, row.kind === 'collection')))));
     replaceRows($('home-rows'), sections);
     const empty = !msg.hero.length && !sections.length;
     $('home-skeleton').hidden = !(empty && msg.loading);
     $('home-empty').hidden = !(empty && !msg.loading);
   }
 
+  document.querySelectorAll('[data-back]').forEach((button) => button.addEventListener('click', () => {
+    if (!$('player').hidden) {
+      player('back');
+      return;
+    }
+    stopDpadPress();
+    const phonePage = $('remote').hidden && (pcRoute === 'details' || pcRoute === 'streams');
+    send({ cmd: phonePage ? 'back' : 'dpadBack' });
+  }));
+
   // ─── Details: the title's page, like the PC; its buttons run the PC's ───
-  document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => send({ cmd: 'back' })));
   let details = null;
-  let detailsName = null;
-  let season = 0;
+  let detailsKey = null;
+  let season = null;
+  let detailsEpisodePositioned = false;
 
   function titleArt(container, logo, name) {
     container.replaceChildren();
@@ -825,12 +1020,10 @@
     if (msg.name && !msg.loading) awaitingDetails = false;
     $('details').classList.toggle('is-loading', !msg.name || awaitingDetails);
     if (!msg.name) return;
-    if (msg.name !== detailsName) {
-      detailsName = msg.name;
-      // Open on the season of the episode Play would start, like the PC.
-      const playing = /S(\d+)/.exec(msg.playLabel || '');
-      const index = playing ? msg.seasons.findIndex((s) => s.label === `Season ${playing[1]}`) : -1;
-      season = Math.max(0, index);
+    if (msg.key !== detailsKey) {
+      detailsKey = msg.key;
+      season = null;
+      detailsEpisodePositioned = false;
       $('d-bg').src = msg.background || '';
       titleArt($('d-title'), msg.logo, msg.name);
       $('d-desc').classList.remove('open');
@@ -861,30 +1054,64 @@
     renderEpisodes();
   }
 
+  function positionDetailsEpisode() {
+    if (detailsEpisodePositioned || season !== null || awaitingDetails || $('details').hidden) return;
+    const episode = $('d-episodes').querySelector('[data-preferred-episode]');
+    if (!episode) return;
+    requestAnimationFrame(() => {
+      if (detailsEpisodePositioned || !episode.isConnected || season !== null || awaitingDetails || $('details').hidden) return;
+      detailsEpisodePositioned = true;
+      episode.scrollIntoView({ block: 'start' });
+    });
+  }
+
   function renderEpisodes() {
     const seasons = details.seasons;
     $('d-episodes-section').hidden = !seasons.length;
     if (!seasons.length) return;
-    season = Math.min(season, seasons.length - 1);
-    $('d-seasons').replaceChildren(...seasons.map((s, i) => {
+    const filler = $('d-filler');
+    filler.hidden = typeof details.fillerDetection !== 'boolean';
+    filler.replaceChildren();
+    if (!filler.hidden) {
+      filler.append(
+        toggle('Anime Filler Detection', '', details.fillerDetection, (value) => send({ cmd: 'fillerDetection', value })),
+        toggle('Hide Anime Filler Episodes', '', details.hideFillers, (value) => send({ cmd: 'hideFillers', value })),
+      );
+    }
+    const selected = seasons.find((s) => s.number === season) ||
+      seasons.find((s) => s.number === details.preferredSeason) || seasons[0];
+    $('d-seasons').replaceChildren(...seasons.map((s) => {
       const chip = el('button', 'chip', s.label);
-      chip.setAttribute('aria-pressed', i === season);
-      chip.addEventListener('click', () => { season = i; renderEpisodes(); });
+      chip.setAttribute('aria-pressed', s === selected);
+      chip.addEventListener('click', () => { season = s.number; renderEpisodes(); });
       return chip;
     }));
-    $('d-episodes').replaceChildren(...seasons[season].episodes.map((ep) => {
-      const card = el('button', 'episode');
-      const thumb = el('div', 'thumb');
-      thumb.append(img(ep.image), el('span', 'code', ep.code));
-      const copy = el('span', 'copy');
-      copy.append(el('b', '', ep.title || ep.code));
-      if (ep.overview) copy.append(el('p', '', ep.overview));
-      const info = [ep.runtime, ep.rating ? `IMDb ${ep.rating}` : null, ep.released].filter(Boolean).join(' · ');
-      if (info) copy.append(el('small', '', info));
-      card.append(thumb, copy);
-      card.addEventListener('click', () => { markBusy(thumb); send({ cmd: 'episode', item: ep.index }); });
-      return card;
-    }));
+    const episodes = selected.episodes;
+    $('d-episodes').replaceChildren(...episodes.map((ep) =>
+      episodeCard(ep, () => send({ cmd: 'episode', item: ep.index }), false,
+        { kind: 'episode', key: details.key, item: ep.index, id: ep.id })));
+    if (!episodes.length) $('d-episodes').append(el('p', 't-sub text-sub', 'All episodes in this season are hidden.'));
+    positionDetailsEpisode();
+  }
+
+  function episodeCard(ep, onClick, blur = false, menuTarget = null) {
+    const card = el('button', 'episode');
+    if (ep.current || ep.preferred) card.setAttribute('aria-current', 'true');
+    if (ep.preferred) card.dataset.preferredEpisode = '';
+    const thumb = el('div', 'thumb');
+    thumb.append(img(ep.image, blur ? 'blurred' : ''));
+    if (ep.code) thumb.append(el('span', 'code', ep.code));
+    const copy = el('span', 'copy');
+    copy.append(el('b', '', ep.title || ep.code));
+    if (ep.overview) copy.append(el('p', '', ep.overview));
+    const info = [ep.current ? 'Playing' : ep.watched ? 'Watched' : null, ep.fillerLabel, ep.runtime,
+      ep.rating ? `IMDb ${ep.rating}` : null, ep.released].filter(Boolean).join(' · ');
+    if (info) copy.append(el('small', '', info));
+    card.append(thumb, copy);
+    bindCardMenu(card, () => { markBusy(thumb); onClick(); }, menuTarget && {
+      title: ep.title || ep.code, description: ep.overview, target: menuTarget,
+    });
+    return card;
   }
   $('d-desc').addEventListener('click', () => $('d-desc').classList.toggle('open'));
   $('d-play').addEventListener('click', () => { markBusy($('d-play')); send({ cmd: 'play' }); });
@@ -916,6 +1143,7 @@
   $('s-resume-btn').addEventListener('click', () => send({ cmd: 'fromStart', value: false }));
   $('s-start-btn').addEventListener('click', () => send({ cmd: 'fromStart', value: true }));
   function renderStreams() {
+    const scroll = $('streams').hidden ? null : scrollY;
     const groups = streams.groups.map((g, i) => ({ ...g, i })).filter((g) => g.streams.length || g.loading || g.error);
     const chips = [{ addon: 'All', i: null }, ...groups].map((g) => {
       const chip = el('button', 'chip', g.addon);
@@ -946,17 +1174,19 @@
           stream.badges.forEach((b) => badges.append(el('span', 'badge badge-outline badge-sq', b)));
           card.append(badges);
         }
-        card.addEventListener('click', () => { markBusy(card); send({ cmd: 'stream', group: group.i, item: s }); });
+        bindCardMenu(card, () => { markBusy(card); send({ cmd: 'stream', group: group.i, item: s }); }, {
+          title: stream.name, description: stream.details,
+          target: { kind: 'source', key: streams.key, group: group.i, item: s, id: stream.menuId },
+        });
         nodes.push(card);
       });
     });
     const anyStreams = shown.some((g) => g.streams.length);
     if (!anyStreams && streams.loading) nodes.unshift(loader('Finding sources…'));
-    const scroll = scrollY;
     $('s-list').replaceChildren(...nodes);
-    scrollTo({ top: scroll });
     $('s-empty').hidden = anyStreams || streams.loading || shown.some((g) => g.error);
     $('s-empty').textContent = 'No sources found.';
+    if (scroll !== null) scrollTo({ top: scroll });
   }
   $('s-reload').addEventListener('click', () => send({ cmd: 'reloadStreams' }));
 
@@ -982,7 +1212,7 @@
     const typed = $('search-input').value.trim();
     const rows = typed ? searchResults.rows : [];
     replaceRows($('search-rows'), rows.map((row) => rowSection(row.title,
-      row.items.map((item, i) => posterTile(item, row.shape, () => send({ cmd: 'open', from: 'search', row: row.key, item: i }))))));
+      row.items.map((item, i) => posterTile(item, row.shape, { from: 'search', row: row.key, item: i })))));
     const searching = typed && searchResults.loading;
     if (searching) $('search-rows').append(loader(rows.length ? 'Loading more results…' : 'Searching…'));
     $('search-empty').hidden = rows.length > 0 || searching;
@@ -1030,10 +1260,12 @@
     $('synopsis').hidden = !msg.description;
   }
   $('synopsis').addEventListener('click', () => $('synopsis').classList.toggle('open'));
-  // Leaves the player like its own back arrow: back to the title's page (the phone follows).
-  $('player-back').addEventListener('click', () => player('back'));
-  $('seek-back').addEventListener('click', () => player('seekBack'));
-  $('seek-forward').addEventListener('click', () => player('seekForward'));
+  $('seek-back').addEventListener('click', () => player('keyboardSeek10Back'));
+  $('seek-forward').addEventListener('click', () => player('keyboardSeek10Forward'));
+  $('next-episode').addEventListener('click', () => player('playNextEpisode'));
+  $('skip-segment').addEventListener('click', () => {
+    if (state.active && state.skipSegment) player('skipInterval', state.skipSegment.targetMs);
+  });
 
   // Sets a slider and paints its filled part.
   function setRange(range, value) {
@@ -1082,29 +1314,59 @@
 
   // ─── The player's panels ───
   let openPanel = null;
+  let playerSeason = null;
+  let positionPlayingEpisode = false;
   let subtitleLanguage = '__off__';
   let subtitleTab = 'subtitles';
   let lastSvpMode = 'auto';
 
   function openSheet(name) {
     openPanel = name;
+    if (name === 'episodes') {
+      playerSeason = null;
+      positionPlayingEpisode = true;
+    }
     if (name === 'subtitles') { subtitleLanguage = state.subtitles.language; subtitleTab = 'subtitles'; }
     renderPanel();
     $('panel-body').scrollTop = 0;
     if (!$('panel').open) present($('panel'));
   }
   // Closing here closes the PC's panel too.
-  $('panel').addEventListener('close', () => { if (openPanel) send({ cmd: 'close' }); openPanel = null; });
+  $('panel').addEventListener('close', () => {
+    if ($('panel').open) return;
+    const closedPanel = openPanel;
+    openPanel = null;
+    if (closedPanel === 'p2pConsent') player('cancelP2pForPlayerControls');
+    else if (closedPanel) send({ cmd: 'close' });
+  });
   const closeSheet = () => $('panel').close();
+  function closeSheetFromPlayer() {
+    openPanel = null;
+    closeSheet();
+  }
 
   function renderPanel() {
     const body = $('panel-body');
     const scroll = body.scrollTop;
+    const chipScroll = body.querySelector('.subtitle-languages, .episode-seasons')?.scrollLeft ?? 0;
     body.replaceChildren();
     $('panel-actions').replaceChildren();
     $('panel-subtitle').hidden = true;
+    $('panel-close').textContent = openPanel === 'p2pConsent' ? state.p2pConsent.cancelLabel : 'Close';
     panels[openPanel]();
     body.scrollTop = scroll;
+    const chips = body.querySelector('.subtitle-languages, .episode-seasons');
+    if (chips) chips.scrollLeft = chipScroll;
+    if (openPanel === 'episodes' && !state.episodes.streams && positionPlayingEpisode) {
+      const episode = body.querySelector('.episode[aria-current="true"]');
+      if (episode) requestAnimationFrame(() => {
+        if (openPanel !== 'episodes' || !positionPlayingEpisode || !episode.isConnected) return;
+        positionPlayingEpisode = false;
+        body.scrollTop += episode.getBoundingClientRect().top - body.getBoundingClientRect().top;
+        const activeSeason = chips?.querySelector('[aria-pressed="true"]');
+        if (activeSeason) chips.scrollLeft += activeSeason.getBoundingClientRect().left - chips.getBoundingClientRect().left;
+      });
+    }
   }
 
   // ─── Building blocks, from cuppa.css ───
@@ -1200,50 +1462,103 @@
   ];
   const contentLabels = { anime: 'Anime', cartoon: 'Cartoon', live_action: 'Live Action' };
 
+  function renderSourceCards(sources, selectAction) {
+    if (!sources.items.length) return sources.loading ? add(loader('Loading sources…')) : empty('No streams found');
+    sources.items.forEach((item) => {
+      const card = el('button', 'card card-tap stream');
+      card.setAttribute('aria-checked', item.current);
+      card.disabled = !item.enabled;
+      const top = el('span', 'top', item.label);
+      if (item.current) top.append(el('span', 'badge badge-solid', 'Playing'));
+      card.append(top);
+      if (item.subtitle) card.append(el('span', 'sub', item.subtitle));
+      if (item.badges.length || item.size) {
+        const badges = el('span', 'badges');
+        item.badges.forEach((src) => { const img = el('img'); img.src = src; img.alt = ''; badges.append(img); });
+        if (item.size) badges.append(el('span', 'badge badge-outline badge-sq', item.size));
+        card.append(badges);
+      }
+      bindCardMenu(card, () => player(selectAction, item.index));
+      add(card);
+    });
+  }
+
   const panels = {
+    p2pConsent() {
+      const consent = state.p2pConsent;
+      header(consent.title);
+      add(el('p', 't-sub text-sub', consent.body));
+      action(consent.enableLabel, () => player('enableP2pForPlayerControls'));
+    },
+
     sources() {
-      const sources = state.sources;
       header('Sources', state.title);
       action('Reload', () => player('reloadSources'));
-      if (!sources.items.length) return sources.loading ? add(loader('Loading sources…')) : empty('No streams found');
-      sources.items.forEach((item) => {
-        const card = el('button', 'card card-tap stream');
-        card.setAttribute('aria-checked', item.current);
-        card.disabled = !item.enabled;
-        const top = el('span', 'top', item.label);
-        if (item.current) top.append(el('span', 'badge badge-solid', 'Playing'));
-        card.append(top);
-        if (item.subtitle) card.append(el('span', 'sub', item.subtitle));
-        if (item.badges.length || item.size) {
-          const badges = el('span', 'badges');
-          item.badges.forEach((src) => { const img = el('img'); img.src = src; img.alt = ''; badges.append(img); });
-          if (item.size) badges.append(el('span', 'badge badge-outline badge-sq', item.size));
-          card.append(badges);
-        }
-        card.addEventListener('click', () => { player('selectSource', item.index); closeSheet(); });
-        add(card);
+      renderSourceCards(state.sources, 'selectSource');
+    },
+
+    episodes() {
+      const { seasons, items, streams, blurUnwatched } = state.episodes;
+      if (streams) {
+        header('Episode sources', streams.title);
+        action('Reload', () => player('reloadEpisodeStreams'));
+        renderSourceCards(streams, 'selectEpisodeStream');
+        return;
+      }
+
+      header('Episodes', state.title);
+      if (!seasons.some((season) => season.number === playerSeason)) {
+        playerSeason = (seasons.find((season) => season.current) || seasons[0])?.number ?? null;
+      }
+      if (seasons.length > 1) {
+        const chips = el('div', 'chips episode-seasons');
+        seasons.forEach((season) => {
+          const chip = el('button', 'chip', season.label);
+          chip.setAttribute('aria-pressed', season.number === playerSeason);
+          chip.addEventListener('click', () => {
+            playerSeason = season.number;
+            positionPlayingEpisode = false;
+            $('panel-body').scrollTop = 0;
+            renderPanel();
+          });
+          chips.append(chip);
+        });
+        add(chips);
+      }
+      const episodes = items.filter((episode) => episode.season === playerSeason);
+      if (!episodes.length) return empty('No episodes available');
+      episodes.forEach((episode) => {
+        const blur = blurUnwatched && !episode.watched && !episode.current;
+        add(episodeCard(episode, () => player('selectEpisode', episode.index), blur));
       });
     },
 
     subtitles() {
       const subs = state.subtitles;
       header('Subtitles');
-      action('Import', () => click('subtitleImport'));
+
       // The panel's tabs; switching here switches the PC's tab too.
       const tabs = el('div', 'seg seg-fill');
       [['subtitles', 'Subtitles', 'subtitleTabSubtitles'], ['customization', 'Customization', 'subtitleTabCustomization']]
         .forEach(([tab, label, target]) => {
           const btn = el('button', '', label);
           btn.setAttribute('aria-pressed', subtitleTab === tab);
-          btn.addEventListener('click', () => { subtitleTab = tab; click(target); renderPanel(); });
+          btn.addEventListener('click', () => {
+            subtitleTab = tab;
+            click(target);
+            $('panel-body').scrollTop = 0;
+            renderPanel();
+          });
           tabs.append(btn);
         });
       add(tabs);
-      if (subtitleTab === 'customization') return customization(subs.style);
+      if (subtitleTab === 'customization') {
+        return customization(subs.style);
+      }
 
       const languages = subs.languages.some((l) => l.key === '__off__')
         ? subs.languages : [{ key: '__off__', label: 'None', count: 0 }, ...subs.languages];
-      const chips = el('div', 'chips');
+      const chips = el('div', 'chips subtitle-languages');
       languages.forEach((language) => {
         const label = language.key === '__off__' ? (language.label || 'None') : (language.label || 'Imported');
         const chip = el('button', 'chip', label);
@@ -1257,6 +1572,7 @@
         chips.append(chip);
       });
       add(chips);
+
       const options = subs.options.filter((o) => o.language === subtitleLanguage);
       if (subtitleLanguage === '__off__') return add(el('div', 'card t-sub text-sub', 'Subtitles are off.'));
       add(group(...options.map((option) => choice({
@@ -1323,7 +1639,10 @@
 
     eyeFilter() {
       header('Eye Filter');
-      add(group(toggle('Eye filter', '', state.eyeFilter, (on) => player('setEyeFilterEnabled', on ? 1 : 0))));
+      add(group(
+        toggle('Eye filter', '', state.eyeFilter, (on) => player('setEyeFilterEnabled', on ? 1 : 0)),
+        toggle('Frosted matte filter', 'Film grain & frosted effect', state.frostedFilter, (on) => player('setGrainFilterEnabled', on ? 1 : 0))
+      ));
     },
 
     chapters() {
@@ -1375,14 +1694,15 @@
     const outline = alphaPercent(style.effectColor);
     const delay = stepper('Subtitle Delay', formatDelay(style.delayMs),
       () => player('subtitleDelayDelta', -100), () => player('subtitleDelayDelta', 100));
+    delay.classList.add('row-delay');
+    const reset = el('button', 'btn btn-sm btn-gray', 'Reset');
+    reset.addEventListener('click', () => player('subtitleDelayReset'));
+    delay.querySelector('.value').after(reset);
     add(group(
       delay,
       stepper('Font Size', `${style.fontSize}sp`, () => player('subtitleFontSizeDelta', -1), () => player('subtitleFontSizeDelta', 1)),
       stepper('Bottom Offset', String(style.bottomOffset), () => player('subtitleBottomOffsetDelta', -5), () => player('subtitleBottomOffsetDelta', 5)),
     ));
-    const reset = el('button', 'btn btn-sm btn-gray', 'Reset');
-    reset.addEventListener('click', () => player('subtitleDelayReset'));
-    delay.querySelector('.value').after(reset);
 
     add(group(
       toggle('Use custom styling', '', style.custom, () => player('subtitleCustomStyleToggle')),
@@ -1421,21 +1741,48 @@
     add(resetAll);
   }
 
-  // ─── D-pad: press on touch-down for a snappy feel; arrows repeat while held, like a TV remote ───
-  let repeatTimer = null;
-  function stopRepeat(btn) {
-    clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null;
-    if (btn) btn.classList.remove('pressed');
+  function stopDpadPress() {
+    if (!dpadPress) return;
+    clearTimeout(dpadPress.timer);
+    clearInterval(dpadPress.timer);
+    dpadPress.button.classList.remove('pressed');
+    dpadPress = null;
   }
-  document.querySelectorAll('[data-cmd]').forEach((btn) => {
-    const msg = btn.dataset.key ? { cmd: btn.dataset.cmd, key: btn.dataset.key } : { cmd: btn.dataset.cmd };
-    btn.addEventListener('pointerdown', (e) => {
+
+  document.querySelectorAll('.dpad button').forEach((button) => {
+    const key = button.dataset.key;
+    const msg = key ? { cmd: 'key', key } : { cmd: 'ok' };
+    const ownsPress = (e) => dpadPress?.button === button && dpadPress.pointerId === e.pointerId;
+    button.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || dpadPress) return;
       e.preventDefault();
-      btn.classList.add('pressed');
-      send(msg);
-      if ('repeat' in btn.dataset) repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => send(msg), 120); }, 400);
+      button.classList.add('pressed');
+      const press = { button, pointerId: e.pointerId, longPressed: false, timer: null };
+      dpadPress = press;
+      if (key) {
+        send(msg);
+        press.timer = setTimeout(() => { press.timer = setInterval(() => send(msg), 120); }, 400);
+      } else {
+        press.timer = setTimeout(() => {
+          press.longPressed = true;
+          send({ cmd: 'okLong' });
+        }, 500);
+      }
     });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, () => stopRepeat(btn)));
+    button.addEventListener('pointerup', (e) => {
+      if (!ownsPress(e)) return;
+      const shortOk = !key && !dpadPress.longPressed;
+      stopDpadPress();
+      if (shortOk) send(msg);
+    });
+    ['pointerleave', 'pointercancel'].forEach((event) => {
+      button.addEventListener(event, (e) => { if (ownsPress(e)) stopDpadPress(); });
+    });
+    button.addEventListener('click', (e) => { if (e.detail === 0) send(msg); });
+    button.addEventListener('contextmenu', (e) => e.preventDefault());
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopDpadPress();
   });
 
   connect();

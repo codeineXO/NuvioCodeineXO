@@ -10,6 +10,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.core.ui.LocalRemotePlatformFocus
 import com.nuvio.app.core.ui.LocalRemoteHiddenPointerIcon
+import com.nuvio.app.core.ui.LocalRemoteCursorHidden
+import com.nuvio.app.core.ui.remoteNavigationPointerIcon
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -259,16 +261,18 @@ fun main(args: Array<String>) {
             }
 
             if (smokePlayerUrl == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .macosTitleBarDoubleClick(window = window, windowState = windowState),
+                CompositionLocalProvider(
+                    LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
+                    LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
+                    LocalRemoteCursorHidden provides DesktopRemoteCursorController.isHidden,
                 ) {
-                    ProvideDesktopWindowInsets(isFullscreen = windowState.placement == WindowPlacement.Fullscreen) {
-                        CompositionLocalProvider(
-                            LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
-                            LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
-                        ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .remoteNavigationPointerIcon()
+                            .macosTitleBarDoubleClick(window = window, windowState = windowState),
+                    ) {
+                        ProvideDesktopWindowInsets(isFullscreen = windowState.placement == WindowPlacement.Fullscreen) {
                             MiddleClickAutoscroll { App() }
                         }
                     }

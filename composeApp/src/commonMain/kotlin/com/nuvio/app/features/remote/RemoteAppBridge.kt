@@ -22,7 +22,7 @@ object RemoteAppBridge {
         data class OpenFolder(val collectionId: String, val folderId: String, val title: String) : Command
         data class Resume(val item: ContinueWatchingItem) : Command
         data class Search(val query: String) : Command
-        data object Back : Command
+        data class Back(val fromDpad: Boolean = false) : Command
     }
 
     /** Which page the PC shows: "tabs", "details", "streams", "player" or "other". The phone follows it. */
@@ -43,6 +43,8 @@ object RemoteAppBridge {
         val playEpisode: (com.nuvio.app.features.details.MetaVideo) -> Unit,
         val toggleSaved: () -> Unit,
         val toggleWatched: () -> Unit,
+        val preferredSeasonNumber: Int?,
+        val preferredEpisodeNumber: Int?,
     )
 
     private val _details = MutableStateFlow<DetailsActions?>(null)

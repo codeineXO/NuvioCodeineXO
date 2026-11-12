@@ -535,6 +535,14 @@
     <string name="compose_settings_page_advanced">Advanced</string>
     <string name="compose_settings_page_appearance">Layout</string>
     <string name="compose_settings_page_codeine_xo">CodeineXO</string>
+    <string name="compose_settings_page_remote">Remote</string>
+    <string name="compose_settings_remote_connect">Scan with your phone camera while connected to the same Wi-Fi.</string>
+    <string name="compose_settings_remote_copy_url">Copy Remote URL</string>
+    <string name="compose_settings_remote_url_copied">Remote URL copied</string>
+    <string name="compose_settings_remote_qr_code">Phone Remote QR code</string>
+    <string name="compose_settings_remote_generate_qr_code">Generate QR Code</string>
+    <string name="compose_settings_remote_search_description">Phone Remote, QR code, URL, port</string>
+    <string name="compose_settings_remote_no_address">Connect this computer to a local network, then restart Phone Remote.</string>
     <string name="compose_settings_root_codeine_xo_description">Exclusive interface, player, subtitle, and integration settings</string>
     <string name="compose_settings_page_content_discovery">Content &amp; Discovery</string>
     <string name="compose_settings_page_continue_watching">Continue Watching</string>
