@@ -51,33 +51,34 @@
   .ic { width: 24px; height: 24px; fill: currentColor; flex: none; }
 
   /* D-pad */
-  .dpad { position: relative; width: min(80vw, 55dvh, 320px); aspect-ratio: 1; border-radius: 50%; background: var(--ctp-base); }
-  .dpad button { position: absolute; display: grid; place-items: center; color: var(--ctp-subtext0); transition: color 0.15s;
+  .dpad { position: relative; width: min(80vw, 55dvh, 320px); aspect-ratio: 1; border-radius: 50%; }
+  .dpad button { position: absolute; display: grid; place-items: center; color: var(--ctp-subtext1); transition: color 0.15s;
     touch-action: none; user-select: none; -webkit-touch-callout: none; }
-  .dpad button.pressed { color: var(--accent); }
+  .dpad button.pressed { color: var(--ctp-text); }
   .dpad .line { width: 36px; height: 36px; }
   .dpad .arrow { width: 34%; height: 34%; }
+  .dpad .arrow.pressed::before { content: ""; position: absolute; inset: 10%; border-radius: 50%; pointer-events: none;
+    background: var(--glass-sheen), var(--glass-accent); box-shadow: var(--glass-selected-rim); }
+  .dpad .arrow .line { position: relative; }
   .up { top: 0; left: 33%; } .down { bottom: 0; left: 33%; } .left { left: 0; top: 33%; } .right { right: 0; top: 33%; }
-  .dpad .ok { width: 38%; height: 38%; left: 31%; top: 31%; border-radius: 50%; background: var(--ctp-surface0);
-    color: var(--ctp-text); font-size: 20px; font-weight: 600; transition: transform 0.15s var(--ease); }
-  .dpad .ok.pressed { transform: scale(0.95); background: var(--ctp-surface1); color: var(--ctp-text); }
+  .dpad .ok { width: 38%; height: 38%; left: 31%; top: 31%; border-radius: 50%; color: var(--ctp-text); font-size: 20px; font-weight: 600;
+    transition: transform 0.15s var(--ease), background-color 0.15s; }
+  .dpad .ok.pressed { transform: scale(0.95); background-color: var(--glass-accent); box-shadow: var(--glass-selected-rim); }
 
   /* Browsing: Home's hero and rows, Search, and the sidebar as a tab bar. */
-  .btn[aria-pressed="true"] { background: var(--accent); color: var(--ctp-crust); }
   .browse { justify-content: flex-start; align-items: stretch; gap: 22px; width: 100%; }
   .bottom-controls { position: fixed; z-index: 5; left: max(10px, env(safe-area-inset-left));
     right: max(10px, env(safe-area-inset-right)); bottom: calc(env(safe-area-inset-bottom) + 10px);
     display: flex; justify-content: center; pointer-events: none; }
   .bottom-bar { --bottom-tab-width: clamp(44px, 16vw, 60px); position: relative; display: flex; gap: 8px; }
   .tabbar, .action-pill { display: flex; gap: 2px; padding: 6px; pointer-events: auto;
-    border-radius: 9999px; background: color-mix(in srgb, var(--ctp-base) 88%, transparent);
-    backdrop-filter: blur(20px); box-shadow: var(--shadow-3); }
+    border-radius: 9999px; }
   /* Keep the tabs' space during playback so the Back pill stays in place. */
   body:has(#player:not([hidden])) .tabbar { visibility: hidden; }
   .tab { min-width: var(--bottom-tab-width); height: 52px; padding-inline: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 2px; border-radius: 9999px; font-size: 11px; font-weight: 500; color: var(--ctp-subtext0); transition: background-color 0.2s, color 0.2s; }
+    gap: 2px; border-radius: 9999px; font-size: 11px; font-weight: 500; color: var(--ctp-subtext1); transition: background-color 0.2s, color 0.2s; }
   .tab :is(.line, .ic) { width: 22px; height: 22px; }
-  .tab[aria-selected="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .tab:active:not(:disabled) { background-color: var(--glass-active); }
   .playback-pill { position: absolute; bottom: 0; }
   #next-episode-pill { left: 0; }
   #skip-segment-pill { left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * (var(--bottom-tab-width) + 20px)); }
@@ -87,6 +88,12 @@
   .hero-strip, .row-scroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
     margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
   .hero-strip::-webkit-scrollbar, .row-scroll::-webkit-scrollbar { display: none; }
+  .home-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0;
+    transition: opacity 0.35s var(--ease); }
+  .home-backdrop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25);
+    filter: blur(56px) saturate(1.35); }
+  body:has(#home:not([hidden])) .home-backdrop:has(img) { opacity: 0.42; }
+  .latte body:has(#home:not([hidden])) .home-backdrop:has(img) { opacity: 0.29; }
   .hero-card { position: relative; flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 4 / 5; max-height: 62dvh;
     overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0); text-align: left; }
   .hero-card img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -97,7 +104,7 @@
   .hero-card .meta-line { font-size: 13px; color: var(--ctp-subtext1); }
   .hero-card .rating { color: var(--ctp-yellow); font-weight: 700; }
   .hero-card .desc { font-size: 15px; color: var(--ctp-subtext1); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-  .hero-card .btn { align-self: flex-start; background: var(--ctp-text); color: var(--ctp-crust); }
+  .hero-card .btn { align-self: flex-start; }
 
   .rows { display: flex; flex-direction: column; gap: 22px; }
   .row-title { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
@@ -120,7 +127,8 @@
   .tile .bar i { display: block; height: 100%; background: var(--accent); }
 
   .search-box { display: flex; align-items: center; gap: 10px; height: 48px; padding-inline: 14px; border-radius: var(--r-ctl);
-    background: var(--ctp-surface0); color: var(--ctp-subtext0); }
+    color: var(--ctp-subtext0); }
+  .search-box:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
   .search-box input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ctp-text); font: inherit; font-size: 17px; }
   @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
     .hero-card { flex-basis: 100%; aspect-ratio: 21 / 9; max-height: 60dvh; }
@@ -149,7 +157,7 @@
   .meta-line .score b { color: var(--ctp-yellow); }
   .genres { color: var(--ctp-text); font-weight: 600; }
   .detail-actions { display: flex; gap: 10px; }
-  .detail-actions .btn-filled { flex: 1; background: var(--ctp-text); color: var(--ctp-crust); }
+  .detail-actions .btn-filled { flex: 1; }
   .detail-actions .btn-filled .ic { width: 18px; height: 18px; }
   .episodes { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
   [data-card-menu], [data-card-menu] img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -229,22 +237,19 @@
     -webkit-line-clamp: 3; overflow: hidden; }
   .synopsis.open { -webkit-line-clamp: unset; }
 
-  .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card);
-    background: color-mix(in srgb, var(--ctp-base) 80%, transparent); backdrop-filter: blur(20px); }
+  .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card); }
   .seek { display: grid; grid-template-columns: minmax(0, 1fr); }
   .seek-times { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ctp-subtext0); font-variant-numeric: tabular-nums; }
   .transport { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(4px, 3vw, 16px); }
   #seek-back { justify-self: end; }
   .play { width: 72px; height: 72px; flex: none; border-radius: 50%; display: grid; place-items: center;
-    background: var(--accent); color: var(--ctp-crust); transition: transform 0.15s var(--ease); }
-  .play:active, .skip:active { transform: scale(0.92); }
+    transition: transform 0.15s var(--ease); }
+  :is(.play, .skip):active:not(:disabled) { transform: scale(0.92); background-color: var(--glass-active); }
   .play .ic { width: 30px; height: 30px; }
   .skip { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; color: var(--ctp-text);
     transition: transform 0.15s var(--ease); }
   .skip .ic { width: 30px; height: 30px; }
-  .seek-step { background: color-mix(in srgb, var(--ctp-surface1) 55%, transparent); }
   .seek-step .ic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .seek-step:active { background: var(--ctp-surface1); }
   .volume { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; column-gap: 10px; align-items: center; color: var(--ctp-subtext0); }
   .volume .range { grid-column: 2; min-width: 0; }
   .volume output { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -252,8 +257,8 @@
   .tools { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: 100%; }
   .tool { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--ctp-subtext0); white-space: nowrap; }
   .tool > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%;
-    background: color-mix(in srgb, var(--ctp-surface0) 80%, transparent); color: var(--ctp-text); transition: transform 0.15s var(--ease); }
-  .tool:active > span { transform: scale(0.92); background: var(--ctp-surface1); }
+    color: var(--ctp-text); transition: transform 0.15s var(--ease); }
+  .tool:active > span { transform: scale(0.92); background-color: var(--glass-active); }
   .tool:disabled { opacity: 0.45; }
   .tool .ic { width: 22px; height: 22px; }
   .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
@@ -356,10 +361,11 @@
 </svg>
 
 <!-- Browsing: Home's rows and Search on the phone; a tap opens the title on the PC. -->
+<div class="home-backdrop" id="home-backdrop" aria-hidden="true"></div>
 <main id="home" class="browse" hidden>
   <!-- Until Home arrives: its shape, shimmering. -->
   <div class="home-skeleton" id="home-skeleton">
-    <div class="skel sk-hero"></div>
+    <div class="skel sk-hero" id="home-hero-skeleton" hidden></div>
     <div class="skel sk-title"></div>
     <div class="sk-row"><div class="skel sk-wide"></div><div class="skel sk-wide"></div></div>
     <div class="skel sk-title"></div>
@@ -628,6 +634,7 @@
   function present(sheet) {
     sheet.showModal();
     sheet.focus({ preventScroll: true });
+    scheduleHomeHero();
   }
   let cardMenuPointerDown = false;
   let cardMenuRequest = 0;
@@ -782,7 +789,11 @@
     $('dpad-toggle').setAttribute('aria-pressed', dpadMode);
     document.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', t.dataset.tab === browseTab));
     if (enteredPlayer) restoreViewScroll('player', 0);
-    if (homeVisible && !homeWasVisible) restoreViewScroll('home', homeScroll);
+    if (homeVisible && !homeWasVisible) {
+      moveHomeHero(homeHeroIndex);
+      restoreViewScroll('home', homeScroll);
+    }
+    if (homeVisible !== homeWasVisible) scheduleHomeHero();
   }
 
   function setDpadMode(enabled) {
@@ -969,12 +980,156 @@
     container.querySelectorAll('.row-scroll').forEach((r, i) => { r.scrollLeft = offsets[i] || 0; });
   }
 
+  const homeHeroStrip = $('hero-strip');
+  const homeBackdrop = $('home-backdrop');
+  const homeHeroMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const HOME_HERO_INTERVAL_MS = 8000;
+  let homeHeroes = [];
+  let homeHeroContent = '';
+  let homeHeroIndex = 0;
+  let homeHeroInView = false;
+  let homeHeroPointer = null;
+  let homeHeroTimer;
+  let homeHeroTarget = null;
+  let homeHeroWrap = null;
+  let homeBackdropRequest = null;
+
+  function updateHomeBackdrop() {
+    const source = homeHeroes[homeHeroIndex]?.image || null;
+    if ((homeBackdropRequest?.getAttribute('src') ?? null) === source) return;
+    homeBackdropRequest = source ? new Image() : null;
+    if (!source) {
+      homeBackdrop.replaceChildren();
+      return;
+    }
+    const art = homeBackdropRequest;
+    art.alt = '';
+    art.onload = () => {
+      if (art !== homeBackdropRequest) return;
+      const previous = homeBackdrop.lastElementChild;
+      homeBackdrop.append(art);
+      if (!previous) return;
+      const fade = art.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: homeHeroMotion.matches ? 0 : 650,
+        easing: 'ease-in-out',
+      });
+      fade.onfinish = () => previous.remove();
+    };
+    art.onerror = () => {
+      if (art === homeBackdropRequest) homeBackdrop.replaceChildren();
+    };
+    art.src = source;
+  }
+
+  function moveHomeHero(index, behavior = 'instant') {
+    const card = homeHeroStrip.children[index];
+    if (!card || $('home').hidden) return;
+    const left = card.offsetLeft - homeHeroStrip.firstElementChild.offsetLeft;
+    homeHeroStrip.scrollTo({ left, behavior });
+    if (behavior === 'instant') {
+      homeHeroIndex = index;
+      updateHomeBackdrop();
+    }
+  }
+
+  function canRotateHomeHero() {
+    return homeHeroInView && !$('home').hidden && !document.hidden && homeHeroes.length > 1
+      && homeHeroPointer === null && !homeHeroStrip.querySelector(':focus-visible') && !document.querySelector('dialog[open]');
+  }
+
+  function scheduleHomeHero() {
+    clearTimeout(homeHeroTimer);
+    if (canRotateHomeHero()) {
+      homeHeroTimer = setTimeout(rotateHomeHero, HOME_HERO_INTERVAL_MS);
+    } else {
+      homeHeroWrap?.cancel();
+      if (homeHeroTarget !== null) {
+        homeHeroTarget = null;
+        moveHomeHero(homeHeroIndex);
+      }
+    }
+  }
+
+  async function rotateHomeHero() {
+    if (!canRotateHomeHero()) return;
+    const next = (homeHeroIndex + 1) % homeHeroes.length;
+    if (homeHeroMotion.matches) {
+      moveHomeHero(next);
+    } else if (next > 0) {
+      homeHeroTarget = next;
+      moveHomeHero(next, 'smooth');
+    } else {
+      // Fade around the wrap so the carousel does not scroll backwards through every card.
+      const fade = homeHeroStrip.animate([{ opacity: 1 }, { opacity: 0.18 }], {
+        duration: 220, easing: 'ease-in-out', fill: 'forwards',
+      });
+      homeHeroWrap = fade;
+      try {
+        await fade.finished;
+      } catch {
+        return;
+      } finally {
+        homeHeroWrap = null;
+      }
+      fade.cancel();
+      if (!canRotateHomeHero()) return;
+      moveHomeHero(0);
+      homeHeroStrip.animate([{ opacity: 0.18 }, { opacity: 1 }], { duration: 460, easing: 'ease-out' });
+    }
+    scheduleHomeHero();
+  }
+
+  new IntersectionObserver(([entry]) => {
+    homeHeroInView = entry.intersectionRatio >= 0.25;
+    scheduleHomeHero();
+  }, { threshold: 0.25 }).observe(homeHeroStrip);
+  document.addEventListener('visibilitychange', scheduleHomeHero);
+  document.querySelectorAll('dialog.sheet').forEach((sheet) => sheet.addEventListener('close', scheduleHomeHero));
+  homeHeroStrip.addEventListener('focusin', scheduleHomeHero);
+  homeHeroStrip.addEventListener('focusout', () => requestAnimationFrame(scheduleHomeHero));
+  homeHeroStrip.addEventListener('pointerdown', (event) => {
+    homeHeroPointer = event.pointerId;
+    scheduleHomeHero();
+  });
+  for (const type of ['pointerup', 'pointercancel']) {
+    window.addEventListener(type, (event) => {
+      if (homeHeroPointer !== event.pointerId) return;
+      homeHeroPointer = null;
+      scheduleHomeHero();
+    });
+  }
+
+  homeHeroStrip.addEventListener('scroll', () => {
+    if ($('home').hidden || homeHeroes.length < 2) return;
+    const [first, second] = homeHeroStrip.children;
+    const step = second.offsetLeft - first.offsetLeft;
+    if (step <= 0) return;
+    homeHeroIndex = Math.min(homeHeroes.length - 1, Math.max(0, Math.round(homeHeroStrip.scrollLeft / step)));
+    if (homeHeroTarget !== null) {
+      const targetLeft = homeHeroStrip.children[homeHeroTarget].offsetLeft - first.offsetLeft;
+      if (Math.abs(homeHeroStrip.scrollLeft - targetLeft) <= 1) homeHeroTarget = null;
+    }
+    updateHomeBackdrop();
+    scheduleHomeHero();
+  }, { passive: true });
+
   function showHome(msg) {
-    const strip = $('hero-strip');
-    const heroScroll = strip.scrollLeft;
-    strip.replaceChildren(...msg.hero.map(heroCard));
-    strip.scrollLeft = heroScroll;
-    strip.hidden = !msg.hero.length;
+    const heroes = msg.heroEnabled === false ? [] : msg.hero;
+    const heroContent = JSON.stringify(heroes);
+    if (heroContent !== homeHeroContent) {
+      const previousKey = homeHeroes[homeHeroIndex]?.key;
+      homeHeroWrap?.cancel();
+      homeHeroTarget = null;
+      homeHeroContent = heroContent;
+      homeHeroes = heroes;
+      homeHeroIndex = Math.max(0, heroes.findIndex((hero) => hero.key === previousKey));
+      homeHeroStrip.replaceChildren(...heroes.map(heroCard));
+      homeHeroStrip.hidden = !heroes.length;
+      moveHomeHero(homeHeroIndex);
+      updateHomeBackdrop();
+      scheduleHomeHero();
+    }
+    $('home-hero-skeleton').hidden = msg.heroEnabled === false;
     const sections = [];
     if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile)));
     // Catalog rows open a title; collection rows (Discover, Streaming…) open a folder.
@@ -982,7 +1137,7 @@
       row.items.map((item, i) => posterTile(item, row.shape,
         { from: 'row', row: row.key, item: i }, row.kind === 'collection')))));
     replaceRows($('home-rows'), sections);
-    const empty = !msg.hero.length && !sections.length;
+    const empty = !heroes.length && !sections.length;
     $('home-skeleton').hidden = !(empty && msg.loading);
     $('home-empty').hidden = !(empty && !msg.loading);
   }

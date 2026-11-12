@@ -8,6 +8,7 @@ import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
+import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.remote.RemoteAppBridge.Command
 import com.nuvio.app.features.search.SearchRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
@@ -49,7 +50,10 @@ internal object RemoteHome {
         buildJsonObject {
             put("k", "home")
             put("loading", home.isLoading && home.sections.isEmpty())
-            putJsonArray("hero") { home.heroItems.forEach { addJsonObject { hero(it) } } }
+            put("heroEnabled", settings.heroEnabled)
+            putJsonArray("hero") {
+                if (settings.heroEnabled) home.heroItems.forEach { addJsonObject { hero(it) } }
+            }
             putJsonArray("continue") { resume.forEach { addJsonObject { continueWatching(it) } } }
             putJsonArray("rows") {
                 settings.items.filter { it.enabled }.forEach { entry ->
@@ -104,7 +108,9 @@ internal object RemoteHome {
         val item = json["item"]?.jsonPrimitive?.intOrNull ?: return null
         val row = json["row"]?.jsonPrimitive?.contentOrNull
         return when (json["from"]?.jsonPrimitive?.contentOrNull) {
-            "hero" -> HomeRepository.uiState.value.heroItems.getOrNull(item)
+            "hero" -> if (HomeCatalogSettingsRepository.uiState.value.heroEnabled) {
+                HomeRepository.uiState.value.heroItems.getOrNull(item)
+            } else null
             "row" -> HomeRepository.uiState.value.sections.firstOrNull { it.key == row }?.items?.getOrNull(item)
             "search" -> SearchRepository.uiState.value.sections.getOrNull(row?.toIntOrNull() ?: -1)?.items?.getOrNull(item)
             else -> null
@@ -119,7 +125,8 @@ internal object RemoteHome {
 
     private fun kotlinx.serialization.json.JsonObjectBuilder.hero(meta: MetaPreview) {
         posterIdentity(meta)
-        put("image", meta.banner ?: meta.landscapePoster ?: meta.poster)
+        put("key", meta.stableKey())
+        put("image", meta.banner ?: meta.poster ?: meta.landscapePoster)
         put("logo", meta.logo)
         put("description", meta.description)
         put("year", meta.releaseInfo)

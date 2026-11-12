@@ -135,10 +135,53 @@
   --r-sheet: calc(28px * var(--r-scale));
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --shadow-3: 0 24px 60px rgb(0 0 0 / 0.35);
-  --seg-thumb: var(--ctp-surface2);
+  --glass-fill: color-mix(in srgb, var(--ctp-surface0) 58%, transparent);
+  --glass-inset: color-mix(in srgb, var(--ctp-crust) 26%, transparent);
+  --glass-active: color-mix(in srgb, var(--ctp-surface2) 78%, transparent);
+  --glass-accent: color-mix(in srgb, var(--accent) 32%, var(--ctp-surface0));
+  --glass-highlight: rgb(255 255 255 / 0.08);
+  --glass-sheen: linear-gradient(160deg, var(--glass-highlight), transparent 75%);
+  --glass-rim: inset 0 1px 0 rgb(255 255 255 / 0.17), inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  --glass-selected-rim: inset 0 1px 0 rgb(255 255 255 / 0.20), inset 0 0 0 1px var(--accent);
+  --glass-shadow: 0 3px 9px rgb(0 0 0 / 0.18);
+  --glass-thumb: linear-gradient(155deg, #fff, #dfe4f3);
+  --glass-panel: var(--ctp-base);
   --font: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
 }
-.latte { --seg-thumb: var(--ctp-base); --shadow-3: 0 24px 60px rgb(76 79 105 / 0.28); }
+.latte {
+  --shadow-3: 0 24px 60px rgb(76 79 105 / 0.28);
+  --glass-fill: color-mix(in srgb, var(--ctp-base) 72%, var(--ctp-surface0));
+  --glass-inset: color-mix(in srgb, var(--ctp-overlay0) 18%, transparent);
+  --glass-active: var(--ctp-surface0);
+  --glass-accent: color-mix(in srgb, var(--accent) 17%, var(--ctp-base));
+  --glass-highlight: rgb(255 255 255 / 0.32);
+  --glass-rim: inset 0 1px 0 rgb(255 255 255 / 0.55), inset 0 0 0 1px rgb(76 79 105 / 0.15);
+  --glass-selected-rim: inset 0 1px 0 rgb(255 255 255 / 0.55), inset 0 0 0 1px var(--accent);
+  --glass-shadow: 0 3px 9px rgb(76 79 105 / 0.13);
+}
+
+/* Blur the larger surfaces once. Controls inside them use the same tint and rim. */
+:is(.tabbar, .action-pill, .controls, .dpad, .sheet) {
+  background: var(--glass-sheen), var(--glass-panel);
+  box-shadow: var(--glass-rim), var(--shadow-3);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :is(.tabbar, .action-pill, .controls, .dpad, .sheet) {
+    --glass-panel: color-mix(in srgb, var(--ctp-base) 76%, transparent);
+    -webkit-backdrop-filter: blur(32px) saturate(1.3);
+    backdrop-filter: blur(32px) saturate(1.3);
+  }
+  .sheet {
+    --glass-panel: color-mix(in srgb, var(--ctp-base) 82%, transparent);
+    -webkit-backdrop-filter: blur(40px) saturate(1.3);
+    backdrop-filter: blur(40px) saturate(1.3);
+  }
+}
+
+:is(.btn, .chip, .search-box, .dpad .ok, .seek-step, .tool > span, .switch input) {
+  background: var(--glass-sheen), var(--glass-fill);
+  box-shadow: var(--glass-rim), var(--glass-shadow);
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 html { background: var(--ctp-mantle); color: var(--ctp-text); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
@@ -167,11 +210,14 @@ button { cursor: pointer; font: inherit; color: inherit; background: none; borde
 }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { pointer-events: none; opacity: 0.4; }
-.btn-filled { background: var(--accent); color: var(--ctp-crust); }
-.btn-tinted { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
-.btn-gray { background: var(--ctp-surface0); color: var(--ctp-text); }
-.btn-gray:active { background: var(--ctp-surface1); }
-.btn-plain { color: var(--accent); }
+:is(.btn-filled, .btn-tinted, .btn[aria-pressed="true"], .chip[aria-pressed="true"], .play,
+    .tab[aria-selected="true"], .seg button[aria-pressed="true"], .switch input:checked) {
+  background-color: var(--glass-accent);
+  background-image: var(--glass-sheen);
+  box-shadow: var(--glass-selected-rim), var(--glass-shadow);
+  color: var(--ctp-text);
+}
+:is(.btn, .chip):active:not(:disabled) { background-color: var(--glass-active); }
 .btn-sm { --btn-h: 32px; --btn-px: 14px; font-size: 14px; }
 .btn-icon { width: 40px; --btn-h: 40px; --btn-px: 0; }
 .btn-block { display: flex; width: 100%; }
@@ -180,34 +226,38 @@ button { cursor: pointer; font: inherit; color: inherit; background: none; borde
 /* ---------- Switch (iOS), range, segmented control and stepper, chips ---------- */
 .switch { position: relative; display: inline-block; width: 51px; height: 31px; flex: none; }
 .switch input { position: absolute; inset: 0; margin: 0; width: 100%; height: 100%; appearance: none; cursor: pointer;
-  border-radius: 9999px; background: var(--ctp-surface2); transition: background-color 0.2s; }
-.switch input:checked { background: var(--accent); }
+  border-radius: 9999px; transition: background-color 0.2s; }
 .switch input:disabled { opacity: 0.4; cursor: default; }
+.switch:has(input:disabled)::after { opacity: 0.4; }
 .switch::after { content: ""; pointer-events: none; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px;
-  border-radius: 9999px; background: #fff; box-shadow: 0 2px 4px rgb(0 0 0 / 0.25); transition: transform 0.2s var(--ease); }
+  border-radius: 9999px; background: var(--glass-thumb); box-shadow: var(--glass-rim), var(--glass-shadow);
+  transition: transform 0.2s var(--ease); }
 .switch:has(input:checked)::after { transform: translateX(20px); }
 
 .range { width: 100%; height: 28px; margin: 0; cursor: pointer; appearance: none; background: transparent; --p: 50%; }
-.range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; background: linear-gradient(to right, var(--accent) var(--p), var(--ctp-surface1) var(--p)); }
-.range::-webkit-slider-thumb { appearance: none; margin-top: -11px; width: 28px; height: 28px; border-radius: 9999px; background: #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.35); }
-.range::-moz-range-track { height: 6px; border-radius: 9999px; background: var(--ctp-surface1); }
+.range:disabled { opacity: 0.4; cursor: default; }
+.range::-webkit-slider-runnable-track { height: 6px; border-radius: 9999px; box-shadow: var(--glass-rim);
+  background: linear-gradient(to right, var(--accent) var(--p), var(--ctp-surface1) var(--p)); }
+.range::-webkit-slider-thumb { appearance: none; margin-top: -11px; width: 28px; height: 28px; border-radius: 9999px;
+  background: var(--glass-thumb); box-shadow: var(--glass-rim), var(--glass-shadow); }
+.range::-moz-range-track { height: 6px; border-radius: 9999px; background: var(--ctp-surface1); box-shadow: var(--glass-rim); }
 .range::-moz-range-progress { height: 6px; border-radius: 9999px; background: var(--accent); }
-.range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 9999px; background: #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.35); }
+.range::-moz-range-thumb { width: 28px; height: 28px; border: 0; border-radius: 9999px;
+  background: var(--glass-thumb); box-shadow: var(--glass-rim), var(--glass-shadow); }
 
 .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 2px; flex: none;
-  border-radius: var(--r-ctl); background: color-mix(in srgb, var(--ctp-surface0) 70%, transparent); }
+  border-radius: var(--r-ctl); background: var(--glass-inset); box-shadow: var(--glass-rim); }
 .seg button { height: 32px; min-width: 44px; padding-inline: 14px; display: inline-flex; align-items: center; justify-content: center;
   font-size: 15px; font-weight: 600; color: var(--ctp-subtext1); border-radius: calc(var(--r-ctl) - 3px); transition: background-color 0.2s, color 0.2s; }
-.seg button[aria-pressed="true"] { background: var(--seg-thumb); color: var(--ctp-text); box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
-.seg button:active { background: var(--ctp-surface1); }
+.seg button:active { background-color: var(--glass-active); }
 .seg button:disabled { opacity: 0.4; pointer-events: none; }
 .seg-fill { display: grid; width: 100%; }
 
 .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 16px; margin-inline: -16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; flex: none; padding-inline: 14px; white-space: nowrap;
-  border-radius: 9999px; background: var(--ctp-surface0); font-size: 15px; font-weight: 500; transition: transform 0.15s var(--ease); }
+  border-radius: 9999px; font-size: 15px; font-weight: 500; transition: transform 0.15s var(--ease); }
 .chip:active { transform: scale(0.95); }
-.chip[aria-pressed="true"] { background: var(--accent); color: var(--ctp-crust); }
+.chip:disabled { opacity: 0.4; cursor: default; }
 
 /* ---------- Cards, grouped lists, badges ---------- */
 .card { border-radius: var(--r-card); padding: 16px; background: var(--ctp-base); }
@@ -232,7 +282,7 @@ button.row:active { background: var(--ctp-surface0); }
 .badge-sq { border-radius: 6px; }
 .count { display: inline-grid; place-items: center; height: 20px; min-width: 20px; padding-inline: 6px; border-radius: 9999px;
   background: var(--ctp-surface1); font-size: 12px; font-weight: 700; }
-.chip[aria-pressed="true"] .count { background: color-mix(in srgb, var(--ctp-crust) 20%, transparent); }
+.chip[aria-pressed="true"] .count { background: var(--glass-inset); }
 
 /* ---------- Loaders: spinner for actions and inline waits, skeletons for page and list loading ---------- */
 .spin-ring { width: 24px; height: 24px; flex: none; border-radius: 9999px; border: 3px solid var(--ctp-surface2);
@@ -255,17 +305,21 @@ button.row:active { background: var(--ctp-surface0); }
 dialog { margin: auto; max-width: none; max-height: none; padding: 0; border: 0; background: transparent; color: var(--ctp-text); }
 /* A sheet takes focus itself when it opens (autofocus), so no item inside shows a focus ring until the keyboard moves. */
 dialog:focus, dialog:focus-visible { outline: none; }
-dialog::backdrop { background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); }
+dialog::backdrop { background: rgb(0 0 0 / 0.32); }
 .sheet { width: min(100vw, 560px); max-height: 88dvh; margin: auto auto 0; flex-direction: column; overflow: hidden;
-  border-radius: var(--r-sheet) var(--r-sheet) 0 0; background: var(--ctp-mantle); box-shadow: var(--shadow-3);
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   transform: translateY(100%); transition: transform 0.45s var(--ease), display 0.45s allow-discrete, overlay 0.45s allow-discrete; }
 .sheet[open] { display: flex; transform: none; }
 @starting-style { .sheet[open] { transform: translateY(100%); } }
 #panel { height: 88dvh; }
 .sheet-head { flex: 0 0 auto; padding: 8px 16px 12px; touch-action: none; }
-.sheet-head .grip { width: 40px; height: 6px; margin: 0 auto 12px; border-radius: 9999px; background: var(--ctp-surface2); }
+.sheet-head .grip { width: 40px; height: 6px; margin: 0 auto 12px; border-radius: 9999px;
+  background: var(--ctp-surface2); box-shadow: var(--glass-rim); }
 .sheet-head .bar { display: flex; align-items: center; gap: 8px; }
 .sheet-head .bar > :first-child { flex: 1; min-width: 0; }
 .sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; padding: 12px 16px calc(env(safe-area-inset-bottom) + 24px);
   display: flex; flex-direction: column; gap: 12px; }
 #panel-body > * { flex-shrink: 0; }
+.sheet :is(.card, .group-list) { background: var(--glass-inset); box-shadow: var(--glass-rim); }
+.sheet button.row:active { background-color: var(--glass-active); }
+.sheet button.row:focus-visible { outline-offset: -2px; }
