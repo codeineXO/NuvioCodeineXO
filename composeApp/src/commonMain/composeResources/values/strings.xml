@@ -1287,6 +1287,8 @@
     <string name="settings_playback_reuse_last_link">Reuse Last Link</string>
     <string name="settings_playback_reuse_last_link_description">Auto-play your last working stream for this same movie/episode when cache is still valid</string>
     <string name="settings_playback_secondary_audio_language">Secondary Audio Language</string>
+    <string name="compose_player_primary_subtitle">Primary</string>
+    <string name="compose_player_secondary_subtitle">Secondary</string>
     <string name="settings_playback_secondary_subtitle_language">Secondary Preferred Language</string>
     <string name="settings_playback_section_decoder">DECODER</string>
     <string name="settings_playback_engine">Playback Engine</string>

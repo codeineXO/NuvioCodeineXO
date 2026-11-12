@@ -45,6 +45,8 @@ import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.backgroundBoxColor
 import com.nuvio.app.core.storage.DesktopStorage
+import com.nuvio.app.core.storage.ProfileScopedKey
+import kotlinx.coroutines.ensureActive
 import com.nuvio.app.features.addons.encodeUnsafeHttpUrlCharacters
 import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.SubtitleTrack
@@ -1733,6 +1735,56 @@ internal class NativePlayerController(
         }
     }
 
+    override val supportsSecondarySubtitles: Boolean
+        get() = DesktopHostOs.current == DesktopHostOs.WINDOWS
+
+    override fun loadSecondarySubtitlePreference(key: String): String? =
+        DesktopStorage.store("nuvio_player_track_preferences").getString(ProfileScopedKey.of("secondary_subtitle|$key"))
+
+    override fun saveSecondarySubtitlePreference(key: String, value: String) {
+        DesktopStorage.store("nuvio_player_track_preferences").putString(ProfileScopedKey.of("secondary_subtitle|$key"), value)
+    }
+
+    override suspend fun selectSecondarySubtitle(trackId: String?, url: String?): Boolean {
+        if (!supportsSecondarySubtitles) return false
+        val current = handle.takeIf { it != 0L } ?: return false
+        val source = pendingSource
+        return withContext(Dispatchers.IO) {
+            val path = if (url != null && (url.startsWith("http://", true) || url.startsWith("https://", true))) {
+                resolveCachedSubtitlePath(url) ?: downloadSubtitleToCache(url)
+            } else url
+            ensureActive()
+            if (current != handle || source !== pendingSource) return@withContext false
+            if (url != null && path == null) return@withContext false
+            NativePlayerBridge.selectSecondarySubtitle(current, trackId?.toIntOrNull() ?: -1, path.orEmpty())
+        }
+    }
+
+    override fun applySecondarySubtitleStyle(style: SubtitleStyleState, delayMs: Int, useLibass: Boolean) {
+        if (!supportsSecondarySubtitles) return
+        val importedFont = style.importedFontId?.let(SubtitleFontResolver::resolveImported)
+        val fontsDir = if (importedFont != null) SubtitleFontResolver.fontsDir(style.importedFontId) else ""
+        val safeFont = (importedFont ?: style.fontName).filterNot { it in "\\{}\r\n" }
+        val box = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
+        val outline = if (style.outlineEnabled && style.outlineEffect.needsOutline) style.outlineWidth else 0f
+        val shadow = if (style.outlineEnabled && style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) 2 else 0
+        val blur = if (style.outlineEnabled && style.outlineEffect == SubtitleOutlineEffect.SOFT_GLOW) 2 else 0
+        val size = style.toMpvSubtitleFontSize()
+        val tags = buildString {
+            append("\\fn").append(safeFont).append("\\fs").append(size)
+            append("\\b").append(if (style.bold) 1 else 0)
+            append("\\bord").append(outline)
+            append("\\shad").append(shadow).append("\\blur").append(blur)
+            append(style.textColor.toAssColorTags(1))
+            append(style.outlineColor.toAssColorTags(3))
+            append(Color.Black.copy(alpha = 0.75f).toAssColorTags(4))
+        }
+        executePlayerCommand { current ->
+            val boxTags = if (box && style.backgroundBoxColor.alpha > 0f) style.backgroundBoxColor.toAssColorTags(1) else ""
+            NativePlayerBridge.setSecondarySubtitleStyle(current, tags, boxTags, fontsDir, style.bottomOffset, delayMs, useLibass)
+        }
+    }
+
     override fun setSubtitleUri(url: String) {
         log.d { "setSubtitleUri ${url.toPlaybackLogKey()} handle=$handle" }
         cancelInFlightSubtitleDownload()
@@ -2080,6 +2132,13 @@ private fun resolveTrackId(index: Int, tracks: List<NativeMpvTrack>): Int? =
             null
         }
     } ?: tracks.getOrNull(index)?.id?.toIntOrNull()
+
+private fun Color.toAssColorTags(channel: Int): String {
+    val argb = toMpvColorString().removePrefix("#")
+    val opacity = 255 - argb.substring(0, 2).toInt(16)
+    val bgr = argb.substring(6, 8) + argb.substring(4, 6) + argb.substring(2, 4)
+    return "\\${channel}c&H$bgr&\\${channel}a&H${opacity.toHexByte()}&"
+}
 
 private fun Color.toMpvColorString(): String {
     val alphaInt = (alpha * 255f).toInt().coerceIn(0, 255)
@@ -2616,6 +2675,16 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("submitIntroStatusMessage", submitIntroStatusMessage)
         append(',')
         appendJsonField("showP2pConsent", showP2pConsent)
+        append(',')
+        appendJsonField("secondarySubtitleSupported", subtitleAppearance.slots.supported)
+        append(',')
+        appendJsonField("secondarySubtitleMenu", subtitleAppearance.slots.secondarySelected)
+        append(',')
+        appendJsonField("secondarySubtitleActive", subtitleAppearance.slots.secondaryActive)
+        append(',')
+        appendJsonField("primarySubtitleLabel", subtitleAppearance.slots.primaryLabel)
+        append(',')
+        appendJsonField("secondarySubtitleLabel", subtitleAppearance.slots.secondaryLabel)
         append(',')
         appendJsonField("subtitleActiveTab", subtitleActiveTab)
         append(',')

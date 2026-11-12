@@ -89,7 +89,7 @@ internal object SubtitleFontResolver {
         else -> activate(id) ?: "sans-serif"
     }
 
-    fun fontsDir(): String = activeId?.let { activeDir.resolve(it) }
+    fun fontsDir(id: String? = activeId): String = id?.let { activeDir.resolve(it) }
         ?.takeIf(Files::isDirectory)?.toString().orEmpty()
 
     fun resolveImported(id: String): String? = runCatching { activate(id) }.getOrNull()

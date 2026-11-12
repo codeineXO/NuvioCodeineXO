@@ -344,6 +344,7 @@ internal class PlayerScreenRuntime(
     var appliedAudioPreferences: AppliedAudioPreferences? = null
     var preferredSubtitleSelectionApplied by mutableStateOf(false)
     var activeSubtitleTab by mutableStateOf(SubtitleTab.BuiltIn)
+    val secondarySubtitles = SecondarySubtitleState()
     var isUserExplicitAudioSelection by mutableStateOf(false)
     var isUserExplicitSubtitleSelection by mutableStateOf(false)
     var hasScannedTextTracksOnce by mutableStateOf(false)

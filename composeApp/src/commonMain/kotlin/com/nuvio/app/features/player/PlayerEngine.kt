@@ -23,6 +23,12 @@ interface PlayerEngineController {
     fun selectAudioTrack(index: Int)
     fun selectSubtitleTrack(index: Int)
     fun setSubtitleUri(url: String)
+    val supportsSecondarySubtitles: Boolean get() = false
+    suspend fun selectSecondarySubtitle(trackId: String?, url: String?): Boolean = false
+    fun applySecondarySubtitleStyle(style: SubtitleStyleState, delayMs: Int, useLibass: Boolean) {}
+    suspend fun prepareSecondarySubtitleAutoSync(url: String, language: String): SecondarySubtitleSyncResult? = null
+    fun loadSecondarySubtitlePreference(key: String): String? = null
+    fun saveSecondarySubtitlePreference(key: String, value: String) {}
     fun setAudioUri(url: String) {}
     fun clearExternalSubtitle()
     fun clearExternalSubtitleAndSelect(trackIndex: Int)
@@ -66,6 +72,8 @@ interface PlayerEngineController {
     /** The loaded file's chapters, unsorted; empty when the engine cannot read them. */
     suspend fun getChapters(): List<PlayerChapter> = emptyList()
 }
+
+data class SecondarySubtitleSyncResult(val retimedPath: String?)
 
 enum class PlayerControlsAction {
     ToggleChrome,
@@ -408,6 +416,15 @@ data class PlayerControlSubtitleAppearance(
     val style: SubtitleStyleState = SubtitleStyleState.DEFAULT,
     val customStyleLabel: String = "Use custom styling",
     val customStylingEnabled: Boolean = true,
+    val slots: PlayerControlSubtitleSlots = PlayerControlSubtitleSlots(),
+)
+
+data class PlayerControlSubtitleSlots(
+    val supported: Boolean = false,
+    val secondarySelected: Boolean = false,
+    val secondaryActive: Boolean = false,
+    val primaryLabel: String = "",
+    val secondaryLabel: String = "",
 )
 
 data class PlayerControlFilterItem(

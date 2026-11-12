@@ -775,6 +775,11 @@ const chromeInteractionSelector = [
 ].join(",");
 
 const send = (type, value = 0) => {
+  if (activeModal === "subtitles" && state.secondarySubtitleMenu &&
+      (/^subtitle(?:AutoSync|Delay|Font|Outline|Bold|BottomOffset|Text|Background|StyleReset)/.test(type) ||
+       ["selectBuiltInSubtitleTrack", "selectAddonSubtitle", "importSubtitle"].includes(type))) {
+    type = "secondary:" + type;
+  }
   const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.player;
   if (bridge) {
     bridge.postMessage({ type, value });
@@ -1737,6 +1742,7 @@ const closePlayerModal = (notifyDismiss = false, animated = true) => {
   if (notifyDismiss && closingModal === "p2pConsent") {
     send("cancelP2pForPlayerControls", 0);
   }
+  if (closingModal === "subtitles" && state.secondarySubtitleSupported) send("subtitleSlot", 0);
   if (closingModal === "episodes") onEpisodesModalClosed();
   if (closingModal === "party") onPartyModalClosed();
   focusShortcutRoot();
@@ -1758,6 +1764,7 @@ const openPlayerModal = modal => {
     closePlayerModal(false);
     return;
   }
+  if (activeModal === "subtitles" && modal !== "subtitles" && state.secondarySubtitleSupported) send("subtitleSlot", 0);
   if (activeModal === "party" && modal !== "party") onPartyModalClosed();
   if (modal === "party" && activeModal !== "party") onPartyModalOpened();
   activeModal = modal;
@@ -2516,7 +2523,8 @@ const resetSubtitleSelectionState = () => {
 const appendSubtitleLanguageRow = item => {
   const row = document.createElement("button");
   row.type = "button";
-  row.className = `track-row subtitle-language-row${item.key === activeSubtitleLanguageKey ? " selected" : ""}`;
+  row.className = "track-row subtitle-language-row";
+  row.dataset.subtitleKey = item.key;
   row.addEventListener("click", event => {
     event.stopPropagation();
     activeSubtitleLanguageKey = item.key;
@@ -2546,10 +2554,10 @@ const appendSubtitleLanguageRow = item => {
 };
 
 const appendSubtitleOptionRow = option => {
-  const selected = option.id === pendingSubtitleOptionId || (!pendingSubtitleOptionId && option.selected);
   const row = document.createElement("button");
   row.type = "button";
-  row.className = `track-row subtitle-option-row${selected ? " selected" : ""}`;
+  row.className = "track-row subtitle-option-row";
+  row.dataset.subtitleKey = option.id;
   row.addEventListener("click", event => {
     event.stopPropagation();
     pendingSubtitleOptionId = option.id;
@@ -2610,6 +2618,26 @@ const appendSubtitleOptionsEmptyState = (label, fetch = false) => {
   addonSubtitleList.appendChild(row);
 };
 
+const updateSubtitleRailRows = (list, signature, renderRows, isSelected, keepScroll = true) => {
+  if (list.dataset.rowsSignature !== signature) {
+    const focusedKey = list.contains(document.activeElement) ? document.activeElement.dataset.subtitleKey : null;
+    const scrollTop = keepScroll ? list.scrollTop : 0;
+    list.textContent = "";
+    renderRows();
+    list.scrollTop = scrollTop;
+    if (focusedKey) {
+      Array.from(list.children).find(row => row.dataset.subtitleKey === focusedKey)?.focus({ preventScroll: true });
+    }
+    list.dataset.rowsSignature = signature;
+  }
+  for (const row of list.children) {
+    if (row.dataset.subtitleKey === undefined) continue;
+    const selected = isSelected(row.dataset.subtitleKey);
+    row.classList.toggle("selected", selected);
+    row.setAttribute("aria-pressed", String(selected));
+  }
+};
+
 const renderSubtitleSelectionRails = () => {
   const options = subtitleSelectionOptions();
   const languages = subtitleLanguages();
@@ -2621,21 +2649,32 @@ const renderSubtitleSelectionRails = () => {
   if (!pendingSubtitleOptionId && selected && selected.languageKey === activeSubtitleLanguageKey) {
     pendingSubtitleOptionId = selected.id;
   }
-  subtitleTrackList.textContent = "";
-  languages.forEach(appendSubtitleLanguageRow);
-  addonSubtitleList.textContent = "";
+  updateSubtitleRailRows(
+    subtitleTrackList,
+    JSON.stringify(languages.map(({ key, label, count }) => [key, label, count])),
+    () => languages.forEach(appendSubtitleLanguageRow),
+    key => key === activeSubtitleLanguageKey,
+  );
   const activeOptions = options.filter(option => option.languageKey === activeSubtitleLanguageKey);
-  if (activeSubtitleLanguageKey === "__off__") {
-    appendSubtitleOptionsEmptyState(state.noneLabel || "None");
-  } else if (activeOptions.length > 0) {
-    activeOptions.forEach(appendSubtitleOptionRow);
-  } else if (state.isLoadingAddonSubtitles) {
-    appendSubtitleOptionsEmptyState("Loading subtitles...");
-  } else {
-    appendSubtitleOptionsEmptyState(state.fetchSubtitlesLabel || "Tap to fetch subtitles", true);
-  }
-  const styleVisible = activeSubtitleLanguageKey !== "__off__" && activeOptions.some(option =>
-    option.id === pendingSubtitleOptionId || (!pendingSubtitleOptionId && option.selected));
+  const emptyLabel = activeSubtitleLanguageKey === "__off__" ? (state.noneLabel || "None")
+    : state.isLoadingAddonSubtitles ? (state.loadingSubtitleLinesLabel || "Loading subtitles...")
+    : (state.fetchSubtitlesLabel || "Tap to fetch subtitles");
+  const canFetch = activeSubtitleLanguageKey !== "__off__" && !state.isLoadingAddonSubtitles;
+  updateSubtitleRailRows(
+    addonSubtitleList,
+    JSON.stringify([activeSubtitleLanguageKey, emptyLabel, canFetch, state.autoSyncedLabel,
+      activeOptions.map(({ selected, ...option }) => option)]),
+    () => {
+      if (activeOptions.length) activeOptions.forEach(appendSubtitleOptionRow);
+      else appendSubtitleOptionsEmptyState(emptyLabel, canFetch);
+    },
+    key => key === (pendingSubtitleOptionId || selected?.id),
+    addonSubtitleList.dataset.languageKey === activeSubtitleLanguageKey,
+  );
+  addonSubtitleList.dataset.languageKey = activeSubtitleLanguageKey;
+  const styleVisible = state.secondarySubtitleMenu ||
+    (activeSubtitleLanguageKey !== "__off__" && activeOptions.some(option =>
+      option.id === pendingSubtitleOptionId || (!pendingSubtitleOptionId && option.selected)));
   if (state.playerUiMode === "codeine_xo") {
     subtitleStyleRail.hidden = codeineSubtitleActiveTab !== "customization";
     if (codeineSubtitleActiveTab === "customization") {
@@ -2992,7 +3031,23 @@ const setSubtitleTab = tab => {
   }
 };
 
+const subtitleSlotTabs = document.getElementById("subtitleSlotTabs");
+const subtitlePrimaryTab = document.getElementById("subtitlePrimaryTab");
+const subtitleSecondaryTab = document.getElementById("subtitleSecondaryTab");
+subtitlePrimaryTab.addEventListener("click", () => send("subtitleSlot", 0));
+subtitleSecondaryTab.addEventListener("click", () => send("subtitleSlot", 1));
+
 const renderSubtitleModal = () => {
+  subtitleSlotTabs.hidden = !state.secondarySubtitleSupported;
+  subtitlePrimaryTab.textContent = state.primarySubtitleLabel || "Primary";
+  subtitleSecondaryTab.textContent = state.secondarySubtitleLabel || "Secondary";
+  for (const [tab, selected] of [
+    [subtitlePrimaryTab, !state.secondarySubtitleMenu],
+    [subtitleSecondaryTab, Boolean(state.secondarySubtitleMenu)],
+  ]) {
+    tab.classList.toggle("selected", selected);
+    tab.setAttribute("aria-selected", String(selected));
+  }
   subtitlePanelTitle.textContent = state.subtitlesPanelTitle || "Subtitles";
   subtitleLanguageRailTitle.textContent = state.subtitleLanguagesLabel || "Languages";
   subtitleOptionsRailTitle.textContent = state.subtitlesPanelTitle || "Subtitles";
@@ -4011,6 +4066,10 @@ const getSpeedModalSignature = () => [
 const getSubtitlesModalSignature = () => {
   const style = state.subtitleStyle || {};
   return [
+    Boolean(state.secondarySubtitleSupported),
+    Boolean(state.secondarySubtitleMenu),
+    state.primarySubtitleLabel || "",
+    state.secondarySubtitleLabel || "",
     state.subtitlesPanelTitle || "",
     state.subtitleLanguagesLabel || "",
     state.subtitleBuiltInTabLabel || "",
@@ -4059,7 +4118,7 @@ const getSubtitlesModalSignature = () => {
     Boolean(style.outlineEnabled),
     Boolean(style.bold),
     style.fontSizeSp || 10,
-    style.bottomOffset || 20,
+    style.bottomOffset ?? 20,
     style.fontName || "",
     style.fontId || "",
     Boolean(state.subtitleFontImportFailed),
@@ -4068,11 +4127,11 @@ const getSubtitlesModalSignature = () => {
     style.outlineWidth || 1,
     style.backgroundColor || "",
     (state.subtitleLanguageItems || []).map(l => `${l.key || ""}:${l.count || 0}:${l.label || ""}:${l.isSelected ? 1 : 0}`).join(";"),
-    (state.subtitleOptionItems || []).map(o => `${o.id || ""}:${o.kind || ""}:${o.languageKey || ""}:${o.sourceLabel || ""}:${o.title || ""}:${o.metadata || ""}:${o.isSelected ? 1 : 0}:${o.index || 0}`).join(";"),
+    JSON.stringify(state.subtitleOptionItems || []),
     (state.subtitleAutoSyncCues || []).map(c => `${c.index}:${c.timeLabel || ""}:${c.text || ""}`).join(";"),
     (state.subtitleColorSwatches || []).join(","),
     (state.subtitleOutlineColorSwatches || []).join(","),
-    trackListSignature(state.subtitleTracks),
+    state.secondarySubtitleMenu ? "" : trackListSignature(state.subtitleTracks),
   ].join("##");
 };
 
@@ -6463,7 +6522,7 @@ window.playerUpdate = update => {
   if (typeof volumeLevel === "number" && volumeLevel > 0) {
     preMuteVolumeLevel = volumeLevel;
   }
-  if (subtitleTracksChanged && activeModal === "subtitles") {
+  if (subtitleTracksChanged && activeModal === "subtitles" && !state.secondarySubtitleMenu) {
     const selected = selectedSubtitleOption(subtitleSelectionOptions());
     if (selected) {
       activeSubtitleLanguageKey = selected.languageKey;
@@ -6475,7 +6534,7 @@ window.playerUpdate = update => {
     syncSeekrPreviews();
   }
   if ((audioTracksChanged && activeModal === "audio") ||
-      (subtitleTracksChanged && activeModal === "subtitles") ||
+      (subtitleTracksChanged && activeModal === "subtitles" && !state.secondarySubtitleMenu) ||
       (nativeIsPlaying && activeModal === "chapters")) {
     try {
       renderActiveModal(true);
@@ -6494,6 +6553,7 @@ window.playerControls = nextState => {
   const previousSpeedLabel = state.playbackSpeedLabel || "";
   const previousEpisodeStreamsVisible = Boolean(state.episodeStreamsVisible);
   const previousSelectedSubtitleLanguageKey = state.selectedSubtitleLanguageKey || "__off__";
+  const previousSecondarySubtitleMenu = Boolean(state.secondarySubtitleMenu);
   const previousSelectedSubtitleOptionId = state.selectedSubtitleOptionId || "";
   const previousTitle = state.title || "";
   const previousEpisodeText = state.episodeText || "";
@@ -6591,7 +6651,9 @@ window.playerControls = nextState => {
   if (
     activeModal === "subtitles" &&
     ((state.selectedSubtitleLanguageKey || "__off__") !== previousSelectedSubtitleLanguageKey ||
-      (state.selectedSubtitleOptionId || "") !== previousSelectedSubtitleOptionId)
+      (state.selectedSubtitleOptionId || "") !== previousSelectedSubtitleOptionId ||
+      Boolean(state.secondarySubtitleMenu) !== previousSecondarySubtitleMenu ||
+      (state.secondarySubtitleMenu && notificationToken !== previousNotificationToken))
   ) {
     resetSubtitleSelectionState();
   }
@@ -7425,7 +7487,7 @@ document.addEventListener("keydown", event => {
   }
   if (event.code === "KeyV") {
     event.preventDefault();
-    const isOff = !normalizeTracks(state.subtitleTracks).some(t => t.selected);
+    const isOff = !state.secondarySubtitleActive && !normalizeTracks(state.subtitleTracks).some(t => t.selected);
     if (subtitlesHidden && !isOff) {
       showHiddenSubtitles();
     } else if (isOff) {

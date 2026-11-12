@@ -1,6 +1,7 @@
 package com.nuvio.app.features.autosync
 
 import com.nuvio.app.features.player.PlayerEngineController
+import com.nuvio.app.features.player.SecondarySubtitleSyncResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -140,10 +141,7 @@ internal class AutoSyncMpvCoordinator(
                 }
 
                 val chosenUrl = resolved.subtitleUrl
-                val tolerance = AutoSyncPreferencesRepository.syncToleranceMs.value
-                val withinTolerance = tolerance > 0 && chosenUrl == url &&
-                    resolved.timeline.maxAlignmentShiftMs() <= tolerance
-                if (!withinTolerance) {
+                if (!withinTolerance(url, resolved)) {
                     val path = writeRetimedSubtitle(chosenUrl, resolved, subtitleLanguage)
                     currentCoroutineContext().ensureActive()
                     if (token != operationToken) return@launch
@@ -161,6 +159,33 @@ internal class AutoSyncMpvCoordinator(
         }
     }
 
+    suspend fun syncSecondary(url: String, language: String): SecondarySubtitleSyncResult? {
+        if (!(sourceUrl.startsWith("https://", true) || sourceUrl.startsWith("http://", true))) return null
+        return try {
+            val resolved = AutomaticSubtitleSync.findTimelineRetime(
+                sourceKey = sourceUrl,
+                sourceHeaders = sourceHeaders,
+                selectedSubtitleUrl = url,
+                selectedSubtitleHeaders = getSubtitleHeaders(url),
+                preferredLanguage = language,
+                alternativeSubtitles = emptyList(),
+                allowLiveReference = false,
+            ) ?: return null
+            if (withinTolerance(url, resolved)) return SecondarySubtitleSyncResult(null)
+            val path = writeRetimedSubtitle(url, resolved, language, slotPrefix = "secondary_") ?: return null
+            SecondarySubtitleSyncResult(path)
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun withinTolerance(url: String, result: AutoSyncResolvedTimeline): Boolean {
+        val tolerance = AutoSyncPreferencesRepository.syncToleranceMs.value
+        return tolerance > 0 && result.subtitleUrl == url && result.timeline.maxAlignmentShiftMs() <= tolerance
+    }
+
     /**
      * Writes the subtitle at [subtitleUrl] with the AutoSync timeline applied, and returns its path,
      * or null when its format cannot be retimed. The name follows the content, so mpv's `cached`
@@ -170,6 +195,7 @@ internal class AutoSyncMpvCoordinator(
         subtitleUrl: String,
         resolved: AutoSyncResolvedTimeline,
         languageHint: String?,
+        slotPrefix: String = "",
     ): String? {
         val body = resolved.subtitleBody ?: AutomaticSubtitleSync.downloadSubtitleBody(
             url = subtitleUrl,
@@ -179,7 +205,7 @@ internal class AutoSyncMpvCoordinator(
         val retimed = withContext(autoSyncCpuDispatcher) {
             AutoSyncSubtitleTextRetimer.retime(body, resolved.timeline)
         } ?: return null
-        val prefix = "$LIBMPV_AUTOSYNC_FILE_PREFIX${subtitleUrl.hashCode().toHexString()}_"
+        val prefix = "$LIBMPV_AUTOSYNC_FILE_PREFIX$slotPrefix${subtitleUrl.hashCode().toHexString()}_"
         val extension = when {
             retimed.trimStart().startsWith("WEBVTT") -> "vtt"
             retimed.contains("[Events]", ignoreCase = true) -> "ass"
@@ -206,6 +232,9 @@ internal open class AutoSyncMpvEngineController(
     private val coordinator: AutoSyncMpvCoordinator,
     private val replaceExternalSubtitle: (replacedUrl: String, path: String) -> Unit,
 ) : PlayerEngineController by base, AutoSyncPlayerController {
+
+    override suspend fun prepareSecondarySubtitleAutoSync(url: String, language: String): SecondarySubtitleSyncResult? =
+        coordinator.syncSecondary(url, language)
 
     override fun setAutoSyncSubtitleCandidates(candidates: List<AutoSyncSubtitleCandidate>) =
         coordinator.setCandidates(candidates)

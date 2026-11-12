@@ -25,6 +25,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -46,7 +47,26 @@ typedef enum mpv_format {
     MPV_FORMAT_FLAG = 3,
     MPV_FORMAT_INT64 = 4,
     MPV_FORMAT_DOUBLE = 5,
+    MPV_FORMAT_NODE_MAP = 8,
 } mpv_format;
+
+typedef struct mpv_node_list mpv_node_list;
+typedef struct mpv_node {
+    union {
+        char *string;
+        int flag;
+        int64_t int64;
+        double double_;
+        mpv_node_list *list;
+    } u;
+    mpv_format format;
+} mpv_node;
+
+struct mpv_node_list {
+    int num;
+    mpv_node *values;
+    char **keys;
+};
 
 typedef enum mpv_event_id {
     MPV_EVENT_NONE = 0,
@@ -69,6 +89,9 @@ namespace {
 HMODULE gModule = nullptr;
 constexpr UINT WM_NUVIO_TASK = WM_APP + 0x4E50;
 constexpr UINT_PTR NUVIO_TIMER_ID = 0x4E50;
+constexpr UINT_PTR NUVIO_SUBTITLE_TIMER_ID = 0x4E51;
+constexpr char SECONDARY_SUBTITLE_OVERLAY_ID[] = "19";
+constexpr int SECONDARY_SUBTITLE_MEASUREMENT_ID = 20;
 
 // Caps on waiting for the player's own UI thread during teardown. Exceeding these means that
 // thread is wedged; shutdown gives up rather than blocking the caller forever.
@@ -529,6 +552,8 @@ struct MpvApi {
     using mpv_set_property_string_fn = int (*)(mpv_handle *, const char *, const char *);
     using mpv_get_property_fn = int (*)(mpv_handle *, const char *, mpv_format, void *);
     using mpv_command_fn = int (*)(mpv_handle *, const char **);
+    using mpv_command_node_fn = int (*)(mpv_handle *, mpv_node *, mpv_node *);
+    using mpv_free_node_contents_fn = void (*)(mpv_node *);
     using mpv_error_string_fn = const char *(*)(int);
     using mpv_free_fn = void (*)(void *);
     using mpv_wait_event_fn = mpv_event *(*)(mpv_handle *, double);
@@ -547,6 +572,8 @@ struct MpvApi {
     mpv_set_property_string_fn setPropertyString = nullptr;
     mpv_get_property_fn getProperty = nullptr;
     mpv_command_fn command = nullptr;
+    mpv_command_node_fn commandNode = nullptr;
+    mpv_free_node_contents_fn freeNodeContents = nullptr;
     mpv_error_string_fn errorString = nullptr;
     mpv_free_fn freeValue = nullptr;
     mpv_wait_event_fn waitEvent = nullptr;
@@ -606,6 +633,8 @@ struct MpvApi {
         setPropertyString = loadSymbol<mpv_set_property_string_fn>("mpv_set_property_string");
         getProperty = loadSymbol<mpv_get_property_fn>("mpv_get_property");
         command = loadSymbol<mpv_command_fn>("mpv_command");
+        commandNode = loadSymbol<mpv_command_node_fn>("mpv_command_node");
+        freeNodeContents = loadSymbol<mpv_free_node_contents_fn>("mpv_free_node_contents");
         errorString = loadSymbol<mpv_error_string_fn>("mpv_error_string");
         freeValue = loadSymbol<mpv_free_fn>("mpv_free");
         waitEvent = loadSymbol<mpv_wait_event_fn>("mpv_wait_event");
@@ -1358,6 +1387,13 @@ public:
     }
 
     void selectSubtitleTrackId(int trackId) {
+        std::lock_guard<std::mutex> secondaryLock(secondarySubtitleMutex);
+        if (trackId >= 0 && int64Property("secondary-sid", -1) == trackId) {
+            setStringProperty("secondary-sid", "no");
+            secondarySubtitleEnabled = false;
+            secondarySubtitleBitmap = false;
+            updateSecondarySubtitleOverlay("");
+        }
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         if (trackId < 0) {
@@ -1486,8 +1522,136 @@ public:
         }
     }
 
+    bool selectSecondarySubtitle(int trackId, const std::string &path) {
+        std::lock_guard<std::mutex> lock(secondarySubtitleMutex);
+        const int previousExternalId = secondaryExternalId.load();
+        int newExternalId = -1;
+        std::string codec;
+        if (!path.empty()) {
+            const auto before = subtitleTrackIds();
+            if (!command({"sub-add", path, "auto"})) return false;
+            for (const auto &entry : subtitleTrackIds()) {
+                if (before.count(entry.first) == 0) {
+                    trackId = entry.first;
+                    codec = entry.second;
+                    newExternalId = trackId;
+                    break;
+                }
+            }
+            if (trackId < 0) return false;
+        } else if (trackId >= 0) {
+            const auto tracks = subtitleTrackIds();
+            const auto found = tracks.find(trackId);
+            if (found == tracks.end()) return false;
+            codec = found->second;
+        }
+
+        const bool selected = trackId < 0
+            ? setStringProperty("secondary-sid", "no")
+            : int64Property("sid", -1) != trackId && setStringProperty("secondary-sid", std::to_string(trackId));
+        if (!selected) {
+            if (newExternalId >= 0) command({"sub-remove", std::to_string(newExternalId)});
+            return false;
+        }
+        if (previousExternalId >= 0) command({"sub-remove", std::to_string(previousExternalId)});
+        secondaryExternalId.store(newExternalId);
+
+        const bool bitmap = codec == "hdmv_pgs_subtitle" || codec == "dvd_subtitle" ||
+            codec == "dvb_subtitle" || codec == "dvb_teletext" || codec == "xsub";
+        secondarySubtitleEnabled = trackId >= 0 && !bitmap;
+        secondarySubtitleBitmap = bitmap;
+        secondarySubtitleCueText.clear();
+        updateSecondarySubtitleVisibility();
+        if (!secondarySubtitleEnabled || secondaryUseLibass) updateSecondarySubtitleOverlay("");
+        return true;
+    }
+
+    void setSecondarySubtitleStyle(
+        const std::string &tags, const std::string &box, const std::string &fontsDir,
+        int offset, int delayMs, bool useLibass
+    ) {
+        std::lock_guard<std::mutex> lock(secondarySubtitleMutex);
+        if (secondaryUseLibass != useLibass) {
+            secondaryUseLibass = useLibass;
+            setStringProperty("secondary-sub-ass-override", useLibass ? "scale" : "strip");
+            updateSecondarySubtitleVisibility();
+            if (useLibass) updateSecondarySubtitleOverlay("");
+        }
+        if (fontsDir != secondarySubtitleFontsDir && setStringProperty("osd-fonts-dir", fontsDir)) {
+            // The overlay's renderer reads this directory when it is created.
+            updateSecondarySubtitleOverlay("");
+            command({"osd-overlay", std::to_string(SECONDARY_SUBTITLE_MEASUREMENT_ID), "none", ""});
+            secondarySubtitleFontsDir = fontsDir;
+        }
+        secondarySubtitleTags = tags;
+        secondarySubtitleBox = box;
+        secondarySubtitleOffset = offset;
+        setStringProperty("secondary-sub-delay", std::to_string(delayMs / 1000.0));
+    }
+
+    void onSubtitleTimer() {
+        if (shuttingDown.load()) return;
+        std::unique_lock<std::mutex> lock(secondarySubtitleMutex, std::try_to_lock);
+        if (!lock.owns_lock() || !secondarySubtitleEnabled || !subtitlesVisible) return;
+        const std::string text = stringProperty("secondary-sub-text", "");
+        if (text.empty()) {
+            secondarySubtitleCueText.clear();
+            updateSecondarySubtitleOverlay("");
+            return;
+        }
+
+        const double cueStart = doubleProperty("secondary-sub-start", -1.0);
+        if (text != secondarySubtitleCueText || cueStart != secondarySubtitleCueStart) {
+            secondarySubtitleCueText = text;
+            secondarySubtitleCueStart = cueStart;
+            secondarySubtitleReservedPrimaryLines = 0;
+        }
+
+        const auto primaryText = stringProperty("sub-text", "");
+        const int primaryLines = primaryText.empty()
+            ? (int64Property("sid", -1) >= 0 ? 1 : 0)
+            : 1 + static_cast<int>(std::count(primaryText.begin(), primaryText.end(), '\n'));
+        // Keep the space reserved until the secondary cue ends, even if the primary cue ends first.
+        secondarySubtitleReservedPrimaryLines = std::max(secondarySubtitleReservedPrimaryLines, primaryLines);
+        const auto primaryPosition = doubleProperty("sub-pos", 100.0);
+        const auto primarySize = doubleProperty("sub-font-size", 30.0);
+        const auto primaryBottom = 24.0 + (100.0 - primaryPosition) * 7.2;
+        const auto secondaryBottom = 24.0 + secondarySubtitleOffset * 3.6;
+        const auto bottom = secondarySubtitleReservedPrimaryLines == 0 ? secondaryBottom :
+            std::max(secondaryBottom, primaryBottom + secondarySubtitleReservedPrimaryLines * primarySize * 1.35);
+        const int y = std::clamp(static_cast<int>(720.0 - bottom - 6.0), 80, 696);
+        if (secondaryUseLibass) {
+            const int position = y / 7.2;
+            if (position != secondarySubtitlePosition &&
+                setStringProperty("secondary-sub-pos", std::to_string(position))) {
+                secondarySubtitlePosition = position;
+            }
+            return;
+        }
+        if (secondarySubtitleTags.empty()) return;
+
+        const double width = doubleProperty("osd-width", 0.0);
+        const double height = doubleProperty("osd-height", 0.0);
+        if (width <= 0.0 || height <= 0.0) return;
+        const int canvasWidth = static_cast<int>(720.0 * width / height);
+        std::string ass = "{\\an2\\q0\\pos(" + std::to_string(canvasWidth / 2) + "," +
+            std::to_string(y) + ")" + secondarySubtitleTags + "}";
+        for (const char ch : text) {
+            switch (ch) {
+                case '\r': break;
+                case '\n': ass += "\\N"; break;
+                case '\\': ass += "\\\xEF\xBB\xBF"; break;
+                case '{': ass += "\\{"; break;
+                case '}': ass += "\\}"; break;
+                default: ass += ch; break;
+            }
+        }
+        updateSecondarySubtitleOverlay(ass, canvasWidth);
+    }
+
     void addSubtitleUrl(const std::string &url) {
         if (url.empty()) return;
+        std::lock_guard<std::mutex> lock(secondarySubtitleMutex);
         command({"sub-add", url, "select"});
     }
 
@@ -1518,9 +1682,11 @@ public:
     }
 
     void setSubtitleVisible(bool visible) {
-        std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return;
-        mpvApi().setPropertyString(mpv, "sub-visibility", visible ? "yes" : "no");
+        std::lock_guard<std::mutex> lock(secondarySubtitleMutex);
+        subtitlesVisible = visible;
+        setStringProperty("sub-visibility", visible ? "yes" : "no");
+        updateSecondarySubtitleVisibility();
+        if (!visible) updateSecondarySubtitleOverlay("");
     }
 
     void setSubtitleDelayMs(int delayMs) {
@@ -1740,6 +1906,23 @@ private:
     std::string appliedSubtitleFont; // Guarded by mpvMutex; per player instance.
     std::string appliedSubtitleFontsDir;
     std::string initialAudioUrl;
+    std::mutex secondarySubtitleMutex;
+    std::atomic_int secondaryExternalId{-1};
+    bool secondarySubtitleEnabled = false;
+    bool secondarySubtitleBitmap = false;
+    bool subtitlesVisible = true;
+    bool secondaryUseLibass = false;
+    int secondarySubtitlePosition = -1;
+    std::string secondarySubtitleCueText;
+    double secondarySubtitleCueStart = -1.0;
+    int secondarySubtitleReservedPrimaryLines = 0;
+    std::string secondarySubtitleTags;
+    std::string secondarySubtitleBox;
+    std::string secondarySubtitleAppliedBox;
+    std::string secondarySubtitleFontsDir;
+    int secondarySubtitleOffset = 10;
+    std::string secondarySubtitleOverlay;
+    int secondarySubtitleOverlayWidth = 0;
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -1843,6 +2026,7 @@ private:
         startWebView(controlsUrl);
         startMpv(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, decoderPriority, nvidiaRtxSuperResolutionEnabled);
         layoutNativeSubviews();
+        SetTimer(messageHwnd, NUVIO_SUBTITLE_TIMER_ID, 33, nullptr);
         if (!SetTimer(messageHwnd, NUVIO_TIMER_ID, 500, nullptr)) {
             throw std::runtime_error("Unable to start native player timer.");
         }
@@ -1851,6 +2035,7 @@ private:
     void cleanupUiResources() {
         if (messageHwnd) {
             KillTimer(messageHwnd, NUVIO_TIMER_ID);
+            KillTimer(messageHwnd, NUVIO_SUBTITLE_TIMER_ID);
         }
         ++webViewGeneration;
         webViewRetryAt = 0;
@@ -2693,23 +2878,112 @@ private:
         return result;
     }
 
-    void setStringProperty(const char *name, const std::string &value) {
+    bool setStringProperty(const char *name, const std::string &value) {
         std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return;
-        mpvApi().setPropertyString(mpv, name, value.c_str());
+        return mpv && mpvApi().setPropertyString(mpv, name, value.c_str()) >= 0;
     }
 
-    void command(const std::vector<std::string> &args) {
-        if (args.empty()) return;
+    bool command(const std::vector<std::string> &args) {
+        if (args.empty()) return false;
         std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return;
+        if (!mpv) return false;
         std::vector<const char *> cargs;
         cargs.reserve(args.size() + 1);
         for (const std::string &arg : args) {
             cargs.push_back(arg.c_str());
         }
         cargs.push_back(nullptr);
-        mpvApi().command(mpv, cargs.data());
+        return mpvApi().command(mpv, cargs.data()) >= 0;
+    }
+
+    std::map<int, std::string> subtitleTrackIds() {
+        std::map<int, std::string> tracks;
+        const auto count = int64Property("track-list/count", 0);
+        for (long long index = 0; index < count; ++index) {
+            if (trackStringAtIndex(index, "type") != "sub") continue;
+            const auto id = int64Property(("track-list/" + std::to_string(index) + "/id").c_str(), -1);
+            if (id >= 0) tracks.emplace(static_cast<int>(id), trackStringAtIndex(index, "codec"));
+        }
+        return tracks;
+    }
+
+    RECT measureSecondarySubtitle(const std::string &ass, int width) {
+        auto stringNode = [](const char *text) {
+            mpv_node node{};
+            node.format = MPV_FORMAT_STRING;
+            node.u.string = const_cast<char *>(text);
+            return node;
+        };
+        auto intNode = [](int64_t value) {
+            mpv_node node{};
+            node.format = MPV_FORMAT_INT64;
+            node.u.int64 = value;
+            return node;
+        };
+        mpv_node yes{};
+        yes.format = MPV_FORMAT_FLAG;
+        yes.u.flag = 1;
+        const char *keys[] = {"name", "id", "format", "data", "res_x", "res_y", "hidden", "compute_bounds"};
+        char *mutableKeys[8];
+        for (int i = 0; i < 8; ++i) mutableKeys[i] = const_cast<char *>(keys[i]);
+        mpv_node values[] = {
+            stringNode("osd-overlay"), intNode(SECONDARY_SUBTITLE_MEASUREMENT_ID),
+            stringNode("ass-events"), stringNode(ass.c_str()), intNode(width), intNode(720), yes, yes,
+        };
+        mpv_node_list args{8, values, mutableKeys};
+        mpv_node command{};
+        command.format = MPV_FORMAT_NODE_MAP;
+        command.u.list = &args;
+        mpv_node result{};
+        RECT bounds{};
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv || mpvApi().commandNode(mpv, &command, &result) < 0) return bounds;
+        if (result.format == MPV_FORMAT_NODE_MAP) {
+            auto *list = result.u.list;
+            for (int i = 0; i < list->num; ++i) {
+                const auto &value = list->values[i];
+                if (value.format != MPV_FORMAT_INT64 && value.format != MPV_FORMAT_DOUBLE) continue;
+                const auto coordinate = value.format == MPV_FORMAT_INT64
+                    ? static_cast<LONG>(value.u.int64) : static_cast<LONG>(value.u.double_);
+                const std::string key = list->keys[i];
+                if (key == "x0") bounds.left = coordinate;
+                if (key == "y0") bounds.top = coordinate;
+                if (key == "x1") bounds.right = coordinate;
+                if (key == "y1") bounds.bottom = coordinate;
+            }
+        }
+        mpvApi().freeNodeContents(&result);
+        return bounds;
+    }
+
+    void updateSecondarySubtitleVisibility() {
+        const bool visible = subtitlesVisible && (secondarySubtitleBitmap || (secondarySubtitleEnabled && secondaryUseLibass));
+        setStringProperty("secondary-sub-visibility", visible ? "yes" : "no");
+    }
+
+    void updateSecondarySubtitleOverlay(const std::string &ass, int width = 0) {
+        if (ass == secondarySubtitleOverlay && width == secondarySubtitleOverlayWidth &&
+            secondarySubtitleAppliedBox == secondarySubtitleBox) return;
+        std::string output = ass;
+        if (!ass.empty() && !secondarySubtitleBox.empty()) {
+            const RECT bounds = measureSecondarySubtitle(ass, width);
+            if (bounds.right > bounds.left && bounds.bottom > bounds.top) {
+                const auto x = std::to_string(bounds.left - 5);
+                const auto y = std::to_string(bounds.top - 4);
+                const auto w = std::to_string(bounds.right - bounds.left + 10);
+                const auto h = std::to_string(bounds.bottom - bounds.top + 8);
+                output = "{\\an7\\pos(" + x + "," + y + ")\\bord0\\shad0" + secondarySubtitleBox +
+                    "\\p1}m 0 0 l " + w + " 0 " + w + " " + h + " 0 " + h + "{\\p0}\n" + ass;
+            }
+        }
+        const bool applied = ass.empty()
+            ? command({"osd-overlay", SECONDARY_SUBTITLE_OVERLAY_ID, "none", ""})
+            : command({"osd-overlay", SECONDARY_SUBTITLE_OVERLAY_ID, "ass-events", output, std::to_string(width), "720"});
+        if (applied) {
+            secondarySubtitleOverlay = ass;
+            secondarySubtitleOverlayWidth = width;
+            secondarySubtitleAppliedBox = secondarySubtitleBox;
+        }
     }
 
     double rawPositionSeconds() {
@@ -2747,6 +3021,7 @@ private:
     }
 
     void removeExternalSubtitleTracks() {
+        std::lock_guard<std::mutex> lock(secondarySubtitleMutex);
         long long count = int64Property("track-list/count", 0);
         if (count <= 0) return;
         for (long long index = count - 1; index >= 0; index--) {
@@ -2755,7 +3030,7 @@ private:
             bool external = flagProperty((prefix + "/external").c_str(), false);
             if (type == "sub" && external) {
                 long long trackId = int64Property((prefix + "/id").c_str(), -1);
-                if (trackId >= 0) {
+                if (trackId >= 0 && trackId != secondaryExternalId.load()) {
                     command({"sub-remove", std::to_string(trackId)});
                 }
             }
@@ -2764,6 +3039,7 @@ private:
 
     std::string tracksJsonForType(const std::string &wantedType) {
         long long count = int64Property("track-list/count", 0);
+        const auto primarySubtitleId = wantedType == "sub" ? int64Property("sid", -1) : -1;
         std::ostringstream json;
         json << "[";
         int logicalIndex = 0;
@@ -2774,13 +3050,16 @@ private:
             if (type != wantedType) continue;
 
             long long trackId = int64Property((prefix + "/id").c_str(), logicalIndex + 1);
+            if (type == "sub" && trackId == secondaryExternalId.load()) continue;
             std::string title = trackStringAtIndex(index, "title");
             std::string language = trackStringAtIndex(index, "lang");
             std::string codec = trackStringAtIndex(index, "codec");
             std::string decoderDescription = trackStringAtIndex(index, "decoder-desc");
             std::string channels = trackStringAtIndex(index, "demux-channels");
             long long channelCount = int64Property((prefix + "/demux-channel-count").c_str(), 0);
-            bool selected = flagProperty((prefix + "/selected").c_str(), false);
+            bool selected = type == "sub"
+                ? trackId == primarySubtitleId
+                : flagProperty((prefix + "/selected").c_str(), false);
             bool forced = flagProperty((prefix + "/forced").c_str(), false);
             std::string label = formatTrackTitle(type, logicalIndex, title, language, codec, decoderDescription, channels, (int)channelCount);
 
@@ -2898,6 +3177,7 @@ LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
             return 0;
         case WM_TIMER:
             if (player && wParam == NUVIO_TIMER_ID) player->onTimer();
+            if (player && wParam == NUVIO_SUBTITLE_TIMER_ID) player->onSubtitleTimer();
             return 0;
         case WM_NCDESTROY:
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
@@ -3490,6 +3770,28 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectSubtitleTrack(JNIEnv *, jobject, jlong handle, jint trackId) {
     auto player = playerFromHandle(handle);
     if (player) player->selectSubtitleTrackId(trackId);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_selectSecondarySubtitle(
+    JNIEnv *env, jobject, jlong handle, jint trackId, jstring path
+) {
+    auto player = playerFromHandle(handle);
+    return player && player->selectSecondarySubtitle(trackId, jstringToUtf8(env, path)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSecondarySubtitleStyle(
+    JNIEnv *env, jobject, jlong handle, jstring tags, jstring box, jstring fontsDir,
+    jint offset, jint delayMs, jboolean useLibass
+) {
+    auto player = playerFromHandle(handle);
+    if (player) {
+        player->setSecondarySubtitleStyle(
+            jstringToUtf8(env, tags), jstringToUtf8(env, box), jstringToUtf8(env, fontsDir),
+            offset, delayMs, useLibass == JNI_TRUE
+        );
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL

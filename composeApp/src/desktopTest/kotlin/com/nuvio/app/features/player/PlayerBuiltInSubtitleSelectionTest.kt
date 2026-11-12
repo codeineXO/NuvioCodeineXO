@@ -107,6 +107,23 @@ class PlayerBuiltInSubtitleSelectionTest {
         addonName = "Test",
     )
 
+    @Test
+    fun secondaryCueSyncAdjustsOnlyTheSecondaryDelay() {
+        val runtime = runtime(RecordingController(supportsSecondarySubtitles = true))
+        runtime.secondarySubtitles.item = "item|tt2026:1:1|1|1"
+        runtime.subtitleDelayMs = 350
+        runtime.secondarySubtitles.syncState = SubtitleAutoSyncUiState(
+            capturedPositionMs = 8_000,
+            cues = listOf(SubtitleSyncCue(startTimeMs = 5_000, text = "Secondary cue")),
+        )
+
+        assertTrue(runtime.handlePlayerControlsEvent("secondary:subtitleAutoSyncCue", 0.0))
+
+        assertEquals(350, runtime.subtitleDelayMs)
+        assertEquals(3_000 - SUBTITLE_AUTO_SYNC_REACTION_COMPENSATION_MS.toInt(), runtime.secondarySubtitles.preference?.delayMs)
+        assertTrue(runtime.secondarySubtitles.preference?.manualDelay == true)
+    }
+
     private fun runtime(controller: RecordingController) = PlayerScreenRuntime(
         PlayerScreenArgs(
             profileId = 1,
@@ -152,6 +169,7 @@ class PlayerBuiltInSubtitleSelectionTest {
 
     private class RecordingController(
         subtitleTracks: List<SubtitleTrack> = emptyList(),
+        override val supportsSecondarySubtitles: Boolean = false,
     ) : PlayerEngineController {
         val subtitleUrls = mutableListOf<String>()
         val subtitleSelections = mutableListOf<Int>()

@@ -5,6 +5,7 @@ import com.nuvio.app.core.i18n.localizedSubtitleLinesLoadError
 import com.nuvio.app.features.addons.httpGetTextWithHeaders
 import com.nuvio.app.features.autosync.AutoSyncPlayerController
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 internal fun PlayerScreenRuntime.fetchAddonSubtitlesForActiveItem() {
@@ -68,51 +69,67 @@ internal fun PlayerScreenRuntime.setSubtitleDelay(delayMs: Int) {
     playerController?.setSubtitleDelayMs(clamped)
 }
 
-internal fun PlayerScreenRuntime.loadSubtitleAutoSyncCues(force: Boolean = false) {
-    val subtitle = selectedAddonSubtitle ?: return
-    if (!force && subtitleAutoSyncState.cues.isNotEmpty()) return
-    val isLocalSubtitle = subtitle.language == SubtitleImportedLanguageKey ||
+internal fun PlayerScreenRuntime.subtitleAutoSyncState(secondary: Boolean): SubtitleAutoSyncUiState =
+    if (secondary) secondarySubtitles.syncState else subtitleAutoSyncState
+
+private fun PlayerScreenRuntime.updateSubtitleAutoSyncState(secondary: Boolean, state: SubtitleAutoSyncUiState) {
+    if (secondary) secondarySubtitles.syncState = state else subtitleAutoSyncState = state
+}
+
+private fun PlayerScreenRuntime.subtitleCueSource(secondary: Boolean): Pair<String, Boolean>? {
+    val subtitle = (if (secondary) secondarySubtitles.active?.addon else selectedAddonSubtitle) ?: return null
+    val retimedPath = secondarySubtitles.retimedPath.takeIf { secondary }
+    val local = retimedPath != null || subtitle.language == SubtitleImportedLanguageKey ||
         subtitle.url.startsWith("file:", ignoreCase = true)
-    if (!isLocalSubtitle && isNetworkOffline()) return
-    subtitleAutoSyncState = subtitleAutoSyncState.copy(isLoading = true, errorMessage = null)
+    return (retimedPath ?: subtitle.url) to local
+}
+
+internal fun PlayerScreenRuntime.loadSubtitleAutoSyncCues(force: Boolean = false, secondary: Boolean = false) {
+    val source = subtitleCueSource(secondary) ?: return
+    val state = subtitleAutoSyncState(secondary)
+    if (state.isLoading || (!force && state.cues.isNotEmpty())) return
+    val (url, local) = source
+    if (!local && isNetworkOffline()) return
+    val videoId = playbackSession.videoId
+    val headers = sanitizePlaybackHeaders(activeSourceHeaders)
+    updateSubtitleAutoSyncState(secondary, state.copy(isLoading = true, errorMessage = null))
     scope.launch {
         val result = runCatching {
-            val body = if (isLocalSubtitle) SubtitleImportPlatform.readSubtitleText(subtitle.url) else httpGetTextWithHeaders(
-                url = subtitle.url,
-                headers = sanitizePlaybackHeaders(activeSourceHeaders),
-            )
-            PlayerSubtitleCueParser.parse(body, subtitle.url)
+            val body = if (local) SubtitleImportPlatform.readSubtitleText(url) else httpGetTextWithHeaders(url, headers)
+            PlayerSubtitleCueParser.parse(body, url)
         }
-        result.fold(
-            onSuccess = { cues ->
-                subtitleAutoSyncState = subtitleAutoSyncState.copy(
-                    cues = cues,
-                    isLoading = false,
-                    errorMessage = if (cues.isEmpty()) localizedNoSubtitleLinesFound() else null,
-                )
-            },
-            onFailure = { error ->
-                subtitleAutoSyncState = subtitleAutoSyncState.copy(
-                    isLoading = false,
-                    errorMessage = error.message ?: localizedSubtitleLinesLoadError(),
-                )
-            },
-        )
+        (result.exceptionOrNull() as? CancellationException)?.let { throw it }
+        if (source != subtitleCueSource(secondary) || videoId != playbackSession.videoId ||
+            !subtitleAutoSyncState(secondary).isLoading
+        ) return@launch
+        val current = subtitleAutoSyncState(secondary)
+        val cues = result.getOrNull()
+        val error = when {
+            cues == null -> result.exceptionOrNull()?.message ?: localizedSubtitleLinesLoadError()
+            cues.isEmpty() -> localizedNoSubtitleLinesFound()
+            else -> null
+        }
+        updateSubtitleAutoSyncState(secondary, current.copy(
+            cues = cues ?: current.cues,
+            isLoading = false,
+            errorMessage = error,
+        ))
     }
 }
 
-internal fun PlayerScreenRuntime.captureSubtitleAutoSyncTime() {
-    subtitleAutoSyncState = subtitleAutoSyncState.copy(
+internal fun PlayerScreenRuntime.captureSubtitleAutoSyncTime(secondary: Boolean = false) {
+    if (secondary) secondarySubtitles.cancelAutomaticSync = true
+    updateSubtitleAutoSyncState(secondary, subtitleAutoSyncState(secondary).copy(
         capturedPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L),
         errorMessage = null,
-    )
-    loadSubtitleAutoSyncCues()
+    ))
+    loadSubtitleAutoSyncCues(secondary = secondary)
 }
 
-internal fun PlayerScreenRuntime.applySubtitleAutoSyncCue(cue: SubtitleSyncCue) {
-    val capturedPositionMs = subtitleAutoSyncState.capturedPositionMs ?: return
+internal fun PlayerScreenRuntime.applySubtitleAutoSyncCue(cue: SubtitleSyncCue, secondary: Boolean = false) {
+    val capturedPositionMs = subtitleAutoSyncState(secondary).capturedPositionMs ?: return
     val newDelayMs = (capturedPositionMs - cue.startTimeMs - SUBTITLE_AUTO_SYNC_REACTION_COMPENSATION_MS)
         .toInt()
         .coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
-    setSubtitleDelay(newDelayMs)
+    if (secondary) setSecondarySubtitleDelay(newDelayMs) else setSubtitleDelay(newDelayMs)
 }

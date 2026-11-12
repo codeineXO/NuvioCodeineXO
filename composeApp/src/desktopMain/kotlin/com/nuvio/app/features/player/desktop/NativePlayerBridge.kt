@@ -100,6 +100,16 @@ internal object NativePlayerBridge {
     external fun selectAudioTrack(handle: Long, trackId: Int)
     external fun setAudioLanguages(handle: Long, languages: String)
     external fun selectSubtitleTrack(handle: Long, trackId: Int)
+    external fun selectSecondarySubtitle(handle: Long, trackId: Int, path: String): Boolean
+    external fun setSecondarySubtitleStyle(
+        handle: Long,
+        tags: String,
+        box: String,
+        fontsDir: String,
+        offset: Int,
+        delayMs: Int,
+        useLibass: Boolean,
+    )
     external fun setGlslShaders(handle: Long, shaders: String)
     external fun setAudioFilter(handle: Long, filter: String)
     external fun setVideoFilter(handle: Long, filter: String)

@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import nuvio.composeapp.generated.resources.compose_player_primary_subtitle
+import nuvio.composeapp.generated.resources.compose_player_secondary_subtitle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -97,7 +99,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
     }
     DisposableEffect(runtime) {
         SubtitleImportBridge.onImport = { file ->
-            runtime.importExternalSubtitle(file.path, file.name)
+            runtime.importSubtitleForSlot(file.path, file.name, runtime.secondarySubtitles.menu)
         }
         onDispose {
             SubtitleImportBridge.onImport = null
@@ -336,8 +338,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
     )
     val episodeStreamItems = buildPlayerControlEpisodeStreamItems()
     val playerControlAddonSubtitles = buildPlayerControlAddonSubtitleItems()
-    val playerControlSubtitleSelection = buildPlayerControlSubtitleSelection()
-    val playerControlAutoSyncCues = buildPlayerControlSubtitleCueItems()
+    BindSecondarySubtitles()
+    val secondarySubtitleSupported = playerController?.supportsSecondarySubtitles == true
+    val secondarySubtitleMenu = secondarySubtitleSupported && secondarySubtitles.menu
+    val controlSubtitleStyle = if (secondarySubtitleMenu) secondarySubtitles.style else subtitleStyle
+    val playerControlSubtitleSelection = buildPlayerControlSubtitleSelection(secondarySubtitleMenu)
+    val controlAutoSyncState = subtitleAutoSyncState(secondarySubtitleMenu)
+    val playerControlAutoSyncCues = buildPlayerControlSubtitleCueItems(controlAutoSyncState)
     val themeColors = MaterialTheme.nuvio.colors
     val selectedEpisodeLabel = episodeStreamsPanelState.selectedEpisode?.let { selected ->
         val selectedCode = selected.playerControlsEpisodeCode()
@@ -497,7 +504,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             subtitleFontImportFailed = result.isFailure
             result.getOrNull()?.let {
                 subtitleFontsRevision++
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(importedFontId = it.id))
+                if (secondarySubtitles.importingFont) {
+                    setSecondarySubtitleStyle(secondarySubtitles.style.copy(importedFontId = it.id))
+                } else {
+                    PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(importedFontId = it.id))
+                }
             }
         }
         LaunchedEffect(subtitleFontImportToken) {
@@ -747,16 +758,23 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         selectedAddonSubtitleId = selectedAddonSubtitleId.orEmpty(),
         useCustomSubtitles = useCustomSubtitles,
         subtitleAppearance = PlayerControlSubtitleAppearance(
-            style = subtitleStyle,
+            style = controlSubtitleStyle,
             customStyleLabel = stringResource(Res.string.compose_player_use_custom_styling),
             customStylingEnabled = !playerSettingsUiState.useLibass,
+            slots = PlayerControlSubtitleSlots(
+                supported = secondarySubtitleSupported,
+                secondarySelected = secondarySubtitleMenu,
+                secondaryActive = secondarySubtitles.active != null,
+                primaryLabel = stringResource(Res.string.compose_player_primary_subtitle),
+                secondaryLabel = stringResource(Res.string.compose_player_secondary_subtitle),
+            ),
         ),
-        subtitleDelayMs = subtitleDelayMs,
-        hasSelectedAddonSubtitle = selectedAddonSubtitle != null,
-        subtitleAutoSyncCapturedPositionMs = subtitleAutoSyncState.capturedPositionMs ?: -1L,
+        subtitleDelayMs = if (secondarySubtitleMenu) secondarySubtitles.preference?.delayMs ?: 0 else subtitleDelayMs,
+        hasSelectedAddonSubtitle = if (secondarySubtitleMenu) secondarySubtitles.active?.addon != null else selectedAddonSubtitle != null,
+        subtitleAutoSyncCapturedPositionMs = controlAutoSyncState.capturedPositionMs ?: -1L,
         subtitleAutoSyncCues = playerControlAutoSyncCues,
-        subtitleAutoSyncIsLoading = subtitleAutoSyncState.isLoading,
-        subtitleAutoSyncErrorMessage = subtitleAutoSyncState.errorMessage.orEmpty(),
+        subtitleAutoSyncIsLoading = controlAutoSyncState.isLoading,
+        subtitleAutoSyncErrorMessage = controlAutoSyncState.errorMessage.orEmpty(),
         closeModalsToken = playerControlsCloseModalsToken,
         submitIntroSuccessToken = playerControlsSubmitIntroSuccessToken,
         notificationMessage = playerNotificationMessage,
@@ -1458,7 +1476,14 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
     return true
 }
 
-internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: Double): Boolean {
+internal fun PlayerScreenRuntime.handlePlayerControlsEvent(rawType: String, value: Double): Boolean {
+    val secondary = rawType.startsWith("secondary:")
+    if (secondary && playerController?.supportsSecondarySubtitles != true) return false
+    val type = rawType.removePrefix("secondary:")
+    val controlSubtitleStyle = if (secondary) secondarySubtitles.style else subtitleStyle
+    fun setControlSubtitleStyle(style: SubtitleStyleState) {
+        if (secondary) setSecondarySubtitleStyle(style) else PlayerSettingsRepository.setSubtitleStyle(style)
+    }
     if (type.shouldLogPlayerControlsEvent()) {
         playerControlsLog.d { "event type=$type value=$value ${playerControlLogContext()}" }
     }
@@ -1630,6 +1655,9 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         "cancelP2pForPlayerControls" -> {
             playerControlsPendingP2pSwitch = null
         }
+        "subtitleSlot" -> {
+            secondarySubtitles.menu = value != 0.0 && playerController?.supportsSecondarySubtitles == true
+        }
         "subtitleTab" -> {
             activeSubtitleTab = when (value.toInt()) {
                 1 -> SubtitleTab.Addons
@@ -1639,6 +1667,12 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         }
         "selectBuiltInSubtitleTrack" -> {
             val index = value.toInt()
+            if (secondary) {
+                if (index < 0) chooseSecondarySubtitle(null)
+                else subtitleTracks.firstOrNull { it.index == index && it.index != selectedSubtitleIndex }
+                    ?.let { chooseSecondarySubtitle(SecondarySubtitleTarget(track = it)) }
+                return true
+            }
             val wasCustom = useCustomSubtitles
             playerControlsLog.d {
                 "selectBuiltInSubtitleTrack index=$index wasCustom=$wasCustom tracks=${subtitleTracks.size} ${playerControlLogContext()}"
@@ -1672,7 +1706,12 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         }
         "fetchAddonSubtitles" -> fetchAddonSubtitlesForActiveItem()
         "selectAddonSubtitle" -> {
-            val addon = visibleAddonSubtitles.getOrNull(value.toInt()) ?: return true
+            val subtitles = if (secondary) secondarySubtitleMenuAddons else visibleAddonSubtitles
+            val addon = subtitles.getOrNull(value.toInt()) ?: return true
+            if (secondary) {
+                if (addon.url != selectedAddonSubtitle?.url) chooseSecondarySubtitle(SecondarySubtitleTarget(addon = addon))
+                return true
+            }
             playerControlsLog.d {
                 "selectAddonSubtitle index=${value.toInt()} addonId=${addon.id} language=${addon.language} ${playerControlLogContext()}"
             }
@@ -1686,19 +1725,20 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
         }
         "importSubtitle" -> {
             val file = SubtitleImportPlatform.pickSubtitleFile()
-            if (file != null) {
-                importExternalSubtitle(file.path, file.name)
-            }
+            if (file != null) importSubtitleForSlot(file.path, file.name, secondary)
             true
         }
         "subtitleVisibility" -> playerController?.setSubtitleVisible(value != 0.0)
-        "subtitleDelayDelta" -> setSubtitleDelay((subtitleDelayMs + value.toInt()).coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS))
-        "subtitleDelayReset" -> setSubtitleDelay(0)
-        "subtitleAutoSyncCapture" -> captureSubtitleAutoSyncTime()
-        "subtitleAutoSyncReload" -> loadSubtitleAutoSyncCues(force = true)
+        "subtitleDelayDelta" -> {
+            if (secondary) setSecondarySubtitleDelay((secondarySubtitles.preference?.delayMs ?: 0) + value.toInt())
+            else setSubtitleDelay(subtitleDelayMs + value.toInt())
+        }
+        "subtitleDelayReset" -> if (secondary) setSecondarySubtitleDelay(0, manualOverride = false) else setSubtitleDelay(0)
+        "subtitleAutoSyncCapture" -> captureSubtitleAutoSyncTime(secondary)
+        "subtitleAutoSyncReload" -> loadSubtitleAutoSyncCues(force = true, secondary = secondary)
         "subtitleAutoSyncCue" -> {
-            val cue = playerControlsNearestSubtitleCues().getOrNull(value.toInt()) ?: return true
-            applySubtitleAutoSyncCue(cue)
+            val cue = subtitleAutoSyncState(secondary).nearestCues().getOrNull(value.toInt()) ?: return true
+            applySubtitleAutoSyncCue(cue, secondary)
         }
         "setShowRemainingTime" -> {
             PlayerSettingsRepository.setShowRemainingTime(value.toInt() == 1)
@@ -1707,49 +1747,50 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             PlayerSettingsRepository.setUseLibass(!playerSettingsUiState.useLibass)
         }
         "subtitleFontSizeDelta" -> {
-            PlayerSettingsRepository.setSubtitleStyle(
-                subtitleStyle.copy(fontSizeSp = (subtitleStyle.fontSizeSp + value.toInt()).coerceIn(subtitleFontSizeRangeSp)),
+            setControlSubtitleStyle(
+                controlSubtitleStyle.copy(fontSizeSp = (controlSubtitleStyle.fontSizeSp + value.toInt()).coerceIn(subtitleFontSizeRangeSp)),
             )
         }
         "subtitleOutlineToggle" -> {
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineEnabled = !subtitleStyle.outlineEnabled))
+            setControlSubtitleStyle(controlSubtitleStyle.copy(outlineEnabled = !controlSubtitleStyle.outlineEnabled))
         }
         "subtitleBoldToggle" -> {
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(bold = !subtitleStyle.bold))
+            setControlSubtitleStyle(controlSubtitleStyle.copy(bold = !controlSubtitleStyle.bold))
         }
         "subtitleBottomOffsetDelta" -> {
-            PlayerSettingsRepository.setSubtitleStyle(
-                subtitleStyle.copy(bottomOffset = (subtitleStyle.bottomOffset + value.toInt()).coerceIn(0, 200)),
+            setControlSubtitleStyle(
+                controlSubtitleStyle.copy(bottomOffset = (controlSubtitleStyle.bottomOffset + value.toInt()).coerceIn(0, 200)),
             )
         }
         "subtitleTextColor" -> {
             SubtitleColorSwatches.getOrNull(value.toInt())?.let { color ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = color.copy(alpha = subtitleStyle.textColor.alpha)))
+                setControlSubtitleStyle(controlSubtitleStyle.copy(textColor = color.copy(alpha = controlSubtitleStyle.textColor.alpha)))
             }
         }
         "subtitleTextColorRgb" -> {
             val rgb = value.toLong().toInt() and 0xFFFFFF
-            val color = Color(0xFF000000.toInt() or rgb).copy(alpha = subtitleStyle.textColor.alpha)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = color))
+            val color = Color(0xFF000000.toInt() or rgb).copy(alpha = controlSubtitleStyle.textColor.alpha)
+            setControlSubtitleStyle(controlSubtitleStyle.copy(textColor = color))
         }
         "subtitleOutlineColor" -> {
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectSwatch(value.toInt()))
+            setControlSubtitleStyle(controlSubtitleStyle.withEffectSwatch(value.toInt()))
         }
         "subtitleBackgroundColor" -> {
             SubtitleColorSwatches.getOrNull(value.toInt())?.let { color ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(backgroundColor = color.copy(alpha = subtitleStyle.backgroundColor.alpha)))
+                setControlSubtitleStyle(controlSubtitleStyle.copy(backgroundColor = color.copy(alpha = controlSubtitleStyle.backgroundColor.alpha)))
             }
         }
         "subtitleBackgroundOpacity" -> {
-            if (subtitleStyle.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectOpacity(value.toInt()))
+            if (controlSubtitleStyle.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX) {
+                setControlSubtitleStyle(controlSubtitleStyle.withEffectOpacity(value.toInt()))
             }
         }
         "subtitleFont" -> {
             val fonts = subtitleFontIds()
-            fonts.getOrNull(value.toInt())?.let { PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.selectFont(it)) }
+            fonts.getOrNull(value.toInt())?.let { setControlSubtitleStyle(controlSubtitleStyle.selectFont(it)) }
         }
         "subtitleFontImport" -> {
+            secondarySubtitles.importingFont = secondary
             subtitleFontImportFailed = false
             subtitleFontImportToken++
         }
@@ -1761,55 +1802,58 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
                 if (subtitleStyle.importedFontId == font.id) {
                     PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(importedFontId = null))
                 }
+                if (secondarySubtitles.style.importedFontId == font.id) {
+                    setSecondarySubtitleStyle(secondarySubtitles.style.copy(importedFontId = null))
+                }
             }
         }
         "subtitleOutlineColorRgb" -> {
             val rgb = value.toLong().toInt() and 0xFFFFFF
             val color = Color(0xFF000000.toInt() or rgb)
-            PlayerSettingsRepository.setSubtitleStyle(
-                subtitleStyle.withEffectColor(color),
+            setControlSubtitleStyle(
+                controlSubtitleStyle.withEffectColor(color),
             )
         }
         "subtitleOutlineOpacity" -> {
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.withEffectOpacity(value.toInt()))
+            setControlSubtitleStyle(controlSubtitleStyle.withEffectOpacity(value.toInt()))
         }
         "subtitleTextOpacity" -> {
             val alpha = (value.toFloat() / 100f).coerceIn(0f, 1f)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(textColor = subtitleStyle.textColor.copy(alpha = alpha)))
+            setControlSubtitleStyle(controlSubtitleStyle.copy(textColor = controlSubtitleStyle.textColor.copy(alpha = alpha)))
         }
         "subtitleFontDelta" -> {
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.cycleFont(value.toInt()))
+            setControlSubtitleStyle(controlSubtitleStyle.cycleFont(value.toInt()))
         }
         "subtitleFontIndex" -> {
             subtitleFontIds().getOrNull(value.toInt())?.let { font ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.selectFont(font))
+                setControlSubtitleStyle(controlSubtitleStyle.selectFont(font))
             }
         }
         "subtitleOutlineEffectDelta" -> {
             val effects = SubtitleOutlineEffect.entries
-            val currentIndex = effects.indexOf(subtitleStyle.outlineEffect).coerceAtLeast(0)
+            val currentIndex = effects.indexOf(controlSubtitleStyle.outlineEffect).coerceAtLeast(0)
             val delta = value.toInt()
             val nextIndex = (currentIndex + delta).mod(effects.size)
-            PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineEffect = effects[nextIndex]))
+            setControlSubtitleStyle(controlSubtitleStyle.copy(outlineEffect = effects[nextIndex]))
         }
         "subtitleOutlineEffectIndex" -> {
             SubtitleOutlineEffect.entries.getOrNull(value.toInt())?.let { effect ->
-                PlayerSettingsRepository.setSubtitleStyle(subtitleStyle.copy(outlineEffect = effect))
+                setControlSubtitleStyle(controlSubtitleStyle.copy(outlineEffect = effect))
             }
         }
         "subtitleOutlineThickness" -> {
-            val currentStyle = PlayerSettingsRepository.uiState.value.subtitleStyle
+            val currentStyle = controlSubtitleStyle
             val thickness = normalizeSubtitleOutlineWidth(value.toFloat())
-            PlayerSettingsRepository.setSubtitleStyle(currentStyle.copy(outlineWidth = thickness))
+            setControlSubtitleStyle(currentStyle.copy(outlineWidth = thickness))
         }
         "subtitleOutlineThicknessDelta" -> {
-            val currentStyle = PlayerSettingsRepository.uiState.value.subtitleStyle
+            val currentStyle = controlSubtitleStyle
             if (currentStyle.outlineEffect.needsOutline) {
                 val thickness = stepSubtitleOutlineWidth(currentStyle.outlineWidth, value.toInt())
-                PlayerSettingsRepository.setSubtitleStyle(currentStyle.copy(outlineWidth = thickness))
+                setControlSubtitleStyle(currentStyle.copy(outlineWidth = thickness))
             }
         }
-        "subtitleStyleReset" -> PlayerSettingsRepository.setSubtitleStyle(SubtitleStyleState.DEFAULT)
+        "subtitleStyleReset" -> setControlSubtitleStyle(if (secondary) DefaultSecondarySubtitleStyle else SubtitleStyleState.DEFAULT)
         "showParentalGuide" -> {
             if (playerSettingsUiState.showParentalGuide && parentalWarnings.isNotEmpty() &&
                 !showParentalGuide && !playerControlsLocked
@@ -2230,26 +2274,32 @@ private data class PlayerControlSubtitleSelection(
 )
 
 @Composable
-private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerControlSubtitleSelection {
+private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(secondary: Boolean): PlayerControlSubtitleSelection {
     val autoSyncedUrl by AutoSyncSyncedSubtitle.url.collectAsState()
-    val selectedAddon = selectedAddonSubtitle
+    val selectedAddon = if (secondary) secondarySubtitles.active?.addon else selectedAddonSubtitle
+    val selectedSubtitleIndex = if (secondary) secondarySubtitles.active?.track?.index ?: -1 else selectedSubtitleIndex
+    val availableTracks = if (secondary) subtitleTracks.filter { it.index != this.selectedSubtitleIndex } else subtitleTracks
+    val visibleAddons = if (secondary) secondarySubtitleMenuAddons else visibleAddonSubtitles
+    val availableAddons = if (secondary) {
+        visibleAddons.filter { it.url != selectedAddonSubtitle?.url }
+    } else visibleAddons
     var selectedLanguageKey = "__off__"
     var selectedOptionId = ""
     if (selectedAddon != null || selectedSubtitleIndex != -1) {
         selectedLanguageKey = selectedSubtitleLanguageKey(
-            subtitleTracks = subtitleTracks,
+            subtitleTracks = availableTracks,
             selectedSubtitleIndex = selectedSubtitleIndex,
             selectedAddonSubtitle = selectedAddon,
         )
         selectedOptionId = selectedSubtitleOptionId(
-            subtitleTracks = subtitleTracks,
+            subtitleTracks = availableTracks,
             selectedSubtitleIndex = selectedSubtitleIndex,
             selectedAddonSubtitle = selectedAddon,
         ).orEmpty()
     }
     val languageItems = buildSubtitleLanguageItems(
-        subtitleTracks = subtitleTracks,
-        addonSubtitles = visibleAddonSubtitles,
+        subtitleTracks = availableTracks,
+        addonSubtitles = availableAddons,
         preferredLanguage = playerSettingsUiState.preferredSubtitleLanguage,
         secondaryPreferredLanguage = playerSettingsUiState.secondaryPreferredSubtitleLanguage,
         showOnlyPreferredLanguages = subtitleStyle.showOnlyPreferredLanguages,
@@ -2277,8 +2327,8 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
     val options = languageItems.flatMap { language ->
         buildSubtitleSelectionOptions(
             languageKey = language.key,
-            subtitleTracks = subtitleTracks,
-            addonSubtitles = visibleAddonSubtitles,
+            subtitleTracks = availableTracks,
+            addonSubtitles = availableAddons,
         ).map { option ->
             when (option) {
                 is SubtitleSelectionOption.BuiltIn -> PlayerControlSubtitleOptionItem(
@@ -2303,14 +2353,15 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
                         id = option.id,
                         languageKey = language.key,
                         kind = "addon",
-                        index = visibleAddonSubtitles.indexOf(option.subtitle).coerceAtLeast(0),
+                        index = visibleAddons.indexOf(option.subtitle),
                         sourceLabel = if (isImported) importedLabel else (option.subtitle.addonName ?: addonLabel),
                         title = title,
                         metadata = if (isImported) "" else option.subtitle.display.takeIf {
                             it.isNotBlank() && it != title
                         }.orEmpty(),
                         isSelected = option.id == selectedOptionId,
-                        isAutoSynced = option.id == selectedOptionId && option.subtitle.url == autoSyncedUrl,
+                        isAutoSynced = option.id == selectedOptionId &&
+                            option.subtitle.url == (if (secondary) secondarySubtitles.syncedUrl else autoSyncedUrl),
                     )
                 }
             }
@@ -2324,8 +2375,8 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(): PlayerCon
     )
 }
 
-private fun PlayerScreenRuntime.buildPlayerControlSubtitleCueItems(): List<PlayerControlSubtitleCueItem> =
-    playerControlsNearestSubtitleCues().mapIndexed { index, cue ->
+private fun buildPlayerControlSubtitleCueItems(state: SubtitleAutoSyncUiState): List<PlayerControlSubtitleCueItem> =
+    state.nearestCues().mapIndexed { index, cue ->
         PlayerControlSubtitleCueItem(
             index = index,
             timeMs = cue.startTimeMs,
@@ -2334,10 +2385,10 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleCueItems(): List<Playe
         )
     }
 
-private fun PlayerScreenRuntime.playerControlsNearestSubtitleCues(): List<SubtitleSyncCue> {
-    val capturedPositionMs = subtitleAutoSyncState.capturedPositionMs ?: return emptyList()
-    return subtitleAutoSyncState.cues
-        .sortedBy { abs(it.startTimeMs - capturedPositionMs) }
+private fun SubtitleAutoSyncUiState.nearestCues(): List<SubtitleSyncCue> {
+    val position = capturedPositionMs ?: return emptyList()
+    return cues
+        .sortedBy { abs(it.startTimeMs - position) }
         .take(5)
 }
 
@@ -2770,7 +2821,16 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
     }
 }
 
-internal fun PlayerScreenRuntime.importExternalSubtitle(path: String, fileName: String) {
+private fun PlayerScreenRuntime.importSubtitleForSlot(path: String, fileName: String, secondary: Boolean) {
+    if (secondary && playerController?.supportsSecondarySubtitles == true) {
+        val imported = rememberImportedSubtitle(path, fileName)
+        chooseSecondarySubtitle(SecondarySubtitleTarget(addon = imported))
+    } else {
+        importExternalSubtitle(path, fileName)
+    }
+}
+
+private fun PlayerScreenRuntime.rememberImportedSubtitle(path: String, fileName: String): AddonSubtitle {
     val cleanName = fileName.substringBeforeLast('.')
     val imported = AddonSubtitle(
         id = "imported:${cleanName}:${path.hashCode()}",
@@ -2779,13 +2839,18 @@ internal fun PlayerScreenRuntime.importExternalSubtitle(path: String, fileName: 
         addonName = "Imported",
         display = cleanName,
     )
-    importedSubtitles = (importedSubtitles.filter { it.url != path } + imported)
+    importedSubtitles = importedSubtitles.filter { it.url != path } + imported
+    return imported
+}
+
+internal fun PlayerScreenRuntime.importExternalSubtitle(path: String, fileName: String) {
+    val imported = rememberImportedSubtitle(path, fileName)
     isUserExplicitSubtitleSelection = true
     selectedAddonSubtitleId = imported.id
     selectedSubtitleIndex = -1
     useCustomSubtitles = true
     preferredSubtitleSelectionApplied = true
     attachSelectedAddonSubtitleWithAutoSync(imported.url)
-    playerNotificationMessage = "Imported: $cleanName"
+    playerNotificationMessage = "Imported: ${imported.display}"
     playerNotificationToken += 1L
 }
