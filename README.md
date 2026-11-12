@@ -3,7 +3,7 @@
   <h1>NuvioCodeineXO Desktop</h1>
   
   <p>
-    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, TV Style keyboard navigation, watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback .
+    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling, mobile remote, keyboard navigation, watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback .
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
@@ -41,11 +41,13 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ### 🎨 Subtitle Customizations
 * **Granular Subtitle Styling:** Custom hex color picker for text, outline, and background box (with adjustable box opacity).
 * **Typography & Outline Styles:** 10 curated clean fonts (and custom fonts), outline thickness modifier, and selectable outline effects (`Classic Outline`, `Glow`, `Halo`, `Background Box`, and `None`).
-* **Import External Subtitles:** Option to import external subtitle of choice. 
+* **Import External Subtitles:** Option to import external subtitle of choice.
+* **Dual Subtitles:** Select a secondary subtitle above primary subtitle for whatever reason.  
 
 ### ✨ Visuals, UX & Settings
 * **CodeineXO Aura & Frosted Glass Aesthetics:** Ambient interactive background glow with frosted glass styling across panels, cards and surfaces.
-* **Redesigned the Sidebar:** Floating sidebar with frosted glass style. 
+* **Redesigned the Sidebar:** Floating sidebar with frosted glass style.
+* **Mobile Remote:** Use your phone a remote for navigating the app and controlling playback. 
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
 * **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
