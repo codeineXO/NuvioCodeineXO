@@ -30,7 +30,7 @@ internal val desktopNavigationHiddenPointerIcon: PointerIcon by lazy {
     ))
 }
 
-private fun Component.composeInputComponent(): Component? {
+internal fun Component.composeInputComponent(): Component? {
     if (this is ComposePanel || this is SkiaLayer) return this
     return (this as? Container)?.components?.firstNotNullOfOrNull { it.composeInputComponent() }
 }

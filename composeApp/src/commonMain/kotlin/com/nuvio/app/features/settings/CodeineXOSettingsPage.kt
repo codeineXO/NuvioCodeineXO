@@ -1006,6 +1006,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
     if (section == null) {
     if (isDesktop) {
         item { DownloadLocationSettings(isTablet) }
+        item { RemoteSettings(isTablet) }
     }    }
 
 }

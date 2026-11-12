@@ -97,6 +97,7 @@ fun main(args: Array<String>) {
     // Load cached profile data synchronously so the profile color is available
     // on the very first Compose frame (matching Android's SharedPreferences behavior).
     com.nuvio.app.features.downloads.DesktopDownloadLocation.install()
+    com.nuvio.app.features.remote.DesktopRemoteServer.install()
     ProfileRepository.loadCachedProfiles()
     AppIconRepository.ensureLoaded()
     AutoSyncPreferencesDesktop.initialize()

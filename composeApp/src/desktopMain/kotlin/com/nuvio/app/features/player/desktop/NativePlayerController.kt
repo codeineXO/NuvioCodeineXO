@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.player.AnimeShaderProvider
 import com.nuvio.app.features.player.EyeFilterShaderProvider
+import com.nuvio.app.features.remote.RemotePlayerLink
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AnimeUpscalerOption
 import com.nuvio.app.features.player.MediaContentType
@@ -64,6 +65,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.awt.Component
@@ -632,6 +634,7 @@ internal class NativePlayerController(
         )
         currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
         controlsState = stateWithEnhancements
+        RemotePlayerLink.publish(this, stateWithEnhancements)
         val isBwActive = stateWithEnhancements.eyeFilterEnabled &&
             (stateWithEnhancements.eyeFilterColor.equals("BW", ignoreCase = true) || stateWithEnhancements.eyeFilterColor.equals("#BW", ignoreCase = true))
         val isGrainActive = PlayerSettingsRepository.uiState.value.grainFilterEnabled
@@ -656,9 +659,43 @@ internal class NativePlayerController(
                 "speed=${stateWithEnhancements.playbackSpeedLabel} audioLabel=${stateWithEnhancements.audioLabel} " +
                 "subsLabel=${stateWithEnhancements.subtitlesLabel} fullscreen=$isFullscreen"
         }
-        NativePlayerBridge.updateControls(current, stateWithEnhancements.toControlsJson(isFullscreen, ::refreshControlsForImage))
+        val stateToSend = stateWithEnhancements.copy(
+            closeModalsToken = stateWithEnhancements.closeModalsToken + remoteCloseCount,
+        )
+        val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage)
+            .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount}"
+        NativePlayerBridge.updateControls(current, controlsJson)
         if (wasMiniPlayer && !state.isMiniPlayer) {
             requestKeyboardFocus()
+        }
+    }
+
+    /** Each phone remote "close" bumps the token the controls page watches to close its open panel. */
+    private var remoteCloseCount = 0L
+
+    /** A control message from the phone remote, handled like one from the on-screen controls. */
+    fun remoteEvent(type: String, value: Double) {
+        SwingUtilities.invokeLater { handlePlayerEvent(type, value) }
+    }
+
+    fun closeRemotePanels() {
+        SwingUtilities.invokeLater {
+            remoteCloseCount++
+            lastSentControlsStructureKey = null
+            updateControls(controlsState)
+        }
+    }
+
+    /** The phone remote clicks the on-screen control with this element id, e.g. to open its panel. */
+    private var remoteClickTarget = ""
+    private var remoteClickCount = 0L
+
+    fun remoteClick(elementId: String) {
+        SwingUtilities.invokeLater {
+            remoteClickTarget = elementId
+            remoteClickCount++
+            lastSentControlsStructureKey = null
+            updateControls(controlsState)
         }
     }
 
@@ -1364,6 +1401,7 @@ internal class NativePlayerController(
             }
         }
         if (!accepted) return
+        RemotePlayerLink.clear(this)
         host.onPeerReady = null
         cancelInFlightSubtitleDownload()
         statsJob?.cancel()
@@ -1383,6 +1421,7 @@ internal class NativePlayerController(
     }
 
     private fun invalidateForRelease() {
+        RemotePlayerLink.clear(this)
         cancelPendingAttachment()
         cancelInFlightSubtitleDownload()
         statsJob?.cancel()

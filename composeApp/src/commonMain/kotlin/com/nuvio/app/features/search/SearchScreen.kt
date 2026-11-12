@@ -202,6 +202,15 @@ fun SearchScreen(
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var resultGeneration by rememberSaveable { mutableStateOf(0) }
+    // Text typed on the phone remote goes into this field, as if typed here.
+    LaunchedEffect(Unit) {
+        com.nuvio.app.features.remote.RemoteAppBridge.searchQuery.collect { remoteQuery ->
+            if (remoteQuery != null) {
+                query = remoteQuery
+                com.nuvio.app.features.remote.RemoteAppBridge.consumeSearchQuery()
+            }
+        }
+    }
     val discoverFiltersFocus = remember { RemoteNavigationFocusDestination() }
     val discoverPosterFocus = remember { RemoteNavigationFocusDestination() }
     val showRecent = query.isBlank() && (isDesktop || isSearchFocused || isRecentSearchesFocused) && recentSearches.isNotEmpty()

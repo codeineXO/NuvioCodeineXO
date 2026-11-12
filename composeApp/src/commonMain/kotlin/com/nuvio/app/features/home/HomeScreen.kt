@@ -603,6 +603,10 @@ fun HomeScreen(
         )
     }
     val hasContinueWatchingRows = continueWatchingItems.isNotEmpty() || upcomingItems.isNotEmpty()
+    // The phone remote shows the same Continue Watching row.
+    LaunchedEffect(continueWatchingItems) {
+        com.nuvio.app.features.remote.RemoteAppBridge.publishContinueWatching(continueWatchingItems)
+    }
 
     LaunchedEffect(activeProfileId) {
         hasUserScrolledContinueWatching = false

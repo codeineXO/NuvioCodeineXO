@@ -1245,6 +1245,8 @@ kotlin {
                 }
                 implementation(libs.kotlinx.coroutines.swing)
                 implementation(libs.ktor.client.cio)
+                implementation(libs.ktor.server.cio)
+                implementation(libs.ktor.server.websockets)
                 implementation("com.squareup.okhttp3:okhttp:4.12.0")
                 implementation(libs.quickjs.kt)
                 implementation(libs.ksoup)

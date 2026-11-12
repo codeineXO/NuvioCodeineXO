@@ -1,0 +1,1444 @@
+<!doctype html>
+<html lang="en" class="mocha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#181825">
+<title>Nuvio Remote</title>
+<link rel="stylesheet" href="/cuppa.css">
+<script>
+  // The cuppa theme: flavor (Auto follows the phone), accent and corner radius, set before first paint.
+  (() => {
+    const FLAVORS = ['latte', 'frappe', 'macchiato', 'mocha'];
+    const RADII = { tight: 0.55, apple: 1, soft: 1.5 };
+    const dark = matchMedia('(prefers-color-scheme: dark)');
+    const get = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } };
+    window.theme = {
+      ACCENTS: ['rosewater', 'flamingo', 'pink', 'mauve', 'red', 'peach', 'yellow', 'green', 'teal', 'sky', 'blue', 'lavender'],
+      set(key, value) { try { localStorage.setItem(key, value); } catch (_) {} this.apply(); },
+      apply() {
+        const flavor = get('ui-flavor', 'auto'), accent = get('ui-accent', 'lavender'), radius = get('ui-radius', 'apple');
+        const shown = flavor === 'auto' ? (dark.matches ? 'mocha' : 'latte') : flavor;
+        const root = document.documentElement;
+        FLAVORS.forEach((f) => root.classList.toggle(f, f === shown));
+        root.style.setProperty('--accent', `var(--ctp-${accent})`);
+        root.style.setProperty('--r-scale', RADII[radius] || 1);
+        document.querySelectorAll('[data-flavor]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.flavor === flavor));
+        document.querySelectorAll('[data-radius]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.radius === radius));
+        document.querySelectorAll('[data-accent]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.accent === accent));
+      },
+    };
+    theme.apply();
+    dark.addEventListener('change', () => theme.apply());
+  })();
+</script>
+<style>
+  /* The remote's own pieces: the page shell, the D-pad, the player bar. Tokens only, from cuppa.css. */
+  html, body { min-height: 100%; }
+  body { background: transparent; /* html paints the page colour, so the blurred artwork can sit between */
+    max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; user-select: none; -webkit-user-select: none;
+    touch-action: manipulation; overscroll-behavior: none;
+    padding: calc(env(safe-area-inset-top) + 12px) max(16px, env(safe-area-inset-right))
+      calc(env(safe-area-inset-bottom) + 16px) max(16px, env(safe-area-inset-left)); min-height: 100dvh; }
+  header { display: flex; align-items: center; gap: 10px; }
+  header h1 { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .status { flex: none; white-space: nowrap; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ctp-red); }
+  .status.on .dot { background: var(--ctp-green); }
+  main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; }
+  .line { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .ic { width: 24px; height: 24px; fill: currentColor; flex: none; }
+
+  /* D-pad */
+  .dpad { position: relative; width: min(80vw, 55dvh, 320px); aspect-ratio: 1; border-radius: 50%; background: var(--ctp-base); }
+  .dpad button { position: absolute; display: grid; place-items: center; color: var(--ctp-subtext0); transition: color 0.15s; }
+  .dpad button.pressed { color: var(--accent); }
+  .dpad .line { width: 36px; height: 36px; }
+  .dpad .arrow { width: 34%; height: 34%; }
+  .up { top: 0; left: 33%; } .down { bottom: 0; left: 33%; } .left { left: 0; top: 33%; } .right { right: 0; top: 33%; }
+  .dpad .ok { width: 38%; height: 38%; left: 31%; top: 31%; border-radius: 50%; background: var(--ctp-surface0);
+    color: var(--ctp-text); font-size: 20px; font-weight: 600; transition: transform 0.15s var(--ease); }
+  .dpad .ok.pressed { transform: scale(0.95); background: var(--ctp-surface1); color: var(--ctp-text); }
+  .round { width: 64px; height: 64px; border-radius: 50%; background: var(--ctp-surface0); display: grid; place-items: center; }
+  .round.pressed { background: var(--ctp-surface1); }
+
+  /* Browsing: Home's hero and rows, Search, and the sidebar as a tab bar. */
+  .btn[aria-pressed="true"] { background: var(--accent); color: var(--ctp-crust); }
+  .browse { justify-content: flex-start; align-items: stretch; gap: 22px; width: 100%; }
+  body:has(#tabbar:not([hidden])) { padding-bottom: calc(env(safe-area-inset-bottom) + 84px); }
+  .tabbar { position: fixed; z-index: 5; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom) + 10px); display: flex; gap: 2px; padding: 6px;
+    border-radius: 9999px; background: color-mix(in srgb, var(--ctp-base) 88%, transparent);
+    backdrop-filter: blur(20px); box-shadow: var(--shadow-3); }
+  .tab { min-width: 60px; height: 52px; padding-inline: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; border-radius: 9999px; font-size: 11px; font-weight: 500; color: var(--ctp-subtext0); transition: background-color 0.2s, color 0.2s; }
+  .tab .line { width: 22px; height: 22px; }
+  .tab[aria-selected="true"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .pc-note { text-align: center; }
+
+  .hero-strip, .row-scroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
+  .hero-strip::-webkit-scrollbar, .row-scroll::-webkit-scrollbar { display: none; }
+  .hero-card { position: relative; flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 4 / 5; max-height: 62dvh;
+    overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0); text-align: left; }
+  .hero-card img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .hero-card .shade { position: absolute; inset: 0;
+    background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 10%, transparent 65%); }
+  .hero-card .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .hero-card .logo { max-width: 75%; max-height: 72px; object-fit: contain; object-position: left bottom; }
+  .hero-card .meta-line { font-size: 13px; color: var(--ctp-subtext1); }
+  .hero-card .rating { color: var(--ctp-yellow); font-weight: 700; }
+  .hero-card .desc { font-size: 15px; color: var(--ctp-subtext1); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+  .hero-card .btn { align-self: flex-start; background: var(--ctp-text); color: var(--ctp-crust); }
+
+  .rows { display: flex; flex-direction: column; gap: 22px; }
+  .row-title { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
+  .tile { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; gap: 6px; text-align: left; transition: transform 0.15s var(--ease); }
+  .tile:active { transform: scale(0.96); }
+  .tile .art { position: relative; overflow: hidden; border-radius: calc(var(--r-ctl) + 2px); background: var(--ctp-surface0); }
+  .tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile.poster { width: 34vw; max-width: 140px; }
+  .tile.poster .art { aspect-ratio: 2 / 3; }
+  .tile.landscape { width: 70vw; max-width: 300px; }
+  .tile.landscape .art { aspect-ratio: 16 / 9; }
+  .tile .name { font-size: 13px; color: var(--ctp-subtext1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .time-left { position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    background: color-mix(in srgb, var(--ctp-crust) 80%, transparent); }
+  .tile .resume { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 12px 10px;
+    background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 90%, transparent), transparent); }
+  .tile .resume small { display: block; font-size: 12px; font-weight: 600; color: var(--accent); }
+  .tile .resume b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .bar { height: 4px; margin-top: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--ctp-text) 25%, transparent); overflow: hidden; }
+  .tile .bar i { display: block; height: 100%; background: var(--accent); }
+
+  .search-box { display: flex; align-items: center; gap: 10px; height: 48px; padding-inline: 14px; border-radius: var(--r-ctl);
+    background: var(--ctp-surface0); color: var(--ctp-subtext0); }
+  .search-box input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ctp-text); font: inherit; font-size: 17px; }
+  @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
+    .hero-card { flex-basis: 100%; aspect-ratio: 21 / 9; max-height: 60dvh; }
+    .tile.poster { width: 140px; }
+    .tile.landscape { width: 280px; }
+  }
+
+  /* A screen slides in when the PC moves to it, so the phone follows along. */
+  @keyframes view-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  main:not([hidden]) { animation: view-in 0.35s var(--ease); }
+
+  /* Details and Sources */
+  .page-bar { display: flex; align-items: center; gap: 8px; }
+  .grow { flex: 1; }
+  .detail-hero, .stream-hero { position: relative; overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0);
+    aspect-ratio: 4 / 3; max-height: 46dvh; }
+  .stream-hero { aspect-ratio: 16 / 7; }
+  .detail-hero > img, .stream-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .detail-hero .shade, .stream-hero .shade { position: absolute; inset: 0;
+    background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 8%, transparent 70%); }
+  .detail-hero .info, .stream-hero .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .detail-hero .logo, .stream-hero .logo { max-width: 75%; max-height: 80px; object-fit: contain; object-position: left bottom; }
+  .stream-hero .logo { max-height: 56px; }
+  .meta-line { font-size: 13px; color: var(--ctp-subtext1); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .meta-line .tag { padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ctp-overlay0); }
+  .meta-line .score b { color: var(--ctp-yellow); }
+  .genres { color: var(--ctp-text); font-weight: 600; }
+  .detail-actions { display: flex; gap: 10px; }
+  .detail-actions .btn-filled { flex: 1; background: var(--ctp-text); color: var(--ctp-crust); }
+  .detail-actions .btn-filled .ic { width: 18px; height: 18px; }
+  .episodes { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .episode { display: flex; gap: 12px; text-align: left; padding: 8px; border-radius: var(--r-card); background: var(--ctp-base);
+    transition: transform 0.15s var(--ease); }
+  .episode:active { transform: scale(0.98); }
+  .episode .thumb { position: relative; flex: none; width: 40%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-ctl); background: var(--ctp-surface0); }
+  .episode .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .episode .thumb .code { position: absolute; left: 6px; bottom: 6px; padding: 1px 6px; border-radius: 6px; font-size: 12px; font-weight: 700;
+    background: color-mix(in srgb, var(--ctp-crust) 80%, transparent); }
+  .episode .copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .episode .copy b { font-size: 15px; }
+  .episode .copy p { margin: 0; font-size: 13px; color: var(--ctp-subtext0); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .episode .copy small { font-size: 12px; color: var(--ctp-subtext0); }
+  .stream-list { display: flex; flex-direction: column; gap: 10px; }
+  .stream-list .addon { margin: 8px 4px 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ctp-subtext0); }
+  .stream-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px 16px; border-radius: var(--r-card);
+    background: var(--ctp-base); transition: transform 0.15s var(--ease); }
+  .stream-card:active { transform: scale(0.98); background: var(--ctp-surface0); }
+  .stream-card b { font-size: 16px; }
+  .stream-card .sub { white-space: pre-line; font-size: 13px; color: var(--ctp-subtext1); }
+  .stream-card .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  #remote-back { margin-top: -12px; }
+
+  /* Loading: skeletons shaped like the page while it loads, spinners for actions */
+  .home-skeleton, .detail-skeleton { display: flex; flex-direction: column; gap: 14px; }
+  .sk-row { display: flex; gap: 12px; overflow: hidden; }
+  .sk-hero { aspect-ratio: 4 / 5; max-height: 62dvh; border-radius: var(--r-card); }
+  .sk-title { width: 45%; height: 20px; margin-top: 8px; }
+  .sk-wide { flex: 0 0 70%; aspect-ratio: 16 / 9; }
+  .sk-poster { flex: 0 0 34%; aspect-ratio: 2 / 3; }
+  .sk-detail { aspect-ratio: 4 / 3; max-height: 46dvh; border-radius: var(--r-card); }
+  .sk-line { height: 14px; } .sk-line.short { width: 60%; }
+  .sk-button { height: 44px; }
+  .sk-chip { width: 96px; height: 32px; border-radius: 9999px; }
+  .sk-episode { height: 92px; border-radius: var(--r-card); }
+  #details.is-loading > :not(.page-bar):not(#d-skeleton) { display: none; }
+  #details:not(.is-loading) #d-skeleton { display: none; }
+  .status .spin-ring { display: none; }
+  .status:not(.on) .spin-ring { display: block; }
+  .status:not(.on) .dot { display: none; }
+  .addon-loading { display: flex; align-items: center; gap: 8px; }
+  .resume-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+    padding: 10px 12px; border-radius: var(--r-card); background: color-mix(in srgb, var(--ctp-base) 85%, transparent); }
+  .resume-bar > span { font-size: 15px; font-weight: 600; }
+  /* The switch fills the card; each side as wide as its own label, so it never runs off the screen. */
+  .resume-bar .seg { display: flex; width: 100%; }
+  .resume-bar .seg button { flex: 1 1 auto; min-width: 0; padding-inline: 10px; white-space: nowrap; }
+  /* Source names and details often hold file names with no spaces (…WEB.H265-SUPPLY.mkv): let them wrap anywhere. */
+  .stream-card, .stream { min-width: 0; max-width: 100%; }
+  .stream-card b, .stream-card .sub, .stream .top, .stream .sub { overflow-wrap: anywhere; word-break: break-word; }
+  .stream .top { flex-wrap: wrap; }
+
+  /* Playing screen: artwork first, then the controls. */
+  #player { width: 100%; justify-content: flex-start; gap: 20px; }
+  /* The artwork, blurred and dimmed behind the whole page. */
+  .backdrop { position: fixed; inset: 0; z-index: -1; background: center / cover no-repeat var(--art, none);
+    filter: blur(48px) saturate(1.2); transform: scale(1.3); opacity: 0; transition: opacity 0.5s var(--ease); }
+  /* The accent over the artwork: the artwork keeps its light and shape, the accent gives it its colour. */
+  .backdrop::after { content: ""; position: absolute; inset: 0; background: var(--accent); mix-blend-mode: color; opacity: 0.85; }
+  body:has(#player:not([hidden])) .backdrop.on { opacity: 0.4; }
+  .latte body:has(#player:not([hidden])) .backdrop.on { opacity: 0.3; }
+
+  .hero { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-card);
+    background: var(--ctp-surface0); box-shadow: var(--shadow-3); }
+  .hero > img#art { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.5s var(--ease); }
+  .hero > img#art.on { opacity: 1; }
+  .hero .shade { position: absolute; inset: 0;
+    background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 85%, transparent), transparent 60%); }
+  .hero .logo { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: 70%; max-height: 38%;
+    object-fit: contain; filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--ctp-crust) 80%, transparent)); }
+  .hero-title { position: absolute; left: 16px; right: 16px; bottom: 12px; margin: 0; text-align: center; color: var(--ctp-text); }
+  .meta { width: 100%; display: flex; flex-direction: column; gap: 4px; }
+  .ep-info { color: var(--accent); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .synopsis { text-align: left; color: var(--ctp-subtext1); display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3; overflow: hidden; }
+  .synopsis.open { -webkit-line-clamp: unset; }
+
+  .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card);
+    background: color-mix(in srgb, var(--ctp-base) 80%, transparent); backdrop-filter: blur(20px); }
+  .seek { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ctp-subtext0); font-variant-numeric: tabular-nums; }
+  .transport { display: flex; align-items: center; justify-content: center; gap: 28px; }
+  .play { width: 72px; height: 72px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent); color: var(--ctp-crust); transition: transform 0.15s var(--ease); }
+  .play:active, .skip:active { transform: scale(0.92); }
+  .play .ic { width: 30px; height: 30px; }
+  .skip { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; color: var(--ctp-text);
+    transition: transform 0.15s var(--ease); }
+  .skip .ic { width: 30px; height: 30px; }
+  .volume { display: flex; align-items: center; gap: 10px; color: var(--ctp-subtext0); }
+  .volume output { width: 44px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .tools { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: 100%; }
+  .tool { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--ctp-subtext0); white-space: nowrap; }
+  .tool > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%;
+    background: color-mix(in srgb, var(--ctp-surface0) 80%, transparent); color: var(--ctp-text); transition: transform 0.15s var(--ease); }
+  .tool:active > span { transform: scale(0.92); background: var(--ctp-surface1); }
+  .tool .ic { width: 22px; height: 22px; }
+  .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .media { gap: 14px; }
+  .hero { max-height: 36dvh; }
+
+  /* ─── Responsive ─── */
+  /* Small phones (iPhone SE, mini): tighter transport, the tools on two rows so the labels fit. */
+  @media (max-width: 374px) {
+    body { gap: 12px; }
+    .transport { gap: 16px; }
+    .play { width: 64px; height: 64px; }
+    .skip { width: 44px; height: 44px; }
+    .controls { padding: 12px; }
+    .tools { gap: 0; }
+    .tool { font-size: 10px; letter-spacing: -0.01em; }
+    .tool > span { width: 40px; height: 40px; }
+  }
+  /* Short screens: keep the controls in view; the synopsis stays a tap away. */
+  @media (max-height: 740px) {
+    body { gap: 10px; }
+    .synopsis { -webkit-line-clamp: 2; }
+    #player, .deck { gap: 12px; }
+    .media { gap: 8px; }
+    .hero { max-height: 28dvh; }
+    .controls { gap: 8px; padding: 12px; }
+    .play { width: 60px; height: 60px; }
+    .play .ic { width: 26px; height: 26px; }
+    .tool > span { width: 42px; height: 42px; }
+  }
+  @media (max-height: 600px) and (orientation: portrait) {
+    .synopsis { -webkit-line-clamp: 1; }
+    .hero { max-height: 24dvh; }
+  }
+  /* Landscape phones and tablets: artwork on the left, controls on the right; D-pad beside Back. */
+  @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
+    body { max-width: 1040px; }
+    #player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr); align-items: start; gap: 24px; }
+    #player[hidden] { display: none; }
+    .deck { position: sticky; top: 12px; }
+    #remote { flex-direction: row; gap: 48px; }
+    .sheet { width: min(100vw, 640px); }
+  }
+  /* Landscape phones: very little height, so the artwork shrinks and the page header gets out of the way. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    body { gap: 10px; padding-top: calc(env(safe-area-inset-top) + 8px); }
+    .hero { max-height: 46dvh; }
+    .synopsis { -webkit-line-clamp: 3; }
+    .controls { gap: 8px; padding: 12px; }
+    .play { width: 56px; height: 56px; }
+    .play .ic { width: 24px; height: 24px; }
+    .skip { width: 44px; height: 44px; }
+    .tool > span { width: 40px; height: 40px; }
+    .deck { gap: 12px; }
+    .dpad { width: min(64dvh, 300px); }
+    .sheet { max-height: 94dvh; }
+  }
+
+  /* Sheets: the player's panels */
+  .stream { display: flex; flex-direction: column; gap: 6px; }
+  .stream .top { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .stream .sub { white-space: pre-line; font-size: 15px; color: var(--ctp-subtext1); }
+  .stream[aria-checked="true"] { box-shadow: inset 0 0 0 2px var(--accent); }
+  .stream .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .stream img { height: 18px; }
+  .more { display: grid; grid-template-columns: 1fr 1fr; }
+  .more .row + .row::before { display: none; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px 0; }
+  .swatch { width: 32px; height: 32px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px var(--ctp-surface1); }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ctp-base), 0 0 0 4px var(--ctp-text); }
+  .swatch:disabled { opacity: 0.4; }
+  .custom { position: relative; overflow: hidden; }
+  .custom input { position: absolute; inset: 0; opacity: 0; }
+  .row-stack { flex-direction: column; align-items: stretch; }
+  .note { font-size: 13px; color: var(--ctp-subtext0); }
+</style>
+</head>
+<body>
+<header>
+  <h1 class="t-headline">Nuvio Remote</h1>
+  <span class="badge badge-tint status" id="status"><span class="dot"></span><span class="spin-ring sm"></span><span id="status-text">Connecting</span></span>
+  <button class="btn btn-icon btn-gray" id="dpad-toggle" aria-label="Remote D-pad" aria-pressed="false"><svg class="line"><use href="#i-remote"/></svg></button>
+  <button class="btn btn-icon btn-gray" id="settings-open" aria-label="Settings">
+    <svg class="line" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+
+<!-- player icons -->
+
+<!-- The remote's own icons (Lucide shapes), drawn as outlines. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
+</svg>
+
+<!-- Browsing: Home's rows and Search on the phone; a tap opens the title on the PC. -->
+<main id="home" class="browse" hidden>
+  <!-- Until Home arrives: its shape, shimmering. -->
+  <div class="home-skeleton" id="home-skeleton">
+    <div class="skel sk-hero"></div>
+    <div class="skel sk-title"></div>
+    <div class="sk-row"><div class="skel sk-wide"></div><div class="skel sk-wide"></div></div>
+    <div class="skel sk-title"></div>
+    <div class="sk-row"><div class="skel sk-poster"></div><div class="skel sk-poster"></div><div class="skel sk-poster"></div></div>
+  </div>
+  <div class="hero-strip" id="hero-strip"></div>
+  <div id="home-rows" class="rows"></div>
+  <div class="card t-sub text-sub" id="home-empty" hidden>Nothing on Home yet.</div>
+</main>
+
+<main id="search" class="browse" hidden>
+  <label class="search-box">
+    <svg class="line"><use href="#i-search"/></svg>
+    <input id="search-input" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search movies & shows" aria-label="Search">
+  </label>
+  <div id="search-rows" class="rows"></div>
+  <div class="card t-sub text-sub" id="search-empty" hidden></div>
+</main>
+
+<!-- A title's page, following the PC: tap Play, an episode, watched or library, as on the PC. -->
+<main id="details" class="browse" hidden>
+  <div class="page-bar"><button class="btn btn-sm btn-gray" data-back>Back</button></div>
+  <!-- While the title loads: its page's shape, shimmering. -->
+  <div class="detail-skeleton" id="d-skeleton">
+    <div class="skel sk-detail"></div>
+    <div class="skel sk-line"></div><div class="skel sk-line short"></div>
+    <div class="skel sk-button"></div>
+    <div class="sk-row"><div class="skel sk-chip"></div><div class="skel sk-chip"></div></div>
+    <div class="skel sk-episode"></div><div class="skel sk-episode"></div>
+  </div>
+  <div class="detail-hero">
+    <img id="d-bg" alt="">
+    <div class="shade"></div>
+    <div class="info">
+      <div id="d-title"></div>
+      <div class="meta-line" id="d-meta"></div>
+      <div class="meta-line" id="d-ratings"></div>
+      <div class="meta-line genres" id="d-genres"></div>
+    </div>
+  </div>
+  <button class="synopsis t-sub" id="d-desc" aria-label="Show the full synopsis"></button>
+  <div class="detail-actions">
+    <button class="btn btn-filled" id="d-play"><svg class="ic"><use href="#icon-play"/></svg><span id="d-play-label">Play</span></button>
+    <button class="btn btn-icon btn-gray" id="d-watched" aria-label="Watched" aria-pressed="false"><svg class="line" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></button>
+    <button class="btn btn-icon btn-gray" id="d-saved" aria-label="Library" aria-pressed="false"><svg class="line" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  </div>
+  <section id="d-episodes-section">
+    <h3 class="row-title">Seasons</h3>
+    <div class="chips" id="d-seasons"></div>
+    <div class="episodes" id="d-episodes"></div>
+  </section>
+</main>
+
+<!-- The sources for what is about to play, following the PC: tap one to play it. -->
+<main id="streams" class="browse" hidden>
+  <div class="page-bar"><button class="btn btn-sm btn-gray" data-back>Back</button><span class="grow"></span><button class="btn btn-sm btn-gray" id="s-reload">Reload</button></div>
+  <div class="stream-hero">
+    <img id="s-bg" alt="">
+    <div class="shade"></div>
+    <div class="info"><div id="s-title"></div><div class="meta-line" id="s-episode"></div></div>
+  </div>
+  <!-- With saved progress: resume or start over, like the PC's banner. -->
+  <div class="resume-bar" id="s-resume" hidden>
+    <span id="s-resume-label"></span>
+    <div class="seg">
+      <button id="s-resume-btn" aria-pressed="true">Resume</button>
+      <button id="s-start-btn" aria-pressed="false">Start from beginning</button>
+    </div>
+  </div>
+  <div class="chips" id="s-addons"></div>
+  <div id="s-list" class="stream-list"></div>
+  <div class="card t-sub text-sub" id="s-empty" hidden></div>
+</main>
+
+<main id="remote">
+  <div class="t-sub text-sub pc-note" id="pc-note" hidden></div>
+  <button class="btn btn-sm btn-gray" data-back id="remote-back" hidden>Back</button>
+  <div class="dpad">
+    <button class="arrow up" data-cmd="key" data-key="up" data-repeat aria-label="Up"><svg class="line" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
+    <button class="arrow left" data-cmd="key" data-key="left" data-repeat aria-label="Left"><svg class="line" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button class="ok" data-cmd="ok" aria-label="OK">OK</button>
+    <button class="arrow right" data-cmd="key" data-key="right" data-repeat aria-label="Right"><svg class="line" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    <button class="arrow down" data-cmd="key" data-key="down" data-repeat aria-label="Down"><svg class="line" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+  <button class="round" data-cmd="back" aria-label="Back"><svg class="line" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+</main>
+
+<!-- The sidebar, as a tab bar: each tab switches the PC too. -->
+<nav class="tabbar" id="tabbar" hidden>
+  <button class="tab" data-tab="home" aria-selected="true"><svg class="line"><use href="#i-home"/></svg>Home</button>
+  <button class="tab" data-tab="search" aria-selected="false"><svg class="line"><use href="#i-search"/></svg>Search</button>
+  <button class="tab" data-tab="shuffle" aria-selected="false"><svg class="line"><use href="#i-shuffle"/></svg>Shuffle</button>
+  <button class="tab" data-tab="library" aria-selected="false"><svg class="line"><use href="#i-library"/></svg>Library</button>
+  <button class="tab" data-tab="settings" aria-selected="false"><svg class="line"><use href="#i-settings"/></svg>Settings</button>
+</nav>
+
+<div class="backdrop" id="backdrop"></div>
+
+<main id="player" hidden>
+  <!-- What's playing: the artwork and logo the player shows, then the episode and its synopsis. -->
+  <section class="media">
+  <div class="page-bar">
+    <button class="btn btn-sm btn-gray" id="player-back"><svg class="ic"><use href="#icon-arrow-back"/></svg>Back</button>
+  </div>
+  <div class="hero">
+    <img id="art" alt="">
+    <div class="shade"></div>
+    <img class="logo" id="logo" alt="">
+    <h2 class="t-title2 hero-title" id="hero-title"></h2>
+  </div>
+  <div class="meta">
+    <div class="t-foot ep-info" id="ep-info"></div>
+    <div class="t-headline" id="ep-title"></div>
+    <button class="synopsis t-sub" id="synopsis" aria-label="Show the full synopsis"></button>
+  </div>
+  </section>
+
+  <section class="deck">
+  <div class="controls">
+    <div class="seek">
+      <span id="position">0:00</span>
+      <input class="range" type="range" id="seek" min="0" max="1" step="1000" value="0" aria-label="Seek">
+      <span id="duration">0:00</span>
+    </div>
+    <div class="transport">
+      <button class="skip" id="seek-back" aria-label="Back 10 seconds"><svg class="ic"><use href="#icon-replay10"/></svg></button>
+      <button class="play" id="play" aria-label="Play / Pause"><svg class="ic"><use id="play-icon" href="#icon-play"/></svg></button>
+      <button class="skip" id="seek-forward" aria-label="Forward 10 seconds"><svg class="ic"><use href="#icon-forward10"/></svg></button>
+    </div>
+    <label class="volume">
+      <svg class="ic"><use href="#icon-volume-compact"/></svg>
+      <input class="range" type="range" id="volume" min="0" max="2" step="0.05" value="1" aria-label="Volume">
+      <output id="volume-label">100%</output>
+    </label>
+  </div>
+
+  <!-- The player's bar: each opens its panel on the PC and the same panel here. -->
+  <div class="tools">
+    <button class="tool" data-click="sources" data-panel="sources"><span><svg class="ic"><use href="#icon-source"/></svg></span>Sources</button>
+    <button class="tool" data-click="subtitles" data-panel="subtitles"><span><svg class="ic"><use href="#icon-subs"/></svg></span>Subtitles</button>
+    <button class="tool" data-click="audio" data-panel="audio"><span><svg class="ic"><use href="#icon-audio"/></svg></span>Audio</button>
+    <button class="tool" data-click="enhance" data-panel="enhance"><span><svg class="ic"><use href="#icon-wand"/></svg></span>Enhance</button>
+    <button class="tool" id="more-open"><span><svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>More</button>
+    <button class="tool" data-click="fullscreen"><span><svg class="ic"><use href="#icon-fullscreen"/></svg></span>Fullscreen</button>
+  </div>
+  </section>
+</main>
+
+<!-- The player's "More playback controls" drawer, item for item. -->
+<dialog class="sheet" id="more" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div><div class="bar"><h2 class="t-title2">More playback controls</h2></div></div>
+  <div class="sheet-body">
+    <div class="group-list more">
+      <button class="row" data-click="speed" data-panel="speed"><svg class="ic"><use href="#icon-speed"/></svg>Playback speed</button>
+      <button class="row" data-click="aspect" data-stay><svg class="ic"><use href="#icon-aspect"/></svg><span class="copy">Aspect ratio<small id="aspect"></small></span></button>
+      <button class="row" data-click="pip"><svg class="ic"><use href="#icon-pip"/></svg>Picture in picture</button>
+      <button class="row" data-click="miniPlayer"><svg class="ic"><use href="#icon-miniplayer"/></svg>Mini player</button>
+      <button class="row" data-click="party"><svg class="ic"><use href="#icon-party"/></svg>Watch party</button>
+      <button class="row" data-click="stats"><svg class="ic"><use href="#icon-info-circle"/></svg>Playback statistics</button>
+      <button class="row" data-click="eyeFilter" data-panel="eyeFilter"><svg class="ic"><use href="#icon-eye"/></svg>Eye filter</button>
+      <button class="row" data-click="chapters" data-panel="chapters" id="chapters-item" hidden><svg class="ic"><use href="#icon-chapters"/></svg>Chapters</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="panel" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div>
+    <div class="bar">
+      <div><h2 class="t-title2" id="panel-title"></h2><div class="t-sub text-sub" id="panel-subtitle" hidden></div></div>
+      <span id="panel-actions"></span>
+      <button class="btn btn-sm btn-gray" data-dismiss>Close</button>
+    </div>
+  </div>
+  <div class="sheet-body" id="panel-body"></div>
+</dialog>
+
+<!-- Appearance: the cuppa theme picker. -->
+<dialog class="sheet" id="settings" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div>
+    <div class="bar"><h2 class="t-title2">Settings</h2><button class="btn btn-sm btn-plain" data-dismiss>Done</button></div>
+  </div>
+  <div class="sheet-body">
+    <div class="section-title">Appearance</div>
+    <div class="group-list">
+      <div class="row row-stack"><span class="t-sub text-sub">Flavor</span>
+        <div class="chips"><button class="chip" data-flavor="auto">Auto</button><button class="chip" data-flavor="latte">Latte</button><button class="chip" data-flavor="frappe">Frapp&eacute;</button><button class="chip" data-flavor="macchiato">Macchiato</button><button class="chip" data-flavor="mocha">Mocha</button></div></div>
+      <div class="row row-stack"><span class="t-sub text-sub">Corner radius</span>
+        <div class="chips"><button class="chip" data-radius="tight">Tight</button><button class="chip" data-radius="apple">Apple</button><button class="chip" data-radius="soft">Soft</button></div></div>
+      <div class="row row-stack"><span class="t-sub text-sub">Accent</span><div class="swatches" id="accents"></div></div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let ws = null;
+  let retry = 500;
+
+  function connect() {
+    ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onopen = () => { retry = 500; setStatus(true); };
+    ws.onclose = () => { setStatus(false); setTimeout(connect, retry); retry = Math.min(retry * 2, 4000); };
+    ws.onerror = () => ws.close();
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.k === 'player') showPlayer(msg);
+      if (msg.k === 'time') showTime(msg.position, msg.duration);
+      if (msg.k === 'home') showHome(msg);
+      if (msg.k === 'search') showSearch(msg);
+      if (msg.k === 'route') { pcRoute = msg.route; updateView(); }
+      if (msg.k === 'details') showDetails(msg);
+      if (msg.k === 'streams') showStreams(msg);
+    };
+  }
+
+  function setStatus(on) {
+    $('status-text').textContent = on ? 'Connected' : 'Reconnecting';
+    $('status').classList.toggle('on', on);
+  }
+
+  function send(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+  }
+  const player = (type, value = 0) => send({ cmd: 'player', type, value });
+  const click = (target) => send({ cmd: 'click', target });
+
+  // ─── Sheets: native <dialog>; close with Close, a tap on the backdrop or a swipe down on the header ───
+  document.querySelectorAll('dialog.sheet').forEach((sheet) => {
+    sheet.addEventListener('click', (e) => { if (e.target === sheet || e.target.closest('[data-dismiss]')) sheet.close(); });
+    const head = sheet.querySelector('.sheet-head');
+    let startY = null;
+    head.addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) { startY = e.clientY; head.setPointerCapture(e.pointerId); } });
+    head.addEventListener('pointermove', (e) => {
+      if (startY !== null) { sheet.style.transition = 'none'; sheet.style.transform = `translateY(${Math.max(0, e.clientY - startY)}px)`; }
+    });
+    head.addEventListener('pointerup', (e) => {
+      if (startY === null) return;
+      const dragged = e.clientY - startY;
+      startY = null;
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+      if (dragged > 80) sheet.close();
+    });
+  });
+  // Opens a sheet with focus on the sheet itself, so its first item isn't outlined (the ring the list clipped).
+  function present(sheet) {
+    sheet.showModal();
+    sheet.focus({ preventScroll: true });
+  }
+  $('settings-open').addEventListener('click', () => present($('settings')));
+
+  // The accent swatches: one per Catppuccin accent, painted with that accent.
+  theme.ACCENTS.forEach((accent) => {
+    const swatch = document.createElement('button');
+    swatch.className = 'swatch';
+    swatch.dataset.accent = accent;
+    swatch.setAttribute('aria-label', accent);
+    swatch.style.setProperty('--swatch', `var(--ctp-${accent})`);
+    $('accents').append(swatch);
+  });
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-flavor],[data-radius],[data-accent]');
+    if (!b) return;
+    if (b.dataset.flavor) theme.set('ui-flavor', b.dataset.flavor);
+    if (b.dataset.radius) theme.set('ui-radius', b.dataset.radius);
+    if (b.dataset.accent) theme.set('ui-accent', b.dataset.accent);
+  });
+  theme.apply();
+
+  // ─── The player's bar ───
+  let state = { active: false };
+  let draggingVolume = false;
+  let draggingSeek = false;
+
+  function showPlayer(msg) {
+    state = msg;
+    updateView();
+    if (!msg.active) { $('panel').close(); $('more').close(); return; }
+    showMedia(msg);
+    $('play-icon').setAttribute('href', msg.playing ? '#icon-pause' : '#icon-play');
+    if (!draggingVolume) setRange($('volume'), msg.volume);
+    $('volume-label').textContent = Math.round(Number($('volume').value) * 100) + '%';
+    $('aspect').textContent = msg.aspect;
+    $('chapters-item').hidden = !msg.chapters.length;
+    if (openPanel) renderPanel();
+  }
+
+  // ─── Which screen: the player while something plays; otherwise browsing, or the D-pad when toggled on ───
+  const TAB_NAMES = { home: 'Home', search: 'Search', shuffle: 'Shuffle', library: 'Library', settings: 'Settings' };
+  let browseTab = 'home';
+  let dpadMode = false;
+  try { dpadMode = localStorage.getItem('nuvio_dpad') === '1'; } catch (_) {}
+
+  // The page the PC shows; the phone follows it into a title, its sources and the player.
+  let pcRoute = 'tabs';
+
+  // A tap that moves the PC (open a title, play, pick a source) spins on what was tapped until the PC gets there.
+  let busyTimer = null;
+  function markBusy(node) {
+    clearBusy();
+    node.classList.add('busy');
+    busyTimer = setTimeout(clearBusy, 12000);
+  }
+  function clearBusy() {
+    clearTimeout(busyTimer);
+    document.querySelectorAll('.busy').forEach((n) => n.classList.remove('busy'));
+  }
+  // Opening a title: its page shows a skeleton until the title has loaded.
+  let awaitingDetails = false;
+  let lastView = '';
+
+  function setHidden(id, hidden) {
+    if ($(id).hidden !== hidden) $(id).hidden = hidden;
+  }
+
+  let wasPlaying = false;
+  function updateView() {
+    // Something is playing on the PC: the phone goes straight to the playing screen, whatever it showed.
+    const playing = state.active || pcRoute === 'player';
+    if (playing && !wasPlaying) scrollTo({ top: 0 });
+    wasPlaying = playing;
+    // The PC moved on: whatever was spinning has arrived.
+    const view = `${playing}|${pcRoute}`;
+    if (view !== lastView) { clearBusy(); lastView = view; }
+    const browsing = !playing && !dpadMode;
+    const onTabs = browsing && pcRoute === 'tabs';
+    // Pages the phone can't show (Shuffle, Library, Settings, a folder…) are driven with the D-pad.
+    const pcTab = onTabs && browseTab !== 'home' && browseTab !== 'search';
+    const pcPage = browsing && pcRoute === 'other';
+    setHidden('player', !playing);
+    setHidden('home', !(onTabs && browseTab === 'home'));
+    setHidden('search', !(onTabs && browseTab === 'search'));
+    setHidden('details', !(browsing && pcRoute === 'details'));
+    setHidden('streams', !(browsing && pcRoute === 'streams'));
+    setHidden('remote', playing || !(dpadMode || pcTab || pcPage));
+    $('pc-note').hidden = !(pcTab || pcPage);
+    $('pc-note').textContent = pcTab ? `${TAB_NAMES[browseTab]} is open on your PC. Use the D-pad to move around.`
+      : pcPage ? 'This page is open on your PC. Use the D-pad to move around.' : '';
+    $('remote-back').hidden = !pcPage;
+    $('tabbar').hidden = playing;
+    $('dpad-toggle').hidden = playing;
+    $('dpad-toggle').setAttribute('aria-pressed', dpadMode);
+    document.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', t.dataset.tab === browseTab));
+  }
+
+  document.querySelectorAll('[data-tab]').forEach((tab) => tab.addEventListener('click', () => {
+    browseTab = tab.dataset.tab;
+    dpadMode = false;
+    try { localStorage.setItem('nuvio_dpad', '0'); } catch (_) {}
+    send({ cmd: 'tab', tab: browseTab });
+    updateView();
+    if (browseTab === 'search') $('search-input').focus();
+    else scrollTo({ top: 0 });
+  }));
+  $('dpad-toggle').addEventListener('click', () => {
+    dpadMode = !dpadMode;
+    try { localStorage.setItem('nuvio_dpad', dpadMode ? '1' : '0'); } catch (_) {}
+    updateView();
+  });
+
+  // ─── Home: the hero, Continue Watching and every row, like the PC; a tap opens the title there ───
+  const img = (src, className) => {
+    const image = el('img', className);
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    if (src) image.src = src;
+    return image;
+  };
+
+  function heroCard(hero, index) {
+    const open = () => { markBusy(card); awaitingDetails = true; send({ cmd: 'open', from: 'hero', item: index }); };
+    const card = el('div', 'hero-card');
+    card.append(img(hero.image, 'bg'), el('div', 'shade'));
+    const info = el('div', 'info');
+    if (hero.logo) {
+      const logo = img(hero.logo, 'logo');
+      logo.onerror = () => logo.replaceWith(el('div', 't-title2', hero.name));
+      info.append(logo);
+    } else {
+      info.append(el('div', 't-title2', hero.name));
+    }
+    const meta = el('div', 'meta-line');
+    if (hero.year) meta.append(`${hero.year}  `);
+    if (Number(hero.rating) > 0) meta.append(el('span', 'rating', `IMDb ${hero.rating}`), '  ');
+    if (hero.genres) meta.append(hero.genres);
+    if (meta.childNodes.length) info.append(meta);
+    if (hero.description) info.append(el('div', 'desc', hero.description));
+    const details = el('button', 'btn btn-sm', 'View Details');
+    info.append(details);
+    card.append(info);
+    card.addEventListener('click', open);
+    return card;
+  }
+
+  function posterTile(item, shape, onClick) {
+    const tile = el('button', `tile ${shape}`);
+    const art = el('div', 'art');
+    art.append(img(item.image));
+    tile.append(art, el('span', 'name', item.name));
+    tile.addEventListener('click', () => { markBusy(art); awaitingDetails = true; onClick(); });
+    return tile;
+  }
+
+  function resumeTile(item, index) {
+    const tile = el('button', 'tile landscape');
+    const art = el('div', 'art');
+    art.append(img(item.image));
+    if (item.left) art.append(el('span', 'time-left', item.left));
+    const resume = el('div', 'resume');
+    if (item.episode) resume.append(el('small', '', item.episode));
+    resume.append(el('b', '', item.title));
+    const bar = el('div', 'bar');
+    const fill = el('i');
+    fill.style.width = `${Math.round(Math.min(1, Math.max(0, item.progress)) * 100)}%`;
+    bar.append(fill);
+    resume.append(bar);
+    art.append(resume);
+    tile.append(art);
+    if (item.subtitle) tile.append(el('span', 'name', item.subtitle));
+    tile.addEventListener('click', () => { markBusy(art); send({ cmd: 'resume', item: index }); });
+    return tile;
+  }
+
+  function rowSection(title, tiles) {
+    const section = el('section');
+    section.append(el('h3', 'row-title', title));
+    const scroll = el('div', 'row-scroll');
+    scroll.append(...tiles);
+    section.append(scroll);
+    return section;
+  }
+
+  // Replaces a list of rows but keeps how far each row was scrolled sideways.
+  function replaceRows(container, sections) {
+    const offsets = [...container.querySelectorAll('.row-scroll')].map((r) => r.scrollLeft);
+    container.replaceChildren(...sections);
+    container.querySelectorAll('.row-scroll').forEach((r, i) => { r.scrollLeft = offsets[i] || 0; });
+  }
+
+  function showHome(msg) {
+    const strip = $('hero-strip');
+    const heroScroll = strip.scrollLeft;
+    strip.replaceChildren(...msg.hero.map(heroCard));
+    strip.scrollLeft = heroScroll;
+    strip.hidden = !msg.hero.length;
+    const sections = [];
+    if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile)));
+    // Catalog rows open a title; collection rows (Discover, Streaming…) open a folder.
+    msg.rows.forEach((row) => sections.push(rowSection(row.title,
+      row.items.map((item, i) => posterTile(item, row.shape, () => send(row.kind === 'collection'
+        ? { cmd: 'folder', row: row.key, item: i }
+        : { cmd: 'open', from: 'row', row: row.key, item: i }))))));
+    replaceRows($('home-rows'), sections);
+    const empty = !msg.hero.length && !sections.length;
+    $('home-skeleton').hidden = !(empty && msg.loading);
+    $('home-empty').hidden = !(empty && !msg.loading);
+  }
+
+  // ─── Details: the title's page, like the PC; its buttons run the PC's ───
+  document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => send({ cmd: 'back' })));
+  let details = null;
+  let detailsName = null;
+  let season = 0;
+
+  function titleArt(container, logo, name) {
+    container.replaceChildren();
+    if (logo) {
+      const image = img(logo, 'logo');
+      image.onerror = () => image.replaceWith(el('div', 't-title2', name));
+      container.append(image);
+    } else {
+      container.append(el('div', 't-title2', name));
+    }
+  }
+
+  function showDetails(msg) {
+    details = msg;
+    // A title just opened shows the skeleton until it has loaded; refreshes of the same title don't.
+    if (msg.name && !msg.loading) awaitingDetails = false;
+    $('details').classList.toggle('is-loading', !msg.name || awaitingDetails);
+    if (!msg.name) return;
+    if (msg.name !== detailsName) {
+      detailsName = msg.name;
+      // Open on the season of the episode Play would start, like the PC.
+      const playing = /S(\d+)/.exec(msg.playLabel || '');
+      const index = playing ? msg.seasons.findIndex((s) => s.label === `Season ${playing[1]}`) : -1;
+      season = Math.max(0, index);
+      $('d-bg').src = msg.background || '';
+      titleArt($('d-title'), msg.logo, msg.name);
+      $('d-desc').classList.remove('open');
+    }
+    const meta = $('d-meta');
+    meta.replaceChildren();
+    if (msg.year) meta.append(el('b', '', msg.year));
+    const seasonCount = msg.seasons.filter((s) => s.label !== 'Specials').length;
+    if (seasonCount) meta.append(el('span', '', seasonCount === 1 ? '1 Season' : `${seasonCount} Seasons`));
+    if (msg.runtime) meta.append(el('span', '', msg.runtime));
+    if (msg.ageRating) meta.append(el('span', 'tag', msg.ageRating));
+    const ratings = $('d-ratings');
+    ratings.replaceChildren();
+    const SOURCES = { imdb: 'IMDb', tmdb: 'TMDB', tomatoes: 'RT', trakt: 'Trakt', metacritic: 'MC', letterboxd: 'Letterboxd', mal: 'MAL' };
+    const rated = msg.ratings.some((r) => r.source.toLowerCase() === 'imdb') || !(Number(msg.imdb) > 0)
+      ? msg.ratings : [{ source: 'imdb', value: msg.imdb }, ...msg.ratings];
+    rated.forEach((r) => {
+      const s = el('span', 'score', `${SOURCES[r.source.toLowerCase()] || r.source} `);
+      s.append(el('b', '', String(r.value)));
+      ratings.append(s);
+    });
+    $('d-genres').textContent = msg.genres;
+    $('d-desc').textContent = msg.description || '';
+    $('d-desc').hidden = !msg.description;
+    $('d-play-label').textContent = msg.playLabel || 'Play';
+    $('d-watched').setAttribute('aria-pressed', msg.watched);
+    $('d-saved').setAttribute('aria-pressed', msg.saved);
+    renderEpisodes();
+  }
+
+  function renderEpisodes() {
+    const seasons = details.seasons;
+    $('d-episodes-section').hidden = !seasons.length;
+    if (!seasons.length) return;
+    season = Math.min(season, seasons.length - 1);
+    $('d-seasons').replaceChildren(...seasons.map((s, i) => {
+      const chip = el('button', 'chip', s.label);
+      chip.setAttribute('aria-pressed', i === season);
+      chip.addEventListener('click', () => { season = i; renderEpisodes(); });
+      return chip;
+    }));
+    $('d-episodes').replaceChildren(...seasons[season].episodes.map((ep) => {
+      const card = el('button', 'episode');
+      const thumb = el('div', 'thumb');
+      thumb.append(img(ep.image), el('span', 'code', ep.code));
+      const copy = el('span', 'copy');
+      copy.append(el('b', '', ep.title || ep.code));
+      if (ep.overview) copy.append(el('p', '', ep.overview));
+      const info = [ep.runtime, ep.rating ? `IMDb ${ep.rating}` : null, ep.released].filter(Boolean).join(' · ');
+      if (info) copy.append(el('small', '', info));
+      card.append(thumb, copy);
+      card.addEventListener('click', () => { markBusy(thumb); send({ cmd: 'episode', item: ep.index }); });
+      return card;
+    }));
+  }
+  $('d-desc').addEventListener('click', () => $('d-desc').classList.toggle('open'));
+  $('d-play').addEventListener('click', () => { markBusy($('d-play')); send({ cmd: 'play' }); });
+  $('d-watched').addEventListener('click', () => send({ cmd: 'watched' }));
+  $('d-saved').addEventListener('click', () => send({ cmd: 'saved' }));
+
+  // ─── Sources: the list the PC shows; a tap plays that source ───
+  let streams = { groups: [] };
+  let streamsTitle = null;
+  let addonFilter = null;
+  function showStreams(msg) {
+    streams = msg;
+    if (msg.title && msg.title + msg.episode !== streamsTitle) {
+      streamsTitle = msg.title + msg.episode;
+      addonFilter = null;
+      $('s-bg').src = msg.background || '';
+      titleArt($('s-title'), msg.logo, msg.title);
+    }
+    $('s-episode').textContent = msg.episode || '';
+    // Resume from the saved position, or start over, like the PC's banner.
+    $('s-resume').hidden = !msg.resumeMs;
+    if (msg.resumeMs) {
+      $('s-resume-label').textContent = `Resume from ${clock(msg.resumeMs)}`;
+      $('s-resume-btn').setAttribute('aria-pressed', !msg.fromStart);
+      $('s-start-btn').setAttribute('aria-pressed', !!msg.fromStart);
+    }
+    renderStreams();
+  }
+  $('s-resume-btn').addEventListener('click', () => send({ cmd: 'fromStart', value: false }));
+  $('s-start-btn').addEventListener('click', () => send({ cmd: 'fromStart', value: true }));
+  function renderStreams() {
+    const groups = streams.groups.map((g, i) => ({ ...g, i })).filter((g) => g.streams.length || g.loading || g.error);
+    const chips = [{ addon: 'All', i: null }, ...groups].map((g) => {
+      const chip = el('button', 'chip', g.addon);
+      chip.setAttribute('aria-pressed', addonFilter === g.i);
+      chip.addEventListener('click', () => { addonFilter = g.i; renderStreams(); });
+      return chip;
+    });
+    $('s-addons').replaceChildren(...chips);
+    const shown = groups.filter((g) => addonFilter === null || g.i === addonFilter);
+    const nodes = [];
+    shown.forEach((group) => {
+      // An addon still searching shows a spinner by its name.
+      const header = el('div', 'addon addon-loading', group.addon);
+      if (group.loading) header.append(el('span', 'spin-ring sm'));
+      if (!group.streams.length) {
+        if (group.loading) nodes.push(header);
+        // An addon that failed says why, instead of looking empty.
+        else if (group.error) nodes.push(header, el('div', 'card t-sub text-sub', group.error));
+        return;
+      }
+      nodes.push(header);
+      group.streams.forEach((stream, s) => {
+        const card = el('button', 'stream-card');
+        card.append(el('b', '', stream.name));
+        if (stream.details) card.append(el('span', 'sub', stream.details));
+        if (stream.badges.length) {
+          const badges = el('span', 'badges');
+          stream.badges.forEach((b) => badges.append(el('span', 'badge badge-outline badge-sq', b)));
+          card.append(badges);
+        }
+        card.addEventListener('click', () => { markBusy(card); send({ cmd: 'stream', group: group.i, item: s }); });
+        nodes.push(card);
+      });
+    });
+    const anyStreams = shown.some((g) => g.streams.length);
+    if (!anyStreams && streams.loading) nodes.unshift(loader('Finding sources…'));
+    const scroll = scrollY;
+    $('s-list').replaceChildren(...nodes);
+    scrollTo({ top: scroll });
+    $('s-empty').hidden = anyStreams || streams.loading || shown.some((g) => g.error);
+    $('s-empty').textContent = 'No sources found.';
+  }
+  $('s-reload').addEventListener('click', () => send({ cmd: 'reloadStreams' }));
+
+  // ─── Search: type here, the PC searches; results open the title there ───
+  let searchTimer = null;
+  let searchResults = { loading: false, rows: [] };
+  $('search-input').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => send({ cmd: 'search', query: $('search-input').value }), 400);
+    renderSearch();
+  });
+  $('search-input').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    clearTimeout(searchTimer);
+    send({ cmd: 'search', query: $('search-input').value });
+    $('search-input').blur();
+  });
+  function showSearch(msg) {
+    searchResults = msg;
+    renderSearch();
+  }
+  function renderSearch() {
+    const typed = $('search-input').value.trim();
+    const rows = typed ? searchResults.rows : [];
+    replaceRows($('search-rows'), rows.map((row) => rowSection(row.title,
+      row.items.map((item, i) => posterTile(item, row.shape, () => send({ cmd: 'open', from: 'search', row: row.key, item: i }))))));
+    const searching = typed && searchResults.loading;
+    if (searching) $('search-rows').append(loader(rows.length ? 'Loading more results…' : 'Searching…'));
+    $('search-empty').hidden = rows.length > 0 || searching;
+    $('search-empty').textContent = !typed ? 'Type to search. Results open on your PC.' : 'No results.';
+  }
+
+  // A spinner with what it is waiting for.
+  function loader(text) {
+    const box = el('div', 'loading');
+    box.append(el('span', 'spin-ring'), el('span', '', text));
+    return box;
+  }
+  renderSearch();
+  updateView();
+
+  // The hero: artwork with the title's logo over it (the title as text when there is no logo), then the episode.
+  function showMedia(msg) {
+    const art = $('art');
+    if (art.dataset.src !== msg.artwork) {
+      art.dataset.src = msg.artwork;
+      art.classList.remove('on');
+      $('backdrop').classList.remove('on');
+      if (msg.artwork) {
+        art.onload = () => { art.classList.add('on'); $('backdrop').classList.add('on'); };
+        art.src = msg.artwork;
+        $('backdrop').style.setProperty('--art', `url("${encodeURI(msg.artwork)}")`);
+      } else {
+        art.removeAttribute('src');
+      }
+    }
+    const logo = $('logo');
+    if (logo.dataset.src !== msg.logo) {
+      logo.dataset.src = msg.logo;
+      logo.hidden = !msg.logo;
+      logo.onerror = () => { logo.hidden = true; $('hero-title').hidden = false; };
+      if (msg.logo) logo.src = msg.logo;
+    }
+    $('hero-title').textContent = msg.title;
+    $('hero-title').hidden = Boolean(msg.logo);
+    $('ep-info').textContent = msg.episodeInfo;
+    $('ep-info').hidden = !msg.episodeInfo;
+    $('ep-title').textContent = msg.episodeTitle;
+    $('ep-title').hidden = !$('ep-title').textContent;
+    $('synopsis').textContent = msg.description;
+    $('synopsis').hidden = !msg.description;
+  }
+  $('synopsis').addEventListener('click', () => $('synopsis').classList.toggle('open'));
+  // Leaves the player like its own back arrow: back to the title's page (the phone follows).
+  $('player-back').addEventListener('click', () => player('back'));
+  $('seek-back').addEventListener('click', () => player('seekBack'));
+  $('seek-forward').addEventListener('click', () => player('seekForward'));
+
+  // Sets a slider and paints its filled part.
+  function setRange(range, value) {
+    range.value = value;
+    range.style.setProperty('--p', ((range.value - range.min) / (range.max - range.min || 1)) * 100 + '%');
+  }
+
+  const clock = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const two = (n) => String(n).padStart(2, '0');
+    return s >= 3600 ? `${Math.floor(s / 3600)}:${two(Math.floor(s / 60) % 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`;
+  };
+  function showTime(position, duration) {
+    if (draggingSeek) return;
+    $('seek').max = Math.max(1, duration);
+    setRange($('seek'), position);
+    $('position').textContent = clock(position);
+    $('duration').textContent = clock(duration);
+  }
+  $('seek').addEventListener('input', () => {
+    draggingSeek = true;
+    setRange($('seek'), $('seek').value);
+    $('position').textContent = clock(Number($('seek').value));
+  });
+  $('seek').addEventListener('change', () => { draggingSeek = false; player('scrubFinish', Number($('seek').value)); });
+  $('volume').addEventListener('input', () => {
+    draggingVolume = true;
+    setRange($('volume'), $('volume').value);
+    $('volume-label').textContent = Math.round(Number($('volume').value) * 100) + '%';
+    player('volumeChangeTemporary', Number($('volume').value));
+  });
+  $('volume').addEventListener('change', () => { draggingVolume = false; player('volumeChange', Number($('volume').value)); });
+  $('play').addEventListener('click', () => player('toggle'));
+
+  // Buttons click the same control on the PC, so the PC opens its panel, and the same panel opens here.
+  document.querySelectorAll('[data-click]').forEach((btn) => btn.addEventListener('click', () => {
+    click(btn.dataset.click);
+    if (btn.dataset.panel) {
+      $('more').close();
+      openSheet(btn.dataset.panel);
+    } else if (!('stay' in btn.dataset)) {
+      $('more').close();
+    }
+  }));
+  $('more-open').addEventListener('click', () => present($('more')));
+
+  // ─── The player's panels ───
+  let openPanel = null;
+  let subtitleLanguage = '__off__';
+  let subtitleTab = 'subtitles';
+  let lastSvpMode = 'auto';
+
+  function openSheet(name) {
+    openPanel = name;
+    if (name === 'subtitles') { subtitleLanguage = state.subtitles.language; subtitleTab = 'subtitles'; }
+    renderPanel();
+    $('panel-body').scrollTop = 0;
+    if (!$('panel').open) present($('panel'));
+  }
+  // Closing here closes the PC's panel too.
+  $('panel').addEventListener('close', () => { if (openPanel) send({ cmd: 'close' }); openPanel = null; });
+  const closeSheet = () => $('panel').close();
+
+  function renderPanel() {
+    const body = $('panel-body');
+    const scroll = body.scrollTop;
+    body.replaceChildren();
+    $('panel-actions').replaceChildren();
+    $('panel-subtitle').hidden = true;
+    panels[openPanel]();
+    body.scrollTop = scroll;
+  }
+
+  // ─── Building blocks, from cuppa.css ───
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  const add = (...nodes) => $('panel-body').append(...nodes);
+  function header(title, subtitle) {
+    $('panel-title').textContent = title;
+    $('panel-subtitle').textContent = subtitle || '';
+    $('panel-subtitle').hidden = !subtitle;
+  }
+  function action(label, onClick) {
+    const btn = el('button', 'btn btn-sm btn-gray', label);
+    btn.addEventListener('click', onClick);
+    $('panel-actions').append(btn);
+  }
+  function tick() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'line tick');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.innerHTML = '<path d="M20 6 9 17l-5-5"/>';
+    return svg;
+  }
+  const group = (...rows) => { const list = el('div', 'group-list'); list.append(...rows); return list; };
+  const section = (title) => el('div', 'section-title', title);
+  const empty = (text) => add(el('div', 'card t-sub text-sub', text));
+
+  // A choice in a list: name, optional detail and tag, a tick when chosen.
+  function choice({ label, detail, tag, checked, disabled, onClick, trailing }) {
+    const btn = el('button', 'row');
+    btn.setAttribute('aria-checked', Boolean(checked));
+    btn.disabled = Boolean(disabled);
+    const copy = el('span', 'copy');
+    if (tag) copy.append(el('span', 'badge badge-tint badge-sq', tag));
+    copy.append(el('span', '', label));
+    if (detail) copy.append(el('small', '', detail));
+    btn.append(copy);
+    if (trailing) btn.append(trailing);
+    btn.append(tick());
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+  // A setting with a value and a - / + stepper, like the player's steppers.
+  function stepper(label, value, onMinus, onPlus, disabled = false) {
+    const row = el('div', 'row');
+    row.append(el('span', 'copy', label), el('span', 'value', value));
+    const seg = el('div', 'seg');
+    [['-', onMinus, 'Less'], ['+', onPlus, 'More']].forEach(([text, onClick, name]) => {
+      const btn = el('button', '', text);
+      btn.setAttribute('aria-label', `${name} ${label}`);
+      btn.disabled = disabled;
+      btn.addEventListener('click', onClick);
+      seg.append(btn);
+    });
+    row.append(seg);
+    return row;
+  }
+  // An on/off setting.
+  function toggle(label, detail, on, onChange, disabled = false) {
+    const row = el('label', 'row');
+    const copy = el('span', 'copy', label);
+    if (detail) copy.append(el('small', '', detail));
+    const sw = el('span', 'switch');
+    const input = el('input');
+    input.type = 'checkbox';
+    input.checked = on;
+    input.disabled = disabled;
+    input.addEventListener('change', () => onChange(input.checked));
+    sw.append(input);
+    row.append(copy, sw);
+    return row;
+  }
+
+  const languageName = (code, fallback = '') => {
+    const value = String(code || '').trim().toLowerCase().replace(/_/g, '-');
+    if (!value || value === 'und' || value === '__unknown__') return fallback || 'Unknown';
+    try { return new Intl.DisplayNames([navigator.language || 'en'], { type: 'language' }).of(value) || value; }
+    catch (_) { return fallback || value.toUpperCase(); }
+  };
+
+  const speeds = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+  const upscalerOptions = [
+    { key: 'off', label: 'Off', value: 0 }, { key: 'auto', label: 'Anime Only', value: 1 },
+    { key: 'always_on', label: 'All Media', value: 2 },
+  ];
+  const svpOptions = [
+    { mode: 'auto', label: 'Anime Only', description: '60 FPS for Anime and Cartoons only', value: 1 },
+    { mode: 'global', label: 'All Media', description: '60 FPS for all contents', value: 2 },
+  ];
+  const contentLabels = { anime: 'Anime', cartoon: 'Cartoon', live_action: 'Live Action' };
+
+  const panels = {
+    sources() {
+      const sources = state.sources;
+      header('Sources', state.title);
+      action('Reload', () => player('reloadSources'));
+      if (!sources.items.length) return sources.loading ? add(loader('Loading sources…')) : empty('No streams found');
+      sources.items.forEach((item) => {
+        const card = el('button', 'card card-tap stream');
+        card.setAttribute('aria-checked', item.current);
+        card.disabled = !item.enabled;
+        const top = el('span', 'top', item.label);
+        if (item.current) top.append(el('span', 'badge badge-solid', 'Playing'));
+        card.append(top);
+        if (item.subtitle) card.append(el('span', 'sub', item.subtitle));
+        if (item.badges.length || item.size) {
+          const badges = el('span', 'badges');
+          item.badges.forEach((src) => { const img = el('img'); img.src = src; img.alt = ''; badges.append(img); });
+          if (item.size) badges.append(el('span', 'badge badge-outline badge-sq', item.size));
+          card.append(badges);
+        }
+        card.addEventListener('click', () => { player('selectSource', item.index); closeSheet(); });
+        add(card);
+      });
+    },
+
+    subtitles() {
+      const subs = state.subtitles;
+      header('Subtitles');
+      action('Import', () => click('subtitleImport'));
+      // The panel's tabs; switching here switches the PC's tab too.
+      const tabs = el('div', 'seg seg-fill');
+      [['subtitles', 'Subtitles', 'subtitleTabSubtitles'], ['customization', 'Customization', 'subtitleTabCustomization']]
+        .forEach(([tab, label, target]) => {
+          const btn = el('button', '', label);
+          btn.setAttribute('aria-pressed', subtitleTab === tab);
+          btn.addEventListener('click', () => { subtitleTab = tab; click(target); renderPanel(); });
+          tabs.append(btn);
+        });
+      add(tabs);
+      if (subtitleTab === 'customization') return customization(subs.style);
+
+      const languages = subs.languages.some((l) => l.key === '__off__')
+        ? subs.languages : [{ key: '__off__', label: 'None', count: 0 }, ...subs.languages];
+      const chips = el('div', 'chips');
+      languages.forEach((language) => {
+        const label = language.key === '__off__' ? (language.label || 'None') : (language.label || 'Imported');
+        const chip = el('button', 'chip', label);
+        chip.setAttribute('aria-pressed', language.key === subtitleLanguage);
+        if (language.count > 0) chip.append(el('span', 'count', String(language.count)));
+        chip.addEventListener('click', () => {
+          subtitleLanguage = language.key;
+          if (language.key === '__off__') player('selectBuiltInSubtitleTrack', -1);
+          renderPanel();
+        });
+        chips.append(chip);
+      });
+      add(chips);
+      const options = subs.options.filter((o) => o.language === subtitleLanguage);
+      if (subtitleLanguage === '__off__') return add(el('div', 'card t-sub text-sub', 'Subtitles are off.'));
+      add(group(...options.map((option) => choice({
+        tag: option.source, label: option.title || option.source, detail: option.metadata,
+        checked: option.id === subs.selected || option.selected,
+        onClick: () => player(option.kind === 'addon' ? 'selectAddonSubtitle' : 'selectBuiltInSubtitleTrack', option.index),
+      }))));
+    },
+
+    audio() {
+      const audio = state.audio;
+      header('Audio Tracks');
+      if (!audio.tracks.length) empty('No audio tracks available');
+      else add(group(...audio.tracks.map((track) => choice({
+        label: track.label || languageName(track.language) || `Track ${track.index + 1}`,
+        detail: track.language && track.language !== 'und' ? languageName(track.language) : '',
+        checked: track.selected,
+        onClick: () => { player('selectAudioTrack', track.id >= 0 ? track.id : track.index); closeSheet(); },
+      }))));
+      add(group(toggle('Night Mode (DRC)', 'Normalize loudness to boost quiet voices', audio.nightMode,
+        (on) => player('toggleAudioNightMode', on ? 1 : 0))));
+    },
+
+    enhance() {
+      const e = state.enhancements;
+      header('Enhancements');
+
+      const index = Math.max(0, upscalerOptions.findIndex((o) => o.key === e.upscaler));
+      const upscalerOff = upscalerOptions[index].key === 'off';
+      const step = (delta) => player('setAnimeUpscalerOption',
+        upscalerOptions[(index + delta + upscalerOptions.length) % upscalerOptions.length].value);
+      add(section('Anime Upscaler'), group(
+        stepper('Mode', upscalerOptions[index].label, () => step(-1), () => step(1)),
+        ...e.modes.map((mode) => choice({
+          label: mode.label, detail: mode.description, checked: !upscalerOff && mode.index === e.mode,
+          disabled: upscalerOff, onClick: () => player('setAnimeUpscalerMode', mode.index),
+        })),
+      ));
+
+      const svpOff = e.svp === 'off' || !e.svpAvailable;
+      if (!svpOff) lastSvpMode = e.svp === 'global' || e.svp === 'cinema' ? 'global' : 'auto';
+      add(section('Motion Smoothing (SVP)'));
+      if (!e.svpAvailable) add(el('div', 'note', 'Motion smoothing runtime is unavailable. Check its status in Settings.'));
+      add(group(
+        toggle('Motion smoothing', '', !svpOff, (on) => player('setSvpMode', on ? (lastSvpMode === 'global' ? 2 : 1) : 0), !e.svpAvailable),
+        ...svpOptions.map((option) => choice({
+          label: option.label, detail: option.description, checked: !svpOff && option.mode === lastSvpMode,
+          disabled: svpOff, onClick: () => { lastSvpMode = option.mode; player('setSvpMode', option.value); },
+        })),
+      ));
+      const detected = el('div', 'row');
+      detected.append(el('span', 'copy', 'Detected Content'), el('span', 'badge badge-tint', contentLabels[e.content] || 'Unknown'));
+      add(group(detected));
+    },
+
+    speed() {
+      header('Playback Speed');
+      const current = parseFloat(state.speed);
+      add(group(...speeds.map((speed) => choice({
+        label: speed === 1 ? '1x (Normal)' : `${speed}x`, checked: Math.abs(speed - current) < 0.01,
+        onClick: () => { player('setPlaybackSpeed', speed); closeSheet(); },
+      }))));
+    },
+
+    eyeFilter() {
+      header('Eye Filter');
+      add(group(toggle('Eye filter', '', state.eyeFilter, (on) => player('setEyeFilterEnabled', on ? 1 : 0))));
+    },
+
+    chapters() {
+      header('Chapters');
+      add(group(...state.chapters.map((chapter, i) => choice({
+        label: chapter.title || `Chapter ${i + 1}`, detail: clock(chapter.startMs),
+        onClick: () => { player('selectChapter', i); closeSheet(); },
+      }))));
+    },
+  };
+
+  // ─── Subtitles → Customization, control for control ───
+  const alphaPercent = (argb) => Math.round(parseInt(String(argb).slice(1, 3), 16) / 255 * 100);
+  const rgbHex = (argb) => '#' + String(argb).slice(3, 9);
+  const cssColor = (argb) => rgbHex(argb) + String(argb).slice(1, 3); // #AARRGGBB from the player → CSS #RRGGBBAA
+  const formatDelay = (ms) => `${ms >= 0 ? '+' : '-'}${(Math.abs(ms) / 1000).toFixed(3)}s`;
+
+  // The player's swatches, plus "Custom": the phone's own colour picker.
+  function swatches(label, colors, selected, type, rgbType, disabled) {
+    const row = el('div', 'row row-stack');
+    row.append(el('span', 'copy', label));
+    const box = el('div', 'swatches');
+    colors.forEach((color, index) => {
+      const swatch = el('button', 'swatch');
+      swatch.setAttribute('aria-label', `${label} ${index + 1}`);
+      swatch.setAttribute('aria-pressed', rgbHex(color).toLowerCase() === rgbHex(selected).toLowerCase());
+      swatch.style.setProperty('--swatch', cssColor(color));
+      swatch.disabled = disabled;
+      swatch.addEventListener('click', () => player(type, index));
+      box.append(swatch);
+    });
+    const custom = el('label', 'btn btn-sm btn-gray custom', 'Custom');
+    const input = el('input');
+    input.type = 'color';
+    input.value = rgbHex(selected);
+    input.disabled = disabled;
+    input.addEventListener('change', () => player(rgbType, parseInt(input.value.slice(1), 16)));
+    custom.append(input);
+    box.append(custom);
+    row.append(box);
+    return row;
+  }
+
+  function customization(style) {
+    const off = !style.custom;
+    const noEffect = style.effect === 'none';
+    const boxed = style.effect === 'background_box';
+    const text = alphaPercent(style.textColor);
+    const outline = alphaPercent(style.effectColor);
+    const delay = stepper('Subtitle Delay', formatDelay(style.delayMs),
+      () => player('subtitleDelayDelta', -100), () => player('subtitleDelayDelta', 100));
+    add(group(
+      delay,
+      stepper('Font Size', `${style.fontSize}sp`, () => player('subtitleFontSizeDelta', -1), () => player('subtitleFontSizeDelta', 1)),
+      stepper('Bottom Offset', String(style.bottomOffset), () => player('subtitleBottomOffsetDelta', -5), () => player('subtitleBottomOffsetDelta', 5)),
+    ));
+    const reset = el('button', 'btn btn-sm btn-gray', 'Reset');
+    reset.addEventListener('click', () => player('subtitleDelayReset'));
+    delay.querySelector('.value').after(reset);
+
+    add(group(
+      toggle('Use custom styling', '', style.custom, () => player('subtitleCustomStyleToggle')),
+      stepper('Font', style.font, () => player('subtitleFontDelta', -1), () => player('subtitleFontDelta', 1), off),
+      toggle('Bold', '', style.bold, () => player('subtitleBoldToggle'), off),
+      swatches('Color', style.textSwatches, style.textColor, 'subtitleTextColor', 'subtitleTextColorRgb', off),
+      stepper('Text Opacity', `${text}%`, () => player('subtitleTextOpacity', Math.max(0, text - 10)),
+        () => player('subtitleTextOpacity', Math.min(100, text + 10)), off),
+      stepper('Outline Style', style.effectLabel, () => player('subtitleOutlineEffectDelta', -1), () => player('subtitleOutlineEffectDelta', 1), off),
+      swatches(boxed ? 'Box Color' : 'Outline Color', style.outlineSwatches, style.effectColor,
+        'subtitleOutlineColor', 'subtitleOutlineColorRgb', off || noEffect),
+      stepper(boxed ? 'Box Opacity' : 'Outline Opacity', `${outline}%`, () => player('subtitleOutlineOpacity', Math.max(0, outline - 10)),
+        () => player('subtitleOutlineOpacity', Math.min(100, outline + 10)), off || noEffect),
+      stepper('Outline Thickness', String(style.outlineWidth), () => player('subtitleOutlineThicknessDelta', -1),
+        () => player('subtitleOutlineThicknessDelta', 1), off || boxed || noEffect),
+    ));
+
+    // Auto Sync: tap the line being spoken now, and the subtitle shifts to match.
+    const sync = style.autoSync;
+    const buttons = el('div', 'row');
+    buttons.append(el('span', 'copy', 'Auto Sync'));
+    [['Reload', 'subtitleAutoSyncReload'], ['Capture', 'subtitleAutoSyncCapture']].forEach(([label, type]) => {
+      const btn = el('button', 'btn btn-sm btn-gray', label);
+      btn.disabled = !sync.enabled;
+      btn.addEventListener('click', () => player(type));
+      buttons.append(btn);
+    });
+    const status = !sync.enabled ? 'Select an addon subtitle first' : sync.loading ? 'Loading subtitle lines...' : sync.error;
+    const rows = [buttons];
+    if (status) { const note = el('div', 'row note', status); rows.push(note); }
+    sync.cues.forEach((cue) => rows.push(choice({ label: cue.text, detail: cue.time, onClick: () => player('subtitleAutoSyncCue', cue.index) })));
+    add(group(...rows));
+
+    const resetAll = el('button', 'btn btn-block btn-gray', 'Reset Defaults');
+    resetAll.addEventListener('click', () => player('subtitleStyleReset'));
+    add(resetAll);
+  }
+
+  // ─── D-pad: press on touch-down for a snappy feel; arrows repeat while held, like a TV remote ───
+  let repeatTimer = null;
+  function stopRepeat(btn) {
+    clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null;
+    if (btn) btn.classList.remove('pressed');
+  }
+  document.querySelectorAll('[data-cmd]').forEach((btn) => {
+    const msg = btn.dataset.key ? { cmd: btn.dataset.cmd, key: btn.dataset.key } : { cmd: btn.dataset.cmd };
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btn.classList.add('pressed');
+      send(msg);
+      if ('repeat' in btn.dataset) repeatTimer = setTimeout(() => { repeatTimer = setInterval(() => send(msg), 120); }, 400);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, () => stopRepeat(btn)));
+  });
+
+  connect();
+</script>
+</body>
+</html>
