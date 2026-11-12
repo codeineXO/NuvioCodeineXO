@@ -4,11 +4,13 @@ import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
@@ -16,6 +18,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.modifier.modifierLocalOf
 import androidx.compose.ui.modifier.modifierLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
 import kotlin.math.abs
@@ -98,6 +103,58 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
                         awaitPointerEvent(PointerEventPass.Main)
                         if (route.owns(event)) wheel.scrollBy(delta)
                     }
+                }
+            }
+    }
+}
+
+/** Reserve native wheel input, then scroll horizontal containers with vertical or horizontal wheel events. */
+@OptIn(ExperimentalComposeUiApi::class)
+internal fun Modifier.nuvioHorizontalMouseWheelScroll(
+    state: ScrollableState,
+    enabled: Boolean = true,
+    reverseScrolling: Boolean = false,
+): Modifier {
+    if (!isDesktop || !enabled) return this
+    return composed {
+        val active = LocalScreenActive.current
+        val scope = rememberCoroutineScope()
+        val horizontalEvents = LocalHorizontalWheelEvents.current
+        val dispatcher = remember { NestedScrollDispatcher() }
+        val connection = remember { object : NestedScrollConnection {} }
+        val route = remember { SoftWheelRoute() }
+        val wheel = remember(state, scope, reverseScrolling) {
+            SoftWheelScroll(state, scope, dispatcher, reverseScrolling)
+        }
+        val density = LocalDensity.current
+        val stepPx = remember(density) { with(density) { 80.dp.toPx() } }
+        val layoutDirection = LocalLayoutDirection.current
+
+        DisposableEffect(wheel, active) {
+            if (!active) wheel.cancel()
+            onDispose { wheel.cancel() }
+        }
+        if (!active) return@composed this
+
+        modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
+            .modifierLocalProvider(ModifierLocalSoftWheelRoute) { route }
+            .nestedScroll(connection, dispatcher)
+            .onPointerEvent(PointerEventType.Press) { wheel.cancel() }
+            .onPointerEvent(PointerEventType.Scroll) { event ->
+                val canScrollHorizontally = state.canScrollBackward || state.canScrollForward
+                if (!canScrollHorizontally) return@onPointerEvent
+
+                val totalDelta = event.changes.fold(0f) { acc, change ->
+                    acc + change.scrollDelta.y + change.scrollDelta.x
+                }
+                if (totalDelta != 0f) {
+                    val isRtl = layoutDirection == LayoutDirection.Rtl
+                    val direction = if (reverseScrolling xor isRtl) -1f else 1f
+                    val delta = totalDelta * stepPx * direction
+                    route.claim(event)
+                    horizontalEvents?.handled = true
+                    wheel.scrollBy(delta)
+                    event.changes.forEach { it.consume() }
                 }
             }
     }

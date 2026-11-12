@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import com.nuvio.app.core.ui.nuvioHorizontalMouseWheelScroll
 import com.nuvio.app.core.ui.navigationGlassFeedback
 import com.nuvio.app.core.ui.backdropControlColor
 import nuvio.composeapp.generated.resources.Res
@@ -93,6 +94,7 @@ internal fun ProviderFilterRow(
         modifier = modifier
             .remoteNavigationPageEntry()
             .fillMaxWidth()
+            .nuvioHorizontalMouseWheelScroll(scrollState)
             .nuvioDesktopDragScroll(scrollState, momentumEnabled = desktopDragMomentumEnabled)
             .horizontalScroll(scrollState)
             .padding(contentPadding),
