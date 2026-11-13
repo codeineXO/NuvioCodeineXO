@@ -16,13 +16,19 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupPositionProvider
 import com.nuvio.app.core.ui.LocalNavigationGlassState
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.navigationGlass
@@ -30,6 +36,7 @@ import dev.chrisbanes.haze.HazeState
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_action_off
 import nuvio.composeapp.generated.resources.compose_action_on
+import nuvio.composeapp.generated.resources.home_switch_layout
 import nuvio.composeapp.generated.resources.settings_homescreen_scroll_posters_layout
 import org.jetbrains.compose.resources.stringResource
 
@@ -47,10 +54,25 @@ internal fun ScrollPostersToggleButton(
     val statusText = stringResource(if (isScrollLayout) Res.string.compose_action_on else Res.string.compose_action_off)
     val settingTitle = stringResource(Res.string.settings_homescreen_scroll_posters_layout)
     val label = "$settingTitle: $statusText"
+    val tooltipPosition = TooltipDefaults.rememberPlainTooltipPositionProvider()
 
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-        tooltip = { PlainTooltip { Text(label) } },
+        positionProvider = remember(tooltipPosition) {
+            object : PopupPositionProvider {
+                override fun calculatePosition(
+                    anchorBounds: IntRect,
+                    windowSize: IntSize,
+                    layoutDirection: LayoutDirection,
+                    popupContentSize: IntSize,
+                ): IntOffset {
+                    val position = tooltipPosition.calculatePosition(anchorBounds, windowSize, layoutDirection, popupContentSize)
+                    val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+                    val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+                    return IntOffset(position.x.coerceIn(0, maxX), position.y.coerceIn(0, maxY))
+                }
+            }
+        },
+        tooltip = { PlainTooltip { Text(stringResource(Res.string.home_switch_layout)) } },
         state = rememberTooltipState(),
         focusable = false,
     ) {

@@ -26,7 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -537,6 +536,18 @@ internal fun Modifier.seasonPickerDrag(
     }
 }
 
+private object SeasonRailTooltipPosition : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ) = IntOffset(
+        x = anchorBounds.left - popupContentSize.width,
+        y = anchorBounds.center.y - popupContentSize.height / 2,
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SeasonRailMark(
@@ -584,7 +595,7 @@ private fun SeasonRailMark(
         if (focused) tooltip.show() else tooltip.dismiss()
     }
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+        positionProvider = SeasonRailTooltipPosition,
         tooltip = { PlainTooltip { Text(label) } },
         state = tooltip,
         focusable = false,
