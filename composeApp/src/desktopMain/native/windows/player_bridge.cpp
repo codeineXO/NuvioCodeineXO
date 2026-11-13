@@ -1246,6 +1246,11 @@ public:
         }
         filterChain("vf");
         filterChain("af");
+        stringField("videoSync", stringProperty("options/video-sync"));
+        stringField("interpolation", stringProperty("options/interpolation"));
+        int displaySyncActive = 0;
+        const int syncResult = api.getProperty(mpv, "display-sync-active", MPV_FORMAT_FLAG, &displaySyncActive);
+        out << "\"displaySyncActive\":" << (syncResult < 0 ? "null" : displaySyncActive ? "true" : "false") << ',';
         stringField("svp", svpStatus);
         stringField("svpProfile", activeSvpScript.find("svp_anime.vpy") != std::string::npos ? "Anime" :
             activeSvpScript.find("svp_cinema.vpy") != std::string::npos ? "Cinema" : "");

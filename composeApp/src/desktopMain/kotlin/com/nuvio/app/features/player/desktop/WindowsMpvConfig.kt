@@ -34,6 +34,7 @@ internal object WindowsMpvConfig {
 
     val supportedOptions = setOf(
         "scale", "cscale", "dscale", "deband", "dither-depth", "tone-mapping",
+        "video-sync", "interpolation",
         "glsl-shader", "glsl-shaders", "glsl-shaders-append", "glsl-shader-opts",
         "vf", "vf-add", "af", "af-add",
     )

@@ -2231,8 +2231,8 @@
     <string name="settings_playback_nvidia_rtx_super_resolution">RTX Video Super Resolution</string>
     <string name="settings_playback_nvidia_rtx_super_resolution_desc">Upscale low-resolution video using NVIDIA RTX AI Super Resolution.</string>
     <string name="settings_playback_mpv_config">Custom mpv config</string>
-    <string name="settings_playback_mpv_config_description">Set custom shaders, video filters, and audio filters for the built-in player.</string>
-    <string name="settings_playback_mpv_config_instructions">Enter one option=value per line. Changes apply when you reopen playback.</string>
+    <string name="settings_playback_mpv_config_description">Customize video sync, renderer interpolation, shaders, and video and audio filters.</string>
+    <string name="settings_playback_mpv_config_instructions">Enter one option=value per line. Changes apply when you reopen playback. Renderer interpolation requires a display sync mode, such as video-sync=display-resample.</string>
     <string name="settings_playback_mpv_config_enabled">Use custom mpv config</string>
     <string name="settings_playback_mpv_config_enabled_description">Apply your saved config when playback opens.</string>
     <string name="settings_playback_mpv_config_supported">Supported options: %1$s</string>

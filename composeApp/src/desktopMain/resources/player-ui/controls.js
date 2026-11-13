@@ -1324,6 +1324,13 @@ const renderPlaybackStats = () => {
     statText("statMpvDeband", mpv.deband || "Unavailable");
     statText("statMpvDither", mpv["dither-depth"] || "Unavailable");
     statText("statMpvToneMap", mpv["tone-mapping"] || "Unavailable");
+    const displaySyncStatus = mpv.displaySyncActive === true ? "Active"
+      : mpv.displaySyncActive === false ? "Inactive" : "Status unavailable";
+    statText("statMpvDisplaySync", mpv.videoSync ? `${mpv.videoSync} · ${displaySyncStatus}` : displaySyncStatus);
+    const interpolationStatus = mpv.displaySyncActive === false ? "Enabled · display sync inactive"
+      : "Enabled";
+    statText("statMpvInterpolation", mpv.interpolation === "yes" ? interpolationStatus
+      : mpv.interpolation === "no" ? "Off" : "Unavailable");
     statText("statMpvShaders", mpv.shaders?.length ? mpv.shaders.join("\n") : "None");
     document.getElementById("statMpvShaderErrorRow").hidden = !mpv.shaderError;
     statText("statMpvShaderError", mpv.shaderError || "");
