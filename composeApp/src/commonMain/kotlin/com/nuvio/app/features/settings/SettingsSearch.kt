@@ -48,6 +48,7 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.isDesktop
 import com.nuvio.app.isIos
+import com.nuvio.app.isWindows
 import com.nuvio.app.supportsPosterNavigationMotion
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -739,6 +740,15 @@ internal fun settingsSearchEntries(
                     add(PlaybackSearchRow("auto-switch-engine", stringResource(Res.string.settings_playback_auto_switch_engine_on_error), stringResource(Res.string.settings_playback_auto_switch_engine_on_error_description), page = SettingsPage.PlaybackPlayer))
                 }
                 add(PlaybackSearchRow("decoder-priority", stringResource(Res.string.settings_playback_decoder_priority)))
+                if (isWindows) {
+                    add(
+                        PlaybackSearchRow(
+                            "custom-mpv-config",
+                            stringResource(Res.string.settings_playback_mpv_config),
+                            stringResource(Res.string.settings_playback_mpv_config_description),
+                        ),
+                    )
+                }
                 add(PlaybackSearchRow("exo-chapters", stringResource(Res.string.settings_playback_exo_chapters), stringResource(if (isDesktop) Res.string.settings_playback_chapters_description else Res.string.settings_playback_exo_chapters_description), page = SettingsPage.PlaybackInterface))
                 if (!isDesktop) {
                     add(PlaybackSearchRow("dv7-hevc", stringResource(Res.string.settings_playback_map_dv7_to_hevc), stringResource(Res.string.settings_playback_map_dv7_to_hevc_description)))

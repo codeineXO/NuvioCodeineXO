@@ -6669,6 +6669,21 @@ svg {
   overflow-wrap: anywhere;
 }
 
+.playback-stats-overlay .stats-fps-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.playback-stats-overlay .stats-svp-badge {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eaeaea;
+  font-size: 9px;
+  font-weight: 600;
+}
+
 .playback-stats-overlay .stats-provider-logo {
   width: 32px;
   height: 32px;

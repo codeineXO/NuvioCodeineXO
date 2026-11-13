@@ -68,8 +68,14 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.settings_playback_mpv_config_fallback
+import nuvio.composeapp.generated.resources.settings_playback_mpv_night_filter_error
+import org.jetbrains.compose.resources.getString
 import java.awt.Component
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -98,10 +104,7 @@ internal typealias NativePlayerCreate = (
 
 internal class NativePlayerController(
     private val host: NativePlayerHost,
-    private val nativeCreate: NativePlayerCreate = { hostViewPtr, source, audioSource, headers, playWhenReady, positionMs, controlsUrl, decoder, rtx, sink ->
-        NativePlayerBridge.ensureLoaded()
-        NativePlayerBridge.create(hostViewPtr, source, audioSource, headers, playWhenReady, positionMs, controlsUrl, decoder, rtx, sink)
-    },
+    private val nativeCreate: NativePlayerCreate? = null,
     private val nativeDispose: (Long) -> Unit = NativePlayerBridge::dispose,
     private val nativeSeekTo: (Long, Long) -> Unit = NativePlayerBridge::seekTo,
     private val nativeSeekBy: (Long, Long) -> Unit = NativePlayerBridge::seekBy,
@@ -245,7 +248,11 @@ internal class NativePlayerController(
     private var currentSvpProfile: String = ""
     private var rememberedAudioNightModeEnabled: Boolean = false
     private var isPlaybackStatsActive: Boolean = false
-    private var currentPlaybackStats: PlayerPlaybackStats? = null
+    private data class MpvConfigSession(val snapshot: WindowsMpvConfig.Snapshot, val status: String)
+
+    @Volatile
+    private var mpvConfigSession: MpvConfigSession? = null
+    private var currentPlaybackStats: JsonObject? = null
     private var statsJob: Job? = null
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
     private var lastEnhancementShadersKey: String? = null
@@ -253,12 +260,6 @@ internal class NativePlayerController(
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
     private var onScrubChange: (Long) -> Boolean = { false }
     private var onScrubFinished: (Long) -> Boolean = { false }
-    private val eventSink = NativePlayerEventSink { type, value ->
-        SwingUtilities.invokeLater {
-            handlePlayerEvent(type, value)
-        }
-    }
-
     private fun setPlaybackStatsActive(active: Boolean) {
         if (isPlaybackStatsActive == active) return
         isPlaybackStatsActive = active
@@ -269,10 +270,23 @@ internal class NativePlayerController(
             statsJob = playerScope.launch {
                 while (isActive && isPlaybackStatsActive) {
                     val current = handle
-                    if (current != 0L) {
-                        currentPlaybackStats = WindowsMpvSubStyleHelper.getPlaybackStats(current)
+                    val session = mpvConfigSession
+                    if (current != 0L && session != null) {
+                        val stats = runCatching {
+                            NativePlayerBridge.windowsPlaybackStatsJson(current)?.let { Json.parseToJsonElement(it).jsonObject }
+                        }.getOrNull()
+                        val reopen = session.snapshot.needsReopen(WindowsMpvConfig.settings.value)
+                        val job = coroutineContext[Job]
                         SwingUtilities.invokeLater {
-                            if (!releaseRequested && isPlaybackStatsActive) {
+                            if (!releaseRequested && isPlaybackStatsActive && statsJob === job &&
+                                handle == current && mpvConfigSession === session
+                            ) {
+                                currentPlaybackStats = stats?.let {
+                                    JsonObject(it + mapOf(
+                                        "mpvConfigStatus" to JsonPrimitive(session.status),
+                                        "mpvConfigReopen" to JsonPrimitive(reopen),
+                                    ))
+                                }
                                 lastSentControlsStructureKey = null
                                 updateControls(controlsState)
                             }
@@ -471,9 +485,34 @@ internal class NativePlayerController(
         // the app stops responding and Windows closes it as "stopped interacting" (Hang 1002).
         // Create off the EDT and come back to it for the parts that touch Swing state.
         val createWorker = Thread({
+            val eventSink = NativePlayerEventSink { type, value ->
+                SwingUtilities.invokeLater {
+                    if (!releaseRequested && pendingSource === pending &&
+                        (attachedSource === pending || type == "controlsUnavailable")
+                    ) {
+                        handlePlayerEvent(type, value)
+                    }
+                }
+            }
             try {
+                val config = if (nativeCreate == null && DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+                    WindowsMpvConfig.settings.value
+                } else {
+                    null
+                }
+                val parsed = config?.takeIf { it.enabled }?.let { WindowsMpvConfig.parse(it.text) }
+                val create: NativePlayerCreate = nativeCreate ?: { host, source, audio, headers, play, position, controls, decoder, rtx, sink ->
+                    NativePlayerBridge.ensureLoaded()
+                    if (config != null) {
+                        val options = if (parsed == null) emptyArray()
+                            else if (parsed.issues.isEmpty()) parsed.nativeOptions() else null
+                        NativePlayerBridge.createWindows(host, source, audio, headers, play, position, controls, decoder, rtx, options, sink)
+                    } else {
+                        NativePlayerBridge.create(host, source, audio, headers, play, position, controls, decoder, rtx, sink)
+                    }
+                }
                 runCatching {
-                    nativeCreate(
+                    create(
                         hostViewPtr,
                         resolvedSource,
                         pending.sourceAudioUrl.orEmpty(),
@@ -486,8 +525,20 @@ internal class NativePlayerController(
                         eventSink,
                     ).also { if (it == 0L) error("Native player did not return a handle.") }
                 }.onSuccess { created ->
+                    val usedDefaultConfig = config != null &&
+                        runCatching { NativePlayerBridge.usedDefaultWindowsMpvConfig(created) }.getOrDefault(false)
+                    val configSession = config?.let {
+                        val status = when {
+                            !it.enabled -> "off"
+                            usedDefaultConfig -> "fallback"
+                            parsed?.options.isNullOrEmpty() -> "empty"
+                            else -> "loaded"
+                        }
+                        MpvConfigSession(it, status)
+                    }
                     val accepted = synchronized(lifecycleLock) {
                         if (!releaseRequested && terminalReleaseFailure == null && pendingSource === pending) {
+                            mpvConfigSession = configSession
                             handle = created
                             attachedSource = pending
                             lastAppliedPlaybackBuffer = null
@@ -532,6 +583,9 @@ internal class NativePlayerController(
                         pendingAudioUri?.let { if (attachedSource?.sourceAudioUrl != it) setAudioUri(it) }
                         applyCoordinatedEnhancements(created)
                         applyAudioNightMode(created, rememberedAudioNightModeEnabled)
+                        if (usedDefaultConfig) {
+                            showMpvNotice(created) { getString(Res.string.settings_playback_mpv_config_fallback) }
+                        }
                     }
                 }.onFailure { error ->
                     log.w(error) { "attach failed source=${pending.sourceUrl.toPlaybackLogKey()}" }
@@ -632,7 +686,6 @@ internal class NativePlayerController(
             svpProfile = currentSvpProfile,
             svpAvailable = runCatching { NativePlayerBridge.isSvpAvailable() }.getOrDefault(false),
             mediaContentType = mediaContentType,
-            playbackStats = currentPlaybackStats,
         )
         currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
         controlsState = stateWithEnhancements
@@ -664,7 +717,7 @@ internal class NativePlayerController(
         val stateToSend = stateWithEnhancements.copy(
             closeModalsToken = stateWithEnhancements.closeModalsToken + remoteCloseCount,
         )
-        val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage)
+        val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage, currentPlaybackStats)
             .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount}"
         NativePlayerBridge.updateControls(current, controlsJson)
         if (wasMiniPlayer && !state.isMiniPlayer) {
@@ -903,11 +956,15 @@ internal class NativePlayerController(
         if (PlayerSettingsRepository.uiState.value.grainFilterEnabled) {
             EyeFilterShaderProvider.getGrainShaderPath()?.let { shaderPaths.add(it) }
         }
-        val shaderPath = shaderPaths.filter { it.isNotBlank() }.joinToString(java.io.File.pathSeparator)
         runCatching {
-            NativePlayerBridge.setGlslShaders(targetHandle, shaderPath)
+            val paths = shaderPaths.filter { it.isNotBlank() }
+            if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+                check(NativePlayerBridge.setWindowsGlslShaders(targetHandle, paths.toTypedArray()))
+            } else {
+                NativePlayerBridge.setGlslShaders(targetHandle, paths.joinToString(java.io.File.pathSeparator))
+            }
         }.onFailure { error ->
-            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle active=$upscalerActive mode=$animeUpscalerMode shaders=$shaderPath" }
+            log.w(error) { "Failed to set GLSL shaders handle=$targetHandle active=$upscalerActive mode=$animeUpscalerMode" }
         }
 
         val scriptPath = if (svpIsActive && svpProf.isNotEmpty()) {
@@ -941,9 +998,26 @@ internal class NativePlayerController(
             ""
         }
         runCatching {
-            NativePlayerBridge.setAudioFilter(targetHandle, filter)
+            if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
+                if (!NativePlayerBridge.setWindowsAudioNightFilter(targetHandle, filter)) {
+                    showMpvNotice(targetHandle) { getString(Res.string.settings_playback_mpv_night_filter_error) }
+                }
+            } else {
+                NativePlayerBridge.setAudioFilter(targetHandle, filter)
+            }
         }.onFailure { error ->
             log.w(error) { "Failed to set audio filter handle=$targetHandle enabled=$enabled" }
+        }
+    }
+
+    private fun showMpvNotice(targetHandle: Long, message: suspend () -> String) {
+        playerScope.launch {
+            val text = message()
+            SwingUtilities.invokeLater {
+                if (handle == targetHandle && handle != 0L) {
+                    updateControls(controlsState.copy(notificationMessage = text, notificationToken = System.currentTimeMillis()))
+                }
+            }
         }
     }
 
@@ -965,6 +1039,8 @@ internal class NativePlayerController(
                     notificationToken = System.currentTimeMillis()
                 )
                 overrideSvpProfile = "off"
+                svpActive = false
+                currentSvpProfile = ""
                 lastSentControlsStructureKey = null
                 updateControls(controlsState)
             }
@@ -975,8 +1051,13 @@ internal class NativePlayerController(
                     notificationToken = System.currentTimeMillis()
                 )
                 overrideSvpProfile = "off"
+                svpActive = false
+                currentSvpProfile = ""
                 lastSentControlsStructureKey = null
                 updateControls(controlsState)
+            }
+            "audio_night_filter_error" -> {
+                showMpvNotice(handle) { getString(Res.string.settings_playback_mpv_night_filter_error) }
             }
             "cursorActivity" -> host.noteCursorActivity()
             "scrubChange" -> {
@@ -1530,6 +1611,8 @@ internal class NativePlayerController(
             if (current == 0L) return
             handle = 0L
             attachedSource = null
+            mpvConfigSession = null
+            currentPlaybackStats = null
             cancelInFlightSubtitleDownload()
             cachedSubtitleTracks = emptyList()
             cachedAudioTracks = emptyList()
@@ -2236,7 +2319,11 @@ private data class NativeControlsStructureKey(
     val playerUiScale: Int = 100,
 )
 
-internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageReady: () -> Unit = {}): String =
+internal fun PlayerControlsState.toControlsJson(
+    isFullscreen: Boolean,
+    onImageReady: () -> Unit = {},
+    windowsPlaybackStats: JsonObject? = null,
+): String =
     buildString {
         append('{')
         appendJsonField("isMiniPlayer", isMiniPlayer)
@@ -2737,7 +2824,9 @@ internal fun PlayerControlsState.toControlsJson(isFullscreen: Boolean, onImageRe
         appendJsonField("showTorrentStatsOverlay", showTorrentStatsOverlay)
         append(',')
         appendJsonField("torrentStatsText", torrentStatsText)
-        if (playbackStats != null) {
+        if (windowsPlaybackStats != null) {
+            append(",\"playbackStats\":").append(windowsPlaybackStats)
+        } else if (playbackStats != null) {
             append(",\"playbackStats\":{")
             appendJsonField("videoCodec", playbackStats.videoCodec)
             append(',')

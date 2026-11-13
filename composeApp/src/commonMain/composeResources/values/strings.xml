@@ -2230,6 +2230,19 @@
     <string name="settings_playback_nvidia_rtx_video_section">NVIDIA RTX Video</string>
     <string name="settings_playback_nvidia_rtx_super_resolution">RTX Video Super Resolution</string>
     <string name="settings_playback_nvidia_rtx_super_resolution_desc">Upscale low-resolution video using NVIDIA RTX AI Super Resolution.</string>
+    <string name="settings_playback_mpv_config">Custom mpv config</string>
+    <string name="settings_playback_mpv_config_description">Set custom shaders, video filters, and audio filters for the built-in player.</string>
+    <string name="settings_playback_mpv_config_instructions">Enter one option=value per line. Changes apply when you reopen playback.</string>
+    <string name="settings_playback_mpv_config_enabled">Use custom mpv config</string>
+    <string name="settings_playback_mpv_config_enabled_description">Apply your saved config when playback opens.</string>
+    <string name="settings_playback_mpv_config_supported">Supported options: %1$s</string>
+    <string name="settings_playback_mpv_config_syntax">Line %1$d: Enter option=value with matching quotes.</string>
+    <string name="settings_playback_mpv_config_unsupported">Line %1$d: %2$s is unsupported.</string>
+    <string name="settings_playback_mpv_config_invalid_value">Line %1$d: %2$s</string>
+    <string name="settings_playback_mpv_config_reserved_label">The %1$s chain contains a reserved filter label beginning with nuvio-.</string>
+    <string name="settings_playback_mpv_config_validation_failed">Could not validate the config with the built-in mpv runtime.</string>
+    <string name="settings_playback_mpv_config_fallback">Playback is using default mpv settings. Review your custom mpv config in Settings.</string>
+    <string name="settings_playback_mpv_night_filter_error">Could not apply the Audio Night Mode filter. Review your audio filters in Settings.</string>
     <!-- Playback settings iOS video output -->
     <string name="settings_playback_ios_video_output">iOS VIDEO OUTPUT</string>
     <string name="settings_playback_ios_hardware_decoder">Hardware decoder</string>

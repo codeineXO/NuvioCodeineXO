@@ -65,6 +65,26 @@ internal object NativePlayerBridge {
         eventSink: NativePlayerEventSink,
     ): Long
 
+    external fun createWindows(
+        hostViewPtr: Long,
+        sourceUrl: String,
+        audioUrl: String,
+        headerLines: Array<String>,
+        playWhenReady: Boolean,
+        initialPositionMs: Long,
+        controlsPageUrl: String,
+        decoderPriority: Int,
+        nvidiaRtxSuperResolutionEnabled: Boolean,
+        options: Array<String>?,
+        eventSink: NativePlayerEventSink,
+    ): Long
+
+    external fun validateWindowsMpvOptions(options: Array<String>): Array<String?>
+    external fun usedDefaultWindowsMpvConfig(handle: Long): Boolean
+    external fun windowsPlaybackStatsJson(handle: Long): String?
+    external fun setWindowsGlslShaders(handle: Long, shaders: Array<String>): Boolean
+    external fun setWindowsAudioNightFilter(handle: Long, filter: String): Boolean
+
     external fun dispose(handle: Long)
     external fun updateControls(handle: Long, controlsJson: String)
 
@@ -112,7 +132,6 @@ internal object NativePlayerBridge {
     )
     external fun setGlslShaders(handle: Long, shaders: String)
     external fun setAudioFilter(handle: Long, filter: String)
-    external fun setVideoFilter(handle: Long, filter: String)
     external fun isSvpAvailable(): Boolean
     external fun configureSvpRuntime(directory: String): Boolean
     external fun setSvpFilter(handle: Long, enabled: Boolean, vpyPath: String): Boolean

@@ -50,6 +50,8 @@ import com.nuvio.app.features.player.desktop.registerDesktopAppFullscreenToggle
 import com.nuvio.app.features.player.desktop.trackMaximizedBoundsForCurrentScreen
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.settings.AppIconRepository
+import com.nuvio.app.features.settings.LocalWindowsMpvConfigRow
+import com.nuvio.app.features.settings.WindowsMpvConfigSettings
 import com.nuvio.app.features.settings.applyDesktopRendererPreference
 import com.nuvio.app.features.settings.transparentPreviewResource
 import java.awt.Desktop
@@ -265,6 +267,9 @@ fun main(args: Array<String>) {
                     LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
                     LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
                     LocalRemoteCursorHidden provides DesktopRemoteCursorController.isHidden,
+                    LocalWindowsMpvConfigRow provides { isTablet, enabled ->
+                        WindowsMpvConfigSettings(isTablet, enabled)
+                    },
                 ) {
                     Box(
                         modifier = Modifier

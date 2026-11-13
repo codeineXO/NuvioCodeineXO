@@ -1246,39 +1246,29 @@ const renderPlaybackStatsMetadata = () => {
 const renderPlaybackStats = () => {
   if (!isPlaybackStatsVisible || !playbackStatsOverlay) return;
   const stats = state.playbackStats || {};
+  const mpv = stats.mpv;
+  const svpAttached = mpv ? mpv.svp === "attached" : Boolean(state.svpActive);
 
   // Video
   setText(statVideoCodec, stats.videoCodec ? stats.videoCodec.toUpperCase() : "-");
   setText(statVideoDecoder, stats.videoDecoder ? `${stats.videoDecoder} (Hardware)` : "Software / Auto");
   setText(statVideoResolution, stats.videoResolution || "-");
 
-  // FPS with real-time SVP interpolated FPS and video FPS
-  const containerFps = Number(stats.containerFps) || 0;
-  const outputFps = Number(stats.outputFps) || 0;
-  const displayFps = Number(stats.displayFps) || 0;
-  const svpActive = Boolean(state.svpActive);
-  if (containerFps > 0) {
-    if (svpActive && outputFps > 0 && Math.abs(outputFps - containerFps) > 0.5) {
-      setText(statVideoFps, `${containerFps.toFixed(2)} fps → ${outputFps.toFixed(2)} fps (SVP)`);
-    } else if (outputFps > 0 && Math.abs(outputFps - containerFps) > 0.5) {
-      setText(statVideoFps, `${containerFps.toFixed(2)} fps (Output: ${outputFps.toFixed(2)} fps)`);
-    } else {
-      setText(statVideoFps, `${containerFps.toFixed(2)} fps`);
-    }
-  } else if (outputFps > 0) {
-    setText(statVideoFps, svpActive ? `${outputFps.toFixed(2)} fps (SVP)` : `${outputFps.toFixed(2)} fps`);
-  } else {
-    setText(statVideoFps, "-");
-  }
+  const statText = (id, value) => setText(document.getElementById(id), value);
+  const frequency = (value, unit) => value > 0 ? `${Number(value).toFixed(2)} ${unit}` : "Unavailable";
+  setText(statVideoFps, frequency(stats.containerFps, "fps"));
+  statText("statFilteredFps", frequency(stats.outputFps, "fps"));
+  document.getElementById("statFilteredFpsSvp").hidden = !svpAttached;
+  statText("statDisplayRefresh", frequency(stats.displayFps, "Hz"));
 
   // Video Bitrate
   const vBitrate = Number(stats.videoBitrateKbps) || 0;
   setText(statVideoBitrate, vBitrate > 0 ? `${vBitrate.toLocaleString()} kbps` : "-");
 
   // Dropped Frames
-  const dropped = Number(stats.droppedFrames) || 0;
-  const voDropped = Number(stats.voDroppedFrames) || 0;
-  setText(statVideoDropped, `${dropped} dropped (VO: ${voDropped})`);
+  const dropCount = value => Number.isFinite(value) ? value.toLocaleString() : "Unavailable";
+  setText(statVideoDropped, dropCount(stats.droppedFrames));
+  statText("statRendererDropped", dropCount(stats.voDroppedFrames));
 
   // Color / Pixel
   setText(statVideoColor, stats.videoColor || "-");
@@ -1300,15 +1290,49 @@ const renderPlaybackStats = () => {
   setText(statSubtitleDelay, `${subDelay >= 0 ? "+" : ""}${subDelay} ms`);
 
   // Enhancements
-  if (state.svpActive) {
-    setText(statEnhancementSvp, `Active (${state.svpProfile || "Smooth"})`);
-  } else {
-    setText(statEnhancementSvp, state.svpMode && state.svpMode !== "off" ? `Ready (${state.svpMode})` : "Off");
-  }
+  const readySvp = state.svpMode && state.svpMode !== "off"
+    ? (state.svpAvailable === false ? "Unavailable" : `Ready (${state.svpMode})`)
+    : "Off";
+  const svpProfile = mpv?.svpProfile || state.svpProfile;
+  const attachedSvp = svpProfile ? `Attached (${svpProfile})` : "Attached";
+  const attachmentLabels = { attached: "Attached", failed: "Failed", unavailable: "Unavailable", off: "Off" };
+  const svp = mpv ? ({
+    attached: attachedSvp, unavailable: "Unavailable", failed: "Failed", off: readySvp,
+  }[mpv.svp] || "Unavailable") : (svpAttached ? attachedSvp : readySvp);
+  setText(statEnhancementSvp, svp);
   setText(statEnhancementUpscaler, state.animeUpscalerActive ? "Active" : (state.animeUpscalerOption || "Off"));
-  setText(statEnhancementNightMode, state.audioNightModeEnabled ? "Enabled" : "Off");
+  setText(statEnhancementNightMode, mpv ? (attachmentLabels[mpv.nightMode] || "Unavailable") : (state.audioNightModeEnabled ? "Enabled" : "Off"));
+  document.getElementById("statRtxRow").hidden = !mpv;
+  statText("statEnhancementRtx", mpv?.rtx === "suspended" ? "Suspended while SVP is attached" : (attachmentLabels[mpv?.rtx] || "Unavailable"));
+  const tintColor = state.eyeFilterColor || "#000000";
+  const tint = /^(#)?bw$/i.test(tintColor) ? "#000000" : tintColor;
+  const tintOpacity = Math.round(Math.max(0.10, Math.min(0.80, state.eyeFilterOpacity ?? 0.35)) * 100);
+  statText("statEnhancementTint", state.eyeFilterEnabled ? `${tint} · ${tintOpacity}% opacity` : "Off");
   setText(statEnhancementSpeed, state.playbackSpeedLabel || "1x");
   setText(statEnhancementAspect, state.resizeModeLabel || "Fit");
+
+  document.getElementById("statsSectionMpv").hidden = !mpv;
+  if (mpv) {
+    const configStatus = {
+      off: "Custom config off",
+      empty: "No custom options",
+      loaded: "Custom config loaded",
+      fallback: "Defaults after config error",
+    }[stats.mpvConfigStatus] || "Unavailable";
+    statText("statMpvConfig", stats.mpvConfigReopen ? `${configStatus}\nReopen to apply` : configStatus);
+    statText("statMpvScaling", `Luma: ${mpv.scale || "Default"} · Chroma: ${mpv.cscale || "Default"} · Downscale: ${mpv.dscale || "Default"}`);
+    statText("statMpvDeband", mpv.deband || "Unavailable");
+    statText("statMpvDither", mpv["dither-depth"] || "Unavailable");
+    statText("statMpvToneMap", mpv["tone-mapping"] || "Unavailable");
+    statText("statMpvShaders", mpv.shaders?.length ? mpv.shaders.join("\n") : "None");
+    document.getElementById("statMpvShaderErrorRow").hidden = !mpv.shaderError;
+    statText("statMpvShaderError", mpv.shaderError || "");
+    const filterChain = filters => filters == null ? "Unavailable" : (filters.map(filter =>
+      `${filter.label ? `@${filter.label}: ` : ""}${filter.name}${filter.enabled ? "" : " (disabled)"}`
+    ).join(" → ") || "None");
+    statText("statMpvVf", filterChain(mpv.vf));
+    statText("statMpvAf", filterChain(mpv.af));
+  }
 
   // Buffer & Network
   const cacheDur = Number(stats.cacheDurationSec) || 0;

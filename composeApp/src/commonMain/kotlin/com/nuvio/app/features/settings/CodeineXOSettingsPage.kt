@@ -463,6 +463,10 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         isTablet = isTablet,
                         onClick = { showSvpMotionOptionDialog = true },
                     )
+                    if (isWindows) {
+                        SettingsGroupDivider(isTablet = isTablet)
+                        LocalWindowsMpvConfigRow.current(isTablet, !playerSettings.externalPlayerEnabled)
+                    }
                 }
             }
 

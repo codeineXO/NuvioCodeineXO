@@ -20,15 +20,18 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <cwctype>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <map>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -47,6 +50,8 @@ typedef enum mpv_format {
     MPV_FORMAT_FLAG = 3,
     MPV_FORMAT_INT64 = 4,
     MPV_FORMAT_DOUBLE = 5,
+    MPV_FORMAT_NODE = 6,
+    MPV_FORMAT_NODE_ARRAY = 7,
     MPV_FORMAT_NODE_MAP = 8,
 } mpv_format;
 
@@ -71,6 +76,7 @@ struct mpv_node_list {
 typedef enum mpv_event_id {
     MPV_EVENT_NONE = 0,
     MPV_EVENT_SHUTDOWN = 1,
+    MPV_EVENT_LOG_MESSAGE = 2,
     // mpv's documented "seek request is finished" notification. Values must
     // match libmpv's mpv_event_id exactly.
     MPV_EVENT_PLAYBACK_RESTART = 21,
@@ -82,6 +88,13 @@ typedef struct mpv_event {
     uint64_t reply_userdata;
     void *data;
 } mpv_event;
+
+typedef struct mpv_event_log_message {
+    const char *prefix;
+    const char *level;
+    const char *text;
+    int log_level;
+} mpv_event_log_message;
 }
 
 namespace {
@@ -227,7 +240,7 @@ jstring newJavaStringUtf8(JNIEnv *env, const std::string &value) {
     return env->NewString(reinterpret_cast<const jchar *>(wide.data()), (jsize)wide.size());
 }
 
-std::vector<std::string> jstringArrayToVector(JNIEnv *env, jobjectArray values) {
+std::vector<std::string> jstringArrayToVector(JNIEnv *env, jobjectArray values, bool preserveEmpty = false) {
     std::vector<std::string> result;
     if (!values) return result;
     jsize count = env->GetArrayLength(values);
@@ -235,7 +248,7 @@ std::vector<std::string> jstringArrayToVector(JNIEnv *env, jobjectArray values) 
     for (jsize index = 0; index < count; index++) {
         jstring item = (jstring)env->GetObjectArrayElement(values, index);
         std::string value = jstringToUtf8(env, item);
-        if (!value.empty()) {
+        if (preserveEmpty || !value.empty()) {
             result.push_back(value);
         }
         env->DeleteLocalRef(item);
@@ -558,6 +571,7 @@ struct MpvApi {
     using mpv_free_fn = void (*)(void *);
     using mpv_wait_event_fn = mpv_event *(*)(mpv_handle *, double);
     using mpv_wakeup_fn = void (*)(mpv_handle *);
+    using mpv_request_log_messages_fn = int (*)(mpv_handle *, const char *);
 
     HMODULE library = nullptr;
     std::once_flag loadOnce;
@@ -578,6 +592,7 @@ struct MpvApi {
     mpv_free_fn freeValue = nullptr;
     mpv_wait_event_fn waitEvent = nullptr;
     mpv_wakeup_fn wakeup = nullptr;
+    mpv_request_log_messages_fn requestLogMessages = nullptr;
 
     void ensureLoaded() {
         std::call_once(loadOnce, [this]() { load(); });
@@ -639,6 +654,7 @@ struct MpvApi {
         freeValue = loadSymbol<mpv_free_fn>("mpv_free");
         waitEvent = loadSymbol<mpv_wait_event_fn>("mpv_wait_event");
         wakeup = loadSymbol<mpv_wakeup_fn>("mpv_wakeup");
+        requestLogMessages = loadSymbol<mpv_request_log_messages_fn>("mpv_request_log_messages");
     }
 
     template <typename T>
@@ -668,6 +684,84 @@ static bool executeMpvCommandSeh(mpv_handle *mpv, const char **cmd) {
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
+}
+
+constexpr char kRtxFilterLabel[] = "nuvio-rtx";
+constexpr char kNightFilterLabel[] = "nuvio-audio-night";
+
+static bool applyCustomMpvOptions(
+    MpvApi &api, mpv_handle *handle, const std::vector<std::string> &options,
+    std::vector<std::string> &errors, bool initialized
+) {
+    // The option setter accepts scalar values. List actions and CLI aliases
+    // need mpv commands, which become available after initialization.
+    bool success = true;
+    for (size_t index = 0; index < options.size(); index += 2) {
+        const auto &name = options[index];
+        const auto *value = options[index + 1].c_str();
+        const bool video = name == "vf" || name == "vf-add";
+        const bool audio = name == "af" || name == "af-add";
+        const bool appendShader = name == "glsl-shader" || name == "glsl-shaders-append";
+        if (initialized != (video || audio || appendShader || name == "glsl-shaders")) continue;
+
+        int result;
+        if (video || audio) {
+            const char *command[] = {video ? "vf" : "af", name.size() == 2 ? "set" : "add", value, nullptr};
+            result = api.command(handle, command);
+        } else if (appendShader) {
+            const char *command[] = {"change-list", "glsl-shaders", "append", value, nullptr};
+            result = api.command(handle, command);
+        } else if (initialized) {
+            result = api.setPropertyString(handle, "glsl-shaders", value);
+        } else {
+            result = api.setOptionString(handle, name.c_str(), value);
+        }
+        if (result < 0) {
+            errors[index / 2] = api.errorText(result);
+            success = false;
+        }
+    }
+    return success;
+}
+
+static bool hasReservedFilterLabel(MpvApi &api, mpv_handle *handle, const char *property) {
+    mpv_node filters{};
+    if (api.getProperty(handle, property, MPV_FORMAT_NODE, &filters) < 0) {
+        throw std::runtime_error("Unable to inspect mpv filter labels.");
+    }
+    bool reserved = false;
+    if (filters.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < filters.u.list->num && !reserved; ++i) {
+            const auto &filter = filters.u.list->values[i];
+            if (filter.format != MPV_FORMAT_NODE_MAP) continue;
+            for (int j = 0; j < filter.u.list->num; ++j) {
+                const auto &value = filter.u.list->values[j];
+                if (std::strcmp(filter.u.list->keys[j], "label") == 0 &&
+                    value.format == MPV_FORMAT_STRING && std::string_view(value.u.string).substr(0, 6) == "nuvio-") {
+                    reserved = true;
+                    break;
+                }
+            }
+        }
+    }
+    api.freeNodeContents(&filters);
+    return reserved;
+}
+
+static std::vector<std::string> readMpvShaderPaths(MpvApi &api, mpv_handle *handle) {
+    mpv_node shaders{};
+    if (api.getProperty(handle, "glsl-shaders", MPV_FORMAT_NODE, &shaders) < 0) {
+        throw std::runtime_error("Unable to read mpv shader paths.");
+    }
+    std::vector<std::string> paths;
+    if (shaders.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < shaders.u.list->num; ++i) {
+            const auto &path = shaders.u.list->values[i];
+            if (path.format == MPV_FORMAT_STRING) paths.emplace_back(path.u.string);
+        }
+    }
+    api.freeNodeContents(&shaders);
+    return paths;
 }
 
 // Only the app's validated bundle may supply the Windows SVP runtime. Failures are retryable.
@@ -974,6 +1068,8 @@ public:
         JavaVM *vm,
         int decoderPriority,
         bool nvidiaRtxSuperResolutionEnabled,
+        std::vector<std::string> options,
+        bool invalidConfig,
         jobject sink,
         jmethodID method
     ) {
@@ -985,6 +1081,8 @@ public:
         eventSink = sink;
         eventMethod = method;
         hostHwnd = host;
+        customOptions = std::move(options);
+        customConfigFallback = invalidConfig;
 
         auto initState = std::make_shared<InitializationState>();
         auto self = shared_from_this();
@@ -1003,6 +1101,173 @@ public:
             }
             throw std::runtime_error(initState->failure);
         }
+    }
+
+    bool usedDefaultMpvConfig() const { return customConfigFallback; }
+
+    std::string playbackStatsJson() {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv || stopping.load()) return {};
+        auto &api = mpvApi();
+        std::ostringstream out;
+        out.imbue(std::locale::classic());
+        out << '{';
+        const auto quote = [&](const std::string &value) { out << '"' << jsonEscape(value) << '"'; };
+        const auto stringProperty = [&](const char *name) {
+            char *value = nullptr;
+            if (api.getProperty(mpv, name, MPV_FORMAT_STRING, &value) < 0 || !value) return std::string{};
+            std::string result(value);
+            api.freeValue(value);
+            return result;
+        };
+        const auto stringField = [&](const char *key, const std::string &value) {
+            quote(key);
+            out << ':';
+            quote(value);
+            out << ',';
+        };
+        const auto integer = [&](const char *name, int64_t fallback = 0) {
+            int64_t value = 0;
+            return api.getProperty(mpv, name, MPV_FORMAT_INT64, &value) >= 0 ? value : fallback;
+        };
+        const auto number = [&](const char *name) {
+            double value = 0;
+            return api.getProperty(mpv, name, MPV_FORMAT_DOUBLE, &value) >= 0 && std::isfinite(value) ? value : 0.0;
+        };
+        const auto dropCounter = [&](const char *key, const char *property, const char *legacy) {
+            const auto value = integer(property, -1);
+            const auto count = value >= 0 ? value : integer(legacy, -1);
+            quote(key);
+            out << ':';
+            if (count >= 0) out << count;
+            else out << "null";
+            out << ',';
+        };
+        const auto member = [](const mpv_node &node, const char *key) -> const mpv_node * {
+            if (node.format != MPV_FORMAT_NODE_MAP) return nullptr;
+            for (int i = 0; i < node.u.list->num; ++i) {
+                if (std::strcmp(node.u.list->keys[i], key) == 0) return &node.u.list->values[i];
+            }
+            return nullptr;
+        };
+        const auto filterChain = [&](const char *property) {
+            quote(property);
+            out << ':';
+            mpv_node node{};
+            if (api.getProperty(mpv, property, MPV_FORMAT_NODE, &node) < 0) {
+                out << "null,";
+                return;
+            }
+            out << '[';
+            if (node.format == MPV_FORMAT_NODE_ARRAY) {
+                for (int i = 0; i < node.u.list->num; ++i) {
+                    const auto &filter = node.u.list->values[i];
+                    const auto *name = member(filter, "name");
+                    const auto *label = member(filter, "label");
+                    const auto *enabled = member(filter, "enabled");
+                    if (i) out << ',';
+                    out << "{\"name\":";
+                    quote(name && name->format == MPV_FORMAT_STRING ? name->u.string : "");
+                    out << ",\"label\":";
+                    quote(label && label->format == MPV_FORMAT_STRING ? label->u.string : "");
+                    out << ",\"enabled\":" << (!enabled || enabled->format != MPV_FORMAT_FLAG || enabled->u.flag ? "true" : "false") << '}';
+                }
+            }
+            out << "],";
+            api.freeNodeContents(&node);
+        };
+
+        auto videoCodec = stringProperty("video-codec");
+        if (videoCodec.empty()) videoCodec = stringProperty("video-format");
+        stringField("videoCodec", videoCodec);
+        stringField("videoDecoder", stringProperty("hwdec-current"));
+        const auto width = integer("video-params/w");
+        const auto height = integer("video-params/h");
+        stringField("videoResolution", width > 0 && height > 0 ? std::to_string(width) + "x" + std::to_string(height) : "");
+        std::string color;
+        for (const auto *property : {"video-params/pixelformat", "video-params/primaries", "video-params/gamma"}) {
+            const auto value = stringProperty(property);
+            if (value.empty()) continue;
+            if (!color.empty()) color += " \xC2\xB7 ";
+            color += value;
+        }
+        stringField("videoColor", color);
+        auto audioCodec = stringProperty("audio-codec-name");
+        if (audioCodec.empty()) audioCodec = stringProperty("audio-codec");
+        if (audioCodec.empty()) audioCodec = stringProperty("audio-format");
+        stringField("audioCodec", audioCodec);
+        stringField("audioChannels", stringProperty("audio-params/channels"));
+        dropCounter("droppedFrames", "decoder-frame-drop-count", "drop-frame-count");
+        dropCounter("voDroppedFrames", "frame-drop-count", "vo-drop-frame-count");
+        const auto refresh = number("estimated-display-fps");
+        out << "\"containerFps\":" << number("container-fps")
+            << ",\"outputFps\":" << number("estimated-vf-fps")
+            << ",\"displayFps\":" << (refresh > 0 ? refresh : number("display-fps"))
+            << ",\"videoBitrateKbps\":" << integer("video-bitrate") / 1000
+            << ",\"audioBitrateKbps\":" << integer("audio-bitrate") / 1000
+            << ",\"audioSampleRateHz\":" << integer("audio-params/samplerate") << ',';
+        int64_t cacheBytes = 0;
+        int64_t cacheSpeed = 0;
+        double cacheDuration = 0;
+        mpv_node cache{};
+        if (api.getProperty(mpv, "demuxer-cache-state", MPV_FORMAT_NODE, &cache) >= 0) {
+            for (const auto *key : {"total-bytes", "fw-bytes", "file-cache-bytes"}) {
+                const auto *value = member(cache, key);
+                if (value && value->format == MPV_FORMAT_INT64 && value->u.int64 > 0) {
+                    cacheBytes = value->u.int64;
+                    break;
+                }
+            }
+            const auto *rate = member(cache, "raw-input-rate");
+            if (rate && rate->format == MPV_FORMAT_INT64) cacheSpeed = rate->u.int64;
+            const auto *duration = member(cache, "cache-duration");
+            if (duration && duration->format == MPV_FORMAT_DOUBLE && std::isfinite(duration->u.double_)) {
+                cacheDuration = duration->u.double_;
+            }
+            api.freeNodeContents(&cache);
+        }
+        if (cacheDuration <= 0) cacheDuration = number("demuxer-cache-duration");
+        if (cacheDuration <= 0) {
+            const auto cacheTime = number("demuxer-cache-time");
+            if (cacheTime > 0) cacheDuration = std::max(0.0, cacheTime - number("time-pos"));
+        }
+        if (cacheBytes <= 0) {
+            const auto legacy = integer("cache-used");
+            cacheBytes = legacy > 0 ? legacy * 1024 :
+                static_cast<int64_t>(cacheDuration * static_cast<double>(integer("video-bitrate")) / 8.0);
+        }
+        if (cacheSpeed <= 0) cacheSpeed = integer("cache-speed");
+        out << "\"cacheDurationSec\":" << cacheDuration
+            << ",\"cacheUsedBytes\":" << cacheBytes << ",\"cacheSpeedBytes\":" << cacheSpeed << ',';
+
+        out << "\"mpv\":{";
+        for (const auto *option : {"scale", "cscale", "dscale", "deband", "dither-depth", "tone-mapping"}) {
+            stringField(option, stringProperty((std::string("options/") + option).c_str()));
+        }
+        filterChain("vf");
+        filterChain("af");
+        stringField("svp", svpStatus);
+        stringField("svpProfile", activeSvpScript.find("svp_anime.vpy") != std::string::npos ? "Anime" :
+            activeSvpScript.find("svp_cinema.vpy") != std::string::npos ? "Cinema" : "");
+        stringField("rtx", rtxStatus);
+        stringField("nightMode", nightFilterStatus);
+        std::string currentShaderError = shaderError;
+        for (const auto &path : shaderReadFailures) {
+            if (std::find(userShaderPaths.begin(), userShaderPaths.end(), path) != userShaderPaths.end() ||
+                std::find(appliedBundledShaders.begin(), appliedBundledShaders.end(), path) != appliedBundledShaders.end()) {
+                currentShaderError = "Could not read shader: " + path.substr(path.find_last_of("/\\") + 1);
+                break;
+            }
+        }
+        stringField("shaderError", currentShaderError);
+        out << "\"shaders\":[";
+        const auto paths = readMpvShaderPaths(api, mpv);
+        for (size_t i = 0; i < paths.size(); ++i) {
+            if (i) out << ',';
+            quote(paths[i].substr(paths[i].find_last_of("/\\") + 1));
+        }
+        out << "]}}";
+        return out.str();
     }
 
     // Waits a bounded time for a thread to finish, then gives up and detaches it. Shutdown must
@@ -1051,11 +1316,9 @@ public:
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (mpv) {
-                const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
-                executeMpvCommandSeh(mpv, remCmd);
-                const char *cmd[] = {"vf", "clr", "", nullptr};
-                executeMpvCommandSeh(mpv, cmd);
-                mpvApi().setPropertyString(mpv, "vf", "");
+                if (!activeSvpLabel.empty()) {
+                    changeFilterLocked("vf", "remove", "@" + activeSvpLabel);
+                }
                 if (mpvApi().wakeup) {
                     mpvApi().wakeup(mpv);
                 }
@@ -1066,11 +1329,6 @@ public:
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (mpv) {
-                const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
-                executeMpvCommandSeh(mpv, remCmd);
-                const char *cmd[] = {"vf", "clr", "", nullptr};
-                executeMpvCommandSeh(mpv, cmd);
-                mpvApi().setPropertyString(mpv, "vf", "");
                 mpvApi().terminateDestroy(mpv);
                 mpv = nullptr;
             }
@@ -1404,31 +1662,44 @@ public:
         mpvApi().setProperty(mpv, "sid", MPV_FORMAT_INT64, &id);
     }
 
-    void setGlslShaders(const std::string &shaders) {
+    bool setGlslShaders(const std::vector<std::string> &shaders) {
         std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return;
-        mpvApi().setPropertyString(mpv, "glsl-shaders", shaders.c_str());
-    }
-
-    void setAudioFilter(const std::string &filter) {
-        std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return;
-        mpvApi().setPropertyString(mpv, "af", filter.c_str());
-    }
-
-    void setVideoFilter(const std::string &filter) {
-        std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return;
-        if (filter.empty()) {
-            const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
-            executeMpvCommandSeh(mpv, remCmd);
-            const char *cmd[] = {"vf", "clr", "", nullptr};
-            executeMpvCommandSeh(mpv, cmd);
-            mpvApi().setPropertyString(mpv, "vf", "");
-        } else {
-            const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
-            executeMpvCommandSeh(mpv, cmd);
+        if (!mpv) return false;
+        if (shaders == appliedBundledShaders) return true;
+        std::vector<mpv_node> nodes;
+        const auto &base = userShaderPaths;
+        for (const auto *paths : {&base, &shaders}) {
+            for (const auto &path : *paths) {
+                mpv_node node{};
+                node.format = MPV_FORMAT_STRING;
+                node.u.string = const_cast<char *>(path.c_str());
+                nodes.push_back(node);
+            }
         }
+        mpv_node_list list{static_cast<int>(nodes.size()), nodes.data(), nullptr};
+        mpv_node value{};
+        value.format = MPV_FORMAT_NODE_ARRAY;
+        value.u.list = &list;
+        if (mpvApi().setProperty(mpv, "glsl-shaders", MPV_FORMAT_NODE, &value) < 0) return false;
+        appliedBundledShaders = shaders;
+        shaderError.clear();
+        return true;
+    }
+
+    bool setAudioFilter(const std::string &filter) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return false;
+        if (filter == activeAudioFilter) {
+            if (filter.empty()) nightFilterStatus = "off";
+            return true;
+        }
+        const std::string label = std::string("@") + kNightFilterLabel;
+        const bool success = filter.empty()
+            ? changeFilterLocked("af", "remove", label)
+            : changeFilterLocked("af", "add", label + ":" + filter);
+        if (success) activeAudioFilter = filter;
+        nightFilterStatus = success ? (filter.empty() ? "off" : "attached") : "failed";
+        return success;
     }
 
     void setPlaybackBufferPreset(int presetId) {
@@ -1438,88 +1709,116 @@ public:
     }
 
     bool setSvpFilter(bool enabled, const std::string &vpyPath) {
-        std::lock_guard<std::mutex> lock(mpvMutex);
-        if (!mpv) return false;
-        if (enabled == (!activeSvpScript.empty()) && (!enabled || activeSvpScript == vpyPath)) {
-            return true;
-        }
-        if (enabled && !vpyPath.empty()) {
-            if (!ensureVapourSynthLoaded()) {
-                svpCacheOverride = false;
-                activeSvpScript.clear();
-                restoreStreamingCacheLocked();
-                sendPlayerEvent("svp_unavailable", 0.0);
-                return false;
+        const char *failureEvent = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(mpvMutex);
+            if (!mpv) return false;
+            if (!enabled) {
+                const bool restored = restoreWithoutSvpLocked();
+                if (!restored) svpStatus = "failed";
+                else if (svpStatus == "attached") svpStatus = "off";
+                return restored;
             }
-            mpvApi().setPropertyString(mpv, "hwdec", "auto-copy");
-            svpCacheOverride = true;
-            restoreStreamingCacheLocked();
-            mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "no");
-            mpvApi().setPropertyString(mpv, "vd-queue-enable", "yes");
-            mpvApi().setPropertyString(mpv, "vd-queue-max-bytes", "1024MiB");
-            mpvApi().setPropertyString(mpv, "vd-queue-max-samples", "120");
+            if (activeSvpScript == vpyPath && !activeSvpLabel.empty()) return true;
 
-            std::string escapedPath;
-            for (char c : vpyPath) {
-                if (c == '\\') {
-                    escapedPath += "/";
-                } else if (c != '"') {
-                    escapedPath += c;
-                }
-            }
-            std::string filter = "@SVP:vapoursynth=\"" + escapedPath + "\":buffered-frames=8:concurrent-frames=16";
-            const char *cmd[] = {"vf", "set", filter.c_str(), nullptr};
-            bool success = executeMpvCommandSeh(mpv, cmd);
-            if (!success) {
-                svpCacheOverride = false;
-                activeSvpScript.clear();
-                const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
-                executeMpvCommandSeh(mpv, remCmd);
-                if (nvidiaRtxSuperResolutionActive) {
-                    mpvApi().setPropertyString(mpv, "vf", "d3d11vpp=scale=2:scaling-mode=nvidia");
-                    mpvApi().setPropertyString(mpv, "hwdec", "d3d11va");
-                } else {
-                    const char *clrCmd[] = {"vf", "clr", "", nullptr};
-                    executeMpvCommandSeh(mpv, clrCmd);
-                    mpvApi().setPropertyString(mpv, "vf", "");
-                    mpvApi().setPropertyString(mpv, "hwdec", "auto");
-                }
-                mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
-                mpvApi().setPropertyString(mpv, "vd-queue-enable", "no");
-                restoreStreamingCacheLocked();
-                logSvpEvent("SVP FILTER ATTACH FAILED (cleared from MPV pipeline)");
-                sendPlayerEvent("svp_error", 1.0);
-                return false;
-            }
-            activeSvpScript = vpyPath;
-            logSvpEvent("SVP FILTER ATTACHED to MPV pipeline");
-
-            int isPaused = 0;
-            mpvApi().getProperty(mpv, "pause", MPV_FORMAT_FLAG, &isPaused);
-            if (!isPaused) {
-                const char *resyncCmd[] = {"seek", "0", "relative+exact", nullptr};
-                executeMpvCommandSeh(mpv, resyncCmd);
-            }
-            return true;
-        } else {
-            svpCacheOverride = false;
-            activeSvpScript.clear();
-            const char *remCmd[] = {"vf", "remove", "@SVP", nullptr};
-            executeMpvCommandSeh(mpv, remCmd);
-            if (nvidiaRtxSuperResolutionActive) {
-                mpvApi().setPropertyString(mpv, "vf", "d3d11vpp=scale=2:scaling-mode=nvidia");
-                mpvApi().setPropertyString(mpv, "hwdec", "d3d11va");
+            if (vpyPath.empty() || !ensureVapourSynthLoaded()) {
+                svpStatus = "unavailable";
+                failureEvent = "svp_unavailable";
+            } else if (!enableSvpLocked(vpyPath)) {
+                svpStatus = "failed";
+                failureEvent = "svp_error";
             } else {
-                const char *clrCmd[] = {"vf", "clr", "", nullptr};
-                executeMpvCommandSeh(mpv, clrCmd);
-                mpvApi().setPropertyString(mpv, "vf", "");
+                svpStatus = "attached";
             }
-            mpvApi().setPropertyString(mpv, "hr-seek-framedrop", "yes");
-            mpvApi().setPropertyString(mpv, "vd-queue-max-samples", "1");
-            restoreStreamingCacheLocked();
-            logSvpEvent("SVP FILTER DETACHED from MPV pipeline");
+
+            if (failureEvent) restoreWithoutSvpLocked();
+        }
+        if (failureEvent) {
+            sendPlayerEvent(failureEvent, 0.0);
+            return false;
+        }
+        return true;
+    }
+
+    bool enableSvpLocked(const std::string &path) {
+        if (svpSettings.empty()) {
+            std::vector<std::pair<std::string, std::string>> baseline;
+            for (const auto &setting : svpOverrides) {
+                char *value = nullptr;
+                if (mpvApi().getProperty(mpv, setting.first, MPV_FORMAT_STRING, &value) < 0 || !value) {
+                    return false;
+                }
+                baseline.emplace_back(setting.first, value);
+                mpvApi().freeValue(value);
+            }
+            svpSettings = std::move(baseline);
+        }
+        if (!removeSvpLocked() || !setRtxFilterLocked(false)) return false;
+        for (const auto &setting : svpOverrides) {
+            if (mpvApi().setPropertyString(mpv, setting.first, setting.second) < 0) return false;
+        }
+        svpCacheOverride = true;
+        restoreStreamingCacheLocked();
+
+        const auto label = "nuvio-svp-" + std::to_string(++svpAttachment);
+        const auto filter = "@" + label + ":vapoursynth=%" + std::to_string(path.size()) + "%" +
+            path + ":buffered-frames=8:concurrent-frames=16";
+        if (!changeFilterLocked("vf", "add", filter)) return false;
+        activeSvpLabel = label;
+        activeSvpScript = path;
+        logSvpEvent("SVP FILTER ATTACHED to MPV pipeline");
+
+        int isPaused = 0;
+        mpvApi().getProperty(mpv, "pause", MPV_FORMAT_FLAG, &isPaused);
+        if (!isPaused) {
+            const char *resyncCmd[] = {"seek", "0", "relative+exact", nullptr};
+            executeMpvCommandSeh(mpv, resyncCmd);
+        }
+        return true;
+    }
+
+    bool changeFilterLocked(const char *chain, const char *operation, const std::string &filter) {
+        const char *command[] = {chain, operation, filter.c_str(), nullptr};
+        return executeMpvCommandSeh(mpv, command);
+    }
+
+    bool setRtxFilterLocked(bool enabled) {
+        if (rtxFilterAttached == enabled) {
+            rtxStatus = enabled ? "attached" : (rtxRequested ? "suspended" : "off");
             return true;
         }
+        const std::string label = std::string("@") + kRtxFilterLabel;
+        const bool success = enabled
+            ? changeFilterLocked("vf", "add", label + ":d3d11vpp=scale=2:scaling-mode=nvidia")
+            : changeFilterLocked("vf", "remove", label);
+        if (success) rtxFilterAttached = enabled;
+        rtxStatus = success ? (enabled ? "attached" : "suspended") : "failed";
+        return success;
+    }
+
+    bool removeSvpLocked() {
+        if (activeSvpLabel.empty()) return true;
+        if (!changeFilterLocked("vf", "remove", "@" + activeSvpLabel)) return false;
+        activeSvpLabel.clear();
+        activeSvpScript.clear();
+        logSvpEvent("SVP FILTER DETACHED from MPV pipeline");
+        return true;
+    }
+
+    bool restoreWithoutSvpLocked() {
+        if (!removeSvpLocked()) return false;
+        bool restored = true;
+        for (const auto &setting : svpSettings) {
+            if (mpvApi().setPropertyString(mpv, setting.first.c_str(), setting.second.c_str()) < 0) {
+                restored = false;
+            }
+        }
+        if (restored) svpSettings.clear();
+        if (svpCacheOverride) {
+            svpCacheOverride = false;
+            restoreStreamingCacheLocked();
+        }
+        return setRtxFilterLocked(rtxRequested) && restored;
     }
 
     bool selectSecondarySubtitle(int trackId, const std::string &path) {
@@ -1860,7 +2159,8 @@ private:
     std::atomic_bool stopping = false;
     std::atomic_bool shuttingDown = false;
     std::atomic_bool hwdecLogged = false;  // one-shot log for hwdec-current
-    bool nvidiaRtxSuperResolutionActive = false;
+    bool rtxRequested = false;
+    bool rtxFilterAttached = false;
 
     bool hasAppliedSubtitleStyle = false;
     bool appliedSubtitleUseLibass = false;
@@ -1903,6 +2203,26 @@ private:
     static constexpr unsigned kMaxWebViewFailures = 5;
     static constexpr ULONGLONG kWebViewStartupTimeoutMs = 15000;
     std::string activeSvpScript; // Guarded by mpvMutex.
+    std::string activeSvpLabel;
+    uint64_t svpAttachment = 0;
+    const std::pair<const char *, const char *> svpOverrides[5] = {
+        {"hwdec", "auto-copy"},
+        {"hr-seek-framedrop", "no"},
+        {"vd-queue-enable", "yes"},
+        {"vd-queue-max-bytes", "1024MiB"},
+        {"vd-queue-max-samples", "120"},
+    };
+    std::vector<std::pair<std::string, std::string>> svpSettings;
+    std::string activeAudioFilter;
+    std::string svpStatus = "off";
+    std::string rtxStatus = "off";
+    std::string nightFilterStatus = "off";
+    std::string shaderError;
+    std::vector<std::string> shaderReadFailures;
+    std::vector<std::string> customOptions;
+    bool customConfigFallback = false;
+    std::vector<std::string> userShaderPaths;
+    std::vector<std::string> appliedBundledShaders;
     std::string appliedSubtitleFont; // Guarded by mpvMutex; per player instance.
     std::string appliedSubtitleFontsDir;
     std::string initialAudioUrl;
@@ -2346,138 +2666,18 @@ private:
             }
             appliedSubtitleFont.clear();
             appliedSubtitleFontsDir.clear();
-            mpv = api.create();
-            if (!mpv) {
-                throw std::runtime_error("mpv_create failed.");
-            }
             initialStartSeconds = initialPositionMs > 0 ? (double)initialPositionMs / 1000.0 : 0.0;
-            nvidiaRtxSuperResolutionActive = nvidiaRtxSuperResolutionEnabled;
-
-            setMpvOptionStringLocked("config", "no");
-            setMpvOptionStringLocked("osc", "no");
-            setMpvOptionStringLocked("input-default-bindings", "yes");
-            setMpvOptionStringLocked("input-vo-keyboard", "no");
-            setMpvOptionStringLocked("keep-open", "yes");
-            setMpvOptionStringLocked("volume-max", "200");
-            setMpvOptionStringLocked("vo", "gpu-next,gpu,");
-            if (nvidiaRtxSuperResolutionEnabled) {
-                setMpvOptionStringLocked("gpu-api", "d3d11");
-                setMpvOptionStringLocked("hwdec", "d3d11va");
-                setMpvOptionStringLocked("d3d11-adapter", "NVIDIA");
-            } else {
-                setMpvOptionStringLocked("gpu-api", "auto");
-                setMpvOptionStringLocked("hwdec", "auto");
+            rtxRequested = nvidiaRtxSuperResolutionEnabled;
+            if (!initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, customOptions)) {
+                api.terminateDestroy(mpv);
+                mpv = nullptr;
+                customConfigFallback = true;
+                initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, {});
             }
-            setMpvOptionStringLocked("hwdec-codecs", "all");
-
-            if (nvidiaRtxSuperResolutionEnabled) {
-                setMpvOptionStringLocked("vf", "d3d11vpp=scale=2:scaling-mode=nvidia");
-            }
-            setMpvOptionStringLocked("target-colorspace-hint", "yes");
-            if (decoderPriority == 0) {
-                setMpvOptionStringLocked("vd-lavc-software-fallback", "no");
-            } else if (decoderPriority == 2) {
-                setMpvOptionStringLocked("hwdec", "no");
-                setMpvOptionStringLocked("vd-lavc-software-fallback", "yes");
-            } else {
-                setMpvOptionStringLocked("vd-lavc-software-fallback", "yes");
-            }
-            setMpvOptionStringLocked("vd-lavc-threads", "4");
-            setMpvOptionStringLocked("tone-mapping", "bt.2390");
-            setMpvOptionStringLocked("dither-depth", "auto");
-            if (fastProfile) {
-                setMpvOptionStringLocked("profile", "fast");
-            } else {
-                setMpvOptionStringLocked("deband", "yes");
-                setMpvOptionStringLocked("scale", "spline36");
-                setMpvOptionStringLocked("cscale", "spline36");
-            }
-            // Streams are often served through a localhost proxy, which mpv's
-            // cache=auto heuristic may treat as a local file. Explicitly enable
-            // the network cache so cache-secs and the seekbar's buffered range
-            // work for both HTTP and torrent-backed streams.
-            setMpvOptionStringLocked("cache", "yes");
-            setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
-            setMpvOptionStringLocked("force-seekable", "yes");
-            // Let FFmpeg close each HTTP response: persistent requests can stall
-            // CNO HLS playlists at EOF and trigger an endless reconnect loop.
-            // Length-quote the HTTP status list so mpv preserves its commas.
-            setMpvOptionStringLocked(
-                "stream-lavf-o",
-                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=%23%408,429,500,502,503,504,reconnect_delay_max=15"
-            );
-            setMpvOptionStringLocked("network-timeout", "30");
-            setMpvOptionStringLocked("hr-seek", "default");
-            setMpvOptionStringLocked("cache-pause-initial", "no");
-
-            // Optimal demuxer and stream read chunk sizes for network streams:
-            setMpvOptionStringLocked("demuxer-lavf-buffersize", "262144"); // 256 KiB (default: 32 KiB)
-            setMpvOptionStringLocked("stream-buffer-size", "524288");       // 512 KiB (default: 128 KiB)
-            setMpvOptionStringLocked("vd-queue-enable", "yes");
-            setMpvOptionStringLocked("vd-queue-max-samples", "1");
-
-            std::string shaderCacheDirectory = mpvShaderCacheDirectory();
-            if (!shaderCacheDirectory.empty()) {
-                setMpvOptionStringLocked("gpu-shader-cache-dir", shaderCacheDirectory.c_str());
-            }
-
-            if (initialPositionMs > 0) {
-                // mpv starts prefetching into the demuxer cache from the start of
-                // the file as soon as the file opens, but a `loadfile ... start=`
-                // resume only issues its seek after that open. With the full
-                // streaming window, the cache therefore races a large forward
-                // read-ahead of the head of the file before playback resumes at
-                // the saved position. Open with a window just large enough for the
-                // container index and stream probing, and widen it once the initial
-                // seek has landed (see promoteResumeCache).
-                setCacheWindowLocked(kResumeCacheWindow);
-                resumeCachePending.store(true);
-            } else {
-                setCacheWindowLocked(selectedCacheWindow);
-            }
-
-            int64_t wid = (int64_t)(intptr_t)containerHwnd;
-            int widResult = api.setOption(mpv, "wid", MPV_FORMAT_INT64, &wid);
-            if (widResult < 0) {
-                throw std::runtime_error(std::string("mpv wid option failed: ") + api.errorText(widResult));
-            }
-
-            std::string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-            std::string headers;
-            for (size_t index = 0; index < headerLines.size(); index++) {
-                const std::string &line = headerLines[index];
-                if (line.size() >= 11) {
-                    std::string prefix = line.substr(0, 11);
-                    std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-                    if (prefix == "user-agent:") {
-                        size_t valStart = line.find_first_not_of(" \t", 11);
-                        if (valStart != std::string::npos) {
-                            userAgent = line.substr(valStart);
-                        }
-                        continue;
-                    }
-                }
-                if (!headers.empty()) headers.push_back(',');
-                // Escape backslashes and commas in header values
-                for (char c : line) {
-                    if (c == '\\' || c == ',') headers.push_back('\\');
-                    headers.push_back(c);
-                }
-            }
-            initialAudioUrl = audioUrl;
-            setMpvOptionStringLocked("user-agent", userAgent.c_str());
-            if (!headers.empty()) {
-                setMpvOptionStringLocked("http-header-fields", headers.c_str());
-            }
-            if (!audioUrl.empty()) {
-                setMpvOptionStringLocked("audio-files", audioUrl.c_str());
-                setMpvOptionStringLocked("aid", "auto");
-            }
-
-            int initResult = api.initialize(mpv);
-            if (initResult < 0) {
-                throw std::runtime_error(std::string("mpv_initialize failed: ") + api.errorText(initResult));
-            }
+            customOptions.clear();
+            userShaderPaths = readMpvShaderPaths(api, mpv);
+            api.requestLogMessages(mpv, "warn");
+            setRtxFilterLocked(rtxRequested);
 
             std::vector<const char *> loadCommand = {"loadfile", sourceUrl.c_str()};
             std::string loadOptions;
@@ -2500,6 +2700,151 @@ private:
         setPaused(!playWhenReady);
         auto self = shared_from_this();
         eventThread = std::thread([self]() { self->drainMpvEvents(); });
+    }
+
+    bool initializeMpvLocked(
+        MpvApi &api,
+        const std::string &audioUrl,
+        const std::vector<std::string> &headerLines,
+        long long initialPositionMs,
+        int decoderPriority,
+        bool fastProfile,
+        const std::vector<std::string> &options
+    ) {
+        mpv = api.create();
+        if (!mpv) {
+            throw std::runtime_error("mpv_create failed.");
+        }
+
+        setMpvOptionStringLocked("config", "no");
+        setMpvOptionStringLocked("osc", "no");
+        setMpvOptionStringLocked("input-default-bindings", "yes");
+        setMpvOptionStringLocked("input-vo-keyboard", "no");
+        setMpvOptionStringLocked("keep-open", "yes");
+        setMpvOptionStringLocked("volume-max", "200");
+        setMpvOptionStringLocked("vo", "gpu-next,gpu,");
+        if (rtxRequested) {
+            setMpvOptionStringLocked("gpu-api", "d3d11");
+            setMpvOptionStringLocked("hwdec", "d3d11va");
+            setMpvOptionStringLocked("d3d11-adapter", "NVIDIA");
+        } else {
+            setMpvOptionStringLocked("gpu-api", "auto");
+            setMpvOptionStringLocked("hwdec", "auto");
+        }
+        setMpvOptionStringLocked("hwdec-codecs", "all");
+
+        setMpvOptionStringLocked("target-colorspace-hint", "yes");
+        if (decoderPriority == 0) {
+            setMpvOptionStringLocked("vd-lavc-software-fallback", "no");
+        } else if (decoderPriority == 2) {
+            setMpvOptionStringLocked("hwdec", "no");
+            setMpvOptionStringLocked("vd-lavc-software-fallback", "yes");
+        } else {
+            setMpvOptionStringLocked("vd-lavc-software-fallback", "yes");
+        }
+        setMpvOptionStringLocked("vd-lavc-threads", "4");
+        setMpvOptionStringLocked("tone-mapping", "bt.2390");
+        setMpvOptionStringLocked("dither-depth", "auto");
+        if (fastProfile) {
+            setMpvOptionStringLocked("profile", "fast");
+        } else {
+            setMpvOptionStringLocked("deband", "yes");
+            setMpvOptionStringLocked("scale", "spline36");
+            setMpvOptionStringLocked("cscale", "spline36");
+        }
+        // Streams are often served through a localhost proxy, which mpv's
+        // cache=auto heuristic may treat as a local file. Explicitly enable
+        // the network cache so cache-secs and the seekbar's buffered range
+        // work for both HTTP and torrent-backed streams.
+        setMpvOptionStringLocked("cache", "yes");
+        setMpvOptionStringLocked("demuxer-seekable-cache", "yes");
+        setMpvOptionStringLocked("force-seekable", "yes");
+        // Let FFmpeg close each HTTP response: persistent requests can stall
+        // CNO HLS playlists at EOF and trigger an endless reconnect loop.
+        // Length-quote the HTTP status list so mpv preserves its commas.
+        setMpvOptionStringLocked(
+            "stream-lavf-o",
+            "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,reconnect_on_http_error=%23%408,429,500,502,503,504,reconnect_delay_max=15"
+        );
+        setMpvOptionStringLocked("network-timeout", "30");
+        setMpvOptionStringLocked("hr-seek", "default");
+        setMpvOptionStringLocked("cache-pause-initial", "no");
+
+        // Optimal demuxer and stream read chunk sizes for network streams:
+        setMpvOptionStringLocked("demuxer-lavf-buffersize", "262144"); // 256 KiB (default: 32 KiB)
+        setMpvOptionStringLocked("stream-buffer-size", "524288");       // 512 KiB (default: 128 KiB)
+        setMpvOptionStringLocked("vd-queue-enable", "yes");
+        setMpvOptionStringLocked("vd-queue-max-samples", "1");
+
+        std::string shaderCacheDirectory = mpvShaderCacheDirectory();
+        if (!shaderCacheDirectory.empty()) {
+            setMpvOptionStringLocked("gpu-shader-cache-dir", shaderCacheDirectory.c_str());
+        }
+
+        std::vector<std::string> errors(options.size() / 2);
+        if (!applyCustomMpvOptions(api, mpv, options, errors, false)) return false;
+
+        if (initialPositionMs > 0) {
+            // mpv starts prefetching into the demuxer cache from the start of
+            // the file as soon as the file opens, but a `loadfile ... start=`
+            // resume only issues its seek after that open. With the full
+            // streaming window, the cache therefore races a large forward
+            // read-ahead of the head of the file before playback resumes at
+            // the saved position. Open with a window just large enough for the
+            // container index and stream probing, and widen it once the initial
+            // seek has landed (see promoteResumeCache).
+            setCacheWindowLocked(kResumeCacheWindow);
+            resumeCachePending.store(true);
+        } else {
+            setCacheWindowLocked(selectedCacheWindow);
+        }
+
+        int64_t wid = (int64_t)(intptr_t)containerHwnd;
+        int widResult = api.setOption(mpv, "wid", MPV_FORMAT_INT64, &wid);
+        if (widResult < 0) {
+            throw std::runtime_error(std::string("mpv wid option failed: ") + api.errorText(widResult));
+        }
+
+        std::string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+        std::string headers;
+        for (size_t index = 0; index < headerLines.size(); index++) {
+            const std::string &line = headerLines[index];
+            if (line.size() >= 11) {
+                std::string prefix = line.substr(0, 11);
+                std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+                if (prefix == "user-agent:") {
+                    size_t valStart = line.find_first_not_of(" \t", 11);
+                    if (valStart != std::string::npos) {
+                        userAgent = line.substr(valStart);
+                    }
+                    continue;
+                }
+            }
+            if (!headers.empty()) headers.push_back(',');
+            // Escape backslashes and commas in header values
+            for (char c : line) {
+                if (c == '\\' || c == ',') headers.push_back('\\');
+                headers.push_back(c);
+            }
+        }
+        initialAudioUrl = audioUrl;
+        setMpvOptionStringLocked("user-agent", userAgent.c_str());
+        if (!headers.empty()) {
+            setMpvOptionStringLocked("http-header-fields", headers.c_str());
+        }
+        if (!audioUrl.empty()) {
+            setMpvOptionStringLocked("audio-files", audioUrl.c_str());
+            setMpvOptionStringLocked("aid", "auto");
+        }
+
+        int initResult = api.initialize(mpv);
+        if (initResult < 0) {
+            if (!options.empty()) return false;
+            throw std::runtime_error(std::string("mpv_initialize failed: ") + api.errorText(initResult));
+        }
+        return options.empty() ||
+            (applyCustomMpvOptions(api, mpv, options, errors, true) &&
+             !hasReservedFilterLabel(api, mpv, "vf") && !hasReservedFilterLabel(api, mpv, "af"));
     }
 
     void layoutNativeSubviews() {
@@ -2749,7 +3094,61 @@ private:
             if (event->event_id == MPV_EVENT_SHUTDOWN) {
                 return;
             }
+            if (event->event_id == MPV_EVENT_LOG_MESSAGE && event->data) {
+                const auto &message = *static_cast<const mpv_event_log_message *>(event->data);
+                if (message.text) handleMpvLog(message.prefix ? message.prefix : "", message.text);
+            }
         }
+    }
+
+    void handleMpvLog(std::string_view prefix, std::string_view message) {
+        bool svpFailed = false;
+        bool nightModeFailed = false;
+        {
+            std::lock_guard<std::mutex> lock(mpvMutex);
+            if (!mpv || stopping.load()) return;
+            const auto disabled = [&](const std::string &label) {
+                return message == "Disabling filter " + label + " because it has failed.\n";
+            };
+            if (!activeSvpLabel.empty() && disabled(activeSvpLabel)) {
+                svpFailed = true;
+                svpStatus = "failed";
+                restoreWithoutSvpLocked();
+            } else if (!activeAudioFilter.empty() && disabled(kNightFilterLabel)) {
+                nightModeFailed = true;
+                nightFilterStatus = "failed";
+                if (changeFilterLocked("af", "remove", std::string("@") + kNightFilterLabel)) {
+                    activeAudioFilter.clear();
+                }
+            } else if (rtxFilterAttached && disabled(kRtxFilterLabel)) {
+                rtxStatus = "failed";
+            } else if (!userShaderPaths.empty() || !appliedBundledShaders.empty()) {
+                auto line = lowerCopy(std::string(message));
+                std::replace(line.begin(), line.end(), '/', '\\');
+                const bool failure = line.find("fail") != std::string::npos ||
+                    line.find("error") != std::string::npos || line.find("could not") != std::string::npos;
+                if (failure) {
+                    for (const auto *paths : {&userShaderPaths, &appliedBundledShaders}) {
+                        for (const auto &path : *paths) {
+                            auto normalized = lowerCopy(path);
+                            std::replace(normalized.begin(), normalized.end(), '/', '\\');
+                            if (line.find(normalized) != std::string::npos) {
+                                if (std::find(shaderReadFailures.begin(), shaderReadFailures.end(), path) == shaderReadFailures.end()) {
+                                    shaderReadFailures.push_back(path);
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    if (prefix.substr(0, 3) == "vo/" &&
+                        (line.find("shader") != std::string::npos || line.find("glsl") != std::string::npos)) {
+                        shaderError = "Renderer reported a shader error";
+                    }
+                }
+            }
+        }
+        if (svpFailed) sendPlayerEvent("svp_error", 0.0);
+        if (nightModeFailed) sendPlayerEvent("audio_night_filter_error", 0.0);
     }
 
     JNIEnv *jniEnvDidAttach(bool *didAttach) {
@@ -3228,10 +3627,13 @@ LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     }
 }
 
+std::mutex playerHandlesMutex;
+std::unordered_map<jlong, std::shared_ptr<WindowsMpvWebPlayer>> playerHandles;
+
 std::shared_ptr<WindowsMpvWebPlayer> playerFromHandle(jlong handle) {
-    if (handle <= 0x10000) return nullptr;
-    auto *holder = reinterpret_cast<std::shared_ptr<WindowsMpvWebPlayer> *>(handle);
-    return holder ? *holder : nullptr;
+    std::lock_guard<std::mutex> lock(playerHandlesMutex);
+    const auto found = playerHandles.find(handle);
+    return found != playerHandles.end() ? found->second : nullptr;
 }
 
 } // namespace
@@ -3244,10 +3646,8 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID) {
     return TRUE;
 }
 
-extern "C" JNIEXPORT jlong JNICALL
-Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
+static jlong createWindowsPlayer(
     JNIEnv *env,
-    jobject,
     jlong hostViewPtr,
     jstring sourceUrl,
     jstring audioUrl,
@@ -3257,12 +3657,19 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
     jstring controlsPageUrl,
     jint decoderPriority,
     jboolean nvidiaRtxSuperResolutionEnabled,
+    jobjectArray options,
+    bool invalidConfig,
     jobject eventSink
 ) {
     HWND hostHwnd = (HWND)(intptr_t)hostViewPtr;
     std::string sourceUrlText = jstringToUtf8(env, sourceUrl);
     std::string audioUrlText = jstringToUtf8(env, audioUrl);
     std::vector<std::string> headerLineValues = jstringArrayToVector(env, headerLines);
+    auto customOptions = jstringArrayToVector(env, options, true);
+    if (customOptions.size() % 2 != 0) {
+        throwJavaError(env, "Invalid custom mpv option pairs.");
+        return 0;
+    }
     std::string controlsPageUrlText = jstringToUtf8(env, controlsPageUrl);
     JavaVM *javaVm = nullptr;
     env->GetJavaVM(&javaVm);
@@ -3294,6 +3701,8 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
             javaVm,
             decoderPriority,
             nvidiaRtxSuperResolutionEnabled == JNI_TRUE,
+            std::move(customOptions),
+            invalidConfig,
             eventSinkRef,
             eventMethod
         );
@@ -3305,7 +3714,72 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
 
     auto *holder = new std::shared_ptr<WindowsMpvWebPlayer>(player);
     jlong handle = (jlong)(intptr_t)holder;
+    {
+        std::lock_guard<std::mutex> lock(playerHandlesMutex);
+        playerHandles.emplace(handle, player);
+    }
     return handle;
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
+    JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
+    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobject sink
+) {
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, nullptr, false, sink);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_createWindows(
+    JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
+    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobjectArray options, jobject sink
+) {
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, options, !options, sink);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_usedDefaultWindowsMpvConfig(JNIEnv *, jobject, jlong handle) {
+    const auto player = playerFromHandle(handle);
+    return player && player->usedDefaultMpvConfig() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_validateWindowsMpvOptions(
+    JNIEnv *env, jobject, jobjectArray entries
+) {
+    try {
+        auto &api = mpvApi();
+        const auto options = jstringArrayToVector(env, entries, true);
+        if (options.size() % 2 != 0) throw std::runtime_error("Invalid custom mpv option pairs.");
+        if (setlocale(LC_NUMERIC, "C") == nullptr) throw std::runtime_error("Unable to set mpv numeric locale.");
+        std::unique_ptr<mpv_handle, MpvApi::mpv_terminate_destroy_fn> handle(api.create(), api.terminateDestroy);
+        if (!handle) throw std::runtime_error("Unable to create an mpv validation handle.");
+        api.setOptionString(handle.get(), "config", "no");
+        std::vector<std::string> errors(options.size() / 2);
+        applyCustomMpvOptions(api, handle.get(), options, errors, false);
+        const auto result = api.initialize(handle.get());
+        if (result < 0) throw std::runtime_error(api.errorText(result));
+        applyCustomMpvOptions(api, handle.get(), options, errors, true);
+        // Keep option errors indexed by input entry, then report reserved labels per chain.
+        for (const char *chain : {"vf", "af"}) {
+            errors.push_back(hasReservedFilterLabel(api, handle.get(), chain) ? chain : "");
+        }
+        jclass stringClass = env->FindClass("java/lang/String");
+        if (!stringClass) return nullptr;
+        auto output = env->NewObjectArray(static_cast<jsize>(errors.size()), stringClass, nullptr);
+        if (!output) return nullptr;
+        for (jsize i = 0; i < static_cast<jsize>(errors.size()); ++i) {
+            if (errors[i].empty()) continue;
+            jstring error = env->NewStringUTF(errors[i].c_str());
+            if (!error) return nullptr;
+            env->SetObjectArrayElement(output, i, error);
+            env->DeleteLocalRef(error);
+        }
+        return output;
+    } catch (const std::exception &error) {
+        throwJavaError(env, error.what());
+        return nullptr;
+    }
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
@@ -3326,11 +3800,29 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setWindowsDisplayS
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_dispose(JNIEnv *, jobject, jlong handle) {
-    if (handle == 0) return;
-    auto *holder = reinterpret_cast<std::shared_ptr<WindowsMpvWebPlayer> *>(handle);
-    std::shared_ptr<WindowsMpvWebPlayer> player = *holder;
-    delete holder;
-    if (player) player->shutdown();
+    std::shared_ptr<WindowsMpvWebPlayer> player;
+    {
+        std::lock_guard<std::mutex> lock(playerHandlesMutex);
+        const auto found = playerHandles.find(handle);
+        if (found == playerHandles.end()) return;
+        player = std::move(found->second);
+        playerHandles.erase(found);
+    }
+    delete reinterpret_cast<std::shared_ptr<WindowsMpvWebPlayer> *>(handle);
+    player->shutdown();
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_windowsPlaybackStatsJson(JNIEnv *env, jobject, jlong handle) {
+    const auto player = playerFromHandle(handle);
+    if (!player) return nullptr;
+    try {
+        const auto stats = player->playbackStatsJson();
+        return stats.empty() ? nullptr : newJavaStringUtf8(env, stats);
+    } catch (const std::exception &error) {
+        throwJavaError(env, error.what());
+        return nullptr;
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -3794,31 +4286,20 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setSecondarySubtit
     }
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setGlslShaders(JNIEnv *env, jobject, jlong handle, jstring shaders) {
-    auto player = playerFromHandle(handle);
-    if (player) {
-        std::string shadersText = jstringToUtf8(env, shaders);
-        player->setGlslShaders(shadersText);
-    }
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setWindowsGlslShaders(
+    JNIEnv *env, jobject, jlong handle, jobjectArray shaders
+) {
+    const auto player = playerFromHandle(handle);
+    return player && player->setGlslShaders(jstringArrayToVector(env, shaders)) ? JNI_TRUE : JNI_FALSE;
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setAudioFilter(JNIEnv *env, jobject, jlong handle, jstring filter) {
-    auto player = playerFromHandle(handle);
-    if (player) {
-        std::string filterText = jstringToUtf8(env, filter);
-        player->setAudioFilter(filterText);
-    }
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setVideoFilter(JNIEnv *env, jobject, jlong handle, jstring filter) {
-    auto player = playerFromHandle(handle);
-    if (player) {
-        std::string filterText = jstringToUtf8(env, filter);
-        player->setVideoFilter(filterText);
-    }
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setWindowsAudioNightFilter(
+    JNIEnv *env, jobject, jlong handle, jstring filter
+) {
+    const auto player = playerFromHandle(handle);
+    return player && player->setAudioFilter(jstringToUtf8(env, filter)) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

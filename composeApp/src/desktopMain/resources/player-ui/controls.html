@@ -281,13 +281,70 @@
               <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
             </button>
             <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Source FPS</span><span class="stats-value" id="statVideoFps">-</span></div>
+              <div class="stats-row" title="Estimated frame rate after video filters">
+                <span class="stats-label">Post-filter FPS</span>
+                <div class="stats-fps-value">
+                  <span class="stats-value" id="statFilteredFps">-</span>
+                  <span class="stats-svp-badge" id="statFilteredFpsSvp" hidden>SVP</span>
+                </div>
+              </div>
+              <div class="stats-row"><span class="stats-label">Display refresh</span><span class="stats-value" id="statDisplayRefresh">-</span></div>
+              <div class="stats-row"><span class="stats-label">Decoder drops</span><span class="stats-value" id="statVideoDropped">-</span></div>
+              <div class="stats-row"><span class="stats-label">Renderer drops</span><span class="stats-value" id="statRendererDropped">-</span></div>
               <div class="stats-row"><span class="stats-label">Codec</span><span class="stats-value" id="statVideoCodec">-</span></div>
               <div class="stats-row"><span class="stats-label">Decoder</span><span class="stats-value" id="statVideoDecoder">-</span></div>
               <div class="stats-row"><span class="stats-label">Resolution</span><span class="stats-value" id="statVideoResolution">-</span></div>
-              <div class="stats-row"><span class="stats-label">Frame Rate</span><span class="stats-value" id="statVideoFps">-</span></div>
               <div class="stats-row"><span class="stats-label">Bitrate</span><span class="stats-value" id="statVideoBitrate">-</span></div>
-              <div class="stats-row"><span class="stats-label">Dropped Frames</span><span class="stats-value" id="statVideoDropped">-</span></div>
               <div class="stats-row"><span class="stats-label">Color / Pixel</span><span class="stats-value" id="statVideoColor">-</span></div>
+            </div>
+          </div>
+
+          <!-- Enhancements & Processing Section -->
+          <div class="stats-section" id="statsSectionEnhancements">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Enhancements & Processing</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Motion Smoothing</span><span class="stats-value" id="statEnhancementSvp">-</span></div>
+              <div class="stats-row"><span class="stats-label">Upscaler</span><span class="stats-value" id="statEnhancementUpscaler">-</span></div>
+              <div class="stats-row" id="statRtxRow" hidden><span class="stats-label">RTX Super Resolution</span><span class="stats-value" id="statEnhancementRtx">-</span></div>
+              <div class="stats-row"><span class="stats-label">Eye tint overlay</span><span class="stats-value" id="statEnhancementTint">-</span></div>
+              <div class="stats-row"><span class="stats-label">Playback Speed</span><span class="stats-value" id="statEnhancementSpeed">-</span></div>
+              <div class="stats-row"><span class="stats-label">Aspect Ratio</span><span class="stats-value" id="statEnhancementAspect">-</span></div>
+            </div>
+          </div>
+
+          <div class="stats-section" id="statsSectionMpv" hidden>
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">mpv configuration</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Session</span><span class="stats-value" id="statMpvConfig">-</span></div>
+              <div class="stats-row"><span class="stats-label">Scaling</span><span class="stats-value" id="statMpvScaling">-</span></div>
+              <div class="stats-row"><span class="stats-label">Debanding</span><span class="stats-value" id="statMpvDeband">-</span></div>
+              <div class="stats-row"><span class="stats-label">Dither depth</span><span class="stats-value" id="statMpvDither">-</span></div>
+              <div class="stats-row"><span class="stats-label">Tone mapping</span><span class="stats-value" id="statMpvToneMap">-</span></div>
+              <div class="stats-row"><span class="stats-label">Configured shaders</span><span class="stats-value" id="statMpvShaders">-</span></div>
+              <div class="stats-row" id="statMpvShaderErrorRow" hidden><span class="stats-label">Shader diagnostic</span><span class="stats-value" id="statMpvShaderError"></span></div>
+              <div class="stats-row"><span class="stats-label">Video filters (vf)</span><span class="stats-value" id="statMpvVf">-</span></div>
+              <div class="stats-row"><span class="stats-label">Audio filters (af)</span><span class="stats-value" id="statMpvAf">-</span></div>
+            </div>
+          </div>
+
+          <!-- Buffer & Network Section -->
+          <div class="stats-section" id="statsSectionBuffer">
+            <button class="stats-section-header" type="button" aria-expanded="true">
+              <span class="stats-section-title">Buffer & Network</span>
+              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
+            </button>
+            <div class="stats-section-body">
+              <div class="stats-row"><span class="stats-label">Cache Duration</span><span class="stats-value" id="statBufferDuration">-</span></div>
+              <div class="stats-row"><span class="stats-label">Cache Size</span><span class="stats-value" id="statBufferSize">-</span></div>
+              <div class="stats-row"><span class="stats-label">Cache Speed</span><span class="stats-value" id="statBufferSpeed">-</span></div>
+              <div class="stats-row" id="statP2pRow" hidden><span class="stats-label">Network Details</span><span class="stats-value" id="statP2pText">-</span></div>
             </div>
           </div>
 
@@ -304,6 +361,7 @@
               <div class="stats-row"><span class="stats-label">Bitrate</span><span class="stats-value" id="statAudioBitrate">-</span></div>
               <div class="stats-row"><span class="stats-label">Active Track</span><span class="stats-value" id="statAudioTrack">-</span></div>
               <div class="stats-row" id="statAudioLanguageRow" hidden><span class="stats-label" id="statAudioLanguageLabel"></span><span class="stats-value" id="statAudioLanguage"></span></div>
+              <div class="stats-row"><span class="stats-label">Night Mode</span><span class="stats-value" id="statEnhancementNightMode">-</span></div>
             </div>
           </div>
 
@@ -318,35 +376,6 @@
               <div class="stats-row" id="statSubtitleLanguageRow" hidden><span class="stats-label" id="statSubtitleLanguageLabel"></span><span class="stats-value" id="statSubtitleLanguage"></span></div>
               <div class="stats-row" id="statSubtitleSourceRow" hidden><span class="stats-label" id="statSubtitleSourceLabel"></span><span class="stats-value" id="statSubtitleSource"></span></div>
               <div class="stats-row"><span class="stats-label">Sync Offset</span><span class="stats-value" id="statSubtitleDelay">-</span></div>
-            </div>
-          </div>
-
-          <!-- Enhancements & Processing Section -->
-          <div class="stats-section" id="statsSectionEnhancements">
-            <button class="stats-section-header" type="button" aria-expanded="true">
-              <span class="stats-section-title">Enhancements & Processing</span>
-              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
-            </button>
-            <div class="stats-section-body">
-              <div class="stats-row"><span class="stats-label">Motion Smoothing</span><span class="stats-value" id="statEnhancementSvp">-</span></div>
-              <div class="stats-row"><span class="stats-label">Upscaler</span><span class="stats-value" id="statEnhancementUpscaler">-</span></div>
-              <div class="stats-row"><span class="stats-label">Night Mode</span><span class="stats-value" id="statEnhancementNightMode">-</span></div>
-              <div class="stats-row"><span class="stats-label">Playback Speed</span><span class="stats-value" id="statEnhancementSpeed">-</span></div>
-              <div class="stats-row"><span class="stats-label">Aspect Ratio</span><span class="stats-value" id="statEnhancementAspect">-</span></div>
-            </div>
-          </div>
-
-          <!-- Buffer & Network Section -->
-          <div class="stats-section" id="statsSectionBuffer">
-            <button class="stats-section-header" type="button" aria-expanded="true">
-              <span class="stats-section-title">Buffer & Network</span>
-              <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
-            </button>
-            <div class="stats-section-body">
-              <div class="stats-row"><span class="stats-label">Cache Duration</span><span class="stats-value" id="statBufferDuration">-</span></div>
-              <div class="stats-row"><span class="stats-label">Cache Size</span><span class="stats-value" id="statBufferSize">-</span></div>
-              <div class="stats-row"><span class="stats-label">Cache Speed</span><span class="stats-value" id="statBufferSpeed">-</span></div>
-              <div class="stats-row" id="statP2pRow" hidden><span class="stats-label">Network Details</span><span class="stats-value" id="statP2pText">-</span></div>
             </div>
           </div>
 

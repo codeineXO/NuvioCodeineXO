@@ -9,6 +9,7 @@ import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,10 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.features.player.PlayerSettingsUiState
+
+internal val LocalWindowsMpvConfigRow = compositionLocalOf<@Composable (Boolean, Boolean) -> Unit> {
+    { _, _ -> }
+}
 
 @Composable
 internal fun PlaybackVideoSettings(
@@ -109,6 +114,9 @@ internal fun PlaybackVideoSettings(
                 }
             }
             if (isWindows) {
+                SettingsGroup(isTablet = isTablet) {
+                    LocalWindowsMpvConfigRow.current(isTablet, decoderEnabled)
+                }
                 SettingsSection(
                     title = stringResource(Res.string.settings_playback_nvidia_rtx_video_section),
                     isTablet = isTablet,
