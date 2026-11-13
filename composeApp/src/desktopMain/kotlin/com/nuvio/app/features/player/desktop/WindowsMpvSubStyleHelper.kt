@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.Color
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.SubtitleStyleState
-import com.nuvio.app.features.player.backgroundBoxColor
 import java.io.File
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
@@ -231,70 +230,19 @@ internal object WindowsMpvSubStyleHelper {
                     setPropertyStringHandle?.invoke(mpvCtx, pName, pVal)
                 }
 
-                // Font activation and decoder refresh are handled together by the native bridge.
-
-                // 2. Set shadow color
-                val shadowColorStr = style.outlineColor.toMpvHexColor()
-                setProp("sub-shadow-color", shadowColorStr)
-
-                // 3. Set outline effect & thickness
-                val width = style.outlineWidth.coerceIn(0.5f, 8f)
-                val effect = if (style.outlineEffect.needsOutline && !style.outlineEnabled) {
-                    SubtitleOutlineEffect.NONE
-                } else style.outlineEffect
-                when (effect) {
-                    SubtitleOutlineEffect.NONE -> {
-                        setProp("sub-border-style", "outline-and-shadow")
-                        setProp("sub-outline-size", "0")
-                        setProp("sub-shadow-offset", "0")
-                        setProp("sub-blur", "0")
-                    }
-                    SubtitleOutlineEffect.OUTLINE -> {
-                        val size = if (style.outlineEffect.needsOutline) width.toString() else "0"
-                        setProp("sub-border-style", "outline-and-shadow")
-                        setProp("sub-outline-size", size)
-                        setProp("sub-shadow-offset", "0")
-                        // No blur: mpv applies sub-blur to the whole composited
-                        // subtitle image, glyphs included, so any value above 0
-                        // softens the text itself and not just the outline.
-                        setProp("sub-blur", "0")
-                    }
-                    SubtitleOutlineEffect.SOFT_GLOW -> {
-                        setProp("sub-border-style", "outline-and-shadow")
-                        // Wide spread outline acts as the glow halo
-                        val glowSize = String.format(Locale.US, "%.1f", (width * 2.0f).coerceIn(2f, 12f))
-                        setProp("sub-outline-size", glowSize)
-                        setProp("sub-shadow-offset", "0")
-                        // Heavy blur makes it bloom softly like a backlit glow
-                        val blurVal = String.format(Locale.US, "%.1f", (width * 1.2f + 2.0f).coerceIn(2.5f, 9.0f))
-                        setProp("sub-blur", blurVal)
-                    }
-                    SubtitleOutlineEffect.OUTLINE_AND_SHADOW -> {
-                        val size = if (style.outlineEffect.needsOutline) width.toString() else "0"
-                        setProp("sub-border-style", "outline-and-shadow")
-                        setProp("sub-outline-size", size)
-                        val offset = (width + 1f).coerceIn(2f, 5f).toString()
-                        setProp("sub-shadow-offset", offset)
-                        // The halo look depends on this blur. Note that mpv applies
-                        // sub-blur as a gaussian pass over the whole composited
-                        // subtitle image, glyphs included, so the text softens
-                        // along with the border. That trade is intentional here and
-                        // is why OUTLINE above stays at 0 for crisp text.
-                        val blurVal = String.format(Locale.US, "%.1f", (width * 0.5f + 0.8f).coerceIn(1.0f, 4.0f))
-                        setProp("sub-blur", blurVal)
-                    }
-                    SubtitleOutlineEffect.BACKGROUND_BOX -> {
-                        // Use one padded panel for the whole caption block instead of
-                        // drawing separate boxes tightly around each line.
-                        val boxColor = style.backgroundBoxColor
-                        setProp("sub-border-style", "background-box")
-                        setProp("sub-outline-color", boxColor.toMpvHexColor())
-                        setProp("sub-back-color", boxColor.toMpvHexColor())
-                        setProp("sub-outline-size", "0")
-                        setProp("sub-shadow-offset", "4")
-                        setProp("sub-blur", "0")
-                    }
+                val outline = style.resolveWindowsSubtitleOutline()
+                val box = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
+                setProp("sub-shadow-color", outline.shadowColor.toMpvHexColor())
+                setProp("sub-border-style", if (box) "background-box" else "outline-and-shadow")
+                if (box) {
+                    val color = outline.boxColor.toMpvHexColor()
+                    setProp("sub-outline-color", color)
+                    setProp("sub-back-color", color)
                 }
+                setProp("sub-outline-size", outline.strokeWidth)
+                // mpv uses shadow offset as padding for its background box.
+                setProp("sub-shadow-offset", if (box) "4" else outline.shadowOffset)
+                setProp("sub-blur", outline.blur)
             }
         }
     }

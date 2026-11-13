@@ -105,6 +105,19 @@ constexpr UINT_PTR NUVIO_TIMER_ID = 0x4E50;
 constexpr UINT_PTR NUVIO_SUBTITLE_TIMER_ID = 0x4E51;
 constexpr char SECONDARY_SUBTITLE_OVERLAY_ID[] = "19";
 constexpr int SECONDARY_SUBTITLE_MEASUREMENT_ID = 20;
+// The overlay measures ASS bitmap bounds, while mpv's subtitle box uses line metrics.
+// Offsets compensate for the bitmap's right/bottom padding and the line ascender.
+constexpr double SECONDARY_SUBTITLE_BOX_LEFT = 4.0;
+constexpr double SECONDARY_SUBTITLE_BOX_TOP = 9.0;
+constexpr double SECONDARY_SUBTITLE_BOX_RIGHT = -4.0;
+constexpr double SECONDARY_SUBTITLE_BOX_BOTTOM = 3.0;
+
+struct SecondarySubtitleBounds {
+    double left = 0;
+    double top = 0;
+    double right = 0;
+    double bottom = 0;
+};
 
 // Caps on waiting for the player's own UI thread during teardown. Exceeding these means that
 // thread is wedged; shutdown gives up rather than blocking the caller forever.
@@ -1950,7 +1963,7 @@ public:
                 default: ass += ch; break;
             }
         }
-        updateSecondarySubtitleOverlay(ass, canvasWidth);
+        updateSecondarySubtitleOverlay(ass, canvasWidth, height);
     }
 
     void addSubtitleUrl(const std::string &url) {
@@ -2248,6 +2261,7 @@ private:
     int secondarySubtitleOffset = 10;
     std::string secondarySubtitleOverlay;
     int secondarySubtitleOverlayWidth = 0;
+    double secondarySubtitleOverlayHeight = 0;
 
     friend LRESULT CALLBACK messageWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
     friend LRESULT CALLBACK containerWindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -3311,7 +3325,7 @@ private:
         return tracks;
     }
 
-    RECT measureSecondarySubtitle(const std::string &ass, int width) {
+    SecondarySubtitleBounds measureSecondarySubtitle(const std::string &ass, int width) {
         auto stringNode = [](const char *text) {
             mpv_node node{};
             node.format = MPV_FORMAT_STRING;
@@ -3339,7 +3353,7 @@ private:
         command.format = MPV_FORMAT_NODE_MAP;
         command.u.list = &args;
         mpv_node result{};
-        RECT bounds{};
+        SecondarySubtitleBounds bounds;
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv || mpvApi().commandNode(mpv, &command, &result) < 0) return bounds;
         if (result.format == MPV_FORMAT_NODE_MAP) {
@@ -3347,8 +3361,8 @@ private:
             for (int i = 0; i < list->num; ++i) {
                 const auto &value = list->values[i];
                 if (value.format != MPV_FORMAT_INT64 && value.format != MPV_FORMAT_DOUBLE) continue;
-                const auto coordinate = value.format == MPV_FORMAT_INT64
-                    ? static_cast<LONG>(value.u.int64) : static_cast<LONG>(value.u.double_);
+                const double coordinate = value.format == MPV_FORMAT_INT64
+                    ? static_cast<double>(value.u.int64) : value.u.double_;
                 const std::string key = list->keys[i];
                 if (key == "x0") bounds.left = coordinate;
                 if (key == "y0") bounds.top = coordinate;
@@ -3365,19 +3379,25 @@ private:
         setStringProperty("secondary-sub-visibility", visible ? "yes" : "no");
     }
 
-    void updateSecondarySubtitleOverlay(const std::string &ass, int width = 0) {
+    void updateSecondarySubtitleOverlay(const std::string &ass, int width = 0, double height = 0) {
         if (ass == secondarySubtitleOverlay && width == secondarySubtitleOverlayWidth &&
-            secondarySubtitleAppliedBox == secondarySubtitleBox) return;
+            secondarySubtitleAppliedBox == secondarySubtitleBox &&
+            (secondarySubtitleBox.empty() || height == secondarySubtitleOverlayHeight)) return;
         std::string output = ass;
         if (!ass.empty() && !secondarySubtitleBox.empty()) {
-            const RECT bounds = measureSecondarySubtitle(ass, width);
-            if (bounds.right > bounds.left && bounds.bottom > bounds.top) {
-                const auto x = std::to_string(bounds.left - 5);
-                const auto y = std::to_string(bounds.top - 4);
-                const auto w = std::to_string(bounds.right - bounds.left + 10);
-                const auto h = std::to_string(bounds.bottom - bounds.top + 8);
-                output = "{\\an7\\pos(" + x + "," + y + ")\\bord0\\shad0" + secondarySubtitleBox +
-                    "\\p1}m 0 0 l " + w + " 0 " + w + " " + h + " 0 " + h + "{\\p0}\n" + ass;
+            const auto bounds = measureSecondarySubtitle(ass, width);
+            if (bounds.right > bounds.left && bounds.bottom > bounds.top &&
+                std::isfinite(bounds.left) && std::isfinite(bounds.top) &&
+                std::isfinite(bounds.right) && std::isfinite(bounds.bottom)) {
+                const auto x = std::to_string(bounds.left - SECONDARY_SUBTITLE_BOX_LEFT);
+                const auto y = std::to_string(bounds.top - SECONDARY_SUBTITLE_BOX_TOP);
+                // ASS vector paths use integer coordinates. Drawing scale 4 retains eighth-unit precision.
+                const auto w = std::to_string(std::lround(8 * (bounds.right - bounds.left +
+                    SECONDARY_SUBTITLE_BOX_LEFT + SECONDARY_SUBTITLE_BOX_RIGHT)));
+                const auto h = std::to_string(std::lround(8 * (bounds.bottom - bounds.top +
+                    SECONDARY_SUBTITLE_BOX_TOP + SECONDARY_SUBTITLE_BOX_BOTTOM)));
+                output = "{\\an7\\pos(" + x + "," + y + ")\\bord0\\shad0\\blur0" + secondarySubtitleBox +
+                    "\\p4}m 0 0 l " + w + " 0 " + w + " " + h + " 0 " + h + "{\\p0}\n" + ass;
             }
         }
         const bool applied = ass.empty()
@@ -3386,6 +3406,7 @@ private:
         if (applied) {
             secondarySubtitleOverlay = ass;
             secondarySubtitleOverlayWidth = width;
+            secondarySubtitleOverlayHeight = height;
             secondarySubtitleAppliedBox = secondarySubtitleBox;
         }
     }

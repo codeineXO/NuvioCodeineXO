@@ -1848,22 +1848,21 @@ internal class NativePlayerController(
         val importedFont = style.importedFontId?.let(SubtitleFontResolver::resolveImported)
         val fontsDir = if (importedFont != null) SubtitleFontResolver.fontsDir(style.importedFontId) else ""
         val safeFont = (importedFont ?: style.fontName).filterNot { it in "\\{}\r\n" }
-        val box = style.outlineEffect == SubtitleOutlineEffect.BACKGROUND_BOX
-        val outline = if (style.outlineEnabled && style.outlineEffect.needsOutline) style.outlineWidth else 0f
-        val shadow = if (style.outlineEnabled && style.outlineEffect == SubtitleOutlineEffect.OUTLINE_AND_SHADOW) 2 else 0
-        val blur = if (style.outlineEnabled && style.outlineEffect == SubtitleOutlineEffect.SOFT_GLOW) 2 else 0
+        val outline = style.resolveWindowsSubtitleOutline()
+        // mpv's text subtitle blur uses a 288-unit script height. ASS overlay tags use 720.
+        val overlayBlur = outline.blur.toDouble() * (720.0 / 288.0)
         val size = style.toMpvSubtitleFontSize()
         val tags = buildString {
             append("\\fn").append(safeFont).append("\\fs").append(size)
             append("\\b").append(if (style.bold) 1 else 0)
-            append("\\bord").append(outline)
-            append("\\shad").append(shadow).append("\\blur").append(blur)
+            append("\\bord").append(outline.strokeWidth)
+            append("\\shad").append(outline.shadowOffset).append("\\blur").append(overlayBlur)
             append(style.textColor.toAssColorTags(1))
             append(style.outlineColor.toAssColorTags(3))
-            append(Color.Black.copy(alpha = 0.75f).toAssColorTags(4))
+            append(outline.shadowColor.toAssColorTags(4))
         }
         executePlayerCommand { current ->
-            val boxTags = if (box && style.backgroundBoxColor.alpha > 0f) style.backgroundBoxColor.toAssColorTags(1) else ""
+            val boxTags = if (outline.boxColor.alpha > 0f) outline.boxColor.toAssColorTags(1) else ""
             NativePlayerBridge.setSecondarySubtitleStyle(current, tags, boxTags, fontsDir, style.bottomOffset, delayMs, useLibass)
         }
     }
