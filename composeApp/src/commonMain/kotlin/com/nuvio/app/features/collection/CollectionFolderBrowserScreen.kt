@@ -17,14 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
-import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.landscapePosterWidth
@@ -49,8 +45,6 @@ fun CollectionFolderBrowserScreen(
     val collections by CollectionRepository.collections.collectAsStateWithLifecycle()
     val collection = collections.firstOrNull { it.id == collectionId }
     val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
-    val coverImageUrl = collection?.backdropImageUrl?.takeIf { it.isNotBlank() }
-        ?: collection?.folders?.firstNotNullOfOrNull { it.coverImageUrl?.takeIf(String::isNotBlank) }
     val posterCardStyle = rememberPosterCardStyleUiState()
     val basePosterWidthDp = desktopCatalogShelfPosterBaseWidthDp(posterCardStyle.widthDp)
     val minGridWidth = if (posterCardStyle.catalogLandscapeModeEnabled) {
@@ -62,23 +56,7 @@ fun CollectionFolderBrowserScreen(
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        if (coverImageUrl != null) {
-            Box(Modifier.fillMaxSize().navigationGlassSource()) {
-                AsyncImage(
-                    model = coverImageUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = 1.06f
-                            scaleY = 1.06f
-                        }
-                        .blur(28.dp),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.85f,
-                )
-            }
-        } else if (auraBackgroundEnabled) {
+        if (auraBackgroundEnabled) {
             HomeInteractiveGradientBackground(Modifier.fillMaxSize())
         } else {
             Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
