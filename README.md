@@ -29,6 +29,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Random Title Picker ("Shuffle"):** Shuffle tool that lets you roll for random movies, shows and anime with handy filters and a quick preview before diving in.
 * **Seek Previews (Seekr.tv):** Highly customizable animated seek preview thumbnails on hover and scrub powered by the Seekr.tv API.
 * **Eye Filter:** Optional night-light or dimmer overlay with configurable color and opacity, plus an instant keyboard toggle. Frosted haze filter for people with hemophobia.
+* **Stream Fallback:** Option to enable stream fallback to automatically fallback to another stream if the first one fails.
 * **In Player Playback Statistics Overlay:** View Stats for Nerds in player with all kinds of statistics.
 * **In-App Floating Mini Player:** Draggable in-app picture-in-picture overlay that lets you navigate menus and browse catalogs without interrupting playback, featuring instant play/pause, progress tracking, and one-click expand.
 * **CodeineXO Player UI & Quick Drawer:** Alternate modern player layout with natural text shadows, faint buffer progress bar, sliding quick drawer, soft-blurred panels with black tint, and episode rating badges.
@@ -51,7 +52,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
 * **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
-* **Scroll Posters Layout:** Dedicated home screen browsing option enabling direct mouse-wheel scrolling over media rows and carousels for effortless navigation.
+* **Updated Interface:** Three dedicated interface layouts for effortless navigation- Persistent Hero, Scroll Posters and Official.
 * **Poster Hover Previews:** Redesigned landscape hover preview with details and ratings.
 * **Clickable Ratings:** All rating badges are clickable to open in browser. 
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
