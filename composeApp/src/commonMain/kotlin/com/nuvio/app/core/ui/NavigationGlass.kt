@@ -28,7 +28,7 @@ import dev.chrisbanes.haze.hazeSource
 
 /** App-scoped glass policy, inherited by screen content, dialogs, and popups. */
 internal val LocalFrostedGlassEnabled = staticCompositionLocalOf { true }
-internal val LocalSurfaceStyle = staticCompositionLocalOf { SurfaceStyle.DarkGlass }
+internal val LocalSurfaceStyle = staticCompositionLocalOf { SurfaceStyle.Default }
 internal val DarkGlassSurfaceColor = Color.Black.copy(alpha = 0.80f)
 private val LocalDarkGlassSurfacePresent = staticCompositionLocalOf { false }
 

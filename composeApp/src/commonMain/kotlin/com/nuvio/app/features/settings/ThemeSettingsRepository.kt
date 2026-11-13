@@ -29,7 +29,7 @@ object ThemeSettingsRepository {
     private val _customThemeColors = MutableStateFlow(CustomThemeColors.solid(CustomThemeColors.Default.second))
     val customThemeColors: StateFlow<CustomThemeColors> = _customThemeColors.asStateFlow()
 
-    private val _surfaceStyle = MutableStateFlow(SurfaceStyle.DarkGlass)
+    private val _surfaceStyle = MutableStateFlow(SurfaceStyle.Default)
     val surfaceStyle: StateFlow<SurfaceStyle> = _surfaceStyle.asStateFlow()
 
     // Preserve the pre-existing player appearance independently of page surface style.
@@ -104,7 +104,7 @@ object ThemeSettingsRepository {
         _customThemePreference.value = CustomThemeColors.Default
         _customThemeColors.value = CustomThemeColors.solid(CustomThemeColors.Default.second)
         _frostedGlassEnabled.value = true
-        _surfaceStyle.value = SurfaceStyle.DarkGlass
+        _surfaceStyle.value = SurfaceStyle.Default
         _amoledEnabled.value = false
         _liquidGlassNativeTabBarEnabled.value = false
         _desktopNavigationLayout.value = DesktopNavigationLayout.Default

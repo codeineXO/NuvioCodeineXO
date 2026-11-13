@@ -137,7 +137,7 @@ import com.nuvio.app.features.settings.ThemeSettingsRepository
 
 data class RecommendedPresetState(
     val navigationFeel: NavigationFeel = NavigationFeel.Smooth,
-    val surfaceStyle: SurfaceStyle = SurfaceStyle.FrostedGlass,
+    val surfaceStyle: SurfaceStyle = SurfaceStyle.Default,
     val desktopNavigationLayout: DesktopNavigationLayout = DesktopNavigationLayout.Sidebar,
     val seekPreviewEnabled: Boolean = true,
     val auraBackgroundEnabled: Boolean = true,

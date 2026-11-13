@@ -12,12 +12,14 @@ enum class SurfaceStyle(val key: String) {
     FrostedGlass("frosted_glass");
 
     companion object {
+        internal val Default = FrostedGlass
+
         fun fromStored(value: String?, legacyFrostedEnabled: Boolean?): SurfaceStyle =
             entries.firstOrNull { it.key == value }
                 ?: when (legacyFrostedEnabled) {
                     true -> FrostedGlass
                     false -> Flat
-                    null -> DarkGlass
+                    null -> Default
                 }
     }
 }
