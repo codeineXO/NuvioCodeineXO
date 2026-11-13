@@ -92,6 +92,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val androidLibmpvHardwareDecodingEnabledKey = "android_libmpv_hardware_decoding_enabled"
     private const val androidLibmpvYuv420pEnabledKey = "android_libmpv_yuv420p_enabled"
     private const val androidExoChaptersEnabledKey = "android_exo_chapters_enabled"
+    private const val chapterTitleEnabledKey = "chapter_title_enabled"
     private const val rememberAudioDelayPerDeviceKey = "remember_audio_delay_per_device"
     private const val persistAudioAmplificationKey = "persist_audio_amplification"
     private const val audioAmplificationDbKey = "audio_amplification_db"
@@ -108,6 +109,9 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val streamAutoPlaySelectedPluginsKey = "stream_auto_play_selected_plugins"
     private const val streamAutoPlayRegexKey = "stream_auto_play_regex"
     private const val streamAutoPlayTimeoutSecondsKey = "stream_auto_play_timeout_seconds"
+    private const val streamAutoPlayFallbackOnFailureKey = "stream_auto_play_fallback_on_failure"
+    private const val streamAutoPlayFallbackMaxSourcesKey = "stream_auto_play_fallback_max_sources"
+    private const val streamAutoPlayFallbackStartupTimeoutSecondsKey = "stream_auto_play_fallback_startup_timeout_seconds"
     private const val skipIntroEnabledKey = "skip_intro_enabled"
     private const val autoSkipSegmentTypesKey = "auto_skip_segment_types"
     private const val animeSkipEnabledKey = "animeskip_enabled"
@@ -265,6 +269,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun saveAndroidLibmpvYuv420pEnabled(enabled: Boolean) = saveBoolean(androidLibmpvYuv420pEnabledKey, enabled)
     actual fun loadAndroidExoChaptersEnabled(): Boolean? = loadBoolean(androidExoChaptersEnabledKey)
     actual fun saveAndroidExoChaptersEnabled(enabled: Boolean) = saveBoolean(androidExoChaptersEnabledKey, enabled)
+    actual fun loadChapterTitleEnabled(): Boolean? = loadBoolean(chapterTitleEnabledKey)
+    actual fun saveChapterTitleEnabled(enabled: Boolean) = saveBoolean(chapterTitleEnabledKey, enabled)
     actual fun loadRememberAudioDelayPerDevice(): Boolean? = loadBoolean(rememberAudioDelayPerDeviceKey)
     actual fun saveRememberAudioDelayPerDevice(enabled: Boolean) = saveBoolean(rememberAudioDelayPerDeviceKey, enabled)
     actual fun loadPersistAudioAmplification(): Boolean? = loadBoolean(persistAudioAmplificationKey)
@@ -297,6 +303,12 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun saveStreamAutoPlayRegex(regex: String) = saveString(streamAutoPlayRegexKey, regex)
     actual fun loadStreamAutoPlayTimeoutSeconds(): Int? = loadInt(streamAutoPlayTimeoutSecondsKey)
     actual fun saveStreamAutoPlayTimeoutSeconds(seconds: Int) = saveInt(streamAutoPlayTimeoutSecondsKey, seconds)
+    actual fun loadStreamAutoPlayFallbackOnFailure(): Boolean? = loadBoolean(streamAutoPlayFallbackOnFailureKey)
+    actual fun saveStreamAutoPlayFallbackOnFailure(enabled: Boolean) = saveBoolean(streamAutoPlayFallbackOnFailureKey, enabled)
+    actual fun loadStreamAutoPlayFallbackMaxSources(): Int? = loadInt(streamAutoPlayFallbackMaxSourcesKey)
+    actual fun saveStreamAutoPlayFallbackMaxSources(count: Int) = saveInt(streamAutoPlayFallbackMaxSourcesKey, count)
+    actual fun loadStreamAutoPlayFallbackStartupTimeoutSeconds(): Int? = loadInt(streamAutoPlayFallbackStartupTimeoutSecondsKey)
+    actual fun saveStreamAutoPlayFallbackStartupTimeoutSeconds(seconds: Int) = saveInt(streamAutoPlayFallbackStartupTimeoutSecondsKey, seconds)
     actual fun loadSkipIntroEnabled(): Boolean? = loadBoolean(skipIntroEnabledKey)
     actual fun saveSkipIntroEnabled(enabled: Boolean) = saveBoolean(skipIntroEnabledKey, enabled)
     actual fun loadAutoSkipSegmentTypes(): Set<String>? = loadStringSet(autoSkipSegmentTypesKey)
@@ -474,6 +486,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             androidLibmpvHardwareDecodingEnabledKey,
             androidLibmpvYuv420pEnabledKey,
             androidExoChaptersEnabledKey,
+            chapterTitleEnabledKey,
             downmixEnabledKey,
             audioOutputChannelsKey,
             maintainOriginalAudioOnDownmixKey,
@@ -487,6 +500,9 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             streamAutoPlaySelectedPluginsKey,
             streamAutoPlayRegexKey,
             streamAutoPlayTimeoutSecondsKey,
+            streamAutoPlayFallbackOnFailureKey,
+            streamAutoPlayFallbackMaxSourcesKey,
+            streamAutoPlayFallbackStartupTimeoutSecondsKey,
             skipIntroEnabledKey,
             autoSkipSegmentTypesKey,
             preloadNextEpisodeSourcesKey,
@@ -557,6 +573,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             store.getBoolean(scoped(androidLibmpvHardwareDecodingEnabledKey))?.let { put(androidLibmpvHardwareDecodingEnabledKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(androidLibmpvYuv420pEnabledKey))?.let { put(androidLibmpvYuv420pEnabledKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(androidExoChaptersEnabledKey))?.let { put(androidExoChaptersEnabledKey, encodeSyncBoolean(it)) }
+            store.getBoolean(scoped(chapterTitleEnabledKey))?.let { put(chapterTitleEnabledKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(downmixEnabledKey))?.let { put(downmixEnabledKey, encodeSyncBoolean(it)) }
             store.getString(scoped(audioOutputChannelsKey))?.let { put(audioOutputChannelsKey, encodeSyncString(it)) }
             store.getBoolean(scoped(maintainOriginalAudioOnDownmixKey))?.let { put(maintainOriginalAudioOnDownmixKey, encodeSyncBoolean(it)) }
@@ -570,6 +587,9 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             store.getStringSet(scoped(streamAutoPlaySelectedPluginsKey))?.let { put(streamAutoPlaySelectedPluginsKey, encodeSyncStringSet(it)) }
             store.getString(scoped(streamAutoPlayRegexKey))?.let { put(streamAutoPlayRegexKey, encodeSyncString(it)) }
             store.getInt(scoped(streamAutoPlayTimeoutSecondsKey))?.let { put(streamAutoPlayTimeoutSecondsKey, encodeSyncInt(it)) }
+            store.getBoolean(scoped(streamAutoPlayFallbackOnFailureKey))?.let { put(streamAutoPlayFallbackOnFailureKey, encodeSyncBoolean(it)) }
+            store.getInt(scoped(streamAutoPlayFallbackMaxSourcesKey))?.let { put(streamAutoPlayFallbackMaxSourcesKey, encodeSyncInt(it)) }
+            store.getInt(scoped(streamAutoPlayFallbackStartupTimeoutSecondsKey))?.let { put(streamAutoPlayFallbackStartupTimeoutSecondsKey, encodeSyncInt(it)) }
             store.getBoolean(scoped(skipIntroEnabledKey))?.let { put(skipIntroEnabledKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(preloadNextEpisodeSourcesKey))?.let { put(preloadNextEpisodeSourcesKey, encodeSyncBoolean(it)) }
             store.getBoolean(scoped(autoSkipMovieCreditsKey))?.let { put(autoSkipMovieCreditsKey, encodeSyncBoolean(it)) }
@@ -631,6 +651,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncBoolean(androidLibmpvHardwareDecodingEnabledKey)?.let { store.putBoolean(scoped(androidLibmpvHardwareDecodingEnabledKey), it) }
             payload.decodeSyncBoolean(androidLibmpvYuv420pEnabledKey)?.let { store.putBoolean(scoped(androidLibmpvYuv420pEnabledKey), it) }
             payload.decodeSyncBoolean(androidExoChaptersEnabledKey)?.let { store.putBoolean(scoped(androidExoChaptersEnabledKey), it) }
+            payload.decodeSyncBoolean(chapterTitleEnabledKey)?.let { store.putBoolean(scoped(chapterTitleEnabledKey), it) }
             payload.decodeSyncBoolean(downmixEnabledKey)?.let { store.putBoolean(scoped(downmixEnabledKey), it) }
             payload.decodeSyncString(audioOutputChannelsKey)?.let { store.putString(scoped(audioOutputChannelsKey), it) }
             payload.decodeSyncBoolean(maintainOriginalAudioOnDownmixKey)?.let { store.putBoolean(scoped(maintainOriginalAudioOnDownmixKey), it) }
@@ -644,6 +665,9 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
             payload.decodeSyncStringSet(streamAutoPlaySelectedPluginsKey)?.let { store.putStringSet(scoped(streamAutoPlaySelectedPluginsKey), it) }
             payload.decodeSyncString(streamAutoPlayRegexKey)?.let { store.putString(scoped(streamAutoPlayRegexKey), it) }
             payload.decodeSyncInt(streamAutoPlayTimeoutSecondsKey)?.let { store.putInt(scoped(streamAutoPlayTimeoutSecondsKey), it) }
+            payload.decodeSyncBoolean(streamAutoPlayFallbackOnFailureKey)?.let { store.putBoolean(scoped(streamAutoPlayFallbackOnFailureKey), it) }
+            payload.decodeSyncInt(streamAutoPlayFallbackMaxSourcesKey)?.let { store.putInt(scoped(streamAutoPlayFallbackMaxSourcesKey), it) }
+            payload.decodeSyncInt(streamAutoPlayFallbackStartupTimeoutSecondsKey)?.let { store.putInt(scoped(streamAutoPlayFallbackStartupTimeoutSecondsKey), it) }
             payload.decodeSyncBoolean(skipIntroEnabledKey)?.let { store.putBoolean(scoped(skipIntroEnabledKey), it) }
             payload.decodeSyncBoolean(preloadNextEpisodeSourcesKey)?.let { store.putBoolean(scoped(preloadNextEpisodeSourcesKey), it) }
             payload.decodeSyncBoolean(autoSkipMovieCreditsKey)?.let { store.putBoolean(scoped(autoSkipMovieCreditsKey), it) }

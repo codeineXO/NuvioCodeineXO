@@ -56,6 +56,8 @@ internal fun PlayerScreen(
     stream: com.nuvio.app.features.streams.StreamItem? = null,
     classificationHint: MediaClassificationHint? = null,
     playbackOrigin: String = "player",
+    sourceFromLinkCache: Boolean = false,
+    sourceAutoSelected: Boolean = false,
 ) {
     com.nuvio.app.core.ui.RemoteNavigationDisabled {
     androidx.compose.runtime.key(profileId, parentMetaType, parentMetaId, launchId) {
@@ -111,6 +113,8 @@ internal fun PlayerScreen(
             stream = stream,
             classificationHint = classificationHint,
             playbackOrigin = playbackOrigin,
+            sourceFromLinkCache = sourceFromLinkCache,
+            sourceAutoSelected = sourceAutoSelected,
         )
     )
     }

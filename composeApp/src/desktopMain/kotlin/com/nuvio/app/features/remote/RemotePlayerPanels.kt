@@ -63,7 +63,7 @@ internal object RemotePlayerPanels {
         audio(state, audioTracks)
         enhancements(state)
         putJsonArray("chapters") {
-            state.chapters.forEach { addJsonObject { put("title", it.title); put("startMs", it.startMs) } }
+            state.chapterControls.chapters.forEach { addJsonObject { put("title", it.title); put("startMs", it.startMs) } }
         }
     }.toString()
 

@@ -138,10 +138,15 @@ data class PlayerCurrentStream(
     val infoHash: String? = null,
     val fileIdx: Int? = null,
     val filename: String? = null,
+    val identityKey: String? = null,
 )
 
 internal fun List<StreamItem>.currentPlayerStreamIndex(current: PlayerCurrentStream?): Int {
     if (current == null) return -1
+    current.identityKey?.let { key ->
+        val identityMatch = indexOfFirst { it.playerSourceIdentityKey() == key }
+        if (identityMatch >= 0) return identityMatch
+    }
     val isSameAddon = { stream: StreamItem ->
         current.addonId.isNullOrBlank() || stream.addonId == current.addonId
     }

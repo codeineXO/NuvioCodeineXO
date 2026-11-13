@@ -2874,17 +2874,19 @@ internal fun PlayerControlsState.toControlsJson(
             append('}')
         }
         append(',')
-        appendJsonArrayField("chapters", chapters) {
+        appendJsonArrayField("chapters", chapterControls.chapters) {
             append("{\"startMs\":").append(it.startMs)
             append(",\"title\":").append(it.title.toJsonString())
             append('}')
         }
         append(',')
-        appendJsonField("chaptersLabel", chaptersLabel)
+        appendJsonField("chapterTitleEnabled", chapterControls.chapterTitleEnabled)
         append(',')
-        appendJsonField("chaptersPanelTitle", chaptersPanelTitle)
+        appendJsonField("chaptersLabel", chapterControls.chaptersLabel)
         append(',')
-        appendJsonField("chapterRemainingTemplate", chapterRemainingTemplate)
+        appendJsonField("chaptersPanelTitle", chapterControls.chaptersPanelTitle)
+        append(',')
+        appendJsonField("chapterRemainingTemplate", chapterControls.chapterRemainingTemplate)
         append(',')
         appendJsonField("autoSyncedLabel", autoSyncedLabel)
         append(',')

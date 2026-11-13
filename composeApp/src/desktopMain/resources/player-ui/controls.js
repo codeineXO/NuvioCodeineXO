@@ -645,6 +645,7 @@ let isQuickMenuOpen = false;
 let pressedButton = null;
 let focusedActionCommand = "";
 let sourceFilterId = "";
+let sourceScrollToCurrentPending = false;
 let sourceVirtualKey = "";
 let sourceVirtualItems = [];
 let sourceVirtualHeights = [];
@@ -1531,6 +1532,25 @@ const setText = (element, text) => {
 
 let playerBadgesSignature = "";
 
+function formatCssColor(colorStr) {
+  if (!colorStr) return null;
+  let str = String(colorStr).trim();
+  if (!str) return null;
+  const hex = str.replace(/^#/, "");
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    return '#' + hex;
+  }
+  if (/^[0-9a-fA-F]{8}$/.test(hex)) {
+    const a = parseInt(hex.substring(0, 2), 16) / 255;
+    const r = parseInt(hex.substring(2, 4), 16);
+    const g = parseInt(hex.substring(4, 6), 16);
+    const b = parseInt(hex.substring(6, 8), 16);
+    if (a <= 0) return null;
+    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
+  }
+  return str.startsWith('#') ? str : '#' + str;
+}
+
 const renderPlayerBadges = () => {
   const badges = Array.isArray(state.badges) ? state.badges : [];
   const signature = JSON.stringify(badges);
@@ -1543,8 +1563,12 @@ const renderPlayerBadges = () => {
     badges.forEach((badge) => {
       const chip = document.createElement("span");
       chip.className = "player-badge";
-      if (String(badge.tagStyle || "").toLowerCase() === "filled" && badge.tagColor) chip.style.background = badge.tagColor;
-      if (badge.borderColor) chip.style.borderColor = badge.borderColor;
+      if (String(badge.tagStyle || "").toLowerCase() === "filled") {
+        const bg = formatCssColor(badge.tagColor);
+        if (bg) chip.style.background = bg;
+      }
+      const borderColor = formatCssColor(badge.borderColor);
+      if (borderColor) chip.style.borderColor = borderColor;
       const image = document.createElement("img");
       image.alt = badge.name || "";
       image.draggable = false;
@@ -1798,6 +1822,7 @@ const openPlayerModal = modal => {
   if (activeModal === "subtitles" && modal !== "subtitles" && state.secondarySubtitleSupported) send("subtitleSlot", 0);
   if (activeModal === "party" && modal !== "party") onPartyModalClosed();
   if (modal === "party" && activeModal !== "party") onPartyModalOpened();
+  if (modal === "sources" && activeModal !== "sources") sourceScrollToCurrentPending = true;
   activeModal = modal;
   if (modal === "submitIntro") {
     const contentKey = state.submitIntroContentKey || "";
@@ -1818,7 +1843,7 @@ const openPlayerModal = modal => {
     }
   }
   try {
-    renderActiveModal(true);
+    renderActiveModal(true, sourceScrollToCurrentPending && modal === "sources");
   } catch (err) {
     console.error("renderActiveModal error:", err);
   }
@@ -3368,25 +3393,6 @@ const buildSourceRow = (item, onSelect) => {
     subtitle.textContent = item.subtitle;
   }
 
-function formatCssColor(colorStr) {
-  if (!colorStr) return null;
-  let str = String(colorStr).trim();
-  if (!str) return null;
-  const hex = str.replace(/^#/, "");
-  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
-    return '#' + hex;
-  }
-  if (/^[0-9a-fA-F]{8}$/.test(hex)) {
-    const a = parseInt(hex.substring(0, 2), 16) / 255;
-    const r = parseInt(hex.substring(2, 4), 16);
-    const g = parseInt(hex.substring(4, 6), 16);
-    const b = parseInt(hex.substring(6, 8), 16);
-    if (a <= 0) return null;
-    return `rgba(${r}, ${g}, ${b}, ${a.toFixed(3)})`;
-  }
-  return str.startsWith('#') ? str : '#' + str;
-}
-
   const isTopPlacement = (item.badgePlacement || "").toUpperCase() === "TOP";
   const badges = Array.isArray(item.badges) ? item.badges.filter(b => b && b.imageURL) : [];
   const hasSize = Boolean(item.formattedSize);
@@ -3598,6 +3604,7 @@ const renderSourceModal = (modalOpened = false) => {
   }
   renderFilterRow(sourceFilterList, filters, sourceFilterId, id => {
     sourceFilterId = id;
+    sourceScrollToCurrentPending = false;
     sourceList.scrollTop = 0;
     renderSourceModal(true);
   });
@@ -3609,6 +3616,7 @@ const renderSourceModal = (modalOpened = false) => {
     });
   }
 
+  const previousScrollTop = sourceList.scrollTop;
   sourceList.textContent = "";
   sourceList.classList.remove("virtualized");
   let items = normalizeItems(state.sourceItems);
@@ -3631,7 +3639,6 @@ const renderSourceModal = (modalOpened = false) => {
   const nextKey = sourceKeyForItems(items);
   if (nextKey !== sourceVirtualKey) {
     resetSourceVirtualState(items, nextKey);
-    sourceList.scrollTop = 0;
   } else {
     sourceVirtualItems = items;
   }
@@ -3640,7 +3647,19 @@ const renderSourceModal = (modalOpened = false) => {
   sourceVirtualSpacer.className = "source-virtual-spacer";
   sourceList.appendChild(sourceVirtualSpacer);
   rebuildSourceVirtualLayout();
+  sourceList.scrollTop = previousScrollTop;
   renderSourceVirtualRows();
+  if (sourceScrollToCurrentPending) {
+    const spacer = sourceVirtualSpacer;
+    window.requestAnimationFrame(() => {
+      if (!sourceScrollToCurrentPending || activeModal !== "sources" || sourceVirtualSpacer !== spacer) return;
+      const index = sourceVirtualItems.findIndex(item => item.isCurrent);
+      if (index < 0) return;
+      sourceScrollToCurrentPending = false;
+      sourceList.scrollTop = sourceVirtualOffsets[index];
+      requestSourceVirtualRender();
+    });
+  }
   lastRenderedModal = "sources";
   lastRenderedModalSignature = getSourcesModalSignature();
 };
@@ -4050,7 +4069,7 @@ const renderChapterMarks = () => {
   }
   setVisible(chapterMarks, chapters.length > 1 && durationMs > 0);
   const index = currentChapterIndex(chapters);
-  const showTitle = state.playerUiMode === "official" && !state.isInPip && index >= 0;
+  const showTitle = state.playerUiMode === "official" && !state.isInPip && index >= 0 && state.chapterTitleEnabled !== false;
   setText(chapterTitle, showTitle ? chapters[index].title : "");
 };
 
@@ -4180,7 +4199,7 @@ const getSourcesModalSignature = () => [
   Boolean(state.sourceIsLoading),
   sourceFilterId || "",
   (state.sourceFilters || []).map(f => `${f.id || ""}:${f.label || ""}:${f.isLoading ? 1 : 0}:${f.hasError ? 1 : 0}`).join(";"),
-  (state.sourceItems || []).map(i => `${i.index}:${i.filterId || ""}:${i.title || ""}:${i.details || ""}:${i.quality || ""}:${i.addonName || ""}:${i.isSelected ? 1 : 0}:${i.isCached ? 1 : 0}:${i.badgeText || ""}:${i.isDebrid ? 1 : 0}:${i.showAddonLogo ? 1 : 0}:${i.addonLogo || ""}`).join(";"),
+  (state.sourceItems || []).map(i => `${i.index}:${i.filterId || ""}:${i.title || ""}:${i.details || ""}:${i.quality || ""}:${i.addonName || ""}:${i.isCurrent ? 1 : 0}:${i.isCached ? 1 : 0}:${i.badgeText || ""}:${i.isDebrid ? 1 : 0}:${i.showAddonLogo ? 1 : 0}:${i.addonLogo || ""}`).join(";"),
 ].join("##");
 
 const getEpisodesModalSignature = () => {
@@ -5687,6 +5706,9 @@ if (subtitleImportBtn) {
 }
 if (subtitleImportBtnOfficial) {
   subtitleImportBtnOfficial.addEventListener("click", handleSubtitleImportClick);
+}
+for (const event of ["wheel", "pointerdown", "keydown"]) {
+  sourceList.addEventListener(event, () => { sourceScrollToCurrentPending = false; });
 }
 sourceList.addEventListener("scroll", () => {
   if (activeModal === "sources") {

@@ -685,6 +685,8 @@ internal fun settingsSearchEntries(
                 stringResource(Res.string.settings_playback_touch_gestures_description),
             ) else null,
             if (!isDesktop) PlaybackSearchRow("hold-speed", stringResource(Res.string.settings_playback_hold_speed)) else null,
+            PlaybackSearchRow("exo-chapters", stringResource(Res.string.settings_playback_exo_chapters), stringResource(if (isDesktop) Res.string.settings_playback_chapters_description else Res.string.settings_playback_exo_chapters_description)),
+            PlaybackSearchRow("chapter-title", stringResource(Res.string.settings_playback_chapter_title), stringResource(Res.string.settings_playback_chapter_title_description)),
         ),
     )
     addPlaybackRows(
@@ -724,6 +726,9 @@ internal fun settingsSearchEntries(
             add(PlaybackSearchRow("stream-mode", stringResource(Res.string.settings_playback_stream_selection_mode)))
             add(PlaybackSearchRow("regex-pattern", stringResource(Res.string.settings_playback_regex_pattern)))
             add(PlaybackSearchRow("stream-timeout", stringResource(Res.string.settings_playback_stream_timeout), stringResource(Res.string.settings_playback_stream_timeout_description)))
+            add(PlaybackSearchRow("source-fallback", stringResource(Res.string.settings_playback_fallback_next_source), stringResource(Res.string.settings_playback_fallback_next_source_description)))
+            add(PlaybackSearchRow("source-fallback-max", stringResource(Res.string.settings_playback_fallback_max_sources)))
+            add(PlaybackSearchRow("source-fallback-timeout", stringResource(Res.string.settings_playback_fallback_startup_timeout)))
             add(PlaybackSearchRow("source-scope", stringResource(Res.string.settings_playback_source_scope)))
             add(PlaybackSearchRow("allowed-addons", stringResource(Res.string.settings_playback_allowed_addons)))
             if (pluginsEnabled) add(PlaybackSearchRow("allowed-plugins", stringResource(Res.string.settings_playback_allowed_plugins)))
@@ -749,7 +754,6 @@ internal fun settingsSearchEntries(
                         ),
                     )
                 }
-                add(PlaybackSearchRow("exo-chapters", stringResource(Res.string.settings_playback_exo_chapters), stringResource(if (isDesktop) Res.string.settings_playback_chapters_description else Res.string.settings_playback_exo_chapters_description), page = SettingsPage.PlaybackInterface))
                 if (!isDesktop) {
                     add(PlaybackSearchRow("dv7-hevc", stringResource(Res.string.settings_playback_map_dv7_to_hevc), stringResource(Res.string.settings_playback_map_dv7_to_hevc_description)))
                     add(PlaybackSearchRow("tunneled-playback", stringResource(Res.string.settings_playback_tunneled_playback), stringResource(Res.string.settings_playback_tunneled_playback_description)))
@@ -842,6 +846,7 @@ internal fun settingsSearchEntries(
             PlaybackSearchRow("up-next", stringResource(Res.string.settings_continue_watching_up_next_title), stringResource(Res.string.settings_continue_watching_up_next_description)),
             PlaybackSearchRow("unaired-next-up", stringResource(Res.string.settings_continue_watching_show_unaired_next_up_title), stringResource(Res.string.settings_continue_watching_show_unaired_next_up_description)),
             PlaybackSearchRow("blur-next-up", stringResource(Res.string.settings_continue_watching_blur_next_up_title), stringResource(Res.string.settings_continue_watching_blur_next_up_description)),
+            PlaybackSearchRow("click-action", stringResource(Res.string.settings_continue_watching_click_action_title), stringResource(Res.string.settings_continue_watching_click_action_description)),
         ),
     )
     addContinueWatchingRows(

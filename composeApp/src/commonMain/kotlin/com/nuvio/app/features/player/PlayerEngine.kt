@@ -166,6 +166,14 @@ data class PlayerControlPlaybackState(
     val isLoading: Boolean = false,
 )
 
+data class PlayerChapterControls(
+    val chapters: List<PlayerControlChapter> = emptyList(),
+    val chapterTitleEnabled: Boolean = true,
+    val chaptersLabel: String = "Chapters",
+    val chaptersPanelTitle: String = "Chapters",
+    val chapterRemainingTemplate: String = "{time} left",
+)
+
 data class PlayerControlsState(
     val title: String = "",
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
@@ -397,10 +405,7 @@ data class PlayerControlsState(
     val audioNightModeEnabled: Boolean = false,
     val party: PlayerControlPartyState = PlayerControlPartyState(),
     val badges: List<StreamBadge> = emptyList(),
-    val chapters: List<PlayerControlChapter> = emptyList(),
-    val chaptersLabel: String = "Chapters",
-    val chaptersPanelTitle: String = "Chapters",
-    val chapterRemainingTemplate: String = "{time} left",
+    val chapterControls: PlayerChapterControls = PlayerChapterControls(),
     val autoSyncedLabel: String = "Auto synced",
     val playbackStatsMetadata: PlaybackStatsMetadata? = null,
 ) {

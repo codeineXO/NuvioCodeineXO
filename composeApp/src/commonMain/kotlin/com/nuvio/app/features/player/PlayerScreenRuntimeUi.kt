@@ -536,10 +536,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         )
     }
     val playerControlsState = PlayerControlsState(
-        chapters = controlChapters,
-        chaptersLabel = stringResource(Res.string.compose_player_chapters),
-        chaptersPanelTitle = stringResource(Res.string.compose_player_panel_chapters, chapters.size),
-        chapterRemainingTemplate = stringResource(Res.string.compose_player_chapter_remaining, "{time}"),
+        chapterControls = PlayerChapterControls(
+            chapters = controlChapters,
+            chapterTitleEnabled = playerSettingsUiState.chapterTitleEnabled,
+            chaptersLabel = stringResource(Res.string.compose_player_chapters),
+            chaptersPanelTitle = stringResource(Res.string.compose_player_panel_chapters, chapters.size),
+            chapterRemainingTemplate = stringResource(Res.string.compose_player_chapter_remaining, "{time}"),
+        ),
         autoSyncedLabel = stringResource(Res.string.autosync_label_synced),
         playbackStatsMetadata = playbackStatsMetadata,
         title = title,
@@ -979,7 +982,10 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                     }
                 },
                 onError = { message ->
-                    if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
+                    if (message != null && tryRefreshExpiredLinkAfterError(message)) {
+                        return@PlatformPlayerSurface
+                    }
+                    if (message != null && tryFallbackToNextSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
                     if (message != null && !isDesktop && maybeFailoverPlaybackEngine(resolvedAutoEngine)) {
@@ -2131,9 +2137,11 @@ private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerCont
     val showFileSizeBadges = streamBadgeState.showFileSizeBadges
     val showAddonLogo = streamBadgeState.showAddonLogo
     val badgePlacement = streamBadgeState.badgePlacement.name
-    return sourceStreamsState.groups.flatMap { group ->
+    val sources = sourceStreamsState.groups.flatMap { group ->
         group.streams.map { stream -> group.addonId to stream }
-    }.mapIndexed { index, (filterId, stream) ->
+    }
+    val currentIndex = sources.map { it.second }.currentPlayerStreamIndex(currentPlayerStream())
+    return sources.mapIndexed { index, (filterId, stream) ->
         PlayerControlSourceItem(
             index = index,
             filterId = filterId,
@@ -2142,7 +2150,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerCont
             addonName = stream.addonName,
             addonLogo = stream.addonLogo.orEmpty(),
             showAddonLogo = showAddonLogo,
-            isCurrent = isCurrentPlayerControlStream(stream),
+            isCurrent = index == currentIndex,
             isEnabled = stream.isSelectableForPlayback(canResolveDebrid),
             badges = stream.badges.map {
                 PlayerControlSourceBadgeItem(
@@ -2208,49 +2216,16 @@ private fun formatStreamVideoSize(bytes: Long?): String {
     return stringResource(Res.string.streams_size, sizeLabel)
 }
 
-private fun PlayerScreenRuntime.isCurrentPlayerControlStream(stream: StreamItem): Boolean {
-    val activeKey = activeSourceIdentityKey
-    val streamKey = stream.playerSourceIdentityKey()
-    if (activeKey != null && streamKey != null && streamKey == activeKey) {
-        return true
-    }
-    activeStream?.let { active ->
-        if (stream == active) return true
-        val activeKeyFromStream = active.playerSourceIdentityKey()
-        if (streamKey != null && activeKeyFromStream != null && streamKey == activeKeyFromStream) return true
-    }
-    val directUrl = stream.playableDirectUrl
-    if (directUrl != null && (directUrl == activeSourceUrl || directUrl == activeStream?.playableDirectUrl)) return true
-
-    val infoHash = stream.p2pInfoHash ?: stream.infoHash
-    val targetHash = activeStream?.p2pInfoHash ?: activeStream?.infoHash ?: activeTorrentInfoHash
-    if (infoHash != null && targetHash != null && infoHash.equals(targetHash, ignoreCase = true)) {
-        val streamIdx = stream.p2pFileIdx ?: stream.fileIdx
-        val targetIdx = activeStream?.p2pFileIdx ?: activeStream?.fileIdx ?: activeTorrentFileIdx
-        if (targetIdx == null || streamIdx == null || streamIdx == targetIdx) {
-            if (activeProviderAddonId.isNullOrBlank() || stream.addonId == activeProviderAddonId) {
-                return true
-            }
-        }
-    }
-
-    val activeFilename = activeSourceFilename ?: activeStreamFilename ?: activeStream?.classificationFilename
-    if (!activeFilename.isNullOrBlank()) {
-        val streamFilename = stream.classificationFilename ?: stream.behaviorHints.filename ?: stream.clientResolve?.filename
-        if (streamFilename == activeFilename && (activeProviderAddonId.isNullOrBlank() || stream.addonId == activeProviderAddonId)) {
-            return true
-        }
-    }
-
-    if (!activeStreamTitle.isNullOrBlank()) {
-        if (stream.streamLabel.equals(activeStreamTitle, ignoreCase = true) &&
-            (activeProviderAddonId.isNullOrBlank() || stream.addonId == activeProviderAddonId) &&
-            (activeStreamSubtitle.isNullOrBlank() || stream.streamSubtitle == activeStreamSubtitle)) {
-            return true
-        }
-    }
-    return false
-}
+private fun PlayerScreenRuntime.currentPlayerStream() = PlayerCurrentStream(
+    url = activeSourceUrl,
+    name = activeStreamTitle,
+    description = activeStreamSubtitle,
+    addonId = activeProviderAddonId,
+    infoHash = activeStream?.p2pInfoHash ?: activeStream?.infoHash ?: activeTorrentInfoHash,
+    fileIdx = activeStream?.p2pFileIdx ?: activeStream?.fileIdx ?: activeTorrentFileIdx,
+    filename = activeSourceFilename ?: activeStream?.classificationFilename ?: activeStreamFilename,
+    identityKey = activeSourceIdentityKey,
+)
 
 @Composable
 private fun PlayerScreenRuntime.buildPlayerControlAddonSubtitleItems(): List<PlayerControlAddonSubtitleItem> =
@@ -2687,15 +2662,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         sourceStreamsState = sourceStreamsState,
         contentTitle = title,
         activeEpisodeTitle = activeEpisodeTitle,
-        currentStream = PlayerCurrentStream(
-            url = activeSourceUrl,
-            name = activeStreamTitle,
-            description = activeStreamSubtitle,
-            addonId = activeProviderAddonId,
-            infoHash = activeStream?.p2pInfoHash ?: activeStream?.infoHash ?: activeTorrentInfoHash,
-            fileIdx = activeStream?.p2pFileIdx ?: activeStream?.fileIdx ?: activeTorrentFileIdx,
-            filename = activeSourceFilename ?: activeStream?.classificationFilename ?: activeStreamFilename,
-        ),
+        currentStream = currentPlayerStream(),
         onSourceFilterSelected = PlayerStreamsRepository::selectSourceFilter,
         onSourceStreamSelected = { stream -> switchToSource(stream) },
         onReloadSources = {

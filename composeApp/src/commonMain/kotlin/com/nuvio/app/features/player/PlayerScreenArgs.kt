@@ -60,4 +60,6 @@ internal data class PlayerScreenArgs(
     val stream: com.nuvio.app.features.streams.StreamItem? = null,
     val classificationHint: MediaClassificationHint? = null,
     val playbackOrigin: String = "player",
+    val sourceFromLinkCache: Boolean = false,
+    val sourceAutoSelected: Boolean = false,
 )

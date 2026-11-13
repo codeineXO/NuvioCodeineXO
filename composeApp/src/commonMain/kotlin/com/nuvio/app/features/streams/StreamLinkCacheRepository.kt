@@ -84,11 +84,6 @@ object StreamLinkCacheRepository {
         releaseText: String? = null,
         classificationHint: com.nuvio.app.features.player.MediaClassificationHint? = null,
     ) {
-        if (url.isNotBlank() && url.hasLikelyExpiringPlaybackCredentials()) {
-            remove(contentKey)
-            return
-        }
-
         val entry = CachedStreamLink(
             url = url,
             streamName = streamName,
@@ -142,10 +137,6 @@ object StreamLinkCacheRepository {
         }
         val age = epochMs() - entry.cachedAtMs
         if (entry.cachedAtMs <= 0L || age > maxAgeMs) {
-            StreamLinkCacheStorage.removeEntry(hashedKey(contentKey))
-            return null
-        }
-        if (entry.url.isNotBlank() && entry.url.hasLikelyExpiringPlaybackCredentials()) {
             StreamLinkCacheStorage.removeEntry(hashedKey(contentKey))
             return null
         }

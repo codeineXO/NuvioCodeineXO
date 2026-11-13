@@ -397,6 +397,8 @@ internal fun StreamDestination(
                 playbackOrigin = "saved_link",
                 sourceFilename = cached.filename,
                 stream = cachedStream,
+                sourceFromLinkCache = true,
+                sourceAutoSelected = true,
             )
             if (externalPlayerSupported && playerSettings.externalPlayerEnabled) {
                 openExternalPlayback(playerLaunch)
@@ -578,6 +580,7 @@ internal fun StreamDestination(
             playbackOrigin = "auto_stream",
             sourceFilename = stream.classificationFilename,
             stream = stream,
+            sourceAutoSelected = true,
         )
         if (externalPlayerSupported && playerSettings.externalPlayerEnabled && stream.serverTarget == null) {
             openExternalPlayback(playerLaunch)

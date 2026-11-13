@@ -132,6 +132,8 @@ internal fun PlayerDestination(
             stream = launch.stream,
             classificationHint = launch.classificationHint,
             playbackOrigin = launch.playbackOrigin,
+            sourceFromLinkCache = launch.sourceFromLinkCache,
+            sourceAutoSelected = launch.sourceAutoSelected,
             onSystemBackHandlerChanged = registerSystemBack,
             onOpenInExternalPlayer = if (externalPlayerSupported) { { request ->
                 val playerLaunch = PlayerLaunch(

@@ -21,6 +21,7 @@ import com.nuvio.app.features.streams.YouTubeStreamResolver
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
+import com.nuvio.app.isDesktop
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
@@ -235,7 +236,9 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
         episode = activeEpisodeNumber,
     )
     externalSubtitles = stream.externalSubtitles
-    activeSourceUrl = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
+    val url = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
+    resetSourceFallback(url.takeIf { isDesktop })
+    activeSourceUrl = url
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
@@ -286,7 +289,9 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
         episode = episode.episode,
     )
     externalSubtitles = stream.externalSubtitles
-    activeSourceUrl = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
+    val url = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
+    resetSourceFallback(url.takeIf { isDesktop })
+    activeSourceUrl = url
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
@@ -350,6 +355,7 @@ internal fun PlayerScreenRuntime.switchToSource(
         saveDirectStreamForReuse(stream, url, currentVideoId, activeSeasonNumber, activeEpisodeNumber)
     }
     externalSubtitles = stream.externalSubtitles
+    resetSourceFallback(url.takeIf { isDesktop })
     activeSourceUrl = url
     activeSourceAudioUrl = null
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
@@ -419,6 +425,7 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(
         saveDirectStreamForReuse(stream, url, epVideoId, episode.season, episode.episode)
     }
     externalSubtitles = stream.externalSubtitles
+    resetSourceFallback(url.takeIf { isDesktop })
     activeSourceUrl = url
     activeSourceAudioUrl = null
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
@@ -454,6 +461,7 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     val epResumePositionMs = epEntry?.lastPositionMs?.takeIf { it > 0L } ?: 0L
 
     externalSubtitles = DownloadSubtitles.localSubtitles(localFileUri)
+    resetSourceFallback()
     activeSourceUrl = localFileUri
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
@@ -700,7 +708,7 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     syncStreamLaunch(episode, resume)
 }
 
-private fun PlayerScreenRuntime.saveDirectStreamForReuse(
+internal fun PlayerScreenRuntime.saveDirectStreamForReuse(
     stream: StreamItem,
     url: String,
     videoId: String,

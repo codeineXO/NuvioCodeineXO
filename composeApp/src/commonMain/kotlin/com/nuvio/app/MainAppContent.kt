@@ -131,6 +131,7 @@ import com.nuvio.app.features.home.ContinueWatchingScreen
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
+import com.nuvio.app.features.home.opensDetails
 import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.LibrarySection
@@ -1437,7 +1438,20 @@ internal fun MainAppContent(
         }
 
         val onContinueWatchingClick: (ContinueWatchingItem) -> Unit = { item ->
-            openContinueWatching(item, false, false)
+            if (
+                !item.isCloudLibraryContinueWatchingItem() &&
+                continueWatchingPreferencesUiState.clickAction.opensDetails(item)
+            ) {
+                navController.navigate(
+                    DetailRoute(
+                        type = item.parentMetaType,
+                        id = item.parentMetaId,
+                        title = item.title,
+                    ),
+                )
+            } else {
+                openContinueWatching(item, false, false)
+            }
         }
 
         val onContinueWatchingStartFromBeginning: (ContinueWatchingItem) -> Unit = { item ->
