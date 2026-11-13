@@ -9,6 +9,7 @@ import com.nuvio.app.features.watched.WatchedRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettings
 import kotlinx.serialization.encodeToString
@@ -67,13 +69,13 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
     val uiState = state.asStateFlow()
     private var pickingJob: Job? = null
     private var ratingsJob: Job? = null
+    private var artworkJob: Job? = null
     private var backgroundJob: Job? = null
     private var cleanupJob: Job? = null
     private var active = false
     private var presentation = 0L
     private var metadataProviders: List<com.nuvio.app.features.addons.AddonManifest?> = emptyList()
     private var enrichmentSettings: com.nuvio.app.features.tmdb.TmdbSettings? = null
-    private var artworkPreparer: (suspend (PickerResult, PickerRequests) -> PickerResult)? = null
     private val generation = MutableStateFlow(0L)
     private val observedGenres = mutableMapOf<String, Set<String>>()
     private val requests = PickerRequests(viewModelScope)
@@ -81,17 +83,13 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
         pageLoader = { source, genre, skip ->
             requests.request("page:${source.key}:$genre:$skip") {
                 fetchCatalogPage(source.manifestUrl, source.catalog.type, source.catalog.id,
-                    genre = genre, skip = skip, maxItems = 2000, shareInFlight = false)
+                    genre = genre, skip = skip, shareInFlight = false)
             } ?: error("Catalog request unavailable")
         },
         metaLoader = { preview ->
             requests.request("meta:${preview.type}:${preview.id}") {
                 MetaDetailsRepository.fetchForShuffle(preview.type, preview.id, preview.pickerMeta())
             }
-        },
-        cardPreparer = { result ->
-            requests.cancelUnusedData()
-            artworkPreparer?.invoke(result, requests) ?: result
         },
         metadataVersion = { TmdbSettingsRepository.snapshot() to AddonRepository.uiState.value.addons.filter { it.isActive }.map { it.manifest } },
         isWatched = { meta ->
@@ -154,15 +152,14 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
 
     fun reset() = update(PickerFilters())
 
-    fun setActive(visible: Boolean, prepare: suspend (PickerResult, PickerRequests) -> PickerResult) {
-        artworkPreparer = prepare
+    fun setActive(visible: Boolean) {
         active = visible
         if (visible) {
             TmdbSettingsRepository.ensureLoaded()
             val currentSettings = TmdbSettingsRepository.snapshot()
             if (enrichmentSettings != currentSettings) { enrichmentSettings = currentSettings; invalidate() }
         }
-        if (!visible) { cancel(); ratingsJob?.cancel(); artworkPreparer = null }
+        if (!visible) { cancel(); ratingsJob?.cancel() }
         else scheduleBackground()
     }
 
@@ -175,6 +172,31 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
 
     fun stopSearch() {
         cancel()
+    }
+
+    private fun loadResultLogo(result: PickerResult) {
+        artworkJob?.cancel()
+        if (!result.logoLookupPending) return
+        artworkJob = viewModelScope.launch {
+            val logo = try {
+                withTimeoutOrNull(750) {
+                    requests.request("art-meta:${result.meta.type}:${result.meta.id}") {
+                        TmdbMetadataService.completeShuffleArtwork(result.meta, result.preview.id).logo
+                    }
+                }
+            } finally {
+                withContext(NonCancellable) { requests.cancelUnusedArtwork() }
+            }
+            state.update { current ->
+                val shown = current.result
+                if (current.resultPopupOpen && shown?.presentationId == result.presentationId) {
+                    current.copy(result = shown.copy(
+                        meta = shown.meta.copy(logo = logo ?: shown.meta.logo),
+                        logoLookupPending = false,
+                    ))
+                } else current
+            }
+        }
     }
 
     fun loadResultRatings(settings: MdbListSettings) {
@@ -213,11 +235,25 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
     fun cancel() {
         generation.update { it + 1 }
         val oldPicking = pickingJob; val oldBackground = backgroundJob
+        val oldArtwork = artworkJob
         oldPicking?.cancel(); pickingJob = null
         oldBackground?.cancel(); backgroundJob = null
+        oldArtwork?.cancel(); artworkJob = null
         val previous = cleanupJob
-        cleanupJob = viewModelScope.launch { oldPicking?.join(); oldBackground?.join(); previous?.join(); requests.clear() }
-        state.update { if (it.picking) it.copy(phase = PickerPhase.Idle) else it }
+        cleanupJob = viewModelScope.launch {
+            oldPicking?.join()
+            oldBackground?.join()
+            oldArtwork?.join()
+            previous?.join()
+            requests.clear()
+        }
+        state.update { current ->
+            val shown = current.result
+            current.copy(
+                phase = if (current.picking) PickerPhase.Idle else current.phase,
+                result = if (shown?.logoLookupPending == true) shown.copy(logoLookupPending = false) else shown,
+            )
+        }
     }
 
     private fun scheduleBackground() {
@@ -244,30 +280,42 @@ internal class RandomPickerViewModel(private val profileId: Int) : ViewModel() {
             try {
                 background?.cancelAndJoin()
                 cleanupJob?.join()
-                val outcome = searchUntilResult(
-                    attempt = { retry ->
-                        withTimeoutOrNull(15_000) {
+                val outcome = withTimeoutOrNull(15_000) {
+                    searchUntilResult(
+                        attempt = { retry ->
                             withContext(Dispatchers.Default) {
-                                session.pick(snapshot.filters, snapshot.sources, phase = { phase ->
-                                    state.update { if (generation.value == requestGeneration) it.copy(phase = phase) else it }
-                                }, retry = retry)
+                                try {
+                                    session.pick(snapshot.filters, snapshot.sources, phase = { phase ->
+                                        state.update { if (generation.value == requestGeneration) it.copy(phase = phase) else it }
+                                    }, retry = retry)
+                                } finally {
+                                    withContext(NonCancellable) { requests.cancelUnusedData() }
+                                }
                             }
-                        } ?: PickerOutcome(timedOut = true)
-                    },
-                    onRetry = { failure ->
-                        state.update { if (generation.value == requestGeneration) it.copy(
-                            phase = PickerPhase.Retrying, timedOut = false,
-                            failedSources = failure.failedSources, metadataFailures = failure.metadataFailures,
-                        ) else it }
-                    },
-                )
+                        },
+                        onRetry = { failure ->
+                            state.update { if (generation.value == requestGeneration) it.copy(
+                                phase = PickerPhase.Retrying, timedOut = false,
+                                failedSources = failure.failedSources, metadataFailures = failure.metadataFailures,
+                            ) else it }
+                        },
+                    )
+                } ?: PickerOutcome(timedOut = true)
                 if (outcome.result != null && !session.displayed(outcome.result, snapshot.filters)) {
                     state.update { it.copy(phase = PickerPhase.Empty) }; return@launch
                 }
                 outcome.sourceGenres.forEach { (key, genres) -> observedGenres[key] = observedGenres[key].orEmpty() + genres }
                 outcome.result?.let { result -> observedGenres[result.source.key] = observedGenres[result.source.key].orEmpty() + result.meta.genres }
-                val displayed = outcome.copy(result = outcome.result?.copy(presentationId = ++presentation))
+                val tmdbSettings = TmdbSettingsRepository.snapshot()
+                val displayed = outcome.copy(result = outcome.result?.let {
+                    it.copy(
+                        presentationId = ++presentation,
+                        logoLookupPending = it.meta.logo.isNullOrBlank() && active &&
+                            tmdbSettings.enabled && tmdbSettings.useArtwork,
+                    )
+                })
                 state.update { it.withOutcome(displayed).copy(genres = availableGenres(it.sources, it.filters)) }
+                displayed.result?.let(::loadResultLogo)
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) { state.update { it.copy(phase = PickerPhase.Failed) } }
             finally { scheduleBackground() }
@@ -280,6 +328,7 @@ internal fun PickerState.withOutcome(outcome: PickerOutcome): PickerState = copy
     resultPopupOpen = outcome.result != null || resultPopupOpen,
     phase = when {
         outcome.result != null -> PickerPhase.Idle
+        outcome.noNewTitles -> PickerPhase.NoNewTitles
         outcome.timedOut || outcome.successfulPages == 0 && outcome.failedSources > 0 -> PickerPhase.Failed
         outcome.metadataAttempts > 0 && outcome.metadataFailures == outcome.metadataAttempts -> PickerPhase.Failed
         else -> PickerPhase.Empty

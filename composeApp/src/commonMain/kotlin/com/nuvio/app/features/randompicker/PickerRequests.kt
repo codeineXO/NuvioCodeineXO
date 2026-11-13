@@ -44,11 +44,11 @@ internal class PickerRequests(
     }
 
     suspend fun cancelUnusedArtwork() {
-        cancelUnused { it.startsWith("image:") || it.startsWith("art-meta:") }
+        cancelUnused { it.startsWith("art-meta:") }
     }
 
     suspend fun cancelUnusedData() {
-        cancelUnused { !it.startsWith("image:") && !it.startsWith("art-meta:") }
+        cancelUnused { !it.startsWith("art-meta:") }
     }
 
     private suspend fun cancelUnused(matches: (String) -> Boolean) {

@@ -37,11 +37,12 @@
     <string name="picker_sampling">Shuffling catalogs…</string>
     <string name="picker_enriching">Checking title metadata…</string>
     <string name="picker_empty">No matching title in this sample. Adjust filters or shuffle again to explore more pages.</string>
+    <string name="picker_no_new_titles">No new titles match your filters. Adjust your filters or allow previous picks.</string>
     <string name="picker_failed">Unable to complete this shuffle. Check your connection and addon settings, then try again.</string>
     <string name="picker_partial">Some selected catalogs could not be retrieved. Available sources were still sampled.</string>
     <string name="picker_metadata_missing">Some title metadata could not be retrieved. Only available metadata was used.</string>
     <string name="picker_persistence_failed">Filters could not be saved on this device.</string>
-    <string name="picker_sampling_hint">Shuffle samples your selected catalogs and keeps looking until it finds a match. Missing ratings never satisfy a rating filter.</string>
+    <string name="picker_sampling_hint">Shuffle samples your selected catalogs. Missing ratings never satisfy a rating filter.</string>
     <string name="picker_no_description">No synopsis available.</string>
     <string name="picker_source">Source</string>
     <string name="picker_preparing">Preparing artwork…</string>

@@ -39,14 +39,10 @@ internal class PickerSession(
             (queue.firstOrNull { !engine.isRecent(it.result) } ?: queue.firstOrNull())?.also { queue.remove(it) }
         }
         if (entry != null) {
-            phase(PickerPhase.Preparing)
-            val start = now()
-            // Coil can evict decoded images while the page is away; warm them again before publishing.
-            val settled = engine.prepareCard(entry.result)
-            log.d { "queueHit=true artworkMs=${now() - start} remaining=${synchronized(queueLock) { queue.size }}" }
-            return PickerOutcome(result = settled)
+            log.d { "queueHit=true remaining=${synchronized(queueLock) { queue.size }}" }
+            return PickerOutcome(result = entry.result)
         }
-        if (retry > 0) engine.beginRetry(retry)
+        if (retry > 0 && !filters.excludePrevious) engine.beginRetry(retry)
         log.d { "queueHit=false" }
         return engine.pick(filters, sources, phase, recordSelection = false, explore = retry > 0)
     }
@@ -66,8 +62,8 @@ internal class PickerSession(
                 val remaining = (15_000 - (now() - start)).coerceAtLeast(1)
                 val excluded = synchronized(queueLock) { queue.flatMap { pickerAliases(it.result.meta) + pickerAliases(it.result.preview.pickerMeta()) }.toSet() }
                 val outcome = engine.pick(filters, sources,
-                    budget = PickerBudget(8 - pages, 16 - metadata, minOf(12_000, remaining), remaining),
-                    excluded = excluded, recordSelection = false, explore = true)
+                    budget = PickerBudget(8 - pages, 16 - metadata, minOf(12_000, remaining)),
+                    excluded = excluded, recordSelection = false)
                 currentCoroutineContext().ensureActive()
                 pages += outcome.pageRequests; metadata += outcome.metadataAttempts
                 val result = outcome.result ?: break

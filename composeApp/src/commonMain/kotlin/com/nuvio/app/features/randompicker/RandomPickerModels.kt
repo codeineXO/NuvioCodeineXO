@@ -139,13 +139,14 @@ internal fun pickerIsWatched(meta: MetaDetails, watchedKeys: Set<String>, fullyW
     }
 }
 
-internal data class PickerArtwork(
-    val poster: coil3.request.ImageRequest? = null,
-    val background: coil3.request.ImageRequest? = null,
-    val logo: coil3.request.ImageRequest? = null,
+internal data class PickerResult(
+    val preview: MetaPreview,
+    val meta: MetaDetails,
+    val source: PickerSource,
+    val presentationId: Long = 0,
+    val logoLookupPending: Boolean = false,
 )
-internal data class PickerResult(val preview: MetaPreview, val meta: MetaDetails, val source: PickerSource, val artwork: PickerArtwork? = null, val presentationId: Long = 0)
-internal enum class PickerPhase { Idle, LoadingSources, Sampling, Enriching, Preparing, Retrying, Empty, Failed }
+internal enum class PickerPhase { Idle, LoadingSources, Sampling, Enriching, Retrying, Empty, NoNewTitles, Failed }
 internal data class PickerState(
     val filters: PickerFilters = PickerFilters(),
     val sources: List<PickerSource> = emptyList(),
@@ -158,5 +159,5 @@ internal data class PickerState(
     val timedOut: Boolean = false,
     val persistenceFailed: Boolean = false,
 ) {
-    val picking: Boolean get() = phase == PickerPhase.Sampling || phase == PickerPhase.Enriching || phase == PickerPhase.Preparing || phase == PickerPhase.Retrying
+    val picking: Boolean get() = phase == PickerPhase.Sampling || phase == PickerPhase.Enriching || phase == PickerPhase.Retrying
 }

@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,7 +42,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
-import coil3.SingletonImageLoader
 import coil3.Extras
 import coil3.request.ImageRequest
 import kotlinx.coroutines.delay
@@ -79,15 +79,9 @@ internal fun RandomPickerScreen(active: Boolean, onDetails: (MetaPreview) -> Uni
     LaunchedEffect(model, active, state.resultPopupOpen, state.result?.presentationId, ratingSettings) {
         if (active) model.loadResultRatings(ratingSettings)
     }
-    val context = LocalPlatformContext.current
-    val prepare: suspend (PickerResult, PickerRequests) -> PickerResult = remember(context) {
-        { result, requests ->
-            preparePickerArtwork(result, requests, context, SingletonImageLoader.get(context))
-        }
-    }
-    DisposableEffect(model, active, prepare) {
-        model.setActive(active, prepare)
-        onDispose { model.setActive(false, prepare) }
+    DisposableEffect(model, active) {
+        model.setActive(active)
+        onDispose { model.setActive(false) }
     }
     RandomPickerContent(state, model::update, model::pick, model::reset, onDetails, onBack, model::dismissResult, model::stopSearch, active)
 }
@@ -131,9 +125,9 @@ private val pickerStringResources = listOf(
     Res.string.picker_loading,
     Res.string.picker_sampling,
     Res.string.picker_enriching,
-    Res.string.picker_preparing,
     Res.string.picker_timeout,
     Res.string.picker_empty,
+    Res.string.picker_no_new_titles,
     Res.string.picker_failed,
     Res.string.picker_partial,
     Res.string.picker_metadata_missing,
@@ -361,7 +355,7 @@ private fun PickerFeedback(state: PickerState, modifier: Modifier = Modifier, in
         PickerPhase.Sampling -> Res.string.picker_sampling
         PickerPhase.Enriching -> Res.string.picker_enriching
         PickerPhase.Empty -> Res.string.picker_empty
-        PickerPhase.Preparing -> Res.string.picker_preparing
+        PickerPhase.NoNewTitles -> Res.string.picker_no_new_titles
         PickerPhase.Retrying -> Res.string.picker_retrying
         PickerPhase.Failed -> if (state.timedOut) Res.string.picker_timeout else Res.string.picker_failed
         else -> null
@@ -409,7 +403,7 @@ private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, of
         CustomPosterUrlRepository.pattern
     }.collectAsStateWithLifecycle()
     val posterScreens by CustomPosterUrlRepository.enabledScreens.collectAsStateWithLifecycle()
-    val posterModel = remember(context, result.meta, result.artwork?.poster, posterPattern, posterScreens) {
+    val posterModel = remember(context, result.meta, posterPattern, posterScreens) {
         val meta = result.meta
         val ids = CustomPosterUrlResolver.extractIds(meta.id, meta.imdbId).let {
             it.copy(tmdbId = it.tmdbId ?: meta.provenance.knownIds["TMDB"])
@@ -423,7 +417,7 @@ private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, of
                     memoryCacheKeyExtras(mapOf(CustomPosterFallbackInterceptor.FALLBACK_URL_KEY to it))
                 }
             }.build()
-        } else result.artwork?.poster ?: meta.poster
+        } else meta.poster
     }
     PlatformBackHandler(enabled = true, onBack = dismiss)
     Box(Modifier.offset { offset }) {
@@ -458,13 +452,52 @@ private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, of
                     .clickable(enabled = !state.picking, onClickLabel = pickerText(Res.string.picker_details), onClick = details)
                     .testTag("shuffle_artwork")) {
                     val wide = maxWidth >= 680.dp
-                    ShuffleArtworkImage(result.artwork?.poster ?: result.meta.poster, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
-                    if (result.meta.background != null) ShuffleArtworkImage(result.artwork?.background ?: result.meta.background, null,
-                        Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                    val backdropUrl = result.meta.background?.takeIf { it.isNotBlank() }
+                    var backdropFailed by remember(backdropUrl) { mutableStateOf(false) }
+                    Box(Modifier.matchParentSize().background(MaterialTheme.nuvio.colors.surfaceDialog))
+                    if (backdropUrl == null || backdropFailed) {
+                        ShuffleArtworkImage(
+                            result.meta.poster,
+                            null,
+                            Modifier.matchParentSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        ShuffleArtworkImage(
+                            backdropUrl,
+                            null,
+                            Modifier.matchParentSize(),
+                            contentScale = ContentScale.Crop,
+                            onFailed = { backdropFailed = true },
+                        )
+                    }
                     Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .90f), Color.Black.copy(alpha = .35f)))))
                     Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .88f)))))
                     val poster: @Composable () -> Unit = {
-                        ShuffleArtworkImage(posterModel, result.meta.name, Modifier.width(if (wide) 156.dp else 84.dp).aspectRatio(2f / 3f).clip(shape), contentScale = ContentScale.Crop)
+                        Column(
+                            Modifier.width(if (wide) 156.dp else 84.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(shape)) {
+                                ShuffleArtworkImage(
+                                    posterModel,
+                                    result.meta.name.takeIf { posterStyle.hideLabelsEnabled },
+                                    Modifier.matchParentSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                            if (!posterStyle.hideLabelsEnabled) {
+                                Text(
+                                    text = result.meta.name,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                     if (wide) Row(Modifier.align(Alignment.BottomStart).padding(start = 32.dp, end = 32.dp, top = 60.dp, bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
                         poster(); Box(Modifier.weight(1f)) { PickerHeroInfo(result) }
@@ -528,15 +561,17 @@ private fun PickerHeroInfo(result: PickerResult) {
         MetaScreenSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val externalRatings = meta.externalRatings.takeIf { ratingSettings.isActive }.orEmpty()
-    var logoFailed by remember(meta.logo) { mutableStateOf(false) }
-    var logoLoaded by remember(meta.logo) { mutableStateOf(false) }
+    val logoModel = meta.logo?.takeIf { it.isNotBlank() }
+    var logoFailed by remember(logoModel) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (meta.logo != null && !logoFailed) Box(Modifier.widthIn(max = 300.dp).heightIn(min = 72.dp), contentAlignment = Alignment.CenterStart) {
-            if (!logoLoaded) Text(meta.name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
-            ShuffleArtworkImage(result.artwork?.logo ?: meta.logo, meta.name, Modifier.fillMaxWidth().height(72.dp),
-                contentScale = ContentScale.Fit, alignment = Alignment.CenterStart,
-                onLoaded = { logoLoaded = true }, onFailed = { logoFailed = true })
-        } else Text(meta.name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
+        when {
+            logoModel != null && !logoFailed -> ShuffleArtworkImage(
+                logoModel, meta.name, Modifier.widthIn(max = 300.dp).fillMaxWidth().height(72.dp),
+                contentScale = ContentScale.Fit, alignment = Alignment.CenterStart, onFailed = { logoFailed = true },
+            )
+            result.logoLookupPending -> Spacer(Modifier.height(72.dp))
+            else -> Text(meta.name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
+        }
         val kind = when {
             MediaClassifier.classify(meta).isAnime -> Res.string.picker_anime
             meta.type.equals("movie", true) -> Res.string.picker_movies
@@ -577,7 +612,7 @@ private val ShuffleArtworkAttempt = Extras.Key<Int>(0)
 @Composable
 private fun ShuffleArtworkImage(
     model: Any?, description: String?, modifier: Modifier, contentScale: ContentScale,
-    alignment: Alignment = Alignment.Center, onLoaded: () -> Unit = {}, onFailed: () -> Unit = {},
+    alignment: Alignment = Alignment.Center, onFailed: () -> Unit = {},
 ) {
     if (model == null) return
     val context = LocalPlatformContext.current
@@ -594,5 +629,5 @@ private fun ShuffleArtworkImage(
             .apply { extras[ShuffleArtworkAttempt] = attempt }.build()
     }
     AsyncImage(request, description, modifier, contentScale = contentScale, alignment = alignment,
-        onSuccess = { onLoaded() }, onError = { if (attempt < 3) failure = attempt + 1 else onFailed() })
+        onError = { if (attempt < 3) failure = attempt + 1 else onFailed() })
 }
