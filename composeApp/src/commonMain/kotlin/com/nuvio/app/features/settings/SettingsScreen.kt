@@ -146,6 +146,12 @@ private fun SettingsPage.isEnabledByPolicy(): Boolean =
         else -> true
     }
 
+private fun SettingsPage.showsHeaderBackButton(): Boolean =
+    when (this) {
+        SettingsPage.CodeineXO, SettingsPage.Remote -> false
+        else -> previousPage() != null
+    }
+
 @Composable
 private fun settingsPageTitles(): Map<SettingsPage, String> {
     val titles = mutableMapOf<SettingsPage, String>()
@@ -685,14 +691,13 @@ private fun MobileSettingsScreen(
         ) {
             if (showInternalHeader) {
                 stickyHeader {
-                    val previousPage = page.previousPage()
                     NuvioScreenHeader(
                         showBackWithDesktopSidebar = true,
                         title = stringResource(page.titleRes),
                         topPadding = topChromePadding,
                         backButtonKeyboardNavigationEnabled = false,
                         backButtonBackgroundOnly = true,
-                        onBack = if (!isDesktop && page == SettingsPage.CodeineXO) null else previousPage?.let { { onNavigateBack() } },
+                        onBack = onNavigateBack.takeIf { page.showsHeaderBackButton() },
                     )
                 }
             } else {
@@ -1115,7 +1120,6 @@ private fun TabletSettingsScreen(
                         ) {
                             if (showInternalHeader) {
                                 item {
-                                    val previousPage = page.previousPage()
                                     TabletPageHeader(
                                         title = if (page == SettingsPage.Root) {
                                             if (settingsSearchQuery.isBlank()) {
@@ -1126,8 +1130,8 @@ private fun TabletSettingsScreen(
                                         } else {
                                             stringResource(page.titleRes)
                                         },
-                                        showBack = previousPage != null && (isDesktop || page != SettingsPage.CodeineXO),
-                                        onBack = { if (previousPage != null) onNavigateBack() },
+                                        showBack = page.showsHeaderBackButton(),
+                                        onBack = onNavigateBack,
                                     )
                                 }
                             }
