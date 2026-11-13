@@ -4866,6 +4866,20 @@ svg {
 }
 
 .player.ui-codeinexo .torrent-stats-overlay,
+.player.ui-official .torrent-stats-overlay,
+.player.ui-codeinexo .codeine-chapter-title {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.player.ui-codeinexo .torrent-stats-overlay,
 .player.ui-official .torrent-stats-overlay {
   top: calc(28px + env(safe-area-inset-top));
   right: calc(20px + env(safe-area-inset-right));
@@ -4878,15 +4892,6 @@ svg {
   background: transparent;
   border: none;
   box-shadow: none;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  line-height: 1.3;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.95),
-    0 2px 6px rgba(0, 0, 0, 0.70),
-    0 4px 12px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -5347,6 +5352,22 @@ svg {
   gap: var(--codeine-control-gap);
   height: var(--codeine-control-size);
   flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .codeine-controls-left {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.player.ui-codeinexo .codeine-chapter-title {
+  min-width: 0;
+  padding-block: 12px;
+  padding-inline: 8px;
+  margin-inline-end: -8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .player.ui-codeinexo .codeine-control-btn,

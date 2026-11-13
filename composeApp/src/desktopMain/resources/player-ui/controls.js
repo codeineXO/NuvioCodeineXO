@@ -150,6 +150,7 @@ const codeineChaptersButton = document.getElementById("codeineChaptersButton");
 const chaptersLabel = document.getElementById("chaptersLabel");
 const seekFeedback = document.getElementById("seekFeedback");
 const chapterTitle = document.getElementById("chapterTitle");
+const codeineChapterTitle = document.getElementById("codeineChapterTitle");
 const chapterMarks = document.getElementById("chapterMarks");
 const chaptersModal = document.getElementById("chaptersModal");
 const chaptersPanelTitle = document.getElementById("chaptersPanelTitle");
@@ -4069,8 +4070,11 @@ const renderChapterMarks = () => {
   }
   setVisible(chapterMarks, chapters.length > 1 && durationMs > 0);
   const index = currentChapterIndex(chapters);
-  const showTitle = state.playerUiMode === "official" && !state.isInPip && index >= 0 && state.chapterTitleEnabled !== false;
-  setText(chapterTitle, showTitle ? chapters[index].title : "");
+  const showTitle = !state.isInPip && index >= 0 && state.chapterTitleEnabled !== false;
+  const currentTitle = showTitle ? chapters[index].title : "";
+  const uiMode = state.playerUiMode || "codeine_xo";
+  setText(chapterTitle, uiMode === "official" ? currentTitle : "");
+  setText(codeineChapterTitle, uiMode === "codeine_xo" ? currentTitle : "");
 };
 
 const renderChapterControls = () => {

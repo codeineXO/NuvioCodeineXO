@@ -2566,7 +2566,7 @@
     <string name="compose_player_audio_amplification_keep">Ponechať pre ďalšie videá</string>
     <string name="compose_player_center_mix">Úroveň zmiešania stredového kanála</string>
     <string name="settings_playback_chapter_title">Zobrazovať názov kapitoly</string>
-    <string name="settings_playback_chapter_title_description">Zobrazovať názov aktuálnej kapitoly nad časovou osou.</string>
+    <string name="settings_playback_chapter_title_description">Zobrazovať názov aktuálnej kapitoly v ovládacích prvkoch prehrávača.</string>
     <string name="settings_playback_remember_audio_delay">Zapamätať si odozvu zvuku pre každé zariadenie</string>
     <string name="settings_playback_remember_audio_delay_description">Obnoviť odozvu zvuku nastavenú v prehrávači pri každom prehrávaní cez rovnaký výstup, napríklad reproduktor telefónu, káblové slúchadlá alebo jednotlivé Bluetooth zariadenia</string>
     <string name="settings_playback_downmix_section">Downmix</string>
