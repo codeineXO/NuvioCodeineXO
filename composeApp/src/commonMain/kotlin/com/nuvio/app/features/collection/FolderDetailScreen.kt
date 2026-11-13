@@ -1,5 +1,6 @@
 package com.nuvio.app.features.collection
 
+import com.nuvio.app.core.ui.verticalRowAnchors
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 
 import com.nuvio.app.core.ui.remoteNavigationGroup
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import com.nuvio.app.core.ui.NuvioLazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.LocalRippleConfiguration
@@ -87,6 +89,8 @@ import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.home.HomeCatalogSection
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsUiState
+import com.nuvio.app.features.home.AppInterface
+import com.nuvio.app.features.home.components.PersistentHeroPane
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.home.canOpenCatalog
@@ -132,7 +136,8 @@ fun FolderDetailScreen(
     val coverImageUrl = folder?.coverImageUrl?.takeIf { it.isNotBlank() }
     val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
 
-    if (!isDesktop) {
+    val persistentHero = homeCatalogSettings.appInterface == AppInterface.PersistentHero
+    if (!isDesktop && !persistentHero) {
         MobileFolderDetailContent(
             uiState = uiState,
             watchedKeys = watchedUiState.watchedKeys,
@@ -151,7 +156,7 @@ fun FolderDetailScreen(
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        if (coverImageUrl != null) {
+        if (!persistentHero && coverImageUrl != null) {
             Box(Modifier.fillMaxSize().navigationGlassSource()) {
                 AsyncImage(
                     model = coverImageUrl,
@@ -167,7 +172,7 @@ fun FolderDetailScreen(
                     alpha = 0.85f,
                 )
             }
-        } else if (auraBackgroundEnabled) {
+        } else if (auraBackgroundEnabled && !persistentHero) {
             HomeInteractiveGradientBackground(Modifier.fillMaxSize())
         } else {
             Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
@@ -176,19 +181,38 @@ fun FolderDetailScreen(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val desktopPagePadding = desktopPageHorizontalPaddingForWidth(maxWidth.value)
             val sidebarInset = LocalDesktopSidebarContentInset.current
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (!useNativeNavigation) {
-                    NuvioScreenHeader(
-                        title = folder?.title ?: uiState.collectionTitle,
-                        modifier = Modifier.padding(start = sidebarInset),
-                        backgroundColor = Color.Transparent,
-                        includeStatusBarPadding = false,
-                        topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + desktopBackButtonTopPadding,
-                        onBack = onBack,
-                        backButtonKeyboardNavigationEnabled = false,
-                    )
-                }
-
+            val isGrid = uiState.viewMode == FolderViewMode.TABBED_GRID
+            val gridState = rememberLazyGridState()
+            val rowsState = rememberLazyListState()
+            val rowScrollState = if (isGrid) gridState else rowsState
+            PersistentHeroPane(
+                enabled = persistentHero,
+                page = uiState.collectionTitle to folder?.id,
+                seed = if (uiState.viewMode == FolderViewMode.TABBED_GRID) {
+                    uiState.selectedTab?.items?.firstOrNull()
+                } else {
+                    uiState.tabs.firstNotNullOfOrNull { tab -> tab.items.firstOrNull().takeUnless { tab.isAllTab } }
+                },
+                rowScrollState = rowScrollState,
+                rowAnchors = {
+                    if (isGrid) gridState.verticalRowAnchors() else rowsState.verticalRowAnchors()
+                },
+                loading = uiState.isLoading || uiState.selectedTab?.isLoading == true,
+                startInset = sidebarInset,
+                header = {
+                    if (!useNativeNavigation) {
+                        NuvioScreenHeader(
+                            title = folder?.title ?: uiState.collectionTitle,
+                            modifier = Modifier.padding(start = sidebarInset),
+                            backgroundColor = Color.Transparent,
+                            includeStatusBarPadding = false,
+                            topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + desktopBackButtonTopPadding,
+                            onBack = onBack,
+                            backButtonKeyboardNavigationEnabled = false,
+                        )
+                    }
+                },
+            ) {
                 if (folder == null && !uiState.isLoading) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -200,7 +224,7 @@ fun FolderDetailScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    return@Column
+                    return@PersistentHeroPane
                 }
 
                 when (uiState.viewMode) {
@@ -209,8 +233,9 @@ fun FolderDetailScreen(
                         watchedKeys = watchedUiState.watchedKeys,
                         pageHorizontalPadding = desktopPagePadding,
                         sidebarInset = sidebarInset,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxSize(),
                         onTabSelected = { FolderDetailRepository.selectTab(it) },
+                        gridState = gridState,
                         onPosterClick = onPosterClick,
                         onPosterLongClick = onPosterLongClick,
                     )
@@ -218,7 +243,8 @@ fun FolderDetailScreen(
                         uiState = uiState,
                         watchedKeys = watchedUiState.watchedKeys,
                         homeCatalogSettings = homeCatalogSettings,
-                        modifier = Modifier.weight(1f),
+                        listState = rowsState,
+                        modifier = Modifier.fillMaxSize(),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,
                         onPosterLongClick = onPosterLongClick,
@@ -227,7 +253,8 @@ fun FolderDetailScreen(
                         uiState = uiState,
                         watchedKeys = watchedUiState.watchedKeys,
                         homeCatalogSettings = homeCatalogSettings,
-                        modifier = Modifier.weight(1f),
+                        listState = rowsState,
+                        modifier = Modifier.fillMaxSize(),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,
                         onPosterLongClick = onPosterLongClick,
@@ -387,9 +414,8 @@ private fun TabbedGridContent(
     onTabSelected: (Int) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
+    gridState: LazyGridState = rememberLazyGridState(),
 ) {
-    val gridState = rememberLazyGridState()
-
     LaunchedEffect(gridState, uiState.selectedTabIndex, uiState.selectedTabCanLoadMore, uiState.selectedTabIsLoadingMore) {
         snapshotFlow { gridState.layoutInfo }
             .map { layoutInfo ->

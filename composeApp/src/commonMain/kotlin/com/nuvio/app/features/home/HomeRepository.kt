@@ -205,7 +205,8 @@ object HomeRepository {
                 )
             }
 
-        val catalogHeroItems = if (snapshot.heroEnabled) {
+        val useCatalogHero = snapshot.heroEnabled && snapshot.appInterface != AppInterface.PersistentHero
+        val catalogHeroItems = if (useCatalogHero) {
             val heroRandom = Random((requestKey?.hashCode() ?: 0).absoluteValue + 1)
             currentDefinitions
                 .filter { definition -> preferences[definition.key]?.heroSourceEnabled != false }
@@ -218,8 +219,8 @@ object HomeRepository {
         } else {
             emptyList()
         }
-        lastPublishedCatalogHeroEmpty = snapshot.heroEnabled && catalogHeroItems.isEmpty()
-        val heroItems = if (snapshot.heroEnabled) {
+        lastPublishedCatalogHeroEmpty = useCatalogHero && catalogHeroItems.isEmpty()
+        val heroItems = if (useCatalogHero) {
             catalogHeroItems.ifEmpty { cachedCollectionHeroItems }
         } else {
             emptyList()
@@ -335,8 +336,15 @@ object HomeRepository {
         refreshSources: Boolean,
         requestKey: String?,
     ) {
-        if (!lastPublishedCatalogHeroEmpty) return
         val snapshot = HomeCatalogSettingsRepository.snapshot()
+        if (snapshot.appInterface == AppInterface.PersistentHero) {
+            collectionHeroJob?.cancel()
+            collectionHeroJob = null
+            collectionHeroRequestKey = null
+            cachedCollectionHeroItems = emptyList()
+            return
+        }
+        if (!lastPublishedCatalogHeroEmpty) return
         if (!snapshot.heroEnabled) return
         val collections = enabledCollectionsForHero(snapshot)
         if (collections.isEmpty()) {
@@ -511,7 +519,8 @@ private fun prioritizeDefinitions(
         if (preference == null) {
             true
         } else {
-            preference.enabled || (snapshot.heroEnabled && preference.heroSourceEnabled)
+            preference.enabled || (snapshot.appInterface != AppInterface.PersistentHero &&
+                snapshot.heroEnabled && preference.heroSourceEnabled)
         }
     }
     return priority + remainder

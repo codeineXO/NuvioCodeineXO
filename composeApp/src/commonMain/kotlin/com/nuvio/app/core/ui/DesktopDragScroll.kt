@@ -45,6 +45,7 @@ internal suspend fun ScrollScope.flingWithNestedParents(
     direction: Float,
     fling: FlingBehavior,
     momentumEnabled: Boolean,
+    settleWithoutMomentum: Boolean = false,
 ) {
     fun vector(value: Float) = when {
         value == 0f -> Velocity.Zero
@@ -59,7 +60,7 @@ internal suspend fun ScrollScope.flingWithNestedParents(
     var remaining = available
     var completed = false
     try {
-        if (momentumEnabled && available != 0f) {
+        if ((momentumEnabled && available != 0f) || settleWithoutMomentum) {
             val direct = this
             val nested = object : ScrollScope {
                 override fun scrollBy(pixels: Float): Float = direct.scrollWithNestedParents(
@@ -86,6 +87,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
     reverseDirection: Boolean = false,
     flingBehavior: FlingBehavior? = null,
     momentumEnabled: Boolean = true,
+    settleWithoutMomentum: Boolean = false,
 ): Modifier {
     if (!isDesktop || !enabled) return this
     return composed {
@@ -106,7 +108,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
                     }
                 }
             }
-        }.pointerInput(state, orientation, direction, fling, momentumEnabled) {
+        }.pointerInput(state, orientation, direction, fling, momentumEnabled, settleWithoutMomentum) {
             coroutineScope {
                 val scope = this
                 awaitEachGesture {
@@ -173,6 +175,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                                 flingWithNestedParents(
                                                     velocity, dispatcher, orientation, direction, fling,
                                                     momentumEnabled && NavigationMotionSettings.profile.dragMomentum,
+                                                    settleWithoutMomentum,
                                                 )
                                             }
                                         }

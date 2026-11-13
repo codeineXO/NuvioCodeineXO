@@ -61,6 +61,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -631,21 +632,12 @@ private fun DesktopHomeHeroFrame(
     onItemClick: ((MetaPreview) -> Unit)?,
     containerMode: Boolean = false,
 ) {
-    val opacity = NuvioTokens.Opacity
     val space = NuvioTokens.Space
-    val colorScheme = MaterialTheme.colorScheme
 
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                // Keep glass sampling inside the hero and include all backdrop scrims.
-                .navigationGlassSource()
-                .clipToBounds()
-                .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
-        ) {
+        DesktopHeroBackdrop(layout, containerMode) {
             HeroBackgroundLayers(
                 items = items,
                 pagerState = pagerState,
@@ -656,55 +648,6 @@ private fun DesktopHomeHeroFrame(
                 stretchPx = stretchPx,
                 includePagerNeighbors = includePagerNeighbors,
                 desktopFrame = true,
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(layout.topFadeHeight)
-                    .align(Alignment.TopCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = opacity.overlayHeavy),
-                                Color.Transparent,
-                            ),
-                        ),
-                    ),
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            colorStops = arrayOf(
-                                0.00f to Color.Black.copy(alpha = 0.88f),
-                                0.08f to Color.Black.copy(alpha = 0.82f),
-                                0.16f to Color.Black.copy(alpha = 0.68f),
-                                0.26f to Color.Black.copy(alpha = 0.46f),
-                                0.36f to Color.Black.copy(alpha = 0.24f),
-                                0.46f to Color.Black.copy(alpha = 0.08f),
-                                0.56f to Color.Transparent,
-                            ),
-                        ),
-                    ),
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(layout.bottomFadeHeight)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.35f),
-                                Color.Black.copy(alpha = 0.75f),
-                            ),
-                        ),
-                    ),
             )
         }
 
@@ -748,6 +691,110 @@ private fun DesktopHomeHeroFrame(
                         end = contentHorizontalPadding,
                         bottom = space.s40,
                     ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DesktopHeroBackdrop(
+    layout: HomeHeroLayout,
+    containerMode: Boolean,
+    artwork: @Composable () -> Unit,
+) {
+    val opacity = NuvioTokens.Opacity
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            // Keep glass sampling inside the hero and include all backdrop scrims.
+            .navigationGlassSource()
+            .clipToBounds()
+            .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
+    ) {
+        artwork()
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.topFadeHeight)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = opacity.overlayHeavy),
+                            Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colorStops = arrayOf(
+                            0.00f to Color.Black.copy(alpha = 0.88f),
+                            0.08f to Color.Black.copy(alpha = 0.82f),
+                            0.16f to Color.Black.copy(alpha = 0.68f),
+                            0.26f to Color.Black.copy(alpha = 0.46f),
+                            0.36f to Color.Black.copy(alpha = 0.24f),
+                            0.46f to Color.Black.copy(alpha = 0.08f),
+                            0.56f to Color.Transparent,
+                        ),
+                    ),
+                ),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(layout.bottomFadeHeight)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Black.copy(alpha = 0.75f),
+                        ),
+                    ),
+                ),
+        )
+    }
+}
+
+@Composable
+internal fun PersistentHomeHero(
+    item: MetaPreview,
+    logo: Painter?,
+    showImdbRating: Boolean,
+    showMdbListRatings: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
+        val compact = maxHeight < 330.dp
+        val short = maxHeight < 235.dp
+        val layout = homeHeroLayout(maxWidth.value, preferDesktopLayout = isDesktop).copy(
+            heroHeight = maxHeight,
+            contentWidthFraction = if (maxWidth < 650.dp) 1f else 0.62f,
+            contentHorizontalPadding = if (compact) 16.dp else 32.dp,
+            contentVerticalPadding = if (compact) 10.dp else 24.dp,
+        )
+        Box(
+            modifier = Modifier.align(Alignment.BottomStart)
+                .fillMaxWidth(layout.contentWidthFraction)
+                .padding(horizontal = layout.contentHorizontalPadding, vertical = layout.contentVerticalPadding),
+        ) {
+            DesktopHeroContentBlock(
+                item = item,
+                layout = layout,
+                showImdbRating = showImdbRating,
+                showMdbListRatings = showMdbListRatings,
+                onItemClick = null,
+                loadedLogo = logo,
+                compact = compact,
+                short = short,
             )
         }
     }
@@ -924,6 +971,9 @@ private fun DesktopHeroContentBlock(
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
+    loadedLogo: Painter? = null,
+    compact: Boolean = false,
+    short: Boolean = false,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var logoLoadError by remember(item.type, item.id, item.logo) {
@@ -943,14 +993,22 @@ private fun DesktopHeroContentBlock(
             },
         horizontalAlignment = Alignment.Start,
     ) {
-        if (logoUrl != null && !logoLoadError) {
+        if (loadedLogo != null || (logoUrl != null && !logoLoadError)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(desktopHeroLogoSlotHeight(layout)),
+                    .height(if (compact) 44.dp else desktopHeroLogoSlotHeight(layout)),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                AsyncImage(
+                if (loadedLogo != null) {
+                    Image(
+                        painter = loadedLogo,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight(),
+                        alignment = Alignment.CenterStart,
+                        contentScale = ContentScale.Fit,
+                    )
+                } else AsyncImage(
                     model = logoUrl,
                     contentDescription = item.name,
                     modifier = Modifier
@@ -967,19 +1025,19 @@ private fun DesktopHeroContentBlock(
                 text = item.name,
                 modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = NuvioTokens.Type.displayMd,
-                    lineHeight = NuvioTokens.LineHeight.displayMd,
+                    fontSize = if (compact) MaterialTheme.typography.headlineSmall.fontSize else NuvioTokens.Type.displayMd,
+                    lineHeight = if (compact) MaterialTheme.typography.headlineSmall.lineHeight else NuvioTokens.LineHeight.displayMd,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = NuvioTokens.LetterSpacing.none,
                 ),
                 color = colorScheme.onBackground,
                 textAlign = TextAlign.Start,
-                maxLines = 3,
+                maxLines = if (compact) 1 else 3,
                 overflow = TextOverflow.Ellipsis,
             )
         }
 
-        Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
+        Spacer(modifier = Modifier.height(if (compact) 4.dp else NuvioTokens.Space.s12))
         HomeHeroMetaRows(
             item = item,
             isTablet = true,
@@ -988,7 +1046,7 @@ private fun DesktopHeroContentBlock(
         )
 
         item.description?.takeIf { it.isNotBlank() }?.let { description ->
-            Spacer(modifier = Modifier.height(NuvioTokens.Space.s16))
+            Spacer(modifier = Modifier.height(if (compact) 4.dp else NuvioTokens.Space.s16))
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyLarge.copy(
@@ -997,20 +1055,20 @@ private fun DesktopHeroContentBlock(
                     letterSpacing = NuvioTokens.LetterSpacing.none,
                 ),
                 color = colorScheme.onSurface,
-                maxLines = 4,
+                maxLines = if (short) 1 else if (compact) 2 else 4,
                 overflow = TextOverflow.Ellipsis,
             )
         }
 
         if (onItemClick != null) {
-            Spacer(modifier = Modifier.height(NuvioTokens.Space.s24))
+            Spacer(modifier = Modifier.height(if (compact) 6.dp else NuvioTokens.Space.s24))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
                     modifier = Modifier
-                        .height(48.dp)
+                        .height(if (compact) 32.dp else 48.dp)
                         .remoteNavigationTarget(shape = RoundedCornerShape(40.dp)).clickable { onItemClick(item) },
                     color = colorScheme.onBackground,
                     contentColor = colorScheme.background,

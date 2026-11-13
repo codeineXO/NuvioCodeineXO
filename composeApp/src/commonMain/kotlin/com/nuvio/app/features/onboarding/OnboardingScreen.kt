@@ -130,6 +130,8 @@ import com.nuvio.app.features.player.SvpRuntimeStatus
 import com.nuvio.app.features.player.VideoEnhancementsHardwareNote
 import com.nuvio.app.features.player.SvpRuntimeInstaller
 import com.nuvio.app.features.settings.SettingsGroupDivider
+import com.nuvio.app.features.home.AppInterface
+import com.nuvio.app.features.settings.AppInterfaceSettingsRow
 import com.nuvio.app.features.settings.SettingsSwitchRow
 import com.nuvio.app.features.settings.ThemeSettingsRepository
 
@@ -139,7 +141,7 @@ data class RecommendedPresetState(
     val desktopNavigationLayout: DesktopNavigationLayout = DesktopNavigationLayout.Sidebar,
     val seekPreviewEnabled: Boolean = true,
     val auraBackgroundEnabled: Boolean = true,
-    val scrollPostersLayoutEnabled: Boolean = true,
+    val appInterface: AppInterface = AppInterface.Default,
     val playerUiMode: PlayerUiMode = PlayerUiMode.CODEINE_XO,
     val showSeekbarWhileSeeking: Boolean = true,
     val animeUpscalerOption: AnimeUpscalerOption = AnimeUpscalerOption.AUTO,
@@ -161,7 +163,7 @@ internal fun applyRecommendedPreset(state: RecommendedPresetState) {
     if (isDesktop) ThemeSettingsRepository.setDesktopNavigationLayout(state.desktopNavigationLayout)
 
     HomeCatalogSettingsRepository.snapshot()
-    HomeCatalogSettingsRepository.setScrollPostersLayoutEnabled(state.scrollPostersLayoutEnabled)
+    HomeCatalogSettingsRepository.setAppInterface(state.appInterface)
 
     PlayerSettingsRepository.ensureLoaded()
     PlayerSettingsRepository.setSeekPreviewEnabled(state.seekPreviewEnabled)
@@ -1058,12 +1060,10 @@ private fun RecommendedPresetReviewDialog(
                                     onCheckedChange = { onStateChange(state.copy(auraBackgroundEnabled = it)) },
                                 )
                                 SettingsGroupDivider(isTablet = false)
-                                SettingsSwitchRow(
-                                    title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
-                                    description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
-                                    checked = state.scrollPostersLayoutEnabled,
+                                AppInterfaceSettingsRow(
+                                    value = state.appInterface,
                                     isTablet = false,
-                                    onCheckedChange = { onStateChange(state.copy(scrollPostersLayoutEnabled = it)) },
+                                    onSelected = { onStateChange(state.copy(appInterface = it)) },
                                 )
                                 SettingsGroupDivider(isTablet = false)
                                 PresetSegmentRow(

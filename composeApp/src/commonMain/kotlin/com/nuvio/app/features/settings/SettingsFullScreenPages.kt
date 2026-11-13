@@ -90,7 +90,7 @@ fun HomescreenSettingsScreen(
                 heroEnabled = homescreenSettingsUiState.heroEnabled,
                 showCatalogType = homescreenSettingsUiState.showCatalogType,
                 hideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
-                scrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
+                appInterface = homescreenSettingsUiState.appInterface,
                 posterGutterSize = homescreenSettingsUiState.posterGutterSize,
                 alwaysAnimateCollectionCards = homescreenSettingsUiState.alwaysAnimateCollectionCards,
                 items = homescreenSettingsUiState.items,

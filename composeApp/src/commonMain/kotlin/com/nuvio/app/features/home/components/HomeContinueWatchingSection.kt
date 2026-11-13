@@ -1,6 +1,7 @@
 package com.nuvio.app.features.home.components
 
 import com.nuvio.app.core.ui.rememberAnimatedArtworkAnimation
+import com.nuvio.app.features.home.MetaPreview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -397,15 +398,29 @@ internal fun ContinueWatchingTile(
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
 ) {
+    val heroTarget = if (LocalPersistentHeroSelection.current == null || (onClick == null && onLongClick == null)) {
+        Modifier
+    } else {
+        persistentHeroTarget(item.toPersistentHeroPreview())
+    }
     when (style) {
         ContinueWatchingSectionStyle.Card ->
-            ContinueWatchingCard(item, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
+            ContinueWatchingCard(item, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, heroTarget)
         ContinueWatchingSectionStyle.Wide ->
-            ContinueWatchingWideCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
+            ContinueWatchingWideCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, heroTarget)
         ContinueWatchingSectionStyle.Poster ->
-            ContinueWatchingPosterCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
+            ContinueWatchingPosterCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, heroTarget)
     }
 }
+
+internal fun ContinueWatchingItem.toPersistentHeroPreview(): MetaPreview = MetaPreview(
+    id = parentMetaId,
+    type = parentMetaType,
+    name = title,
+    poster = poster,
+    banner = background,
+    logo = logo,
+)
 
 @Composable
 fun ContinueWatchingStylePreview(
@@ -688,6 +703,7 @@ private fun ContinueWatchingCard(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    heroTarget: Modifier,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val cardMetrics = remember(posterCardStyle.widthDp, posterCardStyle.cornerRadiusDp) {
@@ -727,6 +743,7 @@ private fun ContinueWatchingCard(
     Box(
         modifier = Modifier
             .posterGlow(glow, RoundedCornerShape(cardMetrics.cornerRadius))
+            .then(heroTarget)
             .posterCardClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -910,6 +927,7 @@ private fun ContinueWatchingWideCard(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    heroTarget: Modifier,
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
     val artworkUrl = item.continueWatchingArtworkUrl(useEpisodeThumbnails)
@@ -917,6 +935,7 @@ private fun ContinueWatchingWideCard(
     Row(
         modifier = Modifier
             .posterGlow(glow, RoundedCornerShape(cornerRadius))
+            .then(heroTarget)
             .posterCardClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -1046,6 +1065,7 @@ private fun ContinueWatchingPosterCard(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    heroTarget: Modifier,
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
     val imageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
@@ -1067,6 +1087,7 @@ private fun ContinueWatchingPosterCard(
                     shape = RoundedCornerShape(cornerRadius),
                     surface = NuvioCardDepthSurface.ContinueWatching,
                 )
+                .then(heroTarget)
                 .posterCardClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,

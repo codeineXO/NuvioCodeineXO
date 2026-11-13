@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ViewAgenda
 import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,18 +33,16 @@ import androidx.compose.ui.window.PopupPositionProvider
 import com.nuvio.app.core.ui.LocalNavigationGlassState
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.features.home.AppInterface
 import dev.chrisbanes.haze.HazeState
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_action_off
-import nuvio.composeapp.generated.resources.compose_action_on
 import nuvio.composeapp.generated.resources.home_switch_layout
-import nuvio.composeapp.generated.resources.settings_homescreen_scroll_posters_layout
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ScrollPostersToggleButton(
-    isScrollLayout: Boolean,
+internal fun AppInterfaceCycleButton(
+    value: AppInterface,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -51,9 +50,8 @@ internal fun ScrollPostersToggleButton(
     iconSize: Dp = 24.dp,
     hazeState: HazeState? = LocalNavigationGlassState.current,
 ) {
-    val statusText = stringResource(if (isScrollLayout) Res.string.compose_action_on else Res.string.compose_action_off)
-    val settingTitle = stringResource(Res.string.settings_homescreen_scroll_posters_layout)
-    val label = "$settingTitle: $statusText"
+    val label = stringResource(value.label)
+    val actionLabel = stringResource(Res.string.home_switch_layout)
     val tooltipPosition = TooltipDefaults.rememberPlainTooltipPositionProvider()
 
     TooltipBox(
@@ -72,7 +70,7 @@ internal fun ScrollPostersToggleButton(
                 }
             }
         },
-        tooltip = { PlainTooltip { Text(stringResource(Res.string.home_switch_layout)) } },
+        tooltip = { PlainTooltip { Text("$actionLabel · $label") } },
         state = rememberTooltipState(),
         focusable = false,
     ) {
@@ -87,12 +85,16 @@ internal fun ScrollPostersToggleButton(
                     onClick = onToggle,
                 )
                 .semantics {
-                    contentDescription = label
+                    contentDescription = "$actionLabel · $label"
                 },
             contentAlignment = Alignment.Center,
         ) {
-            val icon = if (isScrollLayout) Icons.Rounded.ViewCarousel else Icons.Rounded.ViewModule
-            val tint = if (isScrollLayout) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            val icon = when (value) {
+                AppInterface.Official -> Icons.Rounded.ViewModule
+                AppInterface.ScrollPosters -> Icons.Rounded.ViewCarousel
+                AppInterface.PersistentHero -> Icons.Rounded.ViewAgenda
+            }
+            val tint = if (value == AppInterface.Official) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
             Icon(
                 imageVector = icon,
                 contentDescription = null,

@@ -42,8 +42,8 @@ internal data class HomeHeroMeta(
 )
 
 internal class HomeHeroMetaRepository(
-    private val detailsLoader: suspend (MetaPreview) -> MetaDetails? = ::fetchDetails,
-    private val ratingsLoader: suspend (MetaPreview, MdbListSettings, suspend () -> MetaDetails?) -> List<MetaExternalRating> = ::fetchRatings,
+    private val detailsLoader: suspend (MetaPreview) -> MetaDetails? = ::fetchHomeHeroDetails,
+    private val ratingsLoader: suspend (MetaPreview, MdbListSettings, suspend () -> MetaDetails?) -> List<MetaExternalRating> = ::fetchHomeHeroRatings,
 ) {
     private val dispatcher = Dispatchers.Default.limitedParallelism(1)
     private val _metas = MutableStateFlow<Map<String, HomeHeroMeta>>(emptyMap())
@@ -82,40 +82,38 @@ internal class HomeHeroMetaRepository(
     private fun update(key: String, transform: (HomeHeroMeta) -> HomeHeroMeta) {
         _metas.update { metas -> metas + (key to transform(metas[key] ?: HomeHeroMeta())) }
     }
+}
 
-    private companion object {
-        suspend fun fetchDetails(item: MetaPreview): MetaDetails? =
-            try {
-                MetaDetailsRepository.fetch(type = item.type, id = item.id)
-            } catch (error: Throwable) {
-                if (error is CancellationException) throw error
-                null
-            }
+internal suspend fun fetchHomeHeroDetails(item: MetaPreview): MetaDetails? =
+    try {
+        MetaDetailsRepository.fetch(type = item.type, id = item.id)
+    } catch (error: Throwable) {
+        if (error is CancellationException) throw error
+        null
+    }
 
-        suspend fun fetchRatings(
-            item: MetaPreview,
-            settings: MdbListSettings,
-            details: suspend () -> MetaDetails?,
-        ): List<MetaExternalRating> {
-            val preview = MetaDetails(id = item.id, type = item.type, name = item.name)
-            val meta = if (MdbListMetadataService.shouldFetchForMeta(preview, item.id, settings)) {
-                preview
-            } else {
-                details() ?: return emptyList()
-            }
-            return try {
-                withTimeoutOrNull(RATINGS_TIMEOUT_MS) {
-                    MdbListMetadataService.enrichMeta(
-                        meta = meta,
-                        fallbackItemId = item.id,
-                        settings = settings,
-                    ).externalRatings
-                }.orEmpty()
-            } catch (error: Throwable) {
-                if (error is CancellationException) throw error
-                emptyList()
-            }
-        }
+internal suspend fun fetchHomeHeroRatings(
+    item: MetaPreview,
+    settings: MdbListSettings,
+    details: suspend () -> MetaDetails?,
+): List<MetaExternalRating> {
+    val preview = MetaDetails(id = item.id, type = item.type, name = item.name)
+    val meta = if (MdbListMetadataService.shouldFetchForMeta(preview, item.id, settings)) {
+        preview
+    } else {
+        details() ?: return emptyList()
+    }
+    return try {
+        withTimeoutOrNull(RATINGS_TIMEOUT_MS) {
+            MdbListMetadataService.enrichMeta(
+                meta = meta,
+                fallbackItemId = item.id,
+                settings = settings,
+            ).externalRatings
+        }.orEmpty()
+    } catch (error: Throwable) {
+        if (error is CancellationException) throw error
+        emptyList()
     }
 }
 

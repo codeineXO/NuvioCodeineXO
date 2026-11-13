@@ -3,6 +3,8 @@ package com.nuvio.app.core.ui
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -36,16 +39,23 @@ internal fun NuvioLazyColumn(
     desktopDragEnabled: Boolean = true,
     content: LazyListScope.() -> Unit,
 ) {
+    val snap = LocalSnapVerticalRows.current && !reverseLayout
+    val fling = if (snap) rememberSnapFlingBehavior(state, SnapPosition.Start) else flingBehavior
+    val ownsWheel = LocalVerticalWheelOwner.current !== state
+    val rowAnchors = if (snap && ownsWheel) remember(state) { { state.verticalRowAnchors() } } else null
     LazyColumn(
         modifier = modifier
-            .nuvioVerticalMouseWheelScroll(state, userScrollEnabled, reverseLayout)
-            .nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled && desktopDragEnabled, reverseLayout, flingBehavior),
+            .nuvioVerticalMouseWheelScroll(state, userScrollEnabled && ownsWheel, reverseLayout, rowAnchors)
+            .nuvioDesktopDragScroll(
+                state, Orientation.Vertical, userScrollEnabled && desktopDragEnabled, reverseLayout, fling,
+                settleWithoutMomentum = snap,
+            ),
         state = state,
         contentPadding = contentPadding,
         reverseLayout = reverseLayout,
         verticalArrangement = verticalArrangement,
         horizontalAlignment = horizontalAlignment,
-        flingBehavior = flingBehavior,
+        flingBehavior = fling,
         userScrollEnabled = userScrollEnabled,
         content = content,
     )
@@ -64,18 +74,25 @@ internal fun NuvioLazyVerticalGrid(
     userScrollEnabled: Boolean = true,
     content: LazyGridScope.() -> Unit,
 ) {
+    val snap = LocalSnapVerticalRows.current && !reverseLayout
+    val fling = if (snap) rememberSnapFlingBehavior(state, SnapPosition.Start) else flingBehavior
+    val ownsWheel = LocalVerticalWheelOwner.current !== state
+    val rowAnchors = if (snap && ownsWheel) remember(state) { { state.verticalRowAnchors() } } else null
     LazyVerticalGrid(
         columns = columns,
         modifier = modifier
-            .nuvioVerticalMouseWheelScroll(state, userScrollEnabled, reverseLayout)
-            .nuvioDesktopDragScroll(state, Orientation.Vertical, userScrollEnabled, reverseLayout, flingBehavior)
+            .nuvioVerticalMouseWheelScroll(state, userScrollEnabled && ownsWheel, reverseLayout, rowAnchors)
+            .nuvioDesktopDragScroll(
+                state, Orientation.Vertical, userScrollEnabled, reverseLayout, fling,
+                settleWithoutMomentum = snap,
+            )
             .navigationGlassSource(zIndex = 1f),
         state = state,
         contentPadding = contentPadding,
         reverseLayout = reverseLayout,
         verticalArrangement = verticalArrangement,
         horizontalArrangement = horizontalArrangement,
-        flingBehavior = flingBehavior,
+        flingBehavior = fling,
         userScrollEnabled = userScrollEnabled,
         content = content,
     )

@@ -58,6 +58,7 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
     state: ScrollableState,
     enabled: Boolean = true,
     reverseScrolling: Boolean = false,
+    rowAnchors: (() -> List<Int>)? = null,
 ): Modifier {
     if (!isDesktop || !enabled) return this
     return composed {
@@ -66,8 +67,8 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
         val dispatcher = remember { NestedScrollDispatcher() }
         val connection = remember { object : NestedScrollConnection {} }
         val route = remember { SoftWheelRoute() }
-        val wheel = remember(state, scope, reverseScrolling) {
-            SoftWheelScroll(state, scope, dispatcher, reverseScrolling) { delta ->
+        val wheel = remember(state, scope, reverseScrolling, rowAnchors) {
+            SoftWheelScroll(state, scope, dispatcher, reverseScrolling, rowAnchors) { delta ->
                 route.heroStretch?.acceptsWheelOverscroll(state, delta, reverseScrolling) == true
             }
         }

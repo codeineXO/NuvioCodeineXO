@@ -63,6 +63,7 @@ import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.search.LocalSearchBackdropState
 import com.nuvio.app.features.library.LocalLibraryListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileSwitcherTab
@@ -124,7 +125,7 @@ internal fun MainTabsDestination(
             val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             if (useDesktopTopBar) {
                 if (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library ||
-                    (selectedTab == AppScreenTab.Home && homeCatalogSettingsUiState.scrollPostersLayoutEnabled)
+                    (selectedTab == AppScreenTab.Home && homeCatalogSettingsUiState.appInterface != AppInterface.Official)
                 ) {
                     val navigationIconSize = when {
                         screenWidth < 800.dp -> 26.dp
@@ -338,7 +339,8 @@ internal fun MainTabsDestination(
                         onProfileSelected = onProfileSelected,
                         onAddProfileRequested = onAddProfileRequested,
                         navBarStyleSetting = navBarStyleSetting,
-                        isHeroEnabled = homeCatalogSettingsUiState.heroEnabled,
+                        isHeroEnabled = homeCatalogSettingsUiState.heroEnabled ||
+                            homeCatalogSettingsUiState.appInterface == AppInterface.PersistentHero,
                         hazeState = navBarHazeState,
                         scrollState = navBarScrollState,
                         windowWidth = screenWidth,
@@ -374,7 +376,8 @@ internal fun MainTabsDestination(
                         scrollState = navBarScrollState,
                         hazeState = navBarHazeState,
                         navBarStyle = navBarStyleSetting,
-                        isHeroEnabled = homeCatalogSettingsUiState.heroEnabled,
+                        isHeroEnabled = homeCatalogSettingsUiState.heroEnabled ||
+                            homeCatalogSettingsUiState.appInterface == AppInterface.PersistentHero,
                         profileSwitcherOpen = isTopProfileSwitcherOpen,
                         windowWidth = screenWidth,
                         glowEnabled = navBarGlowEnabled,

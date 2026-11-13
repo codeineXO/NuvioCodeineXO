@@ -823,6 +823,7 @@
     <string name="layout_hide_unreleased_sub">Hide movies and shows that haven't been released yet.</string>
     <string name="layout_catalog_type">Show Catalog Type</string>
     <string name="layout_catalog_type_sub">Show type suffix next to catalog name (Movie/Series).</string>
+    <string name="settings_homescreen_visible_catalogs">%1$d of %2$d catalogs visible</string>
     <string name="settings_homescreen_summary">%1$d of %2$d catalogs visible • %3$d hero sources selected</string>
     <string name="settings_homescreen_summary_hint">Open a catalog only when you need to rename or reorder it.</string>
     <string name="settings_homescreen_visible">Visible</string>
@@ -2718,6 +2719,10 @@
     <string name="stream_info_player_engine">Player Engine</string>
     <string name="stream_info_server">Server</string>
     <string name="home_switch_layout">Switch Layout</string>
+    <string name="settings_app_interface">App Interface</string>
+    <string name="app_interface_official">Official</string>
+    <string name="app_interface_scroll_posters">Scroll Posters</string>
+    <string name="app_interface_persistent_hero">Persistent Hero</string>
     <string name="settings_homescreen_scroll_posters_layout">Scroll Posters Layout</string>
     <string name="settings_homescreen_scroll_posters_layout_description">Use the mouse wheel over poster rows to scroll sideways. Move the pointer into either side empty space to scroll the page up or down.</string>
     <string name="settings_keyboard_navigation">Keyboard navigation</string>

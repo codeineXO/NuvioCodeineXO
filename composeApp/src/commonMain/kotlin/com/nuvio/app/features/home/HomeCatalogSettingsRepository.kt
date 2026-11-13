@@ -44,11 +44,13 @@ data class HomeCatalogSettingsUiState(
     val heroEnabled: Boolean = true,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
-    val scrollPostersLayoutEnabled: Boolean = false,
+    val appInterface: AppInterface = AppInterface.Default,
     val posterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     val alwaysAnimateCollectionCards: Boolean = false,
     val items: List<HomeCatalogSettingsItem> = emptyList(),
 ) {
+    val scrollPostersLayoutEnabled: Boolean get() = appInterface == AppInterface.ScrollPosters
+
     val signature: String
         get() = buildString {
             append(heroEnabled)
@@ -57,7 +59,7 @@ data class HomeCatalogSettingsUiState(
             append('|')
             append(hideUnreleasedContent)
             append('|')
-            append(scrollPostersLayoutEnabled)
+            append(appInterface.key)
             append('|')
             append(posterGutterSize.key)
             append('|')
@@ -80,7 +82,7 @@ internal data class HomeCatalogSettingsSnapshot(
     val heroEnabled: Boolean,
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
-    val scrollPostersLayoutEnabled: Boolean = false,
+    val appInterface: AppInterface = AppInterface.Default,
     val posterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     val alwaysAnimateCollectionCards: Boolean = false,
     val preferences: Map<String, HomeCatalogPreference>,
@@ -100,7 +102,8 @@ private data class StoredHomeCatalogSettingsPayload(
     val heroEnabled: Boolean = true,
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
-    val scrollPostersLayoutEnabled: Boolean = false,
+    val appInterface: String? = null,
+    val scrollPostersLayoutEnabled: Boolean? = null,
     val posterGutterSize: String = PosterGutterSize.Narrow.key,
     val alwaysAnimateCollectionCards: Boolean = false,
     val items: List<StoredHomeCatalogPreference> = emptyList(),
@@ -122,7 +125,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true,
         showCatalogType = true,
         hideUnreleasedContent = false,
-        scrollPostersLayoutEnabled = false,
+        appInterface = AppInterface.Default,
         alwaysAnimateCollectionCards = false,
         preferences = emptyMap(),
     )
@@ -143,7 +146,7 @@ object HomeCatalogSettingsRepository {
     private var heroEnabled = true
     private var showCatalogType = true
     private var hideUnreleasedContent = false
-    private var scrollPostersLayoutEnabled = false
+    private var appInterface = AppInterface.Default
     private var posterGutterSize = PosterGutterSize.Narrow
     private var alwaysAnimateCollectionCards = false
 
@@ -153,7 +156,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
-        scrollPostersLayoutEnabled = false
+        appInterface = AppInterface.Default
         posterGutterSize = PosterGutterSize.Narrow
         alwaysAnimateCollectionCards = false
         definitions = emptyList()
@@ -175,7 +178,7 @@ object HomeCatalogSettingsRepository {
         heroEnabled = true
         showCatalogType = true
         hideUnreleasedContent = false
-        scrollPostersLayoutEnabled = false
+        appInterface = AppInterface.Default
         posterGutterSize = PosterGutterSize.Narrow
         alwaysAnimateCollectionCards = false
         snapshotRef.value = emptySnapshot
@@ -246,7 +249,7 @@ object HomeCatalogSettingsRepository {
 
     fun setHeroEnabled(enabled: Boolean) {
         ensureLoaded()
-        if (heroEnabled == enabled) return
+        if (appInterface == AppInterface.PersistentHero || heroEnabled == enabled) return
         heroEnabled = enabled
         publish()
         persist()
@@ -290,10 +293,10 @@ object HomeCatalogSettingsRepository {
         persist()
     }
 
-    fun setScrollPostersLayoutEnabled(enabled: Boolean) {
+    fun setAppInterface(value: AppInterface) {
         ensureLoaded()
-        if (scrollPostersLayoutEnabled == enabled) return
-        scrollPostersLayoutEnabled = enabled
+        if (appInterface == value) return
+        appInterface = value
         publish()
         persist()
         HomeRepository.applyCurrentSettings()
@@ -381,7 +384,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = parsedPayload.heroEnabled
             showCatalogType = parsedPayload.showCatalogType
             hideUnreleasedContent = parsedPayload.hideUnreleasedContent
-            scrollPostersLayoutEnabled = parsedPayload.scrollPostersLayoutEnabled
+            appInterface = AppInterface.fromStored(parsedPayload.appInterface, parsedPayload.scrollPostersLayoutEnabled)
             posterGutterSize = PosterGutterSize.fromKey(parsedPayload.posterGutterSize)
             alwaysAnimateCollectionCards = parsedPayload.alwaysAnimateCollectionCards
             preferences = parsedPayload.items.associateBy { it.key }
@@ -450,7 +453,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = heroEnabled,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
-            scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+            appInterface = appInterface,
             posterGutterSize = posterGutterSize,
             alwaysAnimateCollectionCards = alwaysAnimateCollectionCards,
             preferences = preferences.mapValues { (_, value) ->
@@ -499,7 +502,7 @@ object HomeCatalogSettingsRepository {
             heroEnabled = heroEnabled,
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
-            scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+            appInterface = appInterface,
             posterGutterSize = posterGutterSize,
             alwaysAnimateCollectionCards = alwaysAnimateCollectionCards,
             items = items,
@@ -513,7 +516,8 @@ object HomeCatalogSettingsRepository {
                 heroEnabled = heroEnabled,
                 showCatalogType = showCatalogType,
                 hideUnreleasedContent = hideUnreleasedContent,
-                scrollPostersLayoutEnabled = scrollPostersLayoutEnabled,
+                appInterface = appInterface.key,
+                scrollPostersLayoutEnabled = appInterface == AppInterface.ScrollPosters,
                 posterGutterSize = posterGutterSize.key,
                 alwaysAnimateCollectionCards = alwaysAnimateCollectionCards,
                 items = preferences.values.sortedBy { it.order },

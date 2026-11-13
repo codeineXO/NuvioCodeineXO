@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.core.ui.verticalRowAnchors
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.remoteNavigationScrollToTop
 import com.nuvio.app.core.ui.BindPosterNavigationPage
@@ -90,7 +91,9 @@ import com.nuvio.app.features.home.components.HomeHeroSection
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.home.components.HomeSkeletonHero
 import com.nuvio.app.features.home.components.HomeSkeletonRow
-import com.nuvio.app.features.home.components.ScrollPostersToggleButton
+import com.nuvio.app.features.home.components.AppInterfaceCycleButton
+import com.nuvio.app.features.home.components.PersistentHeroPane
+import com.nuvio.app.features.home.components.toPersistentHeroPreview
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
 import com.nuvio.app.features.tracking.WatchProgressSource
@@ -185,12 +188,12 @@ fun HomeScreen(
 
     val addonsUiState by AddonRepository.uiState.collectAsStateWithLifecycle()
     val homeUiState by HomeRepository.uiState.collectAsStateWithLifecycle()
-    val homeHeroState = rememberHomeHeroState(homeUiState.heroItems)
     val homeSettingsUiState by remember {
         HomeCatalogSettingsRepository.snapshot()
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
-    val homeListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    val persistentHero = homeSettingsUiState.appInterface == AppInterface.PersistentHero
+    val homeListState = rememberSaveable(homeSettingsUiState.appInterface, saver = LazyListState.Saver) { LazyListState() }
     val continueWatchingListState = rememberLazyListState()
     val upcomingListState = rememberLazyListState()
     ScreenActivityEffect(homeListState, continueWatchingListState, upcomingListState) { active ->
@@ -207,12 +210,13 @@ fun HomeScreen(
     val watchProgressUiState by WatchProgressRepository.uiState.collectAsStateWithLifecycle()
     val effectiveWatchProgressSource = watchProgressUiState.source
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+    val homeHeroState = rememberHomeHeroState(if (persistentHero) emptyList() else homeUiState.heroItems)
     val activeProfileId = profileState.activeProfile?.profileIndex ?: 1
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     val navBarScrollState = LocalNuvioNavBarScrollState.current
     var observedOfflineState by remember { mutableStateOf(false) }
 
-    ScreenActivityEffect(scrollToTopRequests) { active ->
+    ScreenActivityEffect(scrollToTopRequests, homeListState) { active ->
         if (!active) return@ScreenActivityEffect
         scrollToTopRequests.collect {
             homeListState.animateScrollToItem(0)
@@ -338,7 +342,7 @@ fun HomeScreen(
         }
     }
     val hasRenderableHomeRows = homeUiState.sections.isNotEmpty() || hasRenderableCollectionRows
-    val showHeroSlot = shouldShowHomeHeroSlot(
+    val showHeroSlot = !persistentHero && shouldShowHomeHeroSlot(
         heroEnabled = homeSettingsUiState.heroEnabled,
         hasHeroItems = homeUiState.heroItems.isNotEmpty(),
         isResolvingHeroSources = isResolvingHeroSources,
@@ -364,7 +368,7 @@ fun HomeScreen(
     val fullscreenBackdropState = rememberHazeState()
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        if (auraBackgroundEnabled) {
+        if (auraBackgroundEnabled && !persistentHero) {
             HomeInteractiveGradientBackground(
                 modifier = Modifier.fillMaxSize().then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(fullscreenBackdropState, zIndex = -1f) else Modifier),
                 listState = homeListState,
@@ -436,7 +440,7 @@ fun HomeScreen(
             Modifier
         }
 
-        val effectiveTopPadding = if (showHeroSlot) {
+        val effectiveTopPadding = if (showHeroSlot || persistentHero) {
             0.dp
         } else {
             topChromePadding
@@ -463,130 +467,198 @@ fun HomeScreen(
                 }
             }
         }
-        BindPosterNavigationPage("home", activeProfileId, navigationRows, homeListState, homeUiState.isLoading || addonManifestsLoading)
+        BindPosterNavigationPage(
+            "home", activeProfileId to homeSettingsUiState.appInterface, navigationRows,
+            homeListState, homeUiState.isLoading || addonManifestsLoading,
+        )
 
-        NuvioScreen(
-            modifier = Modifier.fillMaxSize()
-                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(fullscreenBackdropState) else Modifier)
-                .then(heroStretchModifier),
-            horizontalPadding = 0.dp,
-            topPadding = effectiveTopPadding,
-            verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
-            listState = homeListState,
-            backgroundColor = if (auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
+        val heroSeed = if (persistentHero) {
+            val progressSeed = if (continueWatchingPreferences.isVisible) {
+                (continueWatchingItems.firstOrNull() ?: upcomingItems.firstOrNull())?.toPersistentHeroPreview()
+            } else null
+            progressSeed ?: enabledHomeItems.firstNotNullOfOrNull { sectionsMap[it.key]?.items?.firstOrNull() }
+        } else null
+        PersistentHeroPane(
+            enabled = persistentHero,
+            page = "home",
+            seed = heroSeed,
+            loading = isResolvingHeroSources,
+            rowScrollState = homeListState,
+            rowAnchors = { homeListState.verticalRowAnchors() },
+            topInset = topChromePadding ?: NuvioTokens.Space.s16,
+            startInset = sidebarContentInset,
+            backdropModifier = if (LocalFrostedGlassEnabled.current) {
+                Modifier.hazeSource(fullscreenBackdropState, zIndex = -1f)
+            } else Modifier,
         ) {
-            if (showHeroSlot) {
-                item(key = "home_hero", contentType = "hero") {
-                    val heroShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
-                    val heroContainerModifier = if (useGutterLayout) {
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                start = sidebarContentInset + effectivePosterSectionPadding,
-                                end = effectivePosterSectionPadding,
-                                top = topChromePadding ?: NuvioTokens.Space.s16,
-                                bottom = NuvioTokens.Space.s24,
-                            )
-                            .clip(heroShape)
-                            .background(MaterialTheme.nuvio.colors.surface)
-                            .nuvioCardDepth(
-                                shape = heroShape,
-                                surface = NuvioCardDepthSurface.Posters,
-                            )
-                    } else {
-                        Modifier
-                    }
-                    Crossfade(
-                        modifier = heroContainerModifier.nuvioHorizontalScrollBleed(LocalVerticalBarPadding.current),
-                        targetState = showHeroSkeleton,
-                        animationSpec = tween(320),
-                        label = "HomeHeroLoading",
-                    ) { isLoading ->
-                        when {
-                            isLoading -> HomeSkeletonHero(
-                                modifier = Modifier,
-                                viewportHeight = maxHeight,
-                                mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
-                                containerMode = useGutterLayout,
-                            )
+            NuvioScreen(
+                modifier = Modifier.fillMaxSize()
+                    .then(if (LocalFrostedGlassEnabled.current && !persistentHero) Modifier.hazeSource(fullscreenBackdropState) else Modifier)
+                    .then(heroStretchModifier),
+                horizontalPadding = 0.dp,
+                topPadding = effectiveTopPadding,
+                verticalArrangement = if (useGutterLayout) Arrangement.Top else Arrangement.spacedBy(MaterialTheme.nuvio.spacing.listGap),
+                listState = homeListState,
+                backgroundColor = if (persistentHero || auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
+            ) {
+                if (showHeroSlot) {
+                    item(key = "home_hero", contentType = "hero") {
+                        val heroShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
+                        val heroContainerModifier = if (useGutterLayout) {
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = sidebarContentInset + effectivePosterSectionPadding,
+                                    end = effectivePosterSectionPadding,
+                                    top = topChromePadding ?: NuvioTokens.Space.s16,
+                                    bottom = NuvioTokens.Space.s24,
+                                )
+                                .clip(heroShape)
+                                .background(MaterialTheme.nuvio.colors.surface)
+                                .nuvioCardDepth(
+                                    shape = heroShape,
+                                    surface = NuvioCardDepthSurface.Posters,
+                                )
+                        } else {
+                            Modifier
+                        }
+                        Crossfade(
+                            modifier = heroContainerModifier.nuvioHorizontalScrollBleed(LocalVerticalBarPadding.current),
+                            targetState = showHeroSkeleton,
+                            animationSpec = tween(320),
+                            label = "HomeHeroLoading",
+                        ) { isLoading ->
+                            when {
+                                isLoading -> HomeSkeletonHero(
+                                    modifier = Modifier,
+                                    viewportHeight = maxHeight,
+                                    mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
+                                    sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
+                                    containerMode = useGutterLayout,
+                                )
 
-                            homeUiState.heroItems.isNotEmpty() -> HomeHeroSection(
-                                items = homeHeroState.items,
-                                modifier = Modifier.remoteNavigationScrollToTop(homeListState),
-                                viewportHeight = maxHeight,
-                                mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
-                                containerMode = useGutterLayout,
-                                listState = homeListState,
-                                stretchPx = { heroStretchState.stretchPx },
-                                showImdbRating = homeHeroState.showImdbRating,
-                                showMdbListRatings = homeHeroState.showMdbListRatings,
-                                onItemClick = onPosterClick,
-                            )
+                                homeUiState.heroItems.isNotEmpty() -> HomeHeroSection(
+                                    items = homeHeroState.items,
+                                    modifier = Modifier.remoteNavigationScrollToTop(homeListState),
+                                    viewportHeight = maxHeight,
+                                    mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
+                                    sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
+                                    containerMode = useGutterLayout,
+                                    listState = homeListState,
+                                    stretchPx = { heroStretchState.stretchPx },
+                                    showImdbRating = homeHeroState.showImdbRating,
+                                    showMdbListRatings = homeHeroState.showMdbListRatings,
+                                    onItemClick = onPosterClick,
+                                )
 
-                            else -> HomeHeroReservedSpace(
-                                modifier = Modifier,
-                                viewportHeight = maxHeight,
-                                mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                containerMode = useGutterLayout,
-                            )
+                                else -> HomeHeroReservedSpace(
+                                    modifier = Modifier,
+                                    viewportHeight = maxHeight,
+                                    mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
+                                    containerMode = useGutterLayout,
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            when {
-                isInitialHomeContentLoading -> {
-                    homeContinueWatchingSections(
-                        preferences = continueWatchingPreferences,
-                        continueWatchingItems = continueWatchingItems,
-                        upcomingItems = upcomingItems,
-                        dataSourceKey = effectiveWatchProgressSource,
-                        sectionPadding = effectivePosterSectionPadding,
-                        layout = continueWatchingLayout,
-                        continueWatchingListState = continueWatchingListState,
-                        upcomingListState = upcomingListState,
-                        useGutterLayout = useGutterLayout,
-                        sectionBottomPadding = sectionBottomPadding,
-                        onItemClick = onContinueWatchingClick,
-                        onItemLongPress = onContinueWatchingLongPress,
-                        onViewAllClick = openContinueWatching,
-                        disintegrationRequest = continueWatchingDisintegrationRequest,
-                    )
-                    items(
-                        count = 3,
-                        key = { "home_skeleton_$it" },
-                        contentType = { "skeleton" },
-                    ) {
-                        HomeSkeletonRow(
-                            modifier = Modifier.padding(start = sidebarContentInset),
-                            horizontalPadding = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                when {
+                    isInitialHomeContentLoading -> {
+                        homeContinueWatchingSections(
+                            preferences = continueWatchingPreferences,
+                            continueWatchingItems = continueWatchingItems,
+                            upcomingItems = upcomingItems,
+                            dataSourceKey = effectiveWatchProgressSource,
+                            sectionPadding = effectivePosterSectionPadding,
+                            layout = continueWatchingLayout,
+                            continueWatchingListState = continueWatchingListState,
+                            upcomingListState = upcomingListState,
                             useGutterLayout = useGutterLayout,
+                            sectionBottomPadding = sectionBottomPadding,
+                            onItemClick = onContinueWatchingClick,
+                            onItemLongPress = onContinueWatchingLongPress,
+                            onViewAllClick = openContinueWatching,
+                            disintegrationRequest = continueWatchingDisintegrationRequest,
                         )
+                        items(
+                            count = 3,
+                            key = { "home_skeleton_$it" },
+                            contentType = { "skeleton" },
+                        ) {
+                            HomeSkeletonRow(
+                                modifier = Modifier.padding(start = sidebarContentInset),
+                                horizontalPadding = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                                useGutterLayout = useGutterLayout,
+                            )
+                        }
                     }
-                }
 
-                !hasActiveAddons && !hasServerLibraries && !hasRenderableCollectionRows -> {
-                    homeContinueWatchingSections(
-                        preferences = continueWatchingPreferences,
-                        continueWatchingItems = continueWatchingItems,
-                        upcomingItems = upcomingItems,
-                        dataSourceKey = effectiveWatchProgressSource,
-                        sectionPadding = effectivePosterSectionPadding,
-                        layout = continueWatchingLayout,
-                        continueWatchingListState = continueWatchingListState,
-                        upcomingListState = upcomingListState,
-                        useGutterLayout = useGutterLayout,
-                        sectionBottomPadding = sectionBottomPadding,
-                        onItemClick = onContinueWatchingClick,
-                        onItemLongPress = onContinueWatchingLongPress,
-                        onViewAllClick = openContinueWatching,
-                        disintegrationRequest = continueWatchingDisintegrationRequest,
-                    )
-                    item(key = "home_empty", contentType = "empty") {
-                        when {
-                            networkStatusUiState.isOfflineLike && addonManifestErrorMessage != null -> {
+                    !hasActiveAddons && !hasServerLibraries && !hasRenderableCollectionRows -> {
+                        homeContinueWatchingSections(
+                            preferences = continueWatchingPreferences,
+                            continueWatchingItems = continueWatchingItems,
+                            upcomingItems = upcomingItems,
+                            dataSourceKey = effectiveWatchProgressSource,
+                            sectionPadding = effectivePosterSectionPadding,
+                            layout = continueWatchingLayout,
+                            continueWatchingListState = continueWatchingListState,
+                            upcomingListState = upcomingListState,
+                            useGutterLayout = useGutterLayout,
+                            sectionBottomPadding = sectionBottomPadding,
+                            onItemClick = onContinueWatchingClick,
+                            onItemLongPress = onContinueWatchingLongPress,
+                            onViewAllClick = openContinueWatching,
+                            disintegrationRequest = continueWatchingDisintegrationRequest,
+                        )
+                        item(key = "home_empty", contentType = "empty") {
+                            when {
+                                networkStatusUiState.isOfflineLike && addonManifestErrorMessage != null -> {
+                                    NuvioNetworkOfflineCard(
+                                        condition = networkStatusUiState.condition,
+                                        modifier = Modifier.padding(start = sidebarContentInset).padding(
+                                            horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                                        ),
+                                        onRetry = {
+                                            NetworkStatusRepository.requestRefresh(force = true)
+                                            AddonRepository.refreshAll()
+                                        },
+                                    )
+                                }
+
+                                addonManifestErrorMessage != null -> {
+                                    HomeEmptyStateCard(
+                                        modifier = Modifier.padding(start = sidebarContentInset).padding(
+                                            horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                                        ),
+                                        title = stringResource(Res.string.home_load_failed_title),
+                                        message = addonManifestErrorMessage,
+                                        actionLabel = stringResource(Res.string.action_retry),
+                                        onActionClick = {
+                                            NetworkStatusRepository.requestRefresh(force = true)
+                                            AddonRepository.refreshAll()
+                                        },
+                                    )
+                                }
+
+                                else -> {
+                                    HomeEmptyStateCard(
+                                        modifier = Modifier.padding(start = sidebarContentInset).padding(
+                                            horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                                        ),
+                                        title = stringResource(Res.string.home_empty_no_sources_title),
+                                        message = stringResource(Res.string.home_empty_no_sources_message),
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    homeUiState.sections.isEmpty() && homeUiState.heroItems.isEmpty() &&
+                        (!continueWatchingPreferences.isVisible || !hasContinueWatchingRows) &&
+                        !hasRenderableCollectionRows -> {
+                        item(key = "home_empty", contentType = "empty") {
+                            val loadFailed = !homeUiState.errorMessage.isNullOrBlank()
+                            if (networkStatusUiState.isOfflineLike && loadFailed) {
                                 NuvioNetworkOfflineCard(
                                     condition = networkStatusUiState.condition,
                                     modifier = Modifier.padding(start = sidebarContentInset).padding(
@@ -594,147 +666,102 @@ fun HomeScreen(
                                     ),
                                     onRetry = {
                                         NetworkStatusRepository.requestRefresh(force = true)
-                                        AddonRepository.refreshAll()
-                                    },
-                                )
-                            }
-
-                            addonManifestErrorMessage != null -> {
-                                HomeEmptyStateCard(
-                                    modifier = Modifier.padding(start = sidebarContentInset).padding(
-                                        horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
-                                    ),
-                                    title = stringResource(Res.string.home_load_failed_title),
-                                    message = addonManifestErrorMessage,
-                                    actionLabel = stringResource(Res.string.action_retry),
-                                    onActionClick = {
-                                        NetworkStatusRepository.requestRefresh(force = true)
-                                        AddonRepository.refreshAll()
-                                    },
-                                )
-                            }
-
-                            else -> {
-                                HomeEmptyStateCard(
-                                    modifier = Modifier.padding(start = sidebarContentInset).padding(
-                                        horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
-                                    ),
-                                    title = stringResource(Res.string.home_empty_no_sources_title),
-                                    message = stringResource(Res.string.home_empty_no_sources_message),
-                                )
-                            }
-                        }
-                    }
-                }
-
-                homeUiState.sections.isEmpty() && homeUiState.heroItems.isEmpty() &&
-                    (!continueWatchingPreferences.isVisible || !hasContinueWatchingRows) &&
-                    !hasRenderableCollectionRows -> {
-                    item(key = "home_empty", contentType = "empty") {
-                        val loadFailed = !homeUiState.errorMessage.isNullOrBlank()
-                        if (networkStatusUiState.isOfflineLike && loadFailed) {
-                            NuvioNetworkOfflineCard(
-                                condition = networkStatusUiState.condition,
-                                modifier = Modifier.padding(start = sidebarContentInset).padding(
-                                    horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
-                                ),
-                                onRetry = {
-                                    NetworkStatusRepository.requestRefresh(force = true)
-                                    HomeRepository.refresh(addonsUiState.addons.enabledAddons(), force = true)
-                                },
-                            )
-                        } else {
-                            HomeEmptyStateCard(
-                                modifier = Modifier.padding(start = sidebarContentInset).padding(
-                                    horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
-                                ),
-                                title = stringResource(
-                                    if (loadFailed) {
-                                        Res.string.home_load_failed_title
-                                    } else {
-                                        Res.string.home_empty_no_rows_title
-                                    },
-                                ),
-                                message = homeUiState.errorMessage
-                                    ?: stringResource(Res.string.home_empty_no_rows_message),
-                                actionLabel = if (loadFailed) stringResource(Res.string.action_retry) else null,
-                                onActionClick = if (loadFailed) {
-                                    {
-                                        NetworkStatusRepository.requestRefresh(force = true)
                                         HomeRepository.refresh(addonsUiState.addons.enabledAddons(), force = true)
-                                    }
-                                } else {
-                                    null
-                                },
-                            )
+                                    },
+                                )
+                            } else {
+                                HomeEmptyStateCard(
+                                    modifier = Modifier.padding(start = sidebarContentInset).padding(
+                                        horizontal = if (isDesktop) effectivePosterSectionPadding else 16.dp,
+                                    ),
+                                    title = stringResource(
+                                        if (loadFailed) {
+                                            Res.string.home_load_failed_title
+                                        } else {
+                                            Res.string.home_empty_no_rows_title
+                                        },
+                                    ),
+                                    message = homeUiState.errorMessage
+                                        ?: stringResource(Res.string.home_empty_no_rows_message),
+                                    actionLabel = if (loadFailed) stringResource(Res.string.action_retry) else null,
+                                    onActionClick = if (loadFailed) {
+                                        {
+                                            NetworkStatusRepository.requestRefresh(force = true)
+                                            HomeRepository.refresh(addonsUiState.addons.enabledAddons(), force = true)
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                )
+                            }
                         }
                     }
-                }
 
-                else -> {
-                    homeContinueWatchingSections(
-                        preferences = continueWatchingPreferences,
-                        continueWatchingItems = continueWatchingItems,
-                        upcomingItems = upcomingItems,
-                        dataSourceKey = effectiveWatchProgressSource,
-                        sectionPadding = effectivePosterSectionPadding,
-                        layout = continueWatchingLayout,
-                        continueWatchingListState = continueWatchingListState,
-                        upcomingListState = upcomingListState,
-                        useGutterLayout = useGutterLayout,
-                        sectionBottomPadding = sectionBottomPadding,
-                        onItemClick = onContinueWatchingClick,
-                        onItemLongPress = onContinueWatchingLongPress,
-                        onViewAllClick = openContinueWatching,
-                        disintegrationRequest = continueWatchingDisintegrationRequest,
-                    )
+                    else -> {
+                        homeContinueWatchingSections(
+                            preferences = continueWatchingPreferences,
+                            continueWatchingItems = continueWatchingItems,
+                            upcomingItems = upcomingItems,
+                            dataSourceKey = effectiveWatchProgressSource,
+                            sectionPadding = effectivePosterSectionPadding,
+                            layout = continueWatchingLayout,
+                            continueWatchingListState = continueWatchingListState,
+                            upcomingListState = upcomingListState,
+                            useGutterLayout = useGutterLayout,
+                            sectionBottomPadding = sectionBottomPadding,
+                            onItemClick = onContinueWatchingClick,
+                            onItemLongPress = onContinueWatchingLongPress,
+                            onViewAllClick = openContinueWatching,
+                            disintegrationRequest = continueWatchingDisintegrationRequest,
+                        )
 
-                    keyedEnabledHomeItems.forEach { keyedSettingsItem ->
-                        val settingsItem = keyedSettingsItem.value
-                        if (settingsItem.isCollection) {
-                            val collection = collectionsMap[settingsItem.key]
-                            if (collection != null) {
-                                item(key = keyedSettingsItem.lazyKey, contentType = "collection") {
-                                    RemotePosterRow("home", keyedSettingsItem.lazyKey) {
-                                    HomeCollectionRowSection(
-                                        collection = collection,
-                                        modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
-                                        sectionPadding = effectivePosterSectionPadding,
-                                        useGutterLayout = useGutterLayout,
-                                        animateGifs = animateCollectionGifs,
-                                        onFolderClick = onFolderClick,
-                                        onViewAllClick = onCollectionClick?.let { open -> { open(collection) } },
-                                    )
+                        keyedEnabledHomeItems.forEach { keyedSettingsItem ->
+                            val settingsItem = keyedSettingsItem.value
+                            if (settingsItem.isCollection) {
+                                val collection = collectionsMap[settingsItem.key]
+                                if (collection != null) {
+                                    item(key = keyedSettingsItem.lazyKey, contentType = "collection") {
+                                        RemotePosterRow("home", keyedSettingsItem.lazyKey) {
+                                        HomeCollectionRowSection(
+                                            collection = collection,
+                                            modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
+                                            sectionPadding = effectivePosterSectionPadding,
+                                            useGutterLayout = useGutterLayout,
+                                            animateGifs = animateCollectionGifs,
+                                            onFolderClick = onFolderClick,
+                                            onViewAllClick = onCollectionClick?.let { open -> { open(collection) } },
+                                        )
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            val section = sectionsMap[settingsItem.key]
-                            if (section != null && section.items.isNotEmpty()) {
-                                item(key = keyedSettingsItem.lazyKey, contentType = "catalog") {
-                                    RemotePosterRow("home", keyedSettingsItem.lazyKey) {
-                                    HomeCatalogRowSection(
-                                        section = section,
-                                        entries = if (isDesktop) {
-                                            // The row is lazy, so desktop can expose the fetched catalog without
-                                            // composing every poster up front. Mobile keeps its compact preview.
-                                            section.items
-                                        } else {
-                                            section.items.take(homeCatalogPreviewLimit)
-                                        },
-                                        modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
-                                        sectionPadding = effectivePosterSectionPadding,
-                                        useGutterLayout = useGutterLayout,
-                                        onViewAllClick = if (section.canOpenCatalog(homeCatalogPreviewLimit)) {
-                                            onCatalogClick?.let { { it(section) } }
-                                        } else {
-                                            null
-                                        },
-                                        watchedKeys = watchedUiState.watchedKeys,
-                                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                                        onPosterClick = onPosterClick,
-                                        onPosterLongClick = onPosterLongClick,
-                                    )
+                            } else {
+                                val section = sectionsMap[settingsItem.key]
+                                if (section != null && section.items.isNotEmpty()) {
+                                    item(key = keyedSettingsItem.lazyKey, contentType = "catalog") {
+                                        RemotePosterRow("home", keyedSettingsItem.lazyKey) {
+                                        HomeCatalogRowSection(
+                                            section = section,
+                                            entries = if (isDesktop) {
+                                                // The row is lazy, so desktop can expose the fetched catalog without
+                                                // composing every poster up front. Mobile keeps its compact preview.
+                                                section.items
+                                            } else {
+                                                section.items.take(homeCatalogPreviewLimit)
+                                            },
+                                            modifier = Modifier.padding(start = LocalDesktopSidebarContentInset.current, bottom = sectionBottomPadding),
+                                            sectionPadding = effectivePosterSectionPadding,
+                                            useGutterLayout = useGutterLayout,
+                                            onViewAllClick = if (section.canOpenCatalog(homeCatalogPreviewLimit)) {
+                                                onCatalogClick?.let { { it(section) } }
+                                            } else {
+                                                null
+                                            },
+                                            watchedKeys = watchedUiState.watchedKeys,
+                                            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                                            onPosterClick = onPosterClick,
+                                            onPosterLongClick = onPosterLongClick,
+                                        )
+                                        }
                                     }
                                 }
                             }
@@ -771,13 +798,9 @@ fun HomeScreen(
                     )
                 }
                 if (isDesktop) {
-                    ScrollPostersToggleButton(
-                        isScrollLayout = homeSettingsUiState.scrollPostersLayoutEnabled,
-                        onToggle = {
-                            HomeCatalogSettingsRepository.setScrollPostersLayoutEnabled(
-                                !homeSettingsUiState.scrollPostersLayoutEnabled,
-                            )
-                        },
+                    AppInterfaceCycleButton(
+                        value = homeSettingsUiState.appInterface,
+                        onToggle = { HomeCatalogSettingsRepository.setAppInterface(homeSettingsUiState.appInterface.next()) },
                         buttonSize = desktopButtonSize,
                         iconSize = desktopIconSize,
                         hazeState = fullscreenBackdropState,

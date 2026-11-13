@@ -1,5 +1,6 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.core.ui.verticalRowAnchors
 import com.nuvio.app.core.ui.desktopBackButtonSize
 import com.nuvio.app.core.ui.LocalDesktopSidebarActive
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
@@ -99,6 +100,8 @@ import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.isDesktop
+import com.nuvio.app.features.home.AppInterface
+import com.nuvio.app.features.home.components.PersistentHeroPane
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.PosterShape
@@ -204,6 +207,7 @@ fun CatalogScreen(
 
     val auraBackgroundEnabled by com.nuvio.app.features.settings.ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
     val sidebarInset = LocalDesktopSidebarContentInset.current
+    val persistentHero = homeCatalogSettingsUiState.appInterface == AppInterface.PersistentHero
 
     BoxWithConstraints(
         modifier = modifier
@@ -239,7 +243,7 @@ fun CatalogScreen(
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            if (auraBackgroundEnabled) {
+            if (auraBackgroundEnabled && !persistentHero) {
                 com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
                     modifier = Modifier.fillMaxSize(),
                     gridState = gridState,
@@ -252,18 +256,27 @@ fun CatalogScreen(
                         .background(MaterialTheme.nuvio.colors.background),
                 )
             }
-            Column(modifier = Modifier.fillMaxSize()) {
-                CatalogHeader(
-                    title = title,
-                    subtitle = subtitle,
-                    pageHorizontalPadding = pageHorizontalPadding,
-                    sidebarInset = if (isDesktop) sidebarInset else 0.dp,
-                    onBack = onBack,
-                )
+            PersistentHeroPane(
+                enabled = persistentHero,
+                page = target,
+                seed = uiState.items.firstOrNull(),
+                loading = uiState.isLoading,
+                rowScrollState = gridState,
+                rowAnchors = { gridState.verticalRowAnchors() },
+                startInset = sidebarInset,
+                header = {
+                    CatalogHeader(
+                        title = title,
+                        subtitle = subtitle,
+                        pageHorizontalPadding = pageHorizontalPadding,
+                        sidebarInset = if (isDesktop) sidebarInset else 0.dp,
+                        onBack = onBack,
+                    )
+                },
+            ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                        .fillMaxSize(),
                 ) {
                     NuvioLazyVerticalGrid(
                         columns = gridCells,

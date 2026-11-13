@@ -43,6 +43,7 @@ import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.features.addons.AddonRepository
+import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.PosterGutterSize
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -72,6 +73,7 @@ import nuvio.composeapp.generated.resources.settings_homescreen_always_animate_c
 import nuvio.composeapp.generated.resources.settings_homescreen_show_hero
 import nuvio.composeapp.generated.resources.settings_homescreen_show_hero_description
 import nuvio.composeapp.generated.resources.settings_homescreen_summary
+import nuvio.composeapp.generated.resources.settings_homescreen_visible_catalogs
 import nuvio.composeapp.generated.resources.settings_homescreen_summary_hint
 import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
@@ -79,21 +81,20 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 import com.nuvio.app.isDesktop
-import nuvio.composeapp.generated.resources.settings_homescreen_scroll_posters_layout
-import nuvio.composeapp.generated.resources.settings_homescreen_scroll_posters_layout_description
 
 internal fun LazyListScope.homescreenSettingsContent(
     isTablet: Boolean,
     heroEnabled: Boolean,
     showCatalogType: Boolean,
     hideUnreleasedContent: Boolean,
-    scrollPostersLayoutEnabled: Boolean = false,
+    appInterface: AppInterface = AppInterface.Default,
     posterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     alwaysAnimateCollectionCards: Boolean = false,
     items: List<HomeCatalogSettingsItem>,
     isCatalogLoading: Boolean,
     catalogErrorMessage: String?,
 ) {
+    val persistentHero = appInterface == AppInterface.PersistentHero
     val selectedHeroSourceCount = items.count { it.heroSourceEnabled }
     val enabledCatalogCount = items.count { it.enabled }
     item {
@@ -101,7 +102,7 @@ internal fun LazyListScope.homescreenSettingsContent(
             isTablet = isTablet,
             enabledCatalogCount = enabledCatalogCount,
             totalCatalogCount = items.size,
-            selectedHeroSourceCount = selectedHeroSourceCount,
+            selectedHeroSourceCount = selectedHeroSourceCount.takeUnless { persistentHero },
         )
     }
     item {
@@ -113,7 +114,8 @@ internal fun LazyListScope.homescreenSettingsContent(
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_homescreen_show_hero),
                     description = stringResource(Res.string.settings_homescreen_show_hero_description),
-                    checked = heroEnabled,
+                    checked = persistentHero || heroEnabled,
+                    enabled = !persistentHero,
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setHeroEnabled,
                 )
@@ -141,26 +143,18 @@ internal fun LazyListScope.homescreenSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = HomeCatalogSettingsRepository::setAlwaysAnimateCollectionCards,
                 )
-                if (isDesktop) {
+                SettingsGroupDivider(isTablet = isTablet)
+                AppInterfaceSettingsRow(value = appInterface, isTablet = isTablet)
+                if (isDesktop && appInterface == AppInterface.ScrollPosters) {
                     SettingsGroupDivider(isTablet = isTablet)
-                    SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
-                        description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
-                        checked = scrollPostersLayoutEnabled,
-                        isTablet = isTablet,
-                        onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
-                    )
-                    if (scrollPostersLayoutEnabled) {
-                        SettingsGroupDivider(isTablet = isTablet)
-                        PosterGutterSizeSettingsRow(size = posterGutterSize, isTablet = isTablet)
-                    }
+                    PosterGutterSizeSettingsRow(size = posterGutterSize, isTablet = isTablet)
                 }
             }
         }
     }
     item {
         val catalogOnlyItems = items.filter { !it.isCollection }
-        if (heroEnabled && catalogOnlyItems.isNotEmpty()) {
+        if (!persistentHero && heroEnabled && catalogOnlyItems.isNotEmpty()) {
             var heroSourcesExpanded by remember { mutableStateOf(false) }
             SettingsSection(
                 title = stringResource(Res.string.settings_homescreen_section_hero_sources),
@@ -318,7 +312,7 @@ private fun HomescreenSummaryCard(
     isTablet: Boolean,
     enabledCatalogCount: Int,
     totalCatalogCount: Int,
-    selectedHeroSourceCount: Int,
+    selectedHeroSourceCount: Int?,
 ) {
     SettingsGroup(isTablet = isTablet) {
         Column(
@@ -332,12 +326,11 @@ private fun HomescreenSummaryCard(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = stringResource(
-                    Res.string.settings_homescreen_summary,
-                    enabledCatalogCount,
-                    totalCatalogCount,
-                    selectedHeroSourceCount,
-                ),
+                text = if (selectedHeroSourceCount == null) {
+                    stringResource(Res.string.settings_homescreen_visible_catalogs, enabledCatalogCount, totalCatalogCount)
+                } else {
+                    stringResource(Res.string.settings_homescreen_summary, enabledCatalogCount, totalCatalogCount, selectedHeroSourceCount)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -65,6 +65,7 @@ internal fun mergeHomeCatalogSettingsJson(
     localJson: JsonObject,
 ): JsonObject = buildJsonObject {
     val localOnlyKeys = setOf(
+        "appInterface", "app_interface",
         "scrollPostersLayoutEnabled", "scroll_posters_layout_enabled",
         "posterGutterSize", "poster_gutter_size",
     )

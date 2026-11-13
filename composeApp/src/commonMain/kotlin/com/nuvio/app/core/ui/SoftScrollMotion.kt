@@ -65,9 +65,10 @@ internal class SoftWheelScroll(
     private val scope: CoroutineScope,
     private val nestedScrollDispatcher: NestedScrollDispatcher? = null,
     private val reverseScrolling: Boolean = false,
+    private val rowAnchors: (() -> List<Int>)? = null,
     private val canOverscroll: (Float) -> Boolean = { false },
 ) {
-    private class Target(var remaining: Float, var velocity: Float = 0f)
+    private class Target(var remaining: Float, var velocity: Float = 0f, var revealPreviousRow: Boolean = false)
     private var job: Job? = null
     private var target: Target? = null
 
@@ -83,6 +84,15 @@ internal class SoftWheelScroll(
         if (!canScrollBy(delta)) return
         val current = target
         if (job?.isActive == true && current != null) {
+            if (rowAnchors != null) {
+                if (current.remaining * delta < 0f) {
+                    val rowOffset = verticalRowSnapOffset(rowAnchors(), delta)
+                    current.remaining = rowOffset ?: delta
+                    current.revealPreviousRow = rowOffset == null && delta < 0f
+                    current.velocity = 0f
+                }
+                return
+            }
             if (current.remaining * delta < 0f) {
                 current.remaining = delta
                 current.velocity = 0f
@@ -91,7 +101,8 @@ internal class SoftWheelScroll(
             }
             return
         }
-        val next = Target(delta)
+        val rowOffset = rowAnchors?.invoke()?.let { verticalRowSnapOffset(it, delta) }
+        val next = Target(rowOffset ?: delta, revealPreviousRow = rowAnchors != null && rowOffset == null && delta < 0f)
         target = next
         job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
@@ -105,6 +116,14 @@ internal class SoftWheelScroll(
                         val seconds = previous?.let { (frame - it) / 1_000_000_000f } ?: (1f / 60)
                         val step = navigationScrollStep(next.remaining, next.velocity, seconds)
                         previous = frame
+                        if (next.revealPreviousRow) {
+                            val offset = verticalRowSnapOffset(rowAnchors?.invoke().orEmpty(), -1f)
+                            if (offset != null) {
+                                next.remaining = offset
+                                next.revealPreviousRow = false
+                                continue
+                            }
+                        }
                         if (abs(next.remaining) < 0.5f && abs(next.velocity) < 5f) {
                             scrollWithNestedParents(next.remaining, nestedScrollDispatcher, direction = direction)
                             break

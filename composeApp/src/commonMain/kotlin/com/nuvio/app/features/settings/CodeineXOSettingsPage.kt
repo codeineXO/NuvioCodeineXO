@@ -50,6 +50,7 @@ import com.nuvio.app.features.player.withEffectColor
 import com.nuvio.app.features.player.withEffectOpacity
 import kotlin.math.roundToInt
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.isDesktop
 import com.nuvio.app.isWindows
@@ -211,18 +212,12 @@ internal fun LazyListScope.codeineXOSettingsContent(
                         isTablet = isTablet,
                         onCheckedChange = PosterCardStyleRepository::setGlowEnabled,
                     )
+                }
+                SettingsGroupDivider(isTablet = isTablet)
+                AppInterfaceSettingsRow(value = homeCatalogSettings.appInterface, isTablet = isTablet)
+                if (isDesktop && homeCatalogSettings.appInterface == AppInterface.ScrollPosters) {
                     SettingsGroupDivider(isTablet = isTablet)
-                    SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_homescreen_scroll_posters_layout),
-                        description = stringResource(Res.string.settings_homescreen_scroll_posters_layout_description),
-                        checked = homeCatalogSettings.scrollPostersLayoutEnabled,
-                        isTablet = isTablet,
-                        onCheckedChange = HomeCatalogSettingsRepository::setScrollPostersLayoutEnabled,
-                    )
-                    if (homeCatalogSettings.scrollPostersLayoutEnabled) {
-                        SettingsGroupDivider(isTablet = isTablet)
-                        PosterGutterSizeSettingsRow(size = homeCatalogSettings.posterGutterSize, isTablet = isTablet)
-                    }
+                    PosterGutterSizeSettingsRow(size = homeCatalogSettings.posterGutterSize, isTablet = isTablet)
                 }
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(

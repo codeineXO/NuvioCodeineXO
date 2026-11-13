@@ -89,6 +89,7 @@ import com.nuvio.app.features.addons.hasPendingEnabledManifests
 import com.nuvio.app.features.addons.isWaitingForFirstEnabledManifest
 import com.nuvio.app.features.debrid.DebridSettings
 import com.nuvio.app.features.debrid.DebridSettingsRepository
+import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
 import com.nuvio.app.features.home.PosterGutterSize
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -468,7 +469,7 @@ fun SettingsScreen(
                 homescreenHeroEnabled = homescreenSettingsUiState.heroEnabled,
                 homescreenShowCatalogType = homescreenSettingsUiState.showCatalogType,
                 homescreenHideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
-                homescreenScrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
+                homescreenAppInterface = homescreenSettingsUiState.appInterface,
                 homescreenPosterGutterSize = homescreenSettingsUiState.posterGutterSize,
                 homescreenAlwaysAnimateCollectionCards = homescreenSettingsUiState.alwaysAnimateCollectionCards,
                 auraBackgroundEnabled = auraBackgroundEnabled,
@@ -523,7 +524,7 @@ fun SettingsScreen(
                 homescreenHeroEnabled = homescreenSettingsUiState.heroEnabled,
                 homescreenShowCatalogType = homescreenSettingsUiState.showCatalogType,
                 homescreenHideUnreleasedContent = homescreenSettingsUiState.hideUnreleasedContent,
-                homescreenScrollPostersLayoutEnabled = homescreenSettingsUiState.scrollPostersLayoutEnabled,
+                homescreenAppInterface = homescreenSettingsUiState.appInterface,
                 homescreenPosterGutterSize = homescreenSettingsUiState.posterGutterSize,
                 homescreenAlwaysAnimateCollectionCards = homescreenSettingsUiState.alwaysAnimateCollectionCards,
                 auraBackgroundEnabled = auraBackgroundEnabled,
@@ -591,7 +592,7 @@ private fun MobileSettingsScreen(
     homescreenHeroEnabled: Boolean,
     homescreenShowCatalogType: Boolean,
     homescreenHideUnreleasedContent: Boolean,
-    homescreenScrollPostersLayoutEnabled: Boolean = false,
+    homescreenAppInterface: AppInterface = AppInterface.Default,
     homescreenPosterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     homescreenAlwaysAnimateCollectionCards: Boolean = false,
     auraBackgroundEnabled: Boolean = true,
@@ -858,7 +859,7 @@ private fun MobileSettingsScreen(
                     heroEnabled = homescreenHeroEnabled,
                     showCatalogType = homescreenShowCatalogType,
                     hideUnreleasedContent = homescreenHideUnreleasedContent,
-                    scrollPostersLayoutEnabled = homescreenScrollPostersLayoutEnabled,
+                    appInterface = homescreenAppInterface,
                     posterGutterSize = homescreenPosterGutterSize,
                     alwaysAnimateCollectionCards = homescreenAlwaysAnimateCollectionCards,
                     items = homescreenItems,
@@ -979,7 +980,7 @@ private fun TabletSettingsScreen(
     homescreenHeroEnabled: Boolean,
     homescreenShowCatalogType: Boolean,
     homescreenHideUnreleasedContent: Boolean,
-    homescreenScrollPostersLayoutEnabled: Boolean = false,
+    homescreenAppInterface: AppInterface = AppInterface.Default,
     homescreenPosterGutterSize: PosterGutterSize = PosterGutterSize.Narrow,
     homescreenAlwaysAnimateCollectionCards: Boolean = false,
     auraBackgroundEnabled: Boolean = true,
@@ -1280,7 +1281,7 @@ private fun TabletSettingsScreen(
                                     heroEnabled = homescreenHeroEnabled,
                                     showCatalogType = homescreenShowCatalogType,
                                     hideUnreleasedContent = homescreenHideUnreleasedContent,
-                                    scrollPostersLayoutEnabled = homescreenScrollPostersLayoutEnabled,
+                                    appInterface = homescreenAppInterface,
                                     posterGutterSize = homescreenPosterGutterSize,
                                     alwaysAnimateCollectionCards = homescreenAlwaysAnimateCollectionCards,
                                     items = homescreenItems,

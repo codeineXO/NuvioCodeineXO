@@ -115,6 +115,10 @@ internal fun HomePosterHoverPreview(
     modifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
 ) {
+    if (LocalPersistentHeroSelection.current != null) {
+        content(modifier.then(persistentHeroTarget(item)))
+        return
+    }
     if (!isDesktop) {
         content(modifier)
         return
