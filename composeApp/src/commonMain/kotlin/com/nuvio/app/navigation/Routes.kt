@@ -159,6 +159,12 @@ data class CatalogRoute(
 ) : AppRoute
 
 @Serializable
+data class ContinueWatchingRoute(
+    val shuffleVisit: Long,
+    override val title: String,
+) : AppRoute
+
+@Serializable
 data class PlayerRoute(
     val launchId: Long,
     override val title: String = "",

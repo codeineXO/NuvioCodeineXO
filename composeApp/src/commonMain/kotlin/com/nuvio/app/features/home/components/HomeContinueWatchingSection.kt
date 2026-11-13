@@ -288,6 +288,7 @@ internal fun HomeContinueWatchingSection(
     onItemClick: ((ContinueWatchingItem) -> Unit)? = null,
     onItemLongPress: ((ContinueWatchingItem) -> Unit)? = null,
     disintegrationRequest: DisintegrationRequest<String>? = null,
+    onViewAllClick: (() -> Unit)? = null,
 ) {
     if (items.isEmpty()) return
 
@@ -307,6 +308,7 @@ internal fun HomeContinueWatchingSection(
             onItemClick = onItemClick,
             onItemLongPress = onItemLongPress,
             disintegrationRequest = disintegrationRequest,
+            onViewAllClick = onViewAllClick,
         )
     } else {
         BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -325,6 +327,7 @@ internal fun HomeContinueWatchingSection(
                 onItemClick = onItemClick,
                 onItemLongPress = onItemLongPress,
                 disintegrationRequest = disintegrationRequest,
+                onViewAllClick = onViewAllClick,
             )
         }
     }
@@ -346,6 +349,7 @@ private fun HomeContinueWatchingSectionContent(
     onItemClick: ((ContinueWatchingItem) -> Unit)?,
     onItemLongPress: ((ContinueWatchingItem) -> Unit)?,
     disintegrationRequest: DisintegrationRequest<String>?,
+    onViewAllClick: (() -> Unit)?,
 ) {
     key(dataSourceKey) {
         val disintegration = remember {
@@ -360,6 +364,8 @@ private fun HomeContinueWatchingSectionContent(
             entries = displayEntries,
             modifier = modifier,
             headerHorizontalPadding = sectionPadding,
+            onViewAllClick = onViewAllClick,
+            onTitleClick = onViewAllClick?.takeIf { isDesktop },
             rowContentPadding = PaddingValues(horizontal = sectionPadding),
             useGutterLayout = useGutterLayout,
             showRowNavigationControls = true,
@@ -375,33 +381,29 @@ private fun HomeContinueWatchingSectionContent(
                 disintegrating = entry.exiting,
                 onDisintegrated = { disintegration.onDisintegrated(entry.key) },
             ) {
-                when (style) {
-                    ContinueWatchingSectionStyle.Card -> ContinueWatchingCard(
-                        item = item,
-                        useEpisodeThumbnails = useEpisodeThumbnails,
-                        blurNextUp = blurNextUp,
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                    )
-                    ContinueWatchingSectionStyle.Wide -> ContinueWatchingWideCard(
-                        item = item,
-                        layout = layout,
-                        useEpisodeThumbnails = useEpisodeThumbnails,
-                        blurNextUp = blurNextUp,
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                    )
-                    ContinueWatchingSectionStyle.Poster -> ContinueWatchingPosterCard(
-                        item = item,
-                        layout = layout,
-                        useEpisodeThumbnails = useEpisodeThumbnails,
-                        blurNextUp = blurNextUp,
-                        onClick = onClick,
-                        onLongClick = onLongClick,
-                    )
-                }
+                ContinueWatchingTile(item, style, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
             }
         }
+    }
+}
+
+@Composable
+internal fun ContinueWatchingTile(
+    item: ContinueWatchingItem,
+    style: ContinueWatchingSectionStyle,
+    layout: ContinueWatchingLayout,
+    useEpisodeThumbnails: Boolean,
+    blurNextUp: Boolean,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
+) {
+    when (style) {
+        ContinueWatchingSectionStyle.Card ->
+            ContinueWatchingCard(item, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
+        ContinueWatchingSectionStyle.Wide ->
+            ContinueWatchingWideCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
+        ContinueWatchingSectionStyle.Poster ->
+            ContinueWatchingPosterCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
     }
 }
 

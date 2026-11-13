@@ -364,7 +364,7 @@ fun CatalogScreen(
 }
 
 @Composable
-private fun CatalogHeader(
+internal fun CatalogHeader(
     title: String,
     subtitle: String,
     pageHorizontalPadding: Dp,

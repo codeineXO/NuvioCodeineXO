@@ -26,6 +26,17 @@ import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import kotlinx.coroutines.CancellationException
 
 @Composable
+internal fun rememberHomeShuffleVisit(profileId: Int): Long {
+    var visit by remember(profileId) { mutableStateOf(WatchProgressClock.nowEpochMs()) }
+    var wasInactive by remember(profileId) { mutableStateOf(false) }
+    ScreenActivityEffect(profileId) { active ->
+        if (active && wasInactive) visit += 1
+        wasInactive = !active
+    }
+    return visit
+}
+
+@Composable
 internal fun rememberShuffleHomeItems(
     profileId: Int,
     items: List<ContinueWatchingItem>,
@@ -33,17 +44,12 @@ internal fun rememberShuffleHomeItems(
     progress: List<WatchProgressEntry>,
     watchedKeys: Set<String>,
     visibleProgress: List<WatchProgressEntry>,
+    visit: Long,
 ): List<ContinueWatchingItem> {
     val profile by remember {
         EpisodeShuffleRepository.ensureLoaded()
         EpisodeShuffleRepository.uiState
     }.collectAsStateWithLifecycle()
-    var visit by remember(profileId) { mutableStateOf(WatchProgressClock.nowEpochMs()) }
-    var wasInactive by remember(profileId) { mutableStateOf(false) }
-    ScreenActivityEffect(profileId) { active ->
-        if (active && wasInactive) visit += 1
-        wasInactive = !active
-    }
     val content = remember(items, candidates, profile) {
         (items.map { it.parentMetaId to it.parentMetaType } + candidates.map { it.content.id to it.content.type })
             .distinctBy { it.first }.filter { (id, type) -> profile.settings(id, type).enabled }

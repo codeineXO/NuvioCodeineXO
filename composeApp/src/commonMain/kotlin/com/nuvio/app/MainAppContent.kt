@@ -127,6 +127,7 @@ import com.nuvio.app.features.downloads.DownloadItem
 import com.nuvio.app.features.downloads.DownloadSubtitles
 import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.ContinueWatchingScreen
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
@@ -1776,6 +1777,9 @@ internal fun MainAppContent(
                                 onDownloadsClick = { navController.navigate(DownloadsRoute(downloadsTitle)) },
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
+                                onContinueWatchingViewAll = { shuffleVisit ->
+                                    navController.navigate(ContinueWatchingRoute(shuffleVisit, continueWatchingSettingsTitle))
+                                },
                                 onSwitchProfile = onSwitchProfile,
                                 onSettingsPageClick = if (useNativeNavigation && !isTabletLayout) {
                                     { pageName, title ->
@@ -1967,6 +1971,17 @@ internal fun MainAppContent(
                         route = route,
                         navController = navController,
                         onPosterLongClick = openPosterActions,
+                    )
+                }
+                entry<ContinueWatchingRoute> { route ->
+                    ContinueWatchingScreen(
+                        title = route.title,
+                        profileId = activePlaybackProfileId,
+                        shuffleVisit = route.shuffleVisit,
+                        onBack = rememberGuardedPopBackStack(navController, route),
+                        onItemClick = onContinueWatchingClick,
+                        onItemLongPress = onContinueWatchingLongPress,
+                        disintegrationRequest = continueWatchingDisintegrationRequests.current,
                     )
                 }
                 entry<HomescreenSettingsRoute> { route ->
@@ -2688,6 +2703,7 @@ private fun AppRoute?.drawsUnderVerticalBar(selectedTab: AppScreenTab): Boolean 
         is DownloadsRoute,
         is DownloadShowRoute,
         is CatalogRoute,
+        is ContinueWatchingRoute,
         is CollectionsRoute,
         is CollectionEditorRoute,
         is CollectionEditorPageRoute,
