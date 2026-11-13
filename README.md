@@ -96,6 +96,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 | `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
 | `I`  | Show / Hide Playback Stats for Nerds |
 | `0` (Zero) | Toggle eye filter |
+| `9` | Toggle hemophobia filter |
 | `Ctrl` + `+` / `=` | Increase UI scale by 10 percentage points |
 | `Ctrl` + `−` | Decrease UI scale by 10 percentage points |
 | `Ctrl` + `0` | Reset UI scale to 100% |
