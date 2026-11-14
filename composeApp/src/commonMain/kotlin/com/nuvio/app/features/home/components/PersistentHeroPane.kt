@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +68,7 @@ import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.withHeroMeta
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.remote.RemoteAppBridge
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.async
@@ -145,6 +147,16 @@ internal fun PersistentHeroPane(
     LaunchedEffect(active, selection, seed) {
         if (!active) selection.clear()
         else if (selection.requested == null && seed != null) selection.select(seed)
+    }
+
+    // The phone remote mirrors Home's hero, and picks titles for it like a hover.
+    if (page == "home") {
+        LaunchedEffect(active, selection, RemoteAppBridge.heroPicks) {
+            if (active) RemoteAppBridge.heroPicks.collect { selection.select(it) }
+        }
+        val shown = selection.displayed?.item
+        LaunchedEffect(active, shown) { RemoteAppBridge.publishPersistentHero(shown.takeIf { active }) }
+        DisposableEffect(Unit) { onDispose { RemoteAppBridge.publishPersistentHero(null) } }
     }
 
     val currentRowAnchors by rememberUpdatedState(rowAnchors)

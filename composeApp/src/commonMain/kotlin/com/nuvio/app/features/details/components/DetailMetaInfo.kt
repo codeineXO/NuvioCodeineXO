@@ -445,6 +445,36 @@ private data class RatingVisuals(
     val format: (Double) -> String,
 )
 
+/** A rating as [RatingsRow] draws it, for the phone remote: the logo's file in drawable/, its value and colour. */
+internal data class RatingBadge(val name: String, val logoFile: String, val value: String, val color: Color)
+
+internal fun ratingBadges(ratings: List<MetaExternalRating>): List<RatingBadge> {
+    val bySource = ratings.associateBy { it.source }
+    return ratingVisuals.mapNotNull { visuals ->
+        bySource[visuals.source]?.let { rating ->
+            RatingBadge(visuals.displayName, logoFileFor(visuals.source, rating), visuals.format(rating.value), visuals.valueColor)
+        }
+    }
+}
+
+/** The IMDb rating alone, as the hero shows it when there are no MDBList ratings. */
+internal fun imdbRatingBadge(rating: Double): RatingBadge =
+    ratingVisuals.first { it.source == PROVIDER_IMDB }.let { RatingBadge(it.displayName, "rating_imdb.svg", formatOneDecimal(rating), it.valueColor) }
+
+private fun logoFileFor(source: String, rating: MetaExternalRating): String = when (rating.rottenTomatoesStatus) {
+    RottenTomatoesStatus.FRESH -> "rating_rotten_tomatoes.svg"
+    RottenTomatoesStatus.ROTTEN -> "rating_rotten_tomatoes_rotten.svg"
+    RottenTomatoesStatus.CERTIFIED_FRESH -> "rating_rotten_tomatoes_certified.svg"
+    RottenTomatoesStatus.HOT -> "rating_audience_score.svg"
+    RottenTomatoesStatus.STALE -> "rating_audience_stale.svg"
+    RottenTomatoesStatus.VERIFIED_HOT -> "rating_audience_verified_hot.svg"
+    else -> when (source) {
+        PROVIDER_TOMATOES -> "rating_rotten_tomatoes.svg"
+        PROVIDER_AUDIENCE -> "rating_audience_score.svg"
+        else -> "rating_$source.svg"
+    }
+}
+
 private fun RatingVisuals.logoFor(rating: MetaExternalRating): DrawableResource =
     when (rating.rottenTomatoesStatus) {
         RottenTomatoesStatus.FRESH -> Res.drawable.rating_rotten_tomatoes

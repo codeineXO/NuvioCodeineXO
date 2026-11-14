@@ -100,6 +100,33 @@ object RemoteAppBridge {
         _continueWatching.value = items
     }
 
+    private val _heroItems = MutableStateFlow<List<MetaPreview>>(emptyList())
+
+    /** Home's hero carousel with each title's details and ratings loaded, as the PC shows it. */
+    val heroItems: StateFlow<List<MetaPreview>> = _heroItems.asStateFlow()
+
+    fun publishHeroItems(items: List<MetaPreview>) {
+        _heroItems.value = items
+    }
+
+    private val _persistentHero = MutableStateFlow<MetaPreview?>(null)
+
+    /** The title Home's Persistent Hero shows on the PC, with its details loaded; null when it is not on screen. */
+    val persistentHero: StateFlow<MetaPreview?> = _persistentHero.asStateFlow()
+
+    fun publishPersistentHero(item: MetaPreview?) {
+        _persistentHero.value = item
+    }
+
+    private val _heroPicks = MutableSharedFlow<MetaPreview>(extraBufferCapacity = 1)
+
+    /** Titles picked on the phone for the Persistent Hero, as if hovered on the PC. */
+    val heroPicks: SharedFlow<MetaPreview> = _heroPicks.asSharedFlow()
+
+    fun pickHero(item: MetaPreview) {
+        _heroPicks.tryEmit(item)
+    }
+
     private val _searchQuery = MutableStateFlow<String?>(null)
 
     /** A query typed on the phone, waiting for the Search screen to take it. */

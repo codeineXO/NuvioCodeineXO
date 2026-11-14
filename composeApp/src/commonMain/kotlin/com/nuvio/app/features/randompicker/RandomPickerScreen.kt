@@ -81,7 +81,12 @@ internal fun RandomPickerScreen(active: Boolean, onDetails: (MetaPreview) -> Uni
     }
     DisposableEffect(model, active) {
         model.setActive(active)
-        onDispose { model.setActive(false) }
+        // The phone remote shows Shuffle while it is on screen here, and drives this same model.
+        if (active) com.nuvio.app.features.remote.RemoteShuffle.publish(model)
+        onDispose {
+            model.setActive(false)
+            com.nuvio.app.features.remote.RemoteShuffle.clear(model)
+        }
     }
     RandomPickerContent(state, model::update, model::pick, model::reset, onDetails, onBack, model::dismissResult, model::stopSearch, active)
 }

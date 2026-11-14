@@ -21,11 +21,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.i18n.localizedMediaStatusLabel
+import com.nuvio.app.core.i18n.mediaStatusLabel
+import com.nuvio.app.features.details.components.RatingBadge
 import com.nuvio.app.features.details.components.DetailHeroMetaBadge
 import com.nuvio.app.features.details.components.ImdbRatingSourceLabel
 import com.nuvio.app.features.details.components.ImdbYellow
 import com.nuvio.app.features.details.components.RatingsRow
 import com.nuvio.app.features.details.components.formatOneDecimal
+import com.nuvio.app.features.details.components.imdbRatingBadge
+import com.nuvio.app.features.details.components.ratingBadges
 import com.nuvio.app.features.details.formatRuntimeForDisplay
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.heroRatings
@@ -33,9 +37,46 @@ import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.media_movie
 import nuvio.composeapp.generated.resources.media_series
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 private const val HERO_RATINGS_LIMIT = 3
+
+/**
+ * What [HomeHeroMetaRows] shows, as text for the phone remote: the facts (type, genre, runtime, release), the
+ * age rating and status badge, the language and the ratings.
+ */
+internal data class HeroInfo(
+    val facts: List<String>,
+    val badges: List<String>,
+    val language: String?,
+    val ratings: List<RatingBadge>,
+)
+
+internal suspend fun MetaPreview.heroInfo(showImdbRating: Boolean, showMdbListRatings: Boolean): HeroInfo {
+    val type = type.trim().lowercase()
+    val isSeries = type == "series" || type == "tv"
+    val typeLabel = when (type) {
+        "movie" -> getString(Res.string.media_movie)
+        "series" -> getString(Res.string.media_series)
+        else -> this.type.replaceFirstChar(Char::uppercase)
+    }
+    val status = status?.trim()?.takeIf { it.isNotBlank() }?.let { mediaStatusLabel(it, isSeries).uppercase() }
+    val heroRatings = heroRatings(showImdbRating, showMdbListRatings)
+    return HeroInfo(
+        facts = listOfNotNull(
+            typeLabel.takeIf { it.isNotBlank() },
+            genres.firstOrNull()?.takeIf { it.isNotBlank() },
+            formatRuntimeForDisplay(runtime)?.takeIf { it.isNotBlank() },
+            releaseInfo?.takeIf { it.isNotBlank() }?.let(::formatReleaseDateForDisplay),
+        ),
+        badges = listOfNotNull(ageRating?.trim()?.takeIf { it.isNotBlank() }, status),
+        language = language?.trim()?.takeIf { it.isNotBlank() }?.uppercase(),
+        ratings = ratingBadges(heroRatings.external).ifEmpty {
+            listOfNotNull(heroRatings.imdb?.toDoubleOrNull()?.let(::imdbRatingBadge))
+        },
+    )
+}
 
 @Composable
 internal fun HomeHeroMetaRows(

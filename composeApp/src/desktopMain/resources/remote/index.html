@@ -4,8 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nuvio Remote">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#181825">
-<title>NuvioCodeineXO</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<title>Nuvio Remote</title>
 <link rel="stylesheet" href="/cuppa.css">
 <script>
   // The cuppa theme: flavor (Auto follows the phone), accent and corner radius, set before first paint.
@@ -66,7 +72,7 @@
   .dpad .ok.pressed { transform: scale(0.95); background-color: var(--glass-accent); box-shadow: var(--glass-selected-rim); }
 
   /* Browsing: Home's hero and rows, Search, and the sidebar as a tab bar. */
-  .browse { justify-content: flex-start; align-items: stretch; gap: 22px; width: 100%; }
+  .browse { justify-content: flex-start; align-items: stretch; gap: 26px; width: 100%; }
   .bottom-controls { position: fixed; z-index: 5; left: max(10px, env(safe-area-inset-left));
     right: max(10px, env(safe-area-inset-right)); bottom: calc(env(safe-area-inset-bottom) + 10px);
     display: flex; justify-content: center; pointer-events: none; }
@@ -79,13 +85,23 @@
     gap: 2px; border-radius: 9999px; font-size: 11px; font-weight: 500; color: var(--ctp-subtext1); transition: background-color 0.2s, color 0.2s; }
   .tab :is(.line, .ic) { width: 22px; height: 22px; }
   .tab:active:not(:disabled) { background-color: var(--glass-active); }
+  /* Back answers at once: it lights up and its arrow nudges, the page starts to leave, and the arrow pulses
+     until the PC has gone back. */
+  [data-back] svg { transition: transform 0.18s var(--ease); }
+  [data-back]:active svg { transform: translateX(-4px); }
+  [data-back].pending { background-color: var(--glass-accent); box-shadow: var(--glass-selected-rim); color: var(--ctp-text); }
+  [data-back].pending svg { animation: back-pulse 0.7s var(--ease) infinite; }
+  @keyframes back-pulse { 50% { transform: translateX(-4px); } }
+  main.leaving { opacity: 0.5; transform: translateX(16px); pointer-events: none;
+    transition: opacity 0.18s var(--ease), transform 0.18s var(--ease); }
+  @media (prefers-reduced-motion: reduce) { [data-back].pending svg { animation: none; } main.leaving { transform: none; } }
   .playback-pill { position: absolute; bottom: 0; }
   #next-episode-pill { left: 0; }
   #skip-segment-pill { left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * (var(--bottom-tab-width) + 20px)); }
   #skip-segment { min-width: 0; font-size: 13px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
   .pc-note { text-align: center; }
 
-  .hero-strip, .row-scroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  .hero-strip, .row-scroll { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
     margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
   .hero-strip::-webkit-scrollbar, .row-scroll::-webkit-scrollbar { display: none; }
   .home-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0;
@@ -94,21 +110,122 @@
     filter: blur(56px) saturate(1.35); }
   body:has(#home:not([hidden])) .home-backdrop:has(img) { opacity: 0.42; }
   .latte body:has(#home:not([hidden])) .home-backdrop:has(img) { opacity: 0.29; }
-  .hero-card { position: relative; flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 4 / 5; max-height: 62dvh;
+  /* One hero height for every layout (and its skeleton), scaled to the screen, so nothing jumps when the layout or
+     the title changes. The info sits at the bottom. */
+  :root { --hero-h: clamp(380px, 64dvh, 125vw); }
+  .hero-card { position: relative; flex: 0 0 100%; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: flex-end;
+    height: var(--hero-h);
     overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0); text-align: left; }
   .hero-card img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .hero-card .shade { position: absolute; inset: 0;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 10%, transparent 65%); }
-  .hero-card .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .hero-card .info { position: relative; padding: 24px 20px 22px; display: flex; flex-direction: column; gap: 12px; }
   .hero-card .logo { max-width: 75%; max-height: 72px; object-fit: contain; object-position: left bottom; }
-  .hero-card .meta-line { font-size: 13px; color: var(--ctp-subtext1); }
-  .hero-card .rating { color: var(--ctp-yellow); font-weight: 700; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 9999px; white-space: nowrap;
+    font-size: 12.5px; font-weight: 600; color: var(--ctp-text); background: color-mix(in srgb, var(--ctp-crust) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ctp-text) 16%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .pill.badge { letter-spacing: 0.04em; }
+  .pill .sep { width: 1px; height: 12px; background: currentColor; opacity: 0.45; }
+  .pill img { height: 14px; width: auto; max-width: 34px; display: block; }
+  .pill.rating b { font-weight: 700; }
   .hero-card .desc { font-size: 15px; color: var(--ctp-subtext1); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
-  .hero-card .btn { align-self: flex-start; }
+  .hero-card .btn { align-self: flex-start; margin-top: 4px; }
 
-  .rows { display: flex; flex-direction: column; gap: 22px; }
-  .row-title { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
-  .tile { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; gap: 6px; text-align: left; transition: transform 0.15s var(--ease); }
+  /* Home's three layouts, like the PC's Switch Layout:
+     Official: the carousel edge to edge. Scroll Posters: the carousel as a card, rows inside the margins.
+     Persistent Hero: no carousel; the picked title's artwork pinned at the top, the rows scrolling under it. */
+  .layout-switch button { height: 50px; flex-direction: column; gap: 2px; padding-inline: 4px; font-size: 12px; font-weight: 500; }
+  .layout-switch .line { width: 20px; height: 20px; }
+  .hero-dots { display: flex; justify-content: center; gap: 6px; margin-top: -10px; }
+  .hero-dots i { width: 6px; height: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--ctp-text) 30%, transparent);
+    transition: width 0.25s var(--ease), background-color 0.25s; }
+  .hero-dots i.on { width: 20px; background: var(--ctp-text); }
+
+  /* Official's hero and the Persistent Hero: edge to edge over the blurred backdrop, fading in at the top and out
+     at the bottom; the info sits above the bottom fade. */
+  #home[data-layout="official"] .hero-strip, .persistent-hero { margin-inline: -16px; padding-inline: 0; scroll-padding-inline: 0; gap: 0; }
+  :is(#home[data-layout="official"], .persistent-hero) .hero-card { border-radius: 0; background: transparent; }
+  :is(#home[data-layout="official"], .persistent-hero) .hero-card :is(img.bg, .shade) {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 78%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 78%, transparent); }
+  :is(#home[data-layout="official"], .persistent-hero) .hero-card .info { padding: 0 20px 44px; }
+
+  #home[data-layout="scroll_posters"] .row-scroll { margin-inline: 0; padding-inline: 0; scroll-padding-inline: 0; }
+  #home[data-layout="scroll_posters"] .hero-card .desc { -webkit-line-clamp: 2; }
+
+  .persistent-hero { display: flex; }
+  :is(#home[data-layout="official"], #home[data-layout="persistent_hero"]) #hero-placeholder { margin-inline: -16px; border-radius: 0; }
+  .persistent-hero .hero-card { flex: 1; }
+  .tile[aria-current="true"] .art::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: inset 0 0 0 3px var(--accent); }
+
+  .rows { display: flex; flex-direction: column; gap: 30px; }
+  /* A row's header: its title, and "View All" when the row has more than the phone shows. */
+  .row-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .row-head .row-title { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* "View All": the whole catalog as a grid, loading more as it scrolls, like the PC. */
+  .grid-page { gap: 18px; }
+  .catalog-head { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
+  .catalog-head h2 { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+  /* Tiles take the grid's columns here, not the fixed widths they have in Home's rows. */
+  .grid-page .catalog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
+  .grid-page .catalog-grid.landscape { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+  .grid-page .catalog-grid > .tile { width: auto; min-width: 0; max-width: none; }
+  .grid-page .catalog-grid .name { font-size: 12.5px; }
+  /* A folder's tabs, like the PC's: they scroll sideways when there are many. */
+  .folder-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .folder-tabs::-webkit-scrollbar { display: none; }
+  .folder-tabs .btn { flex: none; }
+  .row-note { min-height: 64px; display: flex; align-items: center; }
+  .tile .year { font-size: 12px; color: var(--ctp-subtext0); margin-top: -4px; }
+  /* Search before you type, like the PC: recent searches, then Discover with its pickers. */
+  .recent-list { display: flex; flex-direction: column; gap: 8px; }
+  .search-box.recent { padding: 0; gap: 0; overflow: hidden; }
+  .recent > button { height: 100%; display: flex; align-items: center; color: var(--ctp-text); font-size: 16px; }
+  .recent > button:first-child { flex: 1; min-width: 0; padding-inline: 16px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent > button:last-child { width: 48px; justify-content: center; color: var(--ctp-subtext0); }
+  .discover-pickers { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px; }
+  .discover-pickers::-webkit-scrollbar { display: none; }
+  .picker { flex: none; appearance: none; -webkit-appearance: none; height: 36px; max-width: 62vw; padding: 0 32px 0 14px; border-radius: 9999px;
+    font: inherit; font-size: 14px; font-weight: 600; color: var(--ctp-text); text-overflow: ellipsis;
+    border: 1px solid color-mix(in srgb, var(--ctp-text) 16%, transparent); background: color-mix(in srgb, var(--ctp-surface0) 70%, transparent)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239399b2' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; }
+  .picker:disabled { opacity: 0.45; }
+  .picker:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #search-start { display: flex; flex-direction: column; gap: 26px; }
+  #search-rows:empty { display: none; }
+  #search-start section { display: flex; flex-direction: column; gap: 12px; }
+  #search-start .row-title { margin: 0; }
+  /* Library: Saved (rows or grids, sorted like the PC) and Cloud (each item's playable files). */
+  #library { gap: 16px; }
+  #library-views { align-self: flex-start; }
+  .library-part { display: flex; flex-direction: column; gap: 16px; }
+  .cloud-item summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+  .cloud-item summary::-webkit-details-marker { display: none; }
+  .cloud-item .name { font-weight: 600; overflow-wrap: anywhere; }
+  .cloud-files { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .cloud-files .btn { justify-content: space-between; height: auto; min-height: 44px; padding-block: 8px; white-space: normal; text-align: left; }
+  .cloud-files .btn span:first-child { overflow-wrap: anywhere; }
+  /* Shuffle, like the PC: its filters as one form, actions, progress, and the picked title as a hero. */
+  #shuffle { gap: 16px; }
+  #shuffle p { margin: 0; }
+  .shuffle-toggles .row { padding-inline: 0; }
+  .shuffle-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+  .shuffle-form > * { grid-column: 1 / -1; }
+  .shuffle-form > .field.half { grid-column: auto; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field-label { font-size: 13px; font-weight: 600; color: var(--ctp-subtext0); }
+  .field .picker { width: 100%; max-width: none; }
+  .shuffle-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .shuffle-feedback { display: flex; align-items: center; gap: 10px; }
+  .shuffle-feedback:empty { display: none; }
+  .shuffle-result-actions { display: flex; gap: 10px; }
+  .shuffle-result-actions .btn { flex: 1; }
+  .catalog-status { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 64px; }
+  @media (min-width: 480px) { .grid-page .catalog-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .row-title { margin: 0 0 12px; font-size: 20px; font-weight: 600; }
+  .tile { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; text-align: left; transition: transform 0.15s var(--ease); }
   .tile:active { transform: scale(0.96); }
   .tile .art { position: relative; overflow: hidden; border-radius: calc(var(--r-ctl) + 2px); background: var(--ctp-surface0); }
   .tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -119,7 +236,7 @@
   .tile .name { font-size: 13px; color: var(--ctp-subtext1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tile .time-left { position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;
     background: color-mix(in srgb, var(--ctp-crust) 80%, transparent); }
-  .tile .resume { position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 12px 10px;
+  .tile .resume { position: absolute; left: 0; right: 0; bottom: 0; padding: 32px 14px 12px;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 90%, transparent), transparent); }
   .tile .resume small { display: block; font-size: 12px; font-weight: 600; color: var(--accent); }
   .tile .resume b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -129,9 +246,14 @@
   .search-box { display: flex; align-items: center; gap: 10px; height: 48px; padding-inline: 14px; border-radius: var(--r-ctl);
     color: var(--ctp-subtext0); }
   .search-box:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Clear: only while there is text; the browser's own clear button is hidden so there is one. */
+  .search-clear { flex: none; width: 32px; height: 32px; margin-right: -6px; border-radius: 9999px; color: var(--ctp-subtext0); }
+  .search-clear:active { background-color: var(--glass-active); }
+  .search-box input:placeholder-shown + .search-clear { display: none; }
+  .search-box input::-webkit-search-cancel-button { display: none; }
   .search-box input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ctp-text); font: inherit; font-size: 17px; }
   @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
-    .hero-card { flex-basis: 100%; aspect-ratio: 21 / 9; max-height: 60dvh; }
+    :root { --hero-h: clamp(320px, 60dvh, 43vw); }
     .tile.poster { width: 140px; }
     .tile.landscape { width: 280px; }
   }
@@ -141,11 +263,18 @@
   main:not([hidden]) { animation: view-in 0.35s var(--ease); }
 
   /* Details and Sources */
-  .page-bar { display: flex; align-items: center; gap: 8px; }
+  .stream-filter { display: flex; align-items: center; gap: 8px; }
+  .stream-filter .chips { flex: 1; min-width: 0; margin-right: 0; padding-right: 0; }
+  .stream-filter .btn { flex: none; }
   .grow { flex: 1; }
   .detail-hero, .stream-hero { position: relative; overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0);
     aspect-ratio: 4 / 3; max-height: 46dvh; }
-  .stream-hero { aspect-ratio: 16 / 7; }
+  /* The stream picker's card and the playing card are one card: same shape and shadow, and the same
+     view-transition name, so starting playback moves it from one screen to the other. */
+  .stream-hero { aspect-ratio: 16 / 9; box-shadow: var(--card-shadow); view-transition-name: now-card; }
+  #player .hero { view-transition-name: now-card; }
+  ::view-transition-group(now-card) { animation-duration: 0.45s; animation-timing-function: var(--ease); }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
   .detail-hero > img, .stream-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .detail-hero .shade, .stream-hero .shade { position: absolute; inset: 0;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 8%, transparent 70%); }
@@ -188,7 +317,7 @@
   /* Loading: skeletons shaped like the page while it loads, spinners for actions */
   .home-skeleton, .detail-skeleton { display: flex; flex-direction: column; gap: 14px; }
   .sk-row { display: flex; gap: 12px; overflow: hidden; }
-  .sk-hero { aspect-ratio: 4 / 5; max-height: 62dvh; border-radius: var(--r-card); }
+  .sk-hero { height: var(--hero-h); border-radius: var(--r-card); }
   .sk-title { width: 45%; height: 20px; margin-top: 8px; }
   .sk-wide { flex: 0 0 70%; aspect-ratio: 16 / 9; }
   .sk-poster { flex: 0 0 34%; aspect-ratio: 2 / 3; }
@@ -197,7 +326,7 @@
   .sk-button { height: 44px; }
   .sk-chip { width: 96px; height: 32px; border-radius: 9999px; }
   .sk-episode { height: 92px; border-radius: var(--r-card); }
-  #details.is-loading > :not(.page-bar):not(#d-skeleton) { display: none; }
+  #details.is-loading > :not(#d-skeleton) { display: none; }
   #details:not(.is-loading) #d-skeleton { display: none; }
   .addon-loading { display: flex; align-items: center; gap: 8px; }
   .resume-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
@@ -222,20 +351,36 @@
   body:has(#player:not([hidden])) .backdrop.on { opacity: 0.4; }
   .latte body:has(#player:not([hidden])) .backdrop.on { opacity: 0.3; }
 
+  /* A natural shadow: a soft contact shadow close in, and a faint wide one, so it lifts without darkening the text below. */
+  /* It reaches about 16px, within the gap to whatever is below the card. */
+  :root { --card-shadow: 0 1px 2px color-mix(in srgb, var(--ctp-crust) 25%, transparent),
+      0 4px 10px -3px color-mix(in srgb, var(--ctp-crust) 40%, transparent),
+      0 10px 18px -10px color-mix(in srgb, var(--ctp-crust) 45%, transparent); }
   .hero { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-card);
-    background: var(--ctp-surface0); box-shadow: var(--shadow-3); }
+    background: var(--ctp-surface0); box-shadow: var(--card-shadow); }
   .hero > img#art { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.5s var(--ease); }
   .hero > img#art.on { opacity: 1; }
   .hero .shade { position: absolute; inset: 0;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 85%, transparent), transparent 60%); }
-  .hero .logo { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); max-width: 70%; max-height: 38%;
+  .hero .logo { position: absolute; left: 16px; bottom: 16px; max-width: 75%; max-height: min(56px, 38%); object-position: left bottom;
     object-fit: contain; filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--ctp-crust) 80%, transparent)); }
-  .hero-title { position: absolute; left: 16px; right: 16px; bottom: 12px; margin: 0; text-align: center; color: var(--ctp-text); }
+  .hero-title { position: absolute; left: 16px; right: 16px; bottom: 16px; margin: 0; color: var(--ctp-text); }
   .meta { width: 100%; display: flex; flex-direction: column; gap: 4px; }
   .ep-info { color: var(--accent); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
   .synopsis { text-align: left; color: var(--ctp-subtext1); display: -webkit-box; -webkit-box-orient: vertical;
     -webkit-line-clamp: 3; overflow: hidden; }
   .synopsis.open { -webkit-line-clamp: unset; }
+  /* ⓘ on the playing card, and the episode info it lays over the card on a dark background. */
+  .hero-info-toggle { position: absolute; top: 10px; right: 10px; z-index: 2; width: 36px; height: 36px; border-radius: 9999px;
+    display: grid; place-items: center; color: var(--ctp-text);
+    background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .hero-info-toggle .line { width: 20px; height: 20px; }
+  .hero-info-toggle[aria-expanded="true"] { background: var(--glass-accent); }
+  .hero-info { position: absolute; inset: 0; z-index: 1; padding: 16px 56px 16px 16px; overflow-y: auto; justify-content: center;
+    background: color-mix(in srgb, var(--ctp-crust) 84%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    animation: hero-info-in 0.2s var(--ease); }
+  .hero-info .synopsis { display: block; -webkit-line-clamp: unset; color: var(--ctp-subtext1); }
+  @keyframes hero-info-in { from { opacity: 0; } }
 
   .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card); }
   .seek { display: grid; grid-template-columns: minmax(0, 1fr); }
@@ -262,9 +407,11 @@
   .tool:disabled { opacity: 0.45; }
   .tool .ic { width: 22px; height: 22px; }
   .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-  .media { min-height: 0; max-height: 100%; overflow-y: auto; gap: 14px; }
+  /* Nothing in it scrolls (the episode info is on the card), so nothing clips the card's shadow. */
+  .media { min-height: 0; gap: 14px; }
   .deck { flex-shrink: 0; }
-  .hero { max-height: 36dvh; }
+  /* Both cards share their height at every screen size, so the card keeps its size between the two screens. */
+  .hero, .stream-hero { max-height: 36dvh; }
 
   /* ─── Responsive ─── */
   /* Small phones (iPhone SE, mini): tighter transport, the tools on two rows so the labels fit. */
@@ -283,7 +430,7 @@
     .synopsis { -webkit-line-clamp: 2; }
     #player, .deck { gap: 12px; }
     .media { gap: 8px; }
-    .hero { max-height: 28dvh; }
+    .hero, .stream-hero { max-height: 28dvh; }
     .controls { gap: 8px; padding: 12px; }
     .play { width: 60px; height: 60px; }
     .play .ic { width: 26px; height: 26px; }
@@ -291,7 +438,7 @@
   }
   @media (max-height: 600px) and (orientation: portrait) {
     .synopsis { -webkit-line-clamp: 1; }
-    .hero { max-height: 24dvh; }
+    .hero, .stream-hero { max-height: 24dvh; }
   }
   /* Landscape phones and tablets: artwork on the left, controls on the right. */
   @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
@@ -305,7 +452,7 @@
   /* Landscape phones: very little height, so the artwork shrinks and the page header gets out of the way. */
   @media (orientation: landscape) and (max-height: 500px) {
     body { gap: 10px; padding-top: calc(env(safe-area-inset-top) + 8px); }
-    .hero { max-height: 46dvh; }
+    .hero, .stream-hero { max-height: 46dvh; }
     .synopsis { -webkit-line-clamp: 3; }
     .controls { gap: 8px; padding: 12px; }
     .play { width: 56px; height: 56px; }
@@ -357,6 +504,9 @@
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
   <symbol id="i-shuffle" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"/></symbol>
   <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
+  <symbol id="i-layout-official" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></symbol>
+  <symbol id="i-layout-scroll_posters" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="14" rx="1.5"/><path d="M2 7v10M22 7v10"/></symbol>
+  <symbol id="i-layout-persistent_hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="9" rx="1.5"/><rect x="3" y="15" width="18" height="5" rx="1.5"/></symbol>
   <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
 </svg>
 
@@ -371,18 +521,100 @@
     <div class="skel sk-title"></div>
     <div class="sk-row"><div class="skel sk-poster"></div><div class="skel sk-poster"></div><div class="skel sk-poster"></div></div>
   </div>
+  <div class="seg seg-fill layout-switch" id="layout-switch" role="group" aria-label="Home layout" hidden>
+    <button data-layout="official" aria-pressed="false"><svg class="line"><use href="#i-layout-official"/></svg>Official</button>
+    <button data-layout="scroll_posters" aria-pressed="false"><svg class="line"><use href="#i-layout-scroll_posters"/></svg>Scroll Posters</button>
+    <button data-layout="persistent_hero" aria-pressed="false"><svg class="line"><use href="#i-layout-persistent_hero"/></svg>Persistent Hero</button>
+  </div>
+  <div class="persistent-hero" id="persistent-hero" hidden></div>
+  <div class="skel sk-hero" id="hero-placeholder" hidden></div>
   <div class="hero-strip" id="hero-strip"></div>
+  <div class="hero-dots" id="hero-dots" aria-hidden="true"></div>
   <div id="home-rows" class="rows"></div>
   <div class="card t-sub text-sub" id="home-empty" hidden>Nothing on Home yet.</div>
+</main>
+
+<main id="catalog" class="browse grid-page" hidden>
+  <div class="catalog-head"><h2 class="t-title2" id="catalog-title"></h2></div>
+  <div class="catalog-grid" id="catalog-grid"></div>
+  <div class="catalog-status text-sub" id="catalog-status"></div>
+</main>
+
+<!-- A collection folder's page, like the PC's: rows with View All, or tabs over a grid. -->
+<main id="folder" class="browse grid-page" hidden>
+  <div class="catalog-head"><h2 class="t-title2" id="folder-title"></h2></div>
+  <div class="folder-tabs" id="folder-tabs" hidden></div>
+  <div id="folder-rows" class="rows"></div>
+  <div class="catalog-grid" id="folder-grid" hidden></div>
+  <div class="catalog-status text-sub" id="folder-status"></div>
+</main>
+
+<!-- The saved Library: a row per section, a tap opens the title on the PC. -->
+<main id="library" class="browse grid-page" hidden>
+  <div class="catalog-head">
+    <h2 class="t-title2" id="library-title">Library</h2>
+    <button class="btn btn-icon btn-gray" id="library-layout" aria-label="Layout"><svg class="line"><use href="#i-layout-official"/></svg></button>
+    <button class="btn btn-icon btn-gray" id="library-downloads" aria-label="Downloads">
+      <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
+    </button>
+  </div>
+  <div class="seg" id="library-views">
+    <button data-view="saved" aria-pressed="true">Saved</button>
+    <button data-view="cloud" aria-pressed="false">Cloud</button>
+  </div>
+  <div id="library-saved" class="library-part">
+    <div class="discover-pickers">
+      <select class="picker" id="library-list" aria-label="List"></select>
+      <select class="picker" id="library-type" aria-label="Type"></select>
+      <select class="picker" id="library-sort" aria-label="Sort"></select>
+    </div>
+    <div id="library-rows" class="rows"></div>
+  </div>
+  <div id="library-cloud" class="library-part" hidden></div>
+  <div class="catalog-status text-sub" id="library-status"></div>
+</main>
+
+<!-- Shuffle, following the PC: its filters, Shuffle, and the picked title. -->
+<main id="shuffle" class="browse" hidden>
+  <div id="shuffle-result" hidden></div>
+  <div class="catalog-head"><h2 class="t-title2" id="shuffle-title"></h2></div>
+  <p class="text-sub" id="shuffle-subtitle"></p>
+  <div class="card shuffle-form" id="shuffle-form"></div>
+  <div class="shuffle-actions">
+    <button class="btn btn-filled" id="shuffle-pick"></button>
+    <button class="btn btn-gray" id="shuffle-reset"></button>
+    <button class="btn btn-gray" id="shuffle-cancel" hidden></button>
+  </div>
+  <div class="shuffle-feedback text-sub" id="shuffle-feedback"></div>
+  <p class="note" id="shuffle-hint"></p>
 </main>
 
 <main id="search" class="browse" hidden>
   <label class="search-box">
     <svg class="line"><use href="#i-search"/></svg>
     <input id="search-input" type="search" enterkeyhint="search" autocomplete="off" placeholder="Search movies & shows" aria-label="Search">
+    <button class="search-clear" id="search-clear" type="button" aria-label="Clear search">✕</button>
   </label>
   <div id="search-rows" class="rows"></div>
   <div class="card t-sub text-sub" id="search-empty" hidden></div>
+  <!-- Before you type, like the PC: recent searches, then Discover. -->
+  <div id="search-start">
+    <section id="recent-section" hidden>
+      <h3 class="row-title">Recent searches</h3>
+      <div class="recent-list" id="recent-list"></div>
+    </section>
+    <section class="grid-page">
+      <h3 class="row-title">Discover</h3>
+      <div class="discover-pickers">
+        <select class="picker" id="pick-type" aria-label="Type"></select>
+        <select class="picker" id="pick-catalog" aria-label="Catalog"></select>
+        <select class="picker" id="pick-genre" aria-label="Genre"></select>
+      </div>
+      <div class="text-sub" id="discover-source"></div>
+      <div class="catalog-grid" id="discover-grid"></div>
+      <div class="catalog-status text-sub" id="discover-status"></div>
+    </section>
+  </div>
 </main>
 
 <!-- A title's page, following the PC: tap Play, an episode, watched or library, as on the PC. -->
@@ -421,7 +653,6 @@
 
 <!-- The sources for what is about to play, following the PC: tap one to play it. -->
 <main id="streams" class="browse" hidden>
-  <div class="page-bar"><button class="btn btn-sm btn-gray" data-back>Back</button><span class="grow"></span><button class="btn btn-sm btn-gray" id="s-reload">Reload</button></div>
   <div class="stream-hero">
     <img id="s-bg" alt="">
     <div class="shade"></div>
@@ -435,7 +666,11 @@
       <button id="s-start-btn" aria-pressed="false">Start from beginning</button>
     </div>
   </div>
-  <div class="chips" id="s-addons"></div>
+  <!-- The addons as filters, and Reload at the end of their row. -->
+  <div class="stream-filter">
+    <div class="chips" id="s-addons"></div>
+    <button class="btn btn-sm btn-gray" id="s-reload">Reload</button>
+  </div>
   <div id="s-list" class="stream-list"></div>
   <div class="card t-sub text-sub" id="s-empty" hidden></div>
 </main>
@@ -474,18 +709,22 @@
 <div class="backdrop" id="backdrop"></div>
 
 <main id="player" hidden>
-  <!-- What's playing: the artwork and logo the player shows, then the episode and its synopsis. -->
+  <!-- What's playing: the artwork and logo the player shows; ⓘ lays the episode and its synopsis over it, so the
+       card never moves when they arrive. -->
   <section class="media">
   <div class="hero">
     <img id="art" alt="">
     <div class="shade"></div>
     <img class="logo" id="logo" alt="">
     <h2 class="t-title2 hero-title" id="hero-title"></h2>
-  </div>
-  <div class="meta">
-    <div class="t-foot ep-info" id="ep-info"></div>
-    <div class="t-headline" id="ep-title"></div>
-    <button class="synopsis t-sub" id="synopsis" aria-label="Show the full synopsis"></button>
+    <button class="hero-info-toggle" id="info-toggle" aria-label="Episode info" aria-expanded="false" hidden>
+      <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+    </button>
+    <div class="meta hero-info" id="hero-info" hidden>
+      <div class="t-foot ep-info" id="ep-info"></div>
+      <div class="t-headline" id="ep-title"></div>
+      <div class="synopsis t-sub" id="synopsis"></div>
+    </div>
   </div>
   </section>
 
@@ -592,8 +831,14 @@
       if (msg.k === 'player') showPlayer(msg);
       if (msg.k === 'time') showTime(msg.position, msg.duration);
       if (msg.k === 'home') showHome(msg);
+      if (msg.k === 'hero') showPcHero(msg.hero);
       if (msg.k === 'search') showSearch(msg);
-      if (msg.k === 'route') { pcRoute = msg.route; updateView(); }
+      if (msg.k === 'catalog') showCatalog(msg);
+      if (msg.k === 'folder') showFolder(msg);
+      if (msg.k === 'discover') showDiscover(msg);
+      if (msg.k === 'shuffle') showShuffle(msg);
+      if (msg.k === 'library') showLibrary(msg);
+      if (msg.k === 'route') { pcRoute = msg.route; cardTransition(updateView); }
       if (msg.k === 'details') showDetails(msg);
       if (msg.k === 'streams') showStreams(msg);
       if (msg.k === 'cardMenu') showCardMenuActions(msg);
@@ -672,10 +917,35 @@
   let draggingVolume = false;
   let draggingSeek = false;
 
+  // Between the stream picker and the playing screen, either way: one view transition, so the card moves from one
+  // screen to the other. Going in, the playing card starts with the picker's artwork and logo until the PC's arrive.
+  function cardTransition(change) {
+    const playingNow = !$('player').hidden;
+    const playingNext = state.active || pcRoute === 'player';
+    const entering = !playingNow && playingNext && !$('streams').hidden;
+    const leaving = playingNow && !playingNext && pcRoute === 'streams' && !dpadMode;
+    if (!(entering || leaving) || !document.startViewTransition || homeHeroMotion.matches) {
+      change();
+      return;
+    }
+    document.startViewTransition(() => {
+      change();
+      if (leaving) return;
+      const art = $('art');
+      art.src = $('s-bg').src;
+      art.classList.add('on');
+      const logo = $('s-title').querySelector('img');
+      $('logo').hidden = !logo;
+      if (logo) $('logo').src = logo.src;
+      $('hero-title').textContent = $('s-title').textContent;
+      $('hero-title').hidden = Boolean(logo);
+    });
+  }
+
   function showPlayer(msg) {
     const previous = state;
     state = msg;
-    updateView();
+    cardTransition(updateView);
     if (!msg.active) { closeSheetFromPlayer(); $('more').close(); return; }
     showMedia(msg);
     $('play-icon').setAttribute('href', msg.playing ? '#icon-pause' : '#icon-play');
@@ -760,14 +1030,16 @@
     wasPlaying = playing;
     // The PC moved on: whatever was spinning has arrived.
     const view = `${playing}|${pcRoute}`;
-    if (view !== lastView) { clearBusy(); $('card-menu').close(); lastView = view; }
+    if (view !== lastView) { clearBusy(); clearBackPending(); $('card-menu').close(); lastView = view; }
     const browsing = !playing && !dpadMode;
     const onTabs = browsing && pcRoute === 'tabs';
     const homeVisible = onTabs && browseTab === 'home';
     const homeWasVisible = !$('home').hidden;
     if (homeWasVisible && !homeVisible) homeScroll = scrollY;
     // Pages the phone can't show (Shuffle, Library, Settings, a folder…) are driven with the D-pad.
-    const pcTab = onTabs && browseTab !== 'home' && browseTab !== 'search';
+    const shuffleVisible = onTabs && browseTab === 'shuffle' && Boolean(shuffle?.active);
+    const libraryVisible = onTabs && browseTab === 'library';
+    const pcTab = onTabs && !['home', 'search', 'library'].includes(browseTab) && !shuffleVisible;
     const pcPage = browsing && pcRoute === 'other';
     setHidden('player', !playing);
     setHidden('next-episode-pill', !(state.active && state.nextEpisodePlayable));
@@ -783,6 +1055,18 @@
     }
     if (detailsVisible && detailsWasHidden && !awaitingDetails && details?.name) renderEpisodes();
     setHidden('streams', !(browsing && pcRoute === 'streams'));
+    const libraryOpening = $('library').hidden && libraryVisible;
+    setHidden('library', !libraryVisible);
+    if (libraryOpening) { scrollTo(0, 0); renderLibrary(); }
+    const shuffleOpening = $('shuffle').hidden && shuffleVisible;
+    setHidden('shuffle', !shuffleVisible);
+    if (shuffleOpening) { scrollTo(0, 0); renderShuffle(); }
+    // A page shown from the top when it opens: View All and folders.
+    [['catalog', ['catalog', 'collection', 'continue'], renderCatalog], ['folder', ['folder'], renderFolder]].forEach(([page, routes, render]) => {
+      const opening = $(page).hidden && browsing && routes.includes(pcRoute);
+      setHidden(page, !(browsing && routes.includes(pcRoute)));
+      if (opening) { scrollTo(0, 0); render(); }
+    });
     const hideDpad = playing || !(dpadMode || pcTab || pcPage);
     if (hideDpad) {
       stopDpadPress();
@@ -828,6 +1112,8 @@
     image.draggable = false;
     image.loading = 'lazy';
     image.decoding = 'async';
+    // A missing image leaves the card's own colour, not the browser's broken-image icon.
+    image.onerror = () => { image.style.visibility = 'hidden'; };
     if (src) image.src = src;
     return image;
   };
@@ -906,8 +1192,31 @@
       target: { kind: 'poster', ...location, id: item.id, type: item.type } };
   }
 
-  function heroCard(hero, index) {
-    const location = { from: 'hero', item: index };
+  // The PC hero's info rows as pills: type, genre, runtime and release; age rating | status; language; ratings.
+  function heroPills(hero) {
+    const facts = el('div', 'pills');
+    (hero.facts || []).forEach((fact) => facts.append(el('span', 'pill', fact)));
+    if (hero.badges?.length) {
+      const badge = el('span', 'pill badge');
+      hero.badges.forEach((text, i) => badge.append(...(i ? [el('i', 'sep')] : []), text));
+      facts.append(badge);
+    }
+    if (hero.language) facts.append(el('span', 'pill', hero.language));
+    const ratings = el('div', 'pills');
+    (hero.ratings || []).forEach((rating) => {
+      const pill = el('span', 'pill rating');
+      const logo = img(rating.logo);
+      logo.alt = rating.name;
+      logo.onerror = () => logo.replaceWith(el('span', '', rating.name));
+      const value = el('b', '', rating.value);
+      value.style.color = rating.color;
+      pill.append(logo, value);
+      ratings.append(pill);
+    });
+    return [facts, ratings].filter((row) => row.childElementCount);
+  }
+
+  function heroCard(hero, location) {
     const open = () => { markBusy(card); awaitingDetails = true; send({ cmd: 'open', ...location }); };
     const card = el('div', 'hero-card');
     card.append(img(hero.image, 'bg'), el('div', 'shade'));
@@ -919,11 +1228,7 @@
     } else {
       info.append(el('div', 't-title2', hero.name));
     }
-    const meta = el('div', 'meta-line');
-    if (hero.year) meta.append(`${hero.year}  `);
-    if (Number(hero.rating) > 0) meta.append(el('span', 'rating', `IMDb ${hero.rating}`), '  ');
-    if (hero.genres) meta.append(hero.genres);
-    if (meta.childNodes.length) info.append(meta);
+    info.append(...heroPills(hero));
     if (hero.description) info.append(el('div', 'desc', hero.description));
     const details = el('button', 'btn btn-sm', 'View Details');
     info.append(details);
@@ -937,12 +1242,14 @@
     const art = el('div', 'art');
     art.append(img(item.image));
     tile.append(art, el('span', 'name', item.name));
+    if (item.year) tile.append(el('span', 'year', item.year));
     const open = () => {
       markBusy(art);
       if (!folder) awaitingDetails = true;
       send({ cmd: folder ? 'folder' : 'open', ...location });
     };
-    bindCardMenu(tile, open, folder ? null : posterMenu(item, location));
+    const run = item.heroKey ? pickable(tile, item.heroKey, { cmd: 'heroPick', ...location }, open) : open;
+    bindCardMenu(tile, run, folder ? null : posterMenu(item, location));
     return tile;
   }
 
@@ -963,17 +1270,26 @@
     tile.append(art);
     if (item.subtitle) tile.append(el('span', 'name', item.subtitle));
     const resumePlayback = () => { markBusy(art); send({ cmd: 'resume', item: index }); };
-    bindCardMenu(tile, resumePlayback, {
+    const menu = {
       title: item.title,
       description: [item.episode, item.subtitle].filter(Boolean).join(' · '),
       target: { kind: 'continue', item: index, key: item.key },
-    });
+    };
+    const run = item.heroKey ? pickable(tile, item.heroKey, { cmd: 'heroPick', from: 'continue', item: index }, resumePlayback) : resumePlayback;
+    bindCardMenu(tile, run, menu);
     return tile;
   }
 
-  function rowSection(title, tiles) {
+  function rowSection(title, tiles, viewAll = null) {
     const section = el('section');
-    section.append(el('h3', 'row-title', title));
+    const head = el('div', 'row-head');
+    head.append(el('h3', 'row-title', title));
+    if (viewAll) {
+      const button = el('button', 'btn btn-sm btn-gray', 'View All');
+      button.addEventListener('click', () => { markBusy(button); viewAll(); });
+      head.append(button);
+    }
+    section.append(head);
     const scroll = el('div', 'row-scroll');
     scroll.append(...tiles);
     section.append(scroll);
@@ -1002,7 +1318,9 @@
   let homeBackdropRequest = null;
 
   function updateHomeBackdrop() {
-    const source = homeHeroes[homeHeroIndex]?.image || null;
+    $('hero-dots').querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i === homeHeroIndex));
+    // The blurred artwork behind Home: the carousel's current title, or the Persistent Hero's.
+    const source = (homeLayout === 'persistent_hero' ? pcHero?.image : homeHeroes[homeHeroIndex]?.image) || null;
     if ((homeBackdropRequest?.getAttribute('src') ?? null) === source) return;
     homeBackdropRequest = source ? new Image() : null;
     if (!source) {
@@ -1120,6 +1438,94 @@
     scheduleHomeHero();
   }, { passive: true });
 
+  // ─── Layouts: the PC's Switch Layout, and the Persistent Hero mirrored from the PC ───
+  let homeLayout = 'official';
+  let pcHero = null; // the title the PC's Persistent Hero shows, details loaded
+  let pickedKey = null; // the card it shows, or the one just picked on the phone while the PC loads it
+  let pcHeroContent = '';
+
+  // Switching layouts: the button spins and a placeholder the hero's height holds its place until the PC has
+  // switched and the new hero is ready, so the page never jumps.
+  let layoutPending = null;
+  let homeHeroEnabled = true;
+
+  document.querySelectorAll('#layout-switch [data-layout]').forEach((button) => button.addEventListener('click', () => {
+    const layout = button.dataset.layout;
+    if (layout === homeLayout || layoutPending) return;
+    layoutPending = layout;
+    markBusy(button);
+    send({ cmd: 'layout', value: layout });
+    updateHeroPlaceholder();
+    setTimeout(() => { if (layoutPending === layout) { layoutPending = null; clearBusy(); updateHeroPlaceholder(); } }, 6000);
+  }));
+
+  function updateHeroPlaceholder() {
+    const persistent = homeLayout === 'persistent_hero';
+    const ready = persistent ? pcHero !== null : homeHeroes.length > 0;
+    const waiting = layoutPending !== null || ((persistent || homeHeroEnabled) && !ready);
+    // While all of Home is loading, its own skeleton already shows a hero.
+    $('hero-placeholder').hidden = !waiting || !$('home-skeleton').hidden;
+    if (layoutPending !== null) {
+      homeHeroStrip.hidden = true;
+      $('hero-dots').hidden = true;
+      $('persistent-hero').hidden = true;
+    } else {
+      homeHeroStrip.hidden = !homeHeroes.length;
+      $('hero-dots').hidden = false;
+    }
+  }
+
+  function showLayout(layout) {
+    homeLayout = ['official', 'scroll_posters', 'persistent_hero'].includes(layout) ? layout : 'official';
+    if (layoutPending === homeLayout) {
+      layoutPending = null;
+      clearBusy();
+    }
+    $('home').dataset.layout = homeLayout;
+    $('layout-switch').hidden = !layout;
+    document.querySelectorAll('#layout-switch [data-layout]').forEach((button) =>
+      button.setAttribute('aria-pressed', button.dataset.layout === homeLayout));
+  }
+
+  // The first tap shows a card in the PC's hero, like hovering it; a tap on the card it shows opens it.
+  function pickable(tile, key, pick, run) {
+    tile.dataset.pickKey = key;
+    tile.setAttribute('aria-current', key === pickedKey);
+    return () => {
+      if (key === pcHero?.key) {
+        run();
+        return;
+      }
+      send(pick);
+      markPicked(key);
+    };
+  }
+
+  function markPicked(key) {
+    pickedKey = key;
+    $('home-rows').querySelectorAll('[data-pick-key]').forEach((tile) =>
+      tile.setAttribute('aria-current', tile.dataset.pickKey === pickedKey));
+  }
+
+  function showPcHero(hero) {
+    pcHero = hero;
+    markPicked(hero?.key ?? null);
+    renderPcHero();
+    updateHeroPlaceholder();
+  }
+
+  function renderPcHero() {
+    const pane = $('persistent-hero');
+    const show = homeLayout === 'persistent_hero' && pcHero !== null;
+    pane.hidden = !show;
+    updateHomeBackdrop();
+    const content = show ? JSON.stringify(pcHero) : '';
+    if (content === pcHeroContent) return;
+    pcHeroContent = content;
+    pane.replaceChildren(...(show ? [heroCard(pcHero, { from: 'persistent' })] : []));
+    if (show && !homeHeroMotion.matches) pane.firstElementChild.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+  }
+
   function showHomeHero(heroes) {
     const heroContent = JSON.stringify(heroes);
     if (heroContent !== homeHeroContent) {
@@ -1129,30 +1535,149 @@
       homeHeroContent = heroContent;
       homeHeroes = heroes;
       homeHeroIndex = Math.max(0, heroes.findIndex((hero) => hero.key === previousKey));
-      homeHeroStrip.replaceChildren(...heroes.map(heroCard));
+      homeHeroStrip.replaceChildren(...heroes.map((hero, index) => heroCard(hero, { from: 'hero', item: index })));
+      if (heroes.length && !homeHeroMotion.matches) homeHeroStrip.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 280, easing: 'ease-out' });
       homeHeroStrip.hidden = !heroes.length;
+      $('hero-dots').replaceChildren(...(heroes.length > 1 ? heroes.map(() => el('i')) : []));
       moveHomeHero(homeHeroIndex);
       updateHomeBackdrop();
       scheduleHomeHero();
     }
   }
 
+  // ─── View All and collection folders, following the PC ───
+  // A grid only grows at its end as the PC loads pages: the tiles already there stay, so images and scroll stay put.
+  function fillGrid(grid, items, shape, locate) {
+    const keys = items.map((item) => `${item.type}:${item.id}`);
+    const old = grid.keys || [];
+    const kept = old.length <= keys.length && old.every((key, i) => key === keys[i]) ? old.length : 0;
+    if (!kept) grid.replaceChildren();
+    grid.classList.toggle('landscape', shape === 'landscape');
+    items.slice(kept).forEach((item, i) => grid.append(posterTile(item, shape, locate(kept + i))));
+    grid.keys = keys;
+  }
+
+  // The line under a page: loading, or why it is empty.
+  function pageStatus(status, { loading, error, count }) {
+    status.replaceChildren();
+    if (loading) status.append(el('span', 'spin-ring'), el('span', '', count ? 'Loading more…' : 'Loading…'));
+    else if (!count) status.append(el('span', '', error || 'Nothing here yet.'));
+  }
+
+  // A paged grid asks the PC for its next page when its end comes near, once per page.
+  const pagers = [
+    { status: 'catalog-status', cmd: 'catalogMore' },
+    { status: 'folder-status', cmd: 'folderMore' },
+    { status: 'discover-status', cmd: 'discoverMore' },
+  ];
+  function loadMoreIfNear() {
+    pagers.forEach((pager) => {
+      const status = $(pager.status);
+      const msg = pager.msg;
+      if (!status.offsetParent || !msg?.more || msg.loading || pager.requested === msg.items.length) return;
+      if (status.getBoundingClientRect().top > innerHeight * 2) return;
+      pager.requested = msg.items.length;
+      send({ cmd: pager.cmd });
+    });
+  }
+  addEventListener('scroll', loadMoreIfNear, { passive: true });
+
+  // View All: a catalog, paged; a collection's folders and Continue Watching come from Home's rows.
+  let catalog = null;
+  let lastHome = null;
+
+  function showCatalog(msg) {
+    catalog = msg;
+    pagers[0].msg = msg;
+    renderCatalog();
+  }
+
+  function renderCatalog() {
+    if (!catalog || $('catalog').hidden) return;
+    $('catalog-title').textContent = catalog.title || '';
+    const grid = $('catalog-grid');
+    if (pcRoute === 'catalog') {
+      fillGrid(grid, catalog.items, catalog.shape, (i) => ({ from: 'catalog', item: i }));
+      pageStatus($('catalog-status'), { ...catalog, count: catalog.items.length });
+      loadMoreIfNear();
+      return;
+    }
+    const row = lastHome?.rows.find((r) => r.kind === 'collection' && r.key === catalog.collection);
+    const tiles = pcRoute === 'continue' ? (lastHome?.continue || []).map(resumeTile)
+      : (row?.items || []).map((item, i) => posterTile(item, row.shape, { from: 'row', row: row.key, item: i }, true));
+    grid.keys = null;
+    grid.classList.toggle('landscape', pcRoute === 'continue' || row?.shape === 'landscape');
+    grid.replaceChildren(...tiles);
+    pageStatus($('catalog-status'), { count: tiles.length });
+  }
+
+  // A collection folder: a row per source with View All, or the PC's tabs over a paged grid.
+  let folder = null;
+
+  function showFolder(msg) {
+    folder = msg;
+    pagers[1].msg = msg.items ? msg : null;
+    renderFolder();
+  }
+
+  function folderRow(row) {
+    const section = rowSection(row.title, row.items.map((item, i) => posterTile(item, row.shape, { from: 'folder', row: row.key, item: i })),
+      row.viewAll ? () => send({ cmd: 'viewAll', row: row.key }) : null);
+    if (!row.items.length) {
+      section.querySelector('.row-scroll').append(...(row.loading
+        ? [el('div', 'skel sk-poster'), el('div', 'skel sk-poster'), el('div', 'skel sk-poster')]
+        : [el('div', 'row-note text-sub', row.error || 'Nothing here yet.')]));
+    }
+    return section;
+  }
+
+  function renderFolder() {
+    if (!folder?.title || $('folder').hidden) return;
+    $('folder-title').textContent = folder.title;
+    const tabbed = Boolean(folder.tabs);
+    $('folder-rows').hidden = tabbed;
+    $('folder-grid').hidden = !tabbed;
+    $('folder-tabs').hidden = !tabbed || folder.tabs.length < 2;
+    if (!tabbed) {
+      replaceRows($('folder-rows'), folder.rows.map(folderRow));
+      pageStatus($('folder-status'), { count: folder.rows.length });
+      return;
+    }
+    $('folder-tabs').replaceChildren(...folder.tabs.map((label, i) => {
+      const button = el('button', `btn btn-sm ${i === folder.tab ? '' : 'btn-gray'}`, label);
+      button.addEventListener('click', () => { if (i !== folder.tab) send({ cmd: 'folderTab', index: i }); });
+      return button;
+    }));
+    $('folder-tabs').children[folder.tab]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    fillGrid($('folder-grid'), folder.items, folder.shape, (i) => ({ from: 'folder', item: i }));
+    pageStatus($('folder-status'), { ...folder, count: folder.items.length });
+    loadMoreIfNear();
+  }
+
   function showHome(msg) {
-    const heroes = msg.heroEnabled === false ? [] : msg.hero;
+    showLayout(msg.layout);
+    const heroes = msg.heroEnabled === false || homeLayout === 'persistent_hero' ? [] : msg.hero;
     const sections = [];
-    if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile)));
+    lastHome = msg;
+    if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile),
+      msg.continueViewAll ? () => send({ cmd: 'viewAll', row: 'continue' }) : null));
     // Catalog rows open a title; collection rows (Discover, Streaming…) open a folder.
     msg.rows.forEach((row) => sections.push(rowSection(row.title,
       row.items.map((item, i) => posterTile(item, row.shape,
-        { from: 'row', row: row.key, item: i }, row.kind === 'collection')))));
+        { from: 'row', row: row.key, item: i }, row.kind === 'collection')),
+      row.viewAll ? () => send({ cmd: 'viewAll', row: row.key }) : null)));
     replaceRows($('home-rows'), sections);
+    if (pcRoute === 'collection' || pcRoute === 'continue') renderCatalog();
     const empty = !heroes.length && !sections.length;
     $('home-skeleton').hidden = !(empty && msg.loading);
     $('home-empty').hidden = !(empty && !msg.loading);
     $('home-hero-skeleton').hidden = msg.heroEnabled === false;
 
     try {
+      homeHeroEnabled = msg.heroEnabled !== false;
       showHomeHero(heroes);
+      renderPcHero();
+      updateHeroPlaceholder();
     } catch (error) {
       console.error('Failed to render the Home hero', error);
       clearTimeout(homeHeroTimer);
@@ -1170,13 +1695,30 @@
     }
   }
 
+  let backTimer;
+  // Until the PC has gone back (the view changes) or 1.5 s pass.
+  function backPending(button, page) {
+    clearBackPending();
+    button.classList.add('pending');
+    page?.classList.add('leaving');
+    navigator.vibrate?.(10);
+    backTimer = setTimeout(clearBackPending, 1500);
+  }
+  function clearBackPending() {
+    clearTimeout(backTimer);
+    document.querySelectorAll('[data-back].pending').forEach((n) => n.classList.remove('pending'));
+    document.querySelectorAll('main.leaving').forEach((n) => n.classList.remove('leaving'));
+  }
+
   document.querySelectorAll('[data-back]').forEach((button) => button.addEventListener('click', () => {
     if (!$('player').hidden) {
+      backPending(button, null); // the card glides back to the stream picker instead of the page sliding away
       player('back');
       return;
     }
     stopDpadPress();
-    const phonePage = $('remote').hidden && (pcRoute === 'details' || pcRoute === 'streams');
+    const phonePage = $('remote').hidden && ['details', 'streams', 'catalog', 'collection', 'continue', 'folder'].includes(pcRoute);
+    backPending(button, phonePage ? document.querySelector('main:not([hidden])') : null);
     send({ cmd: phonePage ? 'back' : 'dpadBack' });
   }));
 
@@ -1381,12 +1923,260 @@
     searchTimer = setTimeout(() => send({ cmd: 'search', query: $('search-input').value }), 400);
     renderSearch();
   });
+  // Clear goes back to recent searches and Discover, on the PC too, and keeps the keyboard up for a new search.
+  $('search-clear').addEventListener('click', () => {
+    clearTimeout(searchTimer);
+    $('search-input').value = '';
+    send({ cmd: 'search', query: '' });
+    renderSearch();
+    $('search-input').focus();
+  });
   $('search-input').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     clearTimeout(searchTimer);
     send({ cmd: 'search', query: $('search-input').value });
     $('search-input').blur();
   });
+  // Before you type: recent searches (tap to search again, ✕ to forget) and Discover, both from the PC.
+  let discover = null;
+
+  function showDiscover(msg) {
+    discover = msg;
+    pagers[2].msg = msg;
+    $('recent-section').hidden = !msg.recent.length;
+    $('recent-list').replaceChildren(...msg.recent.map((query) => {
+      const row = el('div', 'recent search-box');
+      const again = el('button', '', query);
+      again.addEventListener('click', () => {
+        $('search-input').value = query;
+        send({ cmd: 'search', query });
+        renderSearch();
+      });
+      const forget = el('button', '', '✕');
+      forget.setAttribute('aria-label', `Remove ${query}`);
+      forget.addEventListener('click', () => send({ cmd: 'searchRemove', query }));
+      row.append(again, forget);
+      return row;
+    }));
+    picker($('pick-type'), msg.types, msg.type, (value) => send({ cmd: 'discoverType', value }));
+    picker($('pick-catalog'), msg.catalogs, msg.catalog, (value) => send({ cmd: 'discoverCatalog', value }));
+    picker($('pick-genre'), msg.genres, msg.genre, (value) => send({ cmd: 'discoverGenre', value }));
+    $('discover-source').textContent = msg.source || '';
+    fillGrid($('discover-grid'), msg.items, msg.shape, (i) => ({ from: 'discover', item: i }));
+    pageStatus($('discover-status'), { ...msg, count: msg.items.length });
+    loadMoreIfNear();
+  }
+
+  // A native picker (the phone's own wheel) for one of Discover's dropdowns; choosing sends it to the PC.
+  function picker(select, options, selected, onChange) {
+    const signature = JSON.stringify(options);
+    if (select.dataset.options !== signature) {
+      select.dataset.options = signature;
+      select.replaceChildren(...options.map((option) => {
+        const item = el('option', '', option.label);
+        item.value = option.key;
+        return item;
+      }));
+      select.onchange = () => onChange(select.value);
+    }
+    select.value = selected ?? '';
+    select.disabled = options.length < 2;
+  }
+
+  // ─── Library: Saved and Cloud, with the PC's sort, layout and Downloads ───
+  let library = null;
+  let libraryView = 'saved';
+  let libraryList = null; // grid layout: the tracking list shown, and the type filter (kept on the phone, as the PC keeps its own)
+  let libraryType = '';
+
+  function showLibrary(msg) {
+    library = msg;
+    renderLibrary();
+  }
+
+  const fileSize = (bytes) => {
+    if (!bytes) return '';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i += 1; }
+    return `${bytes.toFixed(bytes >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+  };
+
+  function renderLibrary() {
+    if (!library || $('library').hidden) return;
+    const { labels } = library;
+    $('library-title').textContent = library.title;
+    document.querySelectorAll('#library-views [data-view]').forEach((b) => {
+      b.textContent = labels[b.dataset.view];
+      b.setAttribute('aria-pressed', b.dataset.view === libraryView);
+    });
+    // Layout and sort belong to Saved, like the PC.
+    $('library-layout').hidden = libraryView !== 'saved';
+    $('library-layout').querySelector('use').setAttribute('href', library.layout === 'grid' ? '#i-layout-persistent_hero' : '#i-layout-official');
+    $('library-saved').hidden = libraryView !== 'saved';
+    $('library-cloud').hidden = libraryView !== 'cloud';
+    if (libraryView === 'saved') {
+      picker($('library-sort'), library.sorts, library.sort, (value) => send({ cmd: 'librarySort', value }));
+      const gridLayout = library.layout === 'grid';
+      $('library-list').hidden = !gridLayout || !library.tracking;
+      $('library-type').hidden = !gridLayout;
+      if (!gridLayout) {
+        replaceRows($('library-rows'), library.rows.map((row) => rowSection(row.title,
+          row.items.map((item, i) => posterTile(item, row.shape, { from: 'library', row: row.key, item: i })))));
+      } else {
+        // Like the PC's grid: a local Library is one grid of every title; a tracking source shows one list at a time.
+        const list = library.tracking ? library.rows.find((r) => r.key === libraryList) || library.rows[0] : null;
+        if (library.tracking) {
+          libraryList = list?.key ?? null;
+          picker($('library-list'), library.rows.map((r) => ({ key: r.key, label: r.title })), libraryList,
+            (value) => { libraryList = value; renderLibrary(); });
+        }
+        const titles = list || library.grid;
+        const locate = (i) => (list ? { from: 'library', row: list.key, item: i } : { from: 'libraryGrid', item: i });
+        const types = [...new Set(titles?.categories || [])].sort();
+        if (!types.includes(libraryType)) libraryType = '';
+        picker($('library-type'), [{ key: '', label: labels.allTypes }, ...types.map((t) => ({ key: t, label: library.typeLabels[t] || t }))],
+          libraryType, (value) => { libraryType = value; renderLibrary(); });
+        const grid = el('div', `catalog-grid${titles?.shape === 'landscape' ? ' landscape' : ''}`);
+        grid.append(...(titles?.items || []).flatMap((item, i) =>
+          !libraryType || titles.categories[i] === libraryType ? [posterTile(item, titles.shape, locate(i))] : []));
+        $('library-rows').replaceChildren(grid);
+      }
+      pageStatus($('library-status'), { loading: library.loading, error: library.error, count: library.rows.length });
+      return;
+    }
+    const cloud = library.cloud;
+    if (!cloud.connected) {
+      const card = el('div', 'card');
+      card.append(el('div', 'name', labels.connectTitle), el('p', 'note', labels.connectMessage));
+      $('library-cloud').replaceChildren(card);
+      pageStatus($('library-status'), { count: 1 });
+      return;
+    }
+    // Each cloud item opens to its playable files; a file plays on the PC.
+    const open = new Set([...$('library-cloud').querySelectorAll('details[open]')].map((d) => d.dataset.key));
+    $('library-cloud').replaceChildren(...cloud.items.map((item) => {
+      const box = el('details', 'card cloud-item');
+      box.dataset.key = item.key;
+      box.open = open.has(item.key);
+      const summary = el('summary');
+      const progress = item.progress != null && item.progress < 1 ? `${Math.round(item.progress * 100)}%` : '';
+      summary.append(el('span', 'name', item.name),
+        el('span', 'note', [item.provider, fileSize(item.size), item.status, progress].filter(Boolean).join(' · ')));
+      const files = el('div', 'cloud-files');
+      files.append(...item.files.map((file) => {
+        const button = el('button', 'btn btn-gray');
+        button.append(el('span', '', file.name), el('span', 'note', fileSize(file.size)));
+        button.addEventListener('click', () => { markBusy(button); send({ cmd: 'cloudPlay', item: item.key, file: file.key }); });
+        return button;
+      }));
+      box.append(summary, files);
+      return box;
+    }));
+    pageStatus($('library-status'), { loading: cloud.loading, error: cloud.error, count: cloud.items.length });
+  }
+
+  document.querySelectorAll('#library-views [data-view]').forEach((b) => b.addEventListener('click', () => {
+    libraryView = b.dataset.view;
+    if (libraryView === 'cloud') send({ cmd: 'cloudLoad' });
+    renderLibrary();
+  }));
+  $('library-layout').addEventListener('click', () => send({ cmd: 'libraryLayout' }));
+  $('library-downloads').addEventListener('click', () => send({ cmd: 'libraryDownloads' }));
+
+  // ─── Shuffle: the PC's own Shuffle, its filters as a form; every change runs on the PC ───
+  let shuffle = null;
+
+  function showShuffle(msg) {
+    const wasActive = Boolean(shuffle?.active);
+    shuffle = msg;
+    // Follow the PC into and out of Shuffle.
+    if (msg.active !== wasActive) {
+      if (msg.active) browseTab = 'shuffle';
+      else if (browseTab === 'shuffle') browseTab = 'home';
+      updateView();
+    }
+    renderShuffle();
+  }
+
+  const setFilter = (field, value) => send({ cmd: 'shuffleFilter', field, value });
+
+  // A filter: a dropdown (the phone's own wheel) or, for the series status, chips like the PC's.
+  function shuffleField(field) {
+    let box = $(`shuffle-${field.id}`);
+    if (!box) {
+      box = el(field.chips ? 'div' : 'label', 'field');
+      box.id = `shuffle-${field.id}`;
+      box.append(el('span', 'field-label'), field.chips ? el('div', 'seg seg-fill') : el('select', 'picker'));
+      // Category and Type, Genre and Rating sit side by side; the rest take the full width.
+      if (['style', 'format', 'genre', 'rating'].includes(field.id)) box.classList.add('half');
+    }
+    box.firstChild.textContent = field.label;
+    const control = box.lastChild;
+    if (field.chips) {
+      control.replaceChildren(...field.options.map((option) => {
+        const chip = el('button', '', option.label);
+        chip.setAttribute('aria-pressed', option.key === field.value);
+        chip.disabled = field.disabled;
+        chip.addEventListener('click', () => setFilter(field.id, option.key));
+        return chip;
+      }));
+    } else {
+      picker(control, field.options, field.value, (value) => setFilter(field.id, value));
+    }
+    return box;
+  }
+
+  function renderShuffle() {
+    if (!shuffle?.active || $('shuffle').hidden) return;
+    const { labels } = shuffle;
+    $('shuffle-title').textContent = labels.title;
+    $('shuffle-subtitle').textContent = labels.subtitle;
+    // Built once and updated in place, so a picker wheel open on the phone stays open while the PC updates.
+    const form = $('shuffle-form');
+    if (!form.childElementCount) {
+      form.append(el('div', 'field-label', labels.types), ...shuffle.fields.map(shuffleField),
+        el('p', 'note'), el('div', 'shuffle-toggles'), el('p', 'note'));
+    }
+    shuffle.fields.forEach(shuffleField);
+    const [noSources, toggles, hint] = [...form.children].slice(-3);
+    noSources.textContent = shuffle.noSources || '';
+    noSources.hidden = !shuffle.noSources;
+    toggles.replaceChildren(...shuffle.toggles.map((t) => toggle(t.label, null, t.value, (on) => setFilter(t.id, String(on)))));
+    hint.textContent = labels.excludeHint;
+    $('shuffle-pick').textContent = labels.pick;
+    $('shuffle-pick').disabled = !shuffle.canPick;
+    $('shuffle-reset').textContent = labels.reset;
+    $('shuffle-cancel').textContent = labels.cancel;
+    $('shuffle-cancel').hidden = !shuffle.picking;
+    $('shuffle-feedback').replaceChildren(...(shuffle.busy ? [el('span', 'spin-ring sm')] : []),
+      ...(shuffle.feedback.length ? [el('span', '', shuffle.feedback.join(' · '))] : []));
+    $('shuffle-hint').textContent = labels.samplingHint;
+    // The picked title, like the PC's popup: its hero, then Shuffle Again and Close.
+    const result = $('shuffle-result');
+    const content = shuffle.result ? JSON.stringify(shuffle.result) : '';
+    if (result.dataset.content !== content) {
+      result.dataset.content = content;
+      result.hidden = !shuffle.result;
+      if (shuffle.result) {
+        const actions = el('div', 'shuffle-result-actions');
+        const again = el('button', 'btn btn-gray', labels.again);
+        again.addEventListener('click', () => send({ cmd: 'shufflePick' }));
+        const close = el('button', 'btn btn-gray', labels.close);
+        close.addEventListener('click', () => send({ cmd: 'shuffleClose' }));
+        actions.append(again, close);
+        result.replaceChildren(heroCard(shuffle.result, { from: 'shuffle' }), actions);
+        scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        result.replaceChildren();
+      }
+    }
+    result.querySelectorAll('.shuffle-result-actions .btn').forEach((b) => { b.disabled = shuffle.picking; });
+  }
+  $('shuffle-pick').addEventListener('click', () => send({ cmd: 'shufflePick' }));
+  $('shuffle-reset').addEventListener('click', () => send({ cmd: 'shuffleReset' }));
+  $('shuffle-cancel').addEventListener('click', () => send({ cmd: 'shuffleCancel' }));
+
   function showSearch(msg) {
     searchResults = msg;
     renderSearch();
@@ -1398,8 +2188,10 @@
       row.items.map((item, i) => posterTile(item, row.shape, { from: 'search', row: row.key, item: i })))));
     const searching = typed && searchResults.loading;
     if (searching) $('search-rows').append(loader(rows.length ? 'Loading more results…' : 'Searching…'));
-    $('search-empty').hidden = rows.length > 0 || searching;
-    $('search-empty').textContent = !typed ? 'Type to search. Results open on your PC.' : 'No results.';
+    $('search-empty').hidden = !typed || rows.length > 0 || searching;
+    $('search-empty').textContent = 'No results.';
+    $('search-start').hidden = Boolean(typed);
+    if (!typed) loadMoreIfNear();
   }
 
   // A spinner with what it is waiting for.
@@ -1416,13 +2208,20 @@
     const art = $('art');
     if (art.dataset.src !== msg.artwork) {
       art.dataset.src = msg.artwork;
-      art.classList.remove('on');
-      $('backdrop').classList.remove('on');
       if (msg.artwork) {
-        art.onload = () => { art.classList.add('on'); $('backdrop').classList.add('on'); };
-        art.src = msg.artwork;
+        // The card keeps what it shows until the new artwork has loaded, so it never goes blank.
+        const next = new Image();
+        next.onload = () => {
+          if (art.dataset.src !== msg.artwork) return;
+          art.src = msg.artwork;
+          art.classList.add('on');
+          $('backdrop').classList.add('on');
+        };
+        next.src = msg.artwork;
         $('backdrop').style.setProperty('--art', `url("${encodeURI(msg.artwork)}")`);
       } else {
+        art.classList.remove('on');
+        $('backdrop').classList.remove('on');
         art.removeAttribute('src');
       }
     }
@@ -1441,8 +2240,15 @@
     $('ep-title').hidden = !$('ep-title').textContent;
     $('synopsis').textContent = msg.description;
     $('synopsis').hidden = !msg.description;
+    $('info-toggle').hidden = !(msg.episodeInfo || msg.episodeTitle || msg.description);
+    if ($('info-toggle').hidden) showHeroInfo(false);
   }
-  $('synopsis').addEventListener('click', () => $('synopsis').classList.toggle('open'));
+  function showHeroInfo(open) {
+    $('hero-info').hidden = !open;
+    $('info-toggle').setAttribute('aria-expanded', open);
+  }
+  $('info-toggle').addEventListener('click', () => showHeroInfo($('hero-info').hidden));
+  $('hero-info').addEventListener('click', () => showHeroInfo(false));
   $('seek-back').addEventListener('click', () => player('keyboardSeek10Back'));
   $('seek-forward').addEventListener('click', () => player('keyboardSeek10Forward'));
   $('next-episode').addEventListener('click', () => player('playNextEpisode'));

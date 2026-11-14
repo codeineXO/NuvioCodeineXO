@@ -630,6 +630,17 @@ internal fun RowsContent(
         val headerHeight = with(density) { maxOf(48.dp, typography.titleLarge.lineHeight.toDp()) }
         val slotHeight = headerHeight + MaterialTheme.nuvio.spacing.controlGap + NuvioTokens.Space.s2 +
             imageHeight + labelsHeight + sectionBottomPadding
+        // The phone remote: the rows that show "View All" here, and its taps on them, opened like the buttons here.
+        val remoteViewAll = slots.mapNotNullTo(mutableSetOf()) { slot ->
+            slot.key.takeIf { slot.section?.let { it.items.isNotEmpty() && it.canOpenCatalog(catalogPreviewLimit) } == true }
+        }
+        LaunchedEffect(remoteViewAll) { com.nuvio.app.features.remote.RemoteViewAll.publishRows("folder", remoteViewAll) }
+        val openRemoteViewAll = androidx.compose.runtime.rememberUpdatedState { key: String ->
+            slots.firstOrNull { it.key == key }?.section?.let(onCatalogClick)
+        }
+        LaunchedEffect(com.nuvio.app.features.remote.RemoteViewAll.requests) {
+            com.nuvio.app.features.remote.RemoteViewAll.requests.collect { openRemoteViewAll.value(it) }
+        }
         BindPosterNavigationPage(
             "collection", uiState.collectionTitle to uiState.folder?.id,
             slots.mapIndexed { index, slot ->

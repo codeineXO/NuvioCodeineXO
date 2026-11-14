@@ -159,6 +159,20 @@ fun LibraryScreen(
         if (CustomPosterScreen.LIBRARY in libraryPosterScreens) libraryPosterPattern else ""
     }
     val cloudUiState by CloudLibraryRepository.uiState.collectAsStateWithLifecycle()
+    // The phone remote's Downloads and cloud-file taps, run by this screen's own handlers.
+    val remoteAction = androidx.compose.runtime.rememberUpdatedState { action: com.nuvio.app.features.remote.RemoteLibraryActions.Action ->
+        when (action) {
+            com.nuvio.app.features.remote.RemoteLibraryActions.Action.Downloads -> onDownloadsClick?.invoke()
+            is com.nuvio.app.features.remote.RemoteLibraryActions.Action.PlayCloud -> {
+                val item = cloudUiState.items.firstOrNull { it.stableKey == action.itemKey }
+                val file = item?.playableFiles?.firstOrNull { it.stableKey == action.fileKey }
+                if (item != null && file != null) onCloudFilePlay?.invoke(item, file)
+            }
+        }
+    }
+    LaunchedEffect(com.nuvio.app.features.remote.RemoteLibraryActions.actions) {
+        com.nuvio.app.features.remote.RemoteLibraryActions.actions.collect { remoteAction.value(it) }
+    }
     val cloudSettings by remember {
         DebridSettingsRepository.ensureLoaded()
         DebridSettingsRepository.uiState

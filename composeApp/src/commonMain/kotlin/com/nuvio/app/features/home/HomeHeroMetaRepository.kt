@@ -14,6 +14,7 @@ import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.remote.RemoteAppBridge
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -165,6 +166,8 @@ internal fun rememberHomeHeroState(items: List<MetaPreview>): HomeHeroState {
     val heroItems = remember(items, metas) {
         items.map { item -> metas[item.stableKey()]?.let(item::withHeroMeta) ?: item.copy(externalRatings = emptyList()) }
     }
+    // The phone remote shows the carousel with the same details and ratings.
+    LaunchedEffect(heroItems) { RemoteAppBridge.publishHeroItems(heroItems) }
     return HomeHeroState(
         items = heroItems,
         showImdbRating = metaScreenSettings.showOverallRatings,

@@ -22,6 +22,10 @@ private val librarySectionTitleResources: Map<String, StringResource> = mapOf(
 internal fun localizedLibrarySectionTitle(type: String, fallback: String): String =
     librarySectionTitleResources[type]?.let { stringResource(it) } ?: fallback
 
+/** [localizedLibrarySectionTitle] outside composition, e.g. for the phone remote. */
+internal suspend fun librarySectionTitle(type: String, fallback: String): String =
+    librarySectionTitleResources[type]?.let { org.jetbrains.compose.resources.getString(it) } ?: fallback
+
 @Composable
 internal fun rememberLibrarySectionTitleResolver(): (type: String, fallback: String) -> String {
     val titles = librarySectionTitleResources.mapValues { (_, resource) -> stringResource(resource) }
