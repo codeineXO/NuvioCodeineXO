@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -76,6 +77,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.desktopTopBarActionIconSize
 import com.nuvio.app.core.ui.desktopTopBarHeight
 import com.nuvio.app.core.ui.desktopTopBarTopPadding
@@ -824,7 +826,6 @@ fun HomeScreen(
             val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
             val desktopButtonSize = desktopTopBarHeight(maxWidth)
             val desktopIconSize = desktopTopBarActionIconSize(maxWidth)
-            val actionGap = 8.dp
             val railGap = space.s16
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val railHeight = heroTopInset + persistentHeroHeight(maxHeight, heroTopInset) -
@@ -841,7 +842,16 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(railGap),
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(actionGap)) {
+                Row(
+                    modifier = Modifier
+                        .offset(x = if (isDesktop) actionHorizontalInset - space.s16 else 0.dp)
+                        .height(if (isDesktop) desktopButtonSize else 48.dp)
+                        .navigationGlass(
+                        shape = RoundedCornerShape(NuvioTokens.Radius.full),
+                        hazeState = fullscreenBackdropState,
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (isDesktop) {
                         AppInterfaceCycleButton(
                             value = homeSettingsUiState.appInterface,
@@ -849,14 +859,16 @@ fun HomeScreen(
                             buttonSize = desktopButtonSize,
                             iconSize = desktopIconSize,
                             hazeState = fullscreenBackdropState,
+                            showBackground = false,
                         )
                     }
                     if (isFullscreenActionSupported) {
                         FullscreenActionButton(
                             buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
-                            iconSize = if (isDesktop) desktopIconSize else 24.dp,
+                            iconSize = if (isDesktop) desktopIconSize - 4.dp else 24.dp,
                             contentColor = colorScheme.onSurface,
                             hazeState = fullscreenBackdropState,
+                            showBackground = false,
                         )
                     }
                 }

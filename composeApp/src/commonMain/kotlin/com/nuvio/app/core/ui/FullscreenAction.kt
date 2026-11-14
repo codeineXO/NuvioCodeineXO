@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -47,6 +48,7 @@ internal fun FullscreenActionButton(
     iconSize: Dp = 24.dp,
     contentColor: Color = MaterialTheme.colorScheme.onBackground,
     hazeState: HazeState? = LocalNavigationGlassState.current,
+    showBackground: Boolean = true,
 ) {
     if (!isFullscreenActionSupported) return
 
@@ -62,7 +64,7 @@ internal fun FullscreenActionButton(
     Box(
         modifier = modifier
             .size(buttonSize)
-            .navigationGlass(CircleShape, hazeState = hazeState)
+            .then(if (showBackground) Modifier.navigationGlass(CircleShape, hazeState = hazeState) else Modifier.clip(CircleShape))
             .excludeFromRemoteNavigation().clickable(
                 enabled = enabled,
                 role = Role.Button,

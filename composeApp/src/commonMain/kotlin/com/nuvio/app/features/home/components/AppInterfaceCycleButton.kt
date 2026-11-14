@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -49,6 +50,7 @@ internal fun AppInterfaceCycleButton(
     buttonSize: Dp = 40.dp,
     iconSize: Dp = 24.dp,
     hazeState: HazeState? = LocalNavigationGlassState.current,
+    showBackground: Boolean = true,
 ) {
     val label = stringResource(value.label)
     val actionLabel = stringResource(Res.string.home_switch_layout)
@@ -77,7 +79,7 @@ internal fun AppInterfaceCycleButton(
         Box(
             modifier = modifier
                 .size(buttonSize)
-                .navigationGlass(CircleShape, hazeState = hazeState)
+                .then(if (showBackground) Modifier.navigationGlass(CircleShape, hazeState = hazeState) else Modifier.clip(CircleShape))
                 .excludeFromRemoteNavigation()
                 .clickable(
                     enabled = enabled,
