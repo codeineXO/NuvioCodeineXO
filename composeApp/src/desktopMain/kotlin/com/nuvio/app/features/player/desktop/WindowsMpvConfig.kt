@@ -7,14 +7,23 @@ import kotlinx.coroutines.flow.asStateFlow
 internal object WindowsMpvConfig {
     private const val ConfigKey = "config"
     private const val EnabledKey = "enabled"
+    private const val LoggingEnabledKey = "logging_enabled"
     private val store by lazy { DesktopStorage.store("nuvio_windows_mpv") }
     private val state by lazy {
         val text = store.getString(ConfigKey).orEmpty()
-        MutableStateFlow(Snapshot.fromStored(store.getBoolean(EnabledKey), text))
+        MutableStateFlow(Snapshot.fromStored(store.getBoolean(EnabledKey), text).copy(
+            loggingEnabled = store.getBoolean(LoggingEnabledKey) ?: false,
+            hlsSegmentRetryEnabled = store.getBoolean("hls_segment_retry_enabled") ?: false,
+        ))
     }
     val settings by lazy { state.asStateFlow() }
 
-    data class Snapshot(val enabled: Boolean, val text: String) {
+    data class Snapshot(
+        val enabled: Boolean,
+        val text: String,
+        val loggingEnabled: Boolean = false,
+        val hlsSegmentRetryEnabled: Boolean = false,
+    ) {
         companion object {
             fun fromStored(enabled: Boolean?, text: String): Snapshot =
                 Snapshot(enabled ?: text.isNotBlank(), text)
@@ -64,6 +73,18 @@ internal object WindowsMpvConfig {
         val current = state.value
         store.putBoolean(EnabledKey, enabled)
         state.value = current.copy(enabled = enabled)
+    }
+
+    @Synchronized
+    fun setLoggingEnabled(enabled: Boolean) {
+        store.putBoolean(LoggingEnabledKey, enabled)
+        state.value = state.value.copy(loggingEnabled = enabled)
+    }
+
+    @Synchronized
+    fun setHlsSegmentRetryEnabled(enabled: Boolean) {
+        store.putBoolean("hls_segment_retry_enabled", enabled)
+        state.value = state.value.copy(hlsSegmentRetryEnabled = enabled)
     }
 
     fun parse(text: String): Parsed {

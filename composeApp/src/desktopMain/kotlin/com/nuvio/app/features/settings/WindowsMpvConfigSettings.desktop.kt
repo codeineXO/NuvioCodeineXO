@@ -52,6 +52,24 @@ internal fun WindowsMpvConfigSettings(isTablet: Boolean, enabled: Boolean) {
         isTablet = isTablet,
         onClick = { showEditor = true },
     )
+    SettingsGroupDivider(isTablet = isTablet)
+    SettingsSwitchRow(
+        title = stringResource(Res.string.settings_playback_mpv_logging),
+        description = stringResource(Res.string.settings_playback_mpv_logging_description),
+        checked = config.loggingEnabled,
+        enabled = enabled,
+        isTablet = isTablet,
+        onCheckedChange = WindowsMpvConfig::setLoggingEnabled,
+    )
+    SettingsGroupDivider(isTablet = isTablet)
+    SettingsSwitchRow(
+        title = stringResource(Res.string.settings_playback_hls_segment_retry),
+        description = stringResource(Res.string.settings_playback_hls_segment_retry_description),
+        checked = config.hlsSegmentRetryEnabled,
+        enabled = enabled,
+        isTablet = isTablet,
+        onCheckedChange = WindowsMpvConfig::setHlsSegmentRetryEnabled,
+    )
     if (enabled && showEditor) WindowsMpvConfigEditor(title) { showEditor = false }
 }
 

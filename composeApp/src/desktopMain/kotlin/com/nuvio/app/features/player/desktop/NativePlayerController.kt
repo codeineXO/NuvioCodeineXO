@@ -87,6 +87,7 @@ import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.SwingUtilities
+import javax.swing.Timer
 import kotlin.concurrent.Volatile
 
 internal typealias NativePlayerCreate = (
@@ -125,6 +126,7 @@ internal class NativePlayerController(
 
         /** Cap on waiting for the previous player's teardown so a hung one cannot block playback. */
         const val TEARDOWN_WAIT_MS = 5_000L
+        const val HLS_STARTUP_TIMEOUT_MS = 20_000
 
         @Volatile
         var rememberedVolumeLevel: Float = DesktopPlayerVolumeStorage.loadVolumeLevel() ?: 1f
@@ -249,6 +251,40 @@ internal class NativePlayerController(
     private var rememberedAudioNightModeEnabled: Boolean = false
     private var isPlaybackStatsActive: Boolean = false
     private data class MpvConfigSession(val snapshot: WindowsMpvConfig.Snapshot, val status: String)
+    private val hlsProxies = java.util.concurrent.ConcurrentHashMap<Long, HlsSegmentRetryProxy>()
+
+    private fun disposeNativePlayback(handle: Long) {
+        try {
+            nativeDispose(handle)
+        } finally {
+            hlsProxies.remove(handle)?.close()
+        }
+    }
+
+    private fun watchHlsStartup(created: Long, pending: PendingSource, playbackStarted: java.util.concurrent.atomic.AtomicBoolean) {
+        Timer(HLS_STARTUP_TIMEOUT_MS) {
+            if (playbackStarted.get() || releaseRequested || handle != created ||
+                pendingSource !== pending || attachedSource !== pending || !isHostDisplayable()
+            ) return@Timer
+            val shouldFallback = runCatching {
+                !NativePlayerBridge.isPaused(created) && NativePlayerBridge.isLoading(created)
+            }.getOrDefault(false)
+            if (!shouldFallback || playbackStarted.get()) return@Timer
+            val fallback = pending.copy(bypassHlsProxy = true)
+            val accepted = synchronized(lifecycleLock) {
+                if (releaseRequested || handle != created || pendingSource !== pending || playbackStarted.get()) {
+                    false
+                } else {
+                    pendingSource = fallback
+                    true
+                }
+            }
+            if (accepted) attachPending()
+        }.apply {
+            isRepeats = false
+            start()
+        }
+    }
 
     @Volatile
     private var mpvConfigSession: MpvConfigSession? = null
@@ -485,7 +521,12 @@ internal class NativePlayerController(
         // the app stops responding and Windows closes it as "stopped interacting" (Hang 1002).
         // Create off the EDT and come back to it for the parts that touch Swing state.
         val createWorker = Thread({
+            val playbackStarted = java.util.concurrent.atomic.AtomicBoolean()
             val eventSink = NativePlayerEventSink { type, value ->
+                if (type == "nativePlaybackRestart") {
+                    playbackStarted.set(true)
+                    return@NativePlayerEventSink
+                }
                 SwingUtilities.invokeLater {
                     if (!releaseRequested && pendingSource === pending &&
                         (attachedSource === pending || type == "controlsUnavailable")
@@ -506,15 +547,26 @@ internal class NativePlayerController(
                     if (config != null) {
                         val options = if (parsed == null) emptyArray()
                             else if (parsed.issues.isEmpty()) parsed.nativeOptions() else null
-                        NativePlayerBridge.createWindows(host, source, audio, headers, play, position, controls, decoder, rtx, options, sink)
+                        NativePlayerBridge.createWindows(
+                            host, source, audio, headers, play, position, controls, decoder, rtx,
+                            options, config.loggingEnabled, sink,
+                        )
                     } else {
                         NativePlayerBridge.create(host, source, audio, headers, play, position, controls, decoder, rtx, sink)
                     }
                 }
+                if (pending.bypassHlsProxy && config?.loggingEnabled == true) {
+                    HlsSegmentRetryProxy.logStartupFallback()
+                }
+                val proxy = if (config?.hlsSegmentRetryEnabled == true && !pending.bypassHlsProxy) {
+                    HlsSegmentRetryProxy.open(resolvedSource, pending.headerLines.toHeaderMap(), config.loggingEnabled)
+                } else {
+                    null
+                }
                 runCatching {
                     create(
                         hostViewPtr,
-                        resolvedSource,
+                        proxy?.playbackUrl ?: resolvedSource,
                         pending.sourceAudioUrl.orEmpty(),
                         pending.headerLines.toTypedArray(),
                         pending.playWhenReady,
@@ -525,6 +577,7 @@ internal class NativePlayerController(
                         eventSink,
                     ).also { if (it == 0L) error("Native player did not return a handle.") }
                 }.onSuccess { created ->
+                    if (proxy != null) hlsProxies[created] = proxy
                     val usedDefaultConfig = config != null &&
                         runCatching { NativePlayerBridge.usedDefaultWindowsMpvConfig(created) }.getOrDefault(false)
                     val configSession = config?.let {
@@ -548,7 +601,7 @@ internal class NativePlayerController(
                         }
                     }
                     if (!accepted) {
-                        runCatching { nativeDispose(created) }
+                        runCatching { disposeNativePlayback(created) }
                             .onFailure { error -> recordTerminalDisposeFailure(error, "superseded create", created) }
                         return@onSuccess
                     }
@@ -567,6 +620,7 @@ internal class NativePlayerController(
                             }
                         }
                         if (!shouldConfigure) return@invokeLater
+                        if (proxy != null) watchHlsStartup(created, pending, playbackStarted)
                         log.d {
                             "attach created handle=$created source=${resolvedSource.toPlaybackLogKey()} " +
                                 "initialPositionMs=${pending.initialPositionMs}"
@@ -588,6 +642,7 @@ internal class NativePlayerController(
                         }
                     }
                 }.onFailure { error ->
+                    proxy?.close()
                     log.w(error) { "attach failed source=${pending.sourceUrl.toPlaybackLogKey()}" }
                     SwingUtilities.invokeLater {
                         if (!releaseRequested && pendingSource === pending) pending.onError(error.message)
@@ -1405,7 +1460,7 @@ internal class NativePlayerController(
                     val current = if (failureMessage == null) detachPlayerHandle() else 0L
                     if (current != 0L) {
                         log.d { "pre-navigation dispose started handle=$current" }
-                        runCatching { nativeDispose(current) }
+                        runCatching { disposeNativePlayback(current) }
                             .onSuccess { log.d { "pre-navigation dispose completed handle=$current" } }
                             .onFailure { error ->
                                 failureMessage = "Native player shutdown failed. Quit Nuvio before removing the player."
@@ -1594,7 +1649,7 @@ internal class NativePlayerController(
         disposeInFlight = Thread(
             {
                 awaitThreadCompletion(prior, "prior native teardown")
-                runCatching { nativeDispose(current) }
+                runCatching { disposeNativePlayback(current) }
                 .onFailure { error -> recordTerminalDisposeFailure(error, "native", current) }
             },
             "nuvio-player-dispose",
@@ -2260,6 +2315,7 @@ private data class PendingSource(
     val decoderPriority: Int,
     val nvidiaRtxSuperResolutionEnabled: Boolean,
     val onError: (String?) -> Unit,
+    val bypassHlsProxy: Boolean = false,
 )
 
 private fun Map<String, String>.toHeaderLines(): List<String> =

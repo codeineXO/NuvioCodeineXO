@@ -2257,6 +2257,10 @@
     <string name="settings_playback_nvidia_rtx_super_resolution_desc">Upscale low-resolution video using NVIDIA RTX AI Super Resolution.</string>
     <string name="settings_playback_mpv_config">Custom mpv config</string>
     <string name="settings_playback_mpv_config_description">Customize video sync, renderer interpolation, shaders, and video and audio filters.</string>
+    <string name="settings_playback_mpv_logging">mpv logging</string>
+    <string name="settings_playback_mpv_logging_description">Record HTTP errors, retries, and buffering in %APPDATA%/NuvioCodeineXO/mpv-playback.log. Changes apply when you reopen playback.</string>
+    <string name="settings_playback_hls_segment_retry">Retry incomplete HLS segments</string>
+    <string name="settings_playback_hls_segment_retry_description">Experimental. Retry interrupted HLS downloads in the built-in Windows player. If startup stalls, playback tries the original stream. Changes apply when you reopen playback.</string>
     <string name="settings_playback_mpv_config_instructions">Enter one option=value per line. Changes apply when you reopen playback. Renderer interpolation requires a display sync mode, such as video-sync=display-resample.</string>
     <string name="settings_playback_mpv_config_enabled">Use custom mpv config</string>
     <string name="settings_playback_mpv_config_enabled_description">Apply your saved config when playback opens.</string>

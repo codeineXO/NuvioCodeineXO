@@ -77,6 +77,8 @@ typedef enum mpv_event_id {
     MPV_EVENT_NONE = 0,
     MPV_EVENT_SHUTDOWN = 1,
     MPV_EVENT_LOG_MESSAGE = 2,
+    MPV_EVENT_END_FILE = 7,
+    MPV_EVENT_FILE_LOADED = 8,
     // mpv's documented "seek request is finished" notification. Values must
     // match libmpv's mpv_event_id exactly.
     MPV_EVENT_PLAYBACK_RESTART = 21,
@@ -95,6 +97,12 @@ typedef struct mpv_event_log_message {
     const char *text;
     int log_level;
 } mpv_event_log_message;
+
+// Only the first two fields of mpv_event_end_file are needed for diagnostics.
+typedef struct mpv_event_end_file {
+    int reason;
+    int error;
+} mpv_event_end_file;
 }
 
 namespace {
@@ -1083,6 +1091,7 @@ public:
         bool nvidiaRtxSuperResolutionEnabled,
         std::vector<std::string> options,
         bool invalidConfig,
+        bool loggingEnabled,
         jobject sink,
         jmethodID method
     ) {
@@ -1096,6 +1105,14 @@ public:
         hostHwnd = host;
         customOptions = std::move(options);
         customConfigFallback = invalidConfig;
+        if (loggingEnabled) {
+            wchar_t appPath[MAX_PATH] = {};
+            if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, appPath))) {
+                playbackLogPath = std::wstring(appPath) + L"\\NuvioCodeineXO\\mpv-playback.log";
+                static std::atomic_uint64_t nextLogSession{GetTickCount64()};
+                playbackLogSession = nextLogSession.fetch_add(1);
+            }
+        }
 
         auto initState = std::make_shared<InitializationState>();
         auto self = shared_from_this();
@@ -2239,6 +2256,12 @@ private:
     std::vector<std::string> shaderReadFailures;
     std::vector<std::string> customOptions;
     bool customConfigFallback = false;
+    std::wstring playbackLogPath;
+    uint64_t playbackLogSession = 0;
+    // Used only on the mpv event thread. Locations are never written to disk.
+    std::string pendingHlsSegment;
+    std::string lastMpvRequestLocation;
+    const char *lastMpvRequestType = "unknown";
     std::vector<std::string> userShaderPaths;
     std::vector<std::string> appliedBundledShaders;
     std::string appliedSubtitleFont; // Guarded by mpvMutex; per player instance.
@@ -2695,7 +2718,7 @@ private:
             }
             customOptions.clear();
             userShaderPaths = readMpvShaderPaths(api, mpv);
-            api.requestLogMessages(mpv, "warn");
+            api.requestLogMessages(mpv, playbackLogPath.empty() ? "warn" : "debug");
             setRtxFilterLocked(rtxRequested);
 
             std::vector<const char *> loadCommand = {"loadfile", sourceUrl.c_str()};
@@ -2717,6 +2740,7 @@ private:
         }
 
         setPaused(!playWhenReady);
+        writePlaybackLog("Playback requested", initialPositionMs / 1000.0);
         auto self = shared_from_this();
         eventThread = std::thread([self]() { self->drainMpvEvents(); });
     }
@@ -3089,7 +3113,112 @@ private:
         }
     }
 
+    void writePlaybackLog(const std::string &message, double position) {
+        if (playbackLogPath.empty()) return;
+        static std::mutex logMutex;
+        std::lock_guard<std::mutex> lock(logMutex);
+        WIN32_FILE_ATTRIBUTE_DATA info = {};
+        const bool reset = GetFileAttributesExW(playbackLogPath.c_str(), GetFileExInfoStandard, &info) &&
+            (info.nFileSizeHigh > 0 || info.nFileSizeLow >= 512 * 1024);
+        FILE *file = _wfopen(playbackLogPath.c_str(), reset ? L"w" : L"a");
+        if (!file) return;
+        SYSTEMTIME time = {};
+        GetLocalTime(&time);
+        fprintf(file, "%04u-%02u-%02u %02u:%02u:%02u.%03u session=%llx position=%.2fs %s\n",
+            time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute, time.wSecond,
+            time.wMilliseconds, static_cast<unsigned long long>(playbackLogSession),
+            position, message.c_str());
+        fclose(file);
+    }
+
+    void trackMpvRequest(std::string_view message) {
+        constexpr std::string_view segmentPrefix = "hls: HLS request for url '";
+        if (message.substr(0, segmentPrefix.size()) == segmentPrefix) {
+            const auto segment = message.substr(segmentPrefix.size());
+            pendingHlsSegment = segment.substr(0, segment.find("', offset "));
+            lastMpvRequestType = "media segment";
+            return;
+        }
+
+        const auto opening = message.find(": Opening '");
+        if (opening == std::string_view::npos) return;
+        constexpr std::string_view openingMarker = ": Opening '";
+        auto location = message.substr(opening + openingMarker.size());
+        const auto end = location.find("' for reading");
+        if (end == std::string_view::npos) return;
+        location = location.substr(0, end);
+        const bool encrypted = location.substr(0, 7) == "crypto+";
+        if (encrypted) location.remove_prefix(sizeof("crypto+") - 1);
+        const bool isPendingSegment = !pendingHlsSegment.empty() && location == pendingHlsSegment;
+        if (!encrypted && !isPendingSegment && location == lastMpvRequestLocation) return;
+        lastMpvRequestLocation = location;
+        const auto path = location.substr(0, location.find_first_of("?#"));
+        const auto hasExtension = [path](std::string_view extension) {
+            return path.size() >= extension.size() && path.substr(path.size() - extension.size()) == extension;
+        };
+
+        if (encrypted || isPendingSegment) {
+            lastMpvRequestType = "media segment";
+            pendingHlsSegment.clear();
+        } else if (hasExtension(".m3u8") || hasExtension(".m3u")) {
+            lastMpvRequestType = "playlist";
+            pendingHlsSegment.clear();
+        } else if (hasExtension(".key")) {
+            lastMpvRequestType = "encryption key";
+        } else if (message.substr(0, 5) == "hls: " && !pendingHlsSegment.empty()) {
+            // An HLS segment can require an extensionless key or an init file
+            // before FFmpeg opens the segment itself.
+            lastMpvRequestType = "possible encryption key or init segment";
+        } else {
+            lastMpvRequestType = "unknown";
+        }
+    }
+
+    void logMpvNetworkMessage(std::string_view message) {
+        trackMpvRequest(message);
+        // Emit only known events and numeric status codes. Raw mpv messages
+        // can include request headers, signed URLs and local file paths.
+        std::string summary;
+        const char *requestType = nullptr;
+        const auto startsWith = [message](std::string_view prefix) {
+            return message.substr(0, prefix.size()) == prefix;
+        };
+        constexpr std::string_view statusPrefix = "HTTP error ";
+        const auto statusStart = message.find(statusPrefix);
+        if (statusStart != std::string_view::npos) {
+            const auto status = message.substr(statusStart + statusPrefix.size(), 3);
+            if (status.size() == 3 && status.find_first_not_of("0123456789") == std::string_view::npos) {
+                summary = "HTTP error " + std::string(status);
+            }
+        } else if (message.find("Will reconnect") != std::string_view::npos) {
+            summary = message.find("End of file") == std::string_view::npos
+                ? "HTTP reconnect scheduled" : "HTTP reconnect scheduled after end of file";
+        } else if (message.find("timed out") != std::string_view::npos) {
+            summary = "Request timed out";
+        } else if (startsWith("hls: Unable to open key file")) {
+            summary = "HLS key failed to open";
+            requestType = "encryption key";
+        } else if (startsWith("hls: Failed to reload playlist")) {
+            summary = "HLS playlist failed to reload";
+            requestType = "playlist";
+        } else if (startsWith("hls: Failed to open segment") ||
+                   startsWith("hls: Error when loading first segment")) {
+            summary = "HLS segment failed to open";
+            requestType = "media segment";
+        } else if (message.find("Invalid data found") != std::string_view::npos) {
+            summary = "Invalid media data";
+        }
+        if (!summary.empty()) {
+            // FFmpeg's HTTP events carry no request ID. Opens are context for
+            // those events, and explicit HLS errors carry their own type.
+            summary += requestType ? " | request=" : " | last observed request=";
+            summary += requestType ? requestType : lastMpvRequestType;
+            writePlaybackLog(summary, doubleProperty("time-pos", 0.0));
+        }
+    }
+
     void drainMpvEvents() {
+        ULONGLONG nextSample = GetTickCount64();
         while (!stopping.load()) {
             mpv_handle *current = nullptr;
             {
@@ -3102,6 +3231,27 @@ private:
 
             mpv_event *event = mpvApi().waitEvent(current, 0.5);
             if (!event) continue;
+            if (!playbackLogPath.empty()) {
+                if (event->event_id == MPV_EVENT_FILE_LOADED) {
+                    writePlaybackLog("Media loaded", doubleProperty("time-pos", 0.0));
+                } else if (event->event_id == MPV_EVENT_END_FILE && event->data) {
+                    const auto &ended = *static_cast<const mpv_event_end_file *>(event->data);
+                    writePlaybackLog("Media ended reason=" + std::to_string(ended.reason) +
+                        " error=" + std::to_string(ended.error), doubleProperty("time-pos", 0.0));
+                } else if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
+                    writePlaybackLog("Playback started or resumed", doubleProperty("time-pos", 0.0));
+                }
+                const auto now = GetTickCount64();
+                if (now >= nextSample) {
+                    char state[160];
+                    std::snprintf(state, sizeof(state), "State buffered=%.2fs buffering=%d paused=%d",
+                        doubleProperty("demuxer-cache-duration", 0.0),
+                        flagProperty("paused-for-cache", false),
+                        flagProperty("pause", false));
+                    writePlaybackLog(state, doubleProperty("time-pos", 0.0));
+                    nextSample = now + 2000;
+                }
+            }
             if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
                 // MPV_EVENT_FILE_LOADED is not enough here: mpv posts it before
                 // it applies the `start=` seek of a resuming loadfile. Playback
@@ -3109,13 +3259,23 @@ private:
                 // first one after a resuming load is the one that means the
                 // read-ahead from byte 0 is over.
                 promoteResumeCache();
+                sendPlayerEvent("nativePlaybackRestart", 0.0);
             }
             if (event->event_id == MPV_EVENT_SHUTDOWN) {
                 return;
             }
             if (event->event_id == MPV_EVENT_LOG_MESSAGE && event->data) {
                 const auto &message = *static_cast<const mpv_event_log_message *>(event->data);
-                if (message.text) handleMpvLog(message.prefix ? message.prefix : "", message.text);
+                if (message.text) {
+                    if (!playbackLogPath.empty() && message.prefix &&
+                        std::string_view(message.prefix).substr(0, 6) == "ffmpeg") {
+                        logMpvNetworkMessage(message.text);
+                    }
+                    // Preserve the warning-level input used for filter diagnostics.
+                    if (message.log_level <= 30) {
+                        handleMpvLog(message.prefix ? message.prefix : "", message.text);
+                    }
+                }
             }
         }
     }
@@ -3685,6 +3845,7 @@ static jlong createWindowsPlayer(
     jboolean nvidiaRtxSuperResolutionEnabled,
     jobjectArray options,
     bool invalidConfig,
+    bool loggingEnabled,
     jobject eventSink
 ) {
     HWND hostHwnd = (HWND)(intptr_t)hostViewPtr;
@@ -3729,6 +3890,7 @@ static jlong createWindowsPlayer(
             nvidiaRtxSuperResolutionEnabled == JNI_TRUE,
             std::move(customOptions),
             invalidConfig,
+            loggingEnabled,
             eventSinkRef,
             eventMethod
         );
@@ -3752,15 +3914,15 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
     JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
     jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobject sink
 ) {
-    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, nullptr, false, sink);
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, nullptr, false, false, sink);
 }
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_createWindows(
     JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
-    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobjectArray options, jobject sink
+    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobjectArray options, jboolean logging, jobject sink
 ) {
-    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, options, !options, sink);
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, options, !options, logging == JNI_TRUE, sink);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
