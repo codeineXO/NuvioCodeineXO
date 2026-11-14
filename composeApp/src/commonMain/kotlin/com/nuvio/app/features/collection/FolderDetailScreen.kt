@@ -91,6 +91,8 @@ import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSettingsUiState
 import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.components.PersistentHeroPane
+import com.nuvio.app.features.home.components.HomeCatalogRail
+import com.nuvio.app.features.home.components.HomeCatalogRailEntry
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.home.canOpenCatalog
@@ -185,6 +187,7 @@ fun FolderDetailScreen(
             val gridState = rememberLazyGridState()
             val rowsState = rememberLazyListState()
             val rowScrollState = if (isGrid) gridState else rowsState
+            val rowSlots = if (isGrid) emptyList() else FolderDetailRepository.getRowSlots(uiState)
             PersistentHeroPane(
                 enabled = persistentHero,
                 page = uiState.collectionTitle to folder?.id,
@@ -210,6 +213,25 @@ fun FolderDetailScreen(
                             onBack = onBack,
                             backButtonKeyboardNavigationEnabled = false,
                         )
+                    }
+                },
+                rail = { height ->
+                    if (isGrid) {
+                        val allLabel = stringResource(Res.string.collections_tab_all)
+                        val entries = uiState.tabs.mapIndexed { index, tab ->
+                            HomeCatalogRailEntry(index, if (tab.isAllTab) allLabel else tab.label, index)
+                        }
+                        HomeCatalogRail(entries, uiState.selectedTabIndex, height) { entry ->
+                            if (entry.lazyIndex != uiState.selectedTabIndex) {
+                                FolderDetailRepository.selectTab(entry.lazyIndex)
+                                gridState.requestScrollToItem(0)
+                            }
+                        }
+                    } else {
+                        val entries = rowSlots.mapIndexed { index, slot ->
+                            HomeCatalogRailEntry(slot.key, slot.section?.title ?: slot.tab.label, index)
+                        }
+                        HomeCatalogRail(entries, rowsState, height)
                     }
                 },
             ) {
@@ -239,21 +261,12 @@ fun FolderDetailScreen(
                         onPosterClick = onPosterClick,
                         onPosterLongClick = onPosterLongClick,
                     )
-                    FolderViewMode.ROWS -> RowsContent(
+                    FolderViewMode.ROWS, FolderViewMode.FOLLOW_LAYOUT -> RowsContent(
                         uiState = uiState,
                         watchedKeys = watchedUiState.watchedKeys,
                         homeCatalogSettings = homeCatalogSettings,
                         listState = rowsState,
-                        modifier = Modifier.fillMaxSize(),
-                        onCatalogClick = onCatalogClick,
-                        onPosterClick = onPosterClick,
-                        onPosterLongClick = onPosterLongClick,
-                    )
-                    FolderViewMode.FOLLOW_LAYOUT -> RowsContent(
-                        uiState = uiState,
-                        watchedKeys = watchedUiState.watchedKeys,
-                        homeCatalogSettings = homeCatalogSettings,
-                        listState = rowsState,
+                        slots = rowSlots,
                         modifier = Modifier.fillMaxSize(),
                         onCatalogClick = onCatalogClick,
                         onPosterClick = onPosterClick,

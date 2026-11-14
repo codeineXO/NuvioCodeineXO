@@ -59,6 +59,7 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
     enabled: Boolean = true,
     reverseScrolling: Boolean = false,
     rowAnchors: (() -> List<Int>)? = null,
+    consumeAtBounds: Boolean = false,
 ): Modifier {
     if (!isDesktop || !enabled) return this
     return composed {
@@ -98,7 +99,7 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
                         // can still be taken over by the innermost scrollable child.
                         if (event.changes.any { it.isConsumed } && route.parent?.hasClaim(event) != true) continue
                         val delta = y * stepPx * direction
-                        if (!wheel.canScrollBy(delta)) continue
+                        if (!consumeAtBounds && !wheel.canScrollBy(delta)) continue
                         route.claim(event)
                         event.changes.forEach { it.consume() }
                         awaitPointerEvent(PointerEventPass.Main)

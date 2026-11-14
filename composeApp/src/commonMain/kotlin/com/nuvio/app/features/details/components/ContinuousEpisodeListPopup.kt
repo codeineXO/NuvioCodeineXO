@@ -1,19 +1,10 @@
 package com.nuvio.app.features.details.components
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.MutatePriority
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
+import com.nuvio.app.core.ui.IndexRailMark
 import com.nuvio.app.core.ui.NuvioLazyColumn
+import com.nuvio.app.core.ui.indexRailDrag
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,10 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,7 +27,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntRect
@@ -48,16 +34,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import com.nuvio.app.core.ui.AppPopup
 import com.nuvio.app.core.ui.LocalRemoteNavigation
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.navigationGlass
-import com.nuvio.app.core.ui.navigationGlassFeedback
-import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.remoteNavigationModal
@@ -68,8 +49,6 @@ import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlin.math.abs
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -303,7 +282,7 @@ internal fun ContinuousEpisodeListPopup(
                     state = railState,
                     desktopDragEnabled = false,
                     modifier = Modifier.width(48.dp).fillMaxHeight().padding(vertical = 16.dp)
-                        .seasonPickerDrag(
+                        .indexRailDrag(
                             railState = railState,
                             onStart = {
                                 railScrubbing = true
@@ -364,7 +343,7 @@ internal fun ContinuousEpisodeListPopup(
                         val isAdjacent = (railFocusedIndex != null && abs(index - railFocusedIndex!!) == 1) ||
                             (railHoveredIndex != null && abs(index - railHoveredIndex!!) == 1) ||
                             (scrubbedIndex != null && abs(index - scrubbedIndex) == 1)
-                        SeasonRailMark(
+                        IndexRailMark(
                             label = if (season <= 0) stringResource(Res.string.episodes_specials)
                                 else stringResource(Res.string.episodes_season, season),
                             active = season == (scrubbedSeason ?: activeSeason),
@@ -454,170 +433,6 @@ internal fun ContinuousEpisodeListPopup(
             withFrameNanos { }
             if (episodeIndices.isEmpty()) closeFocus.requestFocus()
             else focusEpisode(state.focusedIndex.takeIf { it in episodeIndices } ?: episodeIndices.first())
-        }
-    }
-}
-
-/** Claim movement after touch slop so a drag never activates a season mark's click. */
-@Composable
-internal fun Modifier.seasonPickerDrag(
-    railState: LazyListState,
-    onStart: () -> Unit,
-    onSelect: (Int) -> Unit,
-    onEnd: () -> Unit,
-): Modifier {
-    val currentStart by rememberUpdatedState(onStart)
-    val currentSelect by rememberUpdatedState(onSelect)
-    val currentEnd by rememberUpdatedState(onEnd)
-    return pointerInput(railState) {
-        coroutineScope {
-            val scope = this
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                var dragging = false
-                var pointerY = down.position.y
-                var lastSelected: Int? = null
-                var motion: Job? = null
-                fun selectNearest() {
-                    val nearest = railState.layoutInfo.visibleItemsInfo.minByOrNull {
-                        abs(it.offset + it.size / 2f - pointerY)
-                    }?.index ?: return
-                    if (nearest != lastSelected) {
-                        lastSelected = nearest
-                        currentSelect(nearest)
-                    }
-                }
-                try {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        pointerY = change.position.y
-                        if (!change.pressed) {
-                            if (dragging) {
-                                selectNearest()
-                                change.consume()
-                            }
-                            break
-                        }
-                        if (event.changes.count { it.pressed } != 1) break
-                        if (!dragging) {
-                            val distance = change.position - down.position
-                            if (abs(distance.y) <= viewConfiguration.touchSlop) continue
-                            if (abs(distance.x) > abs(distance.y)) break
-                            dragging = true
-                            currentStart()
-                            selectNearest()
-                            motion = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                                railState.scroll(MutatePriority.UserInput) {
-                                    var previous: Long? = null
-                                    while (true) {
-                                        val frame = withFrameNanos { it }
-                                        val seconds = previous?.let { ((frame - it) / 1_000_000_000f).coerceIn(0f, 0.1f) } ?: (1f / 60)
-                                        previous = frame
-                                        val info = railState.layoutInfo
-                                        val speed = seasonRailEdgeVelocity(
-                                            pointerY, info.viewportStartOffset.toFloat(), info.viewportEndOffset.toFloat(),
-                                            16.dp.toPx(), 240.dp.toPx(),
-                                        )
-                                        if (speed != 0f) scrollBy(speed * seconds)
-                                        selectNearest()
-                                    }
-                                }
-                            }
-                        }
-                        change.consume()
-                    }
-                } finally {
-                    motion?.cancel()
-                    if (dragging) currentEnd()
-                }
-            }
-        }
-    }
-}
-
-private object SeasonRailTooltipPosition : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ) = IntOffset(
-        x = anchorBounds.left - popupContentSize.width,
-        y = anchorBounds.center.y - popupContentSize.height / 2,
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SeasonRailMark(
-    label: String,
-    active: Boolean,
-    isAdjacent: Boolean,
-    itemHeight: Dp,
-    onClick: () -> Unit,
-    onHoverChanged: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val tooltip = rememberTooltipState()
-    var focused by remember { mutableStateOf(false) }
-    val tokens = MaterialTheme.nuvio
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsRemoteHoveredAsState()
-
-    LaunchedEffect(hovered) {
-        onHoverChanged(hovered)
-    }
-
-    val isDirectlyExpanded = active || focused || hovered
-    val markWidth by animateDpAsState(
-        when {
-            isDirectlyExpanded -> 28.dp
-            isAdjacent -> 22.dp
-            else -> 16.dp
-        }
-    )
-    val barThickness by animateDpAsState(
-        when {
-            isDirectlyExpanded -> 4.5.dp
-            isAdjacent -> 4.dp
-            else -> 3.5.dp
-        }
-    )
-    val barAlpha by animateFloatAsState(
-        when {
-            isDirectlyExpanded -> 1f
-            isAdjacent -> 0.85f
-            else -> 0.6f
-        }
-    )
-    LaunchedEffect(focused) {
-        if (focused) tooltip.show() else tooltip.dismiss()
-    }
-    TooltipBox(
-        positionProvider = SeasonRailTooltipPosition,
-        tooltip = { PlainTooltip { Text(label) } },
-        state = tooltip,
-        focusable = false,
-    ) {
-        Box(
-            modifier = modifier.size(width = 48.dp, height = itemHeight)
-                .onFocusChanged { focused = it.hasFocus }
-                .navigationGlassFeedback(interactionSource, tokens.shapes.button, selected = active)
-                .hoverable(interactionSource)
-                .remoteNavigationTarget(shape = tokens.shapes.button, onSelect = onClick)
-                .semantics { contentDescription = label; selected = active }
-                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(Modifier.width(28.dp).height(5.dp), contentAlignment = Alignment.CenterStart) {
-                Box(
-                    Modifier
-                        .width(markWidth)
-                        .height(barThickness)
-                        .background(tokens.colors.textPrimary.copy(alpha = barAlpha), CircleShape)
-                )
-            }
         }
     }
 }

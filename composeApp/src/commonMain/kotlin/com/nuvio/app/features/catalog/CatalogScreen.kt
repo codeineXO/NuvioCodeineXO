@@ -6,6 +6,9 @@ import com.nuvio.app.core.ui.LocalDesktopSidebarActive
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
 import com.nuvio.app.core.ui.desktopBackButtonIconSize
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.desktopTopBarActionIconSize
+import com.nuvio.app.core.ui.desktopTopBarHeight
 
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.remoteNavigationGroup
@@ -221,6 +224,8 @@ fun CatalogScreen(
         } else {
             16.dp
         }
+        val fullscreenButtonSize = desktopTopBarHeight(maxWidth)
+        val fullscreenIconSize = desktopTopBarActionIconSize(maxWidth)
         val basePosterWidthDp = catalogPosterBaseWidthDp(posterCardStyle.widthDp)
         val targetPosterWidthDp = if (posterCardStyle.catalogLandscapeModeEnabled) {
             landscapePosterWidth(basePosterWidthDp)
@@ -271,6 +276,11 @@ fun CatalogScreen(
                         pageHorizontalPadding = pageHorizontalPadding,
                         sidebarInset = if (isDesktop) sidebarInset else 0.dp,
                         onBack = onBack,
+                        actions = {
+                            if (isDesktop && persistentHero) {
+                                FullscreenActionButton(buttonSize = fullscreenButtonSize, iconSize = fullscreenIconSize)
+                            }
+                        },
                     )
                 },
             ) {
@@ -384,6 +394,7 @@ internal fun CatalogHeader(
     sidebarInset: Dp = 0.dp,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    actions: @Composable () -> Unit = {},
 ) {
     if (LocalUseNativeNavigation.current) {
         Box(
@@ -446,7 +457,7 @@ internal fun CatalogHeader(
             },
             contentAlignment = Alignment.CenterStart,
             label = "screen_header_title",
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.weight(1f),
         ) { (currentTitle, currentSubtitle) ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -482,6 +493,7 @@ internal fun CatalogHeader(
                 }
             }
         }
+        actions()
     }
 }
 

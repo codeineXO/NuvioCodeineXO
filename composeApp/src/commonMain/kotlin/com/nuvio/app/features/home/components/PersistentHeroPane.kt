@@ -50,6 +50,8 @@ import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.LocalSnapVerticalRows
 import com.nuvio.app.core.ui.LocalVerticalWheelOwner
+import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.nuvioVerticalMouseWheelScroll
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.LocalScreenActive
@@ -66,6 +68,7 @@ import com.nuvio.app.features.home.withHeroMeta
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
+import com.nuvio.app.isDesktop
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -110,6 +113,7 @@ internal fun PersistentHeroPane(
     topInset: Dp = 0.dp,
     startInset: Dp = 0.dp,
     header: (@Composable () -> Unit)? = null,
+    rail: (@Composable (maxHeight: Dp) -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     if (!enabled) {
@@ -146,8 +150,8 @@ internal fun PersistentHeroPane(
     val currentRowAnchors by rememberUpdatedState(rowAnchors)
     val anchors = remember { { currentRowAnchors() } }
     BoxWithConstraints(modifier.fillMaxSize().nuvioVerticalMouseWheelScroll(rowScrollState, rowAnchors = anchors)) {
-        val heroFraction = if (header == null) 0.56f else 0.44f
-        val heroHeight = minOf(440.dp, (maxHeight - topInset).coerceAtLeast(0.dp) * heroFraction)
+        val heroHeight = persistentHeroHeight(maxHeight, topInset, hasHeader = header != null)
+        val railEndInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
         val context = LocalPlatformContext.current
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
@@ -203,24 +207,34 @@ internal fun PersistentHeroPane(
         Column(Modifier.fillMaxSize().padding(top = topInset)) {
             header?.invoke()
             val showSkeleton = loading || request != null || seed != null
-            Crossfade(
-                targetState = hero,
-                modifier = Modifier.fillMaxWidth().padding(start = startInset).height(heroHeight),
-                animationSpec = tween(240, easing = FastOutSlowInEasing),
-                label = "Persistent hero details",
-            ) { displayed ->
-                if (displayed != null) {
-                    PersistentHomeHero(
-                        item = displayed.item,
-                        logo = displayed.logo,
-                        showImdbRating = metaSettings.showOverallRatings,
-                        showMdbListRatings = showMdbListRatings,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else if (showSkeleton) {
-                    HomeSkeletonHero(modifier = Modifier.fillMaxSize(), containerMode = true)
-                } else {
-                    Box(Modifier.fillMaxSize())
+            Box(Modifier.fillMaxWidth().height(heroHeight)) {
+                Crossfade(
+                    targetState = hero,
+                    modifier = Modifier.fillMaxSize().padding(start = startInset),
+                    animationSpec = tween(240, easing = FastOutSlowInEasing),
+                    label = "Persistent hero details",
+                ) { displayed ->
+                    if (displayed != null) {
+                        PersistentHomeHero(
+                            item = displayed.item,
+                            logo = displayed.logo,
+                            showImdbRating = metaSettings.showOverallRatings,
+                            showMdbListRatings = showMdbListRatings,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (showSkeleton) {
+                        HomeSkeletonHero(modifier = Modifier.fillMaxSize(), containerMode = true)
+                    } else {
+                        Box(Modifier.fillMaxSize())
+                    }
+                }
+                if (isDesktop && rail != null) {
+                    val railGap = NuvioTokens.Space.s16
+                    Box(
+                        Modifier.align(Alignment.CenterEnd).padding(end = railEndInset),
+                    ) {
+                        rail((heroHeight - railGap * 2).coerceAtLeast(0.dp))
+                    }
                 }
             }
             Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -234,6 +248,11 @@ internal fun PersistentHeroPane(
             }
         }
     }
+}
+
+internal fun persistentHeroHeight(viewportHeight: Dp, topInset: Dp, hasHeader: Boolean = false): Dp {
+    val fraction = if (hasHeader) 0.44f else 0.56f
+    return minOf(440.dp, (viewportHeight - topInset).coerceAtLeast(0.dp) * fraction)
 }
 
 @Composable

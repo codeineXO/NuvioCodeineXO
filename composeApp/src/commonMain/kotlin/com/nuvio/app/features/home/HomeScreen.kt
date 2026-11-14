@@ -14,9 +14,14 @@ import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
@@ -68,9 +73,9 @@ import com.nuvio.app.features.cloud.CloudLibraryContentType
 import com.nuvio.app.features.cloud.CloudLibraryRepository
 import com.nuvio.app.features.cloud.CloudLibraryUiState
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
-import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.desktopTopBarActionIconSize
 import com.nuvio.app.core.ui.desktopTopBarHeight
 import com.nuvio.app.core.ui.desktopTopBarTopPadding
@@ -92,7 +97,10 @@ import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.home.components.HomeSkeletonHero
 import com.nuvio.app.features.home.components.HomeSkeletonRow
 import com.nuvio.app.features.home.components.AppInterfaceCycleButton
+import com.nuvio.app.features.home.components.HomeCatalogRail
+import com.nuvio.app.features.home.components.HomeCatalogRailEntry
 import com.nuvio.app.features.home.components.PersistentHeroPane
+import com.nuvio.app.features.home.components.persistentHeroHeight
 import com.nuvio.app.features.home.components.toPersistentHeroPreview
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
@@ -447,22 +455,34 @@ fun HomeScreen(
         }
 
         val openContinueWatching = onContinueWatchingViewAll?.let { open -> { open(shuffleVisit) } }
+        val showCatalogRail = isDesktop && persistentHero
+        val catalogRailEntries = mutableListOf<HomeCatalogRailEntry>()
+        val continueWatchingTitle = stringResource(Res.string.compose_settings_page_continue_watching)
+        val upcomingTitle = stringResource(Res.string.upcoming_section_title)
         val navigationRows = buildList {
             var index = if (showHeroSlot) 1 else 0
+            fun addRow(key: Any, title: String, items: List<Any>) {
+                add(PosterNavigationRow(key, items, index))
+                if (showCatalogRail) catalogRailEntries.add(HomeCatalogRailEntry(key, title, index))
+                index++
+            }
             if (continueWatchingPreferences.isVisible) {
-                if (continueWatchingItems.isNotEmpty()) add(PosterNavigationRow(HOME_CONTINUE_WATCHING_SECTION_KEY, continueWatchingItems.map(::continueWatchingItemKey), index++))
-                if (upcomingItems.isNotEmpty()) add(PosterNavigationRow(HOME_UPCOMING_SECTION_KEY, upcomingItems.map(::continueWatchingItemKey), index++))
+                if (continueWatchingItems.isNotEmpty()) {
+                    addRow(HOME_CONTINUE_WATCHING_SECTION_KEY, continueWatchingTitle, continueWatchingItems.map(::continueWatchingItemKey))
+                }
+                if (upcomingItems.isNotEmpty()) {
+                    addRow(HOME_UPCOMING_SECTION_KEY, upcomingTitle, upcomingItems.map(::continueWatchingItemKey))
+                }
             }
             keyedEnabledHomeItems.forEach { keyed ->
                 if (keyed.value.isCollection) {
                     collectionsMap[keyed.value.key]?.let { collection ->
-                        add(PosterNavigationRow(keyed.lazyKey,
-                            collection.folders.map { collectionFolderCardKey(collection.id, it.id) }, index++))
+                        addRow(keyed.lazyKey, collection.title, collection.folders.map { collectionFolderCardKey(collection.id, it.id) })
                     }
                 } else {
                     val section = sectionsMap[keyed.value.key]
                     if (section != null && section.items.isNotEmpty()) {
-                        add(PosterNavigationRow(keyed.lazyKey, section.items.map { it.stableKey() }, index++))
+                        addRow(keyed.lazyKey, section.title, section.items.map { it.stableKey() })
                     }
                 }
             }
@@ -478,6 +498,7 @@ fun HomeScreen(
             } else null
             progressSeed ?: enabledHomeItems.firstNotNullOfOrNull { sectionsMap[it.key]?.items?.firstOrNull() }
         } else null
+        val heroTopInset = topChromePadding ?: NuvioTokens.Space.s16
         PersistentHeroPane(
             enabled = persistentHero,
             page = "home",
@@ -485,7 +506,7 @@ fun HomeScreen(
             loading = isResolvingHeroSources,
             rowScrollState = homeListState,
             rowAnchors = { homeListState.verticalRowAnchors() },
-            topInset = topChromePadding ?: NuvioTokens.Space.s16,
+            topInset = heroTopInset,
             startInset = sidebarContentInset,
             backdropModifier = if (LocalFrostedGlassEnabled.current) {
                 Modifier.hazeSource(fullscreenBackdropState, zIndex = -1f)
@@ -777,6 +798,11 @@ fun HomeScreen(
             val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
             val desktopButtonSize = desktopTopBarHeight(maxWidth)
             val desktopIconSize = desktopTopBarActionIconSize(maxWidth)
+            val actionGap = 8.dp
+            val railGap = space.s16
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val railHeight = heroTopInset + persistentHeroHeight(maxHeight, heroTopInset) -
+                statusBarTop - desktopTopBarTopPadding - desktopButtonSize - railGap * 2
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -786,25 +812,36 @@ fun HomeScreen(
                             else if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
                         end = actionHorizontalInset,
                     ),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(railGap),
             ) {
-                if (isFullscreenActionSupported) {
-                    FullscreenActionButton(
-                        buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
-                        iconSize = if (isDesktop) desktopIconSize else 24.dp,
-                        contentColor = colorScheme.onSurface,
-                        hazeState = fullscreenBackdropState,
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(actionGap)) {
+                    if (isDesktop) {
+                        AppInterfaceCycleButton(
+                            value = homeSettingsUiState.appInterface,
+                            onToggle = { HomeCatalogSettingsRepository.setAppInterface(homeSettingsUiState.appInterface.next()) },
+                            buttonSize = desktopButtonSize,
+                            iconSize = desktopIconSize,
+                            hazeState = fullscreenBackdropState,
+                        )
+                    }
+                    if (isFullscreenActionSupported) {
+                        FullscreenActionButton(
+                            buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
+                            iconSize = if (isDesktop) desktopIconSize else 24.dp,
+                            contentColor = colorScheme.onSurface,
+                            hazeState = fullscreenBackdropState,
+                        )
+                    }
                 }
-                if (isDesktop) {
-                    AppInterfaceCycleButton(
-                        value = homeSettingsUiState.appInterface,
-                        onToggle = { HomeCatalogSettingsRepository.setAppInterface(homeSettingsUiState.appInterface.next()) },
-                        buttonSize = desktopButtonSize,
-                        iconSize = desktopIconSize,
-                        hazeState = fullscreenBackdropState,
-                    )
+                if (catalogRailEntries.isNotEmpty() && railHeight >= 18.dp) {
+                    Box(Modifier.height(railHeight), contentAlignment = Alignment.CenterEnd) {
+                        HomeCatalogRail(
+                            entries = catalogRailEntries,
+                            homeListState = homeListState,
+                            maxHeight = railHeight,
+                        )
+                    }
                 }
             }
         }
