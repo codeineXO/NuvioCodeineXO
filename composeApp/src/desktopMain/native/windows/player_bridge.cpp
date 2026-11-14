@@ -2824,20 +2824,13 @@ private:
             throw std::runtime_error(std::string("mpv wid option failed: ") + api.errorText(widResult));
         }
 
-        std::string userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+        bool hasUserAgent = false;
         std::string headers;
-        for (size_t index = 0; index < headerLines.size(); index++) {
-            const std::string &line = headerLines[index];
-            if (line.size() >= 11) {
+        for (const std::string &line : headerLines) {
+            if (!hasUserAgent && line.size() >= 11) {
                 std::string prefix = line.substr(0, 11);
                 std::transform(prefix.begin(), prefix.end(), prefix.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-                if (prefix == "user-agent:") {
-                    size_t valStart = line.find_first_not_of(" \t", 11);
-                    if (valStart != std::string::npos) {
-                        userAgent = line.substr(valStart);
-                    }
-                    continue;
-                }
+                hasUserAgent = prefix == "user-agent:";
             }
             if (!headers.empty()) headers.push_back(',');
             // Escape backslashes and commas in header values
@@ -2847,7 +2840,14 @@ private:
             }
         }
         initialAudioUrl = audioUrl;
-        setMpvOptionStringLocked("user-agent", userAgent.c_str());
+        // Keep the addon User-Agent with its other headers. mpv's separate
+        // option changes the outgoing header order and can trigger a CDN 403.
+        if (!hasUserAgent) {
+            setMpvOptionStringLocked(
+                "user-agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            );
+        }
         if (!headers.empty()) {
             setMpvOptionStringLocked("http-header-fields", headers.c_str());
         }
