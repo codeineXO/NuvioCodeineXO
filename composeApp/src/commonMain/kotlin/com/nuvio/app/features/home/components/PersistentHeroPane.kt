@@ -182,13 +182,15 @@ internal fun PersistentHeroPane(
                         withTimeoutOrNull(2_500) { fetchHomeHeroRatings(preview, mdbList) { details.await() } }.orEmpty()
                     } else emptyList()
                 }
-                val meta = details.await()
-                val item = preview.withHeroMeta(HomeHeroMeta(meta)).copy(
-                    banner = preview.banner.nonBlank() ?: meta?.background.nonBlank() ?: preview.landscapePoster.nonBlank(),
-                    poster = preview.poster.nonBlank() ?: meta?.poster.nonBlank(),
-                    logo = preview.logo.nonBlank() ?: meta?.logo.nonBlank(),
-                    description = preview.description.nonBlank() ?: meta?.description.nonBlank(),
-                )
+                val resolvedItem = async {
+                    val meta = details.await()
+                    preview.withHeroMeta(HomeHeroMeta(meta)).copy(
+                        banner = preview.banner.nonBlank() ?: meta?.background.nonBlank() ?: preview.landscapePoster.nonBlank(),
+                        poster = preview.poster.nonBlank() ?: meta?.poster.nonBlank(),
+                        logo = preview.logo.nonBlank() ?: meta?.logo.nonBlank(),
+                        description = preview.description.nonBlank() ?: meta?.description.nonBlank(),
+                    )
+                }
                 suspend fun artwork(url: String?, width: Int, height: Int): Painter? {
                     if (url == null) return null
                     val imageRequest = ImageRequest.Builder(context).data(url).size(width, height).build()
@@ -198,11 +200,17 @@ internal fun PersistentHeroPane(
                     }
                 }
                 val backdrop = async {
-                    artwork(item.banner, widthPx, heightPx)
-                        ?: artwork(item.poster?.takeUnless { it == item.banner }, widthPx, heightPx)
+                    // Known artwork can load while metadata resolves; keep the existing fallback order.
+                    val banner = preview.banner.nonBlank() ?: resolvedItem.await().banner
+                    val loadedBanner = artwork(banner, widthPx, heightPx)
+                    val item = resolvedItem.await()
+                    loadedBanner ?: artwork(item.poster?.takeUnless { it == item.banner }, widthPx, heightPx)
                         ?: artwork(item.rawPosterUrl?.takeUnless { it == item.poster || it == item.banner }, widthPx, heightPx)
                 }
-                val logo = async { artwork(item.logo, (widthPx / 2).coerceAtLeast(1), heightPx) }
+                val logo = async {
+                    artwork(preview.logo.nonBlank() ?: resolvedItem.await().logo, (widthPx / 2).coerceAtLeast(1), heightPx)
+                }
+                val item = resolvedItem.await()
                 val loadedLogo = logo.await()
                 LoadedHero(
                     item.copy(
