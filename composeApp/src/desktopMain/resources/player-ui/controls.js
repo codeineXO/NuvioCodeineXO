@@ -623,6 +623,7 @@ let frozenSeekTimePositionMs = null;
 let renderedTimePositionMs = 0;
 let seekSuppressBufferingUntil = 0;
 let seekSeenLoading = false;
+let seekBufferingRenderTimer = 0;
 let bufferingDebounceTimer = 0;
 let isBufferingVisible = false;
 
@@ -722,16 +723,31 @@ const pipLockOverlay = document.getElementById("pipLockOverlay");
 const pipLockBadge = document.getElementById("pipLockBadge");
 const pipLockLabel = () => String(state.lockLabel || "Lock player controls").trim();
 const pipUnlockLabel = () => String(state.unlockLabel || "Unlock player controls").trim();
+const setTextContent = (element, text) => {
+  const value = String(text ?? "");
+  const only = element.firstChild;
+  if (only && only === element.lastChild && only.nodeType === 3) {
+    if (only.data !== value) only.data = value;
+  } else if (value || only) {
+    element.textContent = value;
+  }
+};
+
+const setAttr = (element, name, value) => {
+  const text = String(value);
+  if (element.getAttribute(name) !== text) element.setAttribute(name, text);
+};
+
 const syncPipLockLabels = () => {
   const lockLabel = isPipLocked ? pipUnlockLabel() : pipLockLabel();
   if (pipLockButton) {
-    pipLockButton.setAttribute("aria-label", lockLabel);
-    pipLockButton.setAttribute("title", lockLabel);
+    setAttr(pipLockButton, "aria-label", lockLabel);
+    setAttr(pipLockButton, "title", lockLabel);
   }
   if (pipLockBadge) {
     const unlockLabel = pipUnlockLabel();
-    pipLockBadge.setAttribute("aria-label", unlockLabel);
-    pipLockBadge.setAttribute("title", unlockLabel);
+    setAttr(pipLockBadge, "aria-label", unlockLabel);
+    setAttr(pipLockBadge, "title", unlockLabel);
   }
 };
 const setPipLocked = locked => {
@@ -795,12 +811,12 @@ const syncFullscreenButtons = () => {
   const isFullscreen = Boolean(state.isFullscreen);
   const icon = isFullscreen ? "#icon-fullscreen-exit" : "#icon-fullscreen";
   const label = isFullscreen ? "Exit fullscreen" : "Enter fullscreen";
-  if (fullscreenIcon) fullscreenIcon.setAttribute("href", icon);
-  if (openingFullscreenIcon) openingFullscreenIcon.setAttribute("href", icon);
-  if (codeineFullscreenIcon) codeineFullscreenIcon.setAttribute("href", icon);
-  if (fullscreenButton) fullscreenButton.setAttribute("aria-label", label);
-  if (openingFullscreenButton) openingFullscreenButton.setAttribute("aria-label", label);
-  if (codeineFullscreenButton) codeineFullscreenButton.setAttribute("aria-label", label);
+  if (fullscreenIcon) setAttr(fullscreenIcon, "href", icon);
+  if (openingFullscreenIcon) setAttr(openingFullscreenIcon, "href", icon);
+  if (codeineFullscreenIcon) setAttr(codeineFullscreenIcon, "href", icon);
+  if (fullscreenButton) setAttr(fullscreenButton, "aria-label", label);
+  if (openingFullscreenButton) setAttr(openingFullscreenButton, "aria-label", label);
+  if (codeineFullscreenButton) setAttr(codeineFullscreenButton, "aria-label", label);
 };
 
 const togglePlayerFullscreen = () => {
@@ -1488,26 +1504,21 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
     codeineSeekContainer.style.setProperty("--buffered", `${bufferedPercent}%`);
   }
   seek.style.setProperty("--bufferProgress", `${bufferedPercent}%`);
-  positionLabel.textContent = formatTime(timePositionMs);
-  durationLabel.textContent = formatTime(durationMs);
+  setTextContent(positionLabel, formatTime(timePositionMs));
+  setTextContent(durationLabel, formatTime(durationMs));
   if (timeLabel) {
     durationMs = durationMs - (durationMs % 1000);
     if (timeLabelShowRemaining) {
       let remainingTimeMs = durationMs - timePositionMs + (timePositionMs % 1000 == 0 ? 0 : 1000);
-      timeLabel.textContent = `-${formatTime(remainingTimeMs)}`;
+      setTextContent(timeLabel, `-${formatTime(remainingTimeMs)}`);
     } else {
-      timeLabel.textContent = `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`;
+      setTextContent(timeLabel, `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`);
     }
   }
   if (codeineTimeLabel) {
-    codeineTimeLabel.textContent = `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`;
+    setTextContent(codeineTimeLabel, `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`);
   }
-  if (codeinePosition) {
-    const posText = formatTime(timePositionMs);
-    if (codeinePosition.textContent !== posText) {
-      codeinePosition.textContent = posText;
-    }
-  }
+  if (codeinePosition) setTextContent(codeinePosition, formatTime(timePositionMs));
   if (codeineDuration) {
     let durText;
     if (codeineShowRemaining && durationMs > 0) {
@@ -1516,9 +1527,7 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
     } else {
       durText = formatTime(durationMs);
     }
-    if (codeineDuration.textContent !== durText) {
-      codeineDuration.textContent = durText;
-    }
+    setTextContent(codeineDuration, durText);
   }
   syncVolumeControl();
 };
@@ -1526,7 +1535,7 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
 const setText = (element, text) => {
   if (!element) return;
   const clean = text || "";
-  if (element.textContent !== clean) element.textContent = clean;
+  setTextContent(element, clean);
   const isHidden = !clean;
   if (element.hidden !== isHidden) element.hidden = isHidden;
 };
@@ -1595,8 +1604,8 @@ const setActionButtonLabel = (command, label) => {
   if (!button) return;
   const text = String(label || "").trim();
   if (!text) return;
-  button.setAttribute("aria-label", text);
-  button.setAttribute("title", text);
+  setAttr(button, "aria-label", text);
+  setAttr(button, "title", text);
 };
 
 const setImageVisualState = (element, stateName) => {
@@ -4083,8 +4092,8 @@ const renderChapterControls = () => {
   setVisible(chaptersButton, showChapters);
   setVisible(codeineChaptersButton, showChapters);
   codeineChaptersButton.querySelector("span").textContent = state.chaptersLabel || "Chapters";
-  codeineChaptersButton.setAttribute("aria-label", state.chaptersLabel || "Chapters");
-  chaptersLabel.textContent = state.chaptersLabel || "Chapters";
+  setAttr(codeineChaptersButton, "aria-label", state.chaptersLabel || "Chapters");
+  setTextContent(chaptersLabel, state.chaptersLabel || "Chapters");
   setActionButtonLabel("chapters", state.chaptersLabel || "Chapters");
   renderChapterMarks();
   if (!showChapters && activeModal === "chapters") closePlayerModal(false);
@@ -4327,6 +4336,7 @@ window.nuvioNativeResizeEnded = () => {
   syncSkipPromptPlacement(skipPrompt.classList.contains("visible"));
   if (activeModal) renderActiveModal(false, true);
 };
+let openingHideTimer = 0;
 
 const renderOpeningOverlay = suppress => {
   const progress = normalizedOpeningProgress();
@@ -4342,23 +4352,36 @@ const renderOpeningOverlay = suppress => {
   const messageText = String(state.openingMessage || "").trim();
   const showHorizontalProgress = hasProgress && !logoUrl;
 
+  if (showOpening) {
+    window.clearTimeout(openingHideTimer);
+    openingHideTimer = 0;
+    if (openingOverlay.hidden) {
+      openingOverlay.hidden = false;
+      void openingOverlay.offsetWidth;
+    }
+  } else if (!openingOverlay.hidden && !openingHideTimer) {
+    openingHideTimer = window.setTimeout(() => {
+      openingHideTimer = 0;
+      openingOverlay.hidden = true;
+    }, 260);
+  }
   root.classList.toggle("opening-active", showOpening);
   openingOverlay.classList.toggle("visible", showOpening);
   openingOverlay.classList.toggle("has-artwork", Boolean(artworkUrl));
   openingOverlay.classList.toggle("has-progress", hasProgress);
-  openingOverlay.setAttribute("aria-hidden", showOpening ? "false" : "true");
-  openingBackButton.setAttribute("aria-label", state.backLabel || "Go back");
+  setAttr(openingOverlay, "aria-hidden", showOpening ? "false" : "true");
+  setAttr(openingBackButton, "aria-label", state.backLabel || "Go back");
   syncFullscreenButtons();
 
   openingLogoSlot.hidden = !logoUrl;
   openingLogoFillClip.style.width = `${(progress || 0) * 100}%`;
 
-  openingTitle.textContent = titleText;
+  setTextContent(openingTitle, titleText);
   openingTitle.hidden = Boolean(logoUrl || !titleText);
   openingSpinner.hidden = Boolean(logoUrl || titleText);
   openingLoadingIndicator.setActive(showOpening && !openingSpinner.hidden);
 
-  openingMessage.textContent = messageText;
+  setTextContent(openingMessage, messageText);
   openingStatus.hidden = !(messageText || showHorizontalProgress);
   openingProgressTrack.hidden = !showHorizontalProgress;
   openingProgressBar.style.width = `${(progress || 0) * 100}%`;
@@ -4659,7 +4682,7 @@ const renderChrome = () => {
     closeQuickMenu();
   }
   codeineDrawerItems.inert = !isQuickMenuOpen && !state.isInPip;
-  codeineDrawerItems.setAttribute("aria-hidden", String(!isQuickMenuOpen && !state.isInPip));
+  setAttr(codeineDrawerItems, "aria-hidden", String(!isQuickMenuOpen && !state.isInPip));
   root.classList.toggle("ui-codeinexo", isCodeineXo);
   root.classList.toggle("ui-official", !isCodeineXo);
   root.dataset.playerUi = isCodeineXo ? "codeinexo" : "official";
@@ -4685,23 +4708,23 @@ const renderChrome = () => {
   syncParentalGuide(showOpening || showError);
   syncTorrentStatsOverlay(showOpening || showError || modalActive);
 
-  title.textContent = state.title || "";
+  setTextContent(title, state.title || "");
   const parentalGuideUnavailable = !normalizedParentalWarnings().length || Boolean(state.isLocked || state.showParentalGuide);
   [title, codeineTitle].forEach(button => {
     if (!button) return;
-    button.setAttribute("aria-disabled", String(parentalGuideUnavailable));
+    setAttr(button, "aria-disabled", String(parentalGuideUnavailable));
     button.inert = chromeHidden || showOpening || Boolean(state.isInPip) || (button === title ? isCodeineXo : !isCodeineXo);
   });
   setText(episode, state.episodeText);
   setText(streamTitle, state.streamTitle);
   setText(providerName, state.providerName);
   renderPlayerBadges();
-  resizeLabel.textContent = state.resizeModeLabel || "Fit";
-  speedLabel.textContent = state.playbackSpeedLabel || "1x";
-  subtitlesLabel.textContent = state.subtitlesLabel || "Subs";
-  audioLabel.textContent = state.audioLabel || "Audio";
-  sourcesLabel.textContent = state.sourcesLabel || "Sources";
-  episodesLabel.textContent = state.episodesLabel || "Episodes";
+  setTextContent(resizeLabel, state.resizeModeLabel || "Fit");
+  setTextContent(speedLabel, state.playbackSpeedLabel || "1x");
+  setTextContent(subtitlesLabel, state.subtitlesLabel || "Subs");
+  setTextContent(audioLabel, state.audioLabel || "Audio");
+  setTextContent(sourcesLabel, state.sourcesLabel || "Sources");
+  setTextContent(episodesLabel, state.episodesLabel || "Episodes");
   setActionButtonLabel("resize", state.resizeModeLabel || "Fit");
   setActionButtonLabel("speed", state.playbackSpeedLabel || "1x");
   setActionButtonLabel("subtitles", state.subtitlesLabel || "Subs");
@@ -4710,36 +4733,48 @@ const renderChrome = () => {
   setActionButtonLabel("episodes", state.episodesLabel || "Episodes");
   if (pipButton) {
     const pipLabel = String(state.pipLabel || "").trim();
-    pipButton.setAttribute("aria-label", pipLabel);
-    pipButton.setAttribute("title", pipLabel);
+    setAttr(pipButton, "aria-label", pipLabel);
+    setAttr(pipButton, "title", pipLabel);
     pipButton.hidden = !pipLabel;
   }
   const miniLabel = String(state.minimizeLabel || "Mini player").trim();
   if (miniPlayerButton) {
-    miniPlayerButton.setAttribute("aria-label", miniLabel);
-    miniPlayerButton.setAttribute("title", miniLabel);
+    setAttr(miniPlayerButton, "aria-label", miniLabel);
+    setAttr(miniPlayerButton, "title", miniLabel);
   }
   const isEnhancementActive = Boolean(state.animeUpscalerEnabled || (state.svpActive && state.svpAvailable !== false));
   const enhancementsTitle = isEnhancementActive ? "Enhancements (Active)" : "Enhancements";
   const classicShadersButton = shadersButton || document.querySelector('.action[data-command="shaders"]');
   if (classicShadersButton) {
     classicShadersButton.classList.toggle("active", isEnhancementActive);
-    classicShadersButton.setAttribute("title", enhancementsTitle);
-    classicShadersButton.setAttribute("aria-label", enhancementsTitle);
+    setAttr(classicShadersButton, "title", enhancementsTitle);
+    setAttr(classicShadersButton, "aria-label", enhancementsTitle);
   }
   syncPipLockLabels();
-  const isSeekingBuffered = isScrubbing || (seekSuppressBufferingUntil > Date.now());
+  const seekBufferingDelay = seekSuppressBufferingUntil - Date.now();
+  const waitingOnSeekBuffer = state.isLoading && !isScrubbing && seekBufferingDelay > 0;
+  if (waitingOnSeekBuffer && !seekBufferingRenderTimer) {
+    seekBufferingRenderTimer = window.setTimeout(() => {
+      seekBufferingRenderTimer = 0;
+      renderChrome();
+    }, seekBufferingDelay);
+  } else if (!waitingOnSeekBuffer && seekBufferingRenderTimer) {
+    window.clearTimeout(seekBufferingRenderTimer);
+    seekBufferingRenderTimer = 0;
+  }
+  const isSeekingBuffered = isScrubbing || seekBufferingDelay > 0;
   const wantsBuffering = Boolean(!showError && state.isLoading && !isSeekingBuffered && !activeModal && !showOpening);
   if (wantsBuffering) {
     if (!bufferingDebounceTimer && !isBufferingVisible) {
       bufferingDebounceTimer = window.setTimeout(() => {
         bufferingDebounceTimer = 0;
+        isBufferingVisible = true;
         renderChrome();
       }, 200);
     } else if (!bufferingDebounceTimer) {
       isBufferingVisible = true;
       bufferingStatus.classList.toggle("visible", true);
-      bufferingStatus.setAttribute("aria-hidden", "false");
+      setAttr(bufferingStatus, "aria-hidden", "false");
       bufferingLoadingIndicator.setActive(true);
     }
   } else {
@@ -4750,7 +4785,7 @@ const renderChrome = () => {
     if (isBufferingVisible) {
       isBufferingVisible = false;
       bufferingStatus.classList.toggle("visible", false);
-      bufferingStatus.setAttribute("aria-hidden", "true");
+      setAttr(bufferingStatus, "aria-hidden", "true");
       bufferingLoadingIndicator.setActive(false);
     }
   }
@@ -4764,77 +4799,77 @@ const renderChrome = () => {
 
   const playPauseLabel = isPlaying ? state.pauseLabel : state.playLabel;
   if (toggle) {
-    toggle.setAttribute("aria-label", playPauseLabel || (isPlaying ? "Pause" : "Play"));
+    setAttr(toggle, "aria-label", playPauseLabel || (isPlaying ? "Pause" : "Play"));
   }
   if (toggleIcon) {
-    toggleIcon.setAttribute("href", isPlaying ? "#icon-pause" : "#icon-play");
+    setAttr(toggleIcon, "href", isPlaying ? "#icon-pause" : "#icon-play");
   }
   if (toggleLabel) {
-    toggleLabel.textContent = playPauseLabel || (isPlaying ? "Pause" : "Play");
+    setTextContent(toggleLabel, playPauseLabel || (isPlaying ? "Pause" : "Play"));
   }
   if (nextEpisodeButton) {
     nextEpisodeButton.hidden = !state.nextEpisodePlayable;
     const nextLabel = state.nextEpisodeHeaderLabel || "Next episode";
-    nextEpisodeButton.setAttribute("aria-label", nextLabel);
-    nextEpisodeButton.setAttribute("title", nextLabel);
-    if (nextEpisodeButtonLabel) nextEpisodeButtonLabel.textContent = nextLabel;
+    setAttr(nextEpisodeButton, "aria-label", nextLabel);
+    setAttr(nextEpisodeButton, "title", nextLabel);
+    if (nextEpisodeButtonLabel) setTextContent(nextEpisodeButtonLabel, nextLabel);
   }
 
   if (isCodeineXo) {
-    if (codeineTitle) codeineTitle.textContent = state.title || "";
+    if (codeineTitle) setTextContent(codeineTitle, state.title || "");
     if (codeineEpisode) setText(codeineEpisode, state.episodeText);
     if (codeineToggle) {
-      codeineToggle.setAttribute("aria-label", playPauseLabel || (isPlaying ? "Pause" : "Play"));
+      setAttr(codeineToggle, "aria-label", playPauseLabel || (isPlaying ? "Pause" : "Play"));
     }
     if (codeineToggleIcon) {
-      codeineToggleIcon.setAttribute("href", isPlaying ? "#icon-pause" : "#icon-play");
+      setAttr(codeineToggleIcon, "href", isPlaying ? "#icon-pause" : "#icon-play");
     }
     if (codeineNextEpisodeButton) {
       codeineNextEpisodeButton.hidden = !state.nextEpisodePlayable;
       const nextLabel = state.nextEpisodeHeaderLabel || "Next episode";
-      codeineNextEpisodeButton.setAttribute("aria-label", nextLabel);
-      codeineNextEpisodeButton.setAttribute("title", nextLabel);
+      setAttr(codeineNextEpisodeButton, "aria-label", nextLabel);
+      setAttr(codeineNextEpisodeButton, "title", nextLabel);
     }
     if (codeinePipButton) {
       const pipLabel = String(state.pipLabel || "").trim();
-      codeinePipButton.setAttribute("aria-label", pipLabel);
-      codeinePipButton.setAttribute("title", pipLabel);
+      setAttr(codeinePipButton, "aria-label", pipLabel);
+      setAttr(codeinePipButton, "title", pipLabel);
       codeinePipButton.hidden = !pipLabel;
       document.getElementById("codeinePipLabel").textContent = pipLabel;
     }
     if (codeineMiniPlayerButton) {
-      codeineMiniPlayerButton.setAttribute("aria-label", miniLabel);
-      codeineMiniPlayerButton.setAttribute("title", miniLabel);
+      setAttr(codeineMiniPlayerButton, "aria-label", miniLabel);
+      setAttr(codeineMiniPlayerButton, "title", miniLabel);
       document.getElementById("codeineMiniPlayerLabel").textContent = miniLabel;
     }
     if (codeineBackButton) {
-      codeineBackButton.setAttribute("aria-label", state.closeLabel || "Close player");
+      setAttr(codeineBackButton, "aria-label", state.closeLabel || "Close player");
     }
     setVisible(codeineSourcesButton, Boolean(state.showSources));
     setVisible(codeineEpisodesButton, Boolean(state.showEpisodes));
-    if (codeineResizeButton) codeineResizeButton.setAttribute("title", state.resizeModeLabel || "Fit");
-    if (codeineSpeedButton) codeineSpeedButton.setAttribute("title", state.playbackSpeedLabel || "1x");
-    if (codeineSubtitlesButton) codeineSubtitlesButton.setAttribute("title", state.subtitlesLabel || "Subs");
-    if (codeineAudioButton) codeineAudioButton.setAttribute("title", state.audioLabel || "Audio");
+    if (codeineResizeButton) setAttr(codeineResizeButton, "title", state.resizeModeLabel || "Fit");
+    if (codeineSpeedButton) setAttr(codeineSpeedButton, "title", state.playbackSpeedLabel || "1x");
+    if (codeineSubtitlesButton) setAttr(codeineSubtitlesButton, "title", state.subtitlesLabel || "Subs");
+    if (codeineAudioButton) setAttr(codeineAudioButton, "title", state.audioLabel || "Audio");
     if (codeineShadersButton) {
       codeineShadersButton.classList.toggle("active", isEnhancementActive);
-      codeineShadersButton.setAttribute("title", enhancementsTitle);
-      codeineShadersButton.setAttribute("aria-label", enhancementsTitle);
+      setAttr(codeineShadersButton, "title", enhancementsTitle);
+      setAttr(codeineShadersButton, "aria-label", enhancementsTitle);
     }
-    if (codeineSourcesButton) codeineSourcesButton.setAttribute("title", state.sourcesLabel || "Sources");
-    if (codeineEpisodesButton) codeineEpisodesButton.setAttribute("title", state.episodesLabel || "Episodes");
+    if (codeineSourcesButton) setAttr(codeineSourcesButton, "title", state.sourcesLabel || "Sources");
+    if (codeineEpisodesButton) setAttr(codeineEpisodesButton, "title", state.episodesLabel || "Episodes");
   }
 
   syncFullscreenButtons();
-  backButton.setAttribute("aria-label", state.closeLabel || "Close player");
-  submitIntroButton.setAttribute("aria-label", state.submitIntroLabel || "Submit Intro");
-  videoSettingsButton.setAttribute("aria-label", state.videoSettingsLabel || "Video settings");
+  setAttr(backButton, "aria-label", state.closeLabel || "Close player");
+  setAttr(submitIntroButton, "aria-label", state.submitIntroLabel || "Submit Intro");
+  setAttr(videoSettingsButton, "aria-label", state.videoSettingsLabel || "Video settings");
   setProgress(positionMs, durationMs, bufferedPositionMs);
   if (showError) {
     skipPrompt.classList.remove("visible", "show-progress");
-    skipPrompt.setAttribute("aria-hidden", "true");
+    setAttr(skipPrompt, "aria-hidden", "true");
     nextEpisodeCard.classList.remove("visible");
-    nextEpisodeCard.setAttribute("aria-hidden", "true");
+    setAttr(nextEpisodeCard, "aria-hidden", "true");
   } else {
     renderNativePlaybackPrompts();
   }
@@ -6518,6 +6553,7 @@ if (codeinePosition) {
 }
 
 window.playerUpdate = update => {
+  const isFirstUpdate = !hasReceivedNativePlaybackUpdate;
   hasReceivedNativePlaybackUpdate = true;
   const durationMs = Math.round((Number(update.duration) || 0) * 1000);
   const positionMs = Math.round((Number(update.position) || 0) * 1000);
@@ -6546,6 +6582,7 @@ window.playerUpdate = update => {
     pendingPlaybackTimer = 0;
   }
   const updateIsLoading = Boolean(update.loading || update.isLoading);
+  const previousBufferingSuppression = seekSuppressBufferingUntil;
   const positionJumped = state.positionMs > 0 && Math.abs(positionMs - state.positionMs) > 1500;
   if (positionJumped && (positionMs <= bufferedPositionMs + 1000 || positionMs <= state.positionMs + 500)) {
     seekSuppressBufferingUntil = Date.now() + 800;
@@ -6561,12 +6598,20 @@ window.playerUpdate = update => {
       seekSeenLoading = false;
     }
   }
+  const nextPositionMs = fineSeekBasePosMs !== null ? state.positionMs : positionMs;
+  const nextIsPlaying = pendingIsPlaying === null ? nativeIsPlaying : pendingIsPlaying;
+  const needsChromeRender = isFirstUpdate ||
+    previousBufferingSuppression !== seekSuppressBufferingUntil ||
+    durationMs !== state.durationMs || nextPositionMs !== state.positionMs ||
+    bufferedPositionMs !== state.bufferedPositionMs || nextIsPlaying !== state.isPlaying ||
+    updateIsLoading !== state.isLoading || volumeLevel !== state.volumeLevel ||
+    audioTracksChanged || subtitleTracksChanged;
   state = {
     ...state,
     durationMs,
-    positionMs: fineSeekBasePosMs !== null ? state.positionMs : positionMs,
+    positionMs: nextPositionMs,
     bufferedPositionMs,
-    isPlaying: pendingIsPlaying === null ? nativeIsPlaying : pendingIsPlaying,
+    isPlaying: nextIsPlaying,
     isLoading: updateIsLoading,
     volumeLevel,
     audioTracks,
@@ -6586,7 +6631,7 @@ window.playerUpdate = update => {
       pendingSubtitleOptionId = selected.id;
     }
   }
-  renderChrome();
+  if (needsChromeRender) renderChrome();
   if (state.seekPreviewEnabled && (!seekrCues || seekrCues.length === 0)) {
     syncSeekrPreviews();
   }
@@ -7782,6 +7827,65 @@ window.addEventListener("drop", async event => {
 });
 
 initEyeFilterListeners();
+const overlayDirtyBridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.overlayDirty;
+if (overlayDirtyBridge) {
+  let overlayDirtyQueued = false;
+  const markOverlayDirty = () => {
+    if (overlayDirtyQueued) return;
+    overlayDirtyQueued = true;
+    window.setTimeout(() => {
+      overlayDirtyQueued = false;
+      overlayDirtyBridge.postMessage(0);
+    }, 0);
+  };
+  const isOverlayMutationVisible = record => {
+    if (record.type === "attributes" &&
+        record.oldValue === record.target.getAttribute(record.attributeName)) {
+      return false;
+    }
+    if (record.type === "childList" &&
+        record.addedNodes.length === 1 &&
+        record.removedNodes.length === 1 &&
+        record.addedNodes[0].nodeType === Node.TEXT_NODE &&
+        record.removedNodes[0].nodeType === Node.TEXT_NODE &&
+        record.addedNodes[0].data === record.removedNodes[0].data) {
+      return false;
+    }
+    const node = record.type === "childList" ? record.target : record.target.parentElement;
+    if (!node || typeof node.checkVisibility !== "function") return true;
+    return node.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+  };
+  new MutationObserver(records => {
+    if (records.some(isOverlayMutationVisible)) markOverlayDirty();
+  }).observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeOldValue: true,
+    characterData: true,
+  });
+  [
+    "transitionrun",
+    "transitionend",
+    "transitioncancel",
+    "animationstart",
+    "animationiteration",
+    "animationend",
+    "animationcancel",
+    "load",
+    "error",
+    "scroll",
+    "input",
+    "focusin",
+    "focusout",
+    "pointerover",
+    "pointerout",
+    "pointerdown",
+    "pointerup",
+  ].forEach(type => document.addEventListener(type, markOverlayDirty, true));
+  if (document.fonts) document.fonts.addEventListener("loadingdone", markOverlayDirty);
+}
+
 setProgress(0, 0, 0);
 focusShortcutRoot();
 syncEyeFilterOverlay();
