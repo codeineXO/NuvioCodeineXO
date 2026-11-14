@@ -97,7 +97,7 @@ internal fun HomeCatalogRail(
                     while (true) {
                         val event = awaitPointerEvent()
                         when (event.type) {
-                            PointerEventType.Exit, PointerEventType.Press, PointerEventType.Scroll -> hoveredIndex = null
+                            PointerEventType.Exit, PointerEventType.Scroll -> hoveredIndex = null
                             PointerEventType.Enter, PointerEventType.Move -> {
                                 val pointer = event.changes.firstOrNull { !it.pressed && !it.previousPressed }
                                 if (pointer != null) {
@@ -120,12 +120,20 @@ internal fun HomeCatalogRail(
                 isAdjacent = highlightedIndex?.let { abs(index - it) == 1 } == true,
                 itemHeight = itemHeight,
                 onClick = { onSelect(entry) },
+                onHoverChanged = { isHovered ->
+                    if (isHovered) {
+                        hoveredIndex = index
+                    } else if (hoveredIndex == index) {
+                        hoveredIndex = null
+                    }
+                },
                 modifier = Modifier.onFocusChanged {
                     if (it.hasFocus) focusedIndex = index
                     else if (focusedIndex == index) focusedIndex = null
                 },
                 expandLeft = true,
                 expanded = index == highlightedIndex,
+                showFocus = keyboardActive,
             )
         }
     }

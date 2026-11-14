@@ -152,6 +152,7 @@ internal fun IndexRailMark(
     modifier: Modifier = Modifier,
     expandLeft: Boolean = false,
     expanded: Boolean? = null,
+    showFocus: Boolean = LocalRemoteNavigation.current?.keyboard == true,
 ) {
     val tooltip = rememberTooltipState()
     var focused by remember { mutableStateOf(false) }
@@ -163,7 +164,7 @@ internal fun IndexRailMark(
         onHoverChanged?.invoke(hovered)
     }
 
-    val isDirectlyExpanded = active || (expanded ?: (focused || hovered))
+    val isDirectlyExpanded = active || (expanded ?: ((focused && showFocus) || hovered))
     val markWidth by animateDpAsState(
         when {
             isDirectlyExpanded -> 28.dp
@@ -185,7 +186,7 @@ internal fun IndexRailMark(
             else -> 0.6f
         }
     )
-    val showFocusTooltip = focused && (expanded ?: true)
+    val showFocusTooltip = focused && showFocus && (expanded ?: true)
     LaunchedEffect(showFocusTooltip) {
         if (showFocusTooltip) tooltip.show() else tooltip.dismiss()
     }
@@ -198,7 +199,7 @@ internal fun IndexRailMark(
         Box(
             modifier = modifier.size(width = 48.dp, height = itemHeight)
                 .onFocusChanged { focused = it.hasFocus }
-                .navigationGlassFeedback(interactionSource, tokens.shapes.button, selected = active)
+                .navigationGlassFeedback(interactionSource, tokens.shapes.button, selected = active, showFocus = showFocus)
                 .hoverable(interactionSource)
                 .remoteNavigationTarget(shape = tokens.shapes.button, onSelect = onClick)
                 .semantics { contentDescription = label; selected = active }
