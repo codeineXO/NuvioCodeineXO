@@ -2,7 +2,12 @@ package com.nuvio.app.features.remote
 
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.components.imdbRatingBadge
+import com.nuvio.app.features.details.components.ratingBadges
 import com.nuvio.app.features.details.normalizeSeasonNumber
+import com.nuvio.app.features.details.toMetaPreview
+import com.nuvio.app.features.home.components.heroInfo
+import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_IMDB
 import com.nuvio.app.features.player.MediaClassifier
 import com.nuvio.app.features.remote.RemoteAppBridge.Command
 import com.nuvio.app.features.streams.StreamsRepository
@@ -10,11 +15,11 @@ import javax.swing.SwingUtilities
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -28,8 +33,12 @@ import kotlinx.serialization.json.putJsonObject
  */
 internal object RemoteDetails {
     /** `{"k":"route","route":"tabs|details|streams|player|other"}`: which page the PC shows. */
-    val routeMessages: Flow<String> = RemoteAppBridge.route.map { route ->
-        buildJsonObject { put("k", "route"); put("route", route) }.toString()
+    val routeMessages: Flow<String> = combine(RemoteAppBridge.route, RemoteAppBridge.detailRoute) { route, detail ->
+        buildJsonObject {
+            put("k", "route")
+            put("route", route)
+            if (route == "details" && detail != null) put("detailKey", "${detail.type}:${detail.id}")
+        }.toString()
     }.distinctUntilChanged()
 
     /** `{"k":"details",…}`: the open title, like its page on the PC. */
@@ -38,29 +47,28 @@ internal object RemoteDetails {
         RemoteAppBridge.details,
         AnimeFillerSettingsRepository.enabled,
         AnimeFillerSettingsRepository.hideFillers,
-    ) { state, actions, fillerEnabled, hideFillers ->
-        val meta = state.meta
+        RemoteAppBridge.detailRoute,
+    ) { state, actions, fillerEnabled, hideFillers, route ->
+        val key = route?.let { "${it.type}:${it.id}" }
+        val current = state.takeIf { key != null && it.requestKey == key }
+        val meta = current?.meta
         buildJsonObject {
             put("k", "details")
-            put("loading", state.isLoading)
-            if (meta == null) return@buildJsonObject
-            val key = "${meta.type}:${meta.id}"
-            val details = actions?.takeIf { it.key == key }
+            if (key == null) return@buildJsonObject
             put("key", key)
+            put("loading", meta == null && current?.errorMessage == null)
+            if (meta == null) {
+                put("name", route?.title)
+                put("background", route?.posterUrl)
+                return@buildJsonObject
+            }
+            val details = actions?.takeIf { it.key == "${meta.type}:${meta.id}" }
+            put("hasMetadata", true)
+            put("actionsReady", details != null)
             put("preferredSeason", details?.preferredSeasonNumber)
             put("name", meta.name)
             put("logo", meta.logo)
             put("background", meta.background ?: meta.poster)
-            put("year", meta.releaseInfo)
-            put("runtime", meta.runtime)
-            put("ageRating", meta.ageRating)
-            put("imdb", meta.imdbRating)
-            putJsonArray("ratings") {
-                meta.externalRatings.filter { it.value > 0 }.take(5).forEach {
-                    addJsonObject { put("source", it.source); put("value", it.value) }
-                }
-            }
-            put("genres", meta.genres.take(4).joinToString(" · "))
             put("description", meta.description)
             put("playLabel", details?.playLabel)
             put("saved", details?.isSaved == true)
@@ -73,6 +81,29 @@ internal object RemoteDetails {
             val seasons = meta.videos.withIndex()
                 .filter { it.value.season != null || it.value.episode != null }
                 .groupBy { normalizeSeasonNumber(it.value.season) }
+            val seasonCount = seasons.keys.count { it != 0 }
+            val seasonLabel = when (seasonCount) {
+                0 -> null
+                1 -> "1 Season"
+                else -> "$seasonCount Seasons"
+            }
+            val info = meta.toMetaPreview().copy(
+                genres = listOf(meta.genres.take(4).joinToString(" · ")),
+                runtime = meta.runtime,
+                ageRating = meta.ageRating,
+                status = meta.status,
+                language = meta.language,
+            ).heroInfo(showImdbRating = false, showMdbListRatings = false)
+            val externalRatings = meta.externalRatings.filter { it.value > 0 }.take(5)
+            val imdb = meta.imdbRating?.trim()?.toDoubleOrNull()
+                ?.takeIf { it > 0 && externalRatings.none { rating -> rating.source == PROVIDER_IMDB } }
+                ?.let(::imdbRatingBadge)
+            heroPills(
+                info.copy(
+                    facts = info.facts + listOfNotNull(seasonLabel),
+                    ratings = listOfNotNull(imdb) + ratingBadges(externalRatings),
+                ),
+            )
             putJsonArray("seasons") {
                 seasons.keys.sortedWith(compareBy({ it == 0 }, { it })).forEach { season ->
                     addJsonObject {
@@ -151,7 +182,14 @@ internal object RemoteDetails {
      */
     fun handle(cmd: String, json: JsonObject) {
         val item = json["item"]?.jsonPrimitive?.intOrNull ?: -1
-        val details = RemoteAppBridge.details.value
+        val state = MetaDetailsRepository.uiState.value
+        val meta = state.meta
+        val routeKey = RemoteAppBridge.detailRoute.value?.let { "${it.type}:${it.id}" }
+        val details = RemoteAppBridge.details.value?.takeIf {
+            routeKey != null && state.requestKey == routeKey &&
+                routeKey == json["key"]?.jsonPrimitive?.contentOrNull &&
+                meta != null && it.key == "${meta.type}:${meta.id}"
+        }
         val page = RemoteAppBridge.streams.value
         val action: (() -> Unit)? = when (cmd) {
             "back" -> ({ RemoteAppBridge.send(Command.Back()) })
@@ -167,7 +205,8 @@ internal object RemoteDetails {
                     AnimeFillerSettingsRepository.setHideFillers(hide)
                 }
             }
-            "episode" -> MetaDetailsRepository.uiState.value.meta?.videos?.getOrNull(item)
+            "episode" -> meta?.videos?.getOrNull(item)
+                ?.takeIf { it.id == json["id"]?.jsonPrimitive?.contentOrNull }
                 ?.let { video -> details?.let { { it.playEpisode(video) } } }
             "stream" -> {
                 val group = json["group"]?.jsonPrimitive?.intOrNull ?: -1

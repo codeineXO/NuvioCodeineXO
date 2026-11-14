@@ -62,12 +62,13 @@ internal object RemoteSearch {
         }.toString()
     }.distinctUntilChanged()
 
-    /** `searchRemove` (a recent `query`), `discoverType`/`discoverCatalog`/`discoverGenre` (`value`) or `discoverMore`. */
+    /** `searchRemove` (a recent `query`), `searchClear`, `discoverType`/`discoverCatalog`/`discoverGenre` (`value`) or `discoverMore`. */
     fun handle(cmd: String, json: JsonObject) {
         val value = json["value"]?.jsonPrimitive?.contentOrNull
         SwingUtilities.invokeLater {
             when (cmd) {
                 "searchRemove" -> json["query"]?.jsonPrimitive?.contentOrNull?.let(SearchHistoryRepository::removeSearch)
+                "searchClear" -> SearchHistoryRepository.clearSearches()
                 "discoverType" -> value?.let(SearchRepository::selectDiscoverType)
                 "discoverCatalog" -> value?.let(SearchRepository::selectDiscoverCatalog)
                 "discoverGenre" -> SearchRepository.selectDiscoverGenre(value?.ifEmpty { null })

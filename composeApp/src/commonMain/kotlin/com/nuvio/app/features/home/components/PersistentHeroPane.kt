@@ -149,10 +149,12 @@ internal fun PersistentHeroPane(
         else if (selection.requested == null && seed != null) selection.select(seed)
     }
 
-    // The phone remote mirrors Home's hero, and picks titles for it like a hover.
+    // Keep a title opened away from Home queued until its hero can load it.
     if (page == "home") {
         LaunchedEffect(active, selection, RemoteAppBridge.heroPicks) {
-            if (active) RemoteAppBridge.heroPicks.collect { selection.select(it) }
+            if (active) RemoteAppBridge.heroPicks.collect { pick ->
+                if (pick != null && RemoteAppBridge.consumeHeroPick(pick)) selection.select(pick.second)
+            }
         }
         val shown = selection.displayed?.item
         LaunchedEffect(active, shown) { RemoteAppBridge.publishPersistentHero(shown.takeIf { active }) }

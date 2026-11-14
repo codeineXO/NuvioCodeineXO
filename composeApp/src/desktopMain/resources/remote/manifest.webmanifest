@@ -1,6 +1,6 @@
 {
-  "name": "Nuvio Remote",
-  "short_name": "Nuvio Remote",
+  "name": "NuvioCodeineXO Remote",
+  "short_name": "NuvioCodeineXO Remote",
   "description": "Control NuvioCodeineXO on your PC from your phone.",
   "start_url": "/",
   "scope": "/",

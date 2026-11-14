@@ -122,14 +122,17 @@ import com.nuvio.app.features.cloud.providerPosterUrl
 import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.collection.CollectionSyncService
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.toMetaPreview
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.downloads.DownloadItem
 import com.nuvio.app.features.downloads.DownloadSubtitles
 import com.nuvio.app.features.downloads.DownloadsRepository
-import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.ContinueWatchingScreen
+import com.nuvio.app.features.home.HomeCatalogSection
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
+import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
 import com.nuvio.app.features.home.opensDetails
 import com.nuvio.app.features.library.LibraryItem
@@ -1646,6 +1649,22 @@ internal fun MainAppContent(
                     }
                 }
             }
+            LaunchedEffect(currentRoute, activePlaybackProfileId) {
+                val route = currentRoute as? DetailRoute ?: return@LaunchedEffect
+                if (!isDesktop || HomeCatalogSettingsRepository.uiState.value.appInterface != AppInterface.PersistentHero) {
+                    return@LaunchedEffect
+                }
+                val preview = MetaDetailsRepository.peek(route.type, route.id)?.toMetaPreview()
+                    ?: route.title?.let { title ->
+                        MetaPreview(id = route.id, type = route.type, name = title, poster = route.posterUrl)
+                    }
+                preview?.let(com.nuvio.app.features.remote.RemoteAppBridge::pickHero)
+                MetaDetailsRepository.uiState.collect { state ->
+                    state.meta?.takeIf { it.id == route.id && it.type == route.type }?.let { meta ->
+                        com.nuvio.app.features.remote.RemoteAppBridge.pickHero(meta.toMetaPreview())
+                    }
+                }
+            }
             LaunchedEffect(currentRoute) {
                 // The "View All" page open here, which the phone remote follows.
                 com.nuvio.app.features.remote.RemoteViewAll.publishPage(
@@ -1668,6 +1687,7 @@ internal fun MainAppContent(
                         is FolderDetailRoute -> "folder"
                         else -> "other"
                     },
+                    detail = currentRoute as? DetailRoute,
                 )
             }
             SharedTransitionLayout {

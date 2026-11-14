@@ -207,7 +207,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
             "okLong" -> SwingUtilities.invokeLater { RemoteNavigationDispatcher.openContextMenu() }
             "tab", "open", "folder", "resume", "search", "layout", "heroPick", "viewAll", "catalogMore" -> RemoteHome.handle(cmd, json)
             "folderTab", "folderMore" -> RemoteFolderPage.handle(cmd, json)
-            "searchRemove", "discoverType", "discoverCatalog", "discoverGenre", "discoverMore" -> RemoteSearch.handle(cmd, json)
+            "searchRemove", "searchClear", "discoverType", "discoverCatalog", "discoverGenre", "discoverMore" -> RemoteSearch.handle(cmd, json)
             "shuffleFilter", "shufflePick", "shuffleReset", "shuffleCancel", "shuffleClose" -> RemoteShufflePage.handle(cmd, json)
             "libraryLayout", "librarySort", "libraryDownloads", "cloudLoad", "cloudPlay" -> RemoteLibrary.handle(cmd, json)
             "fillerDetection", "hideFillers" -> RemoteDetails.handle(cmd, json)

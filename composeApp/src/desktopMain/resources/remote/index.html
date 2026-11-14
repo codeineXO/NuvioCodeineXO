@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Nuvio Remote">
+<meta name="apple-mobile-web-app-title" content="NuvioCodeineXO Remote">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#181825">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/icon-180.png">
-<title>Nuvio Remote</title>
+<title>NuvioCodeineXO Remote</title>
 <link rel="stylesheet" href="/cuppa.css">
 <script>
   // The cuppa theme: flavor (Auto follows the phone), accent and corner radius, set before first paint.
@@ -101,15 +101,19 @@
   #skip-segment { min-width: 0; font-size: 13px; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
   .pc-note { text-align: center; }
 
-  .hero-strip, .row-scroll { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  .hero-strip, .row-scroll { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none;
     margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
+  .hero-strip { scroll-snap-type: x mandatory; }
+  .row-scroll { -webkit-overflow-scrolling: touch; }
   .hero-strip::-webkit-scrollbar, .row-scroll::-webkit-scrollbar { display: none; }
-  .home-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0;
+  .artwork-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; opacity: 0;
     transition: opacity 0.35s var(--ease); }
-  .home-backdrop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25);
+  .artwork-backdrop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.25);
     filter: blur(56px) saturate(1.35); }
-  body:has(#home:not([hidden])) .home-backdrop:has(img) { opacity: 0.42; }
-  .latte body:has(#home:not([hidden])) .home-backdrop:has(img) { opacity: 0.29; }
+  body:has(#home:not([hidden])) #home-backdrop,
+  body:has(:is(#details, #player):not([hidden])) #media-backdrop { opacity: 0.42; }
+  .latte body:has(#home:not([hidden])) #home-backdrop,
+  .latte body:has(:is(#details, #player):not([hidden])) #media-backdrop { opacity: 0.29; }
   /* One hero height for every layout (and its skeleton), scaled to the screen, so nothing jumps when the layout or
      the title changes. The info sits at the bottom. */
   :root { --hero-h: clamp(380px, 64dvh, 125vw); }
@@ -197,6 +201,7 @@
   #search-rows:empty { display: none; }
   #search-start section { display: flex; flex-direction: column; gap: 12px; }
   #search-start .row-title { margin: 0; }
+  #recent-section .row-head { margin-bottom: 0; }
   /* Library: Saved (rows or grids, sorted like the PC) and Cloud (each item's playable files). */
   #library { gap: 16px; }
   #library-views { align-self: flex-start; }
@@ -225,7 +230,7 @@
   .catalog-status { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 64px; }
   @media (min-width: 480px) { .grid-page .catalog-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   .row-title { margin: 0 0 12px; font-size: 20px; font-weight: 600; }
-  .tile { flex: none; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; text-align: left; transition: transform 0.15s var(--ease); }
+  .tile { flex: none; display: flex; flex-direction: column; gap: 8px; text-align: left; transition: transform 0.15s var(--ease); }
   .tile:active { transform: scale(0.96); }
   .tile .art { position: relative; overflow: hidden; border-radius: calc(var(--r-ctl) + 2px); background: var(--ctp-surface0); }
   .tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -267,24 +272,25 @@
   .stream-filter .chips { flex: 1; min-width: 0; margin-right: 0; padding-right: 0; }
   .stream-filter .btn { flex: none; }
   .grow { flex: 1; }
-  .detail-hero, .stream-hero { position: relative; overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0);
-    aspect-ratio: 4 / 3; max-height: 46dvh; }
+  .detail-hero, .stream-hero { position: relative; overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0); }
+  .detail-hero { display: flex; align-items: flex-end; min-height: min(calc((100vw - 32px) * 0.75), 46dvh, 336px); }
   /* The stream picker's card and the playing card are one card: same shape and shadow, and the same
      view-transition name, so starting playback moves it from one screen to the other. */
-  .stream-hero { aspect-ratio: 16 / 9; box-shadow: var(--card-shadow); view-transition-name: now-card; }
+  .stream-hero { aspect-ratio: 16 / 9; max-height: 46dvh; box-shadow: var(--card-shadow); view-transition-name: now-card; }
   #player .hero { view-transition-name: now-card; }
   ::view-transition-group(now-card) { animation-duration: 0.45s; animation-timing-function: var(--ease); }
   ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
   .detail-hero > img, .stream-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .detail-hero .shade, .stream-hero .shade { position: absolute; inset: 0;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 8%, transparent 70%); }
-  .detail-hero .info, .stream-hero .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .detail-hero .info, .stream-hero .info { padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .detail-hero .info { position: relative; min-width: 0; }
+  #d-pills { display: contents; }
+  #d-pills .pill { max-width: 100%; min-height: 28px; height: auto; padding-block: 4px; white-space: normal; overflow-wrap: anywhere; }
+  .stream-hero .info { position: absolute; left: 0; right: 0; bottom: 0; }
   .detail-hero .logo, .stream-hero .logo { max-width: 75%; max-height: 80px; object-fit: contain; object-position: left bottom; }
   .stream-hero .logo { max-height: 56px; }
   .meta-line { font-size: 13px; color: var(--ctp-subtext1); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
-  .meta-line .tag { padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--ctp-overlay0); }
-  .meta-line .score b { color: var(--ctp-yellow); }
-  .genres { color: var(--ctp-text); font-weight: 600; }
   .detail-actions { display: flex; gap: 10px; }
   .detail-actions .btn-filled { flex: 1; }
   .detail-actions .btn-filled .ic { width: 18px; height: 18px; }
@@ -343,13 +349,6 @@
   /* Playing screen: artwork first, then the controls. */
   body:has(#player:not([hidden])) { height: 100dvh; }
   #player { width: 100%; min-height: 0; justify-content: flex-end; gap: 20px; }
-  /* The artwork, blurred and dimmed behind the whole page. */
-  .backdrop { position: fixed; inset: 0; z-index: -1; background: center / cover no-repeat var(--art, none);
-    filter: blur(48px) saturate(1.2); transform: scale(1.3); opacity: 0; transition: opacity 0.5s var(--ease); }
-  /* The accent over the artwork: the artwork keeps its light and shape, the accent gives it its colour. */
-  .backdrop::after { content: ""; position: absolute; inset: 0; background: var(--accent); mix-blend-mode: color; opacity: 0.85; }
-  body:has(#player:not([hidden])) .backdrop.on { opacity: 0.4; }
-  .latte body:has(#player:not([hidden])) .backdrop.on { opacity: 0.3; }
 
   /* A natural shadow: a soft contact shadow close in, and a faint wide one, so it lifts without darkening the text below. */
   /* It reaches about 16px, within the gap to whatever is below the card. */
@@ -511,7 +510,8 @@
 </svg>
 
 <!-- Browsing: Home's rows and Search on the phone; a tap opens the title on the PC. -->
-<div class="home-backdrop" id="home-backdrop" aria-hidden="true"></div>
+<div class="artwork-backdrop" id="home-backdrop" aria-hidden="true"></div>
+<div class="artwork-backdrop" id="media-backdrop" aria-hidden="true"></div>
 <main id="home" class="browse" hidden>
   <!-- Until Home arrives: its shape, shimmering. -->
   <div class="home-skeleton" id="home-skeleton">
@@ -600,7 +600,10 @@
   <!-- Before you type, like the PC: recent searches, then Discover. -->
   <div id="search-start">
     <section id="recent-section" hidden>
-      <h3 class="row-title">Recent searches</h3>
+      <div class="row-head">
+        <h3 class="row-title">Recent searches</h3>
+        <button class="btn btn-sm btn-gray" id="recent-clear">Clear all</button>
+      </div>
       <div class="recent-list" id="recent-list"></div>
     </section>
     <section class="grid-page">
@@ -618,7 +621,7 @@
 </main>
 
 <!-- A title's page, following the PC: tap Play, an episode, watched or library, as on the PC. -->
-<main id="details" class="browse" hidden>
+<main id="details" class="browse is-loading" hidden>
   <!-- While the title loads: its page's shape, shimmering. -->
   <div class="detail-skeleton" id="d-skeleton">
     <div class="skel sk-detail"></div>
@@ -632,9 +635,7 @@
     <div class="shade"></div>
     <div class="info">
       <div id="d-title"></div>
-      <div class="meta-line" id="d-meta"></div>
-      <div class="meta-line" id="d-ratings"></div>
-      <div class="meta-line genres" id="d-genres"></div>
+      <div id="d-pills"></div>
     </div>
   </div>
   <button class="synopsis t-sub" id="d-desc" aria-label="Show the full synopsis"></button>
@@ -705,8 +706,6 @@
     </div>
   </div>
 </div>
-
-<div class="backdrop" id="backdrop"></div>
 
 <main id="player" hidden>
   <!-- What's playing: the artwork and logo the player shows; ⓘ lays the episode and its synopsis over it, so the
@@ -838,7 +837,14 @@
       if (msg.k === 'discover') showDiscover(msg);
       if (msg.k === 'shuffle') showShuffle(msg);
       if (msg.k === 'library') showLibrary(msg);
-      if (msg.k === 'route') { pcRoute = msg.route; cardTransition(updateView); }
+      if (msg.k === 'route') {
+        pcRoute = msg.route;
+        if (activeDetailKey !== msg.detailKey) {
+          activeDetailKey = msg.detailKey;
+          renderDetails();
+        }
+        cardTransition(updateView);
+      }
       if (msg.k === 'details') showDetails(msg);
       if (msg.k === 'streams') showStreams(msg);
       if (msg.k === 'cardMenu') showCardMenuActions(msg);
@@ -1007,8 +1013,6 @@
     clearTimeout(busyTimer);
     document.querySelectorAll('.busy').forEach((n) => n.classList.remove('busy'));
   }
-  // Opening a title: its page shows a skeleton until the title has loaded.
-  let awaitingDetails = false;
   let lastView = '';
 
   function setHidden(id, hidden) {
@@ -1047,13 +1051,12 @@
     setHidden('home', !homeVisible);
     setHidden('search', !(onTabs && browseTab === 'search'));
     const detailsVisible = browsing && pcRoute === 'details';
-    const detailsWasHidden = $('details').hidden;
     setHidden('details', !detailsVisible);
     if (onTabs) {
       season = null;
       detailsEpisodePositioned = false;
     }
-    if (detailsVisible && detailsWasHidden && !awaitingDetails && details?.name) renderEpisodes();
+    if (detailsVisible) positionDetailsEpisode();
     setHidden('streams', !(browsing && pcRoute === 'streams'));
     const libraryOpening = $('library').hidden && libraryVisible;
     setHidden('library', !libraryVisible);
@@ -1085,6 +1088,7 @@
       restoreViewScroll('home', homeScroll);
     }
     if (homeVisible !== homeWasVisible) scheduleHomeHero();
+    updateMediaBackdrop();
   }
 
   function setDpadMode(enabled) {
@@ -1217,7 +1221,10 @@
   }
 
   function heroCard(hero, location) {
-    const open = () => { markBusy(card); awaitingDetails = true; send({ cmd: 'open', ...location }); };
+    const open = () => {
+      markBusy(card);
+      send({ cmd: 'open', ...location });
+    };
     const card = el('div', 'hero-card');
     card.append(img(hero.image, 'bg'), el('div', 'shade'));
     const info = el('div', 'info');
@@ -1245,11 +1252,10 @@
     if (item.year) tile.append(el('span', 'year', item.year));
     const open = () => {
       markBusy(art);
-      if (!folder) awaitingDetails = true;
       send({ cmd: folder ? 'folder' : 'open', ...location });
     };
-    const run = item.heroKey ? pickable(tile, item.heroKey, { cmd: 'heroPick', ...location }, open) : open;
-    bindCardMenu(tile, run, folder ? null : posterMenu(item, location));
+    markHeroTile(tile, item.heroKey);
+    bindCardMenu(tile, open, folder ? null : posterMenu(item, location));
     return tile;
   }
 
@@ -1275,8 +1281,8 @@
       description: [item.episode, item.subtitle].filter(Boolean).join(' · '),
       target: { kind: 'continue', item: index, key: item.key },
     };
-    const run = item.heroKey ? pickable(tile, item.heroKey, { cmd: 'heroPick', from: 'continue', item: index }, resumePlayback) : resumePlayback;
-    bindCardMenu(tile, run, menu);
+    markHeroTile(tile, item.heroKey);
+    bindCardMenu(tile, resumePlayback, menu);
     return tile;
   }
 
@@ -1304,8 +1310,9 @@
   }
 
   const homeHeroStrip = $('hero-strip');
-  const homeBackdrop = $('home-backdrop');
   const homeHeroMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const setHomeBackdrop = artworkBackdrop($('home-backdrop'));
+  const setMediaBackdrop = artworkBackdrop($('media-backdrop'));
   const HOME_HERO_INTERVAL_MS = 8000;
   let homeHeroes = [];
   let homeHeroContent = '';
@@ -1315,35 +1322,48 @@
   let homeHeroTimer;
   let homeHeroTarget = null;
   let homeHeroWrap = null;
-  let homeBackdropRequest = null;
+  function artworkBackdrop(backdrop) {
+    let request = null;
+    return (source) => {
+      if ((request?.getAttribute('src') ?? null) === source) return;
+      request = source ? new Image() : null;
+      if (!request) {
+        backdrop.replaceChildren();
+        return;
+      }
+      const art = request;
+      art.alt = '';
+      art.onload = () => {
+        if (art !== request) return;
+        const previous = backdrop.lastElementChild;
+        backdrop.append(art);
+        if (!previous) return;
+        const fade = art.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: homeHeroMotion.matches ? 0 : 650,
+          easing: 'ease-in-out',
+        });
+        fade.onfinish = () => previous.remove();
+      };
+      art.onerror = () => {
+        if (art === request) backdrop.replaceChildren();
+      };
+      art.src = source;
+    };
+  }
 
   function updateHomeBackdrop() {
     $('hero-dots').querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i === homeHeroIndex));
-    // The blurred artwork behind Home: the carousel's current title, or the Persistent Hero's.
-    const source = (homeLayout === 'persistent_hero' ? pcHero?.image : homeHeroes[homeHeroIndex]?.image) || null;
-    if ((homeBackdropRequest?.getAttribute('src') ?? null) === source) return;
-    homeBackdropRequest = source ? new Image() : null;
-    if (!source) {
-      homeBackdrop.replaceChildren();
-      return;
+    setHomeBackdrop((homeLayout === 'persistent_hero' ? pcHero?.image : homeHeroes[homeHeroIndex]?.image) || null);
+  }
+
+  function updateMediaBackdrop() {
+    if (!$('player').hidden) {
+      setMediaBackdrop(state.artwork || null);
+    } else if (!$('details').hidden) {
+      setMediaBackdrop(details?.background || null);
+    } else {
+      setMediaBackdrop(null);
     }
-    const art = homeBackdropRequest;
-    art.alt = '';
-    art.onload = () => {
-      if (art !== homeBackdropRequest) return;
-      const previous = homeBackdrop.lastElementChild;
-      homeBackdrop.append(art);
-      if (!previous) return;
-      const fade = art.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: homeHeroMotion.matches ? 0 : 650,
-        easing: 'ease-in-out',
-      });
-      fade.onfinish = () => previous.remove();
-    };
-    art.onerror = () => {
-      if (art === homeBackdropRequest) homeBackdrop.replaceChildren();
-    };
-    art.src = source;
   }
 
   function moveHomeHero(index, behavior = 'instant') {
@@ -1487,18 +1507,10 @@
       button.setAttribute('aria-pressed', button.dataset.layout === homeLayout));
   }
 
-  // The first tap shows a card in the PC's hero, like hovering it; a tap on the card it shows opens it.
-  function pickable(tile, key, pick, run) {
+  function markHeroTile(tile, key) {
+    if (!key) return;
     tile.dataset.pickKey = key;
     tile.setAttribute('aria-current', key === pickedKey);
-    return () => {
-      if (key === pcHero?.key) {
-        run();
-        return;
-      }
-      send(pick);
-      markPicked(key);
-    };
   }
 
   function markPicked(key) {
@@ -1723,8 +1735,9 @@
   }));
 
   // ─── Details: the title's page, like the PC; its buttons run the PC's ───
+  let activeDetailKey;
+  let latestDetails = null;
   let details = null;
-  let detailsKey = null;
   let season = null;
   let detailsEpisodePositioned = false;
 
@@ -1740,58 +1753,53 @@
   }
 
   function showDetails(msg) {
-    details = msg;
-    // A title just opened shows the skeleton until it has loaded; refreshes of the same title don't.
-    if (msg.name && !msg.loading) awaitingDetails = false;
-    $('details').classList.toggle('is-loading', !msg.name || awaitingDetails);
-    if (!msg.name) return;
-    if (msg.key !== detailsKey) {
-      detailsKey = msg.key;
+    latestDetails = msg;
+    if (msg.key === activeDetailKey) renderDetails();
+  }
+
+  function renderDetails() {
+    const msg = activeDetailKey && latestDetails?.key === activeDetailKey ? latestDetails : null;
+    if (details?.key !== msg?.key) {
       season = null;
       detailsEpisodePositioned = false;
-      $('d-bg').src = msg.background || '';
-      titleArt($('d-title'), msg.logo, msg.name);
       $('d-desc').classList.remove('open');
     }
-    const meta = $('d-meta');
-    meta.replaceChildren();
-    if (msg.year) meta.append(el('b', '', msg.year));
-    const seasonCount = msg.seasons.filter((s) => s.label !== 'Specials').length;
-    if (seasonCount) meta.append(el('span', '', seasonCount === 1 ? '1 Season' : `${seasonCount} Seasons`));
-    if (msg.runtime) meta.append(el('span', '', msg.runtime));
-    if (msg.ageRating) meta.append(el('span', 'tag', msg.ageRating));
-    const ratings = $('d-ratings');
-    ratings.replaceChildren();
-    const SOURCES = { imdb: 'IMDb', tmdb: 'TMDB', tomatoes: 'RT', trakt: 'Trakt', metacritic: 'MC', letterboxd: 'Letterboxd', mal: 'MAL' };
-    const rated = msg.ratings.some((r) => r.source.toLowerCase() === 'imdb') || !(Number(msg.imdb) > 0)
-      ? msg.ratings : [{ source: 'imdb', value: msg.imdb }, ...msg.ratings];
-    rated.forEach((r) => {
-      const s = el('span', 'score', `${SOURCES[r.source.toLowerCase()] || r.source} `);
-      s.append(el('b', '', String(r.value)));
-      ratings.append(s);
-    });
-    $('d-genres').textContent = msg.genres;
+    details = msg;
+    $('details').classList.toggle('is-loading', !msg || msg.loading);
+    updateMediaBackdrop();
+    if (!msg || msg.loading) return;
+    if ($('d-bg').getAttribute('src') !== (msg.background || null)) {
+      if (msg.background) $('d-bg').src = msg.background;
+      else $('d-bg').removeAttribute('src');
+    }
+    if ($('d-title').dataset.title !== JSON.stringify([msg.name, msg.logo])) {
+      $('d-title').dataset.title = JSON.stringify([msg.name, msg.logo]);
+      titleArt($('d-title'), msg.logo, msg.name || '');
+    }
+    $('d-pills').replaceChildren(...heroPills(msg));
     $('d-desc').textContent = msg.description || '';
     $('d-desc').hidden = !msg.description;
     $('d-play-label').textContent = msg.playLabel || 'Play';
+    $('d-play').parentElement.hidden = !msg.hasMetadata;
+    for (const id of ['d-play', 'd-watched', 'd-saved']) $(id).disabled = !msg.actionsReady;
     $('d-watched').setAttribute('aria-pressed', msg.watched);
     $('d-saved').setAttribute('aria-pressed', msg.saved);
     renderEpisodes();
   }
 
   function positionDetailsEpisode() {
-    if (detailsEpisodePositioned || season !== null || awaitingDetails || $('details').hidden) return;
+    if (detailsEpisodePositioned || season !== null || !details?.hasMetadata || $('details').hidden) return;
     const episode = $('d-episodes').querySelector('[data-preferred-episode]');
     if (!episode) return;
     requestAnimationFrame(() => {
-      if (detailsEpisodePositioned || !episode.isConnected || season !== null || awaitingDetails || $('details').hidden) return;
+      if (detailsEpisodePositioned || !episode.isConnected || season !== null || $('details').hidden) return;
       detailsEpisodePositioned = true;
       episode.scrollIntoView({ block: 'start' });
     });
   }
 
   function renderEpisodes() {
-    const seasons = details.seasons;
+    const seasons = details.seasons || [];
     $('d-episodes-section').hidden = !seasons.length;
     if (!seasons.length) return;
     const filler = $('d-filler');
@@ -1812,9 +1820,13 @@
       return chip;
     }));
     const episodes = selected.episodes;
-    $('d-episodes').replaceChildren(...episodes.map((ep) =>
-      episodeCard(ep, () => send({ cmd: 'episode', item: ep.index }), false,
-        { kind: 'episode', key: details.key, item: ep.index, id: ep.id })));
+    const { key, actionsReady } = details;
+    $('d-episodes').replaceChildren(...episodes.map((ep) => {
+      const card = episodeCard(ep, () => send({ cmd: 'episode', key, item: ep.index, id: ep.id }), false,
+        { kind: 'episode', key, item: ep.index, id: ep.id });
+      card.disabled = !actionsReady;
+      return card;
+    }));
     if (!episodes.length) $('d-episodes').append(el('p', 't-sub text-sub', 'All episodes in this season are hidden.'));
     positionDetailsEpisode();
   }
@@ -1839,9 +1851,9 @@
     return card;
   }
   $('d-desc').addEventListener('click', () => $('d-desc').classList.toggle('open'));
-  $('d-play').addEventListener('click', () => { markBusy($('d-play')); send({ cmd: 'play' }); });
-  $('d-watched').addEventListener('click', () => send({ cmd: 'watched' }));
-  $('d-saved').addEventListener('click', () => send({ cmd: 'saved' }));
+  $('d-play').addEventListener('click', () => { markBusy($('d-play')); send({ cmd: 'play', key: activeDetailKey }); });
+  $('d-watched').addEventListener('click', () => send({ cmd: 'watched', key: activeDetailKey }));
+  $('d-saved').addEventListener('click', () => send({ cmd: 'saved', key: activeDetailKey }));
 
   // ─── Sources: the list the PC shows; a tap plays that source ───
   let streams = { groups: [] };
@@ -1939,6 +1951,7 @@
   });
   // Before you type: recent searches (tap to search again, ✕ to forget) and Discover, both from the PC.
   let discover = null;
+  $('recent-clear').addEventListener('click', () => send({ cmd: 'searchClear' }));
 
   function showDiscover(msg) {
     discover = msg;
@@ -2215,13 +2228,10 @@
           if (art.dataset.src !== msg.artwork) return;
           art.src = msg.artwork;
           art.classList.add('on');
-          $('backdrop').classList.add('on');
         };
         next.src = msg.artwork;
-        $('backdrop').style.setProperty('--art', `url("${encodeURI(msg.artwork)}")`);
       } else {
         art.classList.remove('on');
-        $('backdrop').classList.remove('on');
         art.removeAttribute('src');
       }
     }

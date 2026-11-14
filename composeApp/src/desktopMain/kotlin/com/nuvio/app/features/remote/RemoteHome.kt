@@ -281,6 +281,10 @@ internal fun JsonObjectBuilder.hero(meta: MetaPreview, info: HeroInfo) {
     put("image", meta.banner ?: meta.poster ?: meta.landscapePoster)
     put("logo", meta.logo)
     put("description", meta.description)
+    heroPills(info)
+}
+
+internal fun JsonObjectBuilder.heroPills(info: HeroInfo) {
     // The PC hero's info rows: facts, the age rating and status badge, language, and ratings with their logos.
     putJsonArray("facts") { info.facts.forEach { add(it) } }
     putJsonArray("badges") { info.badges.forEach { add(it) } }

@@ -2,6 +2,8 @@ package com.nuvio.app.features.remote
 
 import com.nuvio.app.AppScreenTab
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.navigation.DetailRoute
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,8 +30,11 @@ object RemoteAppBridge {
     /** Which page the PC shows: "tabs", "details", "streams", "player" or "other". The phone follows it. */
     private val _route = MutableStateFlow("tabs")
     val route: StateFlow<String> = _route.asStateFlow()
+    private val _detailRoute = MutableStateFlow<DetailRoute?>(null)
+    val detailRoute: StateFlow<DetailRoute?> = _detailRoute.asStateFlow()
 
-    fun publishRoute(route: String) {
+    fun publishRoute(route: String, detail: DetailRoute? = null) {
+        _detailRoute.value = detail
         _route.value = route
     }
 
@@ -118,13 +123,17 @@ object RemoteAppBridge {
         _persistentHero.value = item
     }
 
-    private val _heroPicks = MutableSharedFlow<MetaPreview>(extraBufferCapacity = 1)
+    private val _heroPicks = MutableStateFlow<Pair<Int, MetaPreview>?>(null)
 
-    /** Titles picked on the phone for the Persistent Hero, as if hovered on the PC. */
-    val heroPicks: SharedFlow<MetaPreview> = _heroPicks.asSharedFlow()
+    /** The latest title to show in the Persistent Hero when Home is active again. */
+    val heroPicks: StateFlow<Pair<Int, MetaPreview>?> = _heroPicks.asStateFlow()
 
     fun pickHero(item: MetaPreview) {
-        _heroPicks.tryEmit(item)
+        _heroPicks.value = ProfileRepository.activeProfileId to item
+    }
+
+    fun consumeHeroPick(pick: Pair<Int, MetaPreview>): Boolean {
+        return _heroPicks.compareAndSet(pick, null) && pick.first == ProfileRepository.activeProfileId
     }
 
     private val _searchQuery = MutableStateFlow<String?>(null)

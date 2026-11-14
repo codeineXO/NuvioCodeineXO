@@ -163,6 +163,7 @@ import com.nuvio.app.features.remote.RemoteCardMenus
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.ScreenActivityEffect
+import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.TrackingListPickerDialog
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.rememberHeroStretchState
@@ -357,7 +358,9 @@ fun MetaDetailsScreen(
         shuffleWasInactive = !active
     }
     val uiState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
-    val displayedMeta = uiState.meta?.takeIf { it.type == type && it.id == id }
+    val active = LocalScreenActive.current
+    val requestState = uiState.takeIf { it.requestKey == "$type:$id" }
+    val displayedMeta = requestState?.meta
         ?: MetaDetailsRepository.peek(type, id)
 
     LaunchedEffect(displayedMeta?.name, displayedMeta?.poster, displayedMeta?.imdbId, displayedMeta?.id, id) {
@@ -608,18 +611,19 @@ fun MetaDetailsScreen(
         )
     }
 
-    LaunchedEffect(type, id, displayedMeta, uiState.isLoading, autoLoadAttempted) {
-        if (!autoLoadAttempted && displayedMeta == null && !uiState.isLoading) {
+    LaunchedEffect(active, type, id, displayedMeta, requestState?.isLoading, autoLoadAttempted) {
+        if (active && (!autoLoadAttempted || requestState == null) && displayedMeta == null && requestState?.isLoading != true) {
             autoLoadAttempted = true
             MetaDetailsRepository.load(type, id)
         }
     }
 
     LaunchedEffect(
+        active,
         type,
         id,
         displayedMeta?.id,
-        uiState.isLoading,
+        requestState?.isLoading,
         trackingSettingsUiState.moreLikeThisSource,
         traktAuthUiState.mode,
         tmdbSettingsUiState.enabled,
@@ -628,12 +632,13 @@ fun MetaDetailsScreen(
         mdbListSettings,
         isFillerEnabled,
     ) {
-        if (displayedMeta != null && !uiState.isLoading) {
+        if (active && displayedMeta != null && requestState?.isLoading != true) {
             MetaDetailsRepository.load(type, id)
         }
     }
 
-    LaunchedEffect(networkStatusUiState.condition, displayedMeta, uiState.isLoading, type, id) {
+    LaunchedEffect(active, networkStatusUiState.condition, displayedMeta, requestState?.isLoading, type, id) {
+        if (!active) return@LaunchedEffect
         when (networkStatusUiState.condition) {
             NetworkCondition.NoInternet,
             NetworkCondition.ServersUnreachable,
@@ -644,7 +649,7 @@ fun MetaDetailsScreen(
             NetworkCondition.Online -> {
                 if (!observedOfflineState) return@LaunchedEffect
                 observedOfflineState = false
-                if (displayedMeta == null && !uiState.isLoading) {
+                if (displayedMeta == null && requestState?.isLoading != true) {
                     MetaDetailsRepository.load(type, id)
                 }
             }
@@ -677,13 +682,13 @@ fun MetaDetailsScreen(
                 .background(MaterialTheme.colorScheme.background),
         ) {
             when {
-            displayedMeta == null && uiState.isLoading -> {
+            displayedMeta == null && requestState?.errorMessage == null -> {
                 NuvioLoadingIndicator(
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
 
-            displayedMeta == null && uiState.errorMessage != null -> {
+            displayedMeta == null -> {
                 Column(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -700,7 +705,7 @@ fun MetaDetailsScreen(
                         text = when (networkStatusUiState.condition) {
                             NetworkCondition.NoInternet -> stringResource(Res.string.details_check_connection)
                             NetworkCondition.ServersUnreachable -> stringResource(Res.string.details_servers_unreachable)
-                            else -> uiState.errorMessage.orEmpty()
+                            else -> requestState?.errorMessage.orEmpty()
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1256,7 +1261,7 @@ fun MetaDetailsScreen(
                 // The phone remote shows this page and acts through these same buttons.
                 val remoteDetailsKey = "${meta.type}:${meta.id}"
                 androidx.compose.runtime.SideEffect {
-                    com.nuvio.app.features.remote.RemoteAppBridge.publishDetails(
+                    if (active) com.nuvio.app.features.remote.RemoteAppBridge.publishDetails(
                         com.nuvio.app.features.remote.RemoteAppBridge.DetailsActions(
                             key = remoteDetailsKey,
                             playLabel = playButtonLabel,
@@ -2845,7 +2850,7 @@ private fun extractTmdbId(value: String?): Int? {
         ?.toIntOrNull()
 }
 
-private fun MetaDetails.toMetaPreview(): MetaPreview =
+internal fun MetaDetails.toMetaPreview(): MetaPreview =
     MetaPreview(
         id = id,
         type = type,

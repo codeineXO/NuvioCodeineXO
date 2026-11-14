@@ -66,9 +66,14 @@ internal class RemoteCardMenuSession {
                     ?.let { Target.ContinueWatching(it) }
             } else null
             "episode" -> if (route == "details") {
-                val meta = MetaDetailsRepository.uiState.value.meta ?: return null
+                val state = MetaDetailsRepository.uiState.value
+                val meta = state.meta ?: return null
+                val detailRoute = RemoteAppBridge.detailRoute.value ?: return null
+                val routeKey = "${detailRoute.type}:${detailRoute.id}"
                 val key = "${meta.type}:${meta.id}"
-                if (key != request.string("key") || RemoteAppBridge.details.value?.key != key) return null
+                if (state.requestKey != routeKey || routeKey != request.string("key") ||
+                    RemoteAppBridge.details.value?.key != key
+                ) return null
                 meta.videos.getOrNull(index)?.takeIf { it.id == request.string("id") }?.let { Target.Episode(key, it) }
             } else null
             "source" -> if (route == "streams") {
