@@ -35,6 +35,7 @@ internal class PosterNavigationPage {
     var state: LazyListState? = null
     var active = false
     var stopAtBottom = false
+    var enterFromViewport = false
     var origin: PosterOrigin? by mutableStateOf(null)
     var lane: Float? = null
     var restorationState by mutableStateOf(PosterRestorationState.Idle)
@@ -92,7 +93,15 @@ internal fun BindPosterShelf(state: LazyListState) {
 
 /** Registered outside lazy items so navigation can reveal rows that are not composed. */
 @Composable
-internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<PosterNavigationRow>, state: LazyListState, loading: Boolean, stopAtBottom: Boolean = false) {
+internal fun BindPosterNavigationPage(
+    pageId: String,
+    context: Any,
+    rows: List<PosterNavigationRow>,
+    state: LazyListState,
+    loading: Boolean,
+    stopAtBottom: Boolean = false,
+    enterFromViewport: Boolean = false,
+) {
     val session = LocalRemoteNavigation.current ?: return
     val route = LocalRemoteRoute.current
     val active = LocalScreenActive.current
@@ -113,6 +122,7 @@ internal fun BindPosterNavigationPage(pageId: String, context: Any, rows: List<P
         }
         page.rows = rows
         page.stopAtBottom = stopAtBottom
+        page.enterFromViewport = enterFromViewport
         page.state = state
         page.route = route
         if (active && !page.active && page.origin != null) {

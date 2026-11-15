@@ -98,18 +98,26 @@ internal class RemoteNavigationSession {
     var rowMoveJob: Job? = null
     var focusTransferReason by mutableStateOf(RemoteFocusTransferReason.Navigation)
 
-    fun focusContent(route: Any? = null, restoreOnly: Boolean = false): Boolean {
+    fun focusContent(route: Any? = null, fromSidebar: Boolean = false): Boolean {
         if (modalDepth > 0) return false
         val requestedRoute = route ?: focusedTarget?.route ?: activeRoute ?: return false
         val key = contentRoutes[requestedRoute] ?: requestedRoute
         val manager = focusedTarget?.manager
         val bookmark = rememberedPosterFocus[key]
+        val enterFromViewport = posterPages.values.any { it.active && it.route == key && it.enterFromViewport }
+        // Home's catalog rail sits above the poster viewport and has its own focus targets.
+        val viewports = if (enterFromViewport) contentViewports.filter { it.route == key } else emptyList()
         fun candidates() = targets.filter {
             it.route == key && (manager == null || it.manager === manager) &&
                 !it.role.isNavigation &&
-                it.bounds?.let { bounds -> bounds.width > 0 && bounds.height > 0 } == true
+                it.bounds?.let { bounds -> bounds.width > 0 && bounds.height > 0 } == true &&
+                (!enterFromViewport || it.visibleBounds?.let { visible ->
+                    visible.width > 0 && visible.height > 0 && viewports.any { viewport ->
+                        viewport.manager === it.manager && viewport.bounds?.overlaps(visible) == true
+                    }
+                } == true)
         }
-        fun fallback(includeDefault: Boolean = !restoreOnly): Boolean = candidates().filter {
+        fun fallback(includeDefault: Boolean = !fromSidebar || enterFromViewport): Boolean = candidates().filter {
             includeDefault || it.identity == rememberedContentFocus[key]
         }.sortedWith(
             compareBy<RemoteFocusTarget> { if (it.identity == rememberedContentFocus[key]) 0 else if (it.initialFocus) 1 else 2 }
@@ -339,7 +347,7 @@ internal class RemoteNavigationSession {
         val isSourceStreamSource = source?.role == RemoteNavigationRole.StreamSource
         val sidebarEntry = navigationTarget(route, manager)
         if (isSourceSidebar && direction == FocusDirection.Right) {
-            if (focusContent(route, restoreOnly = true)) return true
+            if (focusContent(route, fromSidebar = true)) return true
         }
         val restoreDestinationRow = !horizontal && route in rowMemoryRoutes
         if (restoreDestinationRow) explicitFocusTransfers++

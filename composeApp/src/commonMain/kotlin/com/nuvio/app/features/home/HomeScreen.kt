@@ -528,6 +528,7 @@ fun HomeScreen(
         BindPosterNavigationPage(
             "home", activeProfileId to homeSettingsUiState.appInterface, navigationRows,
             homeListState, homeUiState.isLoading || addonManifestsLoading,
+            enterFromViewport = showCatalogRail,
         )
 
         val heroSeed = if (persistentHero) {
