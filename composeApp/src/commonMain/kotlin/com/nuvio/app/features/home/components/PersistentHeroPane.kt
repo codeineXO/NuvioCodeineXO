@@ -157,6 +157,7 @@ internal fun PersistentHeroPane(
     rowScrollState: ScrollableState,
     rowAnchors: () -> List<Int>,
     posterRows: Map<Any, List<MetaPreview>>,
+    onHeroClick: ((MetaPreview) -> Unit)?,
     backdropModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
     topInset: Dp = 0.dp,
@@ -335,6 +336,9 @@ internal fun PersistentHeroPane(
                     if (displayed != null) {
                         PersistentHomeHero(
                             item = displayed.item,
+                            onDetailsClick = onHeroClick.takeIf {
+                                active && displayed.item.stableKey() == hero?.content?.item?.stableKey()
+                            },
                             logo = displayed.logo,
                             showImdbRating = metaSettings.showOverallRatings,
                             showMdbListRatings = showMdbListRatings,

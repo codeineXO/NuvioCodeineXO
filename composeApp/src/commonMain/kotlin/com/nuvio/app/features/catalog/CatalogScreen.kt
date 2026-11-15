@@ -258,6 +258,7 @@ fun CatalogScreen(
             }
             PersistentHeroPane(
                 enabled = persistentHero,
+                onHeroClick = onPosterClick,
                 page = target,
                 seed = uiState.items.firstOrNull(),
                 loading = uiState.isLoading,

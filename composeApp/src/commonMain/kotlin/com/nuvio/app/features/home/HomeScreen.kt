@@ -541,6 +541,7 @@ fun HomeScreen(
         val heroTopInset = topChromePadding ?: NuvioTokens.Space.s16
         PersistentHeroPane(
             enabled = persistentHero,
+            onHeroClick = onPosterClick,
             page = "home",
             seed = heroSeed,
             loading = isResolvingHeroSources,

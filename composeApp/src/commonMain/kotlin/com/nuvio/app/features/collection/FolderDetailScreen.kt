@@ -190,6 +190,7 @@ fun FolderDetailScreen(
             val rowSlots = if (isGrid) emptyList() else FolderDetailRepository.getRowSlots(uiState)
             PersistentHeroPane(
                 enabled = persistentHero,
+                onHeroClick = onPosterClick,
                 page = Triple(uiState.collectionTitle, folder?.id, uiState.selectedTabIndex.takeIf { isGrid }),
                 seed = if (uiState.viewMode == FolderViewMode.TABBED_GRID) {
                     uiState.selectedTab?.items?.firstOrNull()

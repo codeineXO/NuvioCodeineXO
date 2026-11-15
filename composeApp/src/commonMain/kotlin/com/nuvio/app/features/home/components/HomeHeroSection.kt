@@ -767,6 +767,7 @@ private fun DesktopHeroBackdrop(
 @Composable
 internal fun PersistentHomeHero(
     item: MetaPreview,
+    onDetailsClick: ((MetaPreview) -> Unit)?,
     logo: PersistentHeroLogo,
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
@@ -774,6 +775,12 @@ internal fun PersistentHomeHero(
     awaitingMdbListRatings: Boolean = false,
     awaitingMetadata: Boolean = false,
 ) {
+    val detailsClickModifier = if (onDetailsClick != null) {
+        Modifier
+            .focusProperties { canFocus = false }
+            .clickable(interactionSource = null, indication = null) { onDetailsClick(item) }
+    } else Modifier
+
     BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
         val compact = maxHeight < 330.dp
         val short = maxHeight < 235.dp
@@ -809,6 +816,7 @@ internal fun PersistentHomeHero(
                 showMdbListRatings = showMdbListRatings && !awaitingMetadata,
                 onItemClick = null,
                 persistentLogo = logo,
+                persistentDetailsClickModifier = detailsClickModifier,
                 reserveRatingsRow = (showMdbListRatings && (awaitingMdbListRatings || awaitingMetadata)) ||
                     (showImdbRating && awaitingMetadata && !item.imdbRating.isNullOrBlank()),
                 compact = compact,
@@ -990,6 +998,7 @@ private fun DesktopHeroContentBlock(
     showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
     persistentLogo: PersistentHeroLogo? = null,
+    persistentDetailsClickModifier: Modifier = Modifier,
     reserveRatingsRow: Boolean = false,
     compact: Boolean = false,
     short: Boolean = false,
@@ -1021,11 +1030,17 @@ private fun DesktopHeroContentBlock(
             ) {
                 when (persistentLogo) {
                     PersistentHeroLogo.Loading -> Unit
-                    PersistentHeroLogo.Unavailable -> DesktopHeroTitle(item.name, compact, maxLines = if (compact) 1 else 2)
+                    PersistentHeroLogo.Unavailable -> DesktopHeroTitle(
+                        item.name,
+                        compact,
+                        maxLines = if (compact) 1 else 2,
+                        modifier = persistentDetailsClickModifier,
+                    )
                     is PersistentHeroLogo.Ready -> Image(
                         painter = persistentLogo.painter,
                         contentDescription = item.name,
-                        modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight(),
+                        modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight()
+                            .then(persistentDetailsClickModifier),
                         alignment = Alignment.CenterStart,
                         contentScale = ContentScale.Fit,
                     )
@@ -1068,7 +1083,9 @@ private fun DesktopHeroContentBlock(
             }))
             Text(
                 text = description,
-                modifier = if (persistentLogo != null) Modifier.fillMaxWidth(0.8f) else Modifier,
+                modifier = if (persistentLogo != null) {
+                    Modifier.fillMaxWidth(0.8f).then(persistentDetailsClickModifier)
+                } else Modifier,
                 style = (if (persistentLogo != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(
                     fontSize = if (persistentLogo != null) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
                     lineHeight = if (persistentLogo != null) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
@@ -1112,11 +1129,11 @@ private fun DesktopHeroContentBlock(
 }
 
 @Composable
-private fun DesktopHeroTitle(title: String, compact: Boolean, maxLines: Int) {
+private fun DesktopHeroTitle(title: String, compact: Boolean, maxLines: Int, modifier: Modifier = Modifier) {
     val typography = MaterialTheme.typography
     Text(
         text = title,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         style = typography.displayLarge.copy(
             fontSize = if (compact) typography.headlineSmall.fontSize else NuvioTokens.Type.displayMd,
             lineHeight = if (compact) typography.headlineSmall.lineHeight else NuvioTokens.LineHeight.displayMd,
