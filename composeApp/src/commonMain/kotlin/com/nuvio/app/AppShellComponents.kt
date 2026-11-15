@@ -375,6 +375,8 @@ internal fun TabletFloatingTopBar(
     hazeState: HazeState? = null,
     scrollState: NuvioNavBarScrollState? = null,
     windowWidth: Dp? = null,
+    /** Keeps the unscrolled transparent look regardless of scroll (persistent hero). */
+    keepTransparentOnScroll: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -392,7 +394,7 @@ internal fun TabletFloatingTopBar(
     val isScrolledAwayFromTop by remember(scrollState, scrollThreshold) {
         derivedStateOf { scrollState != null && scrollState.totalScrollOffset > scrollThreshold }
     }
-    val isScrolled = supportsScrollFrostedHaze && isScrolledAwayFromTop
+    val isScrolled = supportsScrollFrostedHaze && isScrolledAwayFromTop && !keepTransparentOnScroll
     val isFrosted = isScrolled || isHovered || isProfileSwitcherOpen
 
     val glassElevation by animateFloatAsState(

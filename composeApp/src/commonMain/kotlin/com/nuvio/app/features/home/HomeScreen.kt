@@ -90,6 +90,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.frostedGlassBorder
+import com.nuvio.app.core.ui.LocalSurfaceStyle
+import com.nuvio.app.features.settings.SurfaceStyle
+import androidx.compose.runtime.derivedStateOf
 import com.nuvio.app.core.ui.desktopTopBarActionIconSize
 import com.nuvio.app.core.ui.desktopTopBarHeight
 import com.nuvio.app.core.ui.desktopTopBarTopPadding
@@ -855,6 +859,22 @@ fun HomeScreen(
             val desktopButtonSize = desktopTopBarHeight(maxWidth) - desktopActionShrink
             val desktopIconSize = desktopTopBarActionIconSize(maxWidth) - 2.dp
             val desktopActionTopPadding = desktopTopBarTopPadding + desktopActionShrink / 2
+            // Mirror the desktop top bar: transparent at the top (always in persistent hero),
+            // frosted blur once scrolled in other layouts.
+            val topBarActive = isDesktop && topChromePadding != null
+            val topBarScrolled by remember(navBarScrollState) {
+                derivedStateOf { (navBarScrollState?.totalScrollOffset ?: 0f) > 35f }
+            }
+            val actionsTransparent = topBarActive && (persistentHero || !topBarScrolled)
+            @Composable
+            fun Modifier.topBarActionGlass(shape: androidx.compose.ui.graphics.Shape): Modifier =
+                if (actionsTransparent && LocalFrostedGlassEnabled.current &&
+                    LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass
+                ) {
+                    clip(shape).background(Color.White.copy(alpha = 0.04f)).frostedGlassBorder(shape)
+                } else {
+                    navigationGlass(shape, hazeState = fullscreenBackdropState)
+                }
             val railGap = space.s16
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val railHeight = heroTopInset + persistentHeroHeight(maxHeight, heroTopInset, rowReserve = persistentHeroRowReserve()) -
@@ -875,10 +895,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .offset(x = if (isDesktop) actionHorizontalInset - space.s16 else 0.dp)
                         .height(if (isDesktop) desktopButtonSize else 48.dp)
-                        .navigationGlass(
-                        shape = RoundedCornerShape(NuvioTokens.Radius.full),
-                        hazeState = fullscreenBackdropState,
-                    ),
+                        .topBarActionGlass(RoundedCornerShape(NuvioTokens.Radius.full)),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val actionModifier = if (isDesktop && isFullscreenActionSupported) {
@@ -927,7 +944,7 @@ fun HomeScreen(
                         .statusBarsPadding()
                         .padding(top = desktopActionTopPadding, start = space.s16)
                         .size(desktopButtonSize)
-                        .navigationGlass(CircleShape, hazeState = fullscreenBackdropState)
+                        .topBarActionGlass(CircleShape)
                         .excludeFromRemoteNavigation()
                         .clickable(role = Role.Button, onClick = ::platformExitApp)
                         .semantics { contentDescription = closeLabel },

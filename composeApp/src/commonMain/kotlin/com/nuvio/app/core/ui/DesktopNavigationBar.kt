@@ -49,6 +49,8 @@ internal fun DesktopNavigationBar(
     windowWidth: Dp? = null,
     glowEnabled: Boolean = true,
     navigationRoute: Any = LocalRemoteRoute.current,
+    /** Keeps the unscrolled transparent look regardless of scroll (persistent hero). */
+    keepTransparentOnScroll: Boolean = false,
 ) {
     if (items.isEmpty()) return
     val interactionSource = remember { MutableInteractionSource() }
@@ -61,7 +63,8 @@ internal fun DesktopNavigationBar(
         }
     }
     val isFrosted = isHovered || profileSwitcherOpen ||
-        ((isHomeSelected || isSettingsSelected) && isScrolledAwayFromTop)
+        ((isHomeSelected || isSettingsSelected) && isScrolledAwayFromTop &&
+            !(isHomeSelected && keepTransparentOnScroll))
     val labelFraction by animateFloatAsState(
         targetValue = desktopNavigationLabelFraction(navBarStyle, isHomeSelected, isHeroEnabled, isHovered, profileSwitcherOpen, isScrolledAwayFromTop),
         animationSpec = tween(320, easing = FastOutSlowInEasing),

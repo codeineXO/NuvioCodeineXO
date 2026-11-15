@@ -344,6 +344,8 @@ internal fun MainTabsDestination(
                         hazeState = navBarHazeState,
                         scrollState = navBarScrollState,
                         windowWidth = screenWidth,
+                        keepTransparentOnScroll = selectedTab == AppScreenTab.Home &&
+                            homeCatalogSettingsUiState.appInterface == AppInterface.PersistentHero,
                     )
                 }
 
@@ -381,6 +383,8 @@ internal fun MainTabsDestination(
                         profileSwitcherOpen = isTopProfileSwitcherOpen,
                         windowWidth = screenWidth,
                         glowEnabled = navBarGlowEnabled,
+                        keepTransparentOnScroll = !randomPickerSelected &&
+                            homeCatalogSettingsUiState.appInterface == AppInterface.PersistentHero,
                     )
                 }
 
