@@ -75,10 +75,12 @@ import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
 import com.nuvio.app.core.ui.WideDesktopViewportAspectRatio
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetaExternalRating
 import com.nuvio.app.features.details.formatRuntimeForDisplay
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.detail_logo_content_description
@@ -337,10 +339,11 @@ fun DesktopDetailHero(
             modifier = Modifier
                 .align(heroAlignment)
                 .widthIn(max = 760.dp)
+                .then(if (isEnhanced && compact) Modifier.statusBarsPadding() else Modifier)
                 .padding(
                     start = pageHorizontalPadding + LocalDesktopSidebarContentInset.current,
                     end = space.s32,
-                    top = if (isEnhanced && compact) 40.dp else 0.dp,
+                    top = if (isEnhanced && compact) desktopBackButtonTopPadding + 48.dp + space.s8 else 0.dp,
                     bottom = if (compact) space.s8 else space.s40,
                 ),
         ) {
@@ -404,9 +407,10 @@ fun DesktopDetailHero(
             DesktopHeroMetaRow(
                 meta = meta,
                 showOverallRatings = showOverallRatings && !isMdbListActive,
+                externalRatings = if (isEnhanced && isMdbListActive) meta.externalRatings else emptyList(),
                 textShadow = heroTextShadow,
             )
-            if (isMdbListActive && meta.externalRatings.isNotEmpty()) {
+            if (!isEnhanced && isMdbListActive && meta.externalRatings.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(if (compact) space.s8 else space.s12))
                 DetailRatingsRow(
                     ratings = meta.externalRatings,
@@ -435,8 +439,8 @@ fun DesktopDetailHero(
                     text = synopsis,
                     collapsedMaxLines = if (compact) 3 else 4,
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = NuvioTokens.Type.bodyLg,
-                        lineHeight = NuvioTokens.LineHeight.bodyLg,
+                        fontSize = if (isEnhanced) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
+                        lineHeight = if (isEnhanced) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
                         letterSpacing = NuvioTokens.LetterSpacing.none,
                         shadow = synopsisTextShadow,
                     ),
@@ -538,6 +542,7 @@ fun DesktopDetailHero(
 private fun DesktopHeroMetaRow(
     meta: MetaDetails,
     showOverallRatings: Boolean,
+    externalRatings: List<MetaExternalRating>,
     textShadow: Shadow? = null,
 ) {
     val metaItems = buildList {
@@ -553,6 +558,7 @@ private fun DesktopHeroMetaRow(
         imdbRating = validImdbRating.takeIf { showOverallRatings },
         imdbId = meta.imdbId ?: meta.id,
         textShadow = textShadow,
+        externalRatings = externalRatings,
     )
 }
 
@@ -564,6 +570,7 @@ internal fun DesktopHeroMetaRow(
     imdbId: String? = null,
     modifier: Modifier = Modifier,
     textShadow: Shadow? = null,
+    externalRatings: List<MetaExternalRating> = emptyList(),
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val space = NuvioTokens.Space
@@ -608,7 +615,9 @@ internal fun DesktopHeroMetaRow(
                 )
             }
         }
-        if (imdbRating != null) {
+        if (externalRatings.isNotEmpty()) {
+            DetailRatingsRow(ratings = externalRatings, imdbId = imdbId)
+        } else if (imdbRating != null) {
             val imdbTextStyle = MaterialTheme.typography.titleSmall.copy(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.sp,

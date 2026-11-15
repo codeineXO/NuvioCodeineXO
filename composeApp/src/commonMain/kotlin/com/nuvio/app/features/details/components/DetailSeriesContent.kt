@@ -416,7 +416,13 @@ fun DetailSeriesContent(
         val containerWidthDp = maxWidth.value
 
         Column(
-            verticalArrangement = Arrangement.spacedBy(if (isDesktop) 12.dp else 16.dp),
+            verticalArrangement = Arrangement.spacedBy(
+                when {
+                    isEnhanced -> NuvioTokens.Space.s8
+                    isDesktop -> 12.dp
+                    else -> 16.dp
+                },
+            ),
         ) {
             SeriesSeasonSelector(
                 navigationEntry = seasonNavigationEntry,
@@ -474,7 +480,7 @@ fun DetailSeriesContent(
                 val seasonEpisodes = groupedEpisodes[seasonForContent].orEmpty()
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isEnhanced) NuvioTokens.Space.s8 else 16.dp),
                 ) {
                     val showTitle = (!isDesktop || seasons.size <= 1) && !isEnhanced
                     val showSingleSeasonAnimeToggles = seasons.size <= 1 && isAnime && !fixedPath
@@ -831,7 +837,7 @@ private fun SeriesSeasonSelector(
     }
     Column(
         modifier = if (isEnhanced) Modifier else Modifier.animateContentSize(animationSpec = tween(280)),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (isEnhanced) NuvioTokens.Space.s8 else 12.dp),
     ) {
         if (isEnhanced) {
             val effectiveSeasonHeaderSize = if (isEnhanced) sizing.seasonHeaderSize * 0.95f else sizing.seasonHeaderSize
