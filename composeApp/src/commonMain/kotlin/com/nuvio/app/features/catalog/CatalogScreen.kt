@@ -268,6 +268,7 @@ fun CatalogScreen(
                 loading = uiState.isLoading,
                 rowScrollState = gridState,
                 rowAnchors = { gridState.verticalRowAnchors() },
+                posterRows = mapOf(target to uiState.items),
                 startInset = sidebarInset,
                 header = {
                     CatalogHeader(

@@ -116,24 +116,26 @@ object RemoteAppBridge {
 
     private val _persistentHero = MutableStateFlow<MetaPreview?>(null)
 
-    /** The title Home's Persistent Hero shows on the PC, with its details loaded; null when it is not on screen. */
+    /** The title Home's Persistent Hero currently shows, including any details that have arrived. */
     val persistentHero: StateFlow<MetaPreview?> = _persistentHero.asStateFlow()
 
     fun publishPersistentHero(item: MetaPreview?) {
         _persistentHero.value = item
     }
 
-    private val _heroPicks = MutableStateFlow<Pair<Int, MetaPreview>?>(null)
+    internal data class HeroPick(val profileId: Int, val item: MetaPreview, val row: String?, val index: Int?)
+
+    private val _heroPicks = MutableStateFlow<HeroPick?>(null)
 
     /** The latest title to show in the Persistent Hero when Home is active again. */
-    val heroPicks: StateFlow<Pair<Int, MetaPreview>?> = _heroPicks.asStateFlow()
+    internal val heroPicks: StateFlow<HeroPick?> = _heroPicks.asStateFlow()
 
-    fun pickHero(item: MetaPreview) {
-        _heroPicks.value = ProfileRepository.activeProfileId to item
+    fun pickHero(item: MetaPreview, row: String? = null, index: Int? = null) {
+        _heroPicks.value = HeroPick(ProfileRepository.activeProfileId, item, row, index)
     }
 
-    fun consumeHeroPick(pick: Pair<Int, MetaPreview>): Boolean {
-        return _heroPicks.compareAndSet(pick, null) && pick.first == ProfileRepository.activeProfileId
+    internal fun consumeHeroPick(pick: HeroPick): Boolean {
+        return _heroPicks.compareAndSet(pick, null) && pick.profileId == ProfileRepository.activeProfileId
     }
 
     private val _searchQuery = MutableStateFlow<String?>(null)

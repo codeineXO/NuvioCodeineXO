@@ -6,6 +6,7 @@ import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.catalog.CatalogRepository
 import com.nuvio.app.features.home.HomeCatalogSection
+import com.nuvio.app.features.home.HOME_CONTINUE_WATCHING_SECTION_KEY
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.MetaPreview
@@ -87,7 +88,7 @@ internal object RemoteHome {
         }.toString()
     }.distinctUntilChanged()
 
-    /** `{"k":"hero","hero":{…}|null}`: the title Home's Persistent Hero shows on the PC, details loaded. */
+    /** `{"k":"hero","hero":{…}|null}`: the current hero, updated as details arrive. */
     val heroMessages: Flow<String> get() = RemoteAppBridge.persistentHero.map { meta ->
         val info = meta?.let { heroInfo(it) }
         buildJsonObject {
@@ -159,10 +160,16 @@ internal object RemoteHome {
             "viewAll" -> row?.let(RemoteViewAll::open)
             "catalogMore" -> SwingUtilities.invokeLater { if (RemoteAppBridge.route.value == "catalog") CatalogRepository.loadMore() }
             "heroPick" -> {
-                val meta = if (json["from"]?.jsonPrimitive?.contentOrNull == "continue") {
+                val from = json["from"]?.jsonPrimitive?.contentOrNull
+                val meta = if (from == "continue") {
                     RemoteAppBridge.continueWatching.value.getOrNull(item ?: -1)?.toPersistentHeroPreview()
                 } else posterAt(json)
-                meta?.let(RemoteAppBridge::pickHero)
+                val heroRow = when (from) {
+                    "continue" -> HOME_CONTINUE_WATCHING_SECTION_KEY
+                    "row" -> row
+                    else -> null
+                }
+                if (meta != null) RemoteAppBridge.pickHero(meta, heroRow, item.takeIf { heroRow != null })
             }
             "layout" -> {
                 val value = json["value"]?.jsonPrimitive?.contentOrNull

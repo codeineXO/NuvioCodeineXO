@@ -190,13 +190,18 @@ fun FolderDetailScreen(
             val rowSlots = if (isGrid) emptyList() else FolderDetailRepository.getRowSlots(uiState)
             PersistentHeroPane(
                 enabled = persistentHero,
-                page = uiState.collectionTitle to folder?.id,
+                page = Triple(uiState.collectionTitle, folder?.id, uiState.selectedTabIndex.takeIf { isGrid }),
                 seed = if (uiState.viewMode == FolderViewMode.TABBED_GRID) {
                     uiState.selectedTab?.items?.firstOrNull()
                 } else {
                     uiState.tabs.firstNotNullOfOrNull { tab -> tab.items.firstOrNull().takeUnless { tab.isAllTab } }
                 },
                 rowScrollState = rowScrollState,
+                posterRows = if (isGrid) {
+                    mapOf(Unit to uiState.selectedTab?.items.orEmpty())
+                } else {
+                    rowSlots.associate { it.key to it.section?.items.orEmpty() }
+                },
                 rowAnchors = {
                     if (isGrid) gridState.verticalRowAnchors() else rowsState.verticalRowAnchors()
                 },

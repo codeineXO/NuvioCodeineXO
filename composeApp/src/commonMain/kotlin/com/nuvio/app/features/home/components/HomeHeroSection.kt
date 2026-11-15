@@ -767,10 +767,12 @@ private fun DesktopHeroBackdrop(
 @Composable
 internal fun PersistentHomeHero(
     item: MetaPreview,
-    logo: Painter?,
+    logo: PersistentHeroLogo,
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
     modifier: Modifier = Modifier,
+    awaitingMdbListRatings: Boolean = false,
+    awaitingMetadata: Boolean = false,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
         val compact = maxHeight < 330.dp
@@ -781,18 +783,34 @@ internal fun PersistentHomeHero(
             contentHorizontalPadding = if (compact) 16.dp else 32.dp,
             contentVerticalPadding = if (compact) 10.dp else 24.dp,
         )
+        val typography = MaterialTheme.typography
+        val metadataHeight = with(LocalDensity.current) {
+            typography.labelLarge.lineHeight.toDp() +
+                maxOf(typography.labelLarge.lineHeight.toDp(), typography.labelMedium.lineHeight.toDp() + 8.dp) +
+                maxOf(typography.titleSmall.lineHeight.toDp(), 24.dp) + 16.dp
+        }
+        val descriptionHeight = with(LocalDensity.current) {
+            NuvioTokens.LineHeight.bodyLg.toDp() * desktopHeroDescriptionLines(compact, short)
+        }
+        val contentHeight = desktopHeroLogoHeight(layout, compact) + metadataHeight + descriptionHeight +
+            (if (compact) 8.dp else NuvioTokens.Space.s12 + NuvioTokens.Space.s16)
+        val verticalPadding = layout.contentVerticalPadding
+        val top = (maxHeight - verticalPadding - contentHeight).coerceAtLeast(verticalPadding)
         Box(
-            modifier = Modifier.align(Alignment.BottomStart)
+            modifier = Modifier.align(Alignment.TopStart)
                 .fillMaxWidth(layout.contentWidthFraction)
-                .padding(horizontal = layout.contentHorizontalPadding, vertical = layout.contentVerticalPadding),
+                .padding(horizontal = layout.contentHorizontalPadding)
+                .padding(top = top, bottom = verticalPadding),
         ) {
             DesktopHeroContentBlock(
                 item = item,
                 layout = layout,
-                showImdbRating = showImdbRating,
-                showMdbListRatings = showMdbListRatings,
+                showImdbRating = showImdbRating && !awaitingMetadata && !(showMdbListRatings && awaitingMdbListRatings),
+                showMdbListRatings = showMdbListRatings && !awaitingMetadata,
                 onItemClick = null,
-                loadedLogo = logo,
+                persistentLogo = logo,
+                reserveRatingsRow = (showMdbListRatings && (awaitingMdbListRatings || awaitingMetadata)) ||
+                    (showImdbRating && awaitingMetadata && !item.imdbRating.isNullOrBlank()),
                 compact = compact,
                 short = short,
             )
@@ -971,7 +989,8 @@ private fun DesktopHeroContentBlock(
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
-    loadedLogo: Painter? = null,
+    persistentLogo: PersistentHeroLogo? = null,
+    reserveRatingsRow: Boolean = false,
     compact: Boolean = false,
     short: Boolean = false,
 ) {
@@ -993,48 +1012,38 @@ private fun DesktopHeroContentBlock(
             },
         horizontalAlignment = Alignment.Start,
     ) {
-        if (loadedLogo != null || (logoUrl != null && !logoLoadError)) {
+        if (persistentLogo != null || (logoUrl != null && !logoLoadError)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (compact) 44.dp else desktopHeroLogoSlotHeight(layout)),
+                    .height(desktopHeroLogoHeight(layout, compact)),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (loadedLogo != null) {
-                    Image(
-                        painter = loadedLogo,
+                when (persistentLogo) {
+                    PersistentHeroLogo.Loading -> Unit
+                    PersistentHeroLogo.Unavailable -> DesktopHeroTitle(item.name, compact, maxLines = if (compact) 1 else 2)
+                    is PersistentHeroLogo.Ready -> Image(
+                        painter = persistentLogo.painter,
                         contentDescription = item.name,
                         modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight(),
                         alignment = Alignment.CenterStart,
                         contentScale = ContentScale.Fit,
                     )
-                } else AsyncImage(
-                    model = logoUrl,
-                    contentDescription = item.name,
-                    modifier = Modifier
-                        .fillMaxWidth(desktopHeroLogoWidthFraction(layout))
-                        .fillMaxHeight(),
-                    alignment = Alignment.CenterStart,
-                    contentScale = ContentScale.Fit,
-                    clipToBounds = false,
-                    onError = { logoLoadError = true },
-                )
+                    null -> AsyncImage(
+                        model = logoUrl,
+                        contentDescription = item.name,
+                        modifier = Modifier
+                            .fillMaxWidth(desktopHeroLogoWidthFraction(layout))
+                            .fillMaxHeight(),
+                        alignment = Alignment.CenterStart,
+                        contentScale = ContentScale.Fit,
+                        clipToBounds = false,
+                        onError = { logoLoadError = true },
+                    )
+                }
             }
         } else {
-            Text(
-                text = item.name,
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = if (compact) MaterialTheme.typography.headlineSmall.fontSize else NuvioTokens.Type.displayMd,
-                    lineHeight = if (compact) MaterialTheme.typography.headlineSmall.lineHeight else NuvioTokens.LineHeight.displayMd,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = NuvioTokens.LetterSpacing.none,
-                ),
-                color = colorScheme.onBackground,
-                textAlign = TextAlign.Start,
-                maxLines = if (compact) 1 else 3,
-                overflow = TextOverflow.Ellipsis,
-            )
+            DesktopHeroTitle(item.name, compact, maxLines = if (compact) 1 else 3)
         }
 
         Spacer(modifier = Modifier.height(if (compact) 4.dp else NuvioTokens.Space.s12))
@@ -1043,19 +1052,30 @@ private fun DesktopHeroContentBlock(
             isTablet = true,
             showImdbRating = showImdbRating,
             showMdbListRatings = showMdbListRatings,
+            ratingsRowHeight = if (persistentLogo != null) {
+                with(LocalDensity.current) {
+                    maxOf(MaterialTheme.typography.titleSmall.lineHeight.toDp(), 24.dp) + 4.dp
+                }
+            } else null,
+            reserveRatingsRow = reserveRatingsRow,
         )
 
         item.description?.takeIf { it.isNotBlank() }?.let { description ->
-            Spacer(modifier = Modifier.height(if (compact) 4.dp else NuvioTokens.Space.s16))
+            Spacer(modifier = Modifier.height(when {
+                compact -> NuvioTokens.Space.s4
+                persistentLogo != null -> NuvioTokens.Space.s6
+                else -> NuvioTokens.Space.s16
+            }))
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = NuvioTokens.Type.bodyLg,
-                    lineHeight = NuvioTokens.LineHeight.bodyLg,
+                modifier = if (persistentLogo != null) Modifier.fillMaxWidth(0.8f) else Modifier,
+                style = (if (persistentLogo != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(
+                    fontSize = if (persistentLogo != null) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
+                    lineHeight = if (persistentLogo != null) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
                     letterSpacing = NuvioTokens.LetterSpacing.none,
                 ),
                 color = colorScheme.onSurface,
-                maxLines = if (short) 1 else if (compact) 2 else 4,
+                maxLines = desktopHeroDescriptionLines(compact, short),
                 overflow = TextOverflow.Ellipsis,
             )
         }
@@ -1090,6 +1110,31 @@ private fun DesktopHeroContentBlock(
         }
     }
 }
+
+@Composable
+private fun DesktopHeroTitle(title: String, compact: Boolean, maxLines: Int) {
+    val typography = MaterialTheme.typography
+    Text(
+        text = title,
+        modifier = Modifier.fillMaxWidth(),
+        style = typography.displayLarge.copy(
+            fontSize = if (compact) typography.headlineSmall.fontSize else NuvioTokens.Type.displayMd,
+            lineHeight = if (compact) typography.headlineSmall.lineHeight else NuvioTokens.LineHeight.displayMd,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = NuvioTokens.LetterSpacing.none,
+        ),
+        color = MaterialTheme.colorScheme.onBackground,
+        textAlign = TextAlign.Start,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+private fun desktopHeroDescriptionLines(compact: Boolean, short: Boolean): Int =
+    if (short) 1 else if (compact) 2 else 4
+
+private fun desktopHeroLogoHeight(layout: HomeHeroLayout, compact: Boolean): Dp =
+    if (compact) 44.dp else desktopHeroLogoSlotHeight(layout)
 
 private fun desktopHeroLogoWidthFraction(layout: HomeHeroLayout): Float =
     when {

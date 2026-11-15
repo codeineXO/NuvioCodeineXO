@@ -1,14 +1,18 @@
 package com.nuvio.app.features.home.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.i18n.localizedMediaStatusLabel
@@ -31,8 +36,10 @@ import com.nuvio.app.features.details.components.formatOneDecimal
 import com.nuvio.app.features.details.components.imdbRatingBadge
 import com.nuvio.app.features.details.components.ratingBadges
 import com.nuvio.app.features.details.formatRuntimeForDisplay
+import com.nuvio.app.features.details.MetaExternalRating
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.heroRatings
+import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_IMDB
 import com.nuvio.app.isDesktop
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.media_movie
@@ -84,6 +91,8 @@ internal fun HomeHeroMetaRows(
     isTablet: Boolean,
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
+    ratingsRowHeight: Dp? = null,
+    reserveRatingsRow: Boolean = false,
 ) {
     val type = item.type.trim().lowercase()
     val isSeries = type == "series" || type == "tv"
@@ -101,9 +110,15 @@ internal fun HomeHeroMetaRows(
     val language = item.language?.trim()?.takeIf { it.isNotBlank() }?.uppercase()
     val heroRatings = item.heroRatings(showImdbRating, showMdbListRatings)
     val ratings = heroRatings.external
-    val imdbRating = heroRatings.imdb?.toDoubleOrNull()?.let(::formatOneDecimal)
-    val primaryImdbRating = imdbRating?.takeIf { !isSeries && badges.isEmpty() }
-    val secondaryImdbRating = imdbRating?.takeIf { primaryImdbRating == null }
+    val imdbRating = heroRatings.imdb?.toDoubleOrNull()
+    val standaloneImdb = imdbRating?.takeIf { ratingsRowHeight == null }?.let(::formatOneDecimal)
+    val inlineRatings = if (ratingsRowHeight == null) emptyList() else ratings.ifEmpty {
+        listOfNotNull(imdbRating?.let { MetaExternalRating(PROVIDER_IMDB, it) })
+    }
+    val ratingsFollowFacts = !isSeries && badges.isEmpty()
+    val showInlineRatings = inlineRatings.isNotEmpty() || (ratingsRowHeight != null && reserveRatingsRow)
+    val primaryImdbRating = standaloneImdb?.takeIf { ratingsFollowFacts }
+    val secondaryImdbRating = standaloneImdb?.takeUnless { ratingsFollowFacts }
     val horizontalAlignment = if (isTablet) Alignment.Start else Alignment.CenterHorizontally
     val rowArrangement = Arrangement.spacedBy(8.dp, horizontalAlignment)
 
@@ -113,14 +128,18 @@ internal fun HomeHeroMetaRows(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().heightIn(
+                min = if (ratingsFollowFacts && showInlineRatings) ratingsRowHeight ?: 0.dp else 0.dp,
+            ),
             horizontalArrangement = rowArrangement,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             HeroMetaText(text = typeLabel)
             genre?.let {
                 HeroMetaDot()
-                HeroMetaText(text = it, modifier = Modifier.weight(1f, fill = false))
+                val genreWidth = if (ratingsFollowFacts && showInlineRatings) Modifier.widthIn(max = 112.dp)
+                    else Modifier.weight(1f, fill = false)
+                HeroMetaText(text = it, modifier = genreWidth)
             }
             runtime?.let {
                 HeroMetaDot()
@@ -134,11 +153,18 @@ internal fun HomeHeroMetaRows(
                 HeroMetaDot()
                 HeroImdbRating(rating = it)
             }
+            if (ratingsFollowFacts && inlineRatings.isNotEmpty()) {
+                HeroMetaDot()
+                HeroInlineRatings(inlineRatings, Modifier.weight(1f, fill = false))
+            }
         }
 
-        if (badges.isNotEmpty() || secondaryImdbRating != null || language != null) {
+        val inlineOnSecondaryRow = !ratingsFollowFacts && showInlineRatings
+        if (badges.isNotEmpty() || secondaryImdbRating != null || language != null || inlineOnSecondaryRow) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().heightIn(
+                    min = if (inlineOnSecondaryRow) ratingsRowHeight ?: 0.dp else 0.dp,
+                ),
                 horizontalArrangement = rowArrangement,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -153,19 +179,32 @@ internal fun HomeHeroMetaRows(
                     if (badges.isNotEmpty()) HeroMetaDot()
                     HeroImdbRating(rating = it)
                 }
+                if (inlineOnSecondaryRow && inlineRatings.isNotEmpty()) {
+                    if (badges.isNotEmpty()) HeroMetaDot()
+                    HeroInlineRatings(inlineRatings, Modifier.weight(1f, fill = false))
+                }
                 language?.let {
-                    if (badges.isNotEmpty() || secondaryImdbRating != null) HeroMetaDot()
+                    if (badges.isNotEmpty() || secondaryImdbRating != null || (inlineOnSecondaryRow && inlineRatings.isNotEmpty())) {
+                        HeroMetaDot()
+                    }
                     HeroMetaText(text = it)
                 }
             }
         }
 
-        if (ratings.isNotEmpty()) {
+        if (ratingsRowHeight == null && ratings.isNotEmpty()) {
             RatingsRow(
                 ratings = ratings,
                 maxItems = if (isDesktop) Int.MAX_VALUE else HERO_RATINGS_LIMIT,
             )
         }
+    }
+}
+
+@Composable
+private fun HeroInlineRatings(ratings: List<MetaExternalRating>, modifier: Modifier) {
+    Box(modifier.horizontalScroll(rememberScrollState())) {
+        RatingsRow(ratings = ratings, maxItems = if (isDesktop) Int.MAX_VALUE else HERO_RATINGS_LIMIT)
     }
 }
 

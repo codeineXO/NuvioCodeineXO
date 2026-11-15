@@ -459,6 +459,7 @@ fun HomeScreen(
         val openContinueWatching = onContinueWatchingViewAll?.let { open -> { open(shuffleVisit) } }
         val showCatalogRail = isDesktop && persistentHero
         val catalogRailEntries = mutableListOf<HomeCatalogRailEntry>()
+        val heroPosterRows = mutableMapOf<Any, List<MetaPreview>>()
         val continueWatchingTitle = stringResource(Res.string.compose_settings_page_continue_watching)
         val upcomingTitle = stringResource(Res.string.upcoming_section_title)
         val navigationRows = buildList {
@@ -471,9 +472,15 @@ fun HomeScreen(
             if (continueWatchingPreferences.isVisible) {
                 if (continueWatchingItems.isNotEmpty()) {
                     addRow(HOME_CONTINUE_WATCHING_SECTION_KEY, continueWatchingTitle, continueWatchingItems.map(::continueWatchingItemKey))
+                    if (persistentHero) {
+                        heroPosterRows[HOME_CONTINUE_WATCHING_SECTION_KEY] = continueWatchingItems.map { it.toPersistentHeroPreview() }
+                    }
                 }
                 if (upcomingItems.isNotEmpty()) {
                     addRow(HOME_UPCOMING_SECTION_KEY, upcomingTitle, upcomingItems.map(::continueWatchingItemKey))
+                    if (persistentHero) {
+                        heroPosterRows[HOME_UPCOMING_SECTION_KEY] = upcomingItems.map { it.toPersistentHeroPreview() }
+                    }
                 }
             }
             keyedEnabledHomeItems.forEach { keyed ->
@@ -485,6 +492,9 @@ fun HomeScreen(
                     val section = sectionsMap[keyed.value.key]
                     if (section != null && section.items.isNotEmpty()) {
                         addRow(keyed.lazyKey, section.title, section.items.map { it.stableKey() })
+                        if (persistentHero) {
+                            heroPosterRows[keyed.lazyKey] = if (isDesktop) section.items else section.items.take(homeCatalogPreviewLimit)
+                        }
                     }
                 }
             }
@@ -534,6 +544,7 @@ fun HomeScreen(
             loading = isResolvingHeroSources,
             rowScrollState = homeListState,
             rowAnchors = { homeListState.verticalRowAnchors() },
+            posterRows = heroPosterRows,
             topInset = heroTopInset,
             startInset = sidebarContentInset,
             backdropModifier = if (LocalFrostedGlassEnabled.current) {
@@ -1592,7 +1603,7 @@ private fun LazyListScope.homeContinueWatchingSections(
 }
 
 private const val HOME_CATALOG_PREVIEW_LIMIT = 18
-private const val HOME_CONTINUE_WATCHING_SECTION_KEY = "home_continue_watching"
+internal const val HOME_CONTINUE_WATCHING_SECTION_KEY = "home_continue_watching"
 private const val HOME_UPCOMING_SECTION_KEY = "home_upcoming"
 internal const val HomeContinueWatchingMaxRecentProgressItems = 300
 internal const val HomeNextUpInitialResolutionLimit = 32

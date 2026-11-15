@@ -1,11 +1,11 @@
 package com.nuvio.app.features.home.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -44,9 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
-import coil3.compose.asPainter
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
 import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.LocalSnapVerticalRows
@@ -56,13 +54,13 @@ import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.nuvioVerticalMouseWheelScroll
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.LocalScreenActive
+import com.nuvio.app.core.ui.LocalPosterNavigationItem
 import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.home.HomeHeroMeta
 import com.nuvio.app.features.home.MetaPreview
-import com.nuvio.app.features.home.fetchHomeHeroDetails
 import com.nuvio.app.features.home.fetchHomeHeroRatings
 import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.withHeroMeta
@@ -71,14 +69,16 @@ import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.remote.RemoteAppBridge
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.isDesktop
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-internal val LocalPersistentHeroSelection = staticCompositionLocalOf<((MetaPreview) -> Unit)?> { null }
+internal val LocalPersistentHeroSelection = staticCompositionLocalOf<((PersistentHeroTarget) -> Unit)?> { null }
 
-internal class PersistentHeroSelection<T> {
+internal class PersistentHeroSelection<T>(private val preview: (MetaPreview, T?) -> T) {
     class Request(val item: MetaPreview)
 
     var requested by mutableStateOf<Request?>(null)
@@ -86,21 +86,67 @@ internal class PersistentHeroSelection<T> {
     var displayed by mutableStateOf<T?>(null)
         private set
 
-    fun select(item: MetaPreview) {
-        if (requested?.item?.stableKey() != item.stableKey()) requested = Request(item)
+    var target by mutableStateOf<PersistentHeroTarget?>(null)
+        private set
+    var previous: PersistentHeroTarget? = null
+        private set
+
+    fun select(next: PersistentHeroTarget) {
+        if (target == next) return
+        previous = target
+        target = next
+        if (requested?.item != next.item) {
+            requested = Request(next.item)
+            displayed = preview(next.item, displayed)
+        }
     }
 
-    fun publish(request: Request, value: T) {
-        if (requested === request) displayed = value
+    fun update(request: Request, transform: (T) -> T) {
+        if (requested === request) displayed = displayed?.let(transform)
     }
 
     fun clear() {
         requested = null
         displayed = null
+        target = null
+        previous = null
     }
 }
 
-private data class LoadedHero(val item: MetaPreview, val backdrop: Painter?, val logo: Painter?)
+internal sealed interface PersistentHeroLogo {
+    data object Loading : PersistentHeroLogo
+    data object Unavailable : PersistentHeroLogo
+    data class Ready(val painter: Painter) : PersistentHeroLogo
+}
+
+private data class LoadedHero(
+    val content: HeroContent?,
+    val backdrop: Painter?,
+    val awaitingContent: Boolean = true,
+)
+
+private data class HeroContent(
+    val item: MetaPreview,
+    val logo: PersistentHeroLogo = PersistentHeroLogo.Loading,
+    val awaitingMdbListRatings: Boolean,
+    val awaitingMetadata: Boolean = true,
+)
+
+internal class PersistentHeroContentUpdates<T>(initial: T, private val publish: (T) -> Unit) {
+    private var content = initial
+    private var revealed = false
+
+    fun update(transform: (T) -> T) {
+        content = transform(content)
+        if (revealed) publish(content)
+    }
+
+    suspend fun revealWhenReady(loads: List<Job>, graceMillis: Long = 120) {
+        withTimeoutOrNull(graceMillis) { loads.joinAll() }
+        revealed = true
+        publish(content)
+    }
+}
 
 @Composable
 internal fun PersistentHeroPane(
@@ -110,6 +156,7 @@ internal fun PersistentHeroPane(
     loading: Boolean,
     rowScrollState: ScrollableState,
     rowAnchors: () -> List<Int>,
+    posterRows: Map<Any, List<MetaPreview>>,
     backdropModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
     topInset: Dp = 0.dp,
@@ -139,24 +186,30 @@ internal fun PersistentHeroPane(
         TmdbSettingsRepository.ensureLoaded()
         TmdbSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
-    val selection = remember(page, profile.activeProfile?.profileIndex, mdbList, tmdbSettings) { PersistentHeroSelection<LoadedHero>() }
+    val selection = remember(page, profile.activeProfile?.profileIndex, mdbList, tmdbSettings) {
+        PersistentHeroSelection<LoadedHero> { _, previous ->
+            LoadedHero(previous?.content, previous?.backdrop)
+        }
+    }
     val active = LocalScreenActive.current
     val submit = remember(selection, active) {
-        { item: MetaPreview -> if (active) selection.select(item) }
+        { target: PersistentHeroTarget -> if (active) selection.select(target) }
     }
     LaunchedEffect(active, selection, seed) {
         if (!active) selection.clear()
-        else if (selection.requested == null && seed != null) selection.select(seed)
+        else if (selection.requested == null && seed != null) selection.select(PersistentHeroTarget(seed))
     }
 
     // Keep a title opened away from Home queued until its hero can load it.
     if (page == "home") {
         LaunchedEffect(active, selection, RemoteAppBridge.heroPicks) {
             if (active) RemoteAppBridge.heroPicks.collect { pick ->
-                if (pick != null && RemoteAppBridge.consumeHeroPick(pick)) selection.select(pick.second)
+                if (pick != null && RemoteAppBridge.consumeHeroPick(pick)) {
+                    selection.select(PersistentHeroTarget(pick.item, pick.row, pick.index))
+                }
             }
         }
-        val shown = selection.displayed?.item
+        val shown = selection.displayed?.content?.item
         LaunchedEffect(active, shown) { RemoteAppBridge.publishPersistentHero(shown.takeIf { active }) }
         DisposableEffect(Unit) { onDispose { RemoteAppBridge.publishPersistentHero(null) } }
     }
@@ -172,68 +225,111 @@ internal fun PersistentHeroPane(
         val heightPx = with(density) { maxHeight.roundToPx().coerceAtLeast(1) }
         val showMdbListRatings = mdbList.isActive && mdbList.showOnHero
         val request = selection.requested
-        LaunchedEffect(active, selection, request, context, widthPx, heightPx) {
+        val scope = rememberCoroutineScope()
+        val loader = remember(selection, active, context, widthPx, heightPx) {
+            PersistentHeroLoader(scope, context, SingletonImageLoader.get(context), widthPx, heightPx)
+        }
+        DisposableEffect(loader) { onDispose { loader.retain(emptySet()) } }
+
+        LaunchedEffect(active, selection, request, loader) {
             if (!active || request == null) return@LaunchedEffect
             val preview = request.item
-            val hero = coroutineScope {
-                val details = async { withTimeoutOrNull(2_500) { fetchHomeHeroDetails(preview) } }
-                val ratings = async {
-                    if (showMdbListRatings) {
-                        withTimeoutOrNull(2_500) { fetchHomeHeroRatings(preview, mdbList) { details.await() } }.orEmpty()
-                    } else emptyList()
-                }
-                val resolvedItem = async {
-                    val meta = details.await()
-                    preview.withHeroMeta(HomeHeroMeta(meta)).copy(
-                        banner = preview.banner.nonBlank() ?: meta?.background.nonBlank() ?: preview.landscapePoster.nonBlank(),
-                        poster = preview.poster.nonBlank() ?: meta?.poster.nonBlank(),
-                        logo = preview.logo.nonBlank() ?: meta?.logo.nonBlank(),
-                        description = preview.description.nonBlank() ?: meta?.description.nonBlank(),
+            val initialContent = selection.displayed?.takeUnless { it.awaitingContent }?.content
+                ?: HeroContent(preview.copy(logo = null), awaitingMdbListRatings = showMdbListRatings)
+            val contentUpdates = PersistentHeroContentUpdates(initialContent) { content ->
+                selection.update(request) { it.copy(content = content, awaitingContent = false) }
+            }
+            val details = async { loader.details(preview, foreground = true) }
+            val resolvedItem = async {
+                val meta = details.await()
+                val item = preview.withHeroMeta(HomeHeroMeta(meta)).copy(
+                    banner = preview.banner.nonBlank() ?: meta?.background.nonBlank() ?: preview.landscapePoster.nonBlank(),
+                    poster = preview.poster.nonBlank() ?: meta?.poster.nonBlank(),
+                    logo = preview.logo.nonBlank() ?: meta?.logo.nonBlank(),
+                    description = preview.description.nonBlank() ?: meta?.description.nonBlank(),
+                )
+                contentUpdates.update { shown ->
+                    shown.copy(
+                        item = item.copy(logo = shown.item.logo, externalRatings = shown.item.externalRatings),
+                        awaitingMetadata = false,
                     )
                 }
-                suspend fun artwork(url: String?, width: Int, height: Int): Painter? {
-                    if (url == null) return null
-                    val imageRequest = ImageRequest.Builder(context).data(url).size(width, height).build()
-                    return withTimeoutOrNull(1_750) {
-                        (SingletonImageLoader.get(context).execute(imageRequest) as? SuccessResult)
-                            ?.image?.asPainter(context)
+                item
+            }
+            val ratingsLoad = if (showMdbListRatings) launch {
+                val ratings = withTimeoutOrNull(2_500) { fetchHomeHeroRatings(preview, mdbList) { details.await() } }
+                contentUpdates.update { shown ->
+                    shown.copy(
+                        item = shown.item.copy(externalRatings = ratings.orEmpty().ifEmpty { shown.item.externalRatings }),
+                        awaitingMdbListRatings = false,
+                    )
+                }
+            } else null
+            val logoLoad = launch {
+                val url = preview.logo.nonBlank() ?: resolvedItem.await().logo
+                val painter = url?.let { loader.logo(preview, it) }
+                contentUpdates.update { shown ->
+                    shown.copy(
+                        item = shown.item.copy(logo = url.takeIf { painter != null }),
+                        logo = if (painter == null) PersistentHeroLogo.Unavailable else PersistentHeroLogo.Ready(painter),
+                    )
+                }
+            }
+            launch {
+                val banner = preview.banner.nonBlank()
+                val knownBackdrop = preview.backdropPreviewUrl()
+                var previewBackdrop: Painter? = null
+                val provisional = knownBackdrop?.let { url ->
+                    async {
+                        loader.backdrop(preview, url, foreground = true)?.also { painter ->
+                            previewBackdrop = painter
+                            selection.update(request) { it.copy(backdrop = painter) }
+                        }
                     }
                 }
-                val backdrop = async {
-                    // Known artwork can load while metadata resolves; keep the existing fallback order.
-                    val banner = preview.banner.nonBlank() ?: resolvedItem.await().banner
-                    val loadedBanner = artwork(banner, widthPx, heightPx)
-                    val item = resolvedItem.await()
-                    loadedBanner ?: artwork(item.poster?.takeUnless { it == item.banner }, widthPx, heightPx)
-                        ?: artwork(item.rawPosterUrl?.takeUnless { it == item.poster || it == item.banner }, widthPx, heightPx)
-                }
-                val logo = async {
-                    artwork(preview.logo.nonBlank() ?: resolvedItem.await().logo, (widthPx / 2).coerceAtLeast(1), heightPx)
-                }
+                if (banner != null && provisional?.await() != null) return@launch
+
                 val item = resolvedItem.await()
-                val loadedLogo = logo.await()
-                LoadedHero(
-                    item.copy(
-                        logo = item.logo.takeIf { loadedLogo != null },
-                        externalRatings = ratings.await().ifEmpty { preview.externalRatings },
-                    ),
-                    backdrop.await(),
-                    loadedLogo,
-                )
+                val candidates = listOfNotNull(item.banner, item.poster, item.rawPosterUrl.nonBlank()).distinct()
+                for (url in candidates) {
+                    val painter = if (url == knownBackdrop) provisional?.await()
+                        else loader.backdrop(preview, url, foreground = true)
+                    if (painter != null) {
+                        provisional?.cancel()
+                        selection.update(request) { it.copy(backdrop = painter) }
+                        return@launch
+                    }
+                }
+                provisional?.await()
+                selection.update(request) { it.copy(backdrop = previewBackdrop) }
             }
-            selection.publish(request, hero)
+            contentUpdates.revealWhenReady(listOfNotNull(resolvedItem, logoLoad, ratingsLoad))
         }
 
+        val neighbors = remember(posterRows, selection.target) {
+            selection.target?.let { persistentHeroNeighbors(posterRows, it, selection.previous) }.orEmpty()
+        }
+        LaunchedEffect(active, loader, request, neighbors) {
+            if (!active || request == null) return@LaunchedEffect
+            val keep = neighbors.mapTo(mutableSetOf(request.item.stableKey()), MetaPreview::stableKey)
+            loader.retain(keep)
+            delay(100)
+            neighbors.forEach { item -> launch { loader.preload(item) } }
+        }
         val hero = selection.displayed
         PersistentHeroBackdrop(hero?.backdrop, backdropModifier)
         Column(Modifier.fillMaxSize().padding(top = topInset)) {
             header?.invoke()
             val showSkeleton = loading || request != null || seed != null
             Box(Modifier.fillMaxWidth().height(heroHeight)) {
-                Crossfade(
-                    targetState = hero,
+                AnimatedContent(
+                    targetState = hero?.content,
                     modifier = Modifier.fillMaxSize().padding(start = startInset),
-                    animationSpec = tween(240, easing = FastOutSlowInEasing),
+                    transitionSpec = {
+                        fadeIn(tween(240, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(tween(240, easing = FastOutSlowInEasing))
+                    },
+                    contentKey = { it?.item?.stableKey() },
                     label = "Persistent hero details",
                 ) { displayed ->
                     if (displayed != null) {
@@ -242,6 +338,8 @@ internal fun PersistentHeroPane(
                             logo = displayed.logo,
                             showImdbRating = metaSettings.showOverallRatings,
                             showMdbListRatings = showMdbListRatings,
+                            awaitingMdbListRatings = displayed.awaitingMdbListRatings,
+                            awaitingMetadata = displayed.awaitingMetadata,
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else if (showSkeleton) {
@@ -328,8 +426,6 @@ private fun PersistentHeroBackdrop(artwork: Painter?, modifier: Modifier) {
     }
 }
 
-private fun String?.nonBlank(): String? = this?.takeIf { it.isNotBlank() }
-
 @Composable
 internal fun persistentHeroTarget(item: MetaPreview): Modifier {
     val select = LocalPersistentHeroSelection.current ?: return Modifier
@@ -338,8 +434,9 @@ internal fun persistentHeroTarget(item: MetaPreview): Modifier {
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsRemoteHoveredAsState()
     val menuOpen = ActionMenuCoordinator.active != null
+    val position = LocalPosterNavigationItem.current
     val selectCurrent by rememberUpdatedState {
-        if (active && !menuOpen) select(item)
+        if (active && !menuOpen) select(PersistentHeroTarget(item, position?.row, position?.index))
     }
     LaunchedEffect(hovered, active, menuOpen) {
         if (!hovered || !active || menuOpen) return@LaunchedEffect
