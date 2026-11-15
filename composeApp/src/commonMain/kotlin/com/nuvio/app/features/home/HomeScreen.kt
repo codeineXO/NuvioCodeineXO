@@ -104,6 +104,7 @@ import com.nuvio.app.features.home.components.HomeCatalogRail
 import com.nuvio.app.features.home.components.HomeCatalogRailEntry
 import com.nuvio.app.features.home.components.PersistentHeroPane
 import com.nuvio.app.features.home.components.persistentHeroHeight
+import com.nuvio.app.features.home.components.persistentHeroRowReserve
 import com.nuvio.app.features.home.components.toPersistentHeroPreview
 import com.nuvio.app.features.home.components.ContinueWatchingLayout
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
@@ -842,7 +843,7 @@ fun HomeScreen(
             val desktopIconSize = desktopTopBarActionIconSize(maxWidth)
             val railGap = space.s16
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val railHeight = heroTopInset + persistentHeroHeight(maxHeight, heroTopInset) -
+            val railHeight = heroTopInset + persistentHeroHeight(maxHeight, heroTopInset, rowReserve = persistentHeroRowReserve()) -
                 statusBarTop - desktopTopBarTopPadding - desktopButtonSize - railGap * 2
             Column(
                 modifier = Modifier

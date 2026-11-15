@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,7 +50,14 @@ import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.LocalSnapVerticalRows
 import com.nuvio.app.core.ui.LocalVerticalWheelOwner
+import com.nuvio.app.core.ui.NuvioPosterShape
 import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.PosterGlowOutset
+import com.nuvio.app.core.ui.aspectRatio
+import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
+import com.nuvio.app.core.ui.landscapePosterHeightForWidth
+import com.nuvio.app.core.ui.landscapePosterWidth
+import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.nuvioVerticalMouseWheelScroll
 import com.nuvio.app.core.ui.navigationGlassSource
@@ -218,7 +226,14 @@ internal fun PersistentHeroPane(
     val currentRowAnchors by rememberUpdatedState(rowAnchors)
     val anchors = remember { { currentRowAnchors() } }
     BoxWithConstraints(modifier.fillMaxSize().nuvioVerticalMouseWheelScroll(rowScrollState, rowAnchors = anchors)) {
-        val heroHeight = persistentHeroHeight(maxHeight, topInset, hasHeader = header != null)
+        var headerHeight by remember { mutableStateOf(0.dp) }
+        val heroHeight = persistentHeroHeight(
+            maxHeight,
+            topInset,
+            hasHeader = header != null,
+            rowReserve = persistentHeroRowReserve(),
+            headerHeight = headerHeight,
+        )
         val railEndInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
         val context = LocalPlatformContext.current
         val density = LocalDensity.current
@@ -320,7 +335,9 @@ internal fun PersistentHeroPane(
         val hero = selection.displayed
         PersistentHeroBackdrop(hero?.backdrop, backdropModifier)
         Column(Modifier.fillMaxSize().padding(top = topInset)) {
-            header?.invoke()
+            if (header != null) {
+                Box(Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } }) { header() }
+            }
             val showSkeleton = loading || request != null || seed != null
             Box(Modifier.fillMaxWidth().height(heroHeight)) {
                 AnimatedContent(
@@ -374,9 +391,44 @@ internal fun PersistentHeroPane(
     }
 }
 
-internal fun persistentHeroHeight(viewportHeight: Dp, topInset: Dp, hasHeader: Boolean = false): Dp {
+private val PersistentHeroMinHeight = 180.dp
+
+/** Shrinks the hero before it covers the first full poster row (labels included), down to a floor. */
+internal fun persistentHeroHeight(
+    viewportHeight: Dp,
+    topInset: Dp,
+    hasHeader: Boolean = false,
+    rowReserve: Dp = 0.dp,
+    headerHeight: Dp = 0.dp,
+): Dp {
+    val available = (viewportHeight - topInset).coerceAtLeast(0.dp)
     val fraction = if (hasHeader) 0.44f else 0.56f
-    return minOf(440.dp, (viewportHeight - topInset).coerceAtLeast(0.dp) * fraction)
+    val target = minOf(440.dp, available * fraction)
+    if (rowReserve <= 0.dp) return target
+    val fitted = (available - headerHeight - rowReserve).coerceAtLeast(PersistentHeroMinHeight)
+    return minOf(target, fitted)
+}
+
+/** Height of one poster shelf: header, poster, title and year lines, plus glow/hover overdraw. */
+@Composable
+internal fun persistentHeroRowReserve(): Dp {
+    val style = rememberPosterCardStyleUiState()
+    val typography = MaterialTheme.typography
+    val density = LocalDensity.current
+    val base = desktopCatalogShelfPosterBaseWidthDp(style.widthDp)
+    val posterHeight = if (style.catalogLandscapeModeEnabled) {
+        landscapePosterHeightForWidth(landscapePosterWidth(base))
+    } else {
+        (base / NuvioPosterShape.Poster.aspectRatio).dp
+    }
+    val labels = with(density) {
+        if (style.hideLabelsEnabled) NuvioTokens.Space.s6
+        else NuvioTokens.Space.s6 * 2 + typography.bodyMedium.lineHeight.toDp() +
+            (if (style.hideYearEnabled) 0.dp else typography.labelSmall.lineHeight.toDp())
+    }
+    val overdraw = if (isDesktop && style.glowEnabled) PosterGlowOutset * 2 else NuvioTokens.Space.s8
+    val header = NuvioTokens.Space.s40 + NuvioTokens.Space.s8 + NuvioTokens.Space.s2
+    return header + posterHeight + labels + overdraw + NuvioTokens.Space.s12
 }
 
 @Composable

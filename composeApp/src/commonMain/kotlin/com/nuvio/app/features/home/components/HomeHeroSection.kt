@@ -784,6 +784,7 @@ internal fun PersistentHomeHero(
     BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
         val compact = maxHeight < 330.dp
         val short = maxHeight < 235.dp
+        val minimal = maxHeight < 205.dp
         val layout = homeHeroLayout(maxWidth.value, preferDesktopLayout = isDesktop).copy(
             heroHeight = maxHeight,
             contentWidthFraction = if (maxWidth < 650.dp) 1f else 0.62f,
@@ -797,7 +798,7 @@ internal fun PersistentHomeHero(
                 maxOf(typography.titleSmall.lineHeight.toDp(), 24.dp) + 16.dp
         }
         val descriptionHeight = with(LocalDensity.current) {
-            NuvioTokens.LineHeight.bodyLg.toDp() * desktopHeroDescriptionLines(compact, short)
+            if (minimal) 0.dp else NuvioTokens.LineHeight.bodyLg.toDp() * desktopHeroDescriptionLines(compact, short)
         }
         val contentHeight = desktopHeroLogoHeight(layout, compact) + metadataHeight + descriptionHeight +
             (if (compact) 8.dp else NuvioTokens.Space.s12 + NuvioTokens.Space.s16)
@@ -821,6 +822,7 @@ internal fun PersistentHomeHero(
                     (showImdbRating && awaitingMetadata && !item.imdbRating.isNullOrBlank()),
                 compact = compact,
                 short = short,
+                showDescription = !minimal,
             )
         }
     }
@@ -1002,6 +1004,7 @@ private fun DesktopHeroContentBlock(
     reserveRatingsRow: Boolean = false,
     compact: Boolean = false,
     short: Boolean = false,
+    showDescription: Boolean = true,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var logoLoadError by remember(item.type, item.id, item.logo) {
@@ -1075,7 +1078,7 @@ private fun DesktopHeroContentBlock(
             reserveRatingsRow = reserveRatingsRow,
         )
 
-        item.description?.takeIf { it.isNotBlank() }?.let { description ->
+        item.description?.takeIf { showDescription && it.isNotBlank() }?.let { description ->
             Spacer(modifier = Modifier.height(when {
                 compact -> NuvioTokens.Space.s4
                 persistentLogo != null -> NuvioTokens.Space.s6
