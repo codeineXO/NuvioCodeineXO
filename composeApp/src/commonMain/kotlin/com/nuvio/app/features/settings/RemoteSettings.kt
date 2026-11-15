@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,6 +17,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,14 +37,19 @@ import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.remoteNavigationTarget
+import com.nuvio.app.features.remote.RemoteDevice
 import com.nuvio.app.features.remote.RemoteServer
 import com.nuvio.app.features.remote.RemoteServerPlatform
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_close
 import nuvio.composeapp.generated.resources.compose_settings_remote_connect
+import nuvio.composeapp.generated.resources.compose_settings_remote_connected_devices
 import nuvio.composeapp.generated.resources.compose_settings_remote_copy_url
+import nuvio.composeapp.generated.resources.compose_settings_remote_device_browser_platform
+import nuvio.composeapp.generated.resources.compose_settings_remote_device_unknown
 import nuvio.composeapp.generated.resources.compose_settings_remote_generate_qr_code
 import nuvio.composeapp.generated.resources.compose_settings_remote_no_address
+import nuvio.composeapp.generated.resources.compose_settings_remote_no_devices
 import nuvio.composeapp.generated.resources.compose_settings_remote_qr_code
 import nuvio.composeapp.generated.resources.compose_settings_remote_url_copied
 import org.jetbrains.compose.resources.stringResource
@@ -86,6 +93,13 @@ internal fun RemoteSettings(isTablet: Boolean) {
                 isTablet = isTablet,
                 onClick = { showQrDialog = true },
             )
+            connection.devices?.let { devices ->
+                key(devices) {
+                    val connectedDevices by devices.collectAsStateWithLifecycle()
+                    SettingsGroupDivider(isTablet = isTablet)
+                    RemoteConnectedDevices(devices = connectedDevices.distinct(), isTablet = isTablet)
+                }
+            }
         }
     }
 
@@ -102,6 +116,49 @@ internal fun RemoteSettings(isTablet: Boolean) {
             },
             onDismiss = { showPortDialog = false },
         )
+    }
+}
+
+@Composable
+private fun RemoteConnectedDevices(devices: List<RemoteDevice>, isTablet: Boolean) {
+    val tokens = MaterialTheme.nuvio
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(
+            horizontal = if (isTablet) 20.dp else 16.dp,
+            vertical = if (isTablet) 16.dp else 14.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(tokens.spacing.listGap),
+    ) {
+        Text(
+            text = stringResource(Res.string.compose_settings_remote_connected_devices),
+            style = MaterialTheme.typography.bodyLarge,
+            color = tokens.colors.textPrimary,
+        )
+        if (devices.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.compose_settings_remote_no_devices),
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.colors.textMuted,
+            )
+        }
+        devices.forEach { device ->
+            Column {
+                Text(
+                    text = if (device.browser != null && device.platform != null) {
+                        stringResource(Res.string.compose_settings_remote_device_browser_platform, device.browser, device.platform)
+                    } else {
+                        device.browser ?: device.platform ?: stringResource(Res.string.compose_settings_remote_device_unknown)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = tokens.colors.textPrimary,
+                )
+                Text(
+                    text = device.address,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = tokens.colors.textMuted,
+                )
+            }
+        }
     }
 }
 

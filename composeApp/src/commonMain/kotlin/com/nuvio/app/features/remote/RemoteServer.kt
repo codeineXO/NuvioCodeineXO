@@ -10,11 +10,12 @@ internal interface RemoteServerPlatform {
     fun loadPort(): Int?
     fun save(enabled: Boolean, port: Int)
 
-    /** Starts serving on [port] and returns the LAN URL when available. */
-    fun start(port: Int): String?
+    fun start(port: Int): RemoteServer.Connection
     fun stop()
     fun qrCode(url: String): ImageBitmap
 }
+
+internal data class RemoteDevice(val address: String, val platform: String?, val browser: String?)
 
 /** Phone remote web server. Desktop installs the platform; other targets show no Remote settings. */
 internal object RemoteServer {
@@ -29,7 +30,11 @@ internal object RemoteServer {
     private val mutablePort = MutableStateFlow(DEFAULT_PORT)
     val port: StateFlow<Int> = mutablePort.asStateFlow()
 
-    data class Connection(val url: String? = null, val error: String? = null)
+    data class Connection(
+        val url: String? = null,
+        val error: String? = null,
+        val devices: StateFlow<List<RemoteDevice>>? = null,
+    )
 
     private val mutableConnection = MutableStateFlow(Connection())
     val connection: StateFlow<Connection> = mutableConnection.asStateFlow()
@@ -59,7 +64,7 @@ internal object RemoteServer {
         backend.stop()
         mutableConnection.value = if (mutableEnabled.value) {
             val port = mutablePort.value
-            runCatching { Connection(url = backend.start(port)) }
+            runCatching { backend.start(port) }
                 .getOrElse { Connection(error = "Couldn't start on port $port: ${it.message}") }
         } else {
             Connection()

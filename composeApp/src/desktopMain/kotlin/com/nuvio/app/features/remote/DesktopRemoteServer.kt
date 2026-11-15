@@ -10,6 +10,7 @@ import com.nuvio.app.core.ui.RemoteNavigationDispatcher
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import nuvio.composeapp.generated.resources.Res
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
@@ -32,9 +33,12 @@ import java.net.InetAddress
 import java.net.NetworkInterface
 import javax.swing.SwingUtilities
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -70,9 +74,13 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
     }
 
     @Synchronized
-    override fun start(port: Int): String? {
+    override fun start(port: Int): RemoteServer.Connection {
+        val devices = MutableStateFlow<List<RemoteDevice>>(emptyList())
         val engine = embeddedServer(CIO, port = port, host = "0.0.0.0") {
-            install(WebSockets)
+            install(WebSockets) {
+                pingPeriodMillis = 15_000
+                timeoutMillis = 10_000
+            }
             routing {
                 // no-store: the phone always gets the current page, never a cached older one.
                 get("/") {
@@ -99,6 +107,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                     if (bytes == null) call.respond(HttpStatusCode.NotFound) else call.respondBytes(bytes, ContentType.Image.PNG)
                 }
                 webSocket("/ws") {
+                    val device = remoteDevice(call.request.local.remoteAddress, call.request.headers[HttpHeaders.UserAgent])
                     val cardMenus = RemoteCardMenuSession()
                     val player = launch {
                         combine(
@@ -132,11 +141,13 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                             delay(1_000)
                         }
                     }
+                    devices.update { it + device }
                     try {
                         for (frame in incoming) {
                             if (frame is Frame.Text) handle(frame.readText(), cardMenus) { send(Frame.Text(it)) }
                         }
                     } finally {
+                        devices.update { it - device }
                         player.cancel()
                         progress.cancel()
                         home.cancel()
@@ -154,13 +165,40 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
         }
         engine.start(wait = false)
         server = engine
-        return lanAddress()?.let { "http://$it:$port" }
+        return RemoteServer.Connection(
+            url = lanAddress()?.let { "http://$it:$port" },
+            devices = devices.asStateFlow(),
+        )
     }
 
     @Synchronized
     override fun stop() {
         server?.stop(gracePeriodMillis = 100, timeoutMillis = 500)
         server = null
+    }
+
+    private fun remoteDevice(address: String, userAgent: String?): RemoteDevice {
+        val agent = userAgent.orEmpty()
+        val platform = when {
+            "iPhone" in agent -> "iPhone"
+            "iPad" in agent -> "iPad"
+            "Android" in agent -> "Android"
+            "Windows" in agent -> "Windows"
+            "CrOS" in agent -> "ChromeOS"
+            "Macintosh" in agent -> "macOS"
+            "Linux" in agent -> "Linux"
+            else -> null
+        }
+        val browser = when {
+            "Edg/" in agent || "EdgA/" in agent || "EdgiOS/" in agent -> "Edge"
+            "SamsungBrowser/" in agent -> "Samsung Internet"
+            "OPR/" in agent || "OPiOS/" in agent -> "Opera"
+            "Firefox/" in agent || "FxiOS/" in agent -> "Firefox"
+            "Chrome/" in agent || "CriOS/" in agent -> "Chrome"
+            "Safari/" in agent -> "Safari"
+            else -> null
+        }
+        return RemoteDevice(address, platform, browser)
     }
 
     override fun qrCode(url: String): ImageBitmap {
