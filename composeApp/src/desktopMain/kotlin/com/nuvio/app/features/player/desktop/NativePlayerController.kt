@@ -1735,20 +1735,9 @@ internal class NativePlayerController(
         } else {
             positionMs.coerceAtLeast(0L)
         }
-        if (clampedPosition == 0L) {
-            nativeSeekTo(current, 0L)
-            return
-        }
-        val nearEnd = durationMs > 0L && clampedPosition >= durationMs - 45_000L
-        val currentPos = nativePositionMs(current).takeIf { it > 0L }
-            ?: controlsState.positionMs.takeIf { it > 0L }
-            ?: 0L
-        val offsetMs = clampedPosition - currentPos
-        if (!nearEnd && kotlin.math.abs(offsetMs) > 3_000L) {
-            nativeSeekBy(current, offsetMs)
-        } else {
-            nativeSeekTo(current, clampedPosition)
-        }
+        // Keep the requested destination independent of an earlier seek still in flight.
+        // The native bridge selects exact or keyframe seeking for this absolute target.
+        nativeSeekTo(current, clampedPosition)
     }
 
     override fun retry() {
