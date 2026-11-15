@@ -125,6 +125,9 @@ internal fun MetaPreview.withHeroMeta(meta: HomeHeroMeta): MetaPreview {
             ?: details?.releaseInfo?.takeIf { it.isNotBlank() },
         genres = details?.genres?.takeIf { it.isNotEmpty() } ?: genres,
         imdbRating = details?.imdbRating?.takeIf { it.isNotBlank() } ?: imdbRating,
+        imdbId = details?.imdbId?.takeIf { it.isNotBlank() }
+            ?: MdbListMetadataService.extractImdbId(details?.id)
+            ?: imdbId,
         runtime = details?.runtime?.takeIf { it.isNotBlank() } ?: runtime,
         status = details?.status?.takeIf { it.isNotBlank() } ?: status,
         ageRating = details?.ageRating?.takeIf { it.isNotBlank() } ?: ageRating,
