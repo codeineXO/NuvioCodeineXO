@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.modifier.modifierLocalOf
 import androidx.compose.ui.modifier.modifierLocalProvider
@@ -876,6 +877,7 @@ internal fun Modifier.remoteNavigationTarget(
     onContext: (() -> Unit)? = null,
     insetFocusOutline: Boolean = false,
     verticalOnly: Boolean = false,
+    focusOutlineWidth: Dp = 2.dp,
 ): Modifier = composed {
     val guardedModifier = if (textField) this.remoteTextInputGuard() else this
     val session = LocalRemoteNavigation.current ?: return@composed guardedModifier
@@ -1172,7 +1174,7 @@ internal fun Modifier.remoteNavigationTarget(
         .drawWithCache {
             // Clipped panels need the entire stroke inside their bounds; posters
             // retain a contour-centered stroke to cover the artwork edge.
-            val strokeWidth = 2.dp.toPx()
+            val strokeWidth = focusOutlineWidth.toPx()
             val padding = if (insetFocusOutline) strokeWidth / 2 else 0f
             val outlineSize = Size((size.width - padding * 2).coerceAtLeast(0f),
                 (size.height - padding * 2).coerceAtLeast(0f))

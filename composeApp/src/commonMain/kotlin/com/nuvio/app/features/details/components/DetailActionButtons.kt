@@ -155,17 +155,25 @@ fun DetailActionButtons(
             Surface(
                 modifier = Modifier
                     .weight(1f)
-                    .height(buttonHeight),
+                    .height(buttonHeight)
+                    .navigationGlass(shape = playShape, backgroundOnly = true),
                 shape = playShape,
-                color = if (playEnabled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = if (playEnabled) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                color = Color.Transparent,
+                contentColor = Color.White.copy(alpha = if (playEnabled) 1f else 0.38f),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(playFocusRequester)
                         .onGloballyPositioned { playBounds = it.boundsInRoot() }
-                        .remoteNavigationTarget(shape = playShape, initialFocus = true, onSelect = onPlayClick.takeIf { playEnabled }, onContext = onPlayContext)
+                        .remoteNavigationTarget(
+                            shape = playShape,
+                            initialFocus = true,
+                            onSelect = onPlayClick.takeIf { playEnabled },
+                            onContext = onPlayContext,
+                            insetFocusOutline = true,
+                            focusOutlineWidth = 3.dp,
+                        )
                         .combinedClickable(
                             enabled = playEnabled,
                             onClick = {
