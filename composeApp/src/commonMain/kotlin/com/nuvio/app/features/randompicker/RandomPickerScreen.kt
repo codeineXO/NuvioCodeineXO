@@ -48,12 +48,14 @@ import kotlinx.coroutines.delay
 import com.nuvio.app.core.ui.*
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.details.components.ClickableRatingBadge
 import com.nuvio.app.features.details.components.DetailHeroMetaBadge
 import com.nuvio.app.features.details.components.ImdbRatingSourceLabel
 import com.nuvio.app.features.details.components.ImdbYellow
 import com.nuvio.app.features.details.components.RatingsRow
 import com.nuvio.app.features.details.components.desktopYearLabel
 import com.nuvio.app.features.details.components.desktopSeasonCountLabel
+import com.nuvio.app.features.details.components.formatImdbTitleUrl
 import com.nuvio.app.features.details.components.formatOneDecimal
 import com.nuvio.app.features.details.formatRuntimeForDisplay
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
@@ -598,10 +600,14 @@ private fun PickerHeroInfo(result: PickerResult) {
         if (externalRatings.isNotEmpty()) {
             RatingsRow(externalRatings, wrap = true, compact = true)
         } else if (metaSettings.showOverallRatings) {
-            meta.pickerRating()?.takeIf { it > 0 }?.let {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            meta.pickerRating()?.takeIf { it > 0 }?.let { rating ->
+                val imdbUrl = formatImdbTitleUrl(meta.imdbId)
+                    ?: formatImdbTitleUrl(meta.id)
+                    ?: formatImdbTitleUrl(result.preview.id)
+                ClickableRatingBadge(url = imdbUrl) {
                     ImdbRatingSourceLabel(storeTextStyle = MaterialTheme.typography.labelLarge)
-                    Text(formatOneDecimal(it), fontWeight = FontWeight.Bold, color = ImdbYellow)
+                    Spacer(Modifier.width(5.dp))
+                    Text(formatOneDecimal(rating), fontWeight = FontWeight.Bold, color = ImdbYellow)
                 }
             }
         }
