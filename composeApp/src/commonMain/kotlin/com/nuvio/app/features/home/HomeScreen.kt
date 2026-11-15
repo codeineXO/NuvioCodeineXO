@@ -942,8 +942,8 @@ fun HomeScreen(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .statusBarsPadding()
-                        .padding(top = desktopActionTopPadding, start = space.s16)
-                        .size(desktopButtonSize)
+                        .padding(top = desktopActionTopPadding + 1.dp, start = space.s16)
+                        .size(desktopButtonSize - 2.dp)
                         .topBarActionGlass(CircleShape)
                         .excludeFromRemoteNavigation()
                         .clickable(role = Role.Button, onClick = ::platformExitApp)
@@ -953,7 +953,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Rounded.PowerSettingsNew,
                         contentDescription = null,
-                        modifier = Modifier.size(desktopIconSize),
+                        modifier = Modifier.size(desktopIconSize - 6.dp),
                         tint = colorScheme.onSurface,
                     )
                 }
