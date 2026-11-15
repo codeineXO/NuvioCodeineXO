@@ -47,6 +47,10 @@ import com.nuvio.app.features.player.backgroundBoxColor
 import com.nuvio.app.core.storage.DesktopStorage
 import com.nuvio.app.core.storage.ProfileScopedKey
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import com.nuvio.app.features.streams.StreamSubtitle
 import com.nuvio.app.features.addons.encodeUnsafeHttpUrlCharacters
 import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.SubtitleTrack
@@ -119,6 +123,9 @@ internal class NativePlayerController(
     private val onCreateWaitCompleted: () -> Unit = {},
     private val nativeSetPlaybackBufferPreset: (Long, PlaybackBufferPreset) -> Unit = NativePlayerBridge::setPlaybackBufferPreset,
 ) : PlayerEngineController {
+    private val hlsDeferredSubtitles = MutableStateFlow<List<StreamSubtitle>>(emptyList())
+    override val engineStreamSubtitles: StateFlow<List<StreamSubtitle>> = hlsDeferredSubtitles.asStateFlow()
+
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
         val log = Logger.withTag("NativePlayerControls")
@@ -511,10 +518,14 @@ internal class NativePlayerController(
                         NativePlayerBridge.create(host, source, audio, headers, play, position, controls, decoder, rtx, sink)
                     }
                 }
+                // Windows only: play a local master trimmed to the top variant, and offer its
+                // subtitle renditions as stream subtitles instead of opening them all up front.
+                val hlsTrim = if (config != null) HlsStartupTrim.prepare(resolvedSource, pending.headerLines) else null
+                if (pendingSource === pending) hlsDeferredSubtitles.value = hlsTrim?.subtitles.orEmpty()
                 runCatching {
                     create(
                         hostViewPtr,
-                        resolvedSource,
+                        hlsTrim?.localUrl ?: resolvedSource,
                         pending.sourceAudioUrl.orEmpty(),
                         pending.headerLines.toTypedArray(),
                         pending.playWhenReady,
@@ -2099,7 +2110,7 @@ internal class NativePlayerController(
                 })
             }
 
-            response.use { resp ->
+            val finalUrl = response.use { resp ->
                 if (!resp.isSuccessful) {
                     log.w { "downloadSubtitleToCache HTTP ${resp.code} for ${url.toPlaybackLogKey()}" }
                     return@withContext null
@@ -2108,7 +2119,9 @@ internal class NativePlayerController(
                 body.byteStream().use { input ->
                     Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING)
                 }
+                resp.request.url.toString()
             }
+            if (!expandHlsSubtitlePlaylist(tempFile, finalUrl)) return@withContext null
 
             if (!Files.exists(tempFile) || Files.size(tempFile) == 0L) {
                 Files.deleteIfExists(tempFile)
@@ -2139,6 +2152,40 @@ internal class NativePlayerController(
         } finally {
             runCatching { Files.deleteIfExists(tempFile) }
         }
+    }
+
+    /**
+     * An HLS subtitle rendition (offered by [HlsStartupTrim]) is a playlist of WebVTT segments:
+     * replace [file] with the segments joined into one WebVTT file. Leaves other files alone.
+     */
+    private fun expandHlsSubtitlePlaylist(file: Path, playlistUrl: String): Boolean {
+        val head = Files.newInputStream(file).use { it.readNBytes(16) }
+        if (!String(head, Charsets.UTF_8).trimStart('﻿').startsWith("#EXTM3U")) return true
+        val base = java.net.URI(playlistUrl)
+        val segments = Files.readAllLines(file, Charsets.UTF_8)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .take(4_000)
+            .map { segment -> base.resolve(segment).toString() }
+        if (segments.isEmpty()) return false
+        val merged = StringBuilder()
+        for ((index, segmentUrl) in segments.withIndex()) {
+            val request = Request.Builder()
+                .url(segmentUrl.encodeUnsafeHttpUrlCharacters())
+                .header("User-Agent", "Mozilla/5.0")
+                .build()
+            val text = subtitleDownloadClient.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) {
+                    log.w { "HLS subtitle segment HTTP ${resp.code} for ${segmentUrl.toPlaybackLogKey()}" }
+                    return false
+                }
+                resp.body?.string().orEmpty().removePrefix("﻿").replace("\r\n", "\n")
+            }
+            // Every segment repeats the WEBVTT header block; keep only the first one.
+            merged.append(if (index == 0) text else text.substringAfter("\n\n", "")).append("\n\n")
+        }
+        Files.writeString(file, merged.toString())
+        return true
     }
 }
 

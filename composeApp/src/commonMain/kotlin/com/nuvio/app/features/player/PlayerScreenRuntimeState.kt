@@ -117,6 +117,8 @@ internal class PlayerScreenRuntime(
     val initialPositionMs: Long get() = args.initialPositionMs
     val initialProgressFraction: Float? get() = args.initialProgressFraction
     var externalSubtitles by mutableStateOf(args.externalSubtitles)
+    /** Subtitles the player engine split off the current stream; see [PlayerEngineController.engineStreamSubtitles]. */
+    var engineStreamSubtitles by mutableStateOf<List<com.nuvio.app.features.streams.StreamSubtitle>>(emptyList())
     val isSeries: Boolean
         get() = parentMetaType.isSeriesLikeWatchingContentType(includeAnime = true) ||
             contentType.isSeriesLikeWatchingContentType(includeAnime = true) ||

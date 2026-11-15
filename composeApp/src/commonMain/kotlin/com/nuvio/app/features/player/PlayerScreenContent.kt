@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import com.nuvio.app.core.ui.AppPresenceState
 import androidx.compose.ui.Modifier
@@ -168,7 +169,16 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.episodeStreamsRepoState = episodeStreamsRepoState
         runtime.metaUiState = metaUiState
         runtime.addonsUiState = addonsUiState
-        runtime.addonSubtitles = mergeStreamAndAddonSubtitles(addonSubtitles, runtime.externalSubtitles)
+        val engineSubtitlesFlow = remember(runtime.playerController) {
+            runtime.playerController?.engineStreamSubtitles
+                ?: MutableStateFlow(emptyList<com.nuvio.app.features.streams.StreamSubtitle>())
+        }
+        val engineStreamSubtitles by engineSubtitlesFlow.collectAsStateWithLifecycle()
+        runtime.engineStreamSubtitles = engineStreamSubtitles
+        runtime.addonSubtitles = mergeStreamAndAddonSubtitles(
+            addonSubtitles,
+            runtime.externalSubtitles + engineStreamSubtitles,
+        )
         runtime.isLoadingAddonSubtitles = isLoadingAddonSubtitles
         runtime.horizontalSafePadding = horizontalSafePadding
         runtime.metrics = metrics

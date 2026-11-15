@@ -77,13 +77,13 @@ internal fun PlayerScreenRuntime.BindAutoSyncRuntimeEffects() {
         preferredSubtitleSelectionApplied = false
         refreshTracks()
     }
-    LaunchedEffect(playerController, externalSubtitles) {
+    LaunchedEffect(playerController, externalSubtitles, engineStreamSubtitles) {
         val controller = playerController ?: return@LaunchedEffect
         SubtitleRepository.addonSubtitles.collect { repositorySubtitles ->
             controller.setAutoSyncSubtitleCandidates(
                 mergeStreamAndAddonSubtitles(
                     repositorySubtitles,
-                    externalSubtitles,
+                    externalSubtitles + engineStreamSubtitles,
                 ).toAutoSyncCandidates(),
             )
         }

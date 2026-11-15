@@ -3,6 +3,8 @@ package com.nuvio.app.features.player
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.nuvio.app.features.streams.StreamBadge
+import com.nuvio.app.features.streams.StreamSubtitle
+import kotlinx.coroutines.flow.StateFlow
 
 interface PlayerEngineController {
     val playbackEngine: AndroidPlaybackEngine? get() = null
@@ -23,6 +25,8 @@ interface PlayerEngineController {
     fun selectAudioTrack(index: Int)
     fun selectSubtitleTrack(index: Int)
     fun setSubtitleUri(url: String)
+    /** Subtitles the engine split off the current stream to start it faster; offered like the stream's own. */
+    val engineStreamSubtitles: StateFlow<List<StreamSubtitle>>? get() = null
     val supportsSecondarySubtitles: Boolean get() = false
     suspend fun selectSecondarySubtitle(trackId: String?, url: String?): Boolean = false
     fun applySecondarySubtitleStyle(style: SubtitleStyleState, delayMs: Int, useLibass: Boolean) {}

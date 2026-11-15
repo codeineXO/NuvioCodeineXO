@@ -2693,6 +2693,8 @@ private:
                 customConfigFallback = true;
                 initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, {});
             }
+            std::vector<std::string> userOptionNames;
+            for (size_t i = 0; i + 1 < customOptions.size(); i += 2) userOptionNames.push_back(customOptions[i]);
             customOptions.clear();
             userShaderPaths = readMpvShaderPaths(api, mpv);
             api.requestLogMessages(mpv, "warn");
@@ -2704,6 +2706,11 @@ private:
                 char startBuffer[64];
                 std::snprintf(startBuffer, sizeof(startBuffer), "start=%.3f", (double)initialPositionMs / 1000.0);
                 loadOptions = startBuffer;
+            }
+            if (isHlsSource(sourceUrl)) {
+                appendHlsFileOptions(loadOptions, userOptionNames);
+            }
+            if (!loadOptions.empty()) {
                 loadCommand.push_back("replace");
                 loadCommand.push_back("-1");
                 loadCommand.push_back(loadOptions.c_str());
@@ -3200,6 +3207,52 @@ private:
         }
         if (didAttach) {
             javaVm->DetachCurrentThread();
+        }
+    }
+
+    // HLS fetches every playlist and segment as its own HTTP request, so the
+    // global network policy (30 s socket timeout, reconnect backoff up to 15 s)
+    // is paid once per stuck request: opening probes each rendition in turn
+    // and a hung or prematurely closed segment stalls playback for 30-60 s.
+    // These are file-local loadfile options, so they reset when the file ends
+    // and other stream types keep the global policy.
+    static bool isHlsSource(const std::string &url) {
+        std::string lower = url.substr(0, url.find('#'));
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+        if (lower.find("m3u8") != std::string::npos) return true;
+        const std::string path = lower.substr(0, lower.find('?'));
+        return path.size() >= 4 && path.compare(path.size() - 4, 4, ".m3u") == 0;
+    }
+
+    // mpv's %N% quoting keeps commas inside a loadfile option value.
+    static std::string quoteMpvValue(const std::string &value) {
+        return "%" + std::to_string(value.size()) + "%" + value;
+    }
+
+    static void appendHlsFileOptions(std::string &loadOptions, const std::vector<std::string> &userOptionNames) {
+        const auto userSet = [&userOptionNames](const char *name) {
+            return std::find(userOptionNames.begin(), userOptionNames.end(), name) != userOptionNames.end();
+        };
+        const auto append = [&loadOptions](const char *name, const std::string &value) {
+            if (!loadOptions.empty()) loadOptions.push_back(',');
+            loadOptions += name;
+            loadOptions.push_back('=');
+            loadOptions += quoteMpvValue(value);
+        };
+        // A stuck segment or playlist read fails after 10 s instead of 30 s.
+        if (!userSet("network-timeout")) append("network-timeout", "10");
+        // Same reconnect triggers as the global policy, but give up after the
+        // 0 s and 1 s attempts (FFmpeg's next delay, 3 s, exceeds the cap) so
+        // FFmpeg's HLS demuxer moves on instead of backing off for ~26 s.
+        // FFmpeg's HLS demuxer forwards only a few AVIO options (headers,
+        // cookies, user agent, rw_timeout, ...) to segment requests, so
+        // network-timeout ("timeout") stops at the master playlist; rw_timeout
+        // (microseconds) is what bounds a stalled segment read.
+        if (!userSet("stream-lavf-o")) {
+            append("stream-lavf-o",
+                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,"
+                "reconnect_on_http_error=" + quoteMpvValue("408,429,500,502,503,504") +
+                ",reconnect_delay_max=2,rw_timeout=10000000");
         }
     }
 
