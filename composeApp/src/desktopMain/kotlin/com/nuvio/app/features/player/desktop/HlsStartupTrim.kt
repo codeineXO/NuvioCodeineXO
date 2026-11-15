@@ -128,12 +128,27 @@ internal object HlsMasterTrimmer {
     }
 }
 
+private const val DefaultSourceUserAgent =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+private val restrictedSourceHeaders = setOf("connection", "content-length", "expect", "host", "upgrade", "range")
+
+/** Sends the stream's own headers (and mpv's default User-Agent when it has none). */
+internal fun HttpRequest.Builder.withSourceHeaders(headerLines: List<String>): HttpRequest.Builder {
+    var hasUserAgent = false
+    for (line in headerLines) {
+        val name = line.substringBefore(':').trim()
+        val value = line.substringAfter(':', "").trim()
+        if (name.isEmpty() || name.lowercase(Locale.ROOT) in restrictedSourceHeaders) continue
+        if (name.equals("User-Agent", ignoreCase = true)) hasUserAgent = true
+        runCatching { header(name, value) }
+    }
+    if (!hasUserAgent) header("User-Agent", DefaultSourceUserAgent)
+    return this
+}
+
 internal object HlsStartupTrim {
     private val log = Logger.withTag("HlsStartupTrim")
-    private const val DefaultUserAgent =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     private const val MaxPlaylistBytes = 1 shl 20
-    private val restrictedHeaders = setOf("connection", "content-length", "expect", "host", "upgrade")
 
     private val client: HttpClient by lazy {
         HttpClient.newBuilder()
@@ -151,9 +166,15 @@ internal object HlsStartupTrim {
         return "m3u8" in lower || lower.substringBefore('?').endsWith(".m3u")
     }
 
-    /** Fetches [sourceUrl]; returns a local trimmed master, or null to play [sourceUrl] as is. */
-    fun prepare(sourceUrl: String, headerLines: List<String>): Prepared? {
-        if (!looksLikeHls(sourceUrl)) return null
+    /**
+     * Fetches [sourceUrl]; returns a local trimmed master, or null to play [sourceUrl] as is.
+     * [knownHls] skips the URL test for a source the player already identified as HLS by its
+     * response content type.
+     */
+    fun prepare(sourceUrl: String, headerLines: List<String>, knownHls: Boolean = false): Prepared? {
+        val lower = sourceUrl.lowercase(Locale.ROOT)
+        val isHttp = lower.startsWith("http://") || lower.startsWith("https://")
+        if (!(if (knownHls) isHttp else looksLikeHls(sourceUrl))) return null
         return runCatching {
             val (body, base) = fetch(sourceUrl, headerLines) ?: return null
             val trimmed = HlsMasterTrimmer.trim(body, base) ?: return null
@@ -167,15 +188,7 @@ internal object HlsStartupTrim {
         val builder = HttpRequest.newBuilder(URI.create(url))
             .timeout(Duration.ofSeconds(6))
             .GET()
-        var hasUserAgent = false
-        for (line in headerLines) {
-            val name = line.substringBefore(':').trim()
-            val value = line.substringAfter(':', "").trim()
-            if (name.isEmpty() || name.lowercase(Locale.ROOT) in restrictedHeaders) continue
-            if (name.equals("User-Agent", ignoreCase = true)) hasUserAgent = true
-            runCatching { builder.header(name, value) }
-        }
-        if (!hasUserAgent) builder.header("User-Agent", DefaultUserAgent)
+            .withSourceHeaders(headerLines)
         val response = client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray())
         if (response.statusCode() !in 200..299) return null
         var bytes = response.body()

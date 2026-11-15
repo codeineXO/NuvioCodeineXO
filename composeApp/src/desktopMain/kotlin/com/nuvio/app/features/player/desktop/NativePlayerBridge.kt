@@ -143,6 +143,8 @@ internal object NativePlayerBridge {
     private external fun setPlaybackBufferPresetNative(handle: Long, presetId: Int)
     external fun addSubtitleUrl(handle: Long, url: String)
     external fun addAudioUrl(handle: Long, url: String)
+    /** Windows only: replaces a source that has not started playing yet. */
+    external fun reloadStartupSource(handle: Long, url: String): Boolean
     external fun popLastImportedSubtitle(handle: Long): String?
     external fun clearExternalSubtitles(handle: Long)
     external fun clearExternalSubtitlesAndSelect(handle: Long, trackId: Int)

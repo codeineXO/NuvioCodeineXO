@@ -77,6 +77,9 @@ typedef enum mpv_event_id {
     MPV_EVENT_NONE = 0,
     MPV_EVENT_SHUTDOWN = 1,
     MPV_EVENT_LOG_MESSAGE = 2,
+    MPV_EVENT_START_FILE = 6,
+    MPV_EVENT_END_FILE = 7,
+    MPV_EVENT_FILE_LOADED = 8,
     // mpv's documented "seek request is finished" notification. Values must
     // match libmpv's mpv_event_id exactly.
     MPV_EVENT_PLAYBACK_RESTART = 21,
@@ -2177,6 +2180,17 @@ private:
     std::atomic_bool stopping = false;
     std::atomic_bool shuttingDown = false;
     std::atomic_bool hwdecLogged = false;  // one-shot log for hwdec-current
+    static constexpr long long kStartupPhaseMaxMs = 90000;
+    // Startup phase: from the first loadfile until the first playback restart (or failure).
+    std::atomic_bool startupPhase = false;
+    std::chrono::steady_clock::time_point startupBegan{};  // set before startupPhase
+    std::vector<std::string> startupUserOptionNames;       // Guarded by mpvMutex.
+    long long startupInitialPositionMs = 0;                // Guarded by mpvMutex.
+    std::atomic_bool keyframeResumePending = false;
+    std::atomic_bool initialStartPending = false;
+    std::atomic_bool hlsDetectionSent = false;
+    std::atomic_bool replacingSource = false;
+    std::atomic_bool replacementStarting = false;
     bool rtxRequested = false;
     bool rtxFilterAttached = false;
 
@@ -2693,31 +2707,20 @@ private:
                 customConfigFallback = true;
                 initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, {});
             }
-            std::vector<std::string> userOptionNames;
-            for (size_t i = 0; i + 1 < customOptions.size(); i += 2) userOptionNames.push_back(customOptions[i]);
+            startupUserOptionNames.clear();
+            for (size_t i = 0; i + 1 < customOptions.size(); i += 2) startupUserOptionNames.push_back(customOptions[i]);
             customOptions.clear();
             userShaderPaths = readMpvShaderPaths(api, mpv);
-            api.requestLogMessages(mpv, "warn");
+            startupInitialPositionMs = std::max(0LL, initialPositionMs);
+            startupBegan = std::chrono::steady_clock::now();
+            startupPhase.store(true);
+            initialStartPending.store(initialPositionMs > 0);
+            // Verbose until the source is open: the HLS content-type check reads FFmpeg's
+            // verbose response lines.
+            api.requestLogMessages(mpv, "v");
             setRtxFilterLocked(rtxRequested);
 
-            std::vector<const char *> loadCommand = {"loadfile", sourceUrl.c_str()};
-            std::string loadOptions;
-            if (initialPositionMs > 0) {
-                char startBuffer[64];
-                std::snprintf(startBuffer, sizeof(startBuffer), "start=%.3f", (double)initialPositionMs / 1000.0);
-                loadOptions = startBuffer;
-            }
-            if (isHlsSource(sourceUrl)) {
-                appendHlsFileOptions(loadOptions, userOptionNames);
-            }
-            if (!loadOptions.empty()) {
-                loadCommand.push_back("replace");
-                loadCommand.push_back("-1");
-                loadCommand.push_back(loadOptions.c_str());
-            }
-            loadCommand.push_back(nullptr);
-
-            int commandResult = api.command(mpv, loadCommand.data());
+            int commandResult = loadSourceLocked(sourceUrl);
             if (commandResult < 0) {
                 throw std::runtime_error(std::string("mpv loadfile failed: ") + api.errorText(commandResult));
             }
@@ -2727,6 +2730,56 @@ private:
         auto self = shared_from_this();
         eventThread = std::thread([self]() { self->drainMpvEvents(); });
     }
+
+    // Caller owns mpvMutex. Opens [url] at the startup resume position, replacing any file
+    // that is still opening.
+    int loadSourceLocked(const std::string &url) {
+        const auto userSet = [this](const char *name) {
+            return std::find(startupUserOptionNames.begin(), startupUserOptionNames.end(), name) !=
+                startupUserOptionNames.end();
+        };
+        std::string loadOptions;
+        if (startupInitialPositionMs > 0) {
+            char startBuffer[64];
+            std::snprintf(startBuffer, sizeof(startBuffer), "start=%.3f", (double)startupInitialPositionMs / 1000.0);
+            loadOptions = startBuffer;
+            // Resume on the keyframe before the saved position instead of decoding forward to
+            // it. File-local, and restored to precise seeking once the resume seek has landed,
+            // so user seeks keep their exact targets.
+            if (!userSet("hr-seek")) {
+                loadOptions += ",hr-seek=no";
+                keyframeResumePending.store(true);
+            }
+        }
+        if (isHlsSource(url)) {
+            appendHlsFileOptions(loadOptions, startupUserOptionNames);
+        }
+        std::vector<const char *> loadCommand = {"loadfile", url.c_str()};
+        if (!loadOptions.empty()) {
+            loadCommand.push_back("replace");
+            loadCommand.push_back("-1");
+            loadCommand.push_back(loadOptions.c_str());
+        }
+        loadCommand.push_back(nullptr);
+        return mpvApi().command(mpv, loadCommand.data());
+    }
+
+public:
+    // Replaces a source that is still opening (e.g. an HLS master detected by content type)
+    // with [url]. Refused once playback has started, so it never restarts a playing file.
+    bool reloadStartupSource(const std::string &url) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv || stopping.load() || !startupPhase.load() || url.empty()) return false;
+        replacingSource.store(true);
+        int result = loadSourceLocked(url);
+        if (result < 0) {
+            replacingSource.store(false);
+            return false;
+        }
+        return true;
+    }
+
+private:
 
     bool initializeMpvLocked(
         MpvApi &api,
@@ -3109,6 +3162,7 @@ private:
 
             mpv_event *event = mpvApi().waitEvent(current, 0.5);
             if (!event) continue;
+            if (startupPhase.load()) handleStartupEvent(*event);
             if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
                 // MPV_EVENT_FILE_LOADED is not enough here: mpv posts it before
                 // it applies the `start=` seek of a resuming loadfile. Playback
@@ -3122,8 +3176,82 @@ private:
             }
             if (event->event_id == MPV_EVENT_LOG_MESSAGE && event->data) {
                 const auto &message = *static_cast<const mpv_event_log_message *>(event->data);
-                if (message.text) handleMpvLog(message.prefix ? message.prefix : "", message.text);
+                // Startup raises the level to "v" for HLS detection; failure handling keeps
+                // seeing only fatal/error/warn (log_level <= 30), as before.
+                if (message.text && message.log_level <= 30) {
+                    handleMpvLog(message.prefix ? message.prefix : "", message.text);
+                }
             }
+        }
+    }
+
+    // An HLS playlist served from a URL without "m3u8" (so not trimmed up front) is recognised
+    // from FFmpeg's first response: its MIME type, or the lavf probe picking the hls demuxer.
+    static bool isHlsDetectionLine(std::string_view prefix, std::string_view text) {
+        if (prefix == "lavf") return text.rfind("Found 'hls'", 0) == 0;
+        if (prefix != "ffmpeg") return false;
+        if (text.rfind("Mime-type: '", 0) != 0) return false;
+        std::string lower(text);
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+        return lower.find("mpegurl") != std::string::npos;
+    }
+
+    void handleStartupEvent(const mpv_event &event) {
+        switch (event.event_id) {
+            case MPV_EVENT_LOG_MESSAGE:
+                if (event.data) {
+                    const auto &message = *static_cast<const mpv_event_log_message *>(event.data);
+                    if (message.text && !hlsDetectionSent.load() && !replacingSource.load() &&
+                        isHlsDetectionLine(message.prefix ? message.prefix : "", message.text) &&
+                        !hlsDetectionSent.exchange(true)) {
+                        sendPlayerEvent("hlsDetected", 0.0);
+                    }
+                }
+                break;
+            case MPV_EVENT_START_FILE:
+                // External tracks added to the replaced file went with it; let the app re-add
+                // them now that the replacement is the playing file.
+                if (replacementStarting.exchange(false)) sendPlayerEvent("startupSourceReplaced", 0.0);
+                break;
+            case MPV_EVENT_FILE_LOADED:
+                // The source is open, so its content type is known: stop the verbose messages.
+                if (!replacingSource.load()) setStartupLogLevel("warn");
+                break;
+            case MPV_EVENT_PLAYBACK_RESTART:
+                finishStartup();
+                return;
+            case MPV_EVENT_END_FILE:
+                // The file being replaced by reloadStartupSource ends first; startup goes on
+                // with the replacement.
+                if (replacingSource.exchange(false)) {
+                    replacementStarting.store(true);
+                    break;
+                }
+                finishStartup();
+                return;
+            default:
+                break;
+        }
+        const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - startupBegan).count();
+        if (elapsedMs > kStartupPhaseMaxMs) {
+            finishStartup();
+        }
+    }
+
+    void setStartupLogLevel(const char *level) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (mpv) (void)mpvApi().requestLogMessages(mpv, level);
+    }
+
+    void finishStartup() {
+        startupPhase.store(false);
+        initialStartPending.store(false);
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv) return;
+        (void)mpvApi().requestLogMessages(mpv, "warn");
+        if (keyframeResumePending.exchange(false)) {
+            (void)mpvApi().setPropertyString(mpv, "hr-seek", "default");
         }
     }
 
@@ -3474,7 +3602,9 @@ private:
 
     double effectiveCachePositionSeconds() {
         double position = rawPositionSeconds();
-        if (initialStartSeconds > 0.0 && position + 5.0 < initialStartSeconds) {
+        // Only until the resume seek lands: afterwards a keyframe resume can legitimately sit
+        // several seconds before the saved position.
+        if (initialStartPending.load() && initialStartSeconds > 0.0 && position + 5.0 < initialStartSeconds) {
             return initialStartSeconds;
         }
         return position;
@@ -4430,6 +4560,18 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_addAudioUrl(JNIEnv *env, jobject, jlong handle, jstring url) {
     auto player = playerFromHandle(handle);
     if (player) player->addAudioUrl(jstringToUtf8(env, url));
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_reloadStartupSource(JNIEnv *env, jobject, jlong handle, jstring url) {
+    auto player = playerFromHandle(handle);
+    if (!player) return JNI_FALSE;
+    try {
+        return player->reloadStartupSource(jstringToUtf8(env, url)) ? JNI_TRUE : JNI_FALSE;
+    } catch (const std::exception &error) {
+        throwJavaError(env, error.what());
+        return JNI_FALSE;
+    }
 }
 
 extern "C" JNIEXPORT jstring JNICALL

@@ -521,11 +521,18 @@ internal class NativePlayerController(
                 // Windows only: play a local master trimmed to the top variant, and offer its
                 // subtitle renditions as stream subtitles instead of opening them all up front.
                 val hlsTrim = if (config != null) HlsStartupTrim.prepare(resolvedSource, pending.headerLines) else null
+                // Windows only: open a gateway's redirect target directly, so mpv's opens and
+                // seeks do not each go through the gateway again (HLS sources are left as is).
+                val playSource = when {
+                    hlsTrim != null -> hlsTrim.localUrl
+                    config != null -> DirectSourceRedirect.resolve(resolvedSource, pending.headerLines)
+                    else -> resolvedSource
+                }
                 if (pendingSource === pending) hlsDeferredSubtitles.value = hlsTrim?.subtitles.orEmpty()
                 runCatching {
                     create(
                         hostViewPtr,
-                        hlsTrim?.localUrl ?: resolvedSource,
+                        playSource,
                         pending.sourceAudioUrl.orEmpty(),
                         pending.headerLines.toTypedArray(),
                         pending.playWhenReady,
@@ -1037,6 +1044,12 @@ internal class NativePlayerController(
             log.d { "event received handle=$handle type=$type value=$value" }
         }
         when (type) {
+            "hlsDetected" -> reloadDetectedHlsSource()
+            "startupSourceReplaced" -> {
+                // The replaced file took its externally added tracks with it.
+                pendingSubtitleUri?.let { setSubtitleUri(it) }
+                pendingAudioUri?.let { if (attachedSource?.sourceAudioUrl != it) setAudioUri(it) }
+            }
             "controlsUnavailable" -> {
                 log.e { "Player controls initialization failed HRESULT=${value.toLong()} handle=$handle" }
                 pendingSource?.onError("Player controls could not be loaded. Please reopen the player.")
@@ -1228,6 +1241,27 @@ internal class NativePlayerController(
     }
 
     @Synchronized
+    /**
+     * mpv reported an HLS response for a URL the up-front trim did not recognise (no "m3u8").
+     * Trim its master and swap the still-opening source for the local trimmed copy, so FFmpeg
+     * stops opening and probing every rendition. Native refuses once playback has started.
+     */
+    private fun reloadDetectedHlsSource() {
+        val source = attachedSource ?: return
+        val target = handle.takeIf { it != 0L } ?: return
+        if (HlsStartupTrim.looksLikeHls(source.sourceUrl)) return // Already trimmed (or untrimmable).
+        ensureScopesActive()
+        downloadScope.launch {
+            val trim = HlsStartupTrim.prepare(source.sourceUrl, source.headerLines, knownHls = true) ?: return@launch
+            if (handle != target || attachedSource !== source) return@launch
+            val reloaded = runCatching { NativePlayerBridge.reloadStartupSource(target, trim.localUrl) }
+                .onFailure { error -> log.w(error) { "HLS startup reload failed handle=$target" } }
+                .getOrDefault(false)
+            log.d { "HLS detected by content type; trimmed reload=$reloaded handle=$target" }
+            if (reloaded && attachedSource === source) hlsDeferredSubtitles.value = trim.subtitles
+        }
+    }
+
     private fun updateLocalProgress(positionMs: Long) {
         controlsState = controlsState.copy(positionMs = positionMs)
         updateControls(controlsState)
