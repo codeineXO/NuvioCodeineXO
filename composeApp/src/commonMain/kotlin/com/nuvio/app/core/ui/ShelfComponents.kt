@@ -679,6 +679,12 @@ private fun NuvioShelfSectionHeader(
 private enum class ShelfScrollDirection { Backward, Forward }
 
 @Composable
+internal fun rowHeaderControlContentColor(): Color = frostedGlassSecondaryContentColor(
+    fallback = MaterialTheme.nuvio.colors.textMuted,
+    frostedColor = Color.White.copy(alpha = 0.90f),
+)
+
+@Composable
 private fun ShelfRowNavigationButton(
     state: LazyListState,
     arrowScroll: SoftArrowScroll,
@@ -712,7 +718,7 @@ private fun ShelfRowNavigationButton(
                     Icons.AutoMirrored.Rounded.KeyboardArrowRight
                 },
                 contentDescription = contentDescription,
-                tint = MaterialTheme.nuvio.colors.textMuted,
+                tint = rowHeaderControlContentColor(),
             )
         }
     }
@@ -723,7 +729,6 @@ private fun NuvioViewAllPill(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val tokens = MaterialTheme.nuvio
     val viewAllText = stringResource(Res.string.home_view_all)
     val pillShape = RoundedCornerShape(NuvioTokens.Radius.full)
 
@@ -743,7 +748,7 @@ private fun NuvioViewAllPill(
         Text(
             text = viewAllText,
             style = MaterialTheme.typography.labelLarge,
-            color = tokens.colors.textMuted,
+            color = rowHeaderControlContentColor(),
             maxLines = 1,
         )
     }

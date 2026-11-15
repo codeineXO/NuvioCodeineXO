@@ -53,9 +53,12 @@ internal object FrostedGlassTokens {
 
 /** Brighter secondary foregrounds for frosted glass, preserving other surface styles. */
 @Composable
-internal fun frostedGlassSecondaryContentColor(fallback: Color): Color =
+internal fun frostedGlassSecondaryContentColor(
+    fallback: Color,
+    frostedColor: Color = FrostedGlassTokens.SecondaryContentColor,
+): Color =
     if (LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass) {
-        FrostedGlassTokens.SecondaryContentColor
+        frostedColor
     } else fallback
 
 /** Soothing ambient drop shadow around borderless glass elements. */

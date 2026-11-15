@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.TextUnit
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.navigationGlassFeedback
+import com.nuvio.app.core.ui.rowHeaderControlContentColor
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -1672,7 +1673,7 @@ private fun HeaderScrollArrowButton(
                     Icons.AutoMirrored.Rounded.KeyboardArrowRight
                 },
                 contentDescription = null,
-                tint = MaterialTheme.nuvio.colors.textMuted,
+                tint = rowHeaderControlContentColor(),
             )
         }
     }
@@ -1687,7 +1688,6 @@ private fun ViewListButton(
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val tokens = MaterialTheme.nuvio
     val pillShape = RoundedCornerShape(NuvioTokens.Radius.full)
 
     Box(
@@ -1715,7 +1715,7 @@ private fun ViewListButton(
         Text(
             text = stringResource(Res.string.details_episodes_view_list),
             style = MaterialTheme.typography.labelLarge,
-            color = tokens.colors.textMuted,
+            color = rowHeaderControlContentColor(),
             maxLines = 1,
         )
     }
