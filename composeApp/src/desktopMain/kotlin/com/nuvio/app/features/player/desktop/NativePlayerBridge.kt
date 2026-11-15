@@ -76,7 +76,6 @@ internal object NativePlayerBridge {
         decoderPriority: Int,
         nvidiaRtxSuperResolutionEnabled: Boolean,
         options: Array<String>?,
-        loggingEnabled: Boolean,
         eventSink: NativePlayerEventSink,
     ): Long
 
