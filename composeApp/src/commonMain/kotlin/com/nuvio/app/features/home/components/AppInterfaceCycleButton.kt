@@ -96,11 +96,10 @@ internal fun AppInterfaceCycleButton(
                 AppInterface.ScrollPosters -> Icons.Rounded.ViewCarousel
                 AppInterface.PersistentHero -> Icons.Rounded.ViewAgenda
             }
-            val tint = if (value == AppInterface.Official) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = tint.copy(alpha = if (enabled) 1f else 0.38f),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.38f),
                 modifier = Modifier.size(iconSize),
             )
         }

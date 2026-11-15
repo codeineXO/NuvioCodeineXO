@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
@@ -864,8 +865,14 @@ fun HomeScreen(
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val actionModifier = if (isDesktop && isFullscreenActionSupported) {
+                        Modifier.width(desktopButtonSize - space.s4)
+                    } else {
+                        Modifier
+                    }
                     if (isDesktop) {
                         AppInterfaceCycleButton(
+                            modifier = actionModifier,
                             value = homeSettingsUiState.appInterface,
                             onToggle = { HomeCatalogSettingsRepository.setAppInterface(homeSettingsUiState.appInterface.next()) },
                             buttonSize = desktopButtonSize,
@@ -876,6 +883,7 @@ fun HomeScreen(
                     }
                     if (isFullscreenActionSupported) {
                         FullscreenActionButton(
+                            modifier = actionModifier,
                             buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
                             iconSize = if (isDesktop) desktopIconSize - 4.dp else 24.dp,
                             contentColor = colorScheme.onSurface,
