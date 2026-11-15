@@ -19,6 +19,7 @@ import com.nuvio.app.core.ui.DialogButtons
 import com.nuvio.app.core.ui.DialogButtonStyle
 import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
+import com.nuvio.app.core.ui.remoteTextInputGuard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -311,6 +312,7 @@ internal fun StreamAutoPlayRegexDialog(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
+                    .remoteTextInputGuard()
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
