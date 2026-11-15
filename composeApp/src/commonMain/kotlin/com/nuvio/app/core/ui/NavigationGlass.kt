@@ -186,6 +186,7 @@ internal fun Modifier.navigationGlassFeedback(
     shape: Shape,
     selected: Boolean = false,
     showFocus: Boolean = true,
+    showHoverAndSelection: Boolean = true,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
     val hovered by interactionSource.collectIsRemoteHoveredAsState()
@@ -194,8 +195,8 @@ internal fun Modifier.navigationGlassFeedback(
     val alpha = when {
         pressed -> tokens.opacity.pressed
         focused && showFocus -> tokens.opacity.selected
-        hovered -> tokens.opacity.hover
-        selected -> tokens.opacity.subtle
+        hovered && showHoverAndSelection -> tokens.opacity.hover
+        selected && showHoverAndSelection -> tokens.opacity.subtle
         else -> 0f
     }
     // Existing remote-navigation focus indicators are drawn by the target modifier.

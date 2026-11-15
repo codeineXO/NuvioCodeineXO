@@ -31,7 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
@@ -153,6 +155,9 @@ internal fun IndexRailMark(
     expandLeft: Boolean = false,
     expanded: Boolean? = null,
     showFocus: Boolean = LocalRemoteNavigation.current?.keyboard == true,
+    barShadow: Shadow? = null,
+    inactiveBarAlpha: Float = 0.6f,
+    showHoverAndSelection: Boolean = true,
 ) {
     val tooltip = rememberTooltipState()
     var focused by remember { mutableStateOf(false) }
@@ -183,7 +188,7 @@ internal fun IndexRailMark(
         when {
             isDirectlyExpanded -> 1f
             isAdjacent -> 0.85f
-            else -> 0.6f
+            else -> inactiveBarAlpha
         }
     )
     val showFocusTooltip = focused && showFocus && (expanded ?: true)
@@ -199,7 +204,13 @@ internal fun IndexRailMark(
         Box(
             modifier = modifier.size(width = 48.dp, height = itemHeight)
                 .onFocusChanged { focused = it.hasFocus }
-                .navigationGlassFeedback(interactionSource, tokens.shapes.button, selected = active, showFocus = showFocus)
+                .navigationGlassFeedback(
+                    interactionSource,
+                    tokens.shapes.button,
+                    selected = active,
+                    showFocus = showFocus,
+                    showHoverAndSelection = showHoverAndSelection,
+                )
                 .hoverable(interactionSource)
                 .remoteNavigationTarget(shape = tokens.shapes.button, onSelect = onClick)
                 .semantics { contentDescription = label; selected = active }
@@ -214,6 +225,7 @@ internal fun IndexRailMark(
                     Modifier
                         .width(markWidth)
                         .height(barThickness)
+                        .then(if (barShadow != null) Modifier.dropShadow(CircleShape, barShadow) else Modifier)
                         .background(tokens.colors.textPrimary.copy(alpha = barAlpha), CircleShape)
                 )
             }

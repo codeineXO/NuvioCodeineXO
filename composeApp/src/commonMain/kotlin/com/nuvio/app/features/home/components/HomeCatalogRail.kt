@@ -15,9 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.IndexRailMark
 import com.nuvio.app.core.ui.LocalRemoteNavigation
@@ -26,6 +29,13 @@ import com.nuvio.app.core.ui.nuvioVerticalMouseWheelScroll
 import kotlin.math.abs
 
 internal data class HomeCatalogRailEntry(val key: Any, val title: String, val lazyIndex: Int)
+
+private val catalogBarShadow = Shadow(
+    radius = 3.dp,
+    color = Color.Black.copy(alpha = 0.85f),
+    spread = 1.dp,
+    offset = DpOffset(0.dp, 1.dp),
+)
 
 @Composable
 internal fun HomeCatalogRail(
@@ -134,6 +144,9 @@ internal fun HomeCatalogRail(
                 expandLeft = true,
                 expanded = index == highlightedIndex,
                 showFocus = keyboardActive,
+                barShadow = catalogBarShadow,
+                inactiveBarAlpha = 0.8f,
+                showHoverAndSelection = false,
             )
         }
     }
