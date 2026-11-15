@@ -70,6 +70,7 @@ fun CollectionFolderBrowserScreen(
                 backgroundColor = Color.Transparent,
                 backButtonBackgroundOnly = true,
                 backButtonKeyboardNavigationEnabled = false,
+                showFullscreenAction = false,
                 modifier = Modifier.padding(start = sidebarInset),
             )
             val folders = collection?.folders.orEmpty()

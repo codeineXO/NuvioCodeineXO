@@ -217,6 +217,7 @@ fun FolderDetailScreen(
                             topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + desktopBackButtonTopPadding,
                             onBack = onBack,
                             backButtonKeyboardNavigationEnabled = false,
+                            showFullscreenAction = false,
                         )
                     }
                 },
@@ -364,6 +365,7 @@ private fun MobileFolderDetailContent(
                     includeStatusBarPadding = coverImageUrl == null,
                     topPadding = if (coverImageUrl != null) statusBarTop * heroCollapseFraction else null,
                     onBack = onBack,
+                    showFullscreenAction = false,
                 )
             }
 
