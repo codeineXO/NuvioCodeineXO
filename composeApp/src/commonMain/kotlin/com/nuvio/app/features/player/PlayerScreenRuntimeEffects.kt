@@ -20,6 +20,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.tmdb.TmdbService
@@ -459,6 +461,14 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         if (autoFetchedAddonSubtitlesForKey == effectiveFetchKey) return@LaunchedEffect
         // Offline: leave the key unset so the fetch can run once connectivity returns.
         if (isNetworkOffline()) return@LaunchedEffect
+        if (needsVideoHashComputation()) {
+            // The hash reads the file's size, head and tail. Doing that while the player opens the
+            // same file competes for debrid/CDN connection slots and makes a torrent engine fetch
+            // tail pieces first, which delays startup. Wait for the first load, bounded.
+            withTimeoutOrNull(VIDEO_HASH_START_WAIT_MS) {
+                snapshotFlow { initialLoadCompleted }.first { it }
+            }
+        }
         autoFetchedAddonSubtitlesForKey = effectiveFetchKey
         fetchAddonSubtitlesForActiveItem()
     }
