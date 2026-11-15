@@ -78,6 +78,17 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.excludeFromRemoteNavigation
+import com.nuvio.app.core.ui.platformExitApp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PowerSettingsNew
+import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.desktopTopBarActionIconSize
 import com.nuvio.app.core.ui.desktopTopBarHeight
@@ -839,18 +850,21 @@ fun HomeScreen(
             val space = NuvioTokens.Space
             val colorScheme = MaterialTheme.colorScheme
             val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
-            val desktopButtonSize = desktopTopBarHeight(maxWidth)
-            val desktopIconSize = desktopTopBarActionIconSize(maxWidth)
+            // Compact actions, kept vertically centered on the desktop top bar.
+            val desktopActionShrink = 8.dp
+            val desktopButtonSize = desktopTopBarHeight(maxWidth) - desktopActionShrink
+            val desktopIconSize = desktopTopBarActionIconSize(maxWidth) - 2.dp
+            val desktopActionTopPadding = desktopTopBarTopPadding + desktopActionShrink / 2
             val railGap = space.s16
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val railHeight = heroTopInset + persistentHeroHeight(maxHeight, heroTopInset, rowReserve = persistentHeroRowReserve()) -
-                statusBarTop - desktopTopBarTopPadding - desktopButtonSize - railGap * 2
+                statusBarTop - desktopActionTopPadding - desktopButtonSize - railGap * 2
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
                     .padding(
-                        top = if (isDesktop) desktopTopBarTopPadding
+                        top = if (isDesktop) desktopActionTopPadding
                             else if (showHeroSlot) space.s32 else (topChromePadding ?: space.s32),
                         end = actionHorizontalInset,
                     ),
@@ -902,6 +916,29 @@ fun HomeScreen(
                             maxHeight = railHeight,
                         )
                     }
+                }
+            }
+            // On desktop, topChromePadding is only provided when the top bar (not the sidebar) is active.
+            if (isDesktop && topChromePadding != null) {
+                val closeLabel = stringResource(Res.string.compose_nav_close_app)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(top = desktopActionTopPadding, start = space.s16)
+                        .size(desktopButtonSize)
+                        .navigationGlass(CircleShape, hazeState = fullscreenBackdropState)
+                        .excludeFromRemoteNavigation()
+                        .clickable(role = Role.Button, onClick = ::platformExitApp)
+                        .semantics { contentDescription = closeLabel },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PowerSettingsNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(desktopIconSize),
+                        tint = colorScheme.onSurface,
+                    )
                 }
             }
         }
