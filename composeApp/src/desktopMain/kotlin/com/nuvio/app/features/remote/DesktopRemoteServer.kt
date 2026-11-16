@@ -91,6 +91,11 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                     call.response.header("Cache-Control", "no-store")
                     call.respondText(resource("cuppa.css"), ContentType.Text.CSS)
                 }
+                // Motion (motion.dev) for the page's animations; pinned, so the phone can keep it.
+                get("/motion.mjs") {
+                    call.response.header("Cache-Control", "max-age=31536000, immutable")
+                    call.respondText(resource("motion.mjs"), ContentType.Text.JavaScript)
+                }
                 // "Add to Home Screen": the manifest and icons, so the remote opens full screen like an app.
                 get("/manifest.webmanifest") {
                     call.respondText(resource("manifest.webmanifest"), ContentType.parse("application/manifest+json"))

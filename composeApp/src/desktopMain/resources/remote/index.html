@@ -13,6 +13,10 @@
 <link rel="apple-touch-icon" href="/icon-180.png">
 <title>NuvioCodeineXO Remote</title>
 <link rel="stylesheet" href="/cuppa.css">
+<script type="module">
+  import { animate, stagger } from '/motion.mjs';
+  window.motion = { animate, stagger };
+</script>
 <script>
   // The cuppa theme: flavor (Auto follows the phone), accent and corner radius, set before first paint.
   (() => {
@@ -215,6 +219,9 @@
   /* Shuffle, like the PC: its filters as one form, actions, progress, and the picked title as a hero. */
   #shuffle { gap: 16px; }
   #shuffle p { margin: 0; }
+  #shuffle.is-loading > :not(#shuffle-skeleton), #shuffle:not(.is-loading) > #shuffle-skeleton { display: none; }
+  .shuffle-skeleton { display: flex; flex-direction: column; gap: 16px; }
+  .shuffle-skeleton .sk-form { height: 420px; border-radius: var(--r-card); }
   .shuffle-toggles .row { padding-inline: 0; }
   .shuffle-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
   .shuffle-form > * { grid-column: 1 / -1; }
@@ -231,7 +238,6 @@
   @media (min-width: 480px) { .grid-page .catalog-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   .row-title { margin: 0 0 12px; font-size: 20px; font-weight: 600; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 8px; text-align: left; transition: transform 0.15s var(--ease); }
-  .tile:active { transform: scale(0.96); }
   .tile .art { position: relative; overflow: hidden; border-radius: calc(var(--r-ctl) + 2px); background: var(--ctp-surface0); }
   .tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .tile.poster { width: 34vw; max-width: 140px; }
@@ -263,9 +269,12 @@
     .tile.landscape { width: 280px; }
   }
 
-  /* A screen slides in when the PC moves to it, so the phone follows along. */
-  @keyframes view-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  main:not([hidden]) { animation: view-in 0.35s var(--ease); }
+  /* Posters and artwork fade in as they arrive, instead of popping in. */
+  .tile .art img, .hero-card img.bg { opacity: 0; transition: opacity 0.3s var(--ease); }
+  .tile .art img.loaded, .hero-card img.bg.loaded { opacity: 1; }
+  .tile .art:has(> img:not(.loaded, .failed))::after, .hero-card:has(> img.bg:not(.loaded, .failed))::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%); animation: shimmer 1.4s infinite;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ctp-text) 9%, transparent), transparent); }
 
   /* Details and Sources */
   .stream-filter { display: flex; align-items: center; gap: 8px; }
@@ -300,7 +309,6 @@
   #d-filler { margin-bottom: 12px; }
   .episode { display: flex; gap: 12px; text-align: left; padding: 8px; border-radius: var(--r-card); background: var(--ctp-base);
     transition: transform 0.15s var(--ease); }
-  .episode:active { transform: scale(0.98); }
   .episode .thumb { position: relative; flex: none; width: 40%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-ctl); background: var(--ctp-surface0); }
   .episode .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .episode .thumb .blurred { filter: blur(12px); }
@@ -315,7 +323,7 @@
   .stream-list .addon { margin: 8px 4px 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ctp-subtext0); }
   .stream-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px 16px; border-radius: var(--r-card);
     background: var(--ctp-base); transition: transform 0.15s var(--ease); }
-  .stream-card:active { transform: scale(0.98); background: var(--ctp-surface0); }
+  .stream-card:active { background: var(--ctp-surface0); }
   .stream-card b { font-size: 16px; }
   .stream-card .sub { white-space: pre-line; font-size: 13px; color: var(--ctp-subtext1); }
   .stream-card .badges { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -584,7 +592,14 @@
 </main>
 
 <!-- Shuffle, following the PC: its filters, Shuffle, and the picked title. -->
-<main id="shuffle" class="browse" hidden>
+<main id="shuffle" class="browse is-loading" hidden>
+  <!-- Until the PC's Shuffle arrives: its shape, shimmering. -->
+  <div class="shuffle-skeleton" id="shuffle-skeleton">
+    <h2 class="t-title2">Shuffle</h2>
+    <div class="skel sk-line"></div>
+    <div class="skel sk-form"></div>
+    <div class="skel sk-button"></div>
+  </div>
   <div id="shuffle-result" hidden></div>
   <div class="catalog-head"><h2 class="t-title2" id="shuffle-title"></h2></div>
   <p class="text-sub" id="shuffle-subtitle"></p>
@@ -960,7 +975,9 @@
       return;
     }
     document.startViewTransition(() => {
+      viewTransitionRunning = true;
       change();
+      viewTransitionRunning = false;
       if (leaving) return;
       const art = $('art');
       art.src = $('s-bg').src;
@@ -1053,6 +1070,7 @@
   }
 
   function updateView({ switchingTabs = false } = {}) {
+    const pageBefore = shownPage();
     // Something is playing on the PC: the phone goes straight to the playing screen, whatever it showed.
     const playing = state.active || pcRoute === 'player';
     const enteredPlayer = playing && !wasPlaying;
@@ -1066,9 +1084,10 @@
     const homeWasVisible = !$('home').hidden;
     if (homeWasVisible && !homeVisible) homeScroll = scrollY;
     // Pages the phone can't show (Shuffle, Library, Settings, a folder…) are driven with the D-pad.
-    const shuffleVisible = onTabs && browseTab === 'shuffle' && Boolean(shuffle?.active);
+    const shuffleVisible = onTabs && browseTab === 'shuffle';
     const libraryVisible = onTabs && browseTab === 'library';
-    const pcTab = onTabs && !['home', 'search', 'library'].includes(browseTab) && !shuffleVisible;
+    // Every tab has a page here, so the D-pad is only for pages the phone can't show (or when asked for).
+    const pcTab = onTabs && !['home', 'search', 'library', 'shuffle'].includes(browseTab);
     const pcPage = browsing && pcRoute === 'other';
     setHidden('player', !playing);
     setHidden('next-episode-pill', !(state.active && state.nextEpisodePlayable));
@@ -1114,7 +1133,51 @@
     }
     if (homeVisible !== homeWasVisible) scheduleHomeHero();
     updateMediaBackdrop();
+    pageMotion(pageBefore, shownPage());
   }
+
+  // ─── Motion: pages push and pop like an app, their content settles in, and presses spring ───
+  // Deeper pages slide in from the right, going back slides in from the left, and tabs cross-fade.
+  const PAGE_DEPTH = { catalog: 1, folder: 1, details: 2, streams: 3, player: 4 };
+  const shownPage = () => document.querySelector('main:not([hidden])')?.id ?? null;
+  let viewTransitionRunning = false;
+
+  // Motion's spring, short and calm; nothing moves with reduced motion or before Motion has loaded.
+  function move(target, keyframes, options = {}) {
+    if (!window.motion || homeHeroMotion.matches) return null;
+    return window.motion.animate(target, keyframes, { type: 'spring', visualDuration: 0.35, bounce: 0.1, ...options });
+  }
+
+  function pageMotion(before, after) {
+    if (!after || after === before || viewTransitionRunning) return;
+    const page = $(after);
+    const depth = (PAGE_DEPTH[after] ?? 0) - (PAGE_DEPTH[before] ?? 0);
+    const enter = depth ? move(page, { x: [depth > 0 ? 32 : -32, 0], opacity: [0, 1] })
+      : move(page, { opacity: [0, 1] }, { type: 'tween', duration: 0.2, ease: 'easeOut' });
+    // Its first sections settle in one after another.
+    const parts = [...page.children].filter((c) => !c.hidden && c.offsetParent !== null).slice(0, 8);
+    const settle = parts.length ? move(parts, { y: [10, 0], opacity: [0, 1] }, { delay: window.motion?.stagger(0.04) }) : null;
+    // Hand the styles back to the page's CSS (e.g. Back's slide) once they are done.
+    enter?.finished.then(() => { page.style.transform = ''; page.style.opacity = ''; });
+    settle?.finished.then(() => parts.forEach((p) => { p.style.transform = ''; p.style.opacity = ''; }));
+  }
+
+  // A press sinks a little and springs back on release, like a native button.
+  const PRESSABLE = '.tile, .hero-card, .btn, .chip, .card-tap, .episode, .stream-card, .recent';
+  let pressed = null;
+  function release() {
+    if (!pressed) return;
+    move(pressed, { scale: 1 }, { visualDuration: 0.3, bounce: 0.35 });
+    pressed = null;
+  }
+  document.addEventListener('pointerdown', (e) => {
+    const target = e.target.closest(PRESSABLE);
+    if (!target || target.disabled) return;
+    release();
+    pressed = target;
+    move(target, { scale: 0.96 }, { visualDuration: 0.15, bounce: 0 });
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => document.addEventListener(type, release));
 
   function setDpadMode(enabled) {
     dpadMode = enabled;
@@ -1142,8 +1205,10 @@
     image.loading = 'lazy';
     image.decoding = 'async';
     // A missing image leaves the card's own colour, not the browser's broken-image icon.
-    image.onerror = () => { image.style.visibility = 'hidden'; };
+    image.onerror = () => { image.style.visibility = 'hidden'; image.classList.add('failed'); };
+    image.onload = () => image.classList.add('loaded');
     if (src) image.src = src;
+    if (image.complete && image.naturalWidth) image.classList.add('loaded');
     return image;
   };
 
@@ -2166,6 +2231,7 @@
   }
 
   function renderShuffle() {
+    $('shuffle').classList.toggle('is-loading', !shuffle?.active);
     if (!shuffle?.active || $('shuffle').hidden) return;
     const { labels } = shuffle;
     $('shuffle-title').textContent = labels.title;
