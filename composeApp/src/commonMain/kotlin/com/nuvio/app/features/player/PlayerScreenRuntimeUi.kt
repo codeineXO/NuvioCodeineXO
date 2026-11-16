@@ -792,7 +792,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             initialLoadingMessage ?: playerLoadingStatusMessage(
                 showStatus = true,
                 controllerReady = playerController != null,
-                buffering = playbackSnapshot.isLoading,
+                snapshot = playbackSnapshot,
             )
         } else null,
         openingProgress = initialLoadingProgress,
@@ -2504,7 +2504,7 @@ private fun BoxScope.RenderPlaybackOverlays(
                 initialLoadingMessage ?: playerLoadingStatusMessage(
                     showStatus = true,
                     controllerReady = playerController != null,
-                    buffering = playbackSnapshot.isLoading,
+                    snapshot = playbackSnapshot,
                 )
             } else null,
             initialLoadingProgress = initialLoadingProgress,

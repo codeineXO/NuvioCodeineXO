@@ -1393,6 +1393,10 @@ internal class NativePlayerController(
             val videoSize = desktopMpvVideoSize { name -> NativePlayerBridge.stringProperty(current, name) }
             PlayerPlaybackSnapshot(
                 isLoading = isLoading,
+                isOpening = isLoading && (
+                    DesktopHostOs.current != DesktopHostOs.WINDOWS ||
+                        NativePlayerBridge.isOpeningWindowsSource(current)
+                    ),
                 isPlaying = !isPaused && !isLoading && !isEnded,
                 isPaused = isPaused,
                 isEnded = isEnded,

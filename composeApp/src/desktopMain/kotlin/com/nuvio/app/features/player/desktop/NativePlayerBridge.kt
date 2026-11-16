@@ -111,6 +111,7 @@ internal object NativePlayerBridge {
     external fun positionMs(handle: Long): Long
     external fun bufferedPositionMs(handle: Long): Long
     external fun isLoading(handle: Long): Boolean
+    external fun isOpeningWindowsSource(handle: Long): Boolean
     external fun isEnded(handle: Long): Boolean
     external fun isPaused(handle: Long): Boolean
     external fun speed(handle: Long): Float

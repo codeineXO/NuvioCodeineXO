@@ -25,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +50,7 @@ object HomeRepository {
     private var collectionHeroRequestKey: String? = null
     private var lastPublishedCatalogHeroEmpty: Boolean = true
     private var lastErrorMessage: String? = null
+    private var catalogHeroSourcesResolved = true
 
     fun refresh(addons: List<ManagedAddon>, force: Boolean = false) {
         val activeAddons = addons.enabledAddons()
@@ -61,6 +63,7 @@ object HomeRepository {
 
         if (!force && activeRequestKey == requestKey && _uiState.value.isLoading) return
         activeRequestKey = requestKey
+        catalogHeroSourcesResolved = requests.isEmpty()
 
         if (requests.isEmpty()) {
             activeJob?.cancel()
@@ -84,17 +87,27 @@ object HomeRepository {
         activeJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         activeJob = scope.launch {
+            val settingsSnapshot = HomeCatalogSettingsRepository.snapshot()
             val prioritizedRequests = prioritizeDefinitions(
                 definitions = requests,
-                snapshot = HomeCatalogSettingsRepository.snapshot(),
+                snapshot = settingsSnapshot,
             )
             val loadedSections = linkedMapOf<String, HomeCatalogSection>().apply {
                 putAll(cachedSections)
             }
+            val heroSourceKeys = prioritizedRequests
+                .filter { definition ->
+                    settingsSnapshot.heroEnabled &&
+                        settingsSnapshot.preferences[definition.key]?.heroSourceEnabled != false
+                }
+                .mapTo(mutableSetOf(), HomeCatalogDefinition::cacheKey)
+            val attemptedKeys = mutableSetOf<String>()
+            var heroSourcesPublished = false
             var firstErrorMessage: String? = null
             var batchIndex = 0
 
             prioritizedRequests.chunked(HOME_CATALOG_FETCH_BATCH_SIZE).forEach { batch ->
+                ensureActive()
                 if (activeRequestKey != requestKey) return@launch
                 val results = batch.map { request ->
                     async {
@@ -104,6 +117,7 @@ object HomeRepository {
                     }
                 }.awaitAll()
 
+                ensureActive()
                 if (activeRequestKey != requestKey) return@launch
 
                 results.mapNotNull { (request, result) ->
@@ -116,13 +130,22 @@ object HomeRepository {
                         result.exceptionOrNull()?.message
                     }
                 }
+                batch.mapTo(attemptedKeys, HomeCatalogDefinition::cacheKey)
+                val heroSourcesResolved = attemptedKeys.containsAll(heroSourceKeys)
+                catalogHeroSourcesResolved = heroSourcesResolved
                 cachedSections = loadedSections.toMap()
                 lastErrorMessage = firstErrorMessage
-                if (batchIndex == 0 || (batchIndex + 1) % HOME_CATALOG_PUBLISH_INTERVAL == 0) {
+                if (
+                    batchIndex == 0 ||
+                    (batchIndex + 1) % HOME_CATALOG_PUBLISH_INTERVAL == 0 ||
+                    (heroSourcesResolved && !heroSourcesPublished)
+                ) {
                     publishCurrentState(
                         isLoading = true,
                         requestKey = requestKey,
+                        heroSourcesResolved = heroSourcesResolved,
                     )
+                    heroSourcesPublished = heroSourcesResolved
                 }
                 batchIndex++
             }
@@ -131,7 +154,9 @@ object HomeRepository {
 
             cachedSections = loadedSections.toMap()
             lastErrorMessage = firstErrorMessage
+            ensureActive()
             activeRequestKey = null
+            catalogHeroSourcesResolved = true
             publishCurrentState(
                 isLoading = false,
                 requestKey = requestKey,
@@ -170,6 +195,7 @@ object HomeRepository {
         collectionHeroJob = null
         collectionHeroRequestKey = null
         lastPublishedCatalogHeroEmpty = true
+        catalogHeroSourcesResolved = true
         lastErrorMessage = null
         _uiState.value = HomeUiState()
     }
@@ -177,6 +203,7 @@ object HomeRepository {
     private fun publishCurrentState(
         isLoading: Boolean,
         requestKey: String?,
+        heroSourcesResolved: Boolean = catalogHeroSourcesResolved,
     ) {
         val snapshot = HomeCatalogSettingsRepository.snapshot()
         val preferences = snapshot.preferences
@@ -206,6 +233,17 @@ object HomeRepository {
             }
 
         val useCatalogHero = snapshot.heroEnabled && snapshot.appInterface != AppInterface.PersistentHero
+        if (useCatalogHero && !heroSourcesResolved) {
+            _uiState.update {
+                it.copy(
+                    isLoading = isLoading,
+                    sections = sections,
+                    errorMessage = if (sections.isEmpty()) lastErrorMessage else null,
+                )
+            }
+            return
+        }
+
         val catalogHeroItems = if (useCatalogHero) {
             val heroRandom = Random((requestKey?.hashCode() ?: 0).absoluteValue + 1)
             currentDefinitions

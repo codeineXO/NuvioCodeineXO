@@ -35,8 +35,6 @@ import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.remoteNavigationGroup
-import com.nuvio.app.features.addons.AddonRepository
-import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.catalog.CatalogHeader
 import com.nuvio.app.features.home.components.ContinueWatchingTile
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
@@ -65,8 +63,6 @@ internal fun ContinueWatchingScreen(
     onItemLongPress: (ContinueWatchingItem) -> Unit,
     disintegrationRequest: DisintegrationRequest<String>?,
 ) {
-    val addons by AddonRepository.uiState.collectAsStateWithLifecycle()
-    val enabledAddons = remember(addons.addons) { addons.addons.enabledAddons() }
     val preferences by ContinueWatchingPreferencesRepository.uiState.collectAsStateWithLifecycle()
     val progress by WatchProgressRepository.uiState.collectAsStateWithLifecycle()
     val watched by WatchedRepository.uiState.collectAsStateWithLifecycle()
@@ -74,7 +70,6 @@ internal fun ContinueWatchingScreen(
     val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
     val (items, _) = rememberHomeContinueWatchingItems(
         activeProfileId = profileId,
-        enabledAddons = enabledAddons,
         preferences = preferences,
         watchedUiState = watched,
         watchProgressUiState = progress,

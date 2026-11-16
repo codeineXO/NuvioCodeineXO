@@ -1631,6 +1631,11 @@ public:
         return !fileReady || (idle && !paused && !eofReached) || bufferingCache;
     }
 
+    bool isOpeningSource() const {
+        const auto stage = sourceOpenStage.load();
+        return stage == SourceOpenStage::AwaitingStart || stage == SourceOpenStage::Opening;
+    }
+
     bool isEnded() {
         if (!flagProperty("eof-reached", false)) return false;
         long long duration = durationMs();
@@ -2180,6 +2185,8 @@ private:
     std::atomic_bool stopping = false;
     std::atomic_bool shuttingDown = false;
     std::atomic_bool hwdecLogged = false;  // one-shot log for hwdec-current
+    enum class SourceOpenStage { AwaitingStart, Opening, Opened, Ended };
+    std::atomic<SourceOpenStage> sourceOpenStage = SourceOpenStage::AwaitingStart;
     static constexpr long long kStartupPhaseMaxMs = 90000;
     // Startup phase: from the first loadfile until the first playback restart (or failure).
     std::atomic_bool startupPhase = false;
@@ -2776,6 +2783,7 @@ public:
             replacingSource.store(false);
             return false;
         }
+        sourceOpenStage.store(SourceOpenStage::AwaitingStart);
         return true;
     }
 
@@ -3162,6 +3170,7 @@ private:
 
             mpv_event *event = mpvApi().waitEvent(current, 0.5);
             if (!event) continue;
+            updateSourceOpenStage(event->event_id);
             if (startupPhase.load()) handleStartupEvent(*event);
             if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
                 // MPV_EVENT_FILE_LOADED is not enough here: mpv posts it before
@@ -3182,6 +3191,20 @@ private:
                     handleMpvLog(message.prefix ? message.prefix : "", message.text);
                 }
             }
+        }
+    }
+
+    void updateSourceOpenStage(mpv_event_id eventId) {
+        if (eventId != MPV_EVENT_START_FILE && eventId != MPV_EVENT_FILE_LOADED &&
+            eventId != MPV_EVENT_END_FILE) return;
+
+        // Serialize with loadfile so outgoing events cannot complete a replacement.
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (eventId == MPV_EVENT_START_FILE) {
+            sourceOpenStage.store(SourceOpenStage::Opening);
+        } else if (sourceOpenStage.load() != SourceOpenStage::AwaitingStart) {
+            sourceOpenStage.store(eventId == MPV_EVENT_FILE_LOADED
+                ? SourceOpenStage::Opened : SourceOpenStage::Ended);
         }
     }
 
@@ -4405,6 +4428,12 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isLoading(JNIEnv *, jobject, jlong handle) {
     auto player = playerFromHandle(handle);
     return player && player->isLoading() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_isOpeningWindowsSource(JNIEnv *, jobject, jlong handle) {
+    auto player = playerFromHandle(handle);
+    return player && player->isOpeningSource() ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

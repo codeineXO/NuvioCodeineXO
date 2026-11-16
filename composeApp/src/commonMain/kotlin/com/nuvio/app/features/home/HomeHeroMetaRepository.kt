@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.collectMappedAsState
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaExternalRating
@@ -150,9 +151,9 @@ internal fun rememberHomeHeroState(items: List<MetaPreview>): HomeHeroState {
         TmdbSettingsRepository.ensureLoaded()
         TmdbSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
-    val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+    val activeProfile by ProfileRepository.state.collectMappedAsState { it.activeProfile }
     // Each profile/settings scope owns its results, including requests cancelled during a switch.
-    val repository = remember(profileState.activeProfile, mdbListSettings, tmdbSettings) {
+    val repository = remember(activeProfile, mdbListSettings, tmdbSettings) {
         HomeHeroMetaRepository()
     }
     val metas = key(repository) {
