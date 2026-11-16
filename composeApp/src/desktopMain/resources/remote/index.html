@@ -374,6 +374,14 @@
     display: grid; place-items: center; color: var(--ctp-text);
     background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
   .hero-info-toggle .line { width: 20px; height: 20px; }
+  /* The sleep timer's time left, opposite the ⓘ; it steps aside while the info is laid over the card. */
+  .hero-sleep-chip { position: absolute; top: 10px; left: 10px; z-index: 2; height: 36px; padding: 0 14px 0 10px; border-radius: 9999px;
+    display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ctp-text);
+    background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .hero-sleep-chip .line { width: 18px; height: 18px; }
+  .hero:has(.hero-info:not([hidden])) .hero-sleep-chip { display: none; }
+  #sleep .sheet-body { display: flex; flex-direction: column; gap: 16px; }
+  #sleep .note { margin: 0; }
   .hero-info-toggle[aria-expanded="true"] { background: var(--glass-accent); }
   .hero-info { position: absolute; inset: 0; z-index: 1; padding: 16px 56px 16px 16px; overflow-y: auto; justify-content: center;
     background: color-mix(in srgb, var(--ctp-crust) 84%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -506,6 +514,7 @@
   <symbol id="i-layout-official" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></symbol>
   <symbol id="i-layout-scroll_posters" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="14" rx="1.5"/><path d="M2 7v10M22 7v10"/></symbol>
   <symbol id="i-layout-persistent_hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="9" rx="1.5"/><rect x="3" y="15" width="18" height="5" rx="1.5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
   <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
 </svg>
 
@@ -716,6 +725,9 @@
     <div class="shade"></div>
     <img class="logo" id="logo" alt="">
     <h2 class="t-title2 hero-title" id="hero-title"></h2>
+    <button class="hero-sleep-chip" id="sleep-chip" aria-label="Sleep timer" hidden>
+      <svg class="line" aria-hidden="true"><use href="#i-moon"/></svg><span id="sleep-chip-label"></span>
+    </button>
     <button class="hero-info-toggle" id="info-toggle" aria-label="Episode info" aria-expanded="false" hidden>
       <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
     </button>
@@ -767,8 +779,20 @@
       <button class="row" data-click="enhance" data-panel="enhance"><svg class="ic"><use href="#icon-wand"/></svg>Enhance</button>
       <button class="row" data-click="stats"><svg class="ic"><use href="#icon-info-circle"/></svg>Playback statistics</button>
       <button class="row" data-click="eyeFilter" data-panel="eyeFilter"><svg class="ic"><use href="#icon-eye"/></svg>Eye filter</button>
+      <button class="row" id="sleep-open"><svg class="line" aria-hidden="true"><use href="#i-moon"/></svg><span class="copy">Sleep timer<small id="sleep-state">Off</small></span></button>
       <button class="row" data-click="chapters" data-panel="chapters" id="chapters-item" hidden><svg class="ic"><use href="#icon-chapters"/></svg>Chapters</button>
     </div>
+  </div>
+</dialog>
+
+<!-- The sleep timer runs on the PC (so it keeps going when the phone locks); the phone sets it and shows the time left. -->
+<dialog class="sheet" id="sleep" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div><div class="bar"><h2 class="t-title2">Sleep timer</h2><button class="btn btn-sm btn-plain" data-dismiss>Close</button></div></div>
+  <div class="sheet-body">
+    <p class="note" id="sleep-summary"></p>
+    <div class="group-list" id="sleep-pc"></div>
+    <div class="group-list" id="sleep-options"></div>
+    <button class="btn btn-gray" id="sleep-cancel" hidden>Cancel timer</button>
   </div>
 </dialog>
 
@@ -837,6 +861,7 @@
       if (msg.k === 'discover') showDiscover(msg);
       if (msg.k === 'shuffle') showShuffle(msg);
       if (msg.k === 'library') showLibrary(msg);
+      if (msg.k === 'sleep') showSleep(msg);
       if (msg.k === 'route') {
         pcRoute = msg.route;
         if (activeDetailKey !== msg.detailKey) {
@@ -2253,6 +2278,59 @@
     $('info-toggle').hidden = !(msg.episodeInfo || msg.episodeTitle || msg.description);
     if ($('info-toggle').hidden) showHeroInfo(false);
   }
+  // ─── Sleep timer: runs on the PC; the phone sets it and shows the time left ───
+  let sleep = { active: false };
+  let sleepEndsAt = 0;
+  let sleepPcChoice = false;
+  try { sleepPcChoice = localStorage.getItem('nuvio_sleep_pc') === '1'; } catch (_) {}
+
+  const SLEEP_CHOICES = [
+    { label: '10 seconds (test)', seconds: 10 },
+    { label: '15 minutes', seconds: 900 }, { label: '30 minutes', seconds: 1800 }, { label: '45 minutes', seconds: 2700 },
+    { label: '1 hour', seconds: 3600 }, { label: '1 hour 30 minutes', seconds: 5400 }, { label: 'End of episode', endOfEpisode: true },
+  ];
+
+  function showSleep(msg) {
+    sleep = msg;
+    sleepEndsAt = Date.now() + (msg.remainingMs ?? 0);
+    renderSleep();
+  }
+
+  function sleepLeft() {
+    const left = Math.max(0, sleepEndsAt - Date.now());
+    if (left < 60000) return `${Math.ceil(left / 1000)}s`;
+    const minutes = Math.ceil(left / 60000);
+    return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m` : `${minutes}m`;
+  }
+
+  // The chip, the More row and the sheet's summary, from the one state.
+  function renderSleep() {
+    const after = sleep.sleepPc ? ' · then sleeps the PC' : '';
+    const text = sleep.endOfEpisode ? 'At the end of the episode' : `${sleepLeft()} left`;
+    $('sleep-chip').hidden = !sleep.active;
+    $('sleep-chip-label').textContent = sleep.endOfEpisode ? 'Ep end' : sleepLeft();
+    $('sleep-state').textContent = sleep.active ? text + after : 'Off';
+    $('sleep-summary').textContent = sleep.active ? `Pauses ${text.charAt(0).toLowerCase()}${text.slice(1)}${after}.` : 'Pauses playback after the time you pick.';
+    $('sleep-cancel').hidden = !sleep.active;
+  }
+  setInterval(() => { if (sleep.active && !sleep.endOfEpisode) renderSleep(); }, 1000);
+
+  $('sleep-pc').append(toggle('Also sleep this PC', 'Pauses, then puts the PC to sleep', sleepPcChoice, (on) => {
+    sleepPcChoice = on;
+    try { localStorage.setItem('nuvio_sleep_pc', on ? '1' : '0'); } catch (_) {}
+  }));
+  $('sleep-options').append(...SLEEP_CHOICES.map((choice) => {
+    const row = el('button', 'row', choice.label);
+    row.addEventListener('click', () => {
+      send({ cmd: 'sleepSet', seconds: choice.seconds, endOfEpisode: choice.endOfEpisode, sleepPc: sleepPcChoice });
+      $('sleep').close();
+    });
+    return row;
+  }));
+  $('sleep-cancel').addEventListener('click', () => { send({ cmd: 'sleepCancel' }); $('sleep').close(); });
+  $('sleep-open').addEventListener('click', () => { $('more').close(); renderSleep(); present($('sleep')); });
+  $('sleep-chip').addEventListener('click', () => { renderSleep(); present($('sleep')); });
+
   function showHeroInfo(open) {
     $('hero-info').hidden = !open;
     $('info-toggle').setAttribute('aria-expanded', open);
