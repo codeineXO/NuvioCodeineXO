@@ -2970,9 +2970,12 @@ const setFontPickerOpen = open => {
 };
 
 
+const isPlayerBackKey = event => event.key === "Escape" ||
+  (event.key === "Backspace" && !isTextEntryTarget(event.target));
+
 const handleFontPickerKey = event => {
   if (!fontPickerOpen) return false;
-  if (event.key === "Escape") {
+  if (isPlayerBackKey(event)) {
     event.preventDefault();
     setFontPickerOpen(false);
   } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(event.key)) {
@@ -6436,7 +6439,7 @@ codeineDrawerButton.addEventListener("click", event => {
 // Keep mouse interaction from moving keyboard focus into this mouse-only menu.
 codeineQuickDrawer.addEventListener("mousedown", event => event.preventDefault());
 codeineQuickDrawer.addEventListener("keydown", event => {
-  if (event.key === "Escape") return;
+  if (isPlayerBackKey(event)) return;
   event.preventDefault();
   event.stopImmediatePropagation();
 });
@@ -7305,24 +7308,25 @@ document.addEventListener("keyup", event => {
 
 document.addEventListener("keydown", event => {
   if (handleFontPickerKey(event)) return;
-  if (event.key === "Escape" && isQuickMenuOpen) {
+  const isBackKey = isPlayerBackKey(event);
+  if (isBackKey && isQuickMenuOpen) {
     event.preventDefault();
     closeQuickMenu();
     return;
   }
-  if (event.key === "Escape" && isPartyConfirmOpen()) {
+  if (isBackKey && isPartyConfirmOpen()) {
     event.preventDefault();
     closePartyConfirm();
     return;
   }
-  if (event.key === "Escape" && activeModal) {
+  if (isBackKey && activeModal) {
     clearSpaceHoldTimerAndStopSpeedBoost();
     event.preventDefault();
     closePlayerModal(true);
     focusShortcutRoot();
     return;
   }
-  if (event.key === "Escape") {
+  if (isBackKey) {
     clearSpaceHoldTimerAndStopSpeedBoost();
     event.preventDefault();
     if (state.isInPip) {
