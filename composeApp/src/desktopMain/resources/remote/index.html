@@ -389,9 +389,10 @@
   .stream-card b, .stream-card .sub, .stream .top, .stream .sub { overflow-wrap: anywhere; word-break: break-word; }
   .stream .top { flex-wrap: wrap; }
 
-  /* Playing screen: artwork first, then the controls. */
-  body:has(#player:not([hidden])) { height: 100dvh; }
-  #player { width: 100%; min-height: 0; justify-content: flex-end; gap: 20px; }
+  /* Playing screen: artwork first, then the controls, centred between the title bar and the Next / Back buttons,
+     with clear room above those buttons. */
+  body:has(#player:not([hidden])) { height: 100dvh; padding-bottom: calc(env(safe-area-inset-bottom) + 104px); }
+  #player { width: 100%; flex: 1 1 auto; min-height: 0; justify-content: safe center; gap: 24px; }
 
   /* A natural shadow: a soft contact shadow close in, and a faint wide one, so it lifts without darkening the text below. */
   /* It reaches about 16px, within the gap to whatever is below the card. */
@@ -432,7 +433,7 @@
   .hero-info .synopsis { display: block; -webkit-line-clamp: unset; color: var(--ctp-subtext1); }
   @keyframes hero-info-in { from { opacity: 0; } }
 
-  .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card); }
+  .controls { width: 100%; display: flex; flex-direction: column; gap: 16px; padding: 18px 18px 20px; border-radius: var(--r-card); }
   .seek { display: grid; grid-template-columns: minmax(0, 1fr); }
   .seek-times { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ctp-subtext0); font-variant-numeric: tabular-nums; }
   .transport { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(4px, 3vw, 16px); }
@@ -456,7 +457,7 @@
   .tool:active > span { transform: scale(0.92); background-color: var(--glass-active); }
   .tool:disabled { opacity: 0.45; }
   .tool .ic { width: 22px; height: 22px; }
-  .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   /* Nothing in it scrolls (the episode info is on the card), so nothing clips the card's shadow. */
   .media { min-height: 0; gap: 14px; }
   .deck { flex-shrink: 0; }
