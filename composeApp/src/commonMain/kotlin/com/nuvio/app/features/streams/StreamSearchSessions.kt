@@ -2,7 +2,8 @@ package com.nuvio.app.features.streams
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.buildAddonResourceUrl
-import com.nuvio.app.features.addons.fetchAddonResponseText
+import com.nuvio.app.features.addons.fetchAddonStreamResponse
+import com.nuvio.app.features.addons.streamCacheLifetimeMs
 import com.nuvio.app.features.debrid.LocalDebridAvailabilityService
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.plugins.pluginContentId
@@ -72,7 +73,6 @@ internal class StreamSearchTargets(
  * memory-only because addon links may expire.
  */
 internal object StreamSearchSessions {
-    private const val COMPLETED_TTL_MS = 15 * 60 * 1_000L
     private const val MAX_SESSIONS = 12
 
     private val log = Logger.withTag("StreamSearchSessions")
@@ -85,10 +85,9 @@ internal object StreamSearchSessions {
         val isComplete: Boolean = false,
     )
 
-    private class Session(val totalTasks: Int) {
-        val progress = MutableStateFlow(Progress())
+    private class Session(retained: List<StreamLoadCompletion> = emptyList()) {
+        val progress = MutableStateFlow(Progress(completions = retained))
         var job: Job? = null
-        var completedAtMs: Long? = null
         var invalidated = false
     }
 
@@ -134,24 +133,30 @@ internal object StreamSearchSessions {
         val selected = mutex.withLock {
             removeExpiredLocked()
             removeObsoleteLocked(key)
+            var retained = emptyList<StreamLoadCompletion>()
             if (forceRefresh) {
                 sessions.remove(key)?.cancel()
             } else {
                 sessions[key]?.let { existing ->
-                    log.d { "Joining source search for ${key.type} ${key.videoId}" }
-                    return@withLock existing
+                    val progress = existing.progress.value
+                    retained = progress.completions.filter { it.isReusable(epochMs()) }
+                    if (!progress.isComplete || retained.size == targets.totalTasks) {
+                        log.d { "Joining source search for ${key.type} ${key.videoId}" }
+                        return@withLock existing
+                    }
                 }
             }
-            Session(targets.totalTasks).also { session ->
+            Session(retained).also { session ->
+                val retainedKeys = retained.mapTo(mutableSetOf()) { it.sourceKey }
                 session.job = scope.launch(start = CoroutineStart.LAZY) {
                     try {
                         coroutineScope {
-                            launchStreamSearchTasks(targets, forceRefresh) { completion ->
+                            launchStreamSearchTasks(targets, forceRefresh, retainedKeys) { completion ->
                                 session.progress.update { it.copy(completions = it.completions + completion) }
                             }
                         }
                     } finally {
-                        complete(key, session)
+                        withContext(NonCancellable) { complete(key, session) }
                     }
                 }
                 sessions[key] = session
@@ -168,13 +173,8 @@ internal object StreamSearchSessions {
         if (session.invalidated) return
         mutex.withLock {
             if (sessions[key] !== session) return@withLock
-            val hasResults = session.progress.value.completions.any { completion ->
-                when (completion) {
-                    is StreamLoadCompletion.Addon -> completion.group.streams.isNotEmpty()
-                    is StreamLoadCompletion.PluginScraper -> completion.streams.isNotEmpty()
-                }
-            }
-            if (hasResults) session.completedAtMs = epochMs() else sessions.remove(key)
+            val hasResults = session.progress.value.completions.any { it.isReusable(epochMs()) }
+            if (!hasResults) sessions.remove(key)
         }
     }
 
@@ -183,8 +183,8 @@ internal object StreamSearchSessions {
         val iterator = sessions.entries.iterator()
         while (iterator.hasNext()) {
             val session = iterator.next().value
-            val completedAt = session.completedAtMs ?: continue
-            if (now - completedAt >= COMPLETED_TTL_MS) {
+            if (!session.progress.value.isComplete) continue
+            if (session.progress.value.completions.none { it.isReusable(now) }) {
                 iterator.remove()
                 session.cancel()
             }
@@ -229,10 +229,11 @@ internal object StreamSearchSessions {
 private fun CoroutineScope.launchStreamSearchTasks(
     targets: StreamSearchTargets,
     forceRefresh: Boolean,
+    retainedKeys: Set<String>,
     onCompletion: (StreamLoadCompletion) -> Unit,
 ) {
     val log = Logger.withTag("StreamSearch")
-    targets.streamAddons.forEach { addon ->
+    targets.streamAddons.filterNot { it.addonId in retainedKeys }.forEach { addon ->
         launch {
             val url = buildAddonResourceUrl(
                 manifestUrl = addon.manifest.transportUrl,
@@ -240,11 +241,13 @@ private fun CoroutineScope.launchStreamSearchTasks(
                 type = targets.type,
                 id = targets.videoId,
             )
-            log.d { "Fetching streams from: $url" }
+            log.d { "Fetching streams from ${addon.addonName}" }
+            var cacheExpiresAtMs = 0L
             val group = runCatchingUnlessCancelled {
-                val payload = fetchAddonResponseText(url = url, forceRefresh = forceRefresh)
+                val response = fetchAddonStreamResponse(url = url, forceRefresh = forceRefresh)
+                cacheExpiresAtMs = epochMs() + response.streamCacheLifetimeMs()
                 StreamParser.parse(
-                    payload = payload,
+                    payload = response.body,
                     addonName = addon.addonName,
                     addonId = addon.addonId,
                     addonLogo = addon.manifest.logoUrl,
@@ -259,16 +262,16 @@ private fun CoroutineScope.launchStreamSearchTasks(
                     AddonStreamGroup(addon.addonName, addon.addonId, emptyList(), isLoading = false, error = error.message)
                 },
             )
-            onCompletion(StreamLoadCompletion.Addon(group.withDebridAvailability()))
+            onCompletion(StreamLoadCompletion.Addon(group.withDebridAvailability(), cacheExpiresAtMs))
         }
     }
 
-    targets.serverSources.forEach { source ->
+    targets.serverSources.filterNot { it.addonId in retainedKeys }.forEach { source ->
         launch { onCompletion(StreamLoadCompletion.Addon(source.load())) }
     }
 
     targets.pluginProviderGroups.forEach { providerGroup ->
-        providerGroup.scrapers.forEach { scraper ->
+        providerGroup.scrapers.filterNot { "plugin:${it.id}" in retainedKeys }.forEach { scraper ->
             launch {
                 val completion = PluginRepository.executeScraper(
                     scraper = scraper,
@@ -284,6 +287,7 @@ private fun CoroutineScope.launchStreamSearchTasks(
                     onSuccess = { results ->
                         StreamLoadCompletion.PluginScraper(
                             addonId = providerGroup.addonId,
+                            sourceKey = "plugin:${scraper.id}",
                             streams = results.map { result ->
                                 result.toStreamItem(
                                     scraper = scraper,
@@ -299,6 +303,7 @@ private fun CoroutineScope.launchStreamSearchTasks(
                         log.w(error) { "Plugin scraper failed: ${scraper.name}" }
                         StreamLoadCompletion.PluginScraper(
                             addonId = providerGroup.addonId,
+                            sourceKey = "plugin:${scraper.id}",
                             streams = emptyList(),
                             error = error.message ?: getString(Res.string.streams_failed_to_load_scraper, scraper.name),
                         )

@@ -89,6 +89,7 @@ object StreamsRepository {
         if (
             !forceRefresh &&
             activeRequestKey == requestKey &&
+            activeJob?.isActive == true &&
             (currentState.groups.isNotEmpty() || currentState.emptyStateReason != null || currentState.isAnyLoading)
         ) {
             log.d { "Skipping stream reload for unchanged request type=$type id=$videoId" }
