@@ -269,10 +269,30 @@
     .tile.landscape { width: 280px; }
   }
 
-  /* Posters and artwork fade in as they arrive, instead of popping in. */
-  .tile .art img, .hero-card img.bg { opacity: 0; transition: opacity 0.3s var(--ease); }
-  .tile .art img.loaded, .hero-card img.bg.loaded { opacity: 1; }
-  .tile .art:has(> img:not(.loaded, .failed))::after, .hero-card:has(> img.bg:not(.loaded, .failed))::after {
+  /* Nothing pops in: items added to these lists, and these parts when they are shown, fade and rise into place.
+     setChildren() keeps unchanged items where they are, so updates from the PC only animate what is new. */
+  :is(#home-rows, #search-rows, #catalog-grid, #folder-rows, #folder-grid, #folder-tabs, #discover-grid, #recent-list,
+      #library-rows, #library-cloud, #s-list, #s-addons, #d-pills, #d-seasons, #d-episodes, #shuffle-feedback,
+      #shuffle-result, #card-menu-actions, #persistent-hero, #hero-strip, .catalog-grid, .catalog-status) > *,
+  :is(#layout-switch, #next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
+      #home-empty, #sleep-chip, #recent-section, #search-start, #library-saved, #library-cloud) {
+    transition: opacity 0.28s var(--ease), translate 0.28s var(--ease);
+  }
+  @starting-style {
+    :is(#home-rows, #search-rows, #catalog-grid, #folder-rows, #folder-grid, #folder-tabs, #discover-grid, #recent-list,
+        #library-rows, #library-cloud, #s-list, #s-addons, #d-pills, #d-seasons, #d-episodes, #shuffle-feedback,
+        #shuffle-result, #card-menu-actions, #persistent-hero, #hero-strip, .catalog-grid, .catalog-status) > *,
+    :is(#layout-switch, #next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
+        #home-empty, #sleep-chip, #recent-section, #search-start, #library-saved, #library-cloud) {
+      opacity: 0; translate: 0 6px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; } }
+
+  /* An image still loading after a moment shimmers, then fades in; cached ones just show, with no flash. */
+  .tile .art img, .hero-card img.bg { transition: opacity 0.3s var(--ease); }
+  .tile .art img.pending, .hero-card img.bg.pending { opacity: 0; }
+  .tile .art:has(> img.pending)::after, .hero-card:has(> img.bg.pending)::after {
     content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%); animation: shimmer 1.4s infinite;
     background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ctp-text) 9%, transparent), transparent); }
 
@@ -288,7 +308,22 @@
   .stream-hero { aspect-ratio: 16 / 9; max-height: 46dvh; box-shadow: var(--card-shadow); view-transition-name: now-card; }
   #player .hero { view-transition-name: now-card; }
   ::view-transition-group(now-card) { animation-duration: 0.45s; animation-timing-function: var(--ease); }
-  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
+  /* Every page switch is one view transition, so the old and new page move together and there is never a blank
+     frame: going deeper slides forward, going back slides back, and tabs cross-fade. The header, tab bar and
+     backdrops have their own names, so they stay put instead of sliding with the page. */
+  header { view-transition-name: app-header; }
+  .bottom-controls { view-transition-name: app-bar; }
+  #home-backdrop { view-transition-name: home-backdrop; }
+  #media-backdrop { view-transition-name: media-backdrop; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.28s; animation-timing-function: var(--ease); }
+  html[data-nav="push"]::view-transition-old(root) { animation-name: page-out-left; }
+  html[data-nav="push"]::view-transition-new(root) { animation-name: page-in-right; }
+  html[data-nav="pop"]::view-transition-old(root) { animation-name: page-out-right; }
+  html[data-nav="pop"]::view-transition-new(root) { animation-name: page-in-left; }
+  @keyframes page-in-right { from { opacity: 0; transform: translateX(36px); } }
+  @keyframes page-in-left { from { opacity: 0; transform: translateX(-36px); } }
+  @keyframes page-out-left { to { opacity: 0; transform: translateX(-36px); } }
+  @keyframes page-out-right { to { opacity: 0; transform: translateX(36px); } }
   .detail-hero > img, .stream-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .detail-hero .shade, .stream-hero .shade { position: absolute; inset: 0;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 8%, transparent 70%); }
@@ -974,6 +1009,7 @@
       change();
       return;
     }
+    document.documentElement.dataset.nav = entering ? 'push' : 'pop';
     document.startViewTransition(() => {
       viewTransitionRunning = true;
       change();
@@ -1069,7 +1105,27 @@
     });
   }
 
-  function updateView({ switchingTabs = false } = {}) {
+  // Every page switch runs as one view transition (see the CSS); updates within a page apply straight away.
+  let viewKey = '';
+  function updateView(options) {
+    const key = `${Boolean(state.active) || pcRoute === 'player'}|${pcRoute}|${browseTab}|${dpadMode}`;
+    const switching = key !== viewKey;
+    viewKey = key;
+    if (!switching || viewTransitionRunning || !document.startViewTransition || homeHeroMotion.matches) {
+      applyView(options);
+      return;
+    }
+    const before = shownPage();
+    viewTransitionRunning = true;
+    document.startViewTransition(() => {
+      viewTransitionRunning = false;
+      applyView(options);
+      const depth = (PAGE_DEPTH[shownPage()] ?? 0) - (PAGE_DEPTH[before] ?? 0);
+      document.documentElement.dataset.nav = depth > 0 ? 'push' : depth < 0 ? 'pop' : 'fade';
+    });
+  }
+
+  function applyView({ switchingTabs = false } = {}) {
     const pageBefore = shownPage();
     // Something is playing on the PC: the phone goes straight to the playing screen, whatever it showed.
     const playing = state.active || pcRoute === 'player';
@@ -1141,6 +1197,7 @@
   const PAGE_DEPTH = { catalog: 1, folder: 1, details: 2, streams: 3, player: 4 };
   const shownPage = () => document.querySelector('main:not([hidden])')?.id ?? null;
   let viewTransitionRunning = false;
+  const revealed = new Set();
 
   // Motion's spring, short and calm; nothing moves with reduced motion or before Motion has loaded.
   function move(target, keyframes, options = {}) {
@@ -1148,17 +1205,13 @@
     return window.motion.animate(target, keyframes, { type: 'spring', visualDuration: 0.35, bounce: 0.1, ...options });
   }
 
+  // The view transition moves the page itself; the first time a page opens, its sections also settle in.
   function pageMotion(before, after) {
-    if (!after || after === before || viewTransitionRunning) return;
-    const page = $(after);
-    const depth = (PAGE_DEPTH[after] ?? 0) - (PAGE_DEPTH[before] ?? 0);
-    const enter = depth ? move(page, { x: [depth > 0 ? 32 : -32, 0], opacity: [0, 1] })
-      : move(page, { opacity: [0, 1] }, { type: 'tween', duration: 0.2, ease: 'easeOut' });
-    // Its first sections settle in one after another.
-    const parts = [...page.children].filter((c) => !c.hidden && c.offsetParent !== null).slice(0, 8);
+    if (!after || after === before || revealed.has(after)) return;
+    revealed.add(after);
+    const parts = [...$(after).children].filter((c) => !c.hidden && c.offsetParent !== null).slice(0, 8);
     const settle = parts.length ? move(parts, { y: [10, 0], opacity: [0, 1] }, { delay: window.motion?.stagger(0.04) }) : null;
-    // Hand the styles back to the page's CSS (e.g. Back's slide) once they are done.
-    enter?.finished.then(() => { page.style.transform = ''; page.style.opacity = ''; });
+    // Hand the styles back to the page's CSS once they are done.
     settle?.finished.then(() => parts.forEach((p) => { p.style.transform = ''; p.style.opacity = ''; }));
   }
 
@@ -1205,10 +1258,12 @@
     image.loading = 'lazy';
     image.decoding = 'async';
     // A missing image leaves the card's own colour, not the browser's broken-image icon.
-    image.onerror = () => { image.style.visibility = 'hidden'; image.classList.add('failed'); };
-    image.onload = () => image.classList.add('loaded');
+    // Only an image that is really loading (not there within 80 ms, so not cached) shimmers and fades in.
+    const slow = setTimeout(() => image.classList.add('pending'), 80);
+    image.onload = () => { clearTimeout(slow); image.classList.remove('pending'); };
+    image.onerror = () => { clearTimeout(slow); image.classList.remove('pending'); image.style.visibility = 'hidden'; };
     if (src) image.src = src;
-    if (image.complete && image.naturalWidth) image.classList.add('loaded');
+    if (!src || (image.complete && image.naturalWidth)) clearTimeout(slow);
     return image;
   };
 
@@ -1219,7 +1274,7 @@
       menu.close();
       return;
     }
-    $('card-menu-actions').replaceChildren(...msg.actions.map((action, index) => {
+    setChildren($('card-menu-actions'), msg.actions.map((action, index) => {
       const button = el('button', action.destructive ? 'row destructive' : 'row', action.label);
       button.addEventListener('click', () => {
         menu.close();
@@ -1393,9 +1448,35 @@
   }
 
   // Replaces a list of rows but keeps how far each row was scrolled sideways.
+  // Sets a container's children, keeping any existing child that is unchanged (same signature, or the same HTML
+  // apart from passing state) exactly where it is, so only new items are inserted and animate in.
+  const childKey = (node) => node.dataset?.sig
+    || node.outerHTML.replace(/ style="[^"]*"/g, '').replace(/\b(pending|busy|loaded)\b/g, '');
+  function setChildren(container, nodes) {
+    const pool = new Map();
+    for (const child of container.children) {
+      const key = childKey(child);
+      if (!pool.has(key)) pool.set(key, []);
+      pool.get(key).push(child);
+    }
+    const next = nodes.map((node) => pool.get(childKey(node))?.shift() || node);
+    const keep = new Set(next);
+    [...container.children].forEach((child) => { if (!keep.has(child)) child.remove(); });
+    next.forEach((node, i) => { if (container.children[i] !== node) container.insertBefore(node, container.children[i] || null); });
+  }
+
+  // A section can also come as { sig, build }: if a row with that signature is already there it is kept as it is
+  // (posters and all), so an update from the PC only rebuilds the rows that changed.
   function replaceRows(container, sections) {
     const offsets = [...container.querySelectorAll('.row-scroll')].map((r) => r.scrollLeft);
-    container.replaceChildren(...sections);
+    const kept = new Map([...container.children].filter((c) => c.dataset.sig).map((c) => [c.dataset.sig, c]));
+    sections = sections.map((section) => {
+      if (section instanceof Node) return section;
+      const node = kept.get(section.sig) || section.build();
+      node.dataset.sig = section.sig;
+      return node;
+    });
+    setChildren(container, sections);
     container.querySelectorAll('.row-scroll').forEach((r, i) => { r.scrollLeft = offsets[i] || 0; });
   }
 
@@ -1745,7 +1826,7 @@
       pageStatus($('folder-status'), { count: folder.rows.length });
       return;
     }
-    $('folder-tabs').replaceChildren(...folder.tabs.map((label, i) => {
+    setChildren($('folder-tabs'), folder.tabs.map((label, i) => {
       const button = el('button', `btn btn-sm ${i === folder.tab ? '' : 'btn-gray'}`, label);
       button.addEventListener('click', () => { if (i !== folder.tab) send({ cmd: 'folderTab', index: i }); });
       return button;
@@ -1756,18 +1837,32 @@
     loadMoreIfNear();
   }
 
+  let homeContent = '';
+
   function showHome(msg) {
+    // The PC re-sends Home often (progress, hero details, reconnects): the same Home changes nothing.
+    const content = JSON.stringify(msg);
+    if (content === homeContent) return;
+    homeContent = content;
+    // Remembered, so the next time the remote opens it shows Home at once while the PC's arrives.
+    try { localStorage.setItem('nuvio_home', content); } catch (_) {}
     showLayout(msg.layout);
     const heroes = msg.heroEnabled === false || homeLayout === 'persistent_hero' ? [] : msg.hero;
     const sections = [];
     lastHome = msg;
-    if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile),
-      msg.continueViewAll ? () => send({ cmd: 'viewAll', row: 'continue' }) : null));
+    if (msg.continue.length) sections.push({
+      sig: JSON.stringify([msg.layout, msg.continueViewAll, msg.continue]),
+      build: () => rowSection('Continue Watching', msg.continue.map(resumeTile),
+        msg.continueViewAll ? () => send({ cmd: 'viewAll', row: 'continue' }) : null),
+    });
     // Catalog rows open a title; collection rows (Discover, Streaming…) open a folder.
-    msg.rows.forEach((row) => sections.push(rowSection(row.title,
-      row.items.map((item, i) => posterTile(item, row.shape,
-        { from: 'row', row: row.key, item: i }, row.kind === 'collection')),
-      row.viewAll ? () => send({ cmd: 'viewAll', row: row.key }) : null)));
+    msg.rows.forEach((row) => sections.push({
+      sig: JSON.stringify(row),
+      build: () => rowSection(row.title,
+        row.items.map((item, i) => posterTile(item, row.shape,
+          { from: 'row', row: row.key, item: i }, row.kind === 'collection')),
+        row.viewAll ? () => send({ cmd: 'viewAll', row: row.key }) : null),
+    }));
     replaceRows($('home-rows'), sections);
     if (pcRoute === 'collection' || pcRoute === 'continue') renderCatalog();
     const empty = !heroes.length && !sections.length;
@@ -1866,7 +1961,7 @@
       $('d-title').dataset.title = JSON.stringify([msg.name, msg.logo]);
       titleArt($('d-title'), msg.logo, msg.name || '');
     }
-    $('d-pills').replaceChildren(...heroPills(msg));
+    setChildren($('d-pills'), heroPills(msg));
     $('d-desc').textContent = msg.description || '';
     $('d-desc').hidden = !msg.description;
     $('d-play-label').textContent = msg.playLabel || 'Play';
@@ -1903,7 +1998,7 @@
     }
     const selected = seasons.find((s) => s.number === season) ||
       seasons.find((s) => s.number === details.preferredSeason) || seasons[0];
-    $('d-seasons').replaceChildren(...seasons.map((s) => {
+    setChildren($('d-seasons'), seasons.map((s) => {
       const chip = el('button', 'chip', s.label);
       chip.setAttribute('aria-pressed', s === selected);
       chip.addEventListener('click', () => { season = s.number; renderEpisodes(); });
@@ -1911,7 +2006,7 @@
     }));
     const episodes = selected.episodes;
     const { key, actionsReady } = details;
-    $('d-episodes').replaceChildren(...episodes.map((ep) => {
+    setChildren($('d-episodes'), episodes.map((ep) => {
       const card = episodeCard(ep, () => send({ cmd: 'episode', key, item: ep.index, id: ep.id }), false,
         { kind: 'episode', key, item: ep.index, id: ep.id });
       card.disabled = !actionsReady;
@@ -1978,7 +2073,7 @@
       chip.addEventListener('click', () => { addonFilter = g.i; renderStreams(); });
       return chip;
     });
-    $('s-addons').replaceChildren(...chips);
+    setChildren($('s-addons'), chips);
     const shown = groups.filter((g) => addonFilter === null || g.i === addonFilter);
     const nodes = [];
     shown.forEach((group) => {
@@ -2010,7 +2105,7 @@
     });
     const anyStreams = shown.some((g) => g.streams.length);
     if (!anyStreams && streams.loading) nodes.unshift(loader('Finding sources…'));
-    $('s-list').replaceChildren(...nodes);
+    setChildren($('s-list'), nodes);
     $('s-empty').hidden = anyStreams || streams.loading || shown.some((g) => g.error);
     $('s-empty').textContent = 'No sources found.';
     if (scroll !== null) scrollTo({ top: scroll });
@@ -2047,7 +2142,7 @@
     discover = msg;
     pagers[2].msg = msg;
     $('recent-section').hidden = !msg.recent.length;
-    $('recent-list').replaceChildren(...msg.recent.map((query) => {
+    setChildren($('recent-list'), msg.recent.map((query) => {
       const row = el('div', 'recent search-box');
       const again = el('button', '', query);
       again.addEventListener('click', () => {
@@ -2158,7 +2253,7 @@
     }
     // Each cloud item opens to its playable files; a file plays on the PC.
     const open = new Set([...$('library-cloud').querySelectorAll('details[open]')].map((d) => d.dataset.key));
-    $('library-cloud').replaceChildren(...cloud.items.map((item) => {
+    setChildren($('library-cloud'), cloud.items.map((item) => {
       const box = el('details', 'card cloud-item');
       box.dataset.key = item.key;
       box.open = open.has(item.key);
@@ -2253,8 +2348,8 @@
     $('shuffle-reset').textContent = labels.reset;
     $('shuffle-cancel').textContent = labels.cancel;
     $('shuffle-cancel').hidden = !shuffle.picking;
-    $('shuffle-feedback').replaceChildren(...(shuffle.busy ? [el('span', 'spin-ring sm')] : []),
-      ...(shuffle.feedback.length ? [el('span', '', shuffle.feedback.join(' · '))] : []));
+    setChildren($('shuffle-feedback'), [...(shuffle.busy ? [el('span', 'spin-ring sm')] : []),
+      ...(shuffle.feedback.length ? [el('span', '', shuffle.feedback.join(' · '))] : [])]);
     $('shuffle-hint').textContent = labels.samplingHint;
     // The picked title, like the PC's popup: its hero, then Shuffle Again and Close.
     const result = $('shuffle-result');
@@ -2944,6 +3039,10 @@
     if (document.hidden) stopDpadPress();
   });
 
+  try {
+    const remembered = localStorage.getItem('nuvio_home');
+    if (remembered) showHome(JSON.parse(remembered));
+  } catch (_) {}
   connect();
 </script>
 </body>
