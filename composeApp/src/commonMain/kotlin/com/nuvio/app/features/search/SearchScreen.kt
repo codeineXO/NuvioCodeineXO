@@ -364,7 +364,6 @@ fun SearchScreen(
         if (auraBackgroundEnabled && !isDesktop) {
             com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
                 modifier = Modifier.fillMaxSize(),
-                listState = listState,
             )
         }
 

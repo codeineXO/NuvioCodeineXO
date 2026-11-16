@@ -235,10 +235,7 @@ internal fun MainTabsDestination(
                 .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(navBarHazeState, zIndex = -1f) else Modifier)
                 .then(if (LocalFrostedGlassEnabled.current && !randomPickerSelected && selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
             if (auraBackgroundEnabled) {
-                HomeInteractiveGradientBackground(
-                    modifier = backgroundModifier,
-                    listState = if (randomPickerSelected) null else if (selectedTab == AppScreenTab.Search) state.searchListState else if (selectedTab == AppScreenTab.Library) libraryListState else null,
-                )
+                HomeInteractiveGradientBackground(modifier = backgroundModifier)
             } else {
                 Box(
                     modifier = backgroundModifier

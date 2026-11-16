@@ -32,6 +32,8 @@ import com.nuvio.app.core.ui.DesktopAppShutdown
 import com.nuvio.app.core.ui.NuvioTheme
 import com.nuvio.app.core.ui.ProvideDesktopWindowInsets
 import com.nuvio.app.features.discordrpc.DiscordPresenceManager
+import com.nuvio.app.features.home.components.LocalAuroraRenderer
+import com.nuvio.app.features.home.components.rememberDesktopAuroraRenderer
 import com.nuvio.app.features.plugins.configureDesktopQuickJsLibrary
 import com.nuvio.app.features.player.PlatformPlayerSurface
 import com.nuvio.app.features.player.desktop.DesktopAppFullscreenController
@@ -264,6 +266,9 @@ fun main(args: Array<String>) {
 
             if (smokePlayerUrl == null) {
                 CompositionLocalProvider(
+                    LocalAuroraRenderer provides { background, colors, intensity ->
+                        rememberDesktopAuroraRenderer(window, background, colors, intensity)
+                    },
                     LocalRemotePlatformFocus provides { requestDesktopComposeFocus(window) },
                     LocalRemoteHiddenPointerIcon provides desktopNavigationHiddenPointerIcon,
                     LocalRemoteCursorHidden provides DesktopRemoteCursorController.isHidden,

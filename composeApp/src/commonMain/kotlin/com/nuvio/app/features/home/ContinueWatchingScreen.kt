@@ -98,7 +98,7 @@ internal fun ContinueWatchingScreen(
             }
 
             if (auraBackgroundEnabled) {
-                HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize(), gridState = gridState)
+                HomeInteractiveGradientBackground(modifier = Modifier.fillMaxSize())
             } else {
                 Box(
                     Modifier.fillMaxSize()

@@ -246,7 +246,6 @@ fun CatalogScreen(
             if (auraBackgroundEnabled && !persistentHero) {
                 com.nuvio.app.features.home.components.HomeInteractiveGradientBackground(
                     modifier = Modifier.fillMaxSize(),
-                    gridState = gridState,
                 )
             } else {
                 Box(

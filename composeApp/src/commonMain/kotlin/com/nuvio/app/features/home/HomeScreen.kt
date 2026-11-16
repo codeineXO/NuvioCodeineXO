@@ -400,7 +400,13 @@ fun HomeScreen(
         if (auraBackgroundEnabled && !persistentHero) {
             HomeInteractiveGradientBackground(
                 modifier = Modifier.fillMaxSize().then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(fullscreenBackdropState, zIndex = -1f) else Modifier),
-                listState = homeListState,
+                heroBottomPx = if (showHeroSlot && homeSettingsUiState.appInterface == AppInterface.Official) {
+                    {
+                        val layout = homeListState.layoutInfo
+                        layout.visibleItemsInfo.firstOrNull { it.key == HOME_HERO_KEY }
+                            ?.let { it.offset + it.size - layout.viewportStartOffset } ?: 0
+                    }
+                } else null,
             )
         }
 
@@ -583,7 +589,7 @@ fun HomeScreen(
                 backgroundColor = if (persistentHero || auraBackgroundEnabled) Color.Transparent else MaterialTheme.nuvio.colors.background,
             ) {
                 if (showHeroSlot) {
-                    item(key = "home_hero", contentType = "hero") {
+                    item(key = HOME_HERO_KEY, contentType = "hero") {
                         val heroShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
                         val heroContainerModifier = if (useGutterLayout) {
                             Modifier
@@ -1675,6 +1681,7 @@ private fun LazyListScope.homeContinueWatchingSections(
 }
 
 private const val HOME_CATALOG_PREVIEW_LIMIT = 18
+private const val HOME_HERO_KEY = "home_hero"
 internal const val HOME_CONTINUE_WATCHING_SECTION_KEY = "home_continue_watching"
 private const val HOME_UPCOMING_SECTION_KEY = "home_upcoming"
 internal const val HomeContinueWatchingMaxRecentProgressItems = 300

@@ -1,179 +1,220 @@
 package com.nuvio.app.features.home.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateValue
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PointMode
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.VertexMode
+import androidx.compose.ui.graphics.Vertices
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import com.nuvio.app.core.ui.*
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.ui.AuraGlow
+import com.nuvio.app.core.ui.AuraSettings
+import com.nuvio.app.core.ui.LocalAuraSettings
 import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.resolveAuraPalette
+import com.nuvio.app.core.ui.themePalette
 import kotlin.math.PI
-import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.round
 import kotlin.math.sin
+import kotlin.random.Random
 
-/**
- * A dynamic, colorful chromatic gradient background for the home page.
- * Gently floating chromatic aurora orbs move seamlessly across the screen.
- */
+internal fun interface AuroraRenderer {
+    fun draw(scope: DrawScope, phase: Float, heroBottomPx: Float, heroFadePx: Float): Boolean
+}
+
+internal val LocalAuroraRenderer =
+    staticCompositionLocalOf<(@Composable (Color, List<AuraGlow>, Float) -> AuroraRenderer)?> { null }
+
 @Composable
 fun HomeInteractiveGradientBackground(
     modifier: Modifier = Modifier,
-    listState: LazyListState? = null,
-    gridState: LazyGridState? = null,
     settings: AuraSettings = LocalAuraSettings.current,
+    heroBottomPx: (() -> Int)? = null,
 ) {
-    val tokens = MaterialTheme.nuvio
-    val baseBackground = tokens.colors.background
-
+    val background = MaterialTheme.nuvio.colors.background
     val palette = MaterialTheme.themePalette
-    val glows = remember(settings, palette) { resolveAuraPalette(settings, palette) }
+    val colors = remember(settings.palette, settings.customColors, palette) {
+        resolveAuraPalette(settings, palette)
+    }
     val intensity = settings.intensity.multiplier
-    val motion = if (settings.animated) rememberAuraMotion() else remember { AuraMotion() }
-
-    val scrollShift by rememberAuraScrollShift(listState, gridState, settings.animated)
-    val colorStops = remember(glows, intensity) {
-        val inner = listOf(0.26f, 0.22f, 0.18f, 0.15f)
-        val outer = listOf(0.12f, 0.10f, 0.08f, 0.05f)
-        glows.mapIndexed { index, glow ->
-            listOf(glow.inner.copy(alpha = intensity * inner[index]),
-                glow.outer.copy(alpha = intensity * outer[index]), Color.Transparent)
-        }
+    val renderer = LocalAuroraRenderer.current?.invoke(background, colors, intensity)
+    val frame = if (settings.animated) {
+        rememberInfiniteTransition(label = "Aurora").animateValue(
+            initialValue = 0,
+            targetValue = AuroraFrames,
+            typeConverter = Int.VectorConverter,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = AuroraDurationSeconds * 1000, easing = LinearEasing),
+            ),
+            label = "Aurora flow",
+        )
+    } else {
+        null
     }
 
-    Box(
-        modifier = modifier.fillMaxSize().navigationGlassSource(),
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            // Observe animation in drawing so each frame skips composition and layout.
-            val phase1 = motion.phase1.value
-            val phase2 = motion.phase2.value
-            val phase3 = motion.phase3.value
-            val phase4 = motion.phase4.value
-            val pulse = motion.pulse.value
-            val w = size.width
-            val h = size.height
+    Box(modifier.fillMaxSize().navigationGlassSource()) {
+        Spacer(
+            Modifier.fillMaxSize().drawWithCache {
+                val heroFadePx = 96.dp.toPx()
+                val fallback by lazy { createMeshAuroraRenderer(size, background, colors, intensity) }
+                onDrawBehind {
+                    val phase = (frame?.value ?: 0) * ((2 * PI).toFloat() / AuroraFrames)
+                    val heroBottom = (heroBottomPx?.invoke()?.toFloat() ?: 0f).coerceIn(0f, size.height)
+                    if (renderer?.draw(this, phase, heroBottom, heroFadePx) != true) {
+                        fallback(this, phase, heroBottom, heroFadePx)
+                    }
+                }
+            },
+        )
+    }
+}
 
-            // 1. Base dark background
-            drawRect(color = baseBackground)
+private const val AuroraDurationSeconds = 28
+private const val AuroraFrames = AuroraDurationSeconds * 24
+private const val AuroraColumns = 64
+private const val AuroraRows = 48
 
-            // 2. Ambient Floating Aurora Orbs
-            // Orb 1: Vibrant Indigo / Violet (Top-Left quadrant)
-            val orb1Center = Offset(
-                x = (w * 0.20f) + (cos(phase1) * (w * 0.10f)),
-                y = (h * 0.22f) + (sin(phase1) * 70f) - (scrollShift * 0.5f),
-            )
-            val orb1Radius = (w * 0.46f * pulse).coerceAtLeast(180f)
-            drawAuraOrb(colorStops[0], orb1Center, orb1Radius)
+private fun createMeshAuroraRenderer(
+    size: Size,
+    background: Color,
+    colors: List<AuraGlow>,
+    intensity: Float,
+): DrawScope.(Float, Float, Float) -> Unit {
+    val vertices = createAuroraVertices(size, colors, intensity)
+    val paint = Paint().apply { color = Color.White }
+    val dither = createDitherBrush()
+    var previousPhase = Float.NaN
+    return { phase, heroBottom, fadePx ->
+        if (phase != previousPhase) {
+            updateAuroraPositions(vertices, size, phase)
+            previousPhase = phase
+        }
+        drawRect(background)
+        drawContext.canvas.drawVertices(vertices, BlendMode.Modulate, paint)
+        if (heroBottom > 0f) drawHeroAuraScrim(background, heroBottom, fadePx)
+        drawRect(dither, blendMode = BlendMode.Plus)
+    }
+}
 
-            // Orb 2: Electric Cyan / Turquoise (Top-Right quadrant)
-            val orb2Center = Offset(
-                x = (w * 0.82f) - (sin(phase2) * (w * 0.08f)),
-                y = (h * 0.36f) + (cos(phase2) * 60f) - (scrollShift * 0.6f),
-            )
-            val orb2Radius = (w * 0.42f * pulse).coerceAtLeast(160f)
-            drawAuraOrb(colorStops[1], orb2Center, orb2Radius)
-
-            // Orb 3: Magenta / Fuchsia (Mid-Bottom Center)
-            val orb3Center = Offset(
-                x = (w * 0.48f) + (cos(phase3) * (w * 0.12f)),
-                y = (h * 0.68f) + (sin(phase3) * 80f) - (scrollShift * 0.7f),
-            )
-            val orb3Radius = (w * 0.50f * pulse).coerceAtLeast(200f)
-            drawAuraOrb(colorStops[2], orb3Center, orb3Radius)
-
-            // Orb 4: Rose / Coral Sunset (Bottom-Right quadrant)
-            val orb4Center = Offset(
-                x = (w * 0.85f) + (sin(phase4) * (w * 0.06f)),
-                y = (h * 0.85f) - (cos(phase4) * 50f) - (scrollShift * 0.4f),
-            )
-            val orb4Radius = (w * 0.38f * pulse).coerceAtLeast(150f)
-            drawAuraOrb(colorStops[3], orb4Center, orb4Radius)
+private fun updateAuroraPositions(vertices: Vertices, size: Size, phase: Float) {
+    val positions = vertices.positions
+    for (column in 0..AuroraColumns) {
+        val x = column.toFloat() / AuroraColumns
+        val displacement = 0.032f * sin(x * 9f - phase) * (0.65f + 0.35f * sin(x * PI.toFloat()))
+        for (row in 1 until AuroraRows) {
+            val y = row.toFloat() / AuroraRows
+            val index = (column * (AuroraRows + 1) + row) * 2 + 1
+            positions[index] = round((y + displacement * sin(y * PI.toFloat())) * size.height)
         }
     }
 }
 
-private fun DrawScope.drawAuraOrb(colors: List<Color>, center: Offset, radius: Float) {
-    drawCircle(Brush.radialGradient(colors, center, radius), radius, center)
+private fun createDitherBrush(): ShaderBrush {
+    val tileSize = 32
+    val bitmap = ImageBitmap(tileSize, tileSize)
+    val noise = Random(0)
+    val points = buildList {
+        for (y in 0 until tileSize) {
+            for (x in 0 until tileSize) {
+                if (noise.nextBoolean()) add(Offset(x + 0.5f, y + 0.5f))
+            }
+        }
+    }
+    // A stationary one-level stipple also softens contours on the software mesh.
+    val paint = Paint().apply {
+        color = Color.White.copy(alpha = 1f / 255f)
+        strokeWidth = 1f
+        isAntiAlias = false
+    }
+    Canvas(bitmap).drawPoints(PointMode.Points, points, paint)
+    return ShaderBrush(ImageShader(bitmap, TileMode.Repeated, TileMode.Repeated))
 }
 
-private data class AuraMotion(
-    val phase1: State<Float> = mutableStateOf(0f), val phase2: State<Float> = mutableStateOf(0f),
-    val phase3: State<Float> = mutableStateOf(0f), val phase4: State<Float> = mutableStateOf(0f),
-    val pulse: State<Float> = mutableStateOf(1f),
-)
-@Composable
-private fun rememberAuraMotion(): AuraMotion {
-    val infiniteTransition = rememberInfiniteTransition(label = "HomeAmbientGradientTransition")
-
-    val phase1 = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 26000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "HomeAmbientPhase1",
-    )
-
-    val phase2 = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 20000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "HomeAmbientPhase2",
-    )
-
-    val phase3 = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 32000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "HomeAmbientPhase3",
-    )
-
-    val phase4 = infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 24000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "HomeAmbientPhase4",
-    )
-
-    val pulse = infiniteTransition.animateFloat(
-        initialValue = 0.88f,
-        targetValue = 1.14f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 7000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "HomeAmbientGradientPulse",
-    )
-
-    return remember(phase1, phase2, phase3, phase4, pulse) {
-        AuraMotion(phase1, phase2, phase3, phase4, pulse)
+private val auroraIndices = buildList(AuroraColumns * AuroraRows * 6) {
+    for (column in 0 until AuroraColumns) {
+        for (row in 0 until AuroraRows) {
+            val left = column * (AuroraRows + 1) + row
+            val right = left + AuroraRows + 1
+            add(left)
+            add(right)
+            add(left + 1)
+            add(left + 1)
+            add(right)
+            add(right + 1)
+        }
     }
+}
+
+private fun createAuroraVertices(size: Size, colors: List<AuraGlow>, intensity: Float): Vertices {
+    val vertexCount = (AuroraColumns + 1) * (AuroraRows + 1)
+    val positions = ArrayList<Offset>(vertexCount)
+    val vertexColors = ArrayList<Color>(vertexCount)
+    for (column in 0..AuroraColumns) {
+        val x = column.toFloat() / AuroraColumns
+        // Align shared triangle edges to pixels to avoid speckles in small previews.
+        val pixelX = round(x * size.width)
+        val ridge = 0.55f - 0.19f * (x - 0.5f) + 0.10f * sin(x * 6.3f + 0.6f) +
+            0.025f * sin(x * 13f - 0.7f)
+        for (row in 0..AuroraRows) {
+            val y = row.toFloat() / AuroraRows
+            val distance = y - ridge
+            // A soft surrounding glow connects the whole field to the brighter curved band.
+            val band = auraFalloff(distance / 0.085f)
+            val veil = auraFalloff((distance + 0.12f) / 0.34f)
+            val fringe = auraFalloff((distance - 0.12f) / 0.25f)
+            val opacity = intensity * (0.017f + 0.13f * band + 0.076f * veil + 0.047f * fringe)
+            val position = (0.94f * x + 0.18f * y - 0.06f).coerceIn(0f, 1f) * colors.lastIndex
+            val start = position.toInt().coerceAtMost(colors.lastIndex - 1)
+            val end = start + 1
+            val mix = position - start
+            val inner = lerp(colors[start].inner, colors[end].inner, mix)
+            val outer = lerp(colors[start].outer, colors[end].outer, mix)
+            positions.add(Offset(pixelX, round(y * size.height)))
+            vertexColors.add(lerp(outer, inner, 0.35f + 0.65f * band).copy(alpha = opacity))
+        }
+    }
+    return Vertices(VertexMode.Triangles, positions, positions, vertexColors, auroraIndices)
+}
+
+private fun auraFalloff(distance: Float): Float = exp(-distance * distance)
+
+private fun DrawScope.drawHeroAuraScrim(background: Color, heroBottomPx: Float, fadePx: Float) {
+    val heroBottom = heroBottomPx.coerceAtMost(size.height)
+    val fadeEnd = heroBottom + fadePx
+    val opacity = 0.78f * (heroBottom / fadePx).coerceIn(0f, 1f)
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(background.copy(alpha = opacity), background.copy(alpha = 0f)),
+            startY = heroBottom,
+            endY = fadeEnd,
+        ),
+        size = Size(size.width, fadeEnd.coerceAtMost(size.height)),
+    )
 }
