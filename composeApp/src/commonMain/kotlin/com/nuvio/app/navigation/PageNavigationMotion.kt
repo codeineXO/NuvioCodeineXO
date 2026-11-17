@@ -1,28 +1,26 @@
 package com.nuvio.app.navigation
 
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import com.nuvio.app.core.ui.NuvioTokens
-import com.nuvio.app.core.ui.NavigationMotionSettings
+import com.nuvio.app.core.ui.navigationMotionDuration
 
-/** Short travel and overlapping opacity keep heavy nested screens from flashing through the backdrop. */
-internal fun pageNavigationMotion(forward: Boolean, distancePx: Int): ContentTransform {
-    val motion = NavigationMotionSettings.profile
-    val duration = motion.duration(NuvioTokens.Motion.sheetEnterMillis)
-    val exitDuration = motion.duration(NuvioTokens.Motion.normalMillis)
-    val enter = fadeIn(tween(duration, easing = FastOutSlowInEasing)) +
-        slideInVertically(tween(duration, easing = FastOutSlowInEasing)) {
-            distancePx.coerceAtLeast(0) * if (forward) 1 else -1
-        }
-    val exit = fadeOut(tween(
-        durationMillis = exitDuration,
-        delayMillis = duration - exitDuration,
-        easing = FastOutSlowInEasing,
-    ))
-    return enter togetherWith exit
+/** Fades never block input, so the Snappy feel may shorten them only down to a soft minimum. */
+private const val MinPageFadeMillis = 220
+
+internal fun pageFadeMillis(smoothMillis: Int): Int =
+    navigationMotionDuration(smoothMillis).coerceAtLeast(MinPageFadeMillis)
+
+/**
+ * Soft crossfade with no positional travel. Pages draw over a shared backdrop, so the outgoing page fades
+ * too, over the same span, rather than lingering behind or vanishing early. The incoming page uses a
+ * decelerating curve so it is mostly visible within the first few frames and navigation still feels quick.
+ */
+internal fun pageNavigationMotion(): ContentTransform {
+    val duration = pageFadeMillis(NuvioTokens.Motion.sheetEnterMillis)
+    return fadeIn(tween(duration, easing = NuvioTokens.Motion.decelerate)) togetherWith
+        fadeOut(tween(duration, easing = NuvioTokens.Motion.standard))
 }

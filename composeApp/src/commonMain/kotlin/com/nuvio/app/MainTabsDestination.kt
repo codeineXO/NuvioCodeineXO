@@ -303,7 +303,7 @@ internal fun MainTabsDestination(
                 CompositionLocalProvider(
                     LocalSearchBackdropState provides searchBackdropState.takeIf { isDesktop },
                     LocalLibraryListState provides libraryListState.takeIf { isDesktop },
-                    LocalDesktopSidebarContentInset provides if (useDesktopSidebar && !randomPickerSelected && selectedTab == AppScreenTab.Home) contentStartPadding else 0.dp,
+                    LocalDesktopSidebarContentInset provides 0.dp,
                     LocalNuvioBottomNavigationOverlayPadding provides if (useNativeBottomTabs) 49.dp else if (!isDesktop && !isTabletLayout && navBarStyleSetting != NavBarStyle.CLASSIC) 72.dp else 0.dp,
                     LocalNuvioNavBarScrollState provides navBarScrollState,
                 ) {
@@ -320,12 +320,12 @@ internal fun MainTabsDestination(
                             topChromePadding = topChromePadding,
                         ),
                         actions = tabActions,
+                        sidebarInset = contentStartPadding,
                         modifier = Modifier
                             .fillMaxSize()
                             .then(if (LocalFrostedGlassEnabled.current && requiresNavBarHaze) Modifier.hazeSource(state = navBarHazeState) else Modifier)
                             .then(if (shouldAttachNestedScroll) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                             .padding(innerPadding)
-                            .padding(start = if (randomPickerSelected || selectedTab == AppScreenTab.Home) 0.dp else contentStartPadding),
                     )
                 }
 

@@ -8,8 +8,13 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -96,6 +101,9 @@ internal fun DarkGlassPanelContent(
 
 /** Only Compose page content is registered here; never a video surface or player UI. */
 internal val LocalNavigationGlassState = staticCompositionLocalOf<HazeState?> { null }
+/** True while a page is fading out: it keeps feeding its own glass instead of leaving it empty. */
+internal val LocalRetainGlassSources = staticCompositionLocalOf { false }
+private const val GlassSourceGraceMillis = 400L
 internal val LocalDesktopSidebarContentInset = staticCompositionLocalOf { 0.dp }
 internal val LocalDesktopSidebarActive = staticCompositionLocalOf { false }
 
@@ -105,7 +113,8 @@ internal fun Modifier.navigationGlassSource(
     zIndex: Float = 0f,
     enabled: Boolean = true,
 ): Modifier {
-    if (!enabled || LocalSurfaceStyle.current != SurfaceStyle.FrostedGlass || !LocalFrostedGlassEnabled.current || !LocalScreenActive.current) return this
+    if (!enabled || LocalSurfaceStyle.current != SurfaceStyle.FrostedGlass || !LocalFrostedGlassEnabled.current ||
+        !(LocalScreenActive.current || LocalRetainGlassSources.current)) return this
     val state = LocalNavigationGlassState.current ?: return this
     return hazeSource(state, zIndex = zIndex)
 }
@@ -129,10 +138,18 @@ internal fun Modifier.navigationGlass(
     val frostedGlassEnabled = LocalFrostedGlassEnabled.current && surfaceStyle == SurfaceStyle.FrostedGlass
     // In-page effects must not sample the z=1 scrolling source which contains them.
     // Navigation overlays retain their existing full-page backdrop behavior.
-    val backdropState = hazeState?.takeIf { state ->
-        frostedGlassEnabled && (stableBackdropFill ||
-            (state.areas.isNotEmpty() && (!backgroundOnly || state.areas.any { it.zIndex < 1f })))
+    val hasSource = hazeState != null && frostedGlassEnabled && (stableBackdropFill ||
+        (hazeState.areas.isNotEmpty() && (!backgroundOnly || hazeState.areas.any { it.zIndex < 1f })))
+    // Page and tab switches hand the source over between screens, leaving it briefly empty.
+    // Keep the blur attached through that gap instead of flashing the opaque fallback fill.
+    var keepSource by remember(hazeState) { mutableStateOf(hasSource) }
+    LaunchedEffect(hazeState, hasSource) {
+        if (hasSource) keepSource = true else {
+            delay(GlassSourceGraceMillis)
+            keepSource = false
+        }
     }
+    val backdropState = hazeState?.takeIf { frostedGlassEnabled && (hasSource || keepSource) }
     val tint = if (panel) FrostedGlassTokens.PanelTintColor else FrostedGlassTokens.TintColor
     val fallback = FrostedGlassTokens.FallbackColor
     val elevation = if (surfaceStyle == SurfaceStyle.DarkGlass) {
@@ -160,7 +177,7 @@ internal fun Modifier.navigationGlass(
                 } else DarkGlassSurfaceColor
             } else if (!frostedGlassEnabled) {
                 (if (panel) tokens.colors.surfacePopover else tokens.colors.surfaceCard).copy(alpha = 1f)
-            } else if (backdropState == null || backdropState.areas.isEmpty()) fallback else Color.Transparent,
+            } else if (backdropState == null) fallback else Color.Transparent,
         )
         .then(
             if (backdropState != null) {

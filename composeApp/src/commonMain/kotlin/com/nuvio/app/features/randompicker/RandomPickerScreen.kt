@@ -332,9 +332,10 @@ private fun RandomPickerBody(
             }
         }
         }
-        if (active && state.resultPopupOpen && state.result != null && headerHeight > 0 && panelHeight > 0 &&
+        // Stays drawn while Shuffle fades out; only input and focus follow `active`.
+        if (state.resultPopupOpen && state.result != null && headerHeight > 0 && panelHeight > 0 &&
             listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-            PickerResultOverlay(state, popupWidth, popupHeight, popupOffset, pick, {
+            PickerResultOverlay(state, active, popupWidth, popupHeight, popupOffset, pick, {
                 onDetails(state.result.preview)
             }, onDismissResult)
         }
@@ -398,7 +399,7 @@ private fun PickerFeedback(state: PickerState, modifier: Modifier = Modifier, in
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, offset: IntOffset, pick: () -> Unit, details: () -> Unit, dismiss: () -> Unit) {
+private fun PickerResultOverlay(state: PickerState, active: Boolean, width: Dp, maxHeight: Dp, offset: IntOffset, pick: () -> Unit, details: () -> Unit, dismiss: () -> Unit) {
     val result = state.result ?: return
     val posterStyle = rememberPosterCardStyleUiState()
     val shape = shuffleResultShape(posterStyle.cornerRadiusDp)
@@ -426,17 +427,18 @@ private fun PickerResultOverlay(state: PickerState, width: Dp, maxHeight: Dp, of
             }.build()
         } else meta.poster
     }
-    PlatformBackHandler(enabled = true, onBack = dismiss)
+    PlatformBackHandler(enabled = active, onBack = dismiss)
     Box(Modifier.offset { offset }) {
         AppOverlayInput {
         SettingsOverlaySurfaceLayer {
-        LaunchedEffect(state.picking) {
-            if (state.picking) {
+        LaunchedEffect(state.picking, active) {
+            if (active && state.picking) {
                 withFrameNanos { }
                 againFocus.requestFocus()
             }
         }
-        LaunchedEffect(Unit) {
+        LaunchedEffect(active) {
+            if (!active) return@LaunchedEffect
             withFrameNanos { }
             if (state.picking) againFocus.requestFocus() else modalFocus.requestFocus()
         }

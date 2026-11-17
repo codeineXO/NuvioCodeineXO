@@ -3,6 +3,7 @@ package com.nuvio.app
 import androidx.compose.material.icons.filled.Casino
 import nuvio.composeapp.generated.resources.picker_title
 
+import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.FrostedGlassTokens
 import com.nuvio.app.core.ui.frostedGlassShadow
 import com.nuvio.app.core.ui.frostedGlassBorder
@@ -269,6 +270,7 @@ internal fun AppTabHost(
     requests: AppTabRequests,
     state: AppTabState,
     actions: AppTabActions,
+    sidebarInset: Dp = 0.dp,
     modifier: Modifier = Modifier,
     shuffleSelected: Boolean = false,
     shuffleContent: (@Composable () -> Unit)? = null,
@@ -281,6 +283,9 @@ internal fun AppTabHost(
         shuffleSelected = shuffleSelected,
         shuffleContent = shuffleContent,
     ) { tab ->
+        // Inset per tab, not per selected tab, so the outgoing tab never jumps mid-fade.
+        CompositionLocalProvider(LocalDesktopSidebarContentInset provides if (tab == AppScreenTab.Home) sidebarInset else 0.dp) {
+        Box(Modifier.fillMaxSize().padding(start = if (tab == AppScreenTab.Home) 0.dp else sidebarInset)) {
         when (tab) {
             AppScreenTab.Home -> {
                 key(state.homeContentGeneration) {
@@ -359,6 +364,8 @@ internal fun AppTabHost(
                     onWatchPartyClick = actions.onWatchPartySettingsClick,
                 )
             }
+        }
+        }
         }
     }
 }

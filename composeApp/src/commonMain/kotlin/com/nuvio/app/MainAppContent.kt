@@ -1749,13 +1749,9 @@ internal fun MainAppContent(
                         .then(if (captureSidebarBackdrop) Modifier.hazeSource(sidebarGlassState) else Modifier)
                         .background(MaterialTheme.nuvio.colors.background),
                 ) {
-                val pageTravelPx = with(LocalDensity.current) { 4.dp.roundToPx() }
                 NavDisplay(
                     backStack = navBackStack,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = if (useDesktopSidebar && !drawsUnderVerticalBar) contentStartPadding else 0.dp)
-                        .padding(if (drawsUnderVerticalBar) PaddingValues() else verticalBarPadding),
+                    modifier = Modifier.fillMaxSize(),
                     onBack = {
                         val routeAtRequest = navController.currentRoute
                         dispatchNavigationBack(
@@ -1771,8 +1767,8 @@ internal fun MainAppContent(
                         routeDisposalDecorator,
                     ),
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    transitionSpec = { pageNavigationMotion(forward = true, pageTravelPx) },
-                    popTransitionSpec = { pageNavigationMotion(forward = false, pageTravelPx) },
+                    transitionSpec = { pageNavigationMotion() },
+                    popTransitionSpec = { pageNavigationMotion() },
                     entryProvider = entryProvider<NavKey> {
                 val mainTabsContent: @Composable (Boolean) -> Unit = { picker ->
                     val tabsRouteActiveState = rememberUpdatedState(currentRoute is TabsRoute)
@@ -2030,9 +2026,9 @@ internal fun MainAppContent(
                 entry<StreamRoute>(
                     metadata = if (isDesktop) {
                         NavDisplay.transitionSpec {
-                            pageNavigationMotion(forward = true, pageTravelPx)
+                            pageNavigationMotion()
                         } + NavDisplay.popTransitionSpec {
-                            pageNavigationMotion(forward = false, pageTravelPx)
+                            pageNavigationMotion()
                         }
                     } else {
                         emptyMap()
@@ -2247,8 +2243,26 @@ internal fun MainAppContent(
                                             routeKey = if (key is TabsRoute) rootFocusKey else key,
                                             active = key == navBackStack.lastOrNull(),
                                         ) {
-                                            CompositionLocalProvider(LocalPersistentHeroPageState provides heroPage) {
-                                                entry.Content()
+                                            // Inset per page, not per current route, so an outgoing page never jumps mid-fade.
+                                            val underBar = (key as? AppRoute).drawsUnderVerticalBar(selectedTab)
+                                            Box(
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .padding(start = if (useDesktopSidebar && !underBar) contentStartPadding else 0.dp)
+                                                    .padding(if (underBar) PaddingValues() else verticalBarPadding),
+                                            ) {
+                                                // Each page owns its blur state for its whole life: a shared, route-keyed state was
+                                                // rebuilt on every change (flashing all glass empty) and let one page's glass sample
+                                                // the other page mid-fade. An exiting page keeps feeding its own glass until it is gone.
+                                                val pageGlassState = remember { dev.chrisbanes.haze.HazeState() }
+                                                CompositionLocalProvider(
+                                                    LocalPersistentHeroPageState provides heroPage,
+                                                    LocalVerticalBarPadding provides if (underBar) verticalBarPadding else PaddingValues(),
+                                                    com.nuvio.app.core.ui.LocalNavigationGlassState provides pageGlassState.takeUnless { key is PlayerRoute },
+                                                    com.nuvio.app.core.ui.LocalRetainGlassSources provides (key != navBackStack.lastOrNull()),
+                                                ) {
+                                                    entry.Content()
+                                                }
                                             }
                                         }
                                     }
