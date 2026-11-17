@@ -2719,6 +2719,12 @@ internal fun MainAppContent(
 
             val currentActiveLaunch = activePlayerLaunch
             val currentActiveLaunchId = activeLaunchId
+            // The loading-screen artwork is only needed while a stream page or the player is around; let it go after.
+            val playbackFlowOpen = currentActiveLaunch != null ||
+                navBackStack.any { it is StreamRoute || it is PlayerRoute }
+            LaunchedEffect(playbackFlowOpen) {
+                if (!playbackFlowOpen) com.nuvio.app.features.player.OpeningArtworkCache.clear()
+            }
             // Desktop fades the full player in over the page; Android's video surface does not honour layer alpha.
             val playerEnterProgress = remember { Animatable(if (isDesktop) 0f else 1f) }
             val playerOverlayActive = currentActiveLaunch != null && currentActiveLaunchId != null

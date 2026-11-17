@@ -391,7 +391,13 @@ private fun NativePlayerSurface(
         delay(CONTROLS_PAINT_TIMEOUT_MS)
         controlsPainted.value = true
     }
-    val surfaceRevealed = isMiniPlayer || (surfaceRevealReady && controlsPainted.value)
+    // On Back the player shuts down before navigation; park the window at once so the frozen last frame is not
+    // left on screen meanwhile, and let the black player page fade away once the release completes.
+    val releasingForNavigation by controller.releasingForNavigation.collectAsState()
+    // Stop waiting for the page once there is no loading screen to show (loaded, failed, or turned off), so the
+    // handshake never holds back the picture or an error.
+    val surfaceRevealed = !releasingForNavigation &&
+        (isMiniPlayer || (surfaceRevealReady && (controlsPainted.value || !playerControlsState.showOpeningOverlay)))
 
     Box(
         modifier = modifier
@@ -444,7 +450,8 @@ private fun NativePlayerSurface(
             )
         }
 
-        if (!surfaceRevealed && !isInPip) {
+        // Mirrors the controls page: no loading screen when the loading overlay is turned off, nor while closing.
+        if (!surfaceRevealed && !isInPip && !releasingForNavigation && playerControlsState.showOpeningOverlay) {
             OpeningOverlay(
                 artwork = playerControlsState.openingArtwork,
                 logo = playerControlsState.openingLogo,

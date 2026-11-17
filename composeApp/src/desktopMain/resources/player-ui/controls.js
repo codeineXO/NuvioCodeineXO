@@ -1627,7 +1627,8 @@ const setImageSource = (element, source) => {
   const currentUrl = element.getAttribute("src") || "";
   const loadedUrl = element.getAttribute("data-loaded-src") || "";
   if (currentUrl !== url) {
-    element.setAttribute("decoding", "async");
+    // Loading-screen images opt into sync decoding: an async one may be painted as a blank first frame.
+    element.setAttribute("decoding", element.getAttribute("data-decoding") || "async");
     setImageVisualState(element, "loading");
     element.onload = () => {
       if (element.getAttribute("src") !== url) return;
@@ -6656,21 +6657,43 @@ const announceControlsPainted = () => {
   if (controlsPaintedAnnounced) return;
   controlsPaintedAnnounced = true;
   openingOverlay.classList.add("instant");
-  const settled = image => !image.getAttribute("src") ||
-    image.classList.contains("image-loaded") || image.classList.contains("image-error");
-  const deadline = performance.now() + 1500;
+  // setImageSource marks images loaded on the next animation frame, and frames can stall while the window is
+  // parked. Promote a fully decoded image straight away so the reveal never shows it still at opacity 0.
+  const promoteDecoded = image => {
+    const src = image.getAttribute("src");
+    if (!src || image.classList.contains("image-loaded") || !image.complete || image.naturalWidth <= 0) return;
+    image.setAttribute("data-loaded-src", src);
+    setImageVisualState(image, "loaded");
+  };
+  const settled = image => {
+    promoteDecoded(image);
+    return !image.getAttribute("src") ||
+      image.classList.contains("image-loaded") || image.classList.contains("image-error");
+  };
+  // This page fetches its own artwork (the app's image cache is not shared), so allow a first download time;
+  // the host reveals anyway once playback is ready or after its own timeout.
+  const deadline = performance.now() + 4000;
   const waitForImages = () => {
-    const ready = settled(openingArtwork) && (openingLogoSlot.hidden || settled(openingLogoBase));
-    // Timers, not animation frames: the window is collapsed to a pixel meanwhile and frames may be throttled.
+    const logoReady = openingLogoSlot.hidden || (settled(openingLogoBase) && settled(openingLogoFill));
+    const ready = settled(openingArtwork) && logoReady;
+    // Timers, not animation frames: the window is parked off-screen meanwhile and frames may be throttled.
     if (!ready && performance.now() < deadline) {
       window.setTimeout(waitForImages, 16);
       return;
     }
-    // A couple more frames so the settled images are on screen, not just styled.
-    window.setTimeout(() => {
+    // Decode the loaded images now, while parked: otherwise Chromium decodes them on first display and paints
+    // the overlay without its artwork and logo for several frames right after the window is revealed.
+    const decodeImage = image => image.getAttribute("src") && image.classList.contains("image-loaded") &&
+      typeof image.decode === "function" ? image.decode().catch(() => {}) : Promise.resolve();
+    const decoded = Promise.all([openingArtwork, openingLogoBase, openingLogoFill].map(decodeImage));
+    const decodeTimeout = new Promise(resolve => window.setTimeout(resolve, 1000));
+    // Then a couple more frames so the decoded images are on screen, not just styled.
+    Promise.race([decoded, decodeTimeout]).then(() => window.setTimeout(() => {
       send("controlsPainted", 0);
-      window.setTimeout(() => openingOverlay.classList.remove("instant"), 120);
-    }, 48);
+      // Keep transitions off until well after the host has moved the window into view, so nothing on the
+      // overlay is still fading in from black at the moment it appears.
+      window.setTimeout(() => openingOverlay.classList.remove("instant"), 700);
+    }, 48));
   };
   waitForImages();
 };

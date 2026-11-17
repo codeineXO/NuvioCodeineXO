@@ -31,13 +31,11 @@ import coil3.request.NullRequestDataException
 import coil3.size.Dimension
 import coil3.size.SizeResolver
 import coil3.size.Scale
-import kotlin.math.ceil
 import kotlinx.coroutines.delay
 import coil3.size.Size as CoilSize
 
 // ConstraintsSizeResolver already reports physical pixels, including fractional display density.
-// Posters reserve hover headroom; heroes supply their larger motion allowance through request extras.
-private const val DesktopDecodeHeadroom = 1.25
+// Posters reserve hover headroom (DesktopDecodeHeadroom); heroes supply a larger allowance through request extras.
 
 private val AlwaysPlaying: () -> Boolean = { true }
 private val NeverPlaying: () -> Boolean = { false }
@@ -198,10 +196,7 @@ internal fun Any?.withDesktopHighQualitySize(
 
 internal fun desktopDecodeSize(size: CoilSize, headroom: Double = DesktopDecodeHeadroom): CoilSize {
     fun Dimension.withHeadroom(): Dimension = when (this) {
-        is Dimension.Pixels -> Dimension.Pixels(
-            ((ceil(px * headroom).toLong().coerceAtLeast(1) + 63) / 64 * 64)
-                .coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        )
+        is Dimension.Pixels -> Dimension.Pixels(desktopDecodeEdge(px, headroom))
         else -> this
     }
     return CoilSize(size.width.withHeadroom(), size.height.withHeadroom())

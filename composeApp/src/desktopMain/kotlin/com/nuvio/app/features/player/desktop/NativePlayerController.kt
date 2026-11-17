@@ -154,6 +154,11 @@ internal class NativePlayerController(
         val onFailed: (String) -> Unit,
     )
 
+    private val _releasingForNavigation = MutableStateFlow(false)
+
+    /** True from a Back request until its release fails; the host parks the video window meanwhile. */
+    val releasingForNavigation: StateFlow<Boolean> = _releasingForNavigation.asStateFlow()
+
     private val lifecycleLock = Any()
     private val playerCommandDispatcher = Dispatchers.IO.limitedParallelism(1)
     @Volatile
@@ -1380,11 +1385,46 @@ internal class NativePlayerController(
         NativePlayerBridge.setSpeed(current, next)
     }
 
+    private var firstFrameHandle = 0L
+    private var firstFrameShown = false
+    private var firstFrameReadySinceNanos = 0L
+    private var firstFrameVoReadySinceNanos = 0L
+
+    /**
+     * mpv reports the file as loaded before its first frame reaches the screen. Keep the opening overlay up until
+     * the video output is configured and a few frames have had time to present, so it fades onto the picture
+     * instead of onto a black window. Only the first load of each player is held, and never for long.
+     */
+    @Synchronized
+    private fun awaitingFirstVideoFrame(current: Long): Boolean {
+        if (firstFrameHandle != current) {
+            firstFrameHandle = current
+            firstFrameShown = false
+            firstFrameReadySinceNanos = 0L
+            firstFrameVoReadySinceNanos = 0L
+        }
+        if (firstFrameShown) return false
+        val now = System.nanoTime()
+        if (firstFrameReadySinceNanos == 0L) firstFrameReadySinceNanos = now
+        fun flag(name: String): Boolean =
+            NativePlayerBridge.stringProperty(current, name).trim().lowercase() in setOf("yes", "true", "1")
+        val video = NativePlayerBridge.stringProperty(current, "vid").trim().lowercase()
+        val hasVideo = video.isNotEmpty() && video != "no" && video != "false"
+        if (hasVideo && flag("vo-configured")) {
+            if (firstFrameVoReadySinceNanos == 0L) firstFrameVoReadySinceNanos = now
+        }
+        val presented = !hasVideo ||
+            (firstFrameVoReadySinceNanos != 0L && now - firstFrameVoReadySinceNanos >= FIRST_FRAME_GRACE_NANOS)
+        val timedOut = now - firstFrameReadySinceNanos >= FIRST_FRAME_TIMEOUT_NANOS
+        if (presented || timedOut) firstFrameShown = true
+        return !firstFrameShown
+    }
+
     fun snapshot(): PlayerPlaybackSnapshot {
         val current = handle
         if (current == 0L) return PlayerPlaybackSnapshot(isLoading = true)
         return runCatching {
-            val isLoading = NativePlayerBridge.isLoading(current)
+            val isLoading = NativePlayerBridge.isLoading(current) || awaitingFirstVideoFrame(current)
             val isPaused = NativePlayerBridge.isPaused(current)
             val durationMs = NativePlayerBridge.durationMs(current)
             val positionMs = NativePlayerBridge.positionMs(current)
@@ -1430,9 +1470,13 @@ internal class NativePlayerController(
         synchronized(lifecycleLock) {
             releaseRequested = true
         }
+        _releasingForNavigation.value = true
         host.resetCursorVisibility()
         invalidateForRelease()
-        val callback = ReleaseCallback(onReleased, onReleaseFailed)
+        val callback = ReleaseCallback(onReleased) { message ->
+            _releasingForNavigation.value = false
+            onReleaseFailed(message)
+        }
         var shouldStart = false
         var immediateFailure: String? = null
         val worker = synchronized(lifecycleLock) {
@@ -3269,3 +3313,6 @@ private fun String.toJsonString(): String =
         }
         append('"')
     }
+
+private const val FIRST_FRAME_GRACE_NANOS = 120_000_000L
+private const val FIRST_FRAME_TIMEOUT_NANOS = 2_000_000_000L

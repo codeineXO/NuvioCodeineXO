@@ -11,6 +11,10 @@ import coil3.compose.LocalPlatformContext
 import coil3.compose.asPainter
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.size.Scale
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.LocalWindowInfo
+import com.nuvio.app.core.ui.desktopDecodeEdge
 import com.nuvio.app.isDesktop
 
 /**
@@ -26,17 +30,32 @@ internal object OpeningArtworkCache {
     fun put(url: String, painter: Painter) {
         entry = url to painter
     }
+
+    fun clear() {
+        entry = null
+    }
 }
 
-/** Decodes [url] ahead of time so the first loading screen already has its artwork. */
+/**
+ * Decodes [url] ahead of time so the first loading screen already has its artwork. It asks for exactly what a
+ * full-window loading screen will (window size plus desktop headroom, cropped to fill), so that screen's own
+ * request is a memory-cache hit rather than a second decode.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun PrefetchOpeningArtwork(url: String?) {
     if (!isDesktop || url.isNullOrBlank()) return
     val context = LocalPlatformContext.current
-    LaunchedEffect(url) {
+    val windowSize = LocalWindowInfo.current.containerSize
+    LaunchedEffect(url, windowSize) {
         if (OpeningArtworkCache.painterFor(url) != null) return@LaunchedEffect
+        if (windowSize.width <= 0 || windowSize.height <= 0) return@LaunchedEffect
         val result = SingletonImageLoader.get(context).execute(
-            ImageRequest.Builder(context).data(url).size(1920, 1080).build(),
+            ImageRequest.Builder(context)
+                .data(url)
+                .size(desktopDecodeEdge(windowSize.width), desktopDecodeEdge(windowSize.height))
+                .scale(Scale.FILL)
+                .build(),
         )
         val image = (result as? SuccessResult)?.image ?: return@LaunchedEffect
         if (OpeningArtworkCache.painterFor(url) == null) {

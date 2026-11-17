@@ -1,6 +1,16 @@
 package com.nuvio.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import com.nuvio.app.navigation.playerEnterFadeMillis
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.features.player.OpeningOverlay
 import com.nuvio.app.features.player.subtitleLoadingStatusMessage
@@ -43,4 +53,38 @@ internal fun StreamLoadingScreen(
         horizontalSafePadding = 0.dp,
         message = message,
     )
+}
+
+/**
+ * Desktop fades the loading screen over the stream list, and keeps it up while the player fades in on top, instead
+ * of cutting between them. It swallows pointer input so the list beneath cannot be clicked through it.
+ */
+@Composable
+internal fun FadingStreamLoadingScreen(
+    visible: Boolean,
+    content: @Composable () -> Unit,
+) {
+    if (!isDesktop) {
+        if (visible) content()
+        return
+    }
+    val fadeMillis = playerEnterFadeMillis()
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(fadeMillis, easing = FastOutSlowInEasing)),
+        // Outlasts the player's own fade-in, so the list never shows through while the player covers this screen.
+        exit = fadeOut(tween(fadeMillis, delayMillis = fadeMillis, easing = FastOutSlowInEasing)),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                },
+        ) {
+            content()
+        }
+    }
 }

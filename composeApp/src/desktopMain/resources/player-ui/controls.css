@@ -1721,11 +1721,20 @@ button:disabled {
   opacity: 0;
 }
 
+/* While progress is reported the base is a dim, still outline and the fill reveals the full logo over it.
+   Without this the loaded base (.opening-logo.image-loaded) stays fully opaque and hides the fill. */
+.opening-overlay.has-progress .opening-logo-base.image-loaded {
+  opacity: .25;
+  animation: none !important;
+  transform: none;
+}
+
 .opening-logo-fill-clip {
   position: absolute;
   inset: 0 auto 0 0;
   width: 0%;
   overflow: hidden;
+  transition: width 400ms linear;
 }
 
 .opening-logo-fill {

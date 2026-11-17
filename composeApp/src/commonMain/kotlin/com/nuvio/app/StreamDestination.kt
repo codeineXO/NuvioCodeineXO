@@ -931,7 +931,7 @@ internal fun StreamDestination(
                 },
             )
         }
-        if (showLoadingScreen) {
+        FadingStreamLoadingScreen(visible = showLoadingScreen) {
             StreamLoadingScreen(
                 launch = launch,
                 state = streamsUiState.takeIf { it.requestToken == expectedStreamsRequestToken } ?: StreamsUiState(),

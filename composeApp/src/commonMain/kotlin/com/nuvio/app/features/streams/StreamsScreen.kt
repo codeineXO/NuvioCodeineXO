@@ -293,7 +293,8 @@ fun StreamsScreen(
         )
     }
 
-    if (showLoadingScreen) return
+    // Desktop keeps the list beneath so the loading screen can fade in over it rather than cut to it.
+    if (showLoadingScreen && !isDesktop) return
 
     val metadataState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
     val pluginIds by PluginIdDiagnostics.resolutions.collectAsStateWithLifecycle()

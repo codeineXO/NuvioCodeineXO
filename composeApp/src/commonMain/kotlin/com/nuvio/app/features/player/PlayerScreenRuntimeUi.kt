@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.height
@@ -1082,6 +1083,22 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             }
             RenderPlayerModals(displayedPositionMs = displayedPositionMs)
         }
+    }
+
+    // Desktop parks the native video window while the player shuts down on Back. Its in-app overlays (buffer
+    // stats, status chips and the like) normally sit hidden behind that window, so cover them until navigation
+    // completes; if the release fails the cover lifts with it.
+    if (isDesktop && !args.isMiniPlayer && playerReleaseSurfaceRetention.inFlight) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                },
+        )
     }
 }
 
