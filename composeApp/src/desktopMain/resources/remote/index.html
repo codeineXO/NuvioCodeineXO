@@ -74,6 +74,10 @@
   .dpad .ok { width: 38%; height: 38%; left: 31%; top: 31%; border-radius: 50%; color: var(--ctp-text); font-size: 20px; font-weight: 600;
     transition: transform 0.15s var(--ease), background-color 0.15s; }
   .dpad .ok.pressed { transform: scale(0.95); background-color: var(--glass-accent); box-shadow: var(--glass-selected-rim); }
+  .trackpad { width: 100%; height: min(59dvh, 400px); display: grid; place-items: center;
+    padding: 16px; text-align: center; touch-action: none; -webkit-touch-callout: none; }
+  .trackpad[hidden] { display: none; }
+  .trackpad > span { pointer-events: none; }
 
   /* Browsing: Home's hero and rows, Search, and the sidebar as a tab bar. */
   .browse { justify-content: flex-start; align-items: stretch; gap: 26px; width: 100%; }
@@ -84,7 +88,7 @@
   .tabbar, .action-pill { display: flex; gap: 2px; padding: 6px; pointer-events: auto;
     border-radius: 9999px; }
   /* Keep the tabs' space during playback so the Back pill stays in place. */
-  body:has(#player:not([hidden])) .tabbar { visibility: hidden; }
+  body:has(#player:not([hidden]), #remote[data-playing]:not([hidden])) .tabbar { visibility: hidden; }
   .tab { min-width: var(--bottom-tab-width); height: 52px; padding-inline: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 2px; border-radius: 9999px; font-size: 11px; font-weight: 500; color: var(--ctp-subtext1); transition: background-color 0.2s, color 0.2s; }
   .tab :is(.line, .ic) { width: 22px; height: 22px; }
@@ -524,6 +528,9 @@
   <h1 class="t-headline">NuvioCodeineXO</h1>
   <span class="status" id="status" role="img" aria-label="Connecting"><span class="dot"></span><span class="spin-ring sm"></span></span>
   <button class="btn btn-icon btn-gray" id="dpad-toggle" aria-label="Remote D-pad" aria-pressed="false"><svg class="line"><use href="#i-remote"/></svg></button>
+  <button class="btn btn-icon btn-gray" id="trackpad-toggle" aria-label="Trackpad" aria-pressed="false" data-enabled="<!-- trackpad enabled -->" hidden>
+    <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 15h18"/></svg>
+  </button>
   <button class="btn btn-icon btn-gray" id="appearance-open" aria-label="Appearance">
     <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 1.1-2.5 1.5 1.5 0 0 1 1.1-2.5H17a4 4 0 0 0 4-4c0-5-4-9-9-9Z"/><path d="M7.5 12h.01M9 8h.01M13 7h.01M17 10h.01"/></svg>
   </button>
@@ -715,12 +722,15 @@
 
 <main id="remote" hidden>
   <div class="t-sub text-sub pc-note" id="pc-note" hidden></div>
-  <div class="dpad">
+  <div class="dpad" id="dpad">
     <button class="arrow up" data-key="up" aria-label="Up"><svg class="line" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>
     <button class="arrow left" data-key="left" aria-label="Left"><svg class="line" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
     <button class="ok" id="dpad-ok">OK</button>
     <button class="arrow right" data-key="right" aria-label="Right"><svg class="line" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
     <button class="arrow down" data-key="down" aria-label="Down"><svg class="line" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+  <div class="card trackpad" id="trackpad" role="group" aria-label="Trackpad gestures" hidden>
+    <span class="t-sub text-sub">Tap to click · Two fingers to scroll in any direction or right-click · Tap, then touch again and move to drag</span>
   </div>
 </main>
 
@@ -876,6 +886,7 @@
     ws.onopen = () => { retry = 500; setStatus(true); };
     ws.onclose = () => {
       stopDpadPress();
+      cancelTrackpad();
       $('card-menu').close();
       closePlayerSheets();
       state = { active: false };
@@ -904,6 +915,7 @@
       if (msg.k === 'sleep') showSleep(msg);
       if (msg.k === 'route') {
         const wasPlayerRoute = pcRoute === 'player';
+        if (pcRoute !== msg.route || activeDetailKey !== msg.detailKey) cancelTrackpad();
         pcRoute = msg.route;
         if (activeDetailKey !== msg.detailKey) {
           activeDetailKey = msg.detailKey;
@@ -1066,6 +1078,8 @@
   let browseTab = 'home';
   let dpadMode = false;
   let dpadPress = null;
+  let trackpadMode = false;
+  const trackpadAvailable = $('trackpad-toggle').dataset.enabled === 'true';
   try { dpadMode = localStorage.getItem('nuvio_dpad') === '1'; } catch (_) {}
 
   // The page the PC shows; the phone follows it into a title, its sources and the player.
@@ -1098,7 +1112,7 @@
 
   let viewKey = '';
   function updateView(options) {
-    const key = `${pcRoute}|${browseTab}|${dpadMode}`;
+    const key = `${pcRoute}|${browseTab}|${dpadMode}|${trackpadMode}`;
     const switching = key !== viewKey;
     viewKey = key;
     // Apply player navigation immediately so a browser snapshot cannot delay the playback controls or Back.
@@ -1134,7 +1148,8 @@
     // The PC moved on: whatever was spinning has arrived.
     const view = `${playing}|${pcRoute}`;
     if (view !== lastView) { clearBusy(); clearBackPending(); $('card-menu').close(); lastView = view; }
-    const browsing = !playing && !dpadMode;
+    const playerVisible = playing && !trackpadMode;
+    const browsing = !playing && !dpadMode && !trackpadMode;
     const onTabs = browsing && pcRoute === 'tabs';
     const homeVisible = onTabs && browseTab === 'home';
     const homeWasVisible = !$('home').hidden;
@@ -1145,9 +1160,9 @@
     // Every tab has a page here, so the D-pad is only for pages the phone can't show (or when asked for).
     const pcTab = onTabs && !['home', 'search', 'library', 'shuffle'].includes(browseTab);
     const pcPage = browsing && pcRoute === 'other';
-    setHidden('player', !playing);
-    setHidden('next-episode-pill', !(playing && state.active && state.nextEpisodePlayable));
-    setHidden('skip-segment-pill', !(playing && state.active && state.skipSegment));
+    setHidden('player', !playerVisible);
+    setHidden('next-episode-pill', !(playerVisible && state.active && state.nextEpisodePlayable));
+    setHidden('skip-segment-pill', !(playerVisible && state.active && state.skipSegment));
     setHidden('home', !homeVisible);
     setHidden('search', !(onTabs && browseTab === 'search'));
     const detailsVisible = browsing && pcRoute === 'details';
@@ -1170,17 +1185,22 @@
       setHidden(page, !(browsing && routes.includes(pcRoute)));
       if (opening) { scrollTo(0, 0); render(); }
     });
-    const hideDpad = playing || !(dpadMode || pcTab || pcPage);
+    const hideDpad = playing || trackpadMode || !(dpadMode || pcTab || pcPage);
     if (hideDpad) {
       stopDpadPress();
-      if (!playing && !switchingTabs && !$('remote').hidden) send({ cmd: 'exitDpad' });
+      if (!playing && !switchingTabs && !$('dpad').hidden && !$('remote').hidden) send({ cmd: 'exitDpad' });
     }
-    setHidden('remote', hideDpad);
+    $('remote').toggleAttribute('data-playing', playing);
+    setHidden('remote', hideDpad && !trackpadMode);
+    setHidden('dpad', hideDpad);
+    setHidden('trackpad', !trackpadMode);
     $('pc-note').hidden = !(pcTab || pcPage);
     $('pc-note').textContent = pcTab ? `${TAB_NAMES[browseTab]} is open on your PC. Use the D-pad to move around.`
       : pcPage ? 'This page is open on your PC. Use the D-pad to move around.' : '';
     $('dpad-toggle').hidden = playing;
     $('dpad-toggle').setAttribute('aria-pressed', dpadMode);
+    $('trackpad-toggle').hidden = !trackpadAvailable;
+    $('trackpad-toggle').setAttribute('aria-pressed', trackpadMode);
     document.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', t.dataset.tab === browseTab));
     if (enteredPlayer) restoreViewScroll('player', 0);
     if (homeVisible && !homeWasVisible) {
@@ -1240,13 +1260,27 @@
   document.querySelectorAll('[data-tab]').forEach((tab) => tab.addEventListener('click', () => {
     const returningHome = tab.dataset.tab === 'home' && $('home').hidden;
     browseTab = tab.dataset.tab;
+    trackpadMode = false;
+    cancelTrackpad();
     setDpadMode(false);
     send({ cmd: 'tab', tab: browseTab });
     updateView({ switchingTabs: true });
     if (!returningHome) scrollTo({ top: 0 });
   }));
   $('dpad-toggle').addEventListener('click', () => {
+    trackpadMode = false;
+    cancelTrackpad();
     setDpadMode(!dpadMode);
+    updateView();
+  });
+  $('trackpad-toggle').addEventListener('click', () => {
+    trackpadMode = !trackpadMode;
+    cancelTrackpad();
+    if (trackpadMode) {
+      setDpadMode(false);
+      stopDpadPress();
+      closePlayerSheets();
+    }
     updateView();
   });
 
@@ -1836,6 +1870,7 @@
   }
 
   document.querySelectorAll('[data-back]').forEach((button) => button.addEventListener('click', () => {
+    cancelTrackpad();
     if (pcRoute === 'player') {
       if (ws?.readyState !== WebSocket.OPEN) return;
       backPending(button, null);
@@ -2996,8 +3031,172 @@
     button.addEventListener('click', (e) => { if (e.detail === 0) send(msg); });
     button.addEventListener('contextmenu', (e) => e.preventDefault());
   });
+  const trackpad = $('trackpad');
+  const trackpadPointers = new Map();
+  const trackpadThreshold = 6;
+  // A tap is a short touch that does not move; a second touch soon after a tap drags.
+  const trackpadTapMax = 350;
+  const trackpadDoubleTap = 350;
+  // Windows wheel units (120 = one notch) per pixel of two-finger travel, summed over both fingers.
+  const trackpadWheelPerPx = 2.5;
+  const trackpadSend = (action, data) => send({ cmd: 'trackpad', action, ...data });
+  let trackpadGesture = null;
+  let trackpadLastTap = 0;
+  let trackpadFrame = 0;
+  let trackpadDx = 0;
+  let trackpadDy = 0;
+  let trackpadWheelX = 0;
+  let trackpadWheelY = 0;
+  let trackpadKeepAlive = 0;
+
+  function scheduleTrackpadFlush() {
+    if (!trackpadFrame) trackpadFrame = requestAnimationFrame(() => flushTrackpad());
+  }
+
+  // When the socket is backed up the totals keep building and go out once it drains, so no travel is lost.
+  function flushTrackpad(force = false) {
+    cancelAnimationFrame(trackpadFrame);
+    trackpadFrame = 0;
+    if (!force && ws?.bufferedAmount > 4096) {
+      if (trackpadDx || trackpadDy || trackpadWheelX || trackpadWheelY) scheduleTrackpadFlush();
+      return;
+    }
+    const dx = Math.trunc(trackpadDx);
+    const dy = Math.trunc(trackpadDy);
+    const wheelX = Math.trunc(trackpadWheelX);
+    const wheelY = Math.trunc(trackpadWheelY);
+    trackpadDx -= dx;
+    trackpadDy -= dy;
+    trackpadWheelX -= wheelX;
+    trackpadWheelY -= wheelY;
+    if (dx || dy) trackpadSend('move', { dx, dy });
+    if (wheelX || wheelY) trackpadSend('wheel', { dx: wheelX, dy: wheelY });
+  }
+
+  // Slow movement stays near 1:1 for precision; fast flicks cover more of the screen.
+  function trackpadGain(dx, dy, dt) {
+    const speed = Math.hypot(dx, dy) / Math.max(dt, 1);
+    return Math.min(3.5, 1 + speed * 1.6);
+  }
+
+  function endTrackpadDrag() {
+    if (!trackpadGesture?.dragging) return;
+    trackpadGesture.dragging = false;
+    clearInterval(trackpadKeepAlive);
+    trackpadSend('dragEnd');
+  }
+
+  function cancelTrackpad() {
+    endTrackpadDrag();
+    cancelAnimationFrame(trackpadFrame);
+    trackpadFrame = trackpadDx = trackpadDy = trackpadWheelX = trackpadWheelY = 0;
+    trackpadGesture = null;
+    const captured = [...trackpadPointers.keys()];
+    trackpadPointers.clear();
+    for (const id of captured) {
+      if (trackpad.hasPointerCapture(id)) trackpad.releasePointerCapture(id);
+    }
+  }
+
+  trackpad.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || ws?.readyState !== WebSocket.OPEN || trackpad.hidden) return;
+    event.preventDefault();
+    trackpad.setPointerCapture(event.pointerId);
+    trackpadPointers.set(event.pointerId, {
+      x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, t: event.timeStamp,
+    });
+    if (!trackpadGesture) {
+      const now = performance.now();
+      trackpadGesture = {
+        started: now, fingers: 1, moved: false, dragging: false, blocked: false,
+        tapDrag: now - trackpadLastTap < trackpadDoubleTap,
+      };
+      trackpadLastTap = 0;
+    } else if (trackpadGesture.fingers !== 1 || trackpadGesture.dragging) {
+      flushTrackpad(true);
+      endTrackpadDrag();
+      trackpadGesture.blocked = true;
+    } else {
+      flushTrackpad(true);
+      trackpadDx = trackpadDy = 0;
+      trackpadGesture.fingers = 2;
+      for (const point of trackpadPointers.values()) {
+        point.startX = point.x;
+        point.startY = point.y;
+      }
+    }
+  });
+
+  function moveTrackpad(event) {
+    const point = trackpadPointers.get(event.pointerId);
+    const gesture = trackpadGesture;
+    if (!point || !gesture || gesture.blocked) return;
+    const dx = event.clientX - point.x;
+    const dy = event.clientY - point.y;
+    const dt = event.timeStamp - point.t;
+    point.x = event.clientX;
+    point.y = event.clientY;
+    point.t = event.timeStamp;
+    const fromStartX = point.x - point.startX;
+    const fromStartY = point.y - point.startY;
+    const crossedThreshold = Math.hypot(fromStartX, fromStartY) >= trackpadThreshold;
+    if (trackpadPointers.size !== gesture.fingers) {
+      if (crossedThreshold) gesture.moved = true;
+      return;
+    }
+    if (gesture.fingers === 2) {
+      // Lock to the axis the fingers first travel along, like a laptop trackpad.
+      // Content follows the fingers: moving them up scrolls down, moving them left scrolls right.
+      if (gesture.axis) {
+        if (gesture.axis === 'x') trackpadWheelX -= dx * trackpadWheelPerPx;
+        else trackpadWheelY -= dy * trackpadWheelPerPx;
+      } else if (crossedThreshold) {
+        gesture.moved = true;
+        gesture.axis = Math.abs(fromStartX) > Math.abs(fromStartY) ? 'x' : 'y';
+        if (gesture.axis === 'x') trackpadWheelX -= fromStartX * trackpadWheelPerPx;
+        else trackpadWheelY -= fromStartY * trackpadWheelPerPx;
+      }
+    } else if (gesture.moved) {
+      const gain = trackpadGain(dx, dy, dt);
+      trackpadDx += dx * gain;
+      trackpadDy += dy * gain;
+    } else if (crossedThreshold) {
+      gesture.moved = true;
+      if (gesture.tapDrag) {
+        gesture.dragging = true;
+        trackpadSend('dragStart');
+        trackpadKeepAlive = setInterval(() => trackpadSend('dragKeepAlive'), 400);
+      }
+      trackpadDx += fromStartX;
+      trackpadDy += fromStartY;
+    }
+    if (gesture.moved) scheduleTrackpadFlush();
+  }
+
+  trackpad.addEventListener('pointermove', moveTrackpad);
+  trackpad.addEventListener('pointerup', (event) => {
+    if (!trackpadPointers.has(event.pointerId)) return;
+    moveTrackpad(event);
+    trackpadPointers.delete(event.pointerId);
+    if (trackpadPointers.size) return;
+    const gesture = trackpadGesture;
+    // The last of the travel goes out before dragEnd, even if the socket is backed up.
+    flushTrackpad(true);
+    if (!gesture.blocked && !gesture.moved && performance.now() - gesture.started < trackpadTapMax) {
+      trackpadSend(gesture.fingers === 1 ? 'leftClick' : 'rightClick');
+      if (gesture.fingers === 1) trackpadLastTap = performance.now();
+    }
+    cancelTrackpad();
+  });
+  for (const event of ['pointercancel', 'lostpointercapture']) {
+    trackpad.addEventListener(event, (e) => { if (trackpadPointers.has(e.pointerId)) cancelTrackpad(); });
+  }
+  trackpad.addEventListener('contextmenu', (event) => event.preventDefault());
+  window.addEventListener('pagehide', cancelTrackpad);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopDpadPress();
+    if (!document.hidden) return;
+    stopDpadPress();
+    cancelTrackpad();
   });
 
   try {

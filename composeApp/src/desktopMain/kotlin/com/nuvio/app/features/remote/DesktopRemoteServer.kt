@@ -41,6 +41,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
@@ -58,6 +60,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
     private val RATING_LOGO = Regex("""rating_[a-z_]+\.svg""")
     private val store = DesktopStorage.store("nuvio_remote_settings")
     private var server: EmbeddedServer<*, *>? = null
+    private var trackpad: RemoteTrackpad? = null
 
     fun install() {
         AnimeFillerSettingsRepository.ensureLoaded()
@@ -76,6 +79,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
     @Synchronized
     override fun start(port: Int): RemoteServer.Connection {
         val devices = MutableStateFlow<List<RemoteDevice>>(emptyList())
+        val pointer = RemoteTrackpad()
         val engine = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(WebSockets) {
                 pingPeriodMillis = 15_000
@@ -114,6 +118,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                 webSocket("/ws") {
                     val device = remoteDevice(call.request.local.remoteAddress, call.request.headers[HttpHeaders.UserAgent])
                     val cardMenus = RemoteCardMenuSession()
+                    val pointerSession = Any()
                     val player = launch {
                         combine(
                             RemotePlayerLink.state,
@@ -149,9 +154,14 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                     devices.update { it + device }
                     try {
                         for (frame in incoming) {
-                            if (frame is Frame.Text) handle(frame.readText(), cardMenus) { send(Frame.Text(it)) }
+                            if (frame !is Frame.Text) continue
+                            val json = runCatching { Json.parseToJsonElement(frame.readText()).jsonObject }.getOrNull() ?: continue
+                            val cmd = (json["cmd"] as? JsonPrimitive)?.contentOrNull ?: continue
+                            if (cmd == "trackpad") pointer.handle(pointerSession, json)
+                            else handle(cmd, json, cardMenus) { send(Frame.Text(it)) }
                         }
                     } finally {
+                        pointer.disconnect(pointerSession)
                         devices.update { it - device }
                         player.cancel()
                         progress.cancel()
@@ -170,6 +180,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
         }
         engine.start(wait = false)
         server = engine
+        trackpad = pointer
         return RemoteServer.Connection(
             url = lanAddress()?.let { "http://$it:$port" },
             devices = devices.asStateFlow(),
@@ -178,8 +189,13 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
 
     @Synchronized
     override fun stop() {
-        server?.stop(gracePeriodMillis = 100, timeoutMillis = 500)
-        server = null
+        try {
+            server?.stop(gracePeriodMillis = 100, timeoutMillis = 500)
+        } finally {
+            trackpad?.close()
+            trackpad = null
+            server = null
+        }
     }
 
     private fun remoteDevice(address: String, userAgent: String?): RemoteDevice {
@@ -227,9 +243,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
      * control, `{"cmd":"click","target":"sources"}` clicks that on-screen control, `{"cmd":"close"}` closes the PC's
      * open panel, anything else is a key press.
      */
-    private suspend fun handle(message: String, cardMenus: RemoteCardMenuSession, sendMenu: suspend (String) -> Unit) {
-        val json = runCatching { Json.parseToJsonElement(message).jsonObject }.getOrNull() ?: return
-        val cmd = json["cmd"]?.jsonPrimitive?.contentOrNull ?: return
+    private suspend fun handle(cmd: String, json: JsonObject, cardMenus: RemoteCardMenuSession, sendMenu: suspend (String) -> Unit) {
         when (cmd) {
             "cardMenu" -> {
                 cardMenus.open(json)?.let { sendMenu(it) }
@@ -278,6 +292,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
         val end = controls.indexOf("</svg>", start)
         val icons = if (start >= 0 && end > start) controls.substring(start, end + "</svg>".length) else ""
         return html.replace("<!-- player icons -->", icons)
+            .replace("<!-- trackpad enabled -->", if (RemoteTrackpad.available) "true" else "false")
     }
 
     /** A file of the remote page from resources/remote, read on every request so edits show up on a refresh. */
