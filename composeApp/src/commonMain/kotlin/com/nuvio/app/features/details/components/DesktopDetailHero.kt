@@ -552,6 +552,8 @@ private fun DesktopHeroMetaRow(
     }
     val validImdbRating = meta.imdbRating
         ?.takeIf { raw -> raw.toDoubleOrNull()?.let { it > 0.0 } == true }
+    val ratingMedia = remember(meta) { meta.ratingReference() }
+    val ratingState by rememberRatingState(ratingMedia)
     DesktopHeroMetaRow(
         metaItems = metaItems,
         ageRating = meta.ageRating,
@@ -559,6 +561,15 @@ private fun DesktopHeroMetaRow(
         imdbId = meta.imdbId ?: meta.id,
         textShadow = textShadow,
         externalRatings = externalRatings,
+        trailingContent = {
+            if (ratingState.isAvailable) {
+                DetailRating(
+                    media = ratingMedia,
+                    title = meta.name,
+                    state = ratingState,
+                )
+            }
+        },
     )
 }
 
@@ -571,6 +582,7 @@ internal fun DesktopHeroMetaRow(
     modifier: Modifier = Modifier,
     textShadow: Shadow? = null,
     externalRatings: List<MetaExternalRating> = emptyList(),
+    trailingContent: @Composable () -> Unit = {},
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val space = NuvioTokens.Space
@@ -636,5 +648,6 @@ internal fun DesktopHeroMetaRow(
                 )
             }
         }
+        trailingContent()
     }
 }

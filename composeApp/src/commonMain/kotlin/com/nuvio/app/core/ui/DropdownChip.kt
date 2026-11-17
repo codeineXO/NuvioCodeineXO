@@ -93,6 +93,7 @@ fun NuvioDropdownChip(
     wrapFilterLabels: Boolean = false,
     wrapSelectedLabel: Boolean = wrapFilterLabels,
     rememberKeyboardSelection: Boolean = false,
+    fillWidth: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
     var internalExpanded by remember { mutableStateOf(false) }
@@ -118,7 +119,7 @@ fun NuvioDropdownChip(
         Row(
             modifier = Modifier
                 .focusRequester(opener)
-                .then(if (wrapFilterLabels) Modifier.fillMaxWidth() else Modifier)
+                .then(if (wrapFilterLabels || fillWidth) Modifier.fillMaxWidth() else Modifier)
                 .then(if (!keyboardNavigationEnabled) Modifier.excludeFromRemoteNavigation()
                     else if (enabled) Modifier.remoteNavigationTarget(shape = tokens.shapes.compactCard) else Modifier)
                 .then(
@@ -147,7 +148,7 @@ fun NuvioDropdownChip(
                     wrapFilterLabels && isSheetVisible -> tokens.colors.accent
                     else -> tokens.colors.textPrimary
                 },
-                modifier = if (wrapFilterLabels) Modifier.weight(1f) else Modifier,
+                modifier = if (wrapFilterLabels || fillWidth) Modifier.weight(1f) else Modifier,
                 maxLines = if (wrapSelectedLabel) Int.MAX_VALUE else 1,
                 overflow = if (wrapSelectedLabel) TextOverflow.Clip else TextOverflow.Ellipsis,
             )

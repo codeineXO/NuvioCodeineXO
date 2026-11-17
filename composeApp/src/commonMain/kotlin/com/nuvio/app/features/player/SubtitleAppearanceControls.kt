@@ -96,6 +96,14 @@ internal fun SubtitleAppearanceControls(
             SubtitleColorControl(stringResource(Res.string.compose_player_outline_color), style.outlineColor) {
                 onStyleChanged(style.copy(outlineColor = it))
             }
+            SubtitleStyleSection(stringResource(Res.string.subtitle_outline_width)) {
+                SubtitleStyleStepper(
+                    value = style.outlineWidth.outlineWidthLabel(),
+                    enabled = true,
+                    onDecrease = { onStyleChanged(style.copy(outlineWidth = stepSubtitleOutlineWidth(style.outlineWidth, -1))) },
+                    onIncrease = { onStyleChanged(style.copy(outlineWidth = stepSubtitleOutlineWidth(style.outlineWidth, 1))) },
+                )
+            }
         }
         SubtitleToggleControl(stringResource(Res.string.subtitle_shadow), style.appearance.shadowEnabled) {
             onStyleChanged(style.copy(appearance = style.appearance.copy(shadowEnabled = it)))

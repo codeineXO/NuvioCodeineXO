@@ -57,11 +57,15 @@ internal fun PlayerScreenRuntime.playReplacementSource(stream: StreamItem, url: 
     controlsVisible = true
 }
 
-internal fun PlayerScreenRuntime.resetSourceFallback(url: String? = null) {
+internal fun PlayerScreenRuntime.resetSourceFallback(
+    url: String? = null,
+    tried: PlayerSourceFallbackTried? = null,
+) {
     sourceFallbackJob?.cancel()
     sourceFallbackJob = null
-    sourceFallbackAttempts = 0
+    sourceFallbackAttempts = tried?.attempts ?: 0
     sourceFallbackTriedKeys.clear()
+    if (tried != null) sourceFallbackTriedKeys.addAll(tried.keys)
     sourceFallbackUrl = url
 }
 

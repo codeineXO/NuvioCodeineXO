@@ -381,16 +381,30 @@ internal fun PlayerScreenRuntime.switchToSource(
     PlayerStreamsRepository.pauseSearchForPlayback()
 }
 
+/**
+ * @param autoSelection non-null when auto source selection picked [stream]: the sources it tried
+ * before it, so the fallback to the next matching source goes on from them.
+ */
 internal fun PlayerScreenRuntime.switchToEpisodeStream(
     stream: StreamItem,
     episode: MetaVideo,
     serverResumeMs: Long? = null,
     saveForReuse: Boolean = true,
+    autoSelection: PlayerSourceFallbackTried? = null,
 ) {
-    if (prepareServerForPlayer(stream) { switchToEpisodeStream(it, episode, serverResumeMs = newerServerResumeMs(it, episode)) }) return
+    if (
+        prepareServerForPlayer(stream) {
+            switchToEpisodeStream(
+                it,
+                episode,
+                serverResumeMs = newerServerResumeMs(it, episode),
+                autoSelection = autoSelection,
+            )
+        }
+    ) return
     if (
         resolveYouTubeForPlayer(stream) { resolved ->
-            switchToEpisodeStream(resolved, episode, saveForReuse = false)
+            switchToEpisodeStream(resolved, episode, saveForReuse = false, autoSelection = autoSelection)
         }
     ) return
     if (
@@ -398,7 +412,7 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(
             stream = stream,
             season = episode.season,
             episode = episode.episode,
-            onResolved = { resolvedStream -> switchToEpisodeStream(resolvedStream, episode) },
+            onResolved = { resolvedStream -> switchToEpisodeStream(resolvedStream, episode, autoSelection = autoSelection) },
             onStale = {
                 PlayerStreamsRepository.loadEpisodeStreams(
                     type = contentType ?: parentMetaType,
@@ -425,7 +439,7 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(
         saveDirectStreamForReuse(stream, url, epVideoId, episode.season, episode.episode)
     }
     externalSubtitles = stream.externalSubtitles
-    resetSourceFallback(url.takeIf { isDesktop })
+    restartSourceFallback(url, autoSelection)
     activeSourceUrl = url
     activeSourceAudioUrl = null
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
@@ -533,8 +547,9 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
         onDownloadedEpisodeSelected = { item, episode ->
             if (isCurrentRequest()) switchToDownloadedEpisode(item, episode)
         },
-        onEpisodeStreamSelected = { stream, episode ->
-            if (isCurrentRequest()) switchToEpisodeStream(stream, episode)
+        onEpisodeStreamSelected = { stream, episode, tried ->
+            // Auto source selection picked it, whether or not the user asked for the episode.
+            if (isCurrentRequest()) switchToEpisodeStream(stream, episode, autoSelection = tried)
         },
         onManualSelectionRequired = { nextVideo ->
             if (isCurrentRequest()) {

@@ -90,7 +90,7 @@ class PlayerSourceFallbackTest {
 
         assertEquals(candidates[0].url, runtime.activeSourceUrl)
         assertEquals(120_000L, runtime.activeInitialPositionMs)
-        assertEquals(candidates[0].url, runtime.autoSelectedSourceUrl)
+        assertEquals(candidates[0].url, runtime.sourceFallbackUrl)
     }
 
     @Test
@@ -128,6 +128,34 @@ class PlayerSourceFallbackTest {
         val runtime = runtime()
         runtime.playerSettingsUiState = runtime.playerSettingsUiState.copy(streamAutoPlayMode = StreamAutoPlayMode.MANUAL)
 
+        assertFalse(runtime.tryFallbackToNextSourceAfterError("failed"))
+    }
+
+    @Test
+    fun theNextEpisodeAutoPlayPickedStartsTheFallbackOver() {
+        val runtime = runtime()
+        runtime.sourceFallbackAttempts = 2
+        runtime.sourceFallbackTriedKeys += "earlier episode"
+        val nextUrl = "https://example.com/next-episode.mkv"
+        runtime.activeSourceUrl = nextUrl
+
+        runtime.restartSourceFallback(nextUrl, PlayerSourceFallbackTried(keys = setOf("tried while resolving"), attempts = 1))
+
+        assertEquals(nextUrl, runtime.sourceFallbackUrl)
+        assertEquals(1, runtime.sourceFallbackAttempts)
+        assertEquals(setOf("tried while resolving"), runtime.sourceFallbackTriedKeys)
+    }
+
+    @Test
+    fun anEpisodeTheUserPickedHasNothingToFallBackFrom() {
+        val runtime = runtime()
+        val pickedUrl = "https://example.com/picked-episode.mkv"
+        runtime.activeSourceUrl = pickedUrl
+
+        runtime.restartSourceFallback(pickedUrl, autoSelection = null)
+
+        assertNull(runtime.sourceFallbackUrl)
+        assertEquals(0, runtime.sourceFallbackAttempts)
         assertFalse(runtime.tryFallbackToNextSourceAfterError("failed"))
     }
 

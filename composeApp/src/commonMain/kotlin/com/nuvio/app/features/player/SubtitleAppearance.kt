@@ -43,7 +43,10 @@ internal fun SubtitleStyleState.appearanceForStorage(): SubtitleAppearance = app
 )
 
 internal val SubtitleStyleState.usesStyledOverlay: Boolean
-    get() = appearance.fontId != "default" || backgroundColor.alpha > 0f || appearance.shadowEnabled
+    get() = appearance.fontId != "default" ||
+        backgroundColor.alpha > 0f ||
+        appearance.shadowEnabled ||
+        (outlineEnabled && outlineWidth != SubtitleStyleState.DEFAULT.outlineWidth)
 
 object SubtitleRendering {
     fun supportsTextOverlay(codec: String): Boolean = codec.lowercase() in setOf(
