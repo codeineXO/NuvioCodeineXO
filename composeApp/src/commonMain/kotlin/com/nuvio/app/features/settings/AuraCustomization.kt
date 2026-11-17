@@ -100,7 +100,7 @@ private fun AuraCustomizationSheet(
         ) {
             Text(stringResource(Res.string.aura_customize), style = MaterialTheme.typography.titleLarge)
             if (!enabled) Text(stringResource(Res.string.aura_enable_hint))
-            AuraPreview(if (enabled) settings else settings.copy(animated = false))
+            AuraPreview(settings)
             Text(stringResource(Res.string.aura_palette), style = MaterialTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AuraPalette.entries.forEach { palette ->
@@ -126,13 +126,6 @@ private fun AuraCustomizationSheet(
                         modifier = Modifier.remoteNavigationTarget(),
                     )
                 }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.aura_animation))
-                    Text(stringResource(Res.string.aura_animation_description), style = MaterialTheme.typography.bodySmall)
-                }
-                Switch(checked = settings.animated, enabled = enabled, onCheckedChange = { onChange(settings.copy(animated = it)) })
             }
         }
     }

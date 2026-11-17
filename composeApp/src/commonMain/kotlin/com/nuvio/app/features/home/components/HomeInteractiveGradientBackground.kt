@@ -1,11 +1,5 @@
 package com.nuvio.app.features.home.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateValue
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,7 +40,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 internal fun interface AuroraRenderer {
-    fun draw(scope: DrawScope, phase: Float, heroBottomPx: Float, heroFadePx: Float): Boolean
+    fun draw(scope: DrawScope, heroBottomPx: Float, heroFadePx: Float): Boolean
 }
 
 internal val LocalAuroraRenderer =
@@ -65,19 +59,6 @@ fun HomeInteractiveGradientBackground(
     }
     val intensity = settings.intensity.multiplier
     val renderer = LocalAuroraRenderer.current?.invoke(background, colors, intensity)
-    val frame = if (settings.animated) {
-        rememberInfiniteTransition(label = "Aurora").animateValue(
-            initialValue = 0,
-            targetValue = AuroraFrames,
-            typeConverter = Int.VectorConverter,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = AuroraDurationSeconds * 1000, easing = LinearEasing),
-            ),
-            label = "Aurora flow",
-        )
-    } else {
-        null
-    }
 
     Box(modifier.fillMaxSize().navigationGlassSource()) {
         Spacer(
@@ -85,10 +66,9 @@ fun HomeInteractiveGradientBackground(
                 val heroFadePx = 96.dp.toPx()
                 val fallback by lazy { createMeshAuroraRenderer(size, background, colors, intensity) }
                 onDrawBehind {
-                    val phase = (frame?.value ?: 0) * ((2 * PI).toFloat() / AuroraFrames)
                     val heroBottom = (heroBottomPx?.invoke()?.toFloat() ?: 0f).coerceIn(0f, size.height)
-                    if (renderer?.draw(this, phase, heroBottom, heroFadePx) != true) {
-                        fallback(this, phase, heroBottom, heroFadePx)
+                    if (renderer?.draw(this, heroBottom, heroFadePx) != true) {
+                        fallback(this, heroBottom, heroFadePx)
                     }
                 }
             },
@@ -96,43 +76,26 @@ fun HomeInteractiveGradientBackground(
     }
 }
 
-private const val AuroraDurationSeconds = 28
-private const val AuroraFrames = AuroraDurationSeconds * 24
 private const val AuroraColumns = 64
 private const val AuroraRows = 48
+
+/** Height of the bright central band as a fraction of the viewport; shared with the desktop shader. */
+internal const val AuroraBandWidth = 0.12f
 
 private fun createMeshAuroraRenderer(
     size: Size,
     background: Color,
     colors: List<AuraGlow>,
     intensity: Float,
-): DrawScope.(Float, Float, Float) -> Unit {
+): DrawScope.(Float, Float) -> Unit {
     val vertices = createAuroraVertices(size, colors, intensity)
     val paint = Paint().apply { color = Color.White }
     val dither = createDitherBrush()
-    var previousPhase = Float.NaN
-    return { phase, heroBottom, fadePx ->
-        if (phase != previousPhase) {
-            updateAuroraPositions(vertices, size, phase)
-            previousPhase = phase
-        }
+    return { heroBottom, fadePx ->
         drawRect(background)
         drawContext.canvas.drawVertices(vertices, BlendMode.Modulate, paint)
         if (heroBottom > 0f) drawHeroAuraScrim(background, heroBottom, fadePx)
         drawRect(dither, blendMode = BlendMode.Plus)
-    }
-}
-
-private fun updateAuroraPositions(vertices: Vertices, size: Size, phase: Float) {
-    val positions = vertices.positions
-    for (column in 0..AuroraColumns) {
-        val x = column.toFloat() / AuroraColumns
-        val displacement = 0.032f * sin(x * 9f - phase) * (0.65f + 0.35f * sin(x * PI.toFloat()))
-        for (row in 1 until AuroraRows) {
-            val y = row.toFloat() / AuroraRows
-            val index = (column * (AuroraRows + 1) + row) * 2 + 1
-            positions[index] = round((y + displacement * sin(y * PI.toFloat())) * size.height)
-        }
     }
 }
 
@@ -180,17 +143,18 @@ private fun createAuroraVertices(size: Size, colors: List<AuraGlow>, intensity: 
         val x = column.toFloat() / AuroraColumns
         // Align shared triangle edges to pixels to avoid speckles in small previews.
         val pixelX = round(x * size.width)
+        val swell = sin(x * 9f) * (0.65f + 0.35f * sin(x * PI.toFloat()))
         val ridge = 0.55f - 0.19f * (x - 0.5f) + 0.10f * sin(x * 6.3f + 0.6f) +
-            0.025f * sin(x * 13f - 0.7f)
+            0.025f * sin(x * 13f - 0.7f) + 0.032f * swell
         for (row in 0..AuroraRows) {
             val y = row.toFloat() / AuroraRows
             val distance = y - ridge
             // A soft surrounding glow connects the whole field to the brighter curved band.
-            val band = auraFalloff(distance / 0.085f)
+            val band = auraFalloff(distance / AuroraBandWidth)
             val veil = auraFalloff((distance + 0.12f) / 0.34f)
             val fringe = auraFalloff((distance - 0.12f) / 0.25f)
             val opacity = intensity * (0.017f + 0.13f * band + 0.076f * veil + 0.047f * fringe)
-            val position = (0.94f * x + 0.18f * y - 0.06f).coerceIn(0f, 1f) * colors.lastIndex
+            val position = (0.94f * x + 0.18f * y - 0.06f + 0.017f * swell).coerceIn(0f, 1f) * colors.lastIndex
             val start = position.toInt().coerceAtMost(colors.lastIndex - 1)
             val end = start + 1
             val mix = position - start

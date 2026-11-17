@@ -18,14 +18,12 @@ enum class AuraIntensity(val key: String, val multiplier: Float) {
 data class AuraSettings(
     val palette: AuraPalette = AuraPalette.ORIGINAL,
     val intensity: AuraIntensity = AuraIntensity.BALANCED,
-    val animated: Boolean = true,
     val customColors: CustomThemeColors = CustomThemeColors.Default,
 ) {
     fun encode(): String = buildJsonObject {
         put("version", 1)
         put("palette", palette.key)
         put("intensity", intensity.key)
-        put("animated", animated)
         put("colors", buildJsonArray { customColors.colors.forEach { add(formatHexColor(it)) } })
     }.toString()
     companion object {
@@ -40,7 +38,6 @@ data class AuraSettings(
             AuraSettings(
                 palette = AuraPalette.entries.find { it.key == json["palette"]?.jsonPrimitive?.contentOrNull } ?: AuraPalette.ORIGINAL,
                 intensity = AuraIntensity.entries.find { it.key == json["intensity"]?.jsonPrimitive?.contentOrNull } ?: AuraIntensity.BALANCED,
-                animated = json["animated"]?.jsonPrimitive?.booleanOrNull ?: true,
                 customColors = colors,
             )
         }.getOrDefault(AuraSettings())

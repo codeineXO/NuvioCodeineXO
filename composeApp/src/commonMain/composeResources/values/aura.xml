@@ -16,8 +16,6 @@
     <string name="aura_subtle">Subtle</string>
     <string name="aura_balanced">Balanced</string>
     <string name="aura_vivid">Vivid</string>
-    <string name="aura_animation">Animation</string>
-    <string name="aura_animation_description">Animate glows and respond to scrolling</string>
     <string name="aura_custom_title">Custom Aura colors</string>
     <string name="aura_custom_subtitle">Choose three colors for your Aura. Select a color to edit it.</string>
     <string name="aura_custom_save">Save Aura colors</string>

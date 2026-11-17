@@ -45,21 +45,21 @@ private class DesktopAuroraRenderer(
                 uniformColor("inner$index", color.inner)
             }
             uniform("intensity", intensity)
+            uniform("bandWidth", AuroraBandWidth)
         }
     }
     private val paint = Paint()
 
-    override fun draw(scope: DrawScope, phase: Float, heroBottomPx: Float, heroFadePx: Float): Boolean {
+    override fun draw(scope: DrawScope, heroBottomPx: Float, heroFadePx: Float): Boolean {
         val (width, height) = scope.size
         if (width <= 0f || height <= 0f) return true
-        // Software rendering uses the mesh to keep the full-window animation responsive.
+        // Software rendering uses the mesh to keep full-window redraws responsive.
         when (window.renderApi) {
             GraphicsApi.UNKNOWN, GraphicsApi.SOFTWARE_FAST, GraphicsApi.SOFTWARE_COMPAT -> return false
             else -> Unit
         }
         val builder = shaderBuilder.value
         builder.uniform("viewport", width, height)
-        builder.uniform("phase", phase)
         builder.uniform("heroBottom", heroBottomPx)
         builder.uniform("heroFade", heroFadePx)
         builder.makeShader().use { shader ->
@@ -88,8 +88,8 @@ private val auroraEffect by lazy {
     RuntimeEffect.makeForShader(
         """
         uniform float2 viewport;
-        uniform float phase;
         uniform float intensity;
+        uniform float bandWidth;
         uniform float heroBottom;
         uniform float heroFade;
 
@@ -118,12 +118,12 @@ private val auroraEffect by lazy {
             float x = uv.x;
             float y = uv.y;
 
-            // Send a shallow wave along the main curve while its overall position stays anchored.
-            float swell = sin(x * 9.0 - phase) * (0.65 + 0.35 * sin(x * 3.14159));
+            // A shallow wave along the main curve.
+            float swell = sin(x * 9.0) * (0.65 + 0.35 * sin(x * 3.14159));
             float ridge = 0.55 - 0.19 * (x - 0.5) + 0.10 * sin(x * 6.3 + 0.6)
                 + 0.025 * sin(x * 13.0 - 0.7) + 0.032 * swell;
             float distance = y - ridge;
-            float band = falloff(distance / 0.085);
+            float band = falloff(distance / bandWidth);
             float veil = falloff((distance + 0.12) / 0.34);
             float fringe = falloff((distance - 0.12) / 0.25);
             float opacity = intensity * (0.017 + 0.13 * band + 0.076 * veil + 0.047 * fringe);
