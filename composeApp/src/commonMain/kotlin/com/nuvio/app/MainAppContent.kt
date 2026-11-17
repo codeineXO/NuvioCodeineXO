@@ -74,6 +74,7 @@ import com.nuvio.app.core.ui.collectMappedAsState
 import com.nuvio.app.navigation.PosterNavigationState
 import com.nuvio.app.navigation.posterNavigationEntry
 import com.nuvio.app.navigation.pageNavigationMotion
+import com.nuvio.app.navigation.transparentPageNavigationMotion
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.auth.DeviceSessionRegistration
@@ -1767,8 +1768,8 @@ internal fun MainAppContent(
                         routeDisposalDecorator,
                     ),
                     sharedTransitionScope = this@SharedTransitionLayout,
-                    transitionSpec = { pageNavigationMotion() },
-                    popTransitionSpec = { pageNavigationMotion() },
+                    transitionSpec = { pageNavigationMotion(forward = true) },
+                    popTransitionSpec = { pageNavigationMotion(forward = false) },
                     entryProvider = entryProvider<NavKey> {
                 val mainTabsContent: @Composable (Boolean) -> Unit = { picker ->
                     val tabsRouteActiveState = rememberUpdatedState(currentRoute is TabsRoute)
@@ -2026,9 +2027,9 @@ internal fun MainAppContent(
                 entry<StreamRoute>(
                     metadata = if (isDesktop) {
                         NavDisplay.transitionSpec {
-                            pageNavigationMotion()
+                            pageNavigationMotion(forward = true)
                         } + NavDisplay.popTransitionSpec {
-                            pageNavigationMotion()
+                            pageNavigationMotion(forward = false)
                         }
                     } else {
                         emptyMap()
@@ -2054,6 +2055,9 @@ internal fun MainAppContent(
                             fadeIn(animationSpec = tween(220)) togetherWith
                                 fadeOut(animationSpec = tween(220))
                         }
+                    } else if (isDesktop) {
+                        NavDisplay.transitionSpec { transparentPageNavigationMotion() } +
+                            NavDisplay.popTransitionSpec { transparentPageNavigationMotion() }
                     } else {
                         emptyMap()
                     },
@@ -2248,6 +2252,8 @@ internal fun MainAppContent(
                                             Box(
                                                 Modifier
                                                     .fillMaxSize()
+                                                    // Opaque per page so only the page on top fades; the player stays see-through for its video surface.
+                                                    .then(if (key is PlayerRoute) Modifier else Modifier.background(MaterialTheme.nuvio.colors.background))
                                                     .padding(start = if (useDesktopSidebar && !underBar) contentStartPadding else 0.dp)
                                                     .padding(if (underBar) PaddingValues() else verticalBarPadding),
                                             ) {

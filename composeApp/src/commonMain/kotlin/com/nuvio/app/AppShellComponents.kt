@@ -274,6 +274,7 @@ internal fun AppTabHost(
     modifier: Modifier = Modifier,
     shuffleSelected: Boolean = false,
     shuffleContent: (@Composable () -> Unit)? = null,
+    paneBackground: (@Composable (tabKey: String) -> Unit)? = null,
 ) {
     RootTabHost(
         selectedTab = selectedTab,
@@ -282,6 +283,7 @@ internal fun AppTabHost(
         profileId = state.profileId,
         shuffleSelected = shuffleSelected,
         shuffleContent = shuffleContent,
+        paneBackground = paneBackground,
     ) { tab ->
         // Inset per tab, not per selected tab, so the outgoing tab never jumps mid-fade.
         CompositionLocalProvider(LocalDesktopSidebarContentInset provides if (tab == AppScreenTab.Home) sidebarInset else 0.dp) {

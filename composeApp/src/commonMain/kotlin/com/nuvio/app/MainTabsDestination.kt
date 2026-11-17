@@ -71,6 +71,7 @@ import com.nuvio.app.features.settings.DesktopNavigationLayout
 import com.nuvio.app.features.settings.NavBarStyle
 import com.nuvio.app.features.settings.ThemeSettingsRepository
 import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_nav_home
@@ -228,23 +229,6 @@ internal fun MainTabsDestination(
             ),
         )
 
-        // Poster and settings pages share a full-window background, without a rectangle at the sidebar inset.
-        if (isDesktop && usesSharedTabBackground(selectedTab, randomPickerSelected)) {
-            val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
-            val backgroundModifier = Modifier.fillMaxSize()
-                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(navBarHazeState, zIndex = -1f) else Modifier)
-                .then(if (LocalFrostedGlassEnabled.current && !randomPickerSelected && selectedTab == AppScreenTab.Search) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
-            if (auraBackgroundEnabled) {
-                HomeInteractiveGradientBackground(modifier = backgroundModifier)
-            } else {
-                Box(
-                    modifier = backgroundModifier
-                        .navigationGlassSource(zIndex = -1f)
-                        .background(MaterialTheme.nuvio.colors.background),
-                )
-            }
-        }
-
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -310,6 +294,9 @@ internal fun MainTabsDestination(
                     AppTabHost(
                         selectedTab = selectedTab,
                         shuffleSelected = randomPickerSelected,
+                        // Poster and settings pages share a full-window background, without a rectangle at the sidebar inset.
+                        // Each tab draws it inside its own pane so it fades with that tab rather than vanishing at the switch.
+                        paneBackground = { tabKey -> if (isDesktop) TabPaneBackground(tabKey, navBarHazeState, searchBackdropState) },
                         shuffleContent = if (randomPickerContent != null) { {
                             Box(Modifier.fillMaxSize().padding(start = contentStartPadding)
                                 .padding(LocalVerticalBarPadding.current)) { randomPickerContent() }
@@ -406,3 +393,25 @@ internal fun MainTabsDestination(
 
 internal fun usesSharedTabBackground(selectedTab: AppScreenTab, shuffleSelected: Boolean): Boolean =
     shuffleSelected || selectedTab in setOf(AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Settings)
+
+/** The shared poster/settings background, drawn per pane; Home paints its own backdrop and gets none. */
+@Composable
+private fun TabPaneBackground(tabKey: String, navBarHazeState: HazeState, searchBackdropState: HazeState) {
+    val shuffle = tabKey == "Shuffle"
+    val tab = if (shuffle) AppScreenTab.Home else AppScreenTab.fromName(tabKey)
+    if (!usesSharedTabBackground(tab, shuffle)) return
+    val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
+    val frostedGlass = LocalFrostedGlassEnabled.current
+    val backgroundModifier = Modifier.fillMaxSize()
+        .then(if (frostedGlass) Modifier.hazeSource(navBarHazeState, zIndex = -1f) else Modifier)
+        .then(if (frostedGlass && tab == AppScreenTab.Search && !shuffle) Modifier.hazeSource(searchBackdropState, zIndex = -1f) else Modifier)
+    if (auraBackgroundEnabled) {
+        HomeInteractiveGradientBackground(modifier = backgroundModifier)
+    } else {
+        Box(
+            modifier = backgroundModifier
+                .navigationGlassSource(zIndex = -1f)
+                .background(MaterialTheme.nuvio.colors.background),
+        )
+    }
+}
