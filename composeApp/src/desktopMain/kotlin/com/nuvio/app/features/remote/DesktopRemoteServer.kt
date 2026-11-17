@@ -125,7 +125,6 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                     // Browsing: Home's rows and the search results.
                     val home = launch { RemoteHome.homeMessages.collect { send(Frame.Text(it)) } }
                     val search = launch { RemoteHome.searchMessages.collect { send(Frame.Text(it)) } }
-                    val hero = launch { RemoteHome.heroMessages.collect { send(Frame.Text(it)) } }
                     val catalog = launch { RemoteHome.catalogMessages.collect { send(Frame.Text(it)) } }
                     val folder = launch { RemoteFolderPage.messages.collect { send(Frame.Text(it)) } }
                     val discover = launch { RemoteSearch.messages.collect { send(Frame.Text(it)) } }
@@ -158,7 +157,6 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                         progress.cancel()
                         home.cancel()
                         search.cancel()
-                        hero.cancel()
                         catalog.cancel()
                         folder.cancel()
                         discover.cancel()
@@ -250,7 +248,7 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
         when (cmd) {
             "dpadBack" -> RemoteAppBridge.send(RemoteAppBridge.Command.Back(fromDpad = true))
             "okLong" -> SwingUtilities.invokeLater { RemoteNavigationDispatcher.openContextMenu() }
-            "tab", "open", "folder", "resume", "search", "layout", "heroPick", "viewAll", "catalogMore" -> RemoteHome.handle(cmd, json)
+            "tab", "open", "folder", "resume", "search", "desktopLayout", "viewAll", "catalogMore" -> RemoteHome.handle(cmd, json)
             "folderTab", "folderMore" -> RemoteFolderPage.handle(cmd, json)
             "searchRemove", "searchClear", "discoverType", "discoverCatalog", "discoverGenre", "discoverMore" -> RemoteSearch.handle(cmd, json)
             "shuffleFilter", "shufflePick", "shuffleReset", "shuffleCancel", "shuffleClose" -> RemoteShufflePage.handle(cmd, json)

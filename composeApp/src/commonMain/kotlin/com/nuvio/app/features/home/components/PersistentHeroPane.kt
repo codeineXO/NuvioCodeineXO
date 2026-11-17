@@ -219,8 +219,6 @@ internal fun PersistentHeroPane(
             }
         }
         val shown = selection.displayed?.content?.item
-        LaunchedEffect(active, shown) { RemoteAppBridge.publishPersistentHero(shown.takeIf { active }) }
-        DisposableEffect(Unit) { onDispose { RemoteAppBridge.publishPersistentHero(null) } }
     }
 
     val currentRowAnchors by rememberUpdatedState(rowAnchors)

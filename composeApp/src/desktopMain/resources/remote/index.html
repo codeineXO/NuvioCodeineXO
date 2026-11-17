@@ -118,8 +118,7 @@
   body:has(:is(#details, #player):not([hidden])) #media-backdrop { opacity: 0.42; }
   .latte body:has(#home:not([hidden])) #home-backdrop,
   .latte body:has(:is(#details, #player):not([hidden])) #media-backdrop { opacity: 0.29; }
-  /* One hero height for every layout (and its skeleton), scaled to the screen, so nothing jumps when the layout or
-     the title changes. The info sits at the bottom. */
+  /* Keep the hero and its loading skeleton the same height. */
   :root { --hero-h: clamp(380px, 64dvh, 125vw); }
   .hero-card { position: relative; flex: 0 0 100%; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: flex-end;
     height: var(--hero-h);
@@ -140,33 +139,18 @@
   .hero-card .desc { font-size: 15px; color: var(--ctp-subtext1); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
   .hero-card .btn { align-self: flex-start; margin-top: 4px; }
 
-  /* Home's three layouts, like the PC's Switch Layout:
-     Official: the carousel edge to edge. Scroll Posters: the carousel as a card, rows inside the margins.
-     Persistent Hero: no carousel; the picked title's artwork pinned at the top, the rows scrolling under it. */
-  .layout-switch button { height: 50px; flex-direction: column; gap: 2px; padding-inline: 4px; font-size: 12px; font-weight: 500; }
-  .layout-switch .line { width: 20px; height: 20px; }
   .hero-dots { display: flex; justify-content: center; gap: 6px; margin-top: -10px; }
   .hero-dots i { width: 6px; height: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--ctp-text) 30%, transparent);
     transition: width 0.25s var(--ease), background-color 0.25s; }
   .hero-dots i.on { width: 20px; background: var(--ctp-text); }
 
-  /* Official's hero and the Persistent Hero: edge to edge over the blurred backdrop, fading in at the top and out
-     at the bottom; the info sits above the bottom fade. */
-  #home[data-layout="official"] .hero-strip, .persistent-hero { margin-inline: -16px; padding-inline: 0; scroll-padding-inline: 0; gap: 0; }
-  :is(#home[data-layout="official"], .persistent-hero) .hero-card { border-radius: 0; background: transparent; }
-  :is(#home[data-layout="official"], .persistent-hero) .hero-card :is(img.bg, .shade) {
+  /* Home's hero fades into the blurred backdrop at the top and bottom. */
+  #home .hero-strip { margin-inline: -16px; padding-inline: 0; scroll-padding-inline: 0; gap: 0; }
+  #home .hero-card { border-radius: 0; background: transparent; }
+  #home .hero-card :is(img.bg, .shade) {
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 78%, transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 78%, transparent); }
-  :is(#home[data-layout="official"], .persistent-hero) .hero-card .info { padding: 0 20px 44px; }
-
-  #home[data-layout="scroll_posters"] .row-scroll { margin-inline: 0; padding-inline: 0; scroll-padding-inline: 0; }
-  #home[data-layout="scroll_posters"] .hero-card .desc { -webkit-line-clamp: 2; }
-
-  .persistent-hero { display: flex; }
-  :is(#home[data-layout="official"], #home[data-layout="persistent_hero"]) #hero-placeholder { margin-inline: -16px; border-radius: 0; }
-  .persistent-hero .hero-card { flex: 1; }
-  .tile[aria-current="true"] .art::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    box-shadow: inset 0 0 0 3px var(--accent); }
+  #home .hero-card .info { padding: 0 20px 44px; }
 
   .rows { display: flex; flex-direction: column; gap: 30px; }
   /* A row's header: its title, and "View All" when the row has more than the phone shows. */
@@ -251,8 +235,8 @@
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 90%, transparent), transparent); }
   .tile .resume small { display: block; font-size: 12px; font-weight: 600; color: var(--accent); }
   .tile .resume b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tile .bar { height: 4px; margin-top: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--ctp-text) 25%, transparent); overflow: hidden; }
-  .tile .bar i { display: block; height: 100%; background: var(--accent); }
+  :is(.tile, .hero-card) .bar { height: 4px; margin-top: 6px; border-radius: 9999px; background: color-mix(in srgb, var(--ctp-text) 25%, transparent); overflow: hidden; }
+  :is(.tile, .hero-card) .bar i { display: block; height: 100%; background: var(--accent); }
 
   .search-box { display: flex; align-items: center; gap: 10px; height: 48px; padding-inline: 14px; border-radius: var(--r-ctl);
     color: var(--ctp-subtext0); }
@@ -273,16 +257,16 @@
      setChildren() keeps unchanged items where they are, so updates from the PC only animate what is new. */
   :is(#home-rows, #search-rows, #catalog-grid, #folder-rows, #folder-grid, #folder-tabs, #discover-grid, #recent-list,
       #library-rows, #library-cloud, #s-list, #s-addons, #d-pills, #d-seasons, #d-episodes, #shuffle-feedback,
-      #shuffle-result, #card-menu-actions, #persistent-hero, #hero-strip, .catalog-grid, .catalog-status) > *,
-  :is(#layout-switch, #next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
+      #shuffle-result, #card-menu-actions, #hero-strip, .catalog-grid, .catalog-status) > *,
+  :is(#next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
       #home-empty, #sleep-chip, #recent-section, #search-start, #library-saved, #library-cloud) {
     transition: opacity 0.28s var(--ease), translate 0.28s var(--ease);
   }
   @starting-style {
     :is(#home-rows, #search-rows, #catalog-grid, #folder-rows, #folder-grid, #folder-tabs, #discover-grid, #recent-list,
         #library-rows, #library-cloud, #s-list, #s-addons, #d-pills, #d-seasons, #d-episodes, #shuffle-feedback,
-        #shuffle-result, #card-menu-actions, #persistent-hero, #hero-strip, .catalog-grid, .catalog-status) > *,
-    :is(#layout-switch, #next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
+        #shuffle-result, #card-menu-actions, #hero-strip, .catalog-grid, .catalog-status) > *,
+    :is(#next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
         #home-empty, #sleep-chip, #recent-section, #search-start, #library-saved, #library-cloud) {
       opacity: 0; translate: 0 6px;
     }
@@ -531,6 +515,7 @@
   .custom { position: relative; overflow: hidden; }
   .custom input { position: absolute; inset: 0; opacity: 0; }
   .row-stack { flex-direction: column; align-items: stretch; }
+  #desktop-layout { flex-wrap: wrap; }
   .note { font-size: 13px; color: var(--ctp-subtext0); }
 </style>
 </head>
@@ -556,7 +541,6 @@
   <symbol id="i-shuffle" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M16 8h.01M8 8h.01M8 16h.01M16 16h.01M12 12h.01"/></symbol>
   <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
   <symbol id="i-layout-official" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></symbol>
-  <symbol id="i-layout-scroll_posters" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="14" rx="1.5"/><path d="M2 7v10M22 7v10"/></symbol>
   <symbol id="i-layout-persistent_hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="9" rx="1.5"/><rect x="3" y="15" width="18" height="5" rx="1.5"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
   <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
@@ -574,14 +558,7 @@
     <div class="skel sk-title"></div>
     <div class="sk-row"><div class="skel sk-poster"></div><div class="skel sk-poster"></div><div class="skel sk-poster"></div></div>
   </div>
-  <div class="seg seg-fill layout-switch" id="layout-switch" role="group" aria-label="Home layout" hidden>
-    <button data-layout="official" aria-pressed="false"><svg class="line"><use href="#i-layout-official"/></svg>Official</button>
-    <button data-layout="scroll_posters" aria-pressed="false"><svg class="line"><use href="#i-layout-scroll_posters"/></svg>Scroll Posters</button>
-    <button data-layout="persistent_hero" aria-pressed="false"><svg class="line"><use href="#i-layout-persistent_hero"/></svg>Persistent Hero</button>
-  </div>
-  <div class="persistent-hero" id="persistent-hero" hidden></div>
-  <div class="skel sk-hero" id="hero-placeholder" hidden></div>
-  <div class="hero-strip" id="hero-strip"></div>
+  <div class="hero-strip" id="hero-strip" hidden></div>
   <div class="hero-dots" id="hero-dots" aria-hidden="true"></div>
   <div id="home-rows" class="rows"></div>
   <div class="card t-sub text-sub" id="home-empty" hidden>Nothing on Home yet.</div>
@@ -867,13 +844,19 @@
   </div>
 </dialog>
 
-<!-- Appearance: the cuppa theme picker. -->
+<!-- Appearance: desktop layout and the phone's theme. -->
 <dialog class="sheet" id="appearance" autofocus tabindex="-1">
   <div class="sheet-head"><div class="grip"></div>
     <div class="bar"><h2 class="t-title2">Appearance</h2><button class="btn btn-sm btn-plain" data-dismiss>Done</button></div>
   </div>
   <div class="sheet-body">
     <div class="group-list">
+      <div class="row row-stack"><span class="t-sub text-sub" id="desktop-layout-label">Desktop layout</span>
+        <div class="chips" id="desktop-layout" role="group" aria-labelledby="desktop-layout-label">
+          <button class="chip" data-layout="official" aria-pressed="false" disabled>Official</button>
+          <button class="chip" data-layout="scroll_posters" aria-pressed="false" disabled>Scroll Posters</button>
+          <button class="chip" data-layout="persistent_hero" aria-pressed="false" disabled>Persistent Hero</button>
+        </div></div>
       <div class="row row-stack"><span class="t-sub text-sub">Theme</span>
         <div class="chips"><button class="chip" data-flavor="auto">Auto</button><button class="chip" data-flavor="latte">Light</button><button class="chip" data-flavor="macchiato">Dark</button></div></div>
       <div class="row row-stack"><span class="t-sub text-sub">Corner radius</span>
@@ -899,6 +882,7 @@
       pcRoute = 'tabs';
       updateView();
       setStatus(false);
+      showDesktopLayout(null);
       setTimeout(connect, retry);
       retry = Math.min(retry * 2, 4000);
     };
@@ -907,8 +891,10 @@
       const msg = JSON.parse(e.data);
       if (msg.k === 'player') showPlayer(msg);
       if (msg.k === 'time') showTime(msg.position, msg.duration);
-      if (msg.k === 'home') showHome(msg);
-      if (msg.k === 'hero') showPcHero(msg.hero);
+      if (msg.k === 'home') {
+        showDesktopLayout(msg.desktopLayout);
+        showHome(msg);
+      }
       if (msg.k === 'search') showSearch(msg);
       if (msg.k === 'catalog') showCatalog(msg);
       if (msg.k === 'folder') showFolder(msg);
@@ -981,6 +967,16 @@
     cardMenuPointerDown = false;
   }, true);
   $('appearance-open').addEventListener('click', () => present($('appearance')));
+
+  const desktopLayoutPills = $('desktop-layout').querySelectorAll('button');
+  function showDesktopLayout(layout) {
+    desktopLayoutPills.forEach((pill) => {
+      pill.disabled = !layout;
+      pill.setAttribute('aria-pressed', pill.dataset.layout === layout);
+    });
+  }
+  desktopLayoutPills.forEach((pill) => pill.addEventListener('click', () =>
+    send({ cmd: 'desktopLayout', value: pill.dataset.layout })));
 
   // The accent swatches: one per Catppuccin accent, painted with that accent.
   theme.ACCENTS.forEach((accent) => {
@@ -1370,26 +1366,31 @@
   }
 
   function heroCard(hero, location) {
-    const open = () => {
-      markBusy(card);
-      send({ cmd: 'open', ...location });
-    };
+    const continuing = location.from === 'continue';
+    const title = continuing ? hero.title : hero.name;
     const card = el('div', 'hero-card');
     card.append(img(hero.image, 'bg'), el('div', 'shade'));
     const info = el('div', 'info');
     if (hero.logo) {
       const logo = img(hero.logo, 'logo');
-      logo.onerror = () => logo.replaceWith(el('div', 't-title2', hero.name));
+      logo.onerror = () => logo.replaceWith(el('div', 't-title2', title));
       info.append(logo);
     } else {
-      info.append(el('div', 't-title2', hero.name));
+      info.append(el('div', 't-title2', title));
     }
-    info.append(...heroPills(hero));
-    if (hero.description) info.append(el('div', 'desc', hero.description));
-    const details = el('button', 'btn btn-sm', 'View Details');
-    info.append(details);
+    if (continuing) {
+      const description = [hero.episode, hero.subtitle, hero.left].filter(Boolean).join(' · ');
+      if (description) info.append(el('div', 'desc', description));
+      info.append(resumeProgress(hero));
+      bindResumeCard(card, hero, location.item, card);
+    } else {
+      info.append(...heroPills(hero));
+      if (hero.description) info.append(el('div', 'desc', hero.description));
+      const open = () => { markBusy(card); send({ cmd: 'open', ...location }); };
+      bindCardMenu(card, open, posterMenu(hero, location));
+    }
+    info.append(el('button', 'btn btn-sm', continuing ? 'Resume' : 'View Details'));
     card.append(info);
-    bindCardMenu(card, open, posterMenu(hero, location));
     return card;
   }
 
@@ -1403,9 +1404,26 @@
       markBusy(art);
       send({ cmd: folder ? 'folder' : 'open', ...location });
     };
-    markHeroTile(tile, item.heroKey);
     bindCardMenu(tile, open, folder ? null : posterMenu(item, location));
     return tile;
+  }
+
+  function resumeProgress(item) {
+    const bar = el('div', 'bar');
+    const fill = el('i');
+    fill.style.width = `${Math.round(Math.min(1, Math.max(0, item.progress)) * 100)}%`;
+    bar.append(fill);
+    return bar;
+  }
+
+  function bindResumeCard(card, item, index, busyTarget) {
+    const resumePlayback = () => { markBusy(busyTarget); send({ cmd: 'resume', item: index, key: item.key }); };
+    const menu = {
+      title: item.title,
+      description: [item.episode, item.subtitle].filter(Boolean).join(' · '),
+      target: { kind: 'continue', item: index, key: item.key },
+    };
+    bindCardMenu(card, resumePlayback, menu);
   }
 
   function resumeTile(item, index) {
@@ -1416,22 +1434,11 @@
     const resume = el('div', 'resume');
     if (item.episode) resume.append(el('small', '', item.episode));
     resume.append(el('b', '', item.title));
-    const bar = el('div', 'bar');
-    const fill = el('i');
-    fill.style.width = `${Math.round(Math.min(1, Math.max(0, item.progress)) * 100)}%`;
-    bar.append(fill);
-    resume.append(bar);
+    resume.append(resumeProgress(item));
     art.append(resume);
     tile.append(art);
     if (item.subtitle) tile.append(el('span', 'name', item.subtitle));
-    const resumePlayback = () => { markBusy(art); send({ cmd: 'resume', item: index }); };
-    const menu = {
-      title: item.title,
-      description: [item.episode, item.subtitle].filter(Boolean).join(' · '),
-      target: { kind: 'continue', item: index, key: item.key },
-    };
-    markHeroTile(tile, item.heroKey);
-    bindCardMenu(tile, resumePlayback, menu);
+    bindResumeCard(tile, item, index, art);
     return tile;
   }
 
@@ -1528,7 +1535,7 @@
 
   function updateHomeBackdrop() {
     $('hero-dots').querySelectorAll('i').forEach((dot, i) => dot.classList.toggle('on', i === homeHeroIndex));
-    setHomeBackdrop((homeLayout === 'persistent_hero' ? pcHero?.image : homeHeroes[homeHeroIndex]?.image) || null);
+    setHomeBackdrop(homeHeroes[homeHeroIndex]?.image || null);
   }
 
   function updateMediaBackdrop() {
@@ -1633,88 +1640,8 @@
     scheduleHomeHero();
   }, { passive: true });
 
-  // ─── Layouts: the PC's Switch Layout, and the Persistent Hero mirrored from the PC ───
-  let homeLayout = 'official';
-  let pcHero = null; // the title the PC's Persistent Hero shows, details loaded
-  let pickedKey = null; // the card it shows, or the one just picked on the phone while the PC loads it
-  let pcHeroContent = '';
-
-  // Switching layouts: the button spins and a placeholder the hero's height holds its place until the PC has
-  // switched and the new hero is ready, so the page never jumps.
-  let layoutPending = null;
-  let homeHeroEnabled = true;
-
-  document.querySelectorAll('#layout-switch [data-layout]').forEach((button) => button.addEventListener('click', () => {
-    const layout = button.dataset.layout;
-    if (layout === homeLayout || layoutPending) return;
-    layoutPending = layout;
-    markBusy(button);
-    send({ cmd: 'layout', value: layout });
-    updateHeroPlaceholder();
-    setTimeout(() => { if (layoutPending === layout) { layoutPending = null; clearBusy(); updateHeroPlaceholder(); } }, 6000);
-  }));
-
-  function updateHeroPlaceholder() {
-    const persistent = homeLayout === 'persistent_hero';
-    const ready = persistent ? pcHero !== null : homeHeroes.length > 0;
-    const waiting = layoutPending !== null || ((persistent || homeHeroEnabled) && !ready);
-    // While all of Home is loading, its own skeleton already shows a hero.
-    $('hero-placeholder').hidden = !waiting || !$('home-skeleton').hidden;
-    if (layoutPending !== null) {
-      homeHeroStrip.hidden = true;
-      $('hero-dots').hidden = true;
-      $('persistent-hero').hidden = true;
-    } else {
-      homeHeroStrip.hidden = !homeHeroes.length;
-      $('hero-dots').hidden = false;
-    }
-  }
-
-  function showLayout(layout) {
-    homeLayout = ['official', 'scroll_posters', 'persistent_hero'].includes(layout) ? layout : 'official';
-    if (layoutPending === homeLayout) {
-      layoutPending = null;
-      clearBusy();
-    }
-    $('home').dataset.layout = homeLayout;
-    $('layout-switch').hidden = !layout;
-    document.querySelectorAll('#layout-switch [data-layout]').forEach((button) =>
-      button.setAttribute('aria-pressed', button.dataset.layout === homeLayout));
-  }
-
-  function markHeroTile(tile, key) {
-    if (!key) return;
-    tile.dataset.pickKey = key;
-    tile.setAttribute('aria-current', key === pickedKey);
-  }
-
-  function markPicked(key) {
-    pickedKey = key;
-    $('home-rows').querySelectorAll('[data-pick-key]').forEach((tile) =>
-      tile.setAttribute('aria-current', tile.dataset.pickKey === pickedKey));
-  }
-
-  function showPcHero(hero) {
-    pcHero = hero;
-    markPicked(hero?.key ?? null);
-    renderPcHero();
-    updateHeroPlaceholder();
-  }
-
-  function renderPcHero() {
-    const pane = $('persistent-hero');
-    const show = homeLayout === 'persistent_hero' && pcHero !== null;
-    pane.hidden = !show;
-    updateHomeBackdrop();
-    const content = show ? JSON.stringify(pcHero) : '';
-    if (content === pcHeroContent) return;
-    pcHeroContent = content;
-    pane.replaceChildren(...(show ? [heroCard(pcHero, { from: 'persistent' })] : []));
-    if (show && !homeHeroMotion.matches) pane.firstElementChild.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
-  }
-
-  function showHomeHero(heroes) {
-    const heroContent = JSON.stringify(heroes);
+  function showHomeHero(heroes, from) {
+    const heroContent = JSON.stringify([from, heroes]);
     if (heroContent !== homeHeroContent) {
       const previousKey = homeHeroes[homeHeroIndex]?.key;
       homeHeroWrap?.cancel();
@@ -1722,7 +1649,7 @@
       homeHeroContent = heroContent;
       homeHeroes = heroes;
       homeHeroIndex = Math.max(0, heroes.findIndex((hero) => hero.key === previousKey));
-      homeHeroStrip.replaceChildren(...heroes.map((hero, index) => heroCard(hero, { from: 'hero', item: index })));
+      homeHeroStrip.replaceChildren(...heroes.map((hero, index) => heroCard(hero, { from, item: index })));
       if (heroes.length && !homeHeroMotion.matches) homeHeroStrip.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 280, easing: 'ease-out' });
       homeHeroStrip.hidden = !heroes.length;
       $('hero-dots').replaceChildren(...(heroes.length > 1 ? heroes.map(() => el('i')) : []));
@@ -1850,12 +1777,12 @@
     homeContent = content;
     // Remembered, so the next time the remote opens it shows Home at once while the PC's arrives.
     try { localStorage.setItem('nuvio_home', content); } catch (_) {}
-    showLayout(msg.layout);
-    const heroes = msg.heroEnabled === false || homeLayout === 'persistent_hero' ? [] : msg.hero;
+    const heroFromContinue = msg.heroFromContinue === true;
+    const heroes = msg.heroEnabled === false ? [] : (heroFromContinue ? msg.continue.slice(0, 8) : msg.hero);
     const sections = [];
     lastHome = msg;
     if (msg.continue.length) sections.push({
-      sig: JSON.stringify([msg.layout, msg.continueViewAll, msg.continue]),
+      sig: JSON.stringify([msg.continueViewAll, msg.continue]),
       build: () => rowSection('Continue Watching', msg.continue.map(resumeTile),
         msg.continueViewAll ? () => send({ cmd: 'viewAll', row: 'continue' }) : null),
     });
@@ -1872,13 +1799,10 @@
     const empty = !heroes.length && !sections.length;
     $('home-skeleton').hidden = !(empty && msg.loading);
     $('home-empty').hidden = !(empty && !msg.loading);
-    $('home-hero-skeleton').hidden = msg.heroEnabled === false;
+    $('home-hero-skeleton').hidden = msg.heroEnabled === false || heroFromContinue;
 
     try {
-      homeHeroEnabled = msg.heroEnabled !== false;
-      showHomeHero(heroes);
-      renderPcHero();
-      updateHeroPlaceholder();
+      showHomeHero(heroes, heroFromContinue ? 'continue' : 'hero');
     } catch (error) {
       console.error('Failed to render the Home hero', error);
       clearTimeout(homeHeroTimer);
