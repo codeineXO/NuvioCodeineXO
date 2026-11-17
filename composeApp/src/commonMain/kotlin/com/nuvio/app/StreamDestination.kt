@@ -96,6 +96,7 @@ internal fun StreamDestination(
         }
         return
     }
+    com.nuvio.app.features.player.PrefetchOpeningArtwork(launch.background ?: launch.poster)
     val pauseDescription = launch.pauseDescription
     val streamRouteScope = rememberCoroutineScope()
     var autoPlayNavigationStarted by remember(route.launchId, launch.seasonNumber, launch.episodeNumber) { mutableStateOf(false) }

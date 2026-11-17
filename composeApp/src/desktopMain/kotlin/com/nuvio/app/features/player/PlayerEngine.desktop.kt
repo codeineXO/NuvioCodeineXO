@@ -29,6 +29,7 @@ import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.AppPresenceState
@@ -377,6 +378,20 @@ private fun NativePlayerSurface(
     val isInPip = pipChanges >= 0 && DesktopPlayerPictureInPicture.isEnabled
 
     val isMiniPlayer = playerControlsState.isMiniPlayer
+    val surfaceRevealReady = LocalPlayerSurfaceRevealReady.current
+    // The native window paints solid black from the moment it is shown, while mpv and the controls page are still
+    // starting. Keep it collapsed behind an app-drawn loading screen until the page reports its first painted frame.
+    val controlsPainted = remember(host, sourceUrl) { mutableStateOf(false) }
+    DisposableEffect(controller, controlsPainted) {
+        controller.onControlsPainted = { controlsPainted.value = true }
+        onDispose { controller.onControlsPainted = null }
+    }
+    LaunchedEffect(controlsPainted) {
+        // Never strand the video behind the placeholder if the page cannot report back.
+        delay(CONTROLS_PAINT_TIMEOUT_MS)
+        controlsPainted.value = true
+    }
+    val surfaceRevealed = isMiniPlayer || (surfaceRevealReady && controlsPainted.value)
 
     Box(
         modifier = modifier
@@ -405,6 +420,17 @@ private fun NativePlayerSurface(
                     Modifier
                         .fillMaxSize()
                         .then(
+                            if (surfaceRevealed) Modifier else Modifier.layout { measurable, constraints ->
+                                // Full size so the player is created and starts loading right away (attach waits
+                                // for a full-size paint), but parked below the window with one row left on screen
+                                // so it still receives paints, until the controls page has drawn its overlay.
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) {
+                                    placeable.place(0, (placeable.height - 1).coerceAtLeast(0))
+                                }
+                            }
+                        )
+                        .then(
                             if (isMiniPlayer) {
                                 Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                             } else Modifier
@@ -415,6 +441,20 @@ private fun NativePlayerSurface(
                         .requiredSize(1.dp)
                 },
                 background = if (isMiniPlayer) Color.Transparent else Color.Black,
+            )
+        }
+
+        if (!surfaceRevealed && !isInPip) {
+            OpeningOverlay(
+                artwork = playerControlsState.openingArtwork,
+                logo = playerControlsState.openingLogo,
+                title = playerControlsState.openingTitle,
+                onBack = { latestOnPlayerControlsAction.value(PlayerControlsAction.Back) },
+                horizontalSafePadding = 0.dp,
+                message = playerControlsState.openingMessage,
+                progress = playerControlsState.openingProgress,
+                usePageBackButton = true,
+                modifier = Modifier.fillMaxSize(),
             )
         }
 
@@ -497,3 +537,5 @@ private class DesktopStubPlayerController : PlayerEngineController {
     override fun clearExternalSubtitle() = Unit
     override fun clearExternalSubtitleAndSelect(trackIndex: Int) = Unit
 }
+
+private const val CONTROLS_PAINT_TIMEOUT_MS = 5_000L

@@ -1,6 +1,8 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import com.nuvio.app.isDesktop
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.BoxScope
@@ -81,7 +83,8 @@ internal fun BoxScope.PlayerPlaybackOverlays(
 
     AnimatedVisibility(
         visible = showOpeningOverlay,
-        enter = fadeIn(),
+        // Desktop arrives here from an identical loading screen; fading in from black would flash.
+        enter = if (isDesktop) EnterTransition.None else fadeIn(),
         exit = fadeOut(),
     ) {
         OpeningOverlay(

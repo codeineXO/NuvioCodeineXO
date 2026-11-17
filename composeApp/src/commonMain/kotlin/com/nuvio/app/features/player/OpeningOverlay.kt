@@ -1,5 +1,15 @@
 package com.nuvio.app.features.player
 
+import androidx.compose.foundation.Image
+import com.nuvio.app.core.ui.collectMappedAsState
+import com.nuvio.app.core.ui.LocalNuvioPlatformDensity
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.core.snap
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.PaddingValues
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
 
 import androidx.compose.animation.Crossfade
@@ -77,9 +87,40 @@ internal fun OpeningOverlay(
     progress: Float? = null,
     usePageBackButton: Boolean = false,
 ) {
+    val content = @Composable {
+        OpeningOverlayContent(artwork, logo, title, onBack, horizontalSafePadding, modifier, message, progress, usePageBackButton)
+    }
+    if (!isDesktop) {
+        content()
+        return
+    }
+    // The desktop player draws this same screen in its controls page, which works in system pixels zoomed by the
+    // player UI scale. Measure in the same units so the two hand over without the logo or text resizing.
+    val playerUiScale by PlayerSettingsRepository.uiState.collectMappedAsState { it.playerUiScale }
+    val platformDensity = LocalNuvioPlatformDensity.current
+    val overlayDensity = remember(platformDensity, playerUiScale) {
+        Density(platformDensity.density * playerUiScale.coerceIn(50, 150) / 100f, fontScale = 1f)
+    }
+    CompositionLocalProvider(LocalDensity provides overlayDensity, content = content)
+}
+
+@Composable
+private fun OpeningOverlayContent(
+    artwork: String?,
+    logo: String?,
+    title: String?,
+    onBack: () -> Unit,
+    horizontalSafePadding: Dp,
+    modifier: Modifier = Modifier,
+    message: String? = null,
+    progress: Float? = null,
+    usePageBackButton: Boolean = false,
+) {
+    // Desktop hands this screen between app pages and the player's controls page, which shows the logo at
+    // full strength; a fresh delayed fade on every handover would read as the logo flickering.
     val contentAlpha by animateFloatAsState(
         targetValue = 1f,
-        animationSpec = tween(durationMillis = 700, delayMillis = 400, easing = LinearEasing),
+        animationSpec = if (isDesktop) snap() else tween(durationMillis = 700, delayMillis = 400, easing = LinearEasing),
         label = "openingOverlayContentAlpha",
     )
     val pulse = rememberInfiniteTransition(label = "openingOverlayContentPulse")
@@ -100,21 +141,49 @@ internal fun OpeningOverlay(
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        val logoWidth = minOf(320.dp, maxWidth - 48.dp)
-        val logoHeight = minOf(180.dp, maxHeight * 0.4f)
-        val titleFontSize = if (maxWidth < 600.dp) 30.sp else 42.sp
+        // Desktop mirrors the player controls page (.opening-*) so the two screens line up exactly.
+        val logoWidth = if (isDesktop) minOf(300.dp, maxWidth * 0.78f) else minOf(320.dp, maxWidth - 48.dp)
+        val logoHeight = if (isDesktop) 180.dp else minOf(180.dp, maxHeight * 0.4f)
+        val titleFontSize = if (isDesktop || maxWidth >= 600.dp) 42.sp else 30.sp
+        val verticalBarPadding = if (isDesktop) PaddingValues() else LocalVerticalBarPadding.current
+        val titleMaxWidth = minOf(maxWidth * 0.84f, 680.dp)
         Box(
             modifier = Modifier.matchParentSize().then(
                 if (usePageBackButton) Modifier.navigationGlassSource(zIndex = -1f) else Modifier,
             ).background(Color.Black),
         ) {
             if (artwork != null) {
+                val artworkModifier = Modifier.fillMaxSize().then(
+                    if (isDesktop) {
+                        // The first frame of the controls page's artwork drift: scale(1.015) translate(-.35%, -.25%).
+                        Modifier.graphicsLayer {
+                            scaleX = 1.015f
+                            scaleY = 1.015f
+                            translationX = -0.0035f * 1.015f * size.width
+                            translationY = -0.0025f * 1.015f * size.height
+                        }
+                    } else Modifier,
+                )
+                val artworkAlignment = if (isDesktop) Alignment.Center else Alignment.TopCenter
+                // Paints synchronously while the image below is still resolving, so a new screen never opens on black.
+                OpeningArtworkCache.painterFor(artwork)?.let { cached ->
+                    Image(
+                        painter = cached,
+                        contentDescription = null,
+                        modifier = artworkModifier,
+                        contentScale = ContentScale.Crop,
+                        alignment = artworkAlignment,
+                    )
+                }
                 AsyncImage(
                     model = artwork,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = artworkModifier,
                     contentScale = ContentScale.Crop,
-                    alignment = Alignment.TopCenter,
+                    alignment = artworkAlignment,
+                    onSuccess = if (isDesktop) {
+                        { state -> OpeningArtworkCache.put(artwork, state.painter) }
+                    } else null,
                 )
                 Box(
                     modifier = Modifier
@@ -138,7 +207,7 @@ internal fun OpeningOverlay(
             onClick = onBack,
             modifier = if (usePageBackButton) {
                 Modifier.align(Alignment.TopStart)
-                    .padding(LocalVerticalBarPadding.current)
+                    .padding(verticalBarPadding)
                     .statusBarsPadding()
                     .padding(
                         start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 12.dp,
@@ -169,10 +238,12 @@ internal fun OpeningOverlay(
             label = "openingOverlayP2pProgress",
         )
         val progressActive = targetProgress != null
+        val showHorizontalProgress = progressActive && (logoUrl == null || logoLoadError)
+        val statusShown = !message.isNullOrBlank() || showHorizontalProgress
         Layout(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(centeredVerticalBarPadding(24.dp)),
+                .padding(if (isDesktop) PaddingValues(24.dp) else centeredVerticalBarPadding(24.dp)),
             content = {
                 Box(contentAlignment = Alignment.Center) {
                     if (logoUrl != null && !logoLoadError) {
@@ -220,8 +291,10 @@ internal fun OpeningOverlay(
                             style = MaterialTheme.nuvioTypeScale.displayMd.copy(
                                 fontSize = titleFontSize,
                                 fontWeight = FontWeight.ExtraBold,
+                                lineHeight = if (isDesktop) 47.sp else TextUnit.Unspecified,
                             ),
                             modifier = Modifier
+                                .then(if (isDesktop) Modifier.widthIn(max = titleMaxWidth) else Modifier)
                                 .padding(horizontal = 24.dp)
                                 .graphicsLayer {
                                     alpha = contentAlpha
@@ -236,7 +309,6 @@ internal fun OpeningOverlay(
                     }
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    val showHorizontalProgress = progressActive && (logoUrl == null || logoLoadError)
                     Spacer(modifier = Modifier.height(16.dp))
                     Crossfade(
                         targetState = message?.takeIf { it.isNotBlank() },
@@ -250,10 +322,16 @@ internal fun OpeningOverlay(
                             if (loadingMessage != null) {
                                 Text(
                                     text = loadingMessage,
-                                    color = frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.72f)),
+                                    color = if (isDesktop) Color.White.copy(alpha = 0.72f) else frostedGlassSecondaryContentColor(Color.White.copy(alpha = 0.72f)),
                                     textAlign = TextAlign.Center,
                                     maxLines = 2,
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = if (isDesktop) {
+                                        MaterialTheme.typography.labelMedium.copy(
+                                            fontSize = 13.sp,
+                                            lineHeight = 17.55.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    } else MaterialTheme.typography.labelMedium,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 24.dp),
@@ -288,7 +366,17 @@ internal fun OpeningOverlay(
         ) { measurables, constraints ->
             val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
             val artworkContent = measurables[0].measure(looseConstraints)
-            val artworkTop = (constraints.maxHeight - artworkContent.height) / 2
+            val artworkTop = if (isDesktop) {
+                // Like the controls page, centre the logo together with its status line when one is shown.
+                val statusHeight = when {
+                    !statusShown -> 0
+                    showHorizontalProgress -> (16 + 40 + 10 + 4).dp.roundToPx()
+                    else -> (16 + 40).dp.roundToPx()
+                }
+                ((constraints.maxHeight - artworkContent.height - statusHeight) / 2).coerceAtLeast(0)
+            } else {
+                (constraints.maxHeight - artworkContent.height) / 2
+            }
             val statusTop = artworkTop + artworkContent.height
             val statusContent = measurables[1].measure(
                 looseConstraints.copy(maxHeight = constraints.maxHeight - statusTop),

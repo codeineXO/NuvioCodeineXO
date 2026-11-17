@@ -2,6 +2,7 @@ package com.nuvio.app.navigation
 
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,9 +34,23 @@ internal fun pageNavigationMotion(forward: Boolean): ContentTransform {
     }
 }
 
-/** Symmetric crossfade for transparent pages (the player), which cannot cover the page beneath. */
-internal fun transparentPageNavigationMotion(): ContentTransform {
-    val duration = pageFadeMillis(NuvioTokens.Motion.sheetEnterMillis)
-    return fadeIn(tween(duration, easing = NuvioTokens.Motion.decelerate)) togetherWith
-        fadeOut(tween(duration, easing = NuvioTokens.Motion.standard))
+/** Fade for the full-screen player rising over the app; the native video surface appears once it completes. */
+internal fun playerEnterFadeMillis(): Int = pageFadeMillis(320)
+
+/**
+ * Leaving the player: the page beneath is drawn at full opacity at once and the black player page lifts
+ * away over it with an ease that starts gently, so the video's end reads as a fade rather than a cut.
+ */
+internal fun playerExitNavigationMotion(): ContentTransform =
+    EnterTransition.None togetherWith fadeOut(tween(pageFadeMillis(380), easing = FastOutSlowInEasing))
+
+/**
+ * Entering the player: the player draws in its own layer above navigation and fades in there. Hold the page
+ * beneath fully opaque, and keep the black player page invisible, until that fade has covered it; a crossfade
+ * here would dim the page under the half-faded player and read as a black flash.
+ */
+internal fun playerEnterNavigationMotion(): ContentTransform {
+    val hold = playerEnterFadeMillis()
+    return fadeIn(tween(durationMillis = 1, delayMillis = hold)) togetherWith
+        fadeOut(tween(hold + 1), targetAlpha = 1f)
 }

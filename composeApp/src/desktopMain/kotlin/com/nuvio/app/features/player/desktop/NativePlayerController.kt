@@ -267,6 +267,10 @@ internal class NativePlayerController(
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
     private var onScrubChange: (Long) -> Boolean = { false }
     private var onScrubFinished: (Long) -> Boolean = { false }
+
+    /** Fired on the EDT once the controls page has painted its first opening overlay. */
+    @Volatile
+    var onControlsPainted: (() -> Unit)? = null
     private fun setPlaybackStatsActive(active: Boolean) {
         if (isPlaybackStatsActive == active) return
         isPlaybackStatsActive = active
@@ -1044,6 +1048,9 @@ internal class NativePlayerController(
             log.d { "event received handle=$handle type=$type value=$value" }
         }
         when (type) {
+            "controlsPainted" -> {
+                SwingUtilities.invokeLater { onControlsPainted?.invoke() }
+            }
             "hlsDetected" -> reloadDetectedHlsSource()
             "startupSourceReplaced" -> {
                 // The replaced file took its externally added tracks with it.

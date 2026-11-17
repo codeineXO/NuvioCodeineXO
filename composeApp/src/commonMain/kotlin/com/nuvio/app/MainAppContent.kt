@@ -4,6 +4,7 @@ import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -23,6 +24,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
+import com.nuvio.app.features.player.LocalPlayerSurfaceRevealReady
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
@@ -43,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -74,7 +78,6 @@ import com.nuvio.app.core.ui.collectMappedAsState
 import com.nuvio.app.navigation.PosterNavigationState
 import com.nuvio.app.navigation.posterNavigationEntry
 import com.nuvio.app.navigation.pageNavigationMotion
-import com.nuvio.app.navigation.transparentPageNavigationMotion
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.auth.DeviceSessionRegistration
@@ -2064,8 +2067,8 @@ internal fun MainAppContent(
                                 fadeOut(animationSpec = tween(220))
                         }
                     } else if (isDesktop) {
-                        NavDisplay.transitionSpec { transparentPageNavigationMotion() } +
-                            NavDisplay.popTransitionSpec { transparentPageNavigationMotion() }
+                        NavDisplay.transitionSpec { playerEnterNavigationMotion() } +
+                            NavDisplay.popTransitionSpec { playerExitNavigationMotion() }
                     } else {
                         emptyMap()
                     },
@@ -2716,6 +2719,21 @@ internal fun MainAppContent(
 
             val currentActiveLaunch = activePlayerLaunch
             val currentActiveLaunchId = activeLaunchId
+            // Desktop fades the full player in over the page; Android's video surface does not honour layer alpha.
+            val playerEnterProgress = remember { Animatable(if (isDesktop) 0f else 1f) }
+            val playerOverlayActive = currentActiveLaunch != null && currentActiveLaunchId != null
+            LaunchedEffect(playerOverlayActive) {
+                if (!isDesktop) return@LaunchedEffect
+                if (playerOverlayActive) {
+                    playerEnterProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(playerEnterFadeMillis(), easing = FastOutSlowInEasing),
+                    )
+                } else {
+                    playerEnterProgress.snapTo(0f)
+                }
+            }
+            val playerSurfaceRevealReady by remember { derivedStateOf { playerEnterProgress.value >= 1f } }
             if (currentActiveLaunch != null && currentActiveLaunchId != null) {
                 val playerRoute = remember(currentActiveLaunchId) {
                     PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title)
@@ -2771,12 +2789,14 @@ internal fun MainAppContent(
 
                     val fullModifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer { alpha = playerEnterProgress.value }
                         .background(Color.Black)
                         .zIndex(15f)
 
                     Box(
                         modifier = if (isMiniPlayer) miniModifier else fullModifier,
                     ) {
+                        CompositionLocalProvider(LocalPlayerSurfaceRevealReady provides playerSurfaceRevealReady) {
                         key(currentActiveLaunchId) {
                             PlayerDestination(
                                 route = playerRoute,
@@ -2825,6 +2845,7 @@ internal fun MainAppContent(
                                     }
                                 },
                             )
+                        }
                         }
                     }
                 }

@@ -4366,7 +4366,7 @@ const renderOpeningOverlay = suppress => {
     openingHideTimer = window.setTimeout(() => {
       openingHideTimer = 0;
       openingOverlay.hidden = true;
-    }, 260);
+    }, 460);
   }
   root.classList.toggle("opening-active", showOpening);
   openingOverlay.classList.toggle("visible", showOpening);
@@ -6649,6 +6649,32 @@ window.playerUpdate = update => {
   }
 };
 
+// The host keeps this page's window collapsed behind an app-drawn loading screen until it reports a painted
+// frame, so its first appearance shows the finished opening overlay instead of a black, half-loaded page.
+let controlsPaintedAnnounced = false;
+const announceControlsPainted = () => {
+  if (controlsPaintedAnnounced) return;
+  controlsPaintedAnnounced = true;
+  openingOverlay.classList.add("instant");
+  const settled = image => !image.getAttribute("src") ||
+    image.classList.contains("image-loaded") || image.classList.contains("image-error");
+  const deadline = performance.now() + 1500;
+  const waitForImages = () => {
+    const ready = settled(openingArtwork) && (openingLogoSlot.hidden || settled(openingLogoBase));
+    // Timers, not animation frames: the window is collapsed to a pixel meanwhile and frames may be throttled.
+    if (!ready && performance.now() < deadline) {
+      window.setTimeout(waitForImages, 16);
+      return;
+    }
+    // A couple more frames so the settled images are on screen, not just styled.
+    window.setTimeout(() => {
+      send("controlsPainted", 0);
+      window.setTimeout(() => openingOverlay.classList.remove("instant"), 120);
+    }, 48);
+  };
+  waitForImages();
+};
+
 window.playerControls = nextState => {
   const previousCloseToken = Number(state.closeModalsToken) || 0;
   const previousRemoteClickToken = Number(state.remoteClickToken) || 0;
@@ -6764,6 +6790,7 @@ window.playerControls = nextState => {
   }
   const preventModalAutoScrolling = activeModal === "sources" || activeModal === "episodes";
   render(preventModalAutoScrolling);
+  announceControlsPainted();
   syncSeekrPreviews();
   if (pendingSettingToastCommand === "resize" && (state.resizeModeLabel || "") !== previousResizeLabel) {
     pendingSettingToastCommand = "";

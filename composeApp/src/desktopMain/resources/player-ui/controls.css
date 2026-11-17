@@ -1580,11 +1580,18 @@ button:disabled {
   background: rgba(0, 0, 0, .85);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 180ms ease;
+  transition: opacity 420ms cubic-bezier(.4, 0, .2, 1);
 }
 
 .opening-overlay[hidden] {
   display: none;
+}
+
+.opening-overlay.instant,
+.opening-overlay.instant::before,
+.opening-overlay.instant .opening-artwork,
+.opening-overlay.instant .opening-logo {
+  transition: none;
 }
 
 .opening-overlay.visible {
