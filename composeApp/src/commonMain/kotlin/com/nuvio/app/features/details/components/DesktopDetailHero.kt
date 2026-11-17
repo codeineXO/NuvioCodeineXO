@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import com.nuvio.app.core.ui.navigationGlassSource
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
@@ -357,46 +355,16 @@ fun DesktopDetailHero(
                     contentScale = ContentScale.Fit,
                 )
             } else if (logoUrl != null && !logoLoadError) {
-                if (isEnhanced) {
-                    Box(
-                        modifier = Modifier.wrapContentSize(),
-                    ) {
-                        AsyncImage(
-                            model = logoUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .matchParentSize()
-                                .graphicsLayer {
-                                    translationY = 2f
-                                    alpha = 0.65f
-                                }
-                                .blur(8.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded),
-                            alignment = Alignment.CenterStart,
-                            contentScale = ContentScale.Fit,
-                        )
-                        AsyncImage(
-                            model = logoUrl,
-                            contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
-                            modifier = Modifier
-                                .height(120.dp)
-                                .widthIn(max = 560.dp),
-                            alignment = Alignment.CenterStart,
-                            contentScale = ContentScale.Fit,
-                            onError = { logoLoadError = true },
-                        )
-                    }
-                } else {
-                    AsyncImage(
-                        model = logoUrl,
-                        contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
-                        modifier = Modifier
-                            .widthIn(max = 560.dp)
-                            .height(120.dp),
-                        alignment = Alignment.CenterStart,
-                        contentScale = ContentScale.Fit,
-                        onError = { logoLoadError = true },
-                    )
-                }
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
+                    modifier = Modifier
+                        .widthIn(max = 560.dp)
+                        .height(120.dp),
+                    alignment = Alignment.CenterStart,
+                    contentScale = ContentScale.Fit,
+                    onError = { logoLoadError = true },
+                )
             } else {
                 Text(
                     text = meta.name,
