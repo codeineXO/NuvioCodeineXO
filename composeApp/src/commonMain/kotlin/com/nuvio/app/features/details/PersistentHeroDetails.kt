@@ -3,7 +3,6 @@ package com.nuvio.app.features.details
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.painter.Painter
 import com.nuvio.app.features.home.MetaPreview
-import com.nuvio.app.navigation.DetailRoute
 
 internal data class PersistentHeroDetails(
     val preview: MetaPreview?,
@@ -13,7 +12,8 @@ internal data class PersistentHeroDetails(
 )
 
 internal class PersistentHeroDetailsSource {
-    var capture: ((DetailRoute) -> PersistentHeroDetails?)? = null
+    /** Captures the hero currently shown for the title `type:id`, if any. */
+    var capture: ((type: String, id: String) -> PersistentHeroDetails?)? = null
 }
 
 internal val LocalPersistentHeroDetailsSource = staticCompositionLocalOf<PersistentHeroDetailsSource?> { null }

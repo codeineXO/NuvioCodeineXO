@@ -23,6 +23,9 @@ import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.MetaScreenBackgroundMode
+import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.streams.DesktopStreamsBackdrop
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerLaunch
@@ -612,6 +615,16 @@ internal fun StreamDestination(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
+            // Hold the carried hero artwork while the episode resolves so the page never drops to blank.
+            route.persistentHeroDetails?.backdrop?.let { carried ->
+                val metaSettings by MetaScreenSettingsRepository.uiState.collectAsStateWithLifecycle()
+                DesktopStreamsBackdrop(
+                    backdrop = launch.background ?: launch.poster,
+                    carriedArtwork = carried,
+                    dominantColorEnabled = metaSettings.backgroundMode == MetaScreenBackgroundMode.DominantColor,
+                    hazeState = null,
+                )
+            }
             NuvioLoadingIndicator()
         }
         return
@@ -853,6 +866,7 @@ internal fun StreamDestination(
             StreamsScreen(
                 description = pauseDescription,
                 showLoadingScreen = showLoadingScreen,
+                carriedBackdrop = route.persistentHeroDetails?.backdrop,
                 type = launch.type,
                 videoId = effectiveVideoId,
                 parentMetaId = launch.parentMetaId ?: effectiveVideoId,

@@ -79,7 +79,6 @@ import com.nuvio.app.features.remote.RemoteAppBridge
 import com.nuvio.app.features.tmdb.TmdbSettings
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.isDesktop
-import com.nuvio.app.navigation.DetailRoute
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
@@ -216,8 +215,8 @@ internal fun PersistentHeroPane(
     val detailsSource = LocalPersistentHeroDetailsSource.current
     DisposableEffect(active, pageState, selection, detailsSource) {
         val captureDisplayed: () -> LoadedHero? = { selection.displayed ?: pageState.handoff }
-        val capture: (DetailRoute) -> PersistentHeroDetails? = { route ->
-            val key = "${route.type}:${route.id}"
+        val capture: (String, String) -> PersistentHeroDetails? = { type, id ->
+            val key = "$type:$id"
             val hero = selection.displayed?.takeIf { it.item.stableKey() == key }
                 ?: selection.requested?.item?.takeIf { it.stableKey() == key }?.let { LoadedHero(it, null, null) }
             hero?.let { PersistentHeroDetails(it.item, it.backdrop, it.logo, it.showMetadataBadge) }

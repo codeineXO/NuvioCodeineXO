@@ -75,7 +75,9 @@ import com.nuvio.app.core.ui.LocalOnBackdrop
 import com.nuvio.app.core.ui.LocalVerticalBarPadding
 import com.nuvio.app.isIos
 import com.nuvio.app.isDesktop
+import com.nuvio.app.features.details.components.DetailBackdropImage
 import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
@@ -109,6 +111,7 @@ internal fun TabletStreamsLayout(
     onStreamSecondaryClick: (StreamItem, Offset) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    carriedBackdrop: Painter? = null,
 ) {
     if (!isDesktop) {
         LegacyTabletStreamsLayout(
@@ -146,101 +149,18 @@ internal fun TabletStreamsLayout(
         if (resultsNavigation.pending?.filter != uiState.selectedFilter) resultsNavigation.pending = null
     }
     val hazeState = rememberHazeState()
-    val opacity = com.nuvio.app.core.ui.NuvioTokens.Opacity
-    val tabletBackdrop = remember(background, poster) {
-        background ?: poster
-    }
-    val colorScheme = MaterialTheme.colorScheme
-    var dominantBackdropPainter by remember(tabletBackdrop) { mutableStateOf<Painter?>(null) }
-    val dominantColorState = rememberPainterDominantColorState(
-        defaultColor = colorScheme.background,
-        defaultOnColor = colorScheme.onBackground,
-    )
-    LaunchedEffect(dominantColorEnabled, dominantBackdropPainter) {
-        dominantBackdropPainter?.takeIf { dominantColorEnabled }?.let { painter ->
-            runCatching { dominantColorState.updateFrom(painter) }
-        }
-    }
-    val wideFadeColor by animateColorAsState(
-        targetValue = if (dominantColorEnabled) {
-            dominantBackdropBlendColor(dominantColorState.color, colorScheme.background)
-        } else {
-            colorScheme.background
-        },
-        animationSpec = tween(durationMillis = 320),
-        label = "stream_dominant_backdrop_color",
-    )
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val aspectRatio = maxWidth.value / maxHeight.value
         val isWideLayout = aspectRatio >= 2f
-        val useWideArtworkFrame = aspectRatio > StandardDesktopViewportAspectRatio
-        val cropWideArtwork = aspectRatio > StreamResultsWideArtworkAspectRatio
         val baseArtworkWidth = (maxHeight.value * StandardDesktopViewportAspectRatio).dp.coerceAtMost(maxWidth)
-        val artworkWidth = expandingWideArtworkWidthDp(
-            maxWidth.value,
-            maxHeight.value,
-            StreamResultsWideArtworkAspectRatio,
-        ).dp
         val resultsWidth = (baseArtworkWidth * 0.6f).coerceAtMost(maxWidth)
-        val artworkModifier = if (useWideArtworkFrame) {
-            Modifier
-                .align(Alignment.CenterStart)
-                .width(artworkWidth)
-                .fillMaxHeight()
-        } else {
-            Modifier.fillMaxSize()
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationGlassSource(zIndex = -1f)
-                .background(if (useWideArtworkFrame) wideFadeColor else colorScheme.background)
-                .then(if (LocalFrostedGlassEnabled.current) Modifier.hazeSource(state = hazeState, zIndex = -1f) else Modifier),
-        ) {
-            if (tabletBackdrop != null) {
-                AsyncImage(
-                    model = tabletBackdrop,
-                    contentDescription = null,
-                    modifier = artworkModifier,
-                    alignment = BiasAlignment(-0.05f, DesktopBackdropVerticalBias),
-                    contentScale = if (useWideArtworkFrame && !cropWideArtwork) ContentScale.Fit else ContentScale.Crop,
-                    onSuccess = { state -> dominantBackdropPainter = state.painter },
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background),
-                )
-            }
-
-            Box(
-                modifier = (if (useWideArtworkFrame) artworkModifier else Modifier.fillMaxSize())
-                    .background(
-                        if (useWideArtworkFrame) {
-                            Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0.00f to Color.Transparent,
-                                    0.14f to wideFadeColor.copy(alpha = opacity.subtle),
-                                    0.38f to wideFadeColor.copy(alpha = opacity.overlayLight),
-                                    0.66f to wideFadeColor.copy(alpha = opacity.overlayHeavy),
-                                    0.88f to wideFadeColor.copy(alpha = 0.98f),
-                                    1.00f to wideFadeColor,
-                                ),
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.2f),
-                                    Color.Black.copy(alpha = 0.4f),
-                                    Color.Black.copy(alpha = 0.6f),
-                                ),
-                            )
-                        },
-                    ),
-            )
-        }
+        DesktopStreamsBackdrop(
+            backdrop = background ?: poster,
+            carriedArtwork = carriedBackdrop,
+            dominantColorEnabled = dominantColorEnabled,
+            hazeState = hazeState,
+        )
 
         val sidebarContentInset = LocalDesktopSidebarContentInset.current
         val infoPanelAreaWidth = (maxWidth - resultsWidth).coerceAtLeast(0.dp)
@@ -337,6 +257,109 @@ internal fun TabletStreamsLayout(
             }
         }
     }
+    }
+}
+
+/**
+ * Desktop stream-page artwork. [carriedArtwork] is the persistent hero's already-loaded painter for the same
+ * title; it is drawn immediately and crossfades into [backdrop] once that loads, so there is no blank frame.
+ */
+@Composable
+internal fun DesktopStreamsBackdrop(
+    backdrop: String?,
+    carriedArtwork: Painter?,
+    dominantColorEnabled: Boolean,
+    hazeState: HazeState?,
+    modifier: Modifier = Modifier,
+) {
+    val opacity = com.nuvio.app.core.ui.NuvioTokens.Opacity
+    val colorScheme = MaterialTheme.colorScheme
+    var dominantBackdropPainter by remember(backdrop) { mutableStateOf(carriedArtwork) }
+    val dominantColorState = rememberPainterDominantColorState(
+        defaultColor = colorScheme.background,
+        defaultOnColor = colorScheme.onBackground,
+    )
+    LaunchedEffect(dominantColorEnabled, dominantBackdropPainter) {
+        dominantBackdropPainter?.takeIf { dominantColorEnabled }?.let { painter ->
+            runCatching { dominantColorState.updateFrom(painter) }
+        }
+    }
+    val wideFadeColor by animateColorAsState(
+        targetValue = if (dominantColorEnabled) {
+            dominantBackdropBlendColor(dominantColorState.color, colorScheme.background)
+        } else {
+            colorScheme.background
+        },
+        animationSpec = tween(durationMillis = 320),
+        label = "stream_dominant_backdrop_color",
+    )
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val aspectRatio = maxWidth.value / maxHeight.value
+        val useWideArtworkFrame = aspectRatio > StandardDesktopViewportAspectRatio
+        val cropWideArtwork = aspectRatio > StreamResultsWideArtworkAspectRatio
+        val artworkWidth = expandingWideArtworkWidthDp(
+            maxWidth.value,
+            maxHeight.value,
+            StreamResultsWideArtworkAspectRatio,
+        ).dp
+        val artworkModifier = if (useWideArtworkFrame) {
+            Modifier
+                .align(Alignment.CenterStart)
+                .width(artworkWidth)
+                .fillMaxHeight()
+        } else {
+            Modifier.fillMaxSize()
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationGlassSource(zIndex = -1f)
+                .background(if (useWideArtworkFrame) wideFadeColor else colorScheme.background)
+                .then(
+                    if (hazeState != null && LocalFrostedGlassEnabled.current) {
+                        Modifier.hazeSource(state = hazeState, zIndex = -1f)
+                    } else Modifier,
+                ),
+        ) {
+            if (backdrop != null || carriedArtwork != null) {
+                DetailBackdropImage(
+                    model = backdrop,
+                    contentDescription = null,
+                    carriedArtwork = carriedArtwork,
+                    modifier = artworkModifier,
+                    alignment = BiasAlignment(-0.05f, DesktopBackdropVerticalBias),
+                    contentScale = if (useWideArtworkFrame && !cropWideArtwork) ContentScale.Fit else ContentScale.Crop,
+                    onSuccess = { state -> dominantBackdropPainter = state.painter },
+                )
+            }
+
+            Box(
+                modifier = (if (useWideArtworkFrame) artworkModifier else Modifier.fillMaxSize())
+                    .background(
+                        if (useWideArtworkFrame) {
+                            Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0.00f to Color.Transparent,
+                                    0.14f to wideFadeColor.copy(alpha = opacity.subtle),
+                                    0.38f to wideFadeColor.copy(alpha = opacity.overlayLight),
+                                    0.66f to wideFadeColor.copy(alpha = opacity.overlayHeavy),
+                                    0.88f to wideFadeColor.copy(alpha = 0.98f),
+                                    1.00f to wideFadeColor,
+                                ),
+                            )
+                        } else {
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.2f),
+                                    Color.Black.copy(alpha = 0.4f),
+                                    Color.Black.copy(alpha = 0.6f),
+                                ),
+                            )
+                        },
+                    ),
+            )
+        }
     }
 }
 

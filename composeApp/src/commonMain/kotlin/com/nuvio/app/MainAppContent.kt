@@ -293,7 +293,15 @@ internal fun MainAppContent(
                 onExternalBack = onGoBack,
                 onExternalReplace = onReplace,
                 onLocalNavigate = { from, to ->
-                    if (to is DetailRoute) to.persistentHeroDetails = persistentHeroDetailsSource.capture?.invoke(to)
+                    if (to is DetailRoute) to.persistentHeroDetails = persistentHeroDetailsSource.capture?.invoke(to.type, to.id)
+                    if (to is StreamRoute) {
+                        to.persistentHeroDetails = StreamLaunchStore.get(to.launchId)?.let { launch ->
+                            persistentHeroDetailsSource.capture?.invoke(
+                                launch.parentMetaType ?: launch.type,
+                                launch.parentMetaId ?: launch.videoId,
+                            )
+                        }
+                    }
                     if (isDesktop && from != null && (to is CatalogRoute || to is FolderDetailRoute) && to !in persistentHeroPages) {
                         persistentHeroPages[from]?.let { source ->
                             source.captureDisplayed?.invoke()?.let { hero ->

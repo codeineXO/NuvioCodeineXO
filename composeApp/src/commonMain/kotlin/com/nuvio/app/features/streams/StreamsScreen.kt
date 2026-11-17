@@ -165,6 +165,7 @@ fun StreamsScreen(
     manualSelection: Boolean = false,
     startFromBeginning: Boolean = false,
     showLoadingScreen: Boolean = false,
+    carriedBackdrop: androidx.compose.ui.graphics.painter.Painter? = null,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?, startFromBeginning: Boolean) -> Unit = { _, _, _, _ -> },
     onStreamActionOpen: (
         stream: StreamItem,
@@ -380,6 +381,7 @@ fun StreamsScreen(
                     streamActionsTarget = StreamActionsTarget(stream = stream, anchorInRoot = position)
                 },
                 onRefresh = reloadStreams,
+                carriedBackdrop = carriedBackdrop,
             )
         } else {
             MobileStreamsLayout(

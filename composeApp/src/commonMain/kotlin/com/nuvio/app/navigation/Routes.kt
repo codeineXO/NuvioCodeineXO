@@ -154,7 +154,10 @@ data class FolderDetailRoute(
 data class StreamRoute(
     val launchId: Long,
     override val title: String = "",
-) : AppRoute
+) : AppRoute {
+    @Transient
+    internal var persistentHeroDetails: PersistentHeroDetails? = null
+}
 
 @Serializable
 data class CatalogRoute(
