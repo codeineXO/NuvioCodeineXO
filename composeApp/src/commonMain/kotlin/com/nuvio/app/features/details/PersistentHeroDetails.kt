@@ -9,6 +9,7 @@ internal data class PersistentHeroDetails(
     val preview: MetaPreview?,
     val backdrop: Painter?,
     val logo: Painter?,
+    val showMetadataBadge: Boolean,
 )
 
 internal class PersistentHeroDetailsSource {

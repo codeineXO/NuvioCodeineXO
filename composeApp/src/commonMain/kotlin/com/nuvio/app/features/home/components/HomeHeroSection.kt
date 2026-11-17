@@ -6,6 +6,10 @@ import androidx.compose.animation.core.tween
 
 import com.nuvio.app.core.ui.rememberImdbLogoPainter
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -768,12 +772,11 @@ private fun DesktopHeroBackdrop(
 internal fun PersistentHomeHero(
     item: MetaPreview,
     onDetailsClick: ((MetaPreview) -> Unit)?,
-    logo: PersistentHeroLogo,
+    logo: Painter?,
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
     modifier: Modifier = Modifier,
-    awaitingMdbListRatings: Boolean = false,
-    awaitingMetadata: Boolean = false,
+    showMetadataBadge: Boolean = true,
 ) {
     val detailsClickModifier = if (onDetailsClick != null) {
         Modifier
@@ -813,13 +816,12 @@ internal fun PersistentHomeHero(
             DesktopHeroContentBlock(
                 item = item,
                 layout = layout,
-                showImdbRating = showImdbRating && !awaitingMetadata && !(showMdbListRatings && awaitingMdbListRatings),
-                showMdbListRatings = showMdbListRatings && !awaitingMetadata,
+                showImdbRating = showImdbRating,
+                showMdbListRatings = showMdbListRatings,
                 onItemClick = null,
                 persistentLogo = logo,
                 persistentDetailsClickModifier = detailsClickModifier,
-                reserveRatingsRow = (showMdbListRatings && (awaitingMdbListRatings || awaitingMetadata)) ||
-                    (showImdbRating && awaitingMetadata && !item.imdbRating.isNullOrBlank()),
+                showMetadataBadge = showMetadataBadge,
                 compact = compact,
                 short = short,
                 showDescription = !minimal,
@@ -999,9 +1001,9 @@ private fun DesktopHeroContentBlock(
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
-    persistentLogo: PersistentHeroLogo? = null,
-    persistentDetailsClickModifier: Modifier = Modifier,
-    reserveRatingsRow: Boolean = false,
+    persistentLogo: Painter? = null,
+    persistentDetailsClickModifier: Modifier? = null,
+    showMetadataBadge: Boolean = true,
     compact: Boolean = false,
     short: Boolean = false,
     showDescription: Boolean = true,
@@ -1024,30 +1026,41 @@ private fun DesktopHeroContentBlock(
             },
         horizontalAlignment = Alignment.Start,
     ) {
-        if (persistentLogo != null || (logoUrl != null && !logoLoadError)) {
+        if (persistentDetailsClickModifier != null || (logoUrl != null && !logoLoadError)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(desktopHeroLogoHeight(layout, compact)),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                when (persistentLogo) {
-                    PersistentHeroLogo.Loading -> Unit
-                    PersistentHeroLogo.Unavailable -> DesktopHeroTitle(
-                        item.name,
-                        compact,
-                        maxLines = if (compact) 1 else 2,
-                        modifier = persistentDetailsClickModifier,
-                    )
-                    is PersistentHeroLogo.Ready -> Image(
-                        painter = persistentLogo.painter,
-                        contentDescription = item.name,
-                        modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight()
-                            .then(persistentDetailsClickModifier),
-                        alignment = Alignment.CenterStart,
-                        contentScale = ContentScale.Fit,
-                    )
-                    null -> AsyncImage(
+                if (persistentDetailsClickModifier != null) {
+                    AnimatedContent(
+                        targetState = persistentLogo,
+                        modifier = Modifier.fillMaxSize(),
+                        contentKey = { it != null },
+                        transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(160)) },
+                        label = "Hero title logo",
+                    ) { painter ->
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (painter == null) {
+                                DesktopHeroTitle(
+                                    item.name, compact, maxLines = if (compact) 1 else 2,
+                                    modifier = persistentDetailsClickModifier,
+                                )
+                            } else {
+                                Image(
+                                    painter = painter,
+                                    contentDescription = item.name,
+                                    modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight()
+                                        .then(persistentDetailsClickModifier),
+                                    alignment = Alignment.CenterStart,
+                                    contentScale = ContentScale.Fit,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    AsyncImage(
                         model = logoUrl,
                         contentDescription = item.name,
                         modifier = Modifier
@@ -1070,28 +1083,29 @@ private fun DesktopHeroContentBlock(
             isTablet = true,
             showImdbRating = showImdbRating,
             showMdbListRatings = showMdbListRatings,
-            ratingsRowHeight = if (persistentLogo != null) {
+            ratingsRowHeight = if (persistentDetailsClickModifier != null) {
                 with(LocalDensity.current) {
                     maxOf(MaterialTheme.typography.titleSmall.lineHeight.toDp(), 24.dp) + 4.dp
                 }
             } else null,
-            reserveRatingsRow = reserveRatingsRow,
+            modifier = if (persistentDetailsClickModifier != null) Modifier.animateContentSize(tween(160)) else Modifier,
+            showMetadataBadge = showMetadataBadge,
         )
 
         item.description?.takeIf { showDescription && it.isNotBlank() }?.let { description ->
             Spacer(modifier = Modifier.height(when {
                 compact -> NuvioTokens.Space.s4
-                persistentLogo != null -> NuvioTokens.Space.s6
+                persistentDetailsClickModifier != null -> NuvioTokens.Space.s6
                 else -> NuvioTokens.Space.s16
             }))
             Text(
                 text = description,
-                modifier = if (persistentLogo != null) {
+                modifier = if (persistentDetailsClickModifier != null) {
                     Modifier.fillMaxWidth(0.8f).then(persistentDetailsClickModifier)
                 } else Modifier,
-                style = (if (persistentLogo != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(
-                    fontSize = if (persistentLogo != null) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
-                    lineHeight = if (persistentLogo != null) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
+                style = (if (persistentDetailsClickModifier != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(
+                    fontSize = if (persistentDetailsClickModifier != null) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
+                    lineHeight = if (persistentDetailsClickModifier != null) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
                     letterSpacing = NuvioTokens.LetterSpacing.none,
                 ),
                 color = colorScheme.onSurface,
@@ -1153,6 +1167,8 @@ private fun DesktopHeroTitle(title: String, compact: Boolean, maxLines: Int, mod
 private fun desktopHeroDescriptionLines(compact: Boolean, short: Boolean): Int =
     if (short) 1 else if (compact) 2 else 4
 
+internal val DesktopHeroMaxLogoHeight = 120.dp
+
 private fun desktopHeroLogoHeight(layout: HomeHeroLayout, compact: Boolean): Dp =
     if (compact) 44.dp else desktopHeroLogoSlotHeight(layout)
 
@@ -1165,7 +1181,7 @@ private fun desktopHeroLogoWidthFraction(layout: HomeHeroLayout): Float =
 
 private fun desktopHeroLogoSlotHeight(layout: HomeHeroLayout): Dp =
     when {
-        layout.contentMaxWidth >= 640.dp -> 120.dp
+        layout.contentMaxWidth >= 640.dp -> DesktopHeroMaxLogoHeight
         layout.contentMaxWidth >= 520.dp -> 112.dp
         else -> 104.dp
     }

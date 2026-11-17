@@ -198,6 +198,7 @@ import com.nuvio.app.features.details.components.TabletDetailHero
 import com.nuvio.app.features.details.components.TrailerPlayerPopup
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.PersistentHeroBackdrop
+import com.nuvio.app.features.home.components.PersistentHomeHero
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.PendingTrackingMembershipRemoval
@@ -689,9 +690,20 @@ internal fun MetaDetailsScreen(
             }
             when {
             displayedMeta == null && requestState?.errorMessage == null -> {
-                NuvioLoadingIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                )
+                 val preview = heroDetails?.preview
+                 if (preview != null) {
+                     PersistentHomeHero(
+                         item = preview,
+                         onDetailsClick = null,
+                         logo = heroDetails.logo,
+                         showImdbRating = metaScreenSettingsUiState.showOverallRatings,
+                         showMdbListRatings = mdbListSettings.isActive,
+                         modifier = Modifier.matchParentSize(),
+                         showMetadataBadge = heroDetails.showMetadataBadge,
+                     )
+                 } else {
+                     NuvioLoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                 }
             }
 
             displayedMeta == null -> {
@@ -736,6 +748,9 @@ internal fun MetaDetailsScreen(
                         description = displayedMeta.description?.takeIf { it.isNotBlank() } ?: preview.description,
                         releaseInfo = displayedMeta.releaseInfo?.takeIf { it.isNotBlank() } ?: preview.releaseInfo,
                         runtime = displayedMeta.runtime?.takeIf { it.isNotBlank() } ?: preview.runtime,
+                        ageRating = displayedMeta.ageRating?.takeIf { it.isNotBlank() } ?: preview.ageRating,
+                        status = displayedMeta.status?.takeIf { it.isNotBlank() } ?: preview.status,
+                        language = displayedMeta.language?.takeIf { it.isNotBlank() } ?: preview.language,
                         genres = displayedMeta.genres.ifEmpty { preview.genres },
                         imdbRating = displayedMeta.imdbRating?.takeIf { it.isNotBlank() } ?: preview.imdbRating,
                         externalRatings = displayedMeta.externalRatings.ifEmpty {

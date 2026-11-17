@@ -7,9 +7,14 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import androidx.compose.ui.graphics.painter.Painter
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetaExternalRating
+import com.nuvio.app.features.home.HomeHeroMeta
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.fetchHomeHeroDetails
+import com.nuvio.app.features.home.fetchHomeHeroRatings
 import com.nuvio.app.features.home.stableKey
+import com.nuvio.app.features.home.withHeroMeta
+import com.nuvio.app.features.mdblist.MdbListSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -84,24 +89,73 @@ internal class PersistentHeroLoader(
     private val imageLoader: ImageLoader,
     private val width: Int,
     private val height: Int,
+    private val logoHeight: Int,
+    private val ratingSettings: MdbListSettings?,
 ) {
-    private data class ArtworkKey(val title: String, val url: String, val width: Int)
+    private data class ArtworkKey(val title: String, val url: String, val width: Int, val height: Int)
+    data class Logo(val url: String, val painter: Painter)
 
     private val details = PersistentHeroRequests<String, MetaDetails>(scope)
     private val artwork = PersistentHeroRequests<ArtworkKey, Painter>(scope)
+    private val ratings = PersistentHeroRequests<String, List<MetaExternalRating>>(scope)
 
-    suspend fun details(item: MetaPreview, foreground: Boolean) = details.load(item.stableKey(), foreground) {
+    private suspend fun details(item: MetaPreview, foreground: Boolean) = details.load(item.stableKey(), foreground) {
         withTimeoutOrNull(2_500) { fetchHomeHeroDetails(item) }
     }
 
-    suspend fun backdrop(item: MetaPreview, url: String, foreground: Boolean): Painter? =
-        artwork(item, url, width, foreground)
+    suspend fun enrich(item: MetaPreview, foreground: Boolean): MetaPreview {
+        val meta = details(item, foreground)
+        return item.withHeroMeta(HomeHeroMeta(meta)).copy(
+            banner = item.banner.nonBlank() ?: meta?.background.nonBlank() ?: item.landscapePoster.nonBlank(),
+            poster = item.poster.nonBlank() ?: meta?.poster.nonBlank(),
+            description = item.description.nonBlank() ?: meta?.description.nonBlank(),
+        )
+    }
 
-    suspend fun logo(item: MetaPreview, url: String): Painter? =
-        artwork(item, url, (width / 2).coerceAtLeast(1), foreground = true)
+    suspend fun backdrop(item: MetaPreview, foreground: Boolean): Painter? = withTimeoutOrNull(2_800) {
+        val banner = item.banner.nonBlank() ?: item.landscapePoster.nonBlank()
+        val poster = item.poster.nonBlank() ?: item.rawPosterUrl.nonBlank()
+        val known = banner ?: poster
+        val image = known?.let { artwork(item, it, width, height, foreground) }
+        if (image != null && banner != null) return@withTimeoutOrNull image
+        if (image != null) {
+            // Give a landscape image a short head start before settling on an already decoded poster.
+            return@withTimeoutOrNull withTimeoutOrNull(120) {
+                details(item, foreground)?.background.nonBlank()?.takeUnless { it == known }
+                    ?.let { artwork(item, it, width, height, foreground) }
+            } ?: image
+        }
 
-    private suspend fun artwork(item: MetaPreview, url: String, width: Int, foreground: Boolean): Painter? {
-        return artwork.load(ArtworkKey(item.stableKey(), url, width), foreground) {
+        val meta = details(item, foreground)
+        listOfNotNull(meta?.background.nonBlank(), poster, meta?.poster.nonBlank(), item.rawPosterUrl.nonBlank())
+            .distinct().filterNot { it == known }
+            .firstNotNullOfOrNull { artwork(item, it, width, height, foreground) }
+    }
+
+    suspend fun logo(item: MetaPreview, foreground: Boolean, currentLogo: Logo? = null): Logo? {
+        val catalogLogo = item.logo.nonBlank()
+        val logoWidth = (width / 2).coerceAtLeast(1)
+        suspend fun loadLogo(url: String): Logo? =
+            currentLogo?.takeIf { it.url == url }
+                ?: artwork(item, url, logoWidth, logoHeight, foreground)?.let { Logo(url, it) }
+
+        if (catalogLogo != null) {
+            loadLogo(catalogLogo)?.let { return it }
+        }
+        val url = details(item, foreground)?.logo.nonBlank()?.takeUnless { it == catalogLogo } ?: return null
+        return loadLogo(url)
+    }
+
+    suspend fun ratings(item: MetaPreview, foreground: Boolean): List<MetaExternalRating>? {
+        val settings = ratingSettings ?: return null
+        return ratings.load(item.stableKey(), foreground) {
+            withTimeoutOrNull(2_500) { fetchHomeHeroRatings(item, settings) { details(item, foreground) } }
+                ?.takeIf { it.isNotEmpty() }
+        }
+    }
+
+    private suspend fun artwork(item: MetaPreview, url: String, width: Int, height: Int, foreground: Boolean): Painter? {
+        return artwork.load(ArtworkKey(item.stableKey(), url, width, height), foreground) {
             val request = ImageRequest.Builder(context).data(url).size(width, height).build()
             withTimeoutOrNull(1_750) {
                 (imageLoader.execute(request) as? SuccessResult)?.image?.asPainter(context)
@@ -111,17 +165,16 @@ internal class PersistentHeroLoader(
 
     suspend fun preload(item: MetaPreview) = coroutineScope {
         launch { details(item, foreground = false) }
-        val backdrop = item.backdropPreviewUrl()
-        if (backdrop != null) launch { backdrop(item, backdrop, foreground = false) }
+        launch { backdrop(item, foreground = false) }
+        launch { logo(item, foreground = false) }
+        launch { ratings(item, foreground = false) }
     }
 
     fun retain(titles: Set<String>) {
         details.retain { it in titles }
         artwork.retain { it.title in titles }
+        ratings.retain { it in titles }
     }
 }
 
 internal fun String?.nonBlank(): String? = this?.takeIf { it.isNotBlank() }
-
-internal fun MetaPreview.backdropPreviewUrl(): String? =
-    banner.nonBlank() ?: landscapePoster.nonBlank() ?: poster.nonBlank() ?: rawPosterUrl.nonBlank()

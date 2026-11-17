@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.features.details.MetaDetailsParser
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -64,6 +65,11 @@ internal object HomeCatalogParser {
                     landscapePoster = landscapePoster,
                     runtime = meta.string("runtime")?.trim()?.takeIf { it.isNotBlank() },
                     status = meta.string("status")?.trim()?.takeIf { it.isNotBlank() },
+                    ageRating = MetaDetailsParser.readAgeRating(meta),
+                    language = meta.string("language")?.trim()?.takeIf { it.isNotBlank() }
+                        ?: meta.array("language").mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                            .joinToString(", ").takeIf { it.isNotBlank() },
+                    imdbId = meta.string("imdb_id")?.trim()?.takeIf { it.isNotBlank() },
                 )
                 if (seenKeys.add(item.stableKey())) {
                     add(item)

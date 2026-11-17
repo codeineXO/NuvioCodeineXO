@@ -95,7 +95,8 @@ internal fun HomeHeroMetaRows(
     showImdbRating: Boolean,
     showMdbListRatings: Boolean,
     ratingsRowHeight: Dp? = null,
-    reserveRatingsRow: Boolean = false,
+    modifier: Modifier = Modifier,
+    showMetadataBadge: Boolean = true,
 ) {
     val type = item.type.trim().lowercase()
     val isSeries = type == "series" || type == "tv"
@@ -109,7 +110,8 @@ internal fun HomeHeroMetaRows(
     val release = item.releaseInfo?.takeIf { it.isNotBlank() }?.let(::formatReleaseDateForDisplay)
     val status = item.status?.trim()?.takeIf { it.isNotBlank() }
         ?.let { localizedMediaStatusLabel(it, isSeries).uppercase() }
-    val badges = listOfNotNull(item.ageRating?.trim()?.takeIf { it.isNotBlank() }, status)
+    val ageRating = item.ageRating?.trim()?.takeIf { it.isNotBlank() }
+    val badges = if (showMetadataBadge) listOfNotNull(ageRating, status) else emptyList()
     val language = item.language?.trim()?.takeIf { it.isNotBlank() }?.uppercase()
     val heroRatings = item.heroRatings(showImdbRating, showMdbListRatings)
     val ratings = heroRatings.external
@@ -119,15 +121,15 @@ internal fun HomeHeroMetaRows(
     val inlineRatings = if (ratingsRowHeight == null) emptyList() else ratings.ifEmpty {
         listOfNotNull(imdbRating?.let { MetaExternalRating(PROVIDER_IMDB, it) })
     }
-    val ratingsFollowFacts = !isSeries && badges.isEmpty()
-    val showInlineRatings = inlineRatings.isNotEmpty() || (ratingsRowHeight != null && reserveRatingsRow)
+    val ratingsFollowFacts = !isSeries && ageRating == null && status == null
+    val showInlineRatings = inlineRatings.isNotEmpty()
     val primaryImdbRating = standaloneImdb?.takeIf { ratingsFollowFacts }
     val secondaryImdbRating = standaloneImdb?.takeUnless { ratingsFollowFacts }
     val horizontalAlignment = if (isTablet) Alignment.Start else Alignment.CenterHorizontally
     val rowArrangement = Arrangement.spacedBy(8.dp, horizontalAlignment)
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = horizontalAlignment,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

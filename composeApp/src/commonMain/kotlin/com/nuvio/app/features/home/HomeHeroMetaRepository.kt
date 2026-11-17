@@ -99,7 +99,7 @@ internal suspend fun fetchHomeHeroRatings(
     settings: MdbListSettings,
     details: suspend () -> MetaDetails?,
 ): List<MetaExternalRating> {
-    val preview = MetaDetails(id = item.id, type = item.type, name = item.name)
+    val preview = MetaDetails(id = item.id, type = item.type, name = item.name, imdbId = item.imdbId)
     val meta = if (MdbListMetadataService.shouldFetchForMeta(preview, item.id, settings)) {
         preview
     } else {

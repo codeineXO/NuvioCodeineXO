@@ -363,8 +363,8 @@ object MetaDetailsRepository {
             log.d { "Fetching meta from: $url" }
             val payload = fetchAddonResponseText(url)
             log.d { "Raw payload length=${payload.length}, first 500 chars: ${payload.take(500)}" }
-            val result = MetaDetailsParser.parse(payload).let { parsed ->
-                parsed.copy(provenance = MetadataProvenance(
+            val result = withContext(Dispatchers.Default) {
+                MetaDetailsParser.parse(payload).copy(provenance = MetadataProvenance(
                     sourceName = manifest.name,
                     sourceId = manifest.id,
                     requestedId = requestedId,
