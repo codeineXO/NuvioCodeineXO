@@ -67,16 +67,21 @@ import com.nuvio.app.core.ui.collectIsRemoteHoveredAsState
 import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.details.LocalPersistentHeroDetailsSource
+import com.nuvio.app.features.details.PersistentHeroDetails
 import com.nuvio.app.features.home.HomeHeroMeta
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.fetchHomeHeroRatings
 import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.home.withHeroMeta
+import com.nuvio.app.features.mdblist.MdbListSettings
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.remote.RemoteAppBridge
+import com.nuvio.app.features.tmdb.TmdbSettings
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.isDesktop
+import com.nuvio.app.navigation.DetailRoute
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -85,6 +90,32 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 internal val LocalPersistentHeroSelection = staticCompositionLocalOf<((PersistentHeroTarget) -> Unit)?> { null }
+internal val LocalPersistentHeroPageState = staticCompositionLocalOf<PersistentHeroPageState?> { null }
+
+internal class PersistentHeroPageState(val contentGeneration: Int = 0) {
+    private data class PageKey(
+        val page: Any,
+        val profileIndex: Int?,
+        val mdbList: MdbListSettings,
+        val tmdbSettings: TmdbSettings,
+    )
+
+    private var key: PageKey? = null
+    private var selection = newSelection()
+
+    fun selectionFor(page: Any, profileIndex: Int?, mdbList: MdbListSettings, tmdbSettings: TmdbSettings): PersistentHeroSelection<LoadedHero> {
+        val pageKey = PageKey(page, profileIndex, mdbList, tmdbSettings)
+        if (key != pageKey) {
+            key = pageKey
+            selection = newSelection()
+        }
+        return selection
+    }
+
+    private fun newSelection() = PersistentHeroSelection<LoadedHero> { _, previous ->
+        LoadedHero(previous?.content, previous?.backdrop, previous?.backdropKey)
+    }
+}
 
 internal class PersistentHeroSelection<T>(private val preview: (MetaPreview, T?) -> T) {
     class Request(val item: MetaPreview)
@@ -113,12 +144,6 @@ internal class PersistentHeroSelection<T>(private val preview: (MetaPreview, T?)
         if (requested === request) displayed = displayed?.let(transform)
     }
 
-    fun clear() {
-        requested = null
-        displayed = null
-        target = null
-        previous = null
-    }
 }
 
 internal sealed interface PersistentHeroLogo {
@@ -127,13 +152,14 @@ internal sealed interface PersistentHeroLogo {
     data class Ready(val painter: Painter) : PersistentHeroLogo
 }
 
-private data class LoadedHero(
+internal data class LoadedHero(
     val content: HeroContent?,
     val backdrop: Painter?,
+    val backdropKey: String? = null,
     val awaitingContent: Boolean = true,
 )
 
-private data class HeroContent(
+internal data class HeroContent(
     val item: MetaPreview,
     val logo: PersistentHeroLogo = PersistentHeroLogo.Loading,
     val awaitingMdbListRatings: Boolean,
@@ -195,18 +221,30 @@ internal fun PersistentHeroPane(
         TmdbSettingsRepository.ensureLoaded()
         TmdbSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
-    val selection = remember(page, profile.activeProfile?.profileIndex, mdbList, tmdbSettings) {
-        PersistentHeroSelection<LoadedHero> { _, previous ->
-            LoadedHero(previous?.content, previous?.backdrop)
-        }
-    }
+    val pageState = LocalPersistentHeroPageState.current ?: remember { PersistentHeroPageState() }
+    val selection = pageState.selectionFor(page, profile.activeProfile?.profileIndex, mdbList, tmdbSettings)
     val active = LocalScreenActive.current
     val submit = remember(selection, active) {
         { target: PersistentHeroTarget -> if (active) selection.select(target) }
     }
     LaunchedEffect(active, selection, seed) {
-        if (!active) selection.clear()
-        else if (selection.requested == null && seed != null) selection.select(PersistentHeroTarget(seed))
+        if (active && selection.requested == null && seed != null) selection.select(PersistentHeroTarget(seed))
+    }
+    val detailsSource = LocalPersistentHeroDetailsSource.current
+    DisposableEffect(active, selection, detailsSource) {
+        val capture: (DetailRoute) -> PersistentHeroDetails? = { route ->
+            val key = "${route.type}:${route.id}"
+            val hero = selection.displayed
+            val content = hero?.content?.takeIf { it.item.stableKey() == key }
+            val backdrop = hero?.backdrop?.takeIf { hero.backdropKey == key }
+            if (content != null || backdrop != null) {
+                PersistentHeroDetails(content?.item, backdrop, (content?.logo as? PersistentHeroLogo.Ready)?.painter)
+            } else null
+        }
+        if (active) detailsSource?.capture = capture
+        onDispose {
+            if (detailsSource?.capture === capture) detailsSource.capture = null
+        }
     }
 
     // Keep a title opened away from Home queued until its hero can load it.
@@ -218,7 +256,6 @@ internal fun PersistentHeroPane(
                 }
             }
         }
-        val shown = selection.displayed?.content?.item
     }
 
     val currentRowAnchors by rememberUpdatedState(rowAnchors)
@@ -240,7 +277,7 @@ internal fun PersistentHeroPane(
         val showMdbListRatings = mdbList.isActive && mdbList.showOnHero
         val request = selection.requested
         val scope = rememberCoroutineScope()
-        val loader = remember(selection, active, context, widthPx, heightPx) {
+        val loader = remember(selection, context, widthPx, heightPx) {
             PersistentHeroLoader(scope, context, SingletonImageLoader.get(context), widthPx, heightPx)
         }
         DisposableEffect(loader) { onDispose { loader.retain(emptySet()) } }
@@ -292,12 +329,10 @@ internal fun PersistentHeroPane(
             launch {
                 val banner = preview.banner.nonBlank()
                 val knownBackdrop = preview.backdropPreviewUrl()
-                var previewBackdrop: Painter? = null
                 val provisional = knownBackdrop?.let { url ->
                     async {
                         loader.backdrop(preview, url, foreground = true)?.also { painter ->
-                            previewBackdrop = painter
-                            selection.update(request) { it.copy(backdrop = painter) }
+                            selection.update(request) { it.copy(backdrop = painter, backdropKey = preview.stableKey()) }
                         }
                     }
                 }
@@ -310,12 +345,14 @@ internal fun PersistentHeroPane(
                         else loader.backdrop(preview, url, foreground = true)
                     if (painter != null) {
                         provisional?.cancel()
-                        selection.update(request) { it.copy(backdrop = painter) }
+                        selection.update(request) { it.copy(backdrop = painter, backdropKey = preview.stableKey()) }
                         return@launch
                     }
                 }
                 provisional?.await()
-                selection.update(request) { it.copy(backdrop = previewBackdrop) }
+                selection.update(request) { shown ->
+                    if (shown.backdropKey == preview.stableKey()) shown else shown.copy(backdrop = null, backdropKey = null)
+                }
             }
             contentUpdates.revealWhenReady(listOfNotNull(resolvedItem, logoLoad, ratingsLoad))
         }
@@ -430,7 +467,7 @@ internal fun persistentHeroRowReserve(): Dp {
 }
 
 @Composable
-private fun PersistentHeroBackdrop(artwork: Painter?, modifier: Modifier) {
+internal fun PersistentHeroBackdrop(artwork: Painter?, modifier: Modifier) {
     val background = MaterialTheme.nuvio.colors.background
     Box(
         modifier.fillMaxSize()

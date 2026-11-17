@@ -197,6 +197,7 @@ import com.nuvio.app.features.details.components.TabletDetailBackdrop
 import com.nuvio.app.features.details.components.TabletDetailHero
 import com.nuvio.app.features.details.components.TrailerPlayerPopup
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.home.components.PersistentHeroBackdrop
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.PendingTrackingMembershipRemoval
@@ -330,7 +331,7 @@ internal fun Modifier.enhancedPageMouseWheelScroll(
 
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
-fun MetaDetailsScreen(
+internal fun MetaDetailsScreen(
     type: String,
     id: String,
     onBack: () -> Unit,
@@ -343,6 +344,7 @@ fun MetaDetailsScreen(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier,
+    heroDetails: PersistentHeroDetails? = null,
 ) {
     val playbackAvailability = rememberPlaybackAvailability()
     val shuffleProfile by remember {
@@ -681,6 +683,10 @@ fun MetaDetailsScreen(
                 )
                 .background(MaterialTheme.colorScheme.background),
         ) {
+            val carriedBackdrop = heroDetails?.backdrop
+            if (displayedMeta == null && carriedBackdrop != null) {
+                PersistentHeroBackdrop(carriedBackdrop, Modifier.matchParentSize())
+            }
             when {
             displayedMeta == null && requestState?.errorMessage == null -> {
                 NuvioLoadingIndicator(
@@ -723,7 +729,20 @@ fun MetaDetailsScreen(
             }
 
             displayedMeta != null -> {
-                val meta = displayedMeta
+                val preview = heroDetails?.preview
+                val meta = remember(displayedMeta, preview, mdbListSettings.isActive) {
+                    if (preview == null) displayedMeta else displayedMeta.copy(
+                        logo = displayedMeta.logo?.takeIf { it.isNotBlank() } ?: preview.logo,
+                        description = displayedMeta.description?.takeIf { it.isNotBlank() } ?: preview.description,
+                        releaseInfo = displayedMeta.releaseInfo?.takeIf { it.isNotBlank() } ?: preview.releaseInfo,
+                        runtime = displayedMeta.runtime?.takeIf { it.isNotBlank() } ?: preview.runtime,
+                        genres = displayedMeta.genres.ifEmpty { preview.genres },
+                        imdbRating = displayedMeta.imdbRating?.takeIf { it.isNotBlank() } ?: preview.imdbRating,
+                        externalRatings = displayedMeta.externalRatings.ifEmpty {
+                            if (mdbListSettings.isActive) preview.externalRatings else emptyList()
+                        },
+                    )
+                }
                 if (metaScreenSettingsUiState.episodeCardStyle == MetaEpisodeCardStyle.Enhanced) {
                     com.nuvio.app.features.details.components.PreloadSeasonPosterHoverPreviews(meta)
                 }
@@ -1616,6 +1635,7 @@ fun MetaDetailsScreen(
                         if (useDesktopDetailLayout || useEnhancedLayout) {
                             DesktopDetailBackdrop(
                                 meta = meta,
+                                backdropPlaceholder = carriedBackdrop,
                                 viewportHeight = viewportHeight,
                                 heroTrailerSourceUrl = heroTrailerSourceUrl,
                                 heroTrailerSourceAudioUrl = heroTrailerSourceAudioUrl,
@@ -1641,6 +1661,7 @@ fun MetaDetailsScreen(
                             if (backgroundMode == MetaScreenBackgroundMode.Cinematic) {
                                 DesktopDetailBackdrop(
                                     meta = meta,
+                                    backdropPlaceholder = carriedBackdrop,
                                     viewportHeight = viewportHeight,
                                     heroTrailerSourceUrl = null,
                                     heroTrailerSourceAudioUrl = null,
@@ -1702,6 +1723,7 @@ fun MetaDetailsScreen(
                                             EnhancedDetailPage(viewportHeight, hasEpisodes) {
                                                 DesktopDetailHero(
                                                     meta = meta,
+                                                    logoPlaceholder = heroDetails?.logo,
                                                     showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
                                                     isMdbListActive = mdbListSettings.isActive,
                                                     playButtonLabel = playButtonLabel,
@@ -1871,6 +1893,7 @@ fun MetaDetailsScreen(
                                     DesktopDetailHero(
                                         modifier = Modifier.remoteNavigationScrollToTop(listState),
                                         meta = meta,
+                                        logoPlaceholder = heroDetails?.logo,
                                         showOverallRatings = metaScreenSettingsUiState.showOverallRatings,
                                         isMdbListActive = mdbListSettings.isActive,
                                         playButtonLabel = playButtonLabel,
@@ -2027,6 +2050,8 @@ fun MetaDetailsScreen(
                                     } else {
                                         DetailHero(
                                         meta = meta,
+                                        backdropPlaceholder = carriedBackdrop,
+                                        logoPlaceholder = heroDetails?.logo,
                                         isTablet = isTablet,
                                         contentMaxWidth = contentMaxWidth,
                                         viewportHeight = viewportHeight,

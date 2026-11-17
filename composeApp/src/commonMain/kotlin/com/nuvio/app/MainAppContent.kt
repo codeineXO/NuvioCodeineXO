@@ -123,6 +123,8 @@ import com.nuvio.app.features.cloud.providerPosterUrl
 import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.collection.CollectionSyncService
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.details.LocalPersistentHeroDetailsSource
+import com.nuvio.app.features.details.PersistentHeroDetailsSource
 import com.nuvio.app.features.details.toMetaPreview
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.downloads.DownloadItem
@@ -136,6 +138,8 @@ import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.buildAddonCatalogRefreshSignature
 import com.nuvio.app.features.home.opensDetails
+import com.nuvio.app.features.home.components.LocalPersistentHeroPageState
+import com.nuvio.app.features.home.components.PersistentHeroPageState
 import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.LibrarySection
@@ -267,6 +271,8 @@ internal fun MainAppContent(
 ) {
         val navBackStack = rememberNavBackStack(navigationSavedStateConfiguration, initialRoute)
         val posterNavigation = remember { PosterNavigationState() }
+        val persistentHeroDetailsSource = remember { PersistentHeroDetailsSource() }
+        val persistentHeroPages = remember { mutableMapOf<NavKey, PersistentHeroPageState>() }
         val posterTransitionEnabled by remember {
             MetaScreenSettingsRepository.ensureLoaded()
             MetaScreenSettingsRepository.uiState
@@ -275,6 +281,7 @@ internal fun MainAppContent(
             posterTransitionEnabled && onNavigate == null
         val routeDisposalDecorator = remember {
             RouteDisposalNavEntryDecorator<NavKey> { key ->
+                persistentHeroPages.remove(key)
                 if (key is AppRoute) disposeRoute(key)
             }
         }
@@ -284,7 +291,10 @@ internal fun MainAppContent(
                 onExternalNavigate = onNavigate,
                 onExternalBack = onGoBack,
                 onExternalReplace = onReplace,
-                onLocalNavigate = if (posterNavigationEnabled) posterNavigation::navigate else null,
+                onLocalNavigate = { from, to ->
+                    if (to is DetailRoute) to.persistentHeroDetails = persistentHeroDetailsSource.capture?.invoke(to)
+                    if (posterNavigationEnabled) posterNavigation.navigate(from, to)
+                },
                 onLocalPop = if (posterNavigationEnabled) posterNavigation::clear else null,
             )
         }
@@ -1708,6 +1718,7 @@ internal fun MainAppContent(
                 CompositionLocalProvider(
                     com.nuvio.app.core.ui.LocalNavigationGlassState provides navigationGlassState.takeUnless { currentRoute is PlayerRoute },
                     LocalPosterClickAnchor provides if (posterNavigationEnabled) posterNavigation::prepare else null,
+                    LocalPersistentHeroDetailsSource provides persistentHeroDetailsSource.takeIf { isDesktop },
                     LocalUseNativeNavigation provides useNativeNavigation,
                     LocalNativeNavigationBarHidden provides (currentRoute?.hidesNavigationBar == true),
                     LocalVerticalBarPadding provides if (drawsUnderVerticalBar) verticalBarPadding else PaddingValues(),
@@ -2211,10 +2222,20 @@ internal fun MainAppContent(
                                     provider(key)
                                 }).let { entry ->
                                     androidx.navigation3.runtime.NavEntry(key = key, contentKey = entry.contentKey, metadata = entry.metadata) {
+                                        val heroPage = remember(key, appContentGeneration) {
+                                            if (isDesktop && (key is TabsRoute || key is CatalogRoute || key is FolderDetailRoute)) {
+                                                persistentHeroPages[key]?.takeIf { it.contentGeneration == appContentGeneration }
+                                                    ?: PersistentHeroPageState(appContentGeneration).also { persistentHeroPages[key] = it }
+                                            } else null
+                                        }
                                         com.nuvio.app.core.ui.RemoteNavigationEntry(
                                             routeKey = if (key is TabsRoute) rootFocusKey else key,
                                             active = key == navBackStack.lastOrNull(),
-                                        ) { entry.Content() }
+                                        ) {
+                                            CompositionLocalProvider(LocalPersistentHeroPageState provides heroPage) {
+                                                entry.Content()
+                                            }
+                                        }
                                     }
                                 },
                             )

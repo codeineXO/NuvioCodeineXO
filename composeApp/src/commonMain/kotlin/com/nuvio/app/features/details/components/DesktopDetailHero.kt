@@ -2,7 +2,6 @@ package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
-import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -127,6 +126,7 @@ fun DesktopDetailBackdrop(
     onHeroTrailerEnded: () -> Unit,
     onHeroTrailerError: () -> Unit,
     modifier: Modifier = Modifier,
+    backdropPlaceholder: Painter? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val sideGradientColor = heroGradientColor ?: colorScheme.background
@@ -176,11 +176,11 @@ fun DesktopDetailBackdrop(
             ),
         )
         val imageUrl = meta.background ?: meta.poster
-        if (imageUrl != null) {
-            AsyncImage(
+        if (imageUrl != null || backdropPlaceholder != null) {
+            DetailBackdropImage(
                 model = rememberArtworkRequest(imageUrl, if (meta.background != null) ArtworkRole.Backdrop else ArtworkRole.Poster),
                 contentDescription = meta.name,
-                desktopAnimation = NuvioDesktopAnimation.Always,
+                carriedArtwork = backdropPlaceholder,
                 modifier = artworkModifier.navigationGlassSource(enabled = enableGlassSource),
                 alignment = BiasAlignment(0f, DesktopBackdropVerticalBias),
                 contentScale = if (removeSideFade) ContentScale.Crop else if (useWideArtworkFrame && !cropSideBackdrop) ContentScale.Fit else ContentScale.Crop,
@@ -304,6 +304,7 @@ fun DesktopDetailHero(
     compact: Boolean = false,
     isEnhanced: Boolean = false,
     onPlayDown: (suspend () -> Unit)? = null,
+    logoPlaceholder: Painter? = null,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val space = NuvioTokens.Space
@@ -347,7 +348,15 @@ fun DesktopDetailHero(
                     bottom = if (compact) space.s8 else space.s40,
                 ),
         ) {
-            if (logoUrl != null && !logoLoadError) {
+            if (logoPlaceholder != null) {
+                Image(
+                    painter = logoPlaceholder,
+                    contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
+                    modifier = Modifier.widthIn(max = 560.dp).height(120.dp),
+                    alignment = Alignment.CenterStart,
+                    contentScale = ContentScale.Fit,
+                )
+            } else if (logoUrl != null && !logoLoadError) {
                 if (isEnhanced) {
                     Box(
                         modifier = Modifier.wrapContentSize(),

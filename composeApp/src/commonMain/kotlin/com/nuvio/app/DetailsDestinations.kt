@@ -82,6 +82,7 @@ internal fun DetailsDestination(
     MetaDetailsScreen(
         type = route.type,
         id = route.id,
+        heroDetails = route.persistentHeroDetails,
         onBack = onBack,
         onPlay = onPlay,
         onPlayManually = onPlayManually,

@@ -1,7 +1,9 @@
 package com.nuvio.app.navigation
 
 import androidx.navigation3.runtime.NavKey
+import com.nuvio.app.features.details.PersistentHeroDetails
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable
 sealed interface AppRoute : NavKey {
@@ -42,7 +44,10 @@ data class DetailRoute(
     val id: String,
     override val title: String? = null,
     val posterUrl: String? = null,
-) : AppRoute
+) : AppRoute {
+    @Transient
+    internal var persistentHeroDetails: PersistentHeroDetails? = null
+}
 
 @Serializable
 data class PersonDetailRoute(
