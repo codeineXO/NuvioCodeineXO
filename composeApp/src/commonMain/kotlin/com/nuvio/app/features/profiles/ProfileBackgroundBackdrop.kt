@@ -15,10 +15,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.ProfileMeshBackground
 import com.nuvio.app.core.ui.navigationGlassSource
+import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.membership.MemberAccessRepository
 import com.nuvio.app.features.membership.ProfileBackgroundRepository
 import com.nuvio.app.features.membership.ProfileBackgroundSelection
 import com.nuvio.app.features.membership.resolveProfileBackground
+import com.nuvio.app.features.settings.ThemeSettingsRepository
 
 @Composable
 fun ProfileBackgroundBackdrop(
@@ -31,6 +33,7 @@ fun ProfileBackgroundBackdrop(
         MemberAccessRepository.access
     }.collectAsStateWithLifecycle()
     val backgroundCatalog by ProfileBackgroundRepository.catalog.collectAsStateWithLifecycle()
+    val auraBackgroundEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
     val profileColor = remember(profile?.avatarColorHex, colorOverride) {
         colorOverride ?: profile?.avatarColorHex?.let(::parseHexColor) ?: Color(0xFF1E88E5)
     }
@@ -42,7 +45,7 @@ fun ProfileBackgroundBackdrop(
         profile?.let { resolveProfileBackground(it, memberAccess.entitlements) }
     }
 
-    BoxWithConstraints(modifier = modifier.navigationGlassSource()) {
+    BoxWithConstraints(modifier = modifier) {
         val isPortrait = maxHeight > maxWidth
         LaunchedEffect(backgroundSelection, isPortrait) {
             val selectedId = (backgroundSelection as? ProfileBackgroundSelection.Catalog)?.id
@@ -64,22 +67,22 @@ fun ProfileBackgroundBackdrop(
             null -> null
         }
 
-        if (backgroundModel == null) {
-            ProfileMeshBackground(
+        when {
+            backgroundModel != null -> Box(Modifier.fillMaxSize().navigationGlassSource()) {
+                AsyncImage(
+                    model = backgroundModel,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                Box(
+                    modifier = Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.28f)),
+                )
+            }
+            auraBackgroundEnabled -> HomeInteractiveGradientBackground()
+            else -> ProfileMeshBackground(
                 profileColor = profileColor,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            AsyncImage(
-                model = backgroundModel,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f)),
+                modifier = Modifier.fillMaxSize().navigationGlassSource(),
             )
         }
     }
