@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,13 +32,16 @@ object CatalogRepository {
 
     private var activeJob: Job? = null
     private var activeRequest: CatalogRequest? = null
+    private var activeLaunchId: Long? = null
     private val scrollPositions = linkedMapOf<CatalogRequest, CatalogScrollPosition>()
 
     fun load(
         target: CatalogTarget,
         force: Boolean = false,
+        launchId: Long? = null,
     ) {
         val request = catalogRequest(target)
+        activeLaunchId = launchId
         if (!force && activeRequest == request && (_uiState.value.items.isNotEmpty() || _uiState.value.isLoading)) {
             return
         }
@@ -64,9 +68,11 @@ object CatalogRepository {
         )
     }
 
-    fun clear() {
+    fun clear(launchId: Long? = null) {
+        if (launchId != null && activeLaunchId != launchId) return
         activeJob?.cancel()
         activeRequest = null
+        activeLaunchId = null
         scrollPositions.clear()
         _uiState.value = CatalogUiState()
     }
@@ -91,9 +97,13 @@ object CatalogRepository {
 
     private fun observeInternalLibrary(request: CatalogRequest) {
         activeJob?.cancel()
-        _uiState.value = _uiState.value.copy(
+        val current = _uiState.value.takeIf { it.matches(request.target, request.hideUnreleasedContent) }
+            ?: CatalogUiState()
+        _uiState.value = current.copy(
             isLoading = true,
             errorMessage = null,
+            target = request.target,
+            hideUnreleasedContent = request.hideUnreleasedContent,
         )
 
         activeJob = scope.launch {
@@ -108,8 +118,11 @@ object CatalogRepository {
                     val posterPattern = CustomPosterUrlRepository.patternForScreen(
                         com.nuvio.app.core.poster.CustomPosterScreen.LIBRARY
                     )
+                    ensureActive()
                     _uiState.value = state.copy(
-                        items = state.items.withCustomPosterUrls(posterPattern)
+                        items = state.items.withCustomPosterUrls(posterPattern),
+                        target = request.target,
+                        hideUnreleasedContent = request.hideUnreleasedContent,
                     )
                 }
             } catch (error: CancellationException) {
@@ -118,6 +131,8 @@ object CatalogRepository {
                 if (activeRequest != request) return@launch
                 _uiState.value = CatalogUiState(
                     errorMessage = error.serverMessage() ?: error.message ?: getString(Res.string.catalog_load_failed),
+                    target = request.target,
+                    hideUnreleasedContent = request.hideUnreleasedContent,
                 )
             }
         }
@@ -137,6 +152,8 @@ object CatalogRepository {
             isLoading = true,
             nextSkip = if (reset) null else current.nextSkip,
             errorMessage = null,
+            target = request.target,
+            hideUnreleasedContent = request.hideUnreleasedContent,
         )
 
         activeJob = scope.launch {
@@ -185,15 +202,19 @@ object CatalogRepository {
                         else -> com.nuvio.app.core.poster.CustomPosterScreen.HOME
                     }
                     val posterPattern = CustomPosterUrlRepository.patternForScreen(posterScreen)
+                    ensureActive()
                     _uiState.value = CatalogUiState(
                         items = mergedItems.withCustomPosterUrls(posterPattern),
                         isLoading = false,
                         nextSkip = paginationState.nextSkip,
                         consecutiveDuplicatePages = paginationState.consecutiveDuplicatePages,
                         errorMessage = null,
+                        target = request.target,
+                        hideUnreleasedContent = request.hideUnreleasedContent,
                     )
                 },
                 onFailure = { error ->
+                    ensureActive()
                     if (activeRequest != request) return@fold
 
                     _uiState.value = current.copy(
@@ -201,6 +222,8 @@ object CatalogRepository {
                         isLoading = false,
                         nextSkip = null,
                         errorMessage = error.serverMessage() ?: error.message ?: getString(Res.string.catalog_load_failed),
+                        target = request.target,
+                        hideUnreleasedContent = request.hideUnreleasedContent,
                     )
                 },
             )

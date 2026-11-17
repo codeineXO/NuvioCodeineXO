@@ -76,7 +76,7 @@ internal fun disposeRouteResources(route: AppRoute) {
         }
 
         is CatalogRoute -> {
-            CatalogRepository.clear()
+            CatalogRepository.clear(route.launchId)
             CatalogLaunchStore.remove(route.launchId)
         }
 
@@ -86,7 +86,7 @@ internal fun disposeRouteResources(route: AppRoute) {
                 .getOrNull()
                 ?.let(::disposeCollectionEditorPage)
         }
-        is FolderDetailRoute -> FolderDetailRepository.clear()
+        is FolderDetailRoute -> FolderDetailRepository.clear(route.collectionId, route.folderId)
         else -> Unit
     }
 }

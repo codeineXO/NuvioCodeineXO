@@ -89,7 +89,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal val LocalPersistentHeroSelection = staticCompositionLocalOf<((PersistentHeroTarget) -> Unit)?> { null }
 internal val LocalPersistentHeroPageState = staticCompositionLocalOf<PersistentHeroPageState?> { null }
 
-internal class PersistentHeroPageState(val contentGeneration: Int = 0) {
+internal class PersistentHeroPageState(
+    val contentGeneration: Int = 0,
+    handoff: LoadedHero? = null,
+) {
+    var handoff by mutableStateOf(handoff)
+    var captureDisplayed: (() -> LoadedHero?)? = null
+
     private data class PageKey(
         val page: Any,
         val profileIndex: Int?,
@@ -164,6 +170,8 @@ internal fun PersistentHeroPane(
     modifier: Modifier = Modifier,
     topInset: Dp = 0.dp,
     startInset: Dp = 0.dp,
+    showInitialPreview: Boolean = false,
+    initialPreview: MetaPreview? = null,
     header: (@Composable () -> Unit)? = null,
     rail: (@Composable (maxHeight: Dp) -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -198,16 +206,28 @@ internal fun PersistentHeroPane(
     LaunchedEffect(active, selection, seed) {
         if (active && selection.requested == null && seed != null) selection.select(PersistentHeroTarget(seed))
     }
+    val handoff = pageState.handoff
+    val displayedHero = selection.displayed
+    LaunchedEffect(active, handoff, displayedHero, loading, seed) {
+        if (active && handoff != null && (displayedHero != null || (!loading && seed == null))) {
+            pageState.handoff = null
+        }
+    }
     val detailsSource = LocalPersistentHeroDetailsSource.current
-    DisposableEffect(active, selection, detailsSource) {
+    DisposableEffect(active, pageState, selection, detailsSource) {
+        val captureDisplayed: () -> LoadedHero? = { selection.displayed ?: pageState.handoff }
         val capture: (DetailRoute) -> PersistentHeroDetails? = { route ->
             val key = "${route.type}:${route.id}"
             val hero = selection.displayed?.takeIf { it.item.stableKey() == key }
                 ?: selection.requested?.item?.takeIf { it.stableKey() == key }?.let { LoadedHero(it, null, null) }
             hero?.let { PersistentHeroDetails(it.item, it.backdrop, it.logo, it.showMetadataBadge) }
         }
-        if (active) detailsSource?.capture = capture
+        if (active) {
+            pageState.captureDisplayed = captureDisplayed
+            detailsSource?.capture = capture
+        }
         onDispose {
+            if (pageState.captureDisplayed === captureDisplayed) pageState.captureDisplayed = null
             if (detailsSource?.capture === capture) detailsSource.capture = null
         }
     }
@@ -251,6 +271,10 @@ internal fun PersistentHeroPane(
         }
         DisposableEffect(loader) { onDispose { loader.retain(emptySet()) } }
 
+        LaunchedEffect(active, loader, request, initialPreview) {
+            if (active && request == null && initialPreview != null) loader.preload(initialPreview)
+        }
+
         LaunchedEffect(active, selection, request, loader) {
             if (!active || request == null) return@LaunchedEffect
             val preview = request.item
@@ -289,7 +313,9 @@ internal fun PersistentHeroPane(
             }
             backdrop = artwork.await() ?: backdrop
             // Commit one title/backdrop pair even when some optional assets miss the reveal window.
-            withTimeoutOrNull(HeroContentGraceMs) { joinAll(metadata, titleLogo, ratings) }
+            if (backdrop != null || !showInitialPreview) {
+                withTimeoutOrNull(HeroContentGraceMs) { joinAll(metadata, titleLogo, ratings) }
+            }
             revealed = true
             publish()
         }
@@ -304,12 +330,14 @@ internal fun PersistentHeroPane(
             delay(100)
             neighbors.forEach { item -> launch { loader.preload(item) } }
         }
-        val hero = selection.displayed
+        val hero = displayedHero
+            ?: handoff?.takeIf { loading || seed != null }
+            ?: (request?.item ?: seed ?: initialPreview)?.takeIf { showInitialPreview }?.let { LoadedHero(it, null, null) }
         val heroTransition = updateTransition(hero, label = "Persistent hero")
         PersistentHeroBackdropFrame(backdropModifier) {
             heroTransition.AnimatedContent(
                 modifier = Modifier.fillMaxSize(),
-                contentKey = { it?.item?.stableKey() },
+                contentKey = { displayed -> displayed?.takeIf { it.backdrop != null }?.item?.stableKey() },
                 transitionSpec = {
                     (fadeIn(tween(HeroTransitionMs, easing = FastOutSlowInEasing)) togetherWith
                         ExitTransition.KeepUntilTransitionsFinished).apply { targetContentZIndex = 1f }
@@ -336,7 +364,7 @@ internal fun PersistentHeroPane(
                         PersistentHomeHero(
                             item = displayed.item,
                             onDetailsClick = onHeroClick.takeIf {
-                                active && displayed.item.stableKey() == hero?.item?.stableKey()
+                                active && displayed.item.stableKey() == displayedHero?.item?.stableKey()
                             },
                             logo = displayed.logo,
                             showImdbRating = metaSettings.showOverallRatings,

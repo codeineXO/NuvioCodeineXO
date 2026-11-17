@@ -122,12 +122,17 @@ private val FolderCoverHeight = 176.dp
 
 @Composable
 fun FolderDetailScreen(
+    collectionId: String,
+    folderId: String,
+    title: String,
     onBack: () -> Unit,
     onCatalogClick: (HomeCatalogSection) -> Unit,
     onPosterClick: (MetaPreview) -> Unit,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
-    val uiState by FolderDetailRepository.uiState.collectAsState()
+    val repositoryState by FolderDetailRepository.uiState.collectAsState()
+    val uiState = repositoryState.takeIf { it.collectionId == collectionId && it.folderId == folderId }
+        ?: FolderDetailUiState()
     val watchedUiState by remember {
         WatchedRepository.ensureLoaded()
         WatchedRepository.uiState
@@ -191,7 +196,7 @@ fun FolderDetailScreen(
             PersistentHeroPane(
                 enabled = persistentHero,
                 onHeroClick = onPosterClick,
-                page = Triple(uiState.collectionTitle, folder?.id, uiState.selectedTabIndex.takeIf { isGrid }),
+                page = Triple(collectionId, folderId, uiState.selectedTabIndex.takeIf { isGrid }),
                 seed = if (uiState.viewMode == FolderViewMode.TABBED_GRID) {
                     uiState.selectedTab?.items?.firstOrNull()
                 } else {
@@ -207,11 +212,12 @@ fun FolderDetailScreen(
                     if (isGrid) gridState.verticalRowAnchors() else rowsState.verticalRowAnchors()
                 },
                 loading = uiState.isLoading || uiState.selectedTab?.isLoading == true,
+                showInitialPreview = true,
                 startInset = sidebarInset,
                 header = {
                     if (!useNativeNavigation) {
                         NuvioScreenHeader(
-                            title = folder?.title ?: uiState.collectionTitle,
+                            title = folder?.title ?: uiState.collectionTitle.ifBlank { title },
                             modifier = Modifier.padding(start = sidebarInset),
                             backgroundColor = Color.Transparent,
                             includeStatusBarPadding = false,

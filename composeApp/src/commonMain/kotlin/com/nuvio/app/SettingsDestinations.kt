@@ -16,6 +16,7 @@ import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.home.components.HomeInteractiveGradientBackground
 import com.nuvio.app.features.settings.ThemeSettingsRepository
 import com.nuvio.app.core.ui.PlatformBackHandler
+import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.features.collection.CollectionEditorPage
 import com.nuvio.app.features.collection.CollectionEditorScreen
 import com.nuvio.app.features.collection.CollectionFolderBrowserScreen
@@ -207,10 +208,14 @@ internal fun FolderDestination(
     onPosterLongClick: ((com.nuvio.app.features.home.MetaPreview) -> Unit)? = null,
 ) {
     val onBack = rememberGuardedPopBackStack(navController, route)
-    LaunchedEffect(route.collectionId, route.folderId) {
-        FolderDetailRepository.initialize(route.collectionId, route.folderId)
+    val active = LocalScreenActive.current
+    LaunchedEffect(active, route.collectionId, route.folderId) {
+        if (active) FolderDetailRepository.initialize(route.collectionId, route.folderId)
     }
     FolderDetailScreen(
+        collectionId = route.collectionId,
+        folderId = route.folderId,
+        title = route.title,
         onBack = onBack,
         onCatalogClick = onCatalogClick,
         onPosterClick = rememberOpenMeta(navController),

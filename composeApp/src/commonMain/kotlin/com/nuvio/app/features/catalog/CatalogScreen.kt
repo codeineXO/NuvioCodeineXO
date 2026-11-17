@@ -84,6 +84,7 @@ import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
 import com.nuvio.app.core.ui.PosterGlowOutset
 import com.nuvio.app.core.ui.catalogPosterBaseWidthDp
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
+import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
@@ -127,9 +128,14 @@ fun CatalogScreen(
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    initialHeroPreview: MetaPreview? = null,
+    launchId: Long? = null,
 ) {
-    val uiState by CatalogRepository.uiState.collectAsStateWithLifecycle()
+    val repositoryState by CatalogRepository.uiState.collectAsStateWithLifecycle()
     val homeCatalogSettingsUiState by HomeCatalogSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val uiState = repositoryState.takeIf { it.matches(target, homeCatalogSettingsUiState.hideUnreleasedContent) }
+        ?: CatalogUiState(isLoading = true)
+    val active = LocalScreenActive.current
     val posterCardStyle = rememberPosterCardStyleUiState()
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     val watchedUiState by remember {
@@ -151,9 +157,11 @@ fun CatalogScreen(
     )
     var observedOfflineState by remember { mutableStateOf(false) }
 
-    LaunchedEffect(target, homeCatalogSettingsUiState.hideUnreleasedContent) {
+    LaunchedEffect(active, target, homeCatalogSettingsUiState.hideUnreleasedContent, launchId) {
+        if (!active) return@LaunchedEffect
         CatalogRepository.load(
             target = target,
+            launchId = launchId,
         )
     }
 
@@ -169,7 +177,8 @@ fun CatalogScreen(
             }
     }
 
-    LaunchedEffect(gridState, uiState.canLoadMore, uiState.isLoading) {
+    LaunchedEffect(active, gridState, uiState.canLoadMore, uiState.isLoading) {
+        if (!active) return@LaunchedEffect
         snapshotFlow { gridState.layoutInfo }
             .map { layoutInfo ->
                 val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -182,7 +191,8 @@ fun CatalogScreen(
             }
     }
 
-    LaunchedEffect(networkStatusUiState.condition, target) {
+    LaunchedEffect(active, networkStatusUiState.condition, target, launchId) {
+        if (!active) return@LaunchedEffect
         when (networkStatusUiState.condition) {
             NetworkCondition.NoInternet,
             NetworkCondition.ServersUnreachable,
@@ -196,6 +206,7 @@ fun CatalogScreen(
                 CatalogRepository.load(
                     target = target,
                     force = true,
+                    launchId = launchId,
                 )
             }
 
@@ -261,6 +272,8 @@ fun CatalogScreen(
                 page = target,
                 seed = uiState.items.firstOrNull(),
                 loading = uiState.isLoading,
+                showInitialPreview = true,
+                initialPreview = initialHeroPreview.takeIf { uiState.isLoading },
                 rowScrollState = gridState,
                 rowAnchors = { gridState.verticalRowAnchors() },
                 posterRows = mapOf(target to uiState.items),
@@ -321,6 +334,7 @@ fun CatalogScreen(
                                         CatalogRepository.load(
                                             target = target,
                                             force = true,
+                                            launchId = launchId,
                                         )
                                     },
                                 )

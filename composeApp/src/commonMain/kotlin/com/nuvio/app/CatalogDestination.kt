@@ -18,6 +18,7 @@ internal data class CatalogLaunch(
     val title: String,
     val subtitle: String,
     val target: CatalogTarget,
+    val heroPreview: MetaPreview? = null,
 )
 
 internal object CatalogLaunchStore {
@@ -66,6 +67,8 @@ internal fun CatalogDestination(
         title = launch.title,
         subtitle = launch.subtitle,
         target = target,
+        initialHeroPreview = launch.heroPreview,
+        launchId = route.launchId,
         onBack = onBack,
         onPosterClick = navController::openPreview,
         onPosterLongClick = { meta: MetaPreview ->

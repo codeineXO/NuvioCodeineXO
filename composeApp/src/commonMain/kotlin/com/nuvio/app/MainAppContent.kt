@@ -293,6 +293,13 @@ internal fun MainAppContent(
                 onExternalReplace = onReplace,
                 onLocalNavigate = { from, to ->
                     if (to is DetailRoute) to.persistentHeroDetails = persistentHeroDetailsSource.capture?.invoke(to)
+                    if (isDesktop && from != null && (to is CatalogRoute || to is FolderDetailRoute) && to !in persistentHeroPages) {
+                        persistentHeroPages[from]?.let { source ->
+                            source.captureDisplayed?.invoke()?.let { hero ->
+                                persistentHeroPages[to] = PersistentHeroPageState(source.contentGeneration, handoff = hero)
+                            }
+                        }
+                    }
                     if (posterNavigationEnabled) posterNavigation.navigate(from, to)
                 },
                 onLocalPop = if (posterNavigationEnabled) posterNavigation::clear else null,
@@ -1344,6 +1351,7 @@ internal fun MainAppContent(
                     title = section.title,
                     subtitle = section.subtitle,
                     target = section.target,
+                    heroPreview = section.items.firstOrNull(),
                 ),
             )
             navController.navigate(

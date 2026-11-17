@@ -8,9 +8,14 @@ data class CatalogUiState(
     val nextSkip: Int? = null,
     val consecutiveDuplicatePages: Int = 0,
     val errorMessage: String? = null,
+    val target: CatalogTarget? = null,
+    val hideUnreleasedContent: Boolean = false,
 ) {
     val canLoadMore: Boolean
         get() = nextSkip != null
+
+    internal fun matches(target: CatalogTarget, hideUnreleasedContent: Boolean): Boolean =
+        this.target == target && this.hideUnreleasedContent == hideUnreleasedContent
 }
 
 data class CatalogScrollPosition(
