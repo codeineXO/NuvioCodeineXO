@@ -38,7 +38,6 @@ internal object RemotePlayerLink {
         "enhance" to "codeineShadersButton",
         "speed" to "codeineSpeedButton",
         "aspect" to "codeineResizeButton",
-        "stats" to "codeineStatsButton",
         "eyeFilter" to "codeineEyeFilterButton",
         "chapters" to "codeineChaptersButton",
         "fullscreen" to "codeineFullscreenButton",

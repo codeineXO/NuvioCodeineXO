@@ -10,6 +10,7 @@ import com.nuvio.app.features.home.components.heroInfo
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_IMDB
 import com.nuvio.app.features.player.MediaClassifier
 import com.nuvio.app.features.remote.RemoteAppBridge.Command
+import com.nuvio.app.features.streams.StreamBadgeSettingsRepository
 import com.nuvio.app.features.streams.StreamsRepository
 import javax.swing.SwingUtilities
 import kotlinx.coroutines.flow.Flow
@@ -141,7 +142,11 @@ internal object RemoteDetails {
     }.distinctUntilChanged()
 
     /** `{"k":"streams",…}`: the sources for what is about to play, grouped by addon, like the PC's list. */
-    val streamsMessages: Flow<String> = combine(StreamsRepository.uiState, RemoteAppBridge.streams) { state, page ->
+    val streamsMessages: Flow<String> = combine(
+        StreamsRepository.uiState,
+        RemoteAppBridge.streams,
+        StreamBadgeSettingsRepository.uiState,
+    ) { state, page, badges ->
         buildJsonObject {
             put("k", "streams")
             put("loading", state.isAnyLoading)
@@ -166,6 +171,7 @@ internal object RemoteDetails {
                                     put("name", stream.streamLabel)
                                     put("menuId", stream.hashCode())
                                     put("details", stream.description ?: stream.title)
+                                    if (badges.showFileSizeBadges) put("sizeBytes", stream.resolvedVideoSize)
                                     putJsonArray("badges") { stream.badges.forEach { add(it.name) } }
                                 }
                             }

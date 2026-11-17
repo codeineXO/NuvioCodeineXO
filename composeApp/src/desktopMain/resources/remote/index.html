@@ -298,7 +298,7 @@
 
   /* Details and Sources */
   .stream-filter { display: flex; align-items: center; gap: 8px; }
-  .stream-filter .chips { flex: 1; min-width: 0; margin-right: 0; padding-right: 0; }
+  .stream-filter .chips { flex: 1; min-width: 0; margin-inline: 0; padding-inline: 0; }
   .stream-filter .btn { flex: none; }
   .grow { flex: 1; }
   .detail-hero, .stream-hero { position: relative; overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0); }
@@ -450,7 +450,7 @@
   .volume .range { grid-column: 2; min-width: 0; }
   .volume output { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
 
-  .tools { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: 100%; }
+  .tools { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; width: 100%; }
   .tool { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--ctp-subtext0); white-space: nowrap; }
   .tool > span { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%;
     color: var(--ctp-text); transition: transform 0.15s var(--ease); }
@@ -727,10 +727,10 @@
       <button id="s-start-btn" aria-pressed="false">Start from beginning</button>
     </div>
   </div>
-  <!-- The addons as filters, and Reload at the end of their row. -->
+  <!-- Reload and addon filters. -->
   <div class="stream-filter">
-    <div class="chips" id="s-addons"></div>
     <button class="btn btn-sm btn-gray" id="s-reload">Reload</button>
+    <div class="chips" id="s-addons"></div>
   </div>
   <div id="s-list" class="stream-list"></div>
   <div class="card t-sub text-sub" id="s-empty" hidden></div>
@@ -811,7 +811,7 @@
   <!-- The player's bar: each opens its panel on the PC and the same panel here. -->
   <div class="tools">
     <button class="tool" data-click="sources" data-panel="sources"><span><svg class="ic"><use href="#icon-source"/></svg></span>Sources</button>
-    <button class="tool" id="player-episodes" data-click="episodes" data-panel="episodes" disabled><span><svg class="ic"><use href="#icon-episodes"/></svg></span>Episodes</button>
+    <button class="tool" id="player-episodes" data-click="episodes" data-panel="episodes" hidden><span><svg class="ic"><use href="#icon-episodes"/></svg></span>Episodes</button>
     <button class="tool" data-click="subtitles" data-panel="subtitles"><span><svg class="ic"><use href="#icon-subs"/></svg></span>Subtitles</button>
     <button class="tool" data-click="audio" data-panel="audio"><span><svg class="ic"><use href="#icon-audio"/></svg></span>Audio</button>
     <button class="tool" id="more-open"><span><svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>More</button>
@@ -828,7 +828,6 @@
       <button class="row" data-click="speed" data-panel="speed"><svg class="ic"><use href="#icon-speed"/></svg>Playback speed</button>
       <button class="row" data-click="aspect" data-stay><svg class="ic"><use href="#icon-aspect"/></svg><span class="copy">Aspect ratio<small id="aspect"></small></span></button>
       <button class="row" data-click="enhance" data-panel="enhance"><svg class="ic"><use href="#icon-wand"/></svg>Enhance</button>
-      <button class="row" data-click="stats"><svg class="ic"><use href="#icon-info-circle"/></svg>Playback statistics</button>
       <button class="row" data-click="eyeFilter" data-panel="eyeFilter"><svg class="ic"><use href="#icon-eye"/></svg>Eye filter</button>
       <button class="row" id="sleep-open"><svg class="line" aria-hidden="true"><use href="#i-moon"/></svg><span class="copy">Sleep timer<small id="sleep-state">Off</small></span></button>
       <button class="row" data-click="chapters" data-panel="chapters" id="chapters-item" hidden><svg class="ic"><use href="#icon-chapters"/></svg>Chapters</button>
@@ -895,6 +894,10 @@
     ws.onclose = () => {
       stopDpadPress();
       $('card-menu').close();
+      closePlayerSheets();
+      state = { active: false };
+      pcRoute = 'tabs';
+      updateView();
       setStatus(false);
       setTimeout(connect, retry);
       retry = Math.min(retry * 2, 4000);
@@ -914,12 +917,15 @@
       if (msg.k === 'library') showLibrary(msg);
       if (msg.k === 'sleep') showSleep(msg);
       if (msg.k === 'route') {
+        const wasPlayerRoute = pcRoute === 'player';
         pcRoute = msg.route;
         if (activeDetailKey !== msg.detailKey) {
           activeDetailKey = msg.detailKey;
           renderDetails();
         }
-        cardTransition(updateView);
+        updateView();
+        if (!wasPlayerRoute && pcRoute === 'player') renderPlayer({ active: false });
+        if (wasPlayerRoute && pcRoute !== 'player') closePlayerSheets();
       }
       if (msg.k === 'details') showDetails(msg);
       if (msg.k === 'streams') showStreams(msg);
@@ -999,39 +1005,25 @@
   let draggingVolume = false;
   let draggingSeek = false;
 
-  // Between the stream picker and the playing screen, either way: one view transition, so the card moves from one
-  // screen to the other. Going in, the playing card starts with the picker's artwork and logo until the PC's arrive.
-  function cardTransition(change) {
-    const playingNow = !$('player').hidden;
-    const playingNext = state.active || pcRoute === 'player';
-    const entering = !playingNow && playingNext && !$('streams').hidden;
-    const leaving = playingNow && !playingNext && pcRoute === 'streams' && !dpadMode;
-    if (!(entering || leaving) || !document.startViewTransition || homeHeroMotion.matches) {
-      change();
-      return;
-    }
-    document.documentElement.dataset.nav = entering ? 'push' : 'pop';
-    document.startViewTransition(() => {
-      viewTransitionRunning = true;
-      change();
-      viewTransitionRunning = false;
-      if (leaving) return;
-      const art = $('art');
-      art.src = $('s-bg').src;
-      art.classList.add('on');
-      const logo = $('s-title').querySelector('img');
-      $('logo').hidden = !logo;
-      if (logo) $('logo').src = logo.src;
-      $('hero-title').textContent = $('s-title').textContent;
-      $('hero-title').hidden = Boolean(logo);
-    });
-  }
-
   function showPlayer(msg) {
     const previous = state;
     state = msg;
-    cardTransition(updateView);
-    if (!msg.active) { closeSheetFromPlayer(); $('more').close(); return; }
+    if (pcRoute !== 'player') return;
+    updateView();
+    renderPlayer(previous);
+  }
+
+  function closePlayerSheets() {
+    closeSheetFromPlayer();
+    $('more').close();
+    $('sleep').close();
+  }
+
+  function renderPlayer(previous) {
+    const msg = state;
+    const hasEpisodes = Boolean(msg.active && msg.episodes?.available && msg.episodes.items?.length);
+    $('player-episodes').hidden = !hasEpisodes;
+    if (!msg.active) { closePlayerSheets(); return; }
     showMedia(msg);
     $('play-icon').setAttribute('href', msg.playing ? '#icon-pause' : '#icon-play');
     if (!draggingVolume) setRange($('volume'), msg.volume);
@@ -1039,7 +1031,6 @@
     $('aspect').textContent = msg.aspect;
     $('chapters-item').hidden = !msg.chapters.length;
     $('skip-segment').textContent = msg.skipSegment?.label || '';
-    $('player-episodes').disabled = !msg.episodes?.available;
     if (previous.active && previous.closeModalsToken !== msg.closeModalsToken) closeSheetFromPlayer();
     if (msg.p2pConsent && !previous.p2pConsent) {
       $('more').close();
@@ -1061,17 +1052,20 @@
       return;
     }
     if (openPanel === 'episodes') {
-      if (!msg.episodes?.available || (previous.episodeInfo && previous.episodeInfo !== msg.episodeInfo)) {
+      if (!hasEpisodes || (previous.episodeInfo && previous.episodeInfo !== msg.episodeInfo)) {
         closeSheetFromPlayer();
         return;
       }
-      if (Boolean(previous.episodes?.streams) !== Boolean(msg.episodes.streams)) $('panel-body').scrollTop = 0;
+      if (Boolean(previous.episodes?.streams) !== Boolean(msg.episodes.streams)) {
+        playerSourceFilter = '';
+        $('panel-body').scrollTop = 0;
+      }
     }
     if (openPanel && (!['subtitles', 'episodes'].includes(openPanel) ||
         JSON.stringify(previous[openPanel]) !== JSON.stringify(msg[openPanel]))) renderPanel();
   }
 
-  // ─── Which screen: the player while something plays; otherwise browsing, or the D-pad when toggled on ───
+  // ─── Which screen: follow the desktop route, with an optional D-pad for browsing ───
   const TAB_NAMES = { home: 'Home', search: 'Search', shuffle: 'Shuffle', library: 'Library' };
   let browseTab = 'home';
   let dpadMode = false;
@@ -1106,30 +1100,39 @@
     });
   }
 
-  // Every page switch runs as one view transition (see the CSS); updates within a page apply straight away.
   let viewKey = '';
   function updateView(options) {
-    const key = `${Boolean(state.active) || pcRoute === 'player'}|${pcRoute}|${browseTab}|${dpadMode}`;
+    const key = `${pcRoute}|${browseTab}|${dpadMode}`;
     const switching = key !== viewKey;
     viewKey = key;
-    if (!switching || viewTransitionRunning || !document.startViewTransition || homeHeroMotion.matches) {
+    // Apply player navigation immediately so a browser snapshot cannot delay the playback controls or Back.
+    if (pcRoute === 'player' || !$('player').hidden) {
+      pageTransition?.skipTransition();
+      applyView(options);
+      return;
+    }
+    if (!switching || pageTransition || !document.startViewTransition || homeHeroMotion.matches) {
+      if (switching) pageTransition?.skipTransition();
       applyView(options);
       return;
     }
     const before = shownPage();
-    viewTransitionRunning = true;
-    document.startViewTransition(() => {
-      viewTransitionRunning = false;
+    const transition = document.startViewTransition(() => {
+      if (viewKey !== key) return;
       applyView(options);
       const depth = (PAGE_DEPTH[shownPage()] ?? 0) - (PAGE_DEPTH[before] ?? 0);
       document.documentElement.dataset.nav = depth > 0 ? 'push' : depth < 0 ? 'pop' : 'fade';
     });
+    pageTransition = transition;
+    transition.ready.catch(() => {});
+    const clear = () => { if (pageTransition === transition) pageTransition = null; };
+    transition.finished.then(clear, clear);
   }
 
   function applyView({ switchingTabs = false } = {}) {
     const pageBefore = shownPage();
-    // Something is playing on the PC: the phone goes straight to the playing screen, whatever it showed.
-    const playing = state.active || pcRoute === 'player';
+    // A background or minimized controller can remain active after the desktop leaves the player route.
+    const playing = pcRoute === 'player';
     const enteredPlayer = playing && !wasPlaying;
     wasPlaying = playing;
     // The PC moved on: whatever was spinning has arrived.
@@ -1147,8 +1150,8 @@
     const pcTab = onTabs && !['home', 'search', 'library', 'shuffle'].includes(browseTab);
     const pcPage = browsing && pcRoute === 'other';
     setHidden('player', !playing);
-    setHidden('next-episode-pill', !(state.active && state.nextEpisodePlayable));
-    setHidden('skip-segment-pill', !(state.active && state.skipSegment));
+    setHidden('next-episode-pill', !(playing && state.active && state.nextEpisodePlayable));
+    setHidden('skip-segment-pill', !(playing && state.active && state.skipSegment));
     setHidden('home', !homeVisible);
     setHidden('search', !(onTabs && browseTab === 'search'));
     const detailsVisible = browsing && pcRoute === 'details';
@@ -1197,7 +1200,7 @@
   // Deeper pages slide in from the right, going back slides in from the left, and tabs cross-fade.
   const PAGE_DEPTH = { catalog: 1, folder: 1, details: 2, streams: 3, player: 4 };
   const shownPage = () => document.querySelector('main:not([hidden])')?.id ?? null;
-  let viewTransitionRunning = false;
+  let pageTransition = null;
   const revealed = new Set();
 
   // Motion's spring, short and calm; nothing moves with reduced motion or before Motion has loaded.
@@ -1909,9 +1912,11 @@
   }
 
   document.querySelectorAll('[data-back]').forEach((button) => button.addEventListener('click', () => {
-    if (!$('player').hidden) {
-      backPending(button, null); // the card glides back to the stream picker instead of the page sliding away
-      player('back');
+    if (pcRoute === 'player') {
+      if (ws?.readyState !== WebSocket.OPEN) return;
+      backPending(button, null);
+      if (state.active) player('back');
+      else send({ cmd: 'dpadBack' });
       return;
     }
     stopDpadPress();
@@ -2092,9 +2097,14 @@
         const card = el('button', 'stream-card');
         card.append(el('b', '', stream.name));
         if (stream.details) card.append(el('span', 'sub', stream.details));
-        if (stream.badges.length) {
+        if (stream.badges.length || stream.sizeBytes > 0) {
           const badges = el('span', 'badges');
           stream.badges.forEach((b) => badges.append(el('span', 'badge badge-outline badge-sq', b)));
+          if (stream.sizeBytes > 0) {
+            const mib = stream.sizeBytes / 1024 ** 2;
+            const size = mib >= 1024 ? `${(mib / 1024).toFixed(1)} GB` : `${Math.round(mib)} MB`;
+            badges.append(el('span', 'badge badge-outline badge-sq', `SIZE ${size}`));
+          }
           card.append(badges);
         }
         bindCardMenu(card, () => { markBusy(card); send({ cmd: 'stream', group: group.i, item: s }); }, {
@@ -2554,6 +2564,7 @@
 
   // ─── The player's panels ───
   let openPanel = null;
+  let playerSourceFilter = '';
   let playerSeason = null;
   let positionPlayingEpisode = false;
   let subtitleLanguage = '__off__';
@@ -2562,6 +2573,7 @@
 
   function openSheet(name) {
     openPanel = name;
+    if (name === 'sources' || name === 'episodes') playerSourceFilter = '';
     if (name === 'episodes') {
       playerSeason = null;
       positionPlayingEpisode = true;
@@ -2588,14 +2600,15 @@
   function renderPanel() {
     const body = $('panel-body');
     const scroll = body.scrollTop;
-    const chipScroll = body.querySelector('.subtitle-languages, .episode-seasons')?.scrollLeft ?? 0;
+    const chipRow = '.subtitle-languages, .episode-seasons, .player-source-filters';
+    const chipScroll = body.querySelector(chipRow)?.scrollLeft ?? 0;
     body.replaceChildren();
     $('panel-actions').replaceChildren();
     $('panel-subtitle').hidden = true;
     $('panel-close').textContent = openPanel === 'p2pConsent' ? state.p2pConsent.cancelLabel : 'Close';
     panels[openPanel]();
     body.scrollTop = scroll;
-    const chips = body.querySelector('.subtitle-languages, .episode-seasons');
+    const chips = body.querySelector(chipRow);
     if (chips) chips.scrollLeft = chipScroll;
     if (openPanel === 'episodes' && !state.episodes.streams && positionPlayingEpisode) {
       const episode = body.querySelector('.episode[aria-current="true"]');
@@ -2703,8 +2716,30 @@
   const contentLabels = { anime: 'Anime', cartoon: 'Cartoon', live_action: 'Live Action' };
 
   function renderSourceCards(sources, selectAction) {
-    if (!sources.items.length) return sources.loading ? add(loader('Loading sources…')) : empty('No streams found');
-    sources.items.forEach((item) => {
+    const filters = sources.filters || [];
+    if (!filters.some((filter) => filter.id === playerSourceFilter)) playerSourceFilter = '';
+    const selected = filters.find((filter) => filter.id === playerSourceFilter);
+    if (filters.length) {
+      const chips = el('div', 'chips player-source-filters');
+      chips.setAttribute('role', 'group');
+      chips.setAttribute('aria-label', 'Source providers');
+      filters.forEach((filter) => {
+        const chip = el('button', 'chip', filter.label);
+        chip.setAttribute('aria-pressed', filter === selected);
+        if (filter.loading) chip.append(el('span', 'spin-ring sm'));
+        chip.addEventListener('click', () => {
+          playerSourceFilter = filter.id;
+          $('panel-body').scrollTop = 0;
+          renderPanel();
+        });
+        chips.append(chip);
+      });
+      add(chips);
+    }
+    const items = playerSourceFilter ? sources.items.filter((item) => item.filterId === playerSourceFilter) : sources.items;
+    const loading = playerSourceFilter ? selected?.loading : sources.loading;
+    if (!items.length) return loading ? add(loader('Loading sources…')) : empty('No streams found');
+    items.forEach((item) => {
       const card = el('button', 'card card-tap stream');
       card.setAttribute('aria-checked', item.current);
       card.disabled = !item.enabled;

@@ -2,6 +2,7 @@ package com.nuvio.app.features.remote
 
 import com.nuvio.app.features.player.AnimeUpscalerMode
 import com.nuvio.app.features.player.AudioTrack
+import com.nuvio.app.features.player.PlayerControlFilterItem
 import com.nuvio.app.features.player.PlayerControlSourceItem
 import com.nuvio.app.features.player.PlayerControlsState
 import com.nuvio.app.features.player.PlayerSettingsRepository
@@ -69,6 +70,7 @@ internal object RemotePlayerPanels {
 
     private fun JsonObjectBuilder.sources(state: PlayerControlsState) = putJsonObject("sources") {
         put("loading", state.sourceIsLoading)
+        sourceFilters(state.sourceFilters)
         sourceItems(state.sourceItems)
     }
 
@@ -106,7 +108,18 @@ internal object RemotePlayerPanels {
             putJsonObject("streams") {
                 put("title", state.selectedEpisodeLabel)
                 put("loading", state.episodeStreamsIsLoading)
+                sourceFilters(state.episodeStreamFilters)
                 sourceItems(state.episodeStreamItems)
+            }
+        }
+    }
+
+    private fun JsonObjectBuilder.sourceFilters(filters: List<PlayerControlFilterItem>) = putJsonArray("filters") {
+        filters.forEach { filter ->
+            addJsonObject {
+                put("id", filter.id)
+                put("label", filter.label)
+                put("loading", filter.isLoading)
             }
         }
     }
@@ -115,6 +128,7 @@ internal object RemotePlayerPanels {
         items.forEach { item ->
             addJsonObject {
                 put("index", item.index)
+                put("filterId", item.filterId)
                 put("label", item.label)
                 put("subtitle", item.subtitle)
                 put("current", item.isCurrent)
