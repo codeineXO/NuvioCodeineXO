@@ -208,7 +208,6 @@ button { cursor: pointer; font: inherit; color: inherit; background: none; borde
   height: var(--btn-h, 44px); padding-inline: var(--btn-px, 20px); font-size: 16px; font-weight: 600;
   border-radius: var(--r-ctl); transition: transform 0.15s var(--ease), background-color 0.15s, opacity 0.15s;
 }
-.btn:active { transform: scale(0.97); }
 .btn:disabled { pointer-events: none; opacity: 0.4; }
 :is(.btn-filled, .btn-tinted, .btn[aria-pressed="true"], .chip[aria-pressed="true"], .play,
     .tab[aria-selected="true"], .seg button[aria-pressed="true"], .switch input:checked) {
@@ -256,13 +255,11 @@ button { cursor: pointer; font: inherit; color: inherit; background: none; borde
 .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 16px; margin-inline: -16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; flex: none; padding-inline: 14px; white-space: nowrap;
   border-radius: 9999px; font-size: 15px; font-weight: 500; transition: transform 0.15s var(--ease); }
-.chip:active { transform: scale(0.95); }
 .chip:disabled { opacity: 0.4; cursor: default; }
 
 /* ---------- Cards, grouped lists, badges ---------- */
 .card { border-radius: var(--r-card); padding: 16px; background: var(--ctp-base); }
 .card-tap { display: block; width: 100%; text-align: left; transition: transform 0.2s var(--ease); }
-.card-tap:active { transform: scale(0.98); }
 .card-tap:disabled { opacity: 0.4; pointer-events: none; }
 .group-list { overflow: hidden; border-radius: var(--r-card); background: var(--ctp-base); }
 .row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 10px 16px; text-align: left; font-size: 17px; }

@@ -13,6 +13,10 @@
 <link rel="apple-touch-icon" href="/icon-180.png">
 <title>NuvioCodeineXO Remote</title>
 <link rel="stylesheet" href="/cuppa.css">
+<script type="module">
+  import { animate, stagger } from '/motion.mjs';
+  window.motion = { animate, stagger };
+</script>
 <script>
   // The cuppa theme: flavor (Auto follows the phone), accent and corner radius, set before first paint.
   (() => {
@@ -215,6 +219,9 @@
   /* Shuffle, like the PC: its filters as one form, actions, progress, and the picked title as a hero. */
   #shuffle { gap: 16px; }
   #shuffle p { margin: 0; }
+  #shuffle.is-loading > :not(#shuffle-skeleton), #shuffle:not(.is-loading) > #shuffle-skeleton { display: none; }
+  .shuffle-skeleton { display: flex; flex-direction: column; gap: 16px; }
+  .shuffle-skeleton .sk-form { height: 420px; border-radius: var(--r-card); }
   .shuffle-toggles .row { padding-inline: 0; }
   .shuffle-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
   .shuffle-form > * { grid-column: 1 / -1; }
@@ -231,7 +238,6 @@
   @media (min-width: 480px) { .grid-page .catalog-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   .row-title { margin: 0 0 12px; font-size: 20px; font-weight: 600; }
   .tile { flex: none; display: flex; flex-direction: column; gap: 8px; text-align: left; transition: transform 0.15s var(--ease); }
-  .tile:active { transform: scale(0.96); }
   .tile .art { position: relative; overflow: hidden; border-radius: calc(var(--r-ctl) + 2px); background: var(--ctp-surface0); }
   .tile .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .tile.poster { width: 34vw; max-width: 140px; }
@@ -263,9 +269,32 @@
     .tile.landscape { width: 280px; }
   }
 
-  /* A screen slides in when the PC moves to it, so the phone follows along. */
-  @keyframes view-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-  main:not([hidden]) { animation: view-in 0.35s var(--ease); }
+  /* Nothing pops in: items added to these lists, and these parts when they are shown, fade and rise into place.
+     setChildren() keeps unchanged items where they are, so updates from the PC only animate what is new. */
+  :is(#home-rows, #search-rows, #catalog-grid, #folder-rows, #folder-grid, #folder-tabs, #discover-grid, #recent-list,
+      #library-rows, #library-cloud, #s-list, #s-addons, #d-pills, #d-seasons, #d-episodes, #shuffle-feedback,
+      #shuffle-result, #card-menu-actions, #persistent-hero, #hero-strip, .catalog-grid, .catalog-status) > *,
+  :is(#layout-switch, #next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
+      #home-empty, #sleep-chip, #recent-section, #search-start, #library-saved, #library-cloud) {
+    transition: opacity 0.28s var(--ease), translate 0.28s var(--ease);
+  }
+  @starting-style {
+    :is(#home-rows, #search-rows, #catalog-grid, #folder-rows, #folder-grid, #folder-tabs, #discover-grid, #recent-list,
+        #library-rows, #library-cloud, #s-list, #s-addons, #d-pills, #d-seasons, #d-episodes, #shuffle-feedback,
+        #shuffle-result, #card-menu-actions, #persistent-hero, #hero-strip, .catalog-grid, .catalog-status) > *,
+    :is(#layout-switch, #next-episode-pill, #skip-segment-pill, #s-resume, #shuffle-cancel, #pc-note, #search-empty,
+        #home-empty, #sleep-chip, #recent-section, #search-start, #library-saved, #library-cloud) {
+      opacity: 0; translate: 0 6px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; } }
+
+  /* An image still loading after a moment shimmers, then fades in; cached ones just show, with no flash. */
+  .tile .art img, .hero-card img.bg { transition: opacity 0.3s var(--ease); }
+  .tile .art img.pending, .hero-card img.bg.pending { opacity: 0; }
+  .tile .art:has(> img.pending)::after, .hero-card:has(> img.bg.pending)::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%); animation: shimmer 1.4s infinite;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ctp-text) 9%, transparent), transparent); }
 
   /* Details and Sources */
   .stream-filter { display: flex; align-items: center; gap: 8px; }
@@ -279,7 +308,22 @@
   .stream-hero { aspect-ratio: 16 / 9; max-height: 46dvh; box-shadow: var(--card-shadow); view-transition-name: now-card; }
   #player .hero { view-transition-name: now-card; }
   ::view-transition-group(now-card) { animation-duration: 0.45s; animation-timing-function: var(--ease); }
-  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.3s; }
+  /* Every page switch is one view transition, so the old and new page move together and there is never a blank
+     frame: going deeper slides forward, going back slides back, and tabs cross-fade. The header, tab bar and
+     backdrops have their own names, so they stay put instead of sliding with the page. */
+  header { view-transition-name: app-header; }
+  .bottom-controls { view-transition-name: app-bar; }
+  #home-backdrop { view-transition-name: home-backdrop; }
+  #media-backdrop { view-transition-name: media-backdrop; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.28s; animation-timing-function: var(--ease); }
+  html[data-nav="push"]::view-transition-old(root) { animation-name: page-out-left; }
+  html[data-nav="push"]::view-transition-new(root) { animation-name: page-in-right; }
+  html[data-nav="pop"]::view-transition-old(root) { animation-name: page-out-right; }
+  html[data-nav="pop"]::view-transition-new(root) { animation-name: page-in-left; }
+  @keyframes page-in-right { from { opacity: 0; transform: translateX(36px); } }
+  @keyframes page-in-left { from { opacity: 0; transform: translateX(-36px); } }
+  @keyframes page-out-left { to { opacity: 0; transform: translateX(-36px); } }
+  @keyframes page-out-right { to { opacity: 0; transform: translateX(36px); } }
   .detail-hero > img, .stream-hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .detail-hero .shade, .stream-hero .shade { position: absolute; inset: 0;
     background: linear-gradient(to top, color-mix(in srgb, var(--ctp-crust) 92%, transparent) 8%, transparent 70%); }
@@ -300,7 +344,6 @@
   #d-filler { margin-bottom: 12px; }
   .episode { display: flex; gap: 12px; text-align: left; padding: 8px; border-radius: var(--r-card); background: var(--ctp-base);
     transition: transform 0.15s var(--ease); }
-  .episode:active { transform: scale(0.98); }
   .episode .thumb { position: relative; flex: none; width: 40%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-ctl); background: var(--ctp-surface0); }
   .episode .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .episode .thumb .blurred { filter: blur(12px); }
@@ -315,7 +358,7 @@
   .stream-list .addon { margin: 8px 4px 0; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ctp-subtext0); }
   .stream-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px 16px; border-radius: var(--r-card);
     background: var(--ctp-base); transition: transform 0.15s var(--ease); }
-  .stream-card:active { transform: scale(0.98); background: var(--ctp-surface0); }
+  .stream-card:active { background: var(--ctp-surface0); }
   .stream-card b { font-size: 16px; }
   .stream-card .sub { white-space: pre-line; font-size: 13px; color: var(--ctp-subtext1); }
   .stream-card .badges { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -346,9 +389,10 @@
   .stream-card b, .stream-card .sub, .stream .top, .stream .sub { overflow-wrap: anywhere; word-break: break-word; }
   .stream .top { flex-wrap: wrap; }
 
-  /* Playing screen: artwork first, then the controls. */
-  body:has(#player:not([hidden])) { height: 100dvh; }
-  #player { width: 100%; min-height: 0; justify-content: flex-end; gap: 20px; }
+  /* Playing screen: artwork first, then the controls, centred between the title bar and the Next / Back buttons,
+     with clear room above those buttons. */
+  body:has(#player:not([hidden])) { height: 100dvh; padding-bottom: calc(env(safe-area-inset-bottom) + 104px); }
+  #player { width: 100%; flex: 1 1 auto; min-height: 0; justify-content: safe center; gap: 24px; }
 
   /* A natural shadow: a soft contact shadow close in, and a faint wide one, so it lifts without darkening the text below. */
   /* It reaches about 16px, within the gap to whatever is below the card. */
@@ -374,6 +418,14 @@
     display: grid; place-items: center; color: var(--ctp-text);
     background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
   .hero-info-toggle .line { width: 20px; height: 20px; }
+  /* The sleep timer's time left, opposite the ⓘ; it steps aside while the info is laid over the card. */
+  .hero-sleep-chip { position: absolute; top: 10px; left: 10px; z-index: 2; height: 36px; padding: 0 14px 0 10px; border-radius: 9999px;
+    display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ctp-text);
+    background: color-mix(in srgb, var(--ctp-crust) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .hero-sleep-chip .line { width: 18px; height: 18px; }
+  .hero:has(.hero-info:not([hidden])) .hero-sleep-chip { display: none; }
+  #sleep .sheet-body { display: flex; flex-direction: column; gap: 16px; }
+  #sleep .note { margin: 0; }
   .hero-info-toggle[aria-expanded="true"] { background: var(--glass-accent); }
   .hero-info { position: absolute; inset: 0; z-index: 1; padding: 16px 56px 16px 16px; overflow-y: auto; justify-content: center;
     background: color-mix(in srgb, var(--ctp-crust) 84%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -381,7 +433,7 @@
   .hero-info .synopsis { display: block; -webkit-line-clamp: unset; color: var(--ctp-subtext1); }
   @keyframes hero-info-in { from { opacity: 0; } }
 
-  .controls { width: 100%; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: var(--r-card); }
+  .controls { width: 100%; display: flex; flex-direction: column; gap: 16px; padding: 18px 18px 20px; border-radius: var(--r-card); }
   .seek { display: grid; grid-template-columns: minmax(0, 1fr); }
   .seek-times { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ctp-subtext0); font-variant-numeric: tabular-nums; }
   .transport { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: clamp(4px, 3vw, 16px); }
@@ -405,7 +457,7 @@
   .tool:active > span { transform: scale(0.92); background-color: var(--glass-active); }
   .tool:disabled { opacity: 0.45; }
   .tool .ic { width: 22px; height: 22px; }
-  .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .media, .deck { width: 100%; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
   /* Nothing in it scrolls (the episode info is on the card), so nothing clips the card's shadow. */
   .media { min-height: 0; gap: 14px; }
   .deck { flex-shrink: 0; }
@@ -506,6 +558,7 @@
   <symbol id="i-layout-official" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></symbol>
   <symbol id="i-layout-scroll_posters" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="14" rx="1.5"/><path d="M2 7v10M22 7v10"/></symbol>
   <symbol id="i-layout-persistent_hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="9" rx="1.5"/><rect x="3" y="15" width="18" height="5" rx="1.5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
   <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
 </svg>
 
@@ -575,7 +628,14 @@
 </main>
 
 <!-- Shuffle, following the PC: its filters, Shuffle, and the picked title. -->
-<main id="shuffle" class="browse" hidden>
+<main id="shuffle" class="browse is-loading" hidden>
+  <!-- Until the PC's Shuffle arrives: its shape, shimmering. -->
+  <div class="shuffle-skeleton" id="shuffle-skeleton">
+    <h2 class="t-title2">Shuffle</h2>
+    <div class="skel sk-line"></div>
+    <div class="skel sk-form"></div>
+    <div class="skel sk-button"></div>
+  </div>
   <div id="shuffle-result" hidden></div>
   <div class="catalog-head"><h2 class="t-title2" id="shuffle-title"></h2></div>
   <p class="text-sub" id="shuffle-subtitle"></p>
@@ -716,6 +776,9 @@
     <div class="shade"></div>
     <img class="logo" id="logo" alt="">
     <h2 class="t-title2 hero-title" id="hero-title"></h2>
+    <button class="hero-sleep-chip" id="sleep-chip" aria-label="Sleep timer" hidden>
+      <svg class="line" aria-hidden="true"><use href="#i-moon"/></svg><span id="sleep-chip-label"></span>
+    </button>
     <button class="hero-info-toggle" id="info-toggle" aria-label="Episode info" aria-expanded="false" hidden>
       <svg class="line" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
     </button>
@@ -767,8 +830,20 @@
       <button class="row" data-click="enhance" data-panel="enhance"><svg class="ic"><use href="#icon-wand"/></svg>Enhance</button>
       <button class="row" data-click="stats"><svg class="ic"><use href="#icon-info-circle"/></svg>Playback statistics</button>
       <button class="row" data-click="eyeFilter" data-panel="eyeFilter"><svg class="ic"><use href="#icon-eye"/></svg>Eye filter</button>
+      <button class="row" id="sleep-open"><svg class="line" aria-hidden="true"><use href="#i-moon"/></svg><span class="copy">Sleep timer<small id="sleep-state">Off</small></span></button>
       <button class="row" data-click="chapters" data-panel="chapters" id="chapters-item" hidden><svg class="ic"><use href="#icon-chapters"/></svg>Chapters</button>
     </div>
+  </div>
+</dialog>
+
+<!-- The sleep timer runs on the PC (so it keeps going when the phone locks); the phone sets it and shows the time left. -->
+<dialog class="sheet" id="sleep" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div><div class="bar"><h2 class="t-title2">Sleep timer</h2><button class="btn btn-sm btn-plain" data-dismiss>Close</button></div></div>
+  <div class="sheet-body">
+    <p class="note" id="sleep-summary"></p>
+    <div class="group-list" id="sleep-pc"></div>
+    <div class="group-list" id="sleep-options"></div>
+    <button class="btn btn-gray" id="sleep-cancel" hidden>Cancel timer</button>
   </div>
 </dialog>
 
@@ -837,6 +912,7 @@
       if (msg.k === 'discover') showDiscover(msg);
       if (msg.k === 'shuffle') showShuffle(msg);
       if (msg.k === 'library') showLibrary(msg);
+      if (msg.k === 'sleep') showSleep(msg);
       if (msg.k === 'route') {
         pcRoute = msg.route;
         if (activeDetailKey !== msg.detailKey) {
@@ -934,8 +1010,11 @@
       change();
       return;
     }
+    document.documentElement.dataset.nav = entering ? 'push' : 'pop';
     document.startViewTransition(() => {
+      viewTransitionRunning = true;
       change();
+      viewTransitionRunning = false;
       if (leaving) return;
       const art = $('art');
       art.src = $('s-bg').src;
@@ -1027,7 +1106,28 @@
     });
   }
 
-  function updateView({ switchingTabs = false } = {}) {
+  // Every page switch runs as one view transition (see the CSS); updates within a page apply straight away.
+  let viewKey = '';
+  function updateView(options) {
+    const key = `${Boolean(state.active) || pcRoute === 'player'}|${pcRoute}|${browseTab}|${dpadMode}`;
+    const switching = key !== viewKey;
+    viewKey = key;
+    if (!switching || viewTransitionRunning || !document.startViewTransition || homeHeroMotion.matches) {
+      applyView(options);
+      return;
+    }
+    const before = shownPage();
+    viewTransitionRunning = true;
+    document.startViewTransition(() => {
+      viewTransitionRunning = false;
+      applyView(options);
+      const depth = (PAGE_DEPTH[shownPage()] ?? 0) - (PAGE_DEPTH[before] ?? 0);
+      document.documentElement.dataset.nav = depth > 0 ? 'push' : depth < 0 ? 'pop' : 'fade';
+    });
+  }
+
+  function applyView({ switchingTabs = false } = {}) {
+    const pageBefore = shownPage();
     // Something is playing on the PC: the phone goes straight to the playing screen, whatever it showed.
     const playing = state.active || pcRoute === 'player';
     const enteredPlayer = playing && !wasPlaying;
@@ -1041,9 +1141,10 @@
     const homeWasVisible = !$('home').hidden;
     if (homeWasVisible && !homeVisible) homeScroll = scrollY;
     // Pages the phone can't show (Shuffle, Library, Settings, a folder…) are driven with the D-pad.
-    const shuffleVisible = onTabs && browseTab === 'shuffle' && Boolean(shuffle?.active);
+    const shuffleVisible = onTabs && browseTab === 'shuffle';
     const libraryVisible = onTabs && browseTab === 'library';
-    const pcTab = onTabs && !['home', 'search', 'library'].includes(browseTab) && !shuffleVisible;
+    // Every tab has a page here, so the D-pad is only for pages the phone can't show (or when asked for).
+    const pcTab = onTabs && !['home', 'search', 'library', 'shuffle'].includes(browseTab);
     const pcPage = browsing && pcRoute === 'other';
     setHidden('player', !playing);
     setHidden('next-episode-pill', !(state.active && state.nextEpisodePlayable));
@@ -1089,7 +1190,48 @@
     }
     if (homeVisible !== homeWasVisible) scheduleHomeHero();
     updateMediaBackdrop();
+    pageMotion(pageBefore, shownPage());
   }
+
+  // ─── Motion: pages push and pop like an app, their content settles in, and presses spring ───
+  // Deeper pages slide in from the right, going back slides in from the left, and tabs cross-fade.
+  const PAGE_DEPTH = { catalog: 1, folder: 1, details: 2, streams: 3, player: 4 };
+  const shownPage = () => document.querySelector('main:not([hidden])')?.id ?? null;
+  let viewTransitionRunning = false;
+  const revealed = new Set();
+
+  // Motion's spring, short and calm; nothing moves with reduced motion or before Motion has loaded.
+  function move(target, keyframes, options = {}) {
+    if (!window.motion || homeHeroMotion.matches) return null;
+    return window.motion.animate(target, keyframes, { type: 'spring', visualDuration: 0.35, bounce: 0.1, ...options });
+  }
+
+  // The view transition moves the page itself; the first time a page opens, its sections also settle in.
+  function pageMotion(before, after) {
+    if (!after || after === before || revealed.has(after)) return;
+    revealed.add(after);
+    const parts = [...$(after).children].filter((c) => !c.hidden && c.offsetParent !== null).slice(0, 8);
+    const settle = parts.length ? move(parts, { y: [10, 0], opacity: [0, 1] }, { delay: window.motion?.stagger(0.04) }) : null;
+    // Hand the styles back to the page's CSS once they are done.
+    settle?.finished.then(() => parts.forEach((p) => { p.style.transform = ''; p.style.opacity = ''; }));
+  }
+
+  // A press sinks a little and springs back on release, like a native button.
+  const PRESSABLE = '.tile, .hero-card, .btn, .chip, .card-tap, .episode, .stream-card, .recent';
+  let pressed = null;
+  function release() {
+    if (!pressed) return;
+    move(pressed, { scale: 1 }, { visualDuration: 0.3, bounce: 0.35 });
+    pressed = null;
+  }
+  document.addEventListener('pointerdown', (e) => {
+    const target = e.target.closest(PRESSABLE);
+    if (!target || target.disabled) return;
+    release();
+    pressed = target;
+    move(target, { scale: 0.96 }, { visualDuration: 0.15, bounce: 0 });
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => document.addEventListener(type, release));
 
   function setDpadMode(enabled) {
     dpadMode = enabled;
@@ -1117,8 +1259,12 @@
     image.loading = 'lazy';
     image.decoding = 'async';
     // A missing image leaves the card's own colour, not the browser's broken-image icon.
-    image.onerror = () => { image.style.visibility = 'hidden'; };
+    // Only an image that is really loading (not there within 80 ms, so not cached) shimmers and fades in.
+    const slow = setTimeout(() => image.classList.add('pending'), 80);
+    image.onload = () => { clearTimeout(slow); image.classList.remove('pending'); };
+    image.onerror = () => { clearTimeout(slow); image.classList.remove('pending'); image.style.visibility = 'hidden'; };
     if (src) image.src = src;
+    if (!src || (image.complete && image.naturalWidth)) clearTimeout(slow);
     return image;
   };
 
@@ -1129,7 +1275,7 @@
       menu.close();
       return;
     }
-    $('card-menu-actions').replaceChildren(...msg.actions.map((action, index) => {
+    setChildren($('card-menu-actions'), msg.actions.map((action, index) => {
       const button = el('button', action.destructive ? 'row destructive' : 'row', action.label);
       button.addEventListener('click', () => {
         menu.close();
@@ -1303,9 +1449,35 @@
   }
 
   // Replaces a list of rows but keeps how far each row was scrolled sideways.
+  // Sets a container's children, keeping any existing child that is unchanged (same signature, or the same HTML
+  // apart from passing state) exactly where it is, so only new items are inserted and animate in.
+  const childKey = (node) => node.dataset?.sig
+    || node.outerHTML.replace(/ style="[^"]*"/g, '').replace(/\b(pending|busy|loaded)\b/g, '');
+  function setChildren(container, nodes) {
+    const pool = new Map();
+    for (const child of container.children) {
+      const key = childKey(child);
+      if (!pool.has(key)) pool.set(key, []);
+      pool.get(key).push(child);
+    }
+    const next = nodes.map((node) => pool.get(childKey(node))?.shift() || node);
+    const keep = new Set(next);
+    [...container.children].forEach((child) => { if (!keep.has(child)) child.remove(); });
+    next.forEach((node, i) => { if (container.children[i] !== node) container.insertBefore(node, container.children[i] || null); });
+  }
+
+  // A section can also come as { sig, build }: if a row with that signature is already there it is kept as it is
+  // (posters and all), so an update from the PC only rebuilds the rows that changed.
   function replaceRows(container, sections) {
     const offsets = [...container.querySelectorAll('.row-scroll')].map((r) => r.scrollLeft);
-    container.replaceChildren(...sections);
+    const kept = new Map([...container.children].filter((c) => c.dataset.sig).map((c) => [c.dataset.sig, c]));
+    sections = sections.map((section) => {
+      if (section instanceof Node) return section;
+      const node = kept.get(section.sig) || section.build();
+      node.dataset.sig = section.sig;
+      return node;
+    });
+    setChildren(container, sections);
     container.querySelectorAll('.row-scroll').forEach((r, i) => { r.scrollLeft = offsets[i] || 0; });
   }
 
@@ -1655,7 +1827,7 @@
       pageStatus($('folder-status'), { count: folder.rows.length });
       return;
     }
-    $('folder-tabs').replaceChildren(...folder.tabs.map((label, i) => {
+    setChildren($('folder-tabs'), folder.tabs.map((label, i) => {
       const button = el('button', `btn btn-sm ${i === folder.tab ? '' : 'btn-gray'}`, label);
       button.addEventListener('click', () => { if (i !== folder.tab) send({ cmd: 'folderTab', index: i }); });
       return button;
@@ -1666,18 +1838,32 @@
     loadMoreIfNear();
   }
 
+  let homeContent = '';
+
   function showHome(msg) {
+    // The PC re-sends Home often (progress, hero details, reconnects): the same Home changes nothing.
+    const content = JSON.stringify(msg);
+    if (content === homeContent) return;
+    homeContent = content;
+    // Remembered, so the next time the remote opens it shows Home at once while the PC's arrives.
+    try { localStorage.setItem('nuvio_home', content); } catch (_) {}
     showLayout(msg.layout);
     const heroes = msg.heroEnabled === false || homeLayout === 'persistent_hero' ? [] : msg.hero;
     const sections = [];
     lastHome = msg;
-    if (msg.continue.length) sections.push(rowSection('Continue Watching', msg.continue.map(resumeTile),
-      msg.continueViewAll ? () => send({ cmd: 'viewAll', row: 'continue' }) : null));
+    if (msg.continue.length) sections.push({
+      sig: JSON.stringify([msg.layout, msg.continueViewAll, msg.continue]),
+      build: () => rowSection('Continue Watching', msg.continue.map(resumeTile),
+        msg.continueViewAll ? () => send({ cmd: 'viewAll', row: 'continue' }) : null),
+    });
     // Catalog rows open a title; collection rows (Discover, Streaming…) open a folder.
-    msg.rows.forEach((row) => sections.push(rowSection(row.title,
-      row.items.map((item, i) => posterTile(item, row.shape,
-        { from: 'row', row: row.key, item: i }, row.kind === 'collection')),
-      row.viewAll ? () => send({ cmd: 'viewAll', row: row.key }) : null)));
+    msg.rows.forEach((row) => sections.push({
+      sig: JSON.stringify(row),
+      build: () => rowSection(row.title,
+        row.items.map((item, i) => posterTile(item, row.shape,
+          { from: 'row', row: row.key, item: i }, row.kind === 'collection')),
+        row.viewAll ? () => send({ cmd: 'viewAll', row: row.key }) : null),
+    }));
     replaceRows($('home-rows'), sections);
     if (pcRoute === 'collection' || pcRoute === 'continue') renderCatalog();
     const empty = !heroes.length && !sections.length;
@@ -1776,7 +1962,7 @@
       $('d-title').dataset.title = JSON.stringify([msg.name, msg.logo]);
       titleArt($('d-title'), msg.logo, msg.name || '');
     }
-    $('d-pills').replaceChildren(...heroPills(msg));
+    setChildren($('d-pills'), heroPills(msg));
     $('d-desc').textContent = msg.description || '';
     $('d-desc').hidden = !msg.description;
     $('d-play-label').textContent = msg.playLabel || 'Play';
@@ -1813,7 +1999,7 @@
     }
     const selected = seasons.find((s) => s.number === season) ||
       seasons.find((s) => s.number === details.preferredSeason) || seasons[0];
-    $('d-seasons').replaceChildren(...seasons.map((s) => {
+    setChildren($('d-seasons'), seasons.map((s) => {
       const chip = el('button', 'chip', s.label);
       chip.setAttribute('aria-pressed', s === selected);
       chip.addEventListener('click', () => { season = s.number; renderEpisodes(); });
@@ -1821,7 +2007,7 @@
     }));
     const episodes = selected.episodes;
     const { key, actionsReady } = details;
-    $('d-episodes').replaceChildren(...episodes.map((ep) => {
+    setChildren($('d-episodes'), episodes.map((ep) => {
       const card = episodeCard(ep, () => send({ cmd: 'episode', key, item: ep.index, id: ep.id }), false,
         { kind: 'episode', key, item: ep.index, id: ep.id });
       card.disabled = !actionsReady;
@@ -1888,7 +2074,7 @@
       chip.addEventListener('click', () => { addonFilter = g.i; renderStreams(); });
       return chip;
     });
-    $('s-addons').replaceChildren(...chips);
+    setChildren($('s-addons'), chips);
     const shown = groups.filter((g) => addonFilter === null || g.i === addonFilter);
     const nodes = [];
     shown.forEach((group) => {
@@ -1920,7 +2106,7 @@
     });
     const anyStreams = shown.some((g) => g.streams.length);
     if (!anyStreams && streams.loading) nodes.unshift(loader('Finding sources…'));
-    $('s-list').replaceChildren(...nodes);
+    setChildren($('s-list'), nodes);
     $('s-empty').hidden = anyStreams || streams.loading || shown.some((g) => g.error);
     $('s-empty').textContent = 'No sources found.';
     if (scroll !== null) scrollTo({ top: scroll });
@@ -1957,7 +2143,7 @@
     discover = msg;
     pagers[2].msg = msg;
     $('recent-section').hidden = !msg.recent.length;
-    $('recent-list').replaceChildren(...msg.recent.map((query) => {
+    setChildren($('recent-list'), msg.recent.map((query) => {
       const row = el('div', 'recent search-box');
       const again = el('button', '', query);
       again.addEventListener('click', () => {
@@ -2068,7 +2254,7 @@
     }
     // Each cloud item opens to its playable files; a file plays on the PC.
     const open = new Set([...$('library-cloud').querySelectorAll('details[open]')].map((d) => d.dataset.key));
-    $('library-cloud').replaceChildren(...cloud.items.map((item) => {
+    setChildren($('library-cloud'), cloud.items.map((item) => {
       const box = el('details', 'card cloud-item');
       box.dataset.key = item.key;
       box.open = open.has(item.key);
@@ -2141,6 +2327,7 @@
   }
 
   function renderShuffle() {
+    $('shuffle').classList.toggle('is-loading', !shuffle?.active);
     if (!shuffle?.active || $('shuffle').hidden) return;
     const { labels } = shuffle;
     $('shuffle-title').textContent = labels.title;
@@ -2162,8 +2349,8 @@
     $('shuffle-reset').textContent = labels.reset;
     $('shuffle-cancel').textContent = labels.cancel;
     $('shuffle-cancel').hidden = !shuffle.picking;
-    $('shuffle-feedback').replaceChildren(...(shuffle.busy ? [el('span', 'spin-ring sm')] : []),
-      ...(shuffle.feedback.length ? [el('span', '', shuffle.feedback.join(' · '))] : []));
+    setChildren($('shuffle-feedback'), [...(shuffle.busy ? [el('span', 'spin-ring sm')] : []),
+      ...(shuffle.feedback.length ? [el('span', '', shuffle.feedback.join(' · '))] : [])]);
     $('shuffle-hint').textContent = labels.samplingHint;
     // The picked title, like the PC's popup: its hero, then Shuffle Again and Close.
     const result = $('shuffle-result');
@@ -2253,6 +2440,60 @@
     $('info-toggle').hidden = !(msg.episodeInfo || msg.episodeTitle || msg.description);
     if ($('info-toggle').hidden) showHeroInfo(false);
   }
+  // ─── Sleep timer: runs on the PC; the phone sets it and shows the time left ───
+  let sleep = { active: false };
+  let sleepEndsAt = 0;
+  // By default the timer also puts the PC to sleep; "Just pause" only pauses.
+  let justPause = false;
+  try { justPause = localStorage.getItem('nuvio_sleep_just_pause') === '1'; } catch (_) {}
+
+  const SLEEP_CHOICES = [
+    { label: '15 minutes', seconds: 900 }, { label: '30 minutes', seconds: 1800 }, { label: '45 minutes', seconds: 2700 },
+    { label: '1 hour', seconds: 3600 }, { label: '1 hour 30 minutes', seconds: 5400 }, { label: 'End of episode', endOfEpisode: true },
+  ];
+
+  function showSleep(msg) {
+    sleep = msg;
+    sleepEndsAt = Date.now() + (msg.remainingMs ?? 0);
+    renderSleep();
+  }
+
+  function sleepLeft() {
+    const left = Math.max(0, sleepEndsAt - Date.now());
+    if (left < 60000) return `${Math.ceil(left / 1000)}s`;
+    const minutes = Math.ceil(left / 60000);
+    return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m` : `${minutes}m`;
+  }
+
+  // The chip, the More row and the sheet's summary, from the one state.
+  function renderSleep() {
+    const after = sleep.sleepPc ? ' · then sleeps the PC' : '';
+    const text = sleep.endOfEpisode ? 'At the end of the episode' : `${sleepLeft()} left`;
+    $('sleep-chip').hidden = !sleep.active;
+    $('sleep-chip-label').textContent = sleep.endOfEpisode ? 'Ep end' : sleepLeft();
+    $('sleep-state').textContent = sleep.active ? text + after : 'Off';
+    $('sleep-summary').textContent = sleep.active ? `Pauses ${text.charAt(0).toLowerCase()}${text.slice(1)}${after}.`
+      : 'Pauses playback and puts the PC to sleep after the time you pick.';
+    $('sleep-cancel').hidden = !sleep.active;
+  }
+  setInterval(() => { if (sleep.active && !sleep.endOfEpisode) renderSleep(); }, 1000);
+
+  $('sleep-pc').append(toggle('Just pause', 'Pauses playback without putting the PC to sleep', justPause, (on) => {
+    justPause = on;
+    try { localStorage.setItem('nuvio_sleep_just_pause', on ? '1' : '0'); } catch (_) {}
+  }));
+  $('sleep-options').append(...SLEEP_CHOICES.map((choice) => {
+    const row = el('button', 'row', choice.label);
+    row.addEventListener('click', () => {
+      send({ cmd: 'sleepSet', seconds: choice.seconds, endOfEpisode: choice.endOfEpisode, sleepPc: !justPause });
+      $('sleep').close();
+    });
+    return row;
+  }));
+  $('sleep-cancel').addEventListener('click', () => { send({ cmd: 'sleepCancel' }); $('sleep').close(); });
+  $('sleep-open').addEventListener('click', () => { $('more').close(); renderSleep(); present($('sleep')); });
+  $('sleep-chip').addEventListener('click', () => { renderSleep(); present($('sleep')); });
+
   function showHeroInfo(open) {
     $('hero-info').hidden = !open;
     $('info-toggle').setAttribute('aria-expanded', open);
@@ -2800,6 +3041,10 @@
     if (document.hidden) stopDpadPress();
   });
 
+  try {
+    const remembered = localStorage.getItem('nuvio_home');
+    if (remembered) showHome(JSON.parse(remembered));
+  } catch (_) {}
   connect();
 </script>
 </body>
