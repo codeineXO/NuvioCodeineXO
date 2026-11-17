@@ -356,6 +356,13 @@ internal fun MainAppContent(
         }.collectAsStateWithLifecycle()
         val liquidGlassNativeTabBarSupported = remember { isLiquidGlassNativeTabBarSupported() }
         var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
+        val exitConfirmationRequested = com.nuvio.app.core.ui.AppExitConfirmationRequests.pending
+        LaunchedEffect(exitConfirmationRequested) {
+            if (exitConfirmationRequested) {
+                showExitConfirmation = true
+                com.nuvio.app.core.ui.AppExitConfirmationRequests.pending = false
+            }
+        }
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterMenuInvocation by remember { mutableStateOf<ActionMenuInvocation?>(null) }
         val posterOverlayHazeState = rememberHazeState()
@@ -2632,20 +2639,23 @@ internal fun MainAppContent(
                 onPendingChange = { pendingTrackingRemoval = it },
             )
 
-            NuvioStatusModal(
-                title = stringResource(Res.string.app_exit_title),
-                message = stringResource(Res.string.app_exit_message),
-                isVisible = showExitConfirmation,
-                confirmText = stringResource(Res.string.action_yes),
-                dismissText = stringResource(Res.string.action_no),
-                onConfirm = {
-                    showExitConfirmation = false
-                    platformExitApp()
-                },
-                onDismiss = {
-                    showExitConfirmation = false
-                },
-            )
+            // Follows the selected surface style (flat / frosted / dark glass), like settings dialogs.
+            com.nuvio.app.core.ui.SettingsSurfaceStyle {
+                NuvioStatusModal(
+                    title = stringResource(Res.string.app_exit_title),
+                    message = stringResource(Res.string.app_exit_message),
+                    isVisible = showExitConfirmation,
+                    confirmText = stringResource(Res.string.action_yes),
+                    dismissText = stringResource(Res.string.action_no),
+                    onConfirm = {
+                        showExitConfirmation = false
+                        platformExitApp()
+                    },
+                    onDismiss = {
+                        showExitConfirmation = false
+                    },
+                )
+            }
 
             androidx.compose.animation.AnimatedVisibility(
                 visibleState = launchOverlayState,

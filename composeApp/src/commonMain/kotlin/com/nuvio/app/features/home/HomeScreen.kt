@@ -80,7 +80,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
-import com.nuvio.app.core.ui.platformExitApp
+import com.nuvio.app.core.ui.requestAppExitConfirmation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -954,7 +954,7 @@ fun HomeScreen(
                         .size(desktopButtonSize - 2.dp)
                         .topBarActionGlass(CircleShape)
                         .excludeFromRemoteNavigation()
-                        .clickable(role = Role.Button, onClick = ::platformExitApp)
+                        .clickable(role = Role.Button, onClick = ::requestAppExitConfirmation)
                         .semantics { contentDescription = closeLabel },
                     contentAlignment = Alignment.Center,
                 ) {

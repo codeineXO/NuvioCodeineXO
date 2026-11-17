@@ -70,7 +70,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Settings
-import com.nuvio.app.core.ui.platformExitApp
+import com.nuvio.app.core.ui.requestAppExitConfirmation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -996,7 +996,7 @@ internal fun DesktopHoverSidebar(
                         label = stringResource(Res.string.compose_nav_close_app),
                         selected = false,
                         expanded = sidebarExpanded,
-                        onClick = { platformExitApp() },
+                        onClick = { requestAppExitConfirmation() },
                     ) { color ->
                         Icon(
                             imageVector = Icons.Rounded.PowerSettingsNew,
