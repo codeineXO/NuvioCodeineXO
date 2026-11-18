@@ -2348,9 +2348,15 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(secondary: B
                         index = visibleAddons.indexOf(option.subtitle),
                         sourceLabel = if (isImported) importedLabel else (option.subtitle.addonName ?: addonLabel),
                         title = title,
-                        metadata = if (isImported) "" else option.subtitle.display.takeIf {
-                            it.isNotBlank() && it != title
-                        }.orEmpty(),
+                        metadata = if (isImported) {
+                            ""
+                        } else {
+                            listOfNotNull(option.subtitle.label, option.subtitle.display)
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() && it != title }
+                                .distinct()
+                                .joinToString("\n")
+                        },
                         isSelected = option.id == selectedOptionId,
                         isAutoSynced = option.id == selectedOptionId &&
                             option.subtitle.url == (if (secondary) secondarySubtitles.syncedUrl else autoSyncedUrl),

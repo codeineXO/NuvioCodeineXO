@@ -2732,7 +2732,7 @@ button:disabled {
 
 .subtitle-rails {
   display: grid;
-  grid-template-columns: 200px 300px;
+  grid-template-columns: 200px 360px;
   grid-template-rows: minmax(0, 1fr);
   flex: 0 1 auto;
   min-height: 0;
@@ -2745,7 +2745,7 @@ button:disabled {
 }
 
 .subtitle-rails.style-visible {
-  grid-template-columns: 200px 300px 280px;
+  grid-template-columns: 200px 360px 280px;
 }
 
 .subtitle-rails::-webkit-scrollbar {
@@ -3720,6 +3720,15 @@ button:disabled {
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.subtitle-option-title,
+.subtitle-option-metadata {
+  overflow: visible;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
 }
 
 .track-row.selected .subtitle-option-metadata,
@@ -6269,7 +6278,7 @@ svg {
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-metadata {
-  white-space: normal;
+  white-space: pre-line;
   overflow-wrap: anywhere;
   word-break: break-word;
   text-overflow: clip;

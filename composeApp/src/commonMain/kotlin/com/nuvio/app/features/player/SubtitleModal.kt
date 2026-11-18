@@ -227,7 +227,7 @@ fun SubtitleModal(
 
                     SubtitleRail(
                         title = stringResource(Res.string.compose_player_subtitles),
-                        width = 300.dp,
+                        width = 360.dp,
                         headerTrailing = onImportSubtitle?.let { onImport ->
                             {
                                 val chipShape = RoundedCornerShape(999.dp)
@@ -464,7 +464,16 @@ private fun SubtitleOptionRow(
             val isImported = option.subtitle.language == SubtitleImportedLanguageKey
             sourceLabel = if (isImported) stringResource(Res.string.compose_player_imported) else (option.subtitle.addonName ?: stringResource(Res.string.addon_title))
             title = if (isImported) option.subtitle.display else languageLabelForCode(option.subtitle.language)
-            metadata = if (isImported) null else (option.subtitle.label ?: option.subtitle.display).takeIf { it.isNotBlank() && it != title }
+            metadata = if (isImported) {
+                null
+            } else {
+                listOfNotNull(option.subtitle.label, option.subtitle.display)
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() && it != title }
+                    .distinct()
+                    .joinToString("\n")
+                    .ifBlank { null }
+            }
         }
     }
 
@@ -495,16 +504,12 @@ private fun SubtitleOptionRow(
                 text = title,
                 color = if (selected) tokens.colors.onAccent else Color.White,
                 style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
             )
             metadata?.let {
                 Text(
                     text = it,
                     color = if (selected) tokens.colors.onAccent.copy(alpha = 0.72f) else tokens.colors.textMuted,
                     style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
