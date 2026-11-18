@@ -227,7 +227,7 @@ fun <T> NuvioShelfSection(
                     ) { index, keyedEntry ->
                         PosterRowItem(
                             viewport = if (useGutterLayout) hoverViewport else null,
-                            modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
+                            modifier = if (animatePlacement) Modifier.animateItem(fadeOutSpec = null) else Modifier,
                         ) {
                             CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, keyedEntry.lazyKey, index) }) {
                                 RemotePosterItem(key?.invoke(keyedEntry.value), index) { itemContent(keyedEntry.value) }
@@ -241,7 +241,7 @@ fun <T> NuvioShelfSection(
                     ) { index, entry ->
                         PosterRowItem(
                             viewport = if (useGutterLayout) hoverViewport else null,
-                            modifier = if (animatePlacement) Modifier.animateItem() else Modifier,
+                            modifier = if (animatePlacement) Modifier.animateItem(fadeOutSpec = null) else Modifier,
                         ) {
                             CompositionLocalProvider(LocalPosterShelfItem provides shelfController?.let { PosterShelfItem(it, key?.invoke(entry) ?: index, index) }) {
                                 RemotePosterItem(key?.invoke(entry), index) { itemContent(entry) }

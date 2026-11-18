@@ -4,6 +4,10 @@ import com.nuvio.app.core.ui.rememberAnimatedArtworkAnimation
 import com.nuvio.app.features.home.MetaPreview
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -288,6 +292,7 @@ internal fun HomeContinueWatchingSection(
     listState: LazyListState = rememberLazyListState(),
     onItemClick: ((ContinueWatchingItem) -> Unit)? = null,
     onItemLongPress: ((ContinueWatchingItem) -> Unit)? = null,
+    onItemRemove: ((ContinueWatchingItem) -> Unit)? = null,
     disintegrationRequest: DisintegrationRequest<String>? = null,
     onViewAllClick: (() -> Unit)? = null,
 ) {
@@ -308,6 +313,7 @@ internal fun HomeContinueWatchingSection(
             listState = listState,
             onItemClick = onItemClick,
             onItemLongPress = onItemLongPress,
+            onItemRemove = onItemRemove,
             disintegrationRequest = disintegrationRequest,
             onViewAllClick = onViewAllClick,
         )
@@ -327,6 +333,7 @@ internal fun HomeContinueWatchingSection(
                 listState = listState,
                 onItemClick = onItemClick,
                 onItemLongPress = onItemLongPress,
+                onItemRemove = onItemRemove,
                 disintegrationRequest = disintegrationRequest,
                 onViewAllClick = onViewAllClick,
             )
@@ -349,6 +356,7 @@ private fun HomeContinueWatchingSectionContent(
     listState: LazyListState,
     onItemClick: ((ContinueWatchingItem) -> Unit)?,
     onItemLongPress: ((ContinueWatchingItem) -> Unit)?,
+    onItemRemove: ((ContinueWatchingItem) -> Unit)?,
     disintegrationRequest: DisintegrationRequest<String>?,
     onViewAllClick: (() -> Unit)?,
 ) {
@@ -378,11 +386,12 @@ private fun HomeContinueWatchingSectionContent(
             val item = entry.item
             val onClick = if (entry.exiting) null else onItemClick?.let { { it(item) } }
             val onLongClick = if (entry.exiting) null else onItemLongPress?.let { { it(item) } }
+            val onRemove = if (entry.exiting) null else onItemRemove?.let { { it(item) } }
             DisintegratingContainer(
                 disintegrating = entry.exiting,
                 onDisintegrated = { disintegration.onDisintegrated(entry.key) },
             ) {
-                ContinueWatchingTile(item, style, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick)
+                ContinueWatchingTile(item, style, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, onRemove)
             }
         }
     }
@@ -397,6 +406,7 @@ internal fun ContinueWatchingTile(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    onRemove: (() -> Unit)? = null,
 ) {
     val heroTarget = if (LocalPersistentHeroSelection.current == null || (onClick == null && onLongClick == null)) {
         Modifier
@@ -405,11 +415,47 @@ internal fun ContinueWatchingTile(
     }
     when (style) {
         ContinueWatchingSectionStyle.Card ->
-            ContinueWatchingCard(item, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, heroTarget)
+            ContinueWatchingCard(item, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, onRemove, heroTarget)
         ContinueWatchingSectionStyle.Wide ->
-            ContinueWatchingWideCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, heroTarget)
+            ContinueWatchingWideCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, onRemove, heroTarget)
         ContinueWatchingSectionStyle.Poster ->
-            ContinueWatchingPosterCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, heroTarget)
+            ContinueWatchingPosterCard(item, layout, useEpisodeThumbnails, blurNextUp, onClick, onLongClick, onRemove, heroTarget)
+    }
+}
+
+@Composable
+private fun ContinueWatchingTopStartControls(
+    showShuffle: Boolean,
+    onRemove: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    if (!showShuffle && onRemove == null) return
+    Row(
+        modifier = modifier.padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onRemove != null) ContinueWatchingRemoveButton(onRemove)
+        if (showShuffle) ShuffleBadge()
+    }
+}
+
+@Composable
+private fun ContinueWatchingRemoveButton(onRemove: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.70f))
+            .clickable(onClick = onRemove),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = stringResource(Res.string.cw_action_remove),
+            tint = Color.White,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
 
@@ -703,6 +749,7 @@ private fun ContinueWatchingCard(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    onRemove: (() -> Unit)?,
     heroTarget: Modifier,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
@@ -796,7 +843,11 @@ private fun ContinueWatchingCard(
                 onSuccess = { result -> glow?.painter = result.painter },
             )
         }
-        if (item.shufflePlayback) ShuffleBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
+        ContinueWatchingTopStartControls(
+            showShuffle = item.shufflePlayback,
+            onRemove = onRemove,
+            modifier = Modifier.align(Alignment.TopStart),
+        )
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -927,6 +978,7 @@ private fun ContinueWatchingWideCard(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    onRemove: (() -> Unit)?,
     heroTarget: Modifier,
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
@@ -956,15 +1008,22 @@ private fun ContinueWatchingWideCard(
             useEpisodeThumbnails = useEpisodeThumbnails,
             artworkUrl = artworkUrl,
         )
-        ArtworkPanel(
-            glow = glow,
-            imageUrl = artworkUrl,
-            width = layout.widePosterStripWidth,
-            blurred = shouldBlurArtwork,
-            fallbackUrl = item.fallbackUrlForArtwork(artworkUrl),
-            contentScale = if (item.isCloudLibraryItem()) ContentScale.Fit else ContentScale.Crop,
-            modifier = Modifier.fillMaxHeight(),
-        )
+        Box(modifier = Modifier.fillMaxHeight()) {
+            ArtworkPanel(
+                glow = glow,
+                imageUrl = artworkUrl,
+                width = layout.widePosterStripWidth,
+                blurred = shouldBlurArtwork,
+                fallbackUrl = item.fallbackUrlForArtwork(artworkUrl),
+                contentScale = if (item.isCloudLibraryItem()) ContentScale.Fit else ContentScale.Crop,
+                modifier = Modifier.fillMaxHeight(),
+            )
+            ContinueWatchingTopStartControls(
+                showShuffle = false,
+                onRemove = onRemove,
+                modifier = Modifier.align(Alignment.TopStart),
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -1065,6 +1124,7 @@ private fun ContinueWatchingPosterCard(
     blurNextUp: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    onRemove: (() -> Unit)?,
     heroTarget: Modifier,
 ) {
     val cornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
@@ -1118,7 +1178,11 @@ private fun ContinueWatchingPosterCard(
                     onSuccess = { result -> glow?.painter = result.painter },
                 )
             }
-            if (item.shufflePlayback) ShuffleBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
+            ContinueWatchingTopStartControls(
+                showShuffle = item.shufflePlayback,
+                onRemove = onRemove,
+                modifier = Modifier.align(Alignment.TopStart),
+            )
             if (item.progressFraction <= 0f && item.seasonNumber != null && item.episodeNumber != null) {
                 Box(
                     modifier = Modifier

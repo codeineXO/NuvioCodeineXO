@@ -204,6 +204,7 @@ fun HomeScreen(
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     onContinueWatchingClick: ((ContinueWatchingItem) -> Unit)? = null,
     onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
+    onContinueWatchingRemove: ((ContinueWatchingItem) -> Unit)? = null,
     continueWatchingDisintegrationRequest: DisintegrationRequest<String>? = null,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
     onCollectionClick: ((Collection) -> Unit)? = null,
@@ -664,6 +665,7 @@ fun HomeScreen(
                             sectionBottomPadding = sectionBottomPadding,
                             onItemClick = onContinueWatchingClick,
                             onItemLongPress = onContinueWatchingLongPress,
+                            onItemRemove = onContinueWatchingRemove,
                             onViewAllClick = openContinueWatching,
                             disintegrationRequest = continueWatchingDisintegrationRequest,
                         )
@@ -694,6 +696,7 @@ fun HomeScreen(
                             sectionBottomPadding = sectionBottomPadding,
                             onItemClick = onContinueWatchingClick,
                             onItemLongPress = onContinueWatchingLongPress,
+                            onItemRemove = onContinueWatchingRemove,
                             onViewAllClick = openContinueWatching,
                             disintegrationRequest = continueWatchingDisintegrationRequest,
                         )
@@ -798,6 +801,7 @@ fun HomeScreen(
                             sectionBottomPadding = sectionBottomPadding,
                             onItemClick = onContinueWatchingClick,
                             onItemLongPress = onContinueWatchingLongPress,
+                            onItemRemove = onContinueWatchingRemove,
                             onViewAllClick = openContinueWatching,
                             disintegrationRequest = continueWatchingDisintegrationRequest,
                         )
@@ -1628,6 +1632,7 @@ private fun LazyListScope.homeContinueWatchingSections(
     sectionBottomPadding: Dp = 12.dp,
     onItemClick: ((ContinueWatchingItem) -> Unit)?,
     onItemLongPress: ((ContinueWatchingItem) -> Unit)?,
+    onItemRemove: ((ContinueWatchingItem) -> Unit)?,
     onViewAllClick: (() -> Unit)?,
     disintegrationRequest: DisintegrationRequest<String>?,
 ) {
@@ -1650,6 +1655,7 @@ private fun LazyListScope.homeContinueWatchingSections(
                 onViewAllClick = onViewAllClick,
                 onItemClick = onItemClick,
                 onItemLongPress = onItemLongPress,
+                onItemRemove = onItemRemove,
                 disintegrationRequest = disintegrationRequest,
             )
             }

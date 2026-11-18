@@ -146,7 +146,6 @@ import com.nuvio.app.features.library.LibrarySourceMode
 import com.nuvio.app.features.library.PendingTrackingMembershipRemoval
 import com.nuvio.app.features.library.TrackingMembershipRemovalConfirmationHost
 import com.nuvio.app.features.library.executeTrackingMembershipOperation
-import com.nuvio.app.features.library.librarySectionItemKey
 import com.nuvio.app.features.library.showTrackingMembershipRewriteFeedback
 import com.nuvio.app.features.library.toLibraryItem
 import com.nuvio.app.features.library.toMetaPreview
@@ -211,7 +210,6 @@ import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepositor
 import com.nuvio.app.features.watchprogress.ResumePromptRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.WatchProgressSourceCoordinator
-import com.nuvio.app.features.watchprogress.continueWatchingItemKey
 import com.nuvio.app.features.watchprogress.nextUpDismissKey
 import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.navigation.*
@@ -1521,7 +1519,6 @@ internal fun MainAppContent(
         }
 
         val onContinueWatchingRemove: (ContinueWatchingItem) -> Unit = { item ->
-            continueWatchingDisintegrationRequests.arm(continueWatchingItemKey(item))
             if (item.isNextUp) {
                 ContinueWatchingPreferencesRepository.addDismissedNextUpKey(
                     nextUpDismissKey(
@@ -1536,7 +1533,6 @@ internal fun MainAppContent(
         }
 
         val onContinueWatchingMarkWatched: (ContinueWatchingItem) -> Unit = { item ->
-            continueWatchingDisintegrationRequests.arm(continueWatchingItemKey(item))
             WatchingActions.markContinueWatchingWatched(item)
         }
 
@@ -1897,6 +1893,7 @@ internal fun MainAppContent(
                                 onDownloadsClick = { navController.navigate(DownloadsRoute(downloadsTitle)) },
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
+                                onContinueWatchingRemove = onContinueWatchingRemove,
                                 onContinueWatchingViewAll = { shuffleVisit ->
                                     navController.navigate(ContinueWatchingRoute(shuffleVisit, continueWatchingSettingsTitle))
                                 },
@@ -2107,6 +2104,7 @@ internal fun MainAppContent(
                         onBack = rememberGuardedPopBackStack(navController, route),
                         onItemClick = onContinueWatchingClick,
                         onItemLongPress = onContinueWatchingLongPress,
+                        onItemRemove = onContinueWatchingRemove,
                         disintegrationRequest = continueWatchingDisintegrationRequests.current,
                     )
                 }
@@ -2387,8 +2385,6 @@ internal fun MainAppContent(
                             val libraryItem = posterActionTarget.libraryItem
                                 ?: preview.toLibraryItem(savedAtEpochMs = 0L)
                             if (posterActionTarget.libraryItem != null) {
-                                val animationKey = posterActionTarget.libraryListKey
-                                    ?.let { listKey -> librarySectionItemKey(listKey, libraryItem) }
                                 if (isRemoteLibrarySource) {
                                     coroutineScope.launch {
                                         val listKey = posterActionTarget.libraryListKey
@@ -2409,33 +2405,14 @@ internal fun MainAppContent(
                                                 )
                                             }
                                         }
-                                        val removeMembershipWithAnimation:
-                                            suspend (Set<TrackingProviderId>) -> TrackingMembershipApplyResult =
-                                            { confirmedProviders ->
-                                                val request = if (removesFromLibrary) {
-                                                    animationKey?.let(libraryDisintegrationRequests::arm)
-                                                } else {
-                                                    null
-                                                }
-                                                try {
-                                                    removeMembership(confirmedProviders).also { result ->
-                                                        if (result.requiresRemovalConfirmation && request != null) {
-                                                            libraryDisintegrationRequests.cancel(request)
-                                                        }
-                                                    }
-                                                } catch (error: Throwable) {
-                                                    request?.let(libraryDisintegrationRequests::cancel)
-                                                    throw error
-                                                }
-                                            }
                                         executeTrackingMembershipOperation(
-                                            operation = { removeMembershipWithAnimation(emptySet()) },
+                                            operation = { removeMembership(emptySet()) },
                                             onSuccess = { result ->
                                                 if (result.requiresRemovalConfirmation) {
                                                     pendingTrackingRemoval = PendingTrackingMembershipRemoval(
                                                         itemTitle = libraryItem.name,
                                                         confirmations = result.requiredRemovalConfirmations,
-                                                        retry = removeMembershipWithAnimation,
+                                                        retry = removeMembership,
                                                         onApplied = {},
                                                         onFailure = { error ->
                                                             NuvioToastController.show(
@@ -2454,9 +2431,6 @@ internal fun MainAppContent(
                                         )
                                     }
                                 } else {
-                                    if (removesFromLibrary) {
-                                        animationKey?.let(libraryDisintegrationRequests::arm)
-                                    }
                                     LibraryRepository.remove(libraryItem.id)
                                 }
                             } else {

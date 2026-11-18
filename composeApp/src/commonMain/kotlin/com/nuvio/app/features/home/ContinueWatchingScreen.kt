@@ -61,6 +61,7 @@ internal fun ContinueWatchingScreen(
     onBack: () -> Unit,
     onItemClick: (ContinueWatchingItem) -> Unit,
     onItemLongPress: (ContinueWatchingItem) -> Unit,
+    onItemRemove: (ContinueWatchingItem) -> Unit,
     disintegrationRequest: DisintegrationRequest<String>?,
 ) {
     val preferences by ContinueWatchingPreferencesRepository.uiState.collectAsStateWithLifecycle()
@@ -148,6 +149,7 @@ internal fun ContinueWatchingScreen(
                                         blurNextUp = preferences.blurNextUp,
                                         onClick = if (entry.exiting) null else { { onItemClick(entry.item) } },
                                         onLongClick = if (entry.exiting) null else { { onItemLongPress(entry.item) } },
+                                        onRemove = if (entry.exiting) null else { { onItemRemove(entry.item) } },
                                     )
                                 }
                             }
