@@ -81,20 +81,18 @@ import androidx.compose.ui.Alignment
 import com.nuvio.app.core.ui.FullscreenActionButton
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.requestAppExitConfirmation
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material3.Icon
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.features.settings.SurfaceStyle
 import androidx.compose.runtime.derivedStateOf
+import com.nuvio.app.core.ui.DesktopEdgeButton
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.desktopTopBarActionIconSize
 import com.nuvio.app.core.ui.desktopTopBarHeight
 import com.nuvio.app.core.ui.desktopTopBarTopPadding
@@ -949,26 +947,18 @@ fun HomeScreen(
             }
             // On desktop, topChromePadding is only provided when the top bar (not the sidebar) is active.
             if (isDesktop && topChromePadding != null) {
-                val closeLabel = stringResource(Res.string.compose_nav_close_app)
-                Box(
+                // Same edge button (size, style, slot) as every desktop page's back button.
+                DesktopEdgeButton(
+                    icon = Icons.Rounded.PowerSettingsNew,
+                    contentDescription = stringResource(Res.string.compose_nav_close_app),
+                    onClick = ::requestAppExitConfirmation,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .statusBarsPadding()
-                        .padding(top = desktopActionTopPadding + 1.dp, start = space.s16)
-                        .size(desktopButtonSize - 2.dp)
-                        .topBarActionGlass(CircleShape)
-                        .excludeFromRemoteNavigation()
-                        .clickable(role = Role.Button, onClick = ::requestAppExitConfirmation)
-                        .semantics { contentDescription = closeLabel },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.PowerSettingsNew,
-                        contentDescription = null,
-                        modifier = Modifier.size(desktopIconSize - 6.dp),
-                        tint = colorScheme.onSurface,
-                    )
-                }
+                        .padding(start = desktopBackButtonStartPadding, top = desktopBackButtonTopPadding),
+                    navigationModifier = Modifier.excludeFromRemoteNavigation(),
+                    hazeState = fullscreenBackdropState,
+                )
             }
         }
     }

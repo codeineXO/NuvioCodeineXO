@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioBackButton
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import com.nuvio.app.core.ui.navigationGlassSource
@@ -87,8 +88,10 @@ internal fun OpeningOverlay(
     progress: Float? = null,
     usePageBackButton: Boolean = false,
 ) {
+    // The back button keeps the app density, so it matches every page's back button in size and placement.
+    val appDensity = LocalDensity.current
     val content = @Composable {
-        OpeningOverlayContent(artwork, logo, title, onBack, horizontalSafePadding, modifier, message, progress, usePageBackButton)
+        OpeningOverlayContent(artwork, logo, title, onBack, horizontalSafePadding, modifier, message, progress, usePageBackButton, appDensity)
     }
     if (!isDesktop) {
         content()
@@ -115,6 +118,7 @@ private fun OpeningOverlayContent(
     message: String? = null,
     progress: Float? = null,
     usePageBackButton: Boolean = false,
+    backButtonDensity: Density? = null,
 ) {
     // Desktop hands this screen between app pages and the player's controls page, which shows the logo at
     // full strength; a fresh delayed fade on every handover would read as the logo flickering.
@@ -202,31 +206,33 @@ private fun OpeningOverlayContent(
             }
         }
 
-        NuvioBackButton(
-            usePageStyle = usePageBackButton,
-            onClick = onBack,
-            modifier = if (usePageBackButton) {
-                Modifier.align(Alignment.TopStart)
-                    .padding(verticalBarPadding)
-                    .statusBarsPadding()
-                    .padding(
-                        start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 12.dp,
-                        top = if (isDesktop) desktopBackButtonTopPadding else 8.dp,
-                    )
-                    .zIndex(2f)
-            } else {
-                Modifier.align(Alignment.TopEnd)
-                    .padding(LocalVerticalBarPadding.current)
-                    .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
-                    .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp)
-            },
-            containerColor = Color.Black.copy(alpha = if (usePageBackButton) 0.34f else 0.3f),
-            showContainerOnDesktop = usePageBackButton,
-            contentColor = if (usePageBackButton) MaterialTheme.colorScheme.onBackground else Color.White,
-            buttonSize = 44.dp,
-            iconSize = 24.dp,
-            contentDescription = stringResource(if (usePageBackButton) Res.string.action_back else Res.string.compose_player_close),
-        )
+        CompositionLocalProvider(LocalDensity provides (backButtonDensity ?: LocalDensity.current)) {
+            NuvioBackButton(
+                usePageStyle = usePageBackButton,
+                onClick = onBack,
+                modifier = if (usePageBackButton) {
+                    Modifier.align(Alignment.TopStart)
+                        .padding(verticalBarPadding)
+                        .statusBarsPadding()
+                        .padding(
+                            start = if (isDesktop) desktopBackButtonStartPadding else 12.dp,
+                            top = if (isDesktop) desktopBackButtonTopPadding else 8.dp,
+                        )
+                        .zIndex(2f)
+                } else {
+                    Modifier.align(Alignment.TopEnd)
+                        .padding(LocalVerticalBarPadding.current)
+                        .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
+                        .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp)
+                },
+                containerColor = Color.Black.copy(alpha = if (usePageBackButton) 0.34f else 0.3f),
+                showContainerOnDesktop = usePageBackButton,
+                contentColor = if (usePageBackButton) MaterialTheme.colorScheme.onBackground else Color.White,
+                buttonSize = 44.dp,
+                iconSize = 24.dp,
+                contentDescription = stringResource(if (usePageBackButton) Res.string.action_back else Res.string.compose_player_close),
+            )
+        }
 
         val targetProgress = progress?.coerceIn(0f, 1f)
         val animatedProgress by animateFloatAsState(

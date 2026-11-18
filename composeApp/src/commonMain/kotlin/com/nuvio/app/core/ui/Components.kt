@@ -62,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
@@ -211,10 +212,17 @@ fun NuvioScreenHeader(
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth(),
     ) {
-        val headerButtonSize = if (isDesktop) desktopTopBarHeight(maxWidth) else desktopBackButtonSize
-        val headerIconSize = if (isDesktop) desktopTopBarActionIconSize(maxWidth) else desktopBackButtonIconSize
+        val headerButtonSize = desktopTopBarHeight(maxWidth)
+        val headerIconSize = desktopTopBarActionIconSize(maxWidth)
         val horizontalInset = if (isDesktop && onBack != null && !insetByScreen) {
             desktopPageHorizontalPaddingForWidth(maxWidth.value)
+        } else 0.dp
+        // A fixed (non-scrolling) desktop header puts its back button in the shared top-left edge slot.
+        val desktopBackInSlot = isDesktop && onBack != null && !insetByScreen &&
+            (!LocalDesktopSidebarActive.current || showBackWithDesktopSidebar)
+        val desktopBackTopOffset = if (desktopBackInSlot) {
+            ((if (includeStatusBarPadding || topPadding != null) statusBarTop else 0.dp) + desktopBackButtonTopPadding - resolvedTopPadding)
+                .coerceAtLeast(0.dp)
         } else 0.dp
         Row(
             modifier = Modifier
@@ -225,7 +233,7 @@ fun NuvioScreenHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalInset)
+                .padding(start = if (desktopBackInSlot) desktopBackButtonStartPadding else horizontalInset, end = horizontalInset)
                 .padding(top = resolvedTopPadding, bottom = NuvioTokens.Space.s4),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = if (isDesktop && onBack != null) Alignment.Top else Alignment.Bottom,
@@ -242,18 +250,16 @@ fun NuvioScreenHeader(
                         keyboardNavigationEnabled = backButtonKeyboardNavigationEnabled,
                         backgroundOnly = backButtonBackgroundOnly,
                         showWithDesktopSidebar = showBackWithDesktopSidebar,
+                        modifier = if (desktopBackInSlot) Modifier.align(Alignment.Top).padding(top = desktopBackTopOffset) else Modifier,
                     )
                 } else if (onBack != null && (!LocalDesktopSidebarActive.current || showBackWithDesktopSidebar)) {
-                    IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
-                        .size(desktopBackButtonSize)
-                    else Modifier).navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
+                    IconButton(onClick = onBack, modifier = Modifier.navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
                         Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)
                     } else Modifier.excludeFromRemoteNavigation())) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),
-                            tint = frostedGlassSecondaryContentColor(if (isDesktop) MaterialTheme.colorScheme.onBackground else tokens.colors.textPrimary),
-                            modifier = if (isDesktop) Modifier.size(desktopBackButtonIconSize) else Modifier,
+                            tint = frostedGlassSecondaryContentColor(tokens.colors.textPrimary),
                         )
                     }
                 }
@@ -371,33 +377,73 @@ fun NuvioBackButton(
 ) {
     if (LocalUseNativeNavigation.current && !LocalNativeNavigationBarHidden.current) return
     if (LocalDesktopSidebarActive.current && !showWithDesktopSidebar) return
-    val desktopPageStyle = isDesktop && usePageStyle
-    val effectiveContainerColor = if (desktopPageStyle) desktopBackButtonContainerColor
-        else if (isDesktop && !showContainerOnDesktop) Color.Transparent else containerColor
-    val effectiveShape = if (desktopPageStyle) MaterialTheme.nuvio.shapes.avatar else shape
+    val navigationModifier = if (keyboardNavigationEnabled) {
+        Modifier.remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.Back)
+    } else Modifier.excludeFromRemoteNavigation()
+    if (isDesktop && usePageStyle) {
+        // Desktop pages share the top bar's leading edge button (power / back): one size, style and slot.
+        DesktopEdgeButton(
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            contentDescription = contentDescription,
+            onClick = onClick,
+            modifier = modifier,
+            navigationModifier = navigationModifier,
+            backgroundOnly = backgroundOnly,
+        )
+        return
+    }
+    val effectiveContainerColor = if (isDesktop && !showContainerOnDesktop) Color.Transparent else containerColor
 
     Box(
         modifier = modifier
-            .size(if (desktopPageStyle) desktopBackButtonSize else buttonSize)
+            .size(buttonSize)
             // Players use the original branch; only page navigation opts into glass.
             .then(
-                if (usePageStyle) Modifier.navigationGlass(effectiveShape, backgroundOnly = backgroundOnly)
-                else Modifier.clip(effectiveShape).background(effectiveContainerColor),
+                if (usePageStyle) Modifier.navigationGlass(shape, backgroundOnly = backgroundOnly)
+                else Modifier.clip(shape).background(effectiveContainerColor),
             )
-            .then(
-                if (keyboardNavigationEnabled) {
-                    Modifier.remoteNavigationTarget(shape = shape, role = RemoteNavigationRole.Back)
-                } else Modifier.excludeFromRemoteNavigation(),
-            )
+            .then(navigationModifier)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
             contentDescription = contentDescription,
-            tint = if (usePageStyle) frostedGlassSecondaryContentColor(if (desktopPageStyle) MaterialTheme.colorScheme.onBackground else contentColor)
-                else if (desktopPageStyle) MaterialTheme.colorScheme.onBackground else contentColor,
-            modifier = Modifier.size(if (desktopPageStyle) desktopBackButtonIconSize else iconSize),
+            tint = if (usePageStyle) frostedGlassSecondaryContentColor(contentColor) else contentColor,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+/**
+ * The desktop top-left edge button: the top bar's power button and every page's back button.
+ * Place it with [desktopBackButtonStartPadding] / [desktopBackButtonTopPadding] (plus the status bar inset).
+ */
+@Composable
+internal fun DesktopEdgeButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    navigationModifier: Modifier = Modifier,
+    backgroundOnly: Boolean = false,
+    hazeState: HazeState? = LocalNavigationGlassState.current,
+) {
+    val windowWidth = desktopWindowWidth()
+    val shape = MaterialTheme.nuvio.shapes.avatar
+    Box(
+        modifier = modifier
+            .size(desktopBackButtonSize(windowWidth))
+            .navigationGlass(shape, hazeState = hazeState, backgroundOnly = backgroundOnly)
+            .then(navigationModifier)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = frostedGlassSecondaryContentColor(MaterialTheme.colorScheme.onBackground),
+            modifier = Modifier.size(desktopBackButtonIconSize(windowWidth)),
         )
     }
 }

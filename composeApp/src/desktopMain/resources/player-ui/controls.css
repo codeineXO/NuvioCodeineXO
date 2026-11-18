@@ -5185,3 +5185,54 @@ svg {
   position: relative;
   top: -1px;
 }
+
+/* Desktop top-left edge button: the same size, frosted glass and slot as the app's back / power button
+   (DesktopEdgeButton). Geometry comes from the host as --edge-button-* once it is known. */
+html.edge-button-geometry .opening-actions {
+  top: calc(var(--edge-button-top) + env(safe-area-inset-top));
+  left: calc(var(--edge-button-left) + env(safe-area-inset-left));
+}
+
+html.edge-button-geometry .opening-button,
+html.edge-button-geometry .player.ui-codeinexo .codeine-back-button {
+  width: var(--edge-button-size);
+  height: var(--edge-button-size);
+  min-width: var(--edge-button-size);
+  max-width: var(--edge-button-size);
+  min-height: var(--edge-button-size);
+  max-height: var(--edge-button-size);
+  box-sizing: border-box;
+  border-radius: 999px;
+}
+
+html.edge-button-geometry .opening-button svg,
+html.edge-button-geometry .player.ui-codeinexo .codeine-back-button svg {
+  width: var(--edge-button-icon);
+  height: var(--edge-button-icon);
+}
+
+/* The loading screen's back button uses the app's frosted glass. */
+html.edge-button-geometry .opening-button {
+  border: .5px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .05);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+  color: rgba(255, 255, 255, .8);
+}
+
+html.edge-button-geometry .opening-button:hover {
+  background: rgba(255, 255, 255, .14);
+}
+
+html.edge-button-geometry .opening-button svg {
+  filter: none;
+}
+
+/* The player's back button keeps its bare icon (no scrim), colour and soft shadow; the CodeineXO header
+   starts at 20px / 22px, so shift it into the shared edge slot. */
+html.edge-button-geometry .player.ui-codeinexo .codeine-back-button {
+  position: relative;
+  left: calc(var(--edge-button-left) - 20px);
+  top: calc(var(--edge-button-top) - 22px);
+}

@@ -148,6 +148,7 @@ import com.nuvio.app.core.ui.rememberArtworkBackdrop
 import com.nuvio.app.core.ui.LocalOnBackdrop
 import com.nuvio.app.core.ui.AppPresenceState
 import com.nuvio.app.core.ui.PresenceSnapshot
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
@@ -2333,14 +2334,8 @@ internal fun MetaDetailsScreen(
                                 modifier = Modifier.remoteNavigationScrollToTop(listState)
                                     .then(if (useEnhancedLayout) Modifier.excludeFromRemoteNavigation() else Modifier)
                                     .statusBarsPadding()
-                                    .padding(start = desktopPageHorizontalPadding, top = desktopBackButtonTopPadding)
+                                    .padding(start = desktopBackButtonStartPadding, top = desktopBackButtonTopPadding)
                                     .zIndex(2f),
-                                containerColor = if (useEnhancedLayout) MaterialTheme.nuvio.colors.surfacePopover.copy(alpha = 0.88f)
-                                    else Color.Black.copy(alpha = 0.34f),
-                                showContainerOnDesktop = true,
-                                contentColor = MaterialTheme.colorScheme.onBackground,
-                                buttonSize = 48.dp,
-                                iconSize = 24.dp,
                             )
                         }
 
@@ -2508,7 +2503,7 @@ internal fun MetaDetailsScreen(
         if (displayedMeta == null) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val loadingBackButtonStartPadding = if (isDesktop) {
-                    desktopPageHorizontalPaddingForWidth(maxWidth.value)
+                    desktopBackButtonStartPadding
                 } else {
                     12.dp
                 }

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
@@ -154,14 +155,10 @@ fun TmdbEntityBrowseScreen(
                         modifier = Modifier
                             .windowInsetsPadding(WindowInsets.statusBars)
                             .padding(
-                                start = desktopPageHorizontalPaddingForWidth(maxWidth.value),
+                                start = desktopBackButtonStartPadding,
                                 top = desktopBackButtonTopPadding,
                             )
                             .align(Alignment.TopStart),
-                        containerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        buttonSize = 48.dp,
-                        iconSize = 24.dp,
                     )
                 }
             } else {

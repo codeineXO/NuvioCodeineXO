@@ -29,6 +29,8 @@ import com.nuvio.app.features.player.findPreferredAudioTrackIndex
 import com.nuvio.app.features.player.ParentalWarning
 import com.nuvio.app.features.player.PlayerControlsAction
 import com.nuvio.app.features.player.PlayerControlsState
+import com.nuvio.app.features.player.PlayerEdgeButtonGeometry
+import com.nuvio.app.features.player.PlayerEdgeButtonGeometryStore
 import com.nuvio.app.features.player.PlayerChapter
 import com.nuvio.app.features.player.PlayerEngineController
 import com.nuvio.app.features.player.PlayerMediaInfo
@@ -731,6 +733,7 @@ internal class NativePlayerController(
             isFullscreen = isFullscreen,
             isInPip = DesktopPlayerPictureInPicture.isEnabled,
             playerUiScale = currentUiScale,
+            edgeButtonGeometry = PlayerEdgeButtonGeometryStore.current,
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
@@ -2448,6 +2451,7 @@ private data class NativeControlsStructureKey(
     val isFullscreen: Boolean,
     val isInPip: Boolean,
     val playerUiScale: Int = 100,
+    val edgeButtonGeometry: PlayerEdgeButtonGeometry = PlayerEdgeButtonGeometry(),
 )
 
 internal fun PlayerControlsState.toControlsJson(
@@ -2518,6 +2522,14 @@ internal fun PlayerControlsState.toControlsJson(
         appendJsonField("grainFilterEnabled", PlayerSettingsRepository.uiState.value.grainFilterEnabled)
         append(',')
         appendJsonField("playerUiScale", PlayerSettingsRepository.uiState.value.playerUiScale)
+        append(',')
+        appendJsonPixels("edgeButtonSize", PlayerEdgeButtonGeometryStore.current.size)
+        append(',')
+        appendJsonPixels("edgeButtonIconSize", PlayerEdgeButtonGeometryStore.current.iconSize)
+        append(',')
+        appendJsonPixels("edgeButtonLeft", PlayerEdgeButtonGeometryStore.current.left)
+        append(',')
+        appendJsonPixels("edgeButtonTop", PlayerEdgeButtonGeometryStore.current.top)
         append(',')
         appendJsonField("title", title)
         append(',')
@@ -3085,6 +3097,11 @@ private fun StringBuilder.appendJsonField(name: String, value: Float?) {
     } else {
         append(value.coerceIn(0f, 1f))
     }
+}
+
+private fun StringBuilder.appendJsonPixels(name: String, value: Float) {
+    append('"').append(name).append("\":")
+    append(if (value.isNaN() || value.isInfinite()) 0f else value.coerceIn(0f, 512f))
 }
 
 private fun StringBuilder.appendJsonVolumeLevel(name: String, value: Float?) {

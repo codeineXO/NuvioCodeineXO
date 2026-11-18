@@ -68,6 +68,7 @@ import com.nuvio.app.isDesktop
 import com.nuvio.app.core.ui.NuvioDesktopAnimation
 import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioToastHost
@@ -338,7 +339,7 @@ fun ProfileSelectionScreen(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(LocalVerticalBarPadding.current)
-                    .padding(start = if (isDesktop) desktopPageHorizontalPaddingForWidth(maxWidth.value) else 16.dp, top = statusBarTop + if (isDesktop) desktopBackButtonTopPadding else 8.dp),
+                    .padding(start = if (isDesktop) desktopBackButtonStartPadding else 16.dp, top = statusBarTop + if (isDesktop) desktopBackButtonTopPadding else 8.dp),
             )
         }
 

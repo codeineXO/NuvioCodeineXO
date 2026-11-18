@@ -193,6 +193,25 @@ data class PlayerToastLabels(
     val noSubtitles: String = "No subtitles available",
 )
 
+/**
+ * Desktop top-left edge button (page back / power) geometry in unzoomed player-page pixels; 0 = unset.
+ * Kept outside [PlayerControlsState], whose constructor is already at the JVM parameter limit.
+ */
+data class PlayerEdgeButtonGeometry(
+    val size: Float = 0f,
+    val iconSize: Float = 0f,
+    val left: Float = 0f,
+    val top: Float = 0f,
+)
+
+object PlayerEdgeButtonGeometryStore {
+    private val state = kotlinx.coroutines.flow.MutableStateFlow(PlayerEdgeButtonGeometry())
+    val current: PlayerEdgeButtonGeometry get() = state.value
+    fun update(geometry: PlayerEdgeButtonGeometry) {
+        state.value = geometry
+    }
+}
+
 data class PlayerControlsState(
     val title: String = "",
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,

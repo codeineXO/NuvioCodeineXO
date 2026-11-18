@@ -1,10 +1,9 @@
 package com.nuvio.app.features.catalog
 
 import com.nuvio.app.core.ui.verticalRowAnchors
-import com.nuvio.app.core.ui.desktopBackButtonSize
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
 import com.nuvio.app.core.ui.LocalDesktopSidebarActive
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
-import com.nuvio.app.core.ui.desktopBackButtonIconSize
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.NuvioBackButton
 
@@ -415,13 +414,18 @@ internal fun CatalogHeader(
     val tokens = MaterialTheme.nuvio
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val effectiveTopPadding = statusBarTop + if (isDesktop) desktopBackButtonTopPadding else tokens.spacing.screenTop
+    // The desktop back button sits in the shared top-left edge slot (only shown without the sidebar).
+    val desktopBackInSlot = isDesktop && !LocalDesktopSidebarActive.current
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.Transparent)
             .nuvioConsumePointerEvents()
-            .padding(start = pageHorizontalPadding + sidebarInset, end = pageHorizontalPadding)
+            .padding(
+                start = (if (desktopBackInSlot) desktopBackButtonStartPadding else pageHorizontalPadding) + sidebarInset,
+                end = pageHorizontalPadding,
+            )
             .padding(top = effectiveTopPadding, bottom = NuvioTokens.Space.s4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
@@ -430,17 +434,17 @@ internal fun CatalogHeader(
             onClick = onBack,
             usePageStyle = true,
             keyboardNavigationEnabled = false,
+            modifier = Modifier.align(Alignment.Top),
         ) else if (!LocalDesktopSidebarActive.current) IconButton(
             onClick = onBack,
-            modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize) else Modifier)
+            modifier = Modifier
                 .navigationGlass()
                 .excludeFromRemoteNavigation(),
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                 contentDescription = stringResource(Res.string.action_back),
-                tint = if (isDesktop) frostedGlassSecondaryContentColor(MaterialTheme.colorScheme.onBackground) else tokens.colors.textPrimary,
-                modifier = if (isDesktop) Modifier.size(desktopBackButtonIconSize) else Modifier,
+                tint = tokens.colors.textPrimary,
             )
         }
         var headerTitle by remember { mutableStateOf("") }

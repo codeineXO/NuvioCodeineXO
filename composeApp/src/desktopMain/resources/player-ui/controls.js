@@ -2236,10 +2236,26 @@ let isEyeFilterSliderDragging = false;
 let eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
 let eyeFilterColorDebounceTimer = null;
 
+// Back buttons share the app's top-left edge button geometry (size, icon, slot). The host sends it in
+// unzoomed page pixels; dividing by the UI zoom keeps it identical to the app at any player UI scale.
+const applyEdgeButtonGeometry = () => {
+  const root = document.documentElement;
+  const geometry = state.edgeButtonGeometry;
+  const valid = geometry && geometry.size > 0 && geometry.iconSize > 0;
+  root.classList.toggle("edge-button-geometry", Boolean(valid));
+  if (!valid) return;
+  const zoom = (state.playerUiScale || 100) / 100;
+  root.style.setProperty("--edge-button-size", `${geometry.size / zoom}px`);
+  root.style.setProperty("--edge-button-icon", `${geometry.iconSize / zoom}px`);
+  root.style.setProperty("--edge-button-left", `${geometry.left / zoom}px`);
+  root.style.setProperty("--edge-button-top", `${geometry.top / zoom}px`);
+};
+
 const applyPlayerUiScale = (scale, notifyHost) => {
   const clamped = Math.min(150, Math.max(50, Math.round(Number(scale) || 100)));
   state.playerUiScale = clamped;
   document.documentElement.style.zoom = String(clamped / 100);
+  applyEdgeButtonGeometry();
   if (notifyHost) {
     send("playerUiScale", clamped);
   }
@@ -6838,6 +6854,20 @@ window.playerControls = nextState => {
   }
   if (typeof nextState.grainFilterEnabled === "boolean") {
     state.grainFilterEnabled = nextState.grainFilterEnabled;
+  }
+  if (typeof nextState.edgeButtonSize === "number" && typeof nextState.edgeButtonIconSize === "number") {
+    const previous = state.edgeButtonGeometry;
+    const next = {
+      size: nextState.edgeButtonSize,
+      iconSize: nextState.edgeButtonIconSize,
+      left: Number(nextState.edgeButtonLeft) || 0,
+      top: Number(nextState.edgeButtonTop) || 0,
+    };
+    if (!previous || previous.size !== next.size || previous.iconSize !== next.iconSize ||
+      previous.left !== next.left || previous.top !== next.top) {
+      state.edgeButtonGeometry = next;
+      applyEdgeButtonGeometry();
+    }
   }
   if (typeof nextState.playerUiScale === "number" && nextState.playerUiScale >= 50 && nextState.playerUiScale <= 150) {
     if (previousPlayerUiScale !== nextState.playerUiScale) {

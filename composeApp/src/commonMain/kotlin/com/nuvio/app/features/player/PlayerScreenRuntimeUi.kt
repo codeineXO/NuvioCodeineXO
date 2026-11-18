@@ -57,6 +57,13 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.Dp
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.LocalFold
+import com.nuvio.app.core.ui.LocalNuvioPlatformDensity
+import com.nuvio.app.core.ui.desktopBackButtonIconSize
+import com.nuvio.app.core.ui.desktopBackButtonSize
+import com.nuvio.app.core.ui.desktopBackButtonStartPadding
+import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+import com.nuvio.app.core.ui.desktopWindowWidth
+import androidx.compose.ui.platform.LocalDensity
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.party.PartyRepository
 import com.nuvio.app.features.p2p.formatP2pMegabytes
@@ -535,6 +542,17 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             title = chapter.title ?: stringResource(Res.string.compose_player_chapter_number, index + 1),
         )
     }
+    // The player page's back buttons share the app's top-left edge button geometry (see DesktopEdgeButton),
+    // expressed in unzoomed player-page pixels: app dp times the app UI scale over the platform density.
+    val edgeAppScale = LocalDensity.current.density / LocalNuvioPlatformDensity.current.density
+    val edgeWindowWidth = desktopWindowWidth()
+    val edgeButtonGeometry = PlayerEdgeButtonGeometry(
+        size = desktopBackButtonSize(edgeWindowWidth).value * edgeAppScale,
+        iconSize = desktopBackButtonIconSize(edgeWindowWidth).value * edgeAppScale,
+        left = desktopBackButtonStartPadding.value * edgeAppScale,
+        top = desktopBackButtonTopPadding.value * edgeAppScale,
+    )
+    PlayerEdgeButtonGeometryStore.update(edgeButtonGeometry)
     val playerControlsState = PlayerControlsState(
         chapterControls = PlayerChapterControls(
             chapters = controlChapters,
