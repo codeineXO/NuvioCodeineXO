@@ -105,6 +105,7 @@ internal typealias NativePlayerCreate = (
     String,
     Int,
     Boolean,
+    Boolean,
     NativePlayerEventSink,
 ) -> Long
 
@@ -328,6 +329,7 @@ internal class NativePlayerController(
         initialPositionMs: Long,
         decoderPriority: Int,
         nvidiaRtxSuperResolutionEnabled: Boolean,
+        nvidiaRtxHdrEnabled: Boolean = false,
         onError: (String?) -> Unit,
     ) {
         ensureScopesActive()
@@ -340,6 +342,7 @@ internal class NativePlayerController(
             initialPositionMs = initialPositionMs.coerceAtLeast(0L),
             decoderPriority = decoderPriority,
             nvidiaRtxSuperResolutionEnabled = nvidiaRtxSuperResolutionEnabled,
+            nvidiaRtxHdrEnabled = nvidiaRtxHdrEnabled,
             onError = onError,
         )
         var terminalFailure: String? = null
@@ -519,14 +522,14 @@ internal class NativePlayerController(
                     null
                 }
                 val parsed = config?.takeIf { it.enabled }?.let { WindowsMpvConfig.parse(it.text) }
-                val create: NativePlayerCreate = nativeCreate ?: { host, source, audio, headers, play, position, controls, decoder, rtx, sink ->
+                val create: NativePlayerCreate = nativeCreate ?: { host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, sink ->
                     NativePlayerBridge.ensureLoaded()
                     if (config != null) {
                         val options = if (parsed == null) emptyArray()
                             else if (parsed.issues.isEmpty()) parsed.nativeOptions() else null
-                        NativePlayerBridge.createWindows(host, source, audio, headers, play, position, controls, decoder, rtx, options, sink)
+                        NativePlayerBridge.createWindows(host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options, sink)
                     } else {
-                        NativePlayerBridge.create(host, source, audio, headers, play, position, controls, decoder, rtx, sink)
+                        NativePlayerBridge.create(host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, sink)
                     }
                 }
                 // Windows only: play a local master trimmed to the top variant, and offer its
@@ -551,6 +554,7 @@ internal class NativePlayerController(
                         NativePlayerBridge.controlsPageUrl,
                         pending.decoderPriority,
                         pending.nvidiaRtxSuperResolutionEnabled,
+                        pending.nvidiaRtxHdrEnabled,
                         eventSink,
                     ).also { if (it == 0L) error("Native player did not return a handle.") }
                 }.onSuccess { created ->
@@ -1318,6 +1322,11 @@ internal class NativePlayerController(
         DesktopPlayerPictureInPicture.toggle()
     }
 
+    override fun adjustVolumeBy(deltaFraction: Float): Boolean {
+        adjustFallbackVolume(deltaFraction * 100f)
+        return true
+    }
+
     @Synchronized
     private fun adjustFallbackVolume(delta: Float) {
         val current = handle
@@ -1804,6 +1813,7 @@ internal class NativePlayerController(
             initialPositionMs = pending.initialPositionMs,
             decoderPriority = pending.decoderPriority,
             nvidiaRtxSuperResolutionEnabled = pending.nvidiaRtxSuperResolutionEnabled,
+            nvidiaRtxHdrEnabled = pending.nvidiaRtxHdrEnabled,
             onError = pending.onError,
         )
     }
@@ -2394,6 +2404,7 @@ private data class PendingSource(
     val initialPositionMs: Long,
     val decoderPriority: Int,
     val nvidiaRtxSuperResolutionEnabled: Boolean,
+    val nvidiaRtxHdrEnabled: Boolean,
     val onError: (String?) -> Unit,
 )
 

@@ -14,7 +14,7 @@ import kotlinx.coroutines.sync.withLock
 
 object ImdbEpisodeRatingsRepository {
     private data class CacheEntry(
-        val ratings: Map<Pair<Int, Int>, Double>,
+        val episodes: List<ExternalEpisodeRating>,
         val expiresAtMs: Long,
     )
 
@@ -22,22 +22,28 @@ object ImdbEpisodeRatingsRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutex = Mutex()
     private val cache = mutableMapOf<String, CacheEntry>()
-    private val inFlight = mutableMapOf<String, Deferred<Map<Pair<Int, Int>, Double>>>()
+    private val inFlight = mutableMapOf<String, Deferred<List<ExternalEpisodeRating>>>()
 
-    suspend fun getEpisodeRatings(
+    internal suspend fun getEpisodeRatings(
         imdbId: String?,
         tmdbId: Int?,
-        seasonNumbers: List<Int> = emptyList(),
-    ): Map<Pair<Int, Int>, Double> {
+        addonEpisodes: List<AddonEpisodeAirDate>,
+    ): Map<Pair<Int, Int>, Double> =
+        alignEpisodeRatings(addonEpisodes, getExternalEpisodes(imdbId, tmdbId))
+
+    private suspend fun getExternalEpisodes(
+        imdbId: String?,
+        tmdbId: Int?,
+    ): List<ExternalEpisodeRating> {
         val normalizedImdbId = normalizeImdbId(imdbId)
         val normalizedTmdbId = tmdbId?.takeIf { it > 0 }
-        if (normalizedImdbId == null && normalizedTmdbId == null) return emptyMap()
+        if (normalizedImdbId == null && normalizedTmdbId == null) return emptyList()
 
         val cacheKey = normalizedImdbId?.let { "imdb:$it" } ?: "tmdb:$normalizedTmdbId"
         val now = currentTimeMs()
         mutex.withLock {
             cache[cacheKey]?.let { cached ->
-                if (cached.expiresAtMs > now) return cached.ratings
+                if (cached.expiresAtMs > now) return cached.episodes
                 cache.remove(cacheKey)
             }
         }
@@ -48,11 +54,10 @@ object ImdbEpisodeRatingsRepository {
                     fetchEpisodeRatings(
                         imdbId = normalizedImdbId,
                         tmdbId = normalizedTmdbId,
-                        seasonNumbers = seasonNumbers,
-                    ).also { ratings ->
+                    ).also { episodes ->
                         mutex.withLock {
                             cache[cacheKey] = CacheEntry(
-                                ratings = ratings,
+                                episodes = episodes,
                                 expiresAtMs = currentTimeMs() + CACHE_TTL_MS,
                             )
                         }
@@ -78,37 +83,29 @@ object ImdbEpisodeRatingsRepository {
     private suspend fun fetchEpisodeRatings(
         imdbId: String?,
         tmdbId: Int?,
-        seasonNumbers: List<Int>,
-    ): Map<Pair<Int, Int>, Double> {
-        val resolvedImdbId = imdbId ?: tmdbId?.let { TmdbService.tmdbToImdb(it, "series") }
-        if (!resolvedImdbId.isNullOrBlank()) {
-            val primary = toRatingsMap(ImdbTapframeApi.getSeasonRatings(resolvedImdbId))
-            if (primary.isNotEmpty()) return primary
-            log.w { "Primary episode ratings empty for imdbId=$resolvedImdbId, trying fallback" }
+    ): List<ExternalEpisodeRating> {
+        if (!imdbId.isNullOrBlank()) {
+            val primary = toEpisodeRatings(ImdbTapframeApi.getSeasonRatings(imdbId))
+            if (primary.any { it.rating != null }) return primary
+            log.w { "Primary episode ratings empty for imdbId=$imdbId, trying fallback" }
         }
 
-        val resolvedTmdbId = tmdbId ?: resolvedImdbId
-            ?.let { TmdbService.ensureTmdbId(it, "series") }
-            ?.toIntOrNull()
-
-        if (resolvedTmdbId != null) {
-            val configuredServiceRatings = toRatingsMap(SeriesGraphApi.getSeasonRatings(resolvedTmdbId))
-            if (configuredServiceRatings.isNotEmpty()) return configuredServiceRatings
-            return TmdbMetadataService.fetchEpisodeRatings(resolvedTmdbId, seasonNumbers)
+        if (tmdbId != null) {
+            return toEpisodeRatings(SeriesGraphApi.getSeasonRatings(tmdbId))
         }
 
-        return emptyMap()
+        return emptyList()
     }
 
-    private fun toRatingsMap(payload: List<SeriesGraphSeasonRatingsDto>): Map<Pair<Int, Int>, Double> =
-        buildMap {
-            payload.forEach { season ->
-                season.episodes.orEmpty().forEach { episode ->
-                    val seasonNumber = episode.seasonNumber ?: return@forEach
-                    val episodeNumber = episode.episodeNumber ?: return@forEach
-                    val voteAverage = episode.voteAverage?.takeIf { it > 0.0 } ?: return@forEach
-                    put(seasonNumber to episodeNumber, voteAverage)
-                }
+    private fun toEpisodeRatings(payload: List<SeriesGraphSeasonRatingsDto>): List<ExternalEpisodeRating> =
+        payload.flatMap { season ->
+            season.episodes.orEmpty().mapNotNull { episode ->
+                ExternalEpisodeRating(
+                    season = episode.seasonNumber ?: return@mapNotNull null,
+                    episode = episode.episodeNumber ?: return@mapNotNull null,
+                    airDate = episode.airDate,
+                    rating = episode.voteAverage?.takeIf { it > 0.0 },
+                )
             }
         }
 

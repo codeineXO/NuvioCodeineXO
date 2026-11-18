@@ -62,6 +62,7 @@ internal object NativePlayerBridge {
         controlsPageUrl: String,
         decoderPriority: Int,
         nvidiaRtxSuperResolutionEnabled: Boolean,
+        nvidiaRtxHdrEnabled: Boolean,
         eventSink: NativePlayerEventSink,
     ): Long
 
@@ -75,6 +76,7 @@ internal object NativePlayerBridge {
         controlsPageUrl: String,
         decoderPriority: Int,
         nvidiaRtxSuperResolutionEnabled: Boolean,
+        nvidiaRtxHdrEnabled: Boolean,
         options: Array<String>?,
         eventSink: NativePlayerEventSink,
     ): Long

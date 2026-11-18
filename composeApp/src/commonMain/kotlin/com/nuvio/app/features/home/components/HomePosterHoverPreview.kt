@@ -63,6 +63,7 @@ import com.nuvio.app.features.details.MetaExternalRating
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType

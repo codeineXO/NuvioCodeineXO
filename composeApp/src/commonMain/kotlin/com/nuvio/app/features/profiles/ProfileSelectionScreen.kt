@@ -412,6 +412,7 @@ private fun ProfileAvatarCard(
         }
     }
 
+    val profileShape = RoundedCornerShape(20.dp)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -422,7 +423,7 @@ private fun ProfileAvatarCard(
                 scaleY = animScale.value * pressScale
                 translationY = animOffset.value
             }
-            .clip(RoundedCornerShape(20.dp))
+            .clip(profileShape)
             .then(
                 if (isDesktop) {
                     Modifier.hoverable(interactionSource)
@@ -570,6 +571,7 @@ private fun AddProfileCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale = if (isPressed) 0.95f else 1f
 
+    val addProfileShape = RoundedCornerShape(20.dp)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier

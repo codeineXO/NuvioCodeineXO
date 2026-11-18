@@ -137,6 +137,7 @@ actual object PlayerSettingsStorage {
     private const val eyeFilterColorKey = "eye_filter_color"
     private const val eyeFilterOpacityKey = "eye_filter_opacity"
     private const val grainFilterEnabledKey = "grain_filter_enabled"
+    private const val nvidiaRtxHdrEnabledKey = "nvidia_rtx_hdr_enabled"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         showPlayerLoadingStatusKey,
@@ -155,6 +156,7 @@ actual object PlayerSettingsStorage {
         seekPreviewEnabledKey,
         seekrApiKeyKey,
         showRemainingTimeKey,
+        nvidiaRtxHdrEnabledKey,
         touchGesturesEnabledKey,
         externalPlayerEnabledKey,
         externalPlayerForwardSubtitlesKey,
@@ -1489,6 +1491,16 @@ actual object PlayerSettingsStorage {
 
     actual fun savePlayerUiScale(scale: Int) {}
 
+    actual fun loadNvidiaRtxHdrEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(nvidiaRtxHdrEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+
+    actual fun saveNvidiaRtxHdrEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(nvidiaRtxHdrEnabledKey))
+    }
+
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadShowPlayerLoadingStatus()?.let { put(showPlayerLoadingStatusKey, encodeSyncBoolean(it)) }
@@ -1596,6 +1608,7 @@ actual object PlayerSettingsStorage {
         loadSeekPreviewEnabled()?.let { put(seekPreviewEnabledKey, encodeSyncBoolean(it)) }
         loadSeekrApiKey()?.let { put(seekrApiKeyKey, encodeSyncString(it)) }
         loadShowRemainingTime()?.let { put(showRemainingTimeKey, encodeSyncBoolean(it)) }
+        loadNvidiaRtxHdrEnabled()?.let { put(nvidiaRtxHdrEnabledKey, encodeSyncBoolean(it)) }
     }
 
     actual fun replaceFromSyncPayload(payload: JsonObject) {
@@ -1702,5 +1715,6 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(seekPreviewEnabledKey)?.let(::saveSeekPreviewEnabled)
         payload.decodeSyncString(seekrApiKeyKey)?.let(::saveSeekrApiKey)
         payload.decodeSyncBoolean(showRemainingTimeKey)?.let(::saveShowRemainingTime)
+        payload.decodeSyncBoolean(nvidiaRtxHdrEnabledKey)?.let(::saveNvidiaRtxHdrEnabled)
     }
 }

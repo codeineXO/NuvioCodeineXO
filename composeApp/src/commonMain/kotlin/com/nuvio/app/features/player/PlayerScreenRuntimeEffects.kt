@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
+import com.nuvio.app.features.details.AddonEpisodeAirDate
 import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.addons.AddonPlayerAction
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -165,7 +166,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
             imdbId = imdbId,
             tmdbId = tmdbId,
-            seasonNumbers = playerMetaVideos.mapNotNull { it.season }.distinct(),
+            addonEpisodes = playerMetaVideos.map { AddonEpisodeAirDate(it.season, it.episode, it.released) },
         )
     }
 

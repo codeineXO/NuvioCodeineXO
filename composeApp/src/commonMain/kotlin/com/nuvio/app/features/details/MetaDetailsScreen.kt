@@ -611,7 +611,7 @@ internal fun MetaDetailsScreen(
         episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
             imdbId = imdbId,
             tmdbId = tmdbId,
-            seasonNumbers = metaForRatings.videos.mapNotNull { it.season }.distinct(),
+            addonEpisodes = metaForRatings.videos.map { AddonEpisodeAirDate(it.season, it.episode, it.released) },
         )
     }
 

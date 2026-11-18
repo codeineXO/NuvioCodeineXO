@@ -287,10 +287,11 @@ private class NuvioNavigationBarScopeImpl(
         )
 
         with(rowScope) {
+            val navItemShape = RoundedCornerShape(NuvioTokens.Radius.full)
             Column(
                 modifier = modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(NuvioTokens.Radius.full))
+                    .clip(navItemShape)
                     .background(selectedBgColor)
                     .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.full)).selectable(
                         selected = selected,
@@ -336,10 +337,11 @@ private class NuvioNavigationBarScopeImpl(
         )
 
         with(rowScope) {
+            val navItemShape = RoundedCornerShape(NuvioTokens.Radius.full)
             Column(
                 modifier = modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(NuvioTokens.Radius.full))
+                    .clip(navItemShape)
                     .background(selectedBgColor)
                     .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.full)).selectable(
                         selected = selected,
@@ -383,10 +385,11 @@ private class NuvioNavigationBarScopeImpl(
         )
 
         with(rowScope) {
+            val navItemShape = RoundedCornerShape(NuvioTokens.Radius.full)
             Column(
                 modifier = modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(NuvioTokens.Radius.full))
+                    .clip(navItemShape)
                     .background(selectedBgColor)
                     .remoteNavigationTarget(shape = RoundedCornerShape(NuvioTokens.Radius.full)).selectable(
                         selected = selected,

@@ -101,6 +101,9 @@ enum class NuvioPosterShape {
 
 private val ShelfHeaderControlSize = NuvioTokens.Space.s40
 
+/** Stable per-row group key so spatial Up/Down can jump between shelves predictably. */
+private var nextShelfGroupId = 1L
+
 @Composable
 fun <T> NuvioShelfSection(
     title: String,
@@ -731,7 +734,6 @@ private fun NuvioViewAllPill(
 ) {
     val viewAllText = stringResource(Res.string.home_view_all)
     val pillShape = RoundedCornerShape(NuvioTokens.Radius.full)
-
     Box(
         modifier = modifier
             .height(ShelfHeaderControlSize)

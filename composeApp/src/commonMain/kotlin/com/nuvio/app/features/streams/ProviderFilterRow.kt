@@ -187,6 +187,7 @@ internal fun StreamFilterChip(
         animationSpec = tween(durationMillis = 180),
         label = "filter_chip_content",
     )
+    val chipShape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier
             .graphicsLayer {

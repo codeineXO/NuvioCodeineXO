@@ -63,6 +63,7 @@ internal fun playerSettingsSyncState(state: PlayerSettingsUiState, desktop: Bool
         playbackBufferPreset = PlaybackBufferPreset.MEDIUM,
         audioNightModeEnabled = false,
         nvidiaRtxSuperResolutionEnabled = false,
+        nvidiaRtxHdrEnabled = false,
         showSeekbarWhileSeeking = true,
         showClockInPlayer = true,
         showRemainingTime = false,

@@ -31,6 +31,8 @@ import com.nuvio.app.isDesktop
 
 internal val LocalPosterClickAnchor = staticCompositionLocalOf<((PosterZoomAnchor) -> Unit)?> { null }
 
+private var nextPosterCardFocusId = 1L
+
 internal class PosterLiftSource(private val graphicsContext: GraphicsContext) : RememberObserver {
     val layer = graphicsContext.createGraphicsLayer()
     var bounds: Rect? = null
@@ -78,6 +80,7 @@ internal fun Modifier.posterCardClickable(
     zoomImageUrl: String? = null,
     zoomCornerRadius: Dp = NuvioTokens.Radius.poster,
     hoverScaleEnabled: Boolean = true,
+    focusId: String? = null,
 ): Modifier {
     val graphicsContext = LocalGraphicsContext.current
     val source = remember(graphicsContext, zoomImageUrl) { PosterLiftSource(graphicsContext) }

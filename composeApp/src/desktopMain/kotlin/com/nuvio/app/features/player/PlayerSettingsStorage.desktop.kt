@@ -150,6 +150,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val animeUpscalerModeKey = "anime_upscaler_mode"
     private const val svpMotionOptionKey = "svp_motion_option"
     private const val audioNightModeEnabledKey = "audio_night_mode_enabled"
+    private const val nvidiaRtxHdrEnabledKey = "nvidia_rtx_hdr_enabled"
     private val store = DesktopStorage.store("nuvio_player_settings")
     private val subtitleRendererPreference = DesktopSubtitleRendererPreference(store)
 
@@ -378,6 +379,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
 
     actual fun loadNvidiaRtxSuperResolutionEnabled(): Boolean? = loadBoolean(nvidiaRtxSuperResolutionEnabledKey)
     actual fun saveNvidiaRtxSuperResolutionEnabled(enabled: Boolean) = saveBoolean(nvidiaRtxSuperResolutionEnabledKey, enabled)
+    actual fun loadNvidiaRtxHdrEnabled(): Boolean? = loadBoolean(nvidiaRtxHdrEnabledKey)
+    actual fun saveNvidiaRtxHdrEnabled(enabled: Boolean) = saveBoolean(nvidiaRtxHdrEnabledKey, enabled)
 
     actual fun loadAnimeUpscalerEnabled(): Boolean? = loadBoolean(animeUpscalerEnabledKey)
     actual fun saveAnimeUpscalerEnabled(enabled: Boolean) = saveBoolean(animeUpscalerEnabledKey, enabled)

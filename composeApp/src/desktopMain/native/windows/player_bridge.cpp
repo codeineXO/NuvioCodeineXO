@@ -703,6 +703,7 @@ static bool executeMpvCommandSeh(mpv_handle *mpv, const char **cmd) {
 }
 
 constexpr char kRtxFilterLabel[] = "nuvio-rtx";
+constexpr char kRtxHdrFormatLabel[] = "nuvio-rtx-hdr";
 constexpr char kNightFilterLabel[] = "nuvio-audio-night";
 
 static bool applyCustomMpvOptions(
@@ -1084,6 +1085,7 @@ public:
         JavaVM *vm,
         int decoderPriority,
         bool nvidiaRtxSuperResolutionEnabled,
+        bool nvidiaRtxHdrEnabled,
         std::vector<std::string> options,
         bool invalidConfig,
         jobject sink,
@@ -1103,8 +1105,8 @@ public:
         auto initState = std::make_shared<InitializationState>();
         auto self = shared_from_this();
         uiThread = std::thread(
-            [self, sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, initState]() {
-                self->runNativeUiThread(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, initState);
+            [self, sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, nvidiaRtxHdrEnabled, initState]() {
+                self->runNativeUiThread(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, nvidiaRtxHdrEnabled, initState);
             }
         );
 
@@ -1814,9 +1816,26 @@ public:
             return true;
         }
         const std::string label = std::string("@") + kRtxFilterLabel;
-        const bool success = enabled
-            ? changeFilterLocked("vf", "add", label + ":d3d11vpp=scale=2:scaling-mode=nvidia")
-            : changeFilterLocked("vf", "remove", label);
+        const std::string hdrLabel = std::string("@") + kRtxHdrFormatLabel;
+        bool success;
+        if (enabled) {
+            // Super Resolution and RTX Video HDR share one d3d11vpp pass; HDR also needs
+            // its 10-bit PQ/BT.2020 output tagged by a second, separately labelled filter.
+            std::string vpp = "d3d11vpp=";
+            if (rtxSuperResolutionRequested) vpp += "scale=2:scaling-mode=nvidia";
+            if (rtxHdrRequested) {
+                if (rtxSuperResolutionRequested) vpp += ":";
+                vpp += "format=x2bgr10:nvidia-true-hdr";
+            }
+            success = changeFilterLocked("vf", "add", label + ":" + vpp);
+            if (success && rtxHdrRequested) {
+                success = changeFilterLocked("vf", "add", hdrLabel + ":format=x2bgr10:transfer=pq:primaries=bt.2020");
+                if (!success) changeFilterLocked("vf", "remove", label);
+            }
+        } else {
+            if (rtxHdrRequested) changeFilterLocked("vf", "remove", hdrLabel);
+            success = changeFilterLocked("vf", "remove", label);
+        }
         if (success) rtxFilterAttached = enabled;
         rtxStatus = success ? (enabled ? "attached" : "suspended") : "failed";
         return success;
@@ -2199,6 +2218,8 @@ private:
     std::atomic_bool replacingSource = false;
     std::atomic_bool replacementStarting = false;
     bool rtxRequested = false;
+    bool rtxSuperResolutionRequested = false;
+    bool rtxHdrRequested = false;
     bool rtxFilterAttached = false;
 
     bool hasAppliedSubtitleStyle = false;
@@ -2296,11 +2317,12 @@ private:
         std::string controlsUrl,
         int decoderPriority,
         bool nvidiaRtxSuperResolutionEnabled,
+        bool nvidiaRtxHdrEnabled,
         std::shared_ptr<InitializationState> initState
     ) {
         std::string failure;
         try {
-            initializeOnNativeUiThread(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled);
+            initializeOnNativeUiThread(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, controlsUrl, decoderPriority, nvidiaRtxSuperResolutionEnabled, nvidiaRtxHdrEnabled);
         } catch (const std::exception &error) {
             failure = error.what();
             cleanupUiResources();
@@ -2332,7 +2354,8 @@ private:
         long long initialPositionMs,
         const std::string &controlsUrl,
         int decoderPriority,
-        bool nvidiaRtxSuperResolutionEnabled
+        bool nvidiaRtxSuperResolutionEnabled,
+        bool nvidiaRtxHdrEnabled
     ) {
         registerWindowClasses();
         uiThreadId = GetCurrentThreadId();
@@ -2392,7 +2415,7 @@ private:
         }
 
         startWebView(controlsUrl);
-        startMpv(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, decoderPriority, nvidiaRtxSuperResolutionEnabled);
+        startMpv(sourceUrl, audioUrl, headerLines, playWhenReady, initialPositionMs, decoderPriority, nvidiaRtxSuperResolutionEnabled, nvidiaRtxHdrEnabled);
         layoutNativeSubviews();
         SetTimer(messageHwnd, NUVIO_SUBTITLE_TIMER_ID, 33, nullptr);
         if (!SetTimer(messageHwnd, NUVIO_TIMER_ID, 500, nullptr)) {
@@ -2700,10 +2723,12 @@ private:
         bool playWhenReady,
         long long initialPositionMs,
         int decoderPriority,
-        bool nvidiaRtxSuperResolutionEnabled
+        bool nvidiaRtxSuperResolutionEnabled,
+        bool nvidiaRtxHdrEnabled
     ) {
         MpvApi &api = mpvApi();
-        bool fastProfile = !nvidiaRtxSuperResolutionEnabled && unifiedMemoryGpu();
+        bool rtxVideoEnabled = nvidiaRtxSuperResolutionEnabled || nvidiaRtxHdrEnabled;
+        bool fastProfile = !rtxVideoEnabled && unifiedMemoryGpu();
         {
             std::lock_guard<std::mutex> lock(mpvMutex);
             // libmpv requires LC_NUMERIC=C: non-"C" locales that use comma
@@ -2715,7 +2740,9 @@ private:
             appliedSubtitleFont.clear();
             appliedSubtitleFontsDir.clear();
             initialStartSeconds = initialPositionMs > 0 ? (double)initialPositionMs / 1000.0 : 0.0;
-            rtxRequested = nvidiaRtxSuperResolutionEnabled;
+            rtxRequested = rtxVideoEnabled;
+            rtxSuperResolutionRequested = nvidiaRtxSuperResolutionEnabled;
+            rtxHdrRequested = nvidiaRtxHdrEnabled;
             if (!initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, customOptions)) {
                 api.terminateDestroy(mpv);
                 mpv = nullptr;
@@ -3305,7 +3332,7 @@ private:
                 if (changeFilterLocked("af", "remove", std::string("@") + kNightFilterLabel)) {
                     activeAudioFilter.clear();
                 }
-            } else if (rtxFilterAttached && disabled(kRtxFilterLabel)) {
+            } else if (rtxFilterAttached && (disabled(kRtxFilterLabel) || disabled(kRtxHdrFormatLabel))) {
                 rtxStatus = "failed";
             } else if (!userShaderPaths.empty() || !appliedBundledShaders.empty()) {
                 auto line = lowerCopy(std::string(message));
@@ -3897,6 +3924,7 @@ static jlong createWindowsPlayer(
     jstring controlsPageUrl,
     jint decoderPriority,
     jboolean nvidiaRtxSuperResolutionEnabled,
+    jboolean nvidiaRtxHdrEnabled,
     jobjectArray options,
     bool invalidConfig,
     jobject eventSink
@@ -3941,6 +3969,7 @@ static jlong createWindowsPlayer(
             javaVm,
             decoderPriority,
             nvidiaRtxSuperResolutionEnabled == JNI_TRUE,
+            nvidiaRtxHdrEnabled == JNI_TRUE,
             std::move(customOptions),
             invalidConfig,
             eventSinkRef,
@@ -3964,17 +3993,17 @@ static jlong createWindowsPlayer(
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
     JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
-    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobject sink
+    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jboolean rtxHdr, jobject sink
 ) {
-    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, nullptr, false, sink);
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, nullptr, false, sink);
 }
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_createWindows(
     JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
-    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jobjectArray options, jobject sink
+    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jboolean rtxHdr, jobjectArray options, jobject sink
 ) {
-    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, options, !options, sink);
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options, !options, sink);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

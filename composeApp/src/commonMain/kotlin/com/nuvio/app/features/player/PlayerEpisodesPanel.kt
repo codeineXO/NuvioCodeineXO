@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.features.anime.AnimeFillerSettingsRepository
 import com.nuvio.app.features.anime.FillerBadge
 import com.nuvio.app.features.anime.MixedBadge
+import com.nuvio.app.features.details.AddonEpisodeAirDate
 import com.nuvio.app.features.details.EpisodeRatingsVisibility
 import com.nuvio.app.features.details.ImdbEpisodeRatingsRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
@@ -293,7 +294,7 @@ private fun EpisodesListPanelContent(
         episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
             imdbId = imdbId,
             tmdbId = tmdbId,
-            seasonNumbers = episodes.mapNotNull { it.season }.distinct(),
+            addonEpisodes = episodes.map { AddonEpisodeAirDate(it.season, it.episode, it.released) },
         )
     }
 

@@ -55,6 +55,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -1018,6 +1021,7 @@ private fun TabletSettingsScreen(
     }
 
     val saveableStateHolder = rememberSaveableStateHolder()
+    val categoryEntryRequester = remember { FocusRequester() }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(start = LocalDesktopSidebarContentInset.current)) {
         SettingsNavigationLayout(page, activeCategory, effectiveTopOffset,

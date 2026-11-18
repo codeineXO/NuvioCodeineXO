@@ -248,6 +248,9 @@ import com.nuvio.app.core.ui.isRemoteKeyboardNavigationActive
 import com.nuvio.app.features.settings.DesktopNavigationLayout
 import com.nuvio.app.features.settings.NavBarStyle
 import com.nuvio.app.features.player.dispatchNavigationBack
+import com.nuvio.app.core.ui.PlatformEscapeShortcut
+import com.nuvio.app.controller.ControllerMainOverlay
+import com.nuvio.app.controller.ControllerNavigationHost
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -1768,6 +1771,34 @@ internal fun MainAppContent(
                         .then(if (captureSidebarBackdrop) Modifier.hazeSource(sidebarGlassState) else Modifier)
                         .background(MaterialTheme.nuvio.colors.background),
                 ) {
+                val navigateBack = {
+                    val routeAtRequest = navController.currentRoute
+                    dispatchNavigationBack(
+                        isPlayerRoute = routeAtRequest is PlayerRoute,
+                        playerBack = registeredPlayerSystemBack
+                            ?.takeIf { (route, _) -> route == routeAtRequest }
+                            ?.second,
+                        pop = {
+                            // A top-level tab has nothing to pop, so Back used to do nothing
+                            // there. Treat it as "return to Home" instead.
+                            if (!navController.popBackStack()) {
+                                selectedTab = AppScreenTab.Home
+                            }
+                        },
+                    )
+                }
+
+                PlatformEscapeShortcut(navigateBack)
+
+                ControllerNavigationHost(
+                    currentRoute = currentRoute,
+                    selectedTab = selectedTab,
+                    onBack = {
+                        navigateBack()
+                        true
+                    },
+                )
+
                 NavDisplay(
                     backStack = navBackStack,
                     modifier = Modifier.fillMaxSize(),
@@ -2837,6 +2868,8 @@ internal fun MainAppContent(
                     .align(Alignment.TopCenter)
                     .zIndex(30f),
             )
+
+            ControllerMainOverlay(currentRoute = currentRoute)
 
             }
         }

@@ -146,6 +146,7 @@ data class PlayerSettingsUiState(
     val eyeFilterOpacity: Float = 0.35f,
     val grainFilterEnabled: Boolean = false,
     val playerUiScale: Int = 100,
+    val nvidiaRtxHdrEnabled: Boolean = false,
 )
 
 /** How many further sources falling back may try after the auto-selected one fails, by default and at most. */
@@ -282,6 +283,7 @@ object PlayerSettingsRepository {
     private var eyeFilterOpacity = 0.35f
     private var grainFilterEnabled = false
     private var playerUiScale = 100
+    private var nvidiaRtxHdrEnabled = false
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -407,6 +409,7 @@ object PlayerSettingsRepository {
         eyeFilterOpacity = 0.35f
         grainFilterEnabled = false
         playerUiScale = 100
+        nvidiaRtxHdrEnabled = false
         publish()
     }
 
@@ -632,6 +635,7 @@ object PlayerSettingsRepository {
         eyeFilterOpacity = PlayerSettingsStorage.loadEyeFilterOpacity()?.coerceIn(0.10f, 0.80f) ?: 0.35f
         grainFilterEnabled = PlayerSettingsStorage.loadGrainFilterEnabled() ?: false
         playerUiScale = PlayerSettingsStorage.loadPlayerUiScale()?.coerceIn(50, 150) ?: 100
+        nvidiaRtxHdrEnabled = PlayerSettingsStorage.loadNvidiaRtxHdrEnabled() ?: false
         publish()
     }
 
@@ -1492,6 +1496,14 @@ object PlayerSettingsRepository {
         setPlayerUiScale(playerUiScale + delta)
     }
 
+    fun setNvidiaRtxHdrEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (nvidiaRtxHdrEnabled == enabled) return
+        nvidiaRtxHdrEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveNvidiaRtxHdrEnabled(enabled)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1795,6 +1807,7 @@ object PlayerSettingsRepository {
             eyeFilterOpacity = eyeFilterOpacity,
             grainFilterEnabled = grainFilterEnabled,
             playerUiScale = playerUiScale,
+            nvidiaRtxHdrEnabled = nvidiaRtxHdrEnabled,
         )
     }
 

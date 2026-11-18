@@ -261,6 +261,8 @@ internal expect object PlayerSettingsStorage {
     fun saveGrainFilterEnabled(enabled: Boolean)
     fun loadPlayerUiScale(): Int?
     fun savePlayerUiScale(scale: Int)
+    fun loadNvidiaRtxHdrEnabled(): Boolean?
+    fun saveNvidiaRtxHdrEnabled(enabled: Boolean)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

@@ -186,6 +186,7 @@ private fun NativePlayerSurface(
     val svpMotionOption = playerSettings.svpMotionOption
     val audioNightModeEnabled = playerSettings.audioNightModeEnabled
     val playerUiScale = playerSettings.playerUiScale
+    val nvidiaRtxHdrEnabled = playerSettings.nvidiaRtxHdrEnabled
 
     SideEffect {
         if (!sourceAvailable || !controller.isAttachedTo(sourceUrl, playbackHeaders)) {
@@ -265,6 +266,7 @@ private fun NativePlayerSurface(
         playbackHeaders,
         decoderPriority,
         nvidiaRtxSuperResolutionEnabled,
+        nvidiaRtxHdrEnabled,
         hostFirstFullSizePaintComplete.value,
         initialPositionMs,
         initialPositionRequestKey,
@@ -281,6 +283,7 @@ private fun NativePlayerSurface(
             initialPositionMs = initialPositionMs,
             decoderPriority = decoderPriority,
             nvidiaRtxSuperResolutionEnabled = nvidiaRtxSuperResolutionEnabled,
+            nvidiaRtxHdrEnabled = nvidiaRtxHdrEnabled,
             onError = { message -> latestOnError.value(message) },
         )
         initialPositionRequestKey?.let { key ->

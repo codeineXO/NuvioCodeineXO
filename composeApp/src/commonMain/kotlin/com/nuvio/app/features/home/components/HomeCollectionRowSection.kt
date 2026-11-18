@@ -161,6 +161,7 @@ internal fun CollectionFolderCard(
         }
     }
 
+    val shapeCorner = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
     Column(
         modifier = Modifier
             .hoverable(interactionSource)
