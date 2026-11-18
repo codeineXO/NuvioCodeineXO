@@ -272,7 +272,6 @@ internal fun DesktopStreamsBackdrop(
     hazeState: HazeState?,
     modifier: Modifier = Modifier,
 ) {
-    val opacity = com.nuvio.app.core.ui.NuvioTokens.Opacity
     val colorScheme = MaterialTheme.colorScheme
     var dominantBackdropPainter by remember(backdrop) { mutableStateOf(carriedArtwork) }
     val dominantColorState = rememberPainterDominantColorState(
@@ -335,29 +334,9 @@ internal fun DesktopStreamsBackdrop(
             }
 
             Box(
-                modifier = (if (useWideArtworkFrame) artworkModifier else Modifier.fillMaxSize())
-                    .background(
-                        if (useWideArtworkFrame) {
-                            Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0.00f to Color.Transparent,
-                                    0.14f to wideFadeColor.copy(alpha = opacity.subtle),
-                                    0.38f to wideFadeColor.copy(alpha = opacity.overlayLight),
-                                    0.66f to wideFadeColor.copy(alpha = opacity.overlayHeavy),
-                                    0.88f to wideFadeColor.copy(alpha = 0.98f),
-                                    1.00f to wideFadeColor,
-                                ),
-                            )
-                        } else {
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.2f),
-                                    Color.Black.copy(alpha = 0.4f),
-                                    Color.Black.copy(alpha = 0.6f),
-                                ),
-                            )
-                        },
-                    ),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f)),
             )
         }
     }

@@ -50,7 +50,6 @@ import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
@@ -176,16 +175,7 @@ private fun OpeningOverlayContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0f to Color.Black.copy(alpha = 0.3f),
-                                    0.35f to Color.Black.copy(alpha = 0.6f),
-                                    0.7f to Color.Black.copy(alpha = 0.8f),
-                                    1f to Color.Black.copy(alpha = 0.9f),
-                                ),
-                            ),
-                        ),
+                        .background(Color.Black.copy(alpha = 0.6f)),
                 )
             }
         }
