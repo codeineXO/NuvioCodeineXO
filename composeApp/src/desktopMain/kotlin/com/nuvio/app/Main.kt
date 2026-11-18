@@ -265,6 +265,7 @@ fun main(args: Array<String>) {
             }
 
             if (smokePlayerUrl == null) {
+                ClickableHandCursor(window)
                 CompositionLocalProvider(
                     LocalAuroraRenderer provides { background, colors, intensity ->
                         rememberDesktopAuroraRenderer(window, background, colors, intensity)

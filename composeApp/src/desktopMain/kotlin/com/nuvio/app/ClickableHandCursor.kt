@@ -2,6 +2,9 @@ package com.nuvio.app
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.tooling.ComposeToolingApi
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.geometry.Offset
@@ -24,8 +27,15 @@ import javax.swing.SwingUtilities
  */
 @Composable
 internal fun ClickableHandCursor(window: ComposeWindow) {
-    DisposableEffect(window) {
-        val controller = HandCursorController(window)
+    val controller = remember(window) { HandCursorController(window) }
+    // Keyboard and remote navigation hide the pointer on the window; a hand cursor left on a child
+    // component would still show through, so drop it whenever the pointer is hidden.
+    LaunchedEffect(controller) {
+        snapshotFlow { DesktopRemoteCursorController.isHidden.value }.collect { hidden ->
+            if (hidden) controller.release()
+        }
+    }
+    DisposableEffect(controller) {
         Toolkit.getDefaultToolkit().addAWTEventListener(controller, HandCursorEventMask)
         onDispose {
             Toolkit.getDefaultToolkit().removeAWTEventListener(controller)
@@ -57,7 +67,8 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
         val event = pending ?: return
         pending = null
         val source = event.component ?: return
-        val wantsHand = event.id != MouseEvent.MOUSE_EXITED &&
+        val wantsHand = !DesktopRemoteCursorController.isHidden.value &&
+            event.id != MouseEvent.MOUSE_EXITED &&
             event.modifiersEx and AnyButtonDownMask == 0 &&
             isOverClickable(source, event)
         if (wantsHand) apply(source) else release()
