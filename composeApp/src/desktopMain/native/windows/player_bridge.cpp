@@ -2365,11 +2365,19 @@ private:
         LONG width = std::max<LONG>(1, bounds.right - bounds.left);
         LONG height = std::max<LONG>(1, bounds.bottom - bounds.top);
 
+        // The same goes for the AWT host's own black paint over the container, as reparentSurface already ensures.
+        LONG_PTR hostStyle = GetWindowLongPtrW(hostHwnd, GWL_STYLE);
+        if (!(hostStyle & WS_CLIPCHILDREN)) {
+            SetWindowLongPtrW(hostHwnd, GWL_STYLE, hostStyle | WS_CLIPCHILDREN);
+        }
+
+        // WS_CLIPCHILDREN: when the parked player moves into view, the container's black erase must not paint over
+        // the controls WebView and the mpv video window, which would show black until they repaint.
         containerHwnd = CreateWindowExW(
             0,
             kContainerWindowClass,
             L"",
-            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
             0,
             0,
             width,

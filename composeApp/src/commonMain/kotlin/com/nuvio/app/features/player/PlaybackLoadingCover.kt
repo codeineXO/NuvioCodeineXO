@@ -18,7 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.snapshotFlow
 import com.nuvio.app.navigation.playerEnterFadeMillis
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+
+/** Longest the loading screen waits for its artwork before fading in without it. */
+private const val ARTWORK_WAIT_MS = 400L
 
 /**
  * Who is asking for the desktop playback loading screen. Later owners sit on top, so the player's own state wins
@@ -114,9 +120,19 @@ internal fun PlaybackLoadingCoverHost(modifier: Modifier = Modifier) {
     val fadesIn = current?.owner?.fadesIn == true
     val shown = current != null
     val fadeMillis = playerEnterFadeMillis()
+    val artwork = current?.content?.artwork
     LaunchedEffect(shown, fadesIn, revealed) {
         when {
-            shown && fadesIn -> alpha.animateTo(1f, tween(fadeMillis, easing = FastOutSlowInEasing))
+            shown && fadesIn -> {
+                // Fade in only once the artwork is decoded (the stream page prefetches it), so the screen does not
+                // open on black with just the logo. The page beneath stays up meanwhile, briefly at most.
+                if (artwork != null && alpha.value == 0f) {
+                    withTimeoutOrNull(ARTWORK_WAIT_MS) {
+                        snapshotFlow { OpeningArtworkCache.painterFor(artwork) != null }.first { it }
+                    }
+                }
+                alpha.animateTo(1f, tween(fadeMillis, easing = FastOutSlowInEasing))
+            }
             shown -> alpha.snapTo(1f)
             revealed -> alpha.snapTo(0f)
             else -> alpha.animateTo(0f, tween(fadeMillis, easing = FastOutSlowInEasing))

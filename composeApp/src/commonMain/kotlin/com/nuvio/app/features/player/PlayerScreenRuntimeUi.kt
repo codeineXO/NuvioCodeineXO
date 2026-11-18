@@ -260,10 +260,12 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         !showHttpInitialLoadingStats -> null
         else -> "⬇ ${formatP2pSpeed(playbackSnapshot.downloadSpeedBytes)}"
     }
-    val httpInitialLoadingProgress = when {
-        !showHttpInitialLoadingStats -> null
-        else -> httpInitialLoadingProgress(bufferedAheadMs = bufferedAheadMs)
-    }
+    val httpInitialLoadingProgress = withLoadingProgressGrace(
+        when {
+            !showHttpInitialLoadingStats -> null
+            else -> httpInitialLoadingProgress(bufferedAheadMs = bufferedAheadMs)
+        },
+    )
     val initialLoadingMessage = p2pInitialLoadingMessage ?: httpInitialLoadingMessage
     val initialLoadingProgress = p2pInitialLoadingProgress ?: httpInitialLoadingProgress
     val showP2pRebufferStats = isP2pPlaybackActive &&
@@ -2812,4 +2814,25 @@ internal fun PlayerScreenRuntime.importExternalSubtitle(path: String, fileName: 
     attachSelectedAddonSubtitleWithAutoSync(imported.url)
     playerNotificationMessage = "Imported: ${imported.display}"
     playerNotificationToken += 1L
+}
+
+/** How long a stream must keep loading before the loading screen turns its logo into a progress fill. */
+private const val LOADING_PROGRESS_GRACE_MS = 1_200L
+
+/**
+ * Holds back [progress] until it has been reported for [LOADING_PROGRESS_GRACE_MS]. A progress value dims the logo
+ * and refills it from empty; on a stream that starts quickly that reads as the logo vanishing just before the video.
+ */
+@Composable
+private fun withLoadingProgressGrace(progress: Float?): Float? {
+    val reported = progress != null
+    val graceElapsed = remember { mutableStateOf(false) }
+    LaunchedEffect(reported) {
+        graceElapsed.value = false
+        if (reported) {
+            kotlinx.coroutines.delay(LOADING_PROGRESS_GRACE_MS)
+            graceElapsed.value = true
+        }
+    }
+    return progress.takeIf { graceElapsed.value }
 }

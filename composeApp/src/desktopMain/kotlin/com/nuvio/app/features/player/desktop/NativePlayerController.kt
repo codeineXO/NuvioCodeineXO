@@ -90,6 +90,7 @@ import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.swing.SwingUtilities
+import javax.swing.Timer
 import kotlin.concurrent.Volatile
 
 internal typealias NativePlayerCreate = (
@@ -1463,6 +1464,16 @@ internal class NativePlayerController(
         onReleased: () -> Unit,
         onReleaseFailed: (String) -> Unit,
     ) {
+        // The native window drops to black as it parks and shuts down, above anything the app draws. Hold a picture of
+        // the last frame over the app window instead, and fade it onto the page that comes back beneath.
+        if (!_releasingForNavigation.value && SwingUtilities.isEventDispatchThread()) {
+            NativeTransitionShield.cover(host)?.let { shield ->
+                Timer(EXIT_SHIELD_HOLD_MS) { shield.fadeOut(EXIT_SHIELD_FADE_MS) }.apply {
+                    isRepeats = false
+                    start()
+                }
+            }
+        }
         synchronized(lifecycleLock) {
             releaseRequested = true
         }
@@ -3326,3 +3337,8 @@ private fun String.toJsonString(): String =
 
 private const val FIRST_FRAME_GRACE_NANOS = 120_000_000L
 private const val FIRST_FRAME_TIMEOUT_NANOS = 2_000_000_000L
+
+/** How long the exit shield holds the last frame fully up while the page beneath comes back. */
+private const val EXIT_SHIELD_HOLD_MS = 120
+
+private const val EXIT_SHIELD_FADE_MS = 300

@@ -428,6 +428,10 @@ internal fun MainAppContent(
         StreamAutoPlayPolicy::isEffectivelyEnabled,
     )
     var visiblePlayerEntries by remember { mutableIntStateOf(0) }
+    // Desktop: Back has started releasing the player and its page is already gone; see onBackStarted below.
+    var playerExiting by remember { mutableStateOf(false) }
+    // Kept through the close, so the popped player page stays clear while it fades; a new player resets it.
+    LaunchedEffect(activeLaunchId) { if (activeLaunchId != null) playerExiting = false }
     var streamLandscapeLoadingVisible by remember(currentRoute) { mutableStateOf(false) }
     if (!isMiniPlayer && (currentRoute is PlayerRoute || visiblePlayerEntries > 0 || streamLandscapeLoadingVisible)) {
         LockPlayerToLandscape()
@@ -2087,7 +2091,8 @@ internal fun MainAppContent(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (minimized) Modifier else Modifier.background(Color.Black)),
+                            // Leaving on desktop, the shield's last frame fades straight onto the page beneath.
+                            .then(if (minimized || playerExiting) Modifier else Modifier.background(Color.Black)),
                     )
                 }
                 entry<CatalogRoute> { route ->
@@ -2710,15 +2715,17 @@ internal fun MainAppContent(
             // Desktop fades the full player in over the page; Android's video surface does not honour layer alpha.
             val playerEnterProgress = remember { Animatable(if (isDesktop) 0f else 1f) }
             val playerOverlayActive = currentActiveLaunch != null && currentActiveLaunchId != null
-            LaunchedEffect(playerOverlayActive) {
+            // Desktop leaves the player at once on Back: the page beneath comes back at once under the transition
+            // shield's last frame, which fades onto it while the native player finishes shutting down.
+            LaunchedEffect(playerOverlayActive, playerExiting) {
                 if (!isDesktop) return@LaunchedEffect
-                if (playerOverlayActive) {
-                    playerEnterProgress.animateTo(
+                when {
+                    playerOverlayActive && playerExiting -> playerEnterProgress.snapTo(0f)
+                    playerOverlayActive -> playerEnterProgress.animateTo(
                         targetValue = 1f,
                         animationSpec = tween(playerEnterFadeMillis(), easing = FastOutSlowInEasing),
                     )
-                } else {
-                    playerEnterProgress.snapTo(0f)
+                    else -> playerEnterProgress.snapTo(0f)
                 }
             }
             val playerSurfaceRevealReady by remember { derivedStateOf { playerEnterProgress.value >= 1f } }
@@ -2789,8 +2796,17 @@ internal fun MainAppContent(
                                 },
                                 onBack = {
                                     InAppPlayerManager.close()
-                                    if (currentRoute is PlayerRoute) {
+                                    if (navController.currentRoute is PlayerRoute) {
                                         navController.popBackStack()
+                                    }
+                                },
+                                onBackStarted = if (!isDesktop) null else {
+                                    {
+                                        playerExiting = true
+                                        if (navController.currentRoute is PlayerRoute) {
+                                            ResumePromptRepository.markPlayerExitedNormally()
+                                            navController.popBackStack()
+                                        }
                                     }
                                 },
                             )

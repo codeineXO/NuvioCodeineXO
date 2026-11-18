@@ -37,6 +37,7 @@ import com.nuvio.app.features.player.desktop.DesktopHostOs
 import com.nuvio.app.features.player.desktop.DesktopPlayerPictureInPicture
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import com.nuvio.app.features.player.desktop.NativePlayerHost
+import com.nuvio.app.features.player.desktop.NativeTransitionShield
 import com.nuvio.app.features.player.desktop.desktopFullscreenChanges
 import com.nuvio.app.features.autosync.AutoSyncMpvCoordinator
 import com.nuvio.app.features.autosync.DesktopAutoSyncMpvPlatform
@@ -373,8 +374,30 @@ private fun NativePlayerSurface(
     val releasingForNavigation by controller.releasingForNavigation.collectAsState()
     // Stop waiting for the page once there is no loading screen to show (loaded, failed, or turned off), so the
     // handshake never holds back the picture or an error.
-    val surfaceRevealed = !releasingForNavigation &&
+    val revealWanted = !releasingForNavigation &&
         surfaceRevealReady && (controlsPainted.value || !playerControlsState.showOpeningOverlay)
+    // Moving the parked window into view shows it black for a few frames while it repaints, and nothing inside the
+    // app window can cover it. Hold a screenshot of the loading screen above the app window across the move instead.
+    val revealShieldUp = remember(host) { mutableStateOf(false) }
+    LaunchedEffect(revealWanted) {
+        revealShieldUp.value = false
+        if (!revealWanted) return@LaunchedEffect
+        val shield = if (isInPip) null else NativeTransitionShield.cover(host)
+        var fading = false
+        try {
+            if (shield != null) delay(REVEAL_SHIELD_SETTLE_MS)
+            revealShieldUp.value = true
+            if (shield != null) {
+                delay(REVEAL_SHIELD_HOLD_MS)
+                shield.fadeOut(REVEAL_SHIELD_FADE_MS)
+                fading = true
+            }
+        } finally {
+            // Cancelled before the fade (closing, or a new source parked the window again): drop it at once.
+            if (!fading) shield?.dispose()
+        }
+    }
+    val surfaceRevealed = revealWanted && revealShieldUp.value
 
     Box(
         modifier = modifier
@@ -403,7 +426,16 @@ private fun NativePlayerSurface(
                                 // so it still receives paints, until the controls page has drawn its overlay.
                                 val placeable = measurable.measure(constraints)
                                 layout(placeable.width, placeable.height) {
-                                    placeable.place(0, (placeable.height - 1).coerceAtLeast(0))
+                                    // The row is only needed for the host's first full-size paint, which unlocks
+                                    // the attach. After that, and while closing, keep it off screen too: the controls
+                                    // page is transparent until it draws its overlay, and the row would show the
+                                    // video along the bottom edge.
+                                    val parkedRow = if (
+                                        releasingForNavigation ||
+                                        controlsPainted.value ||
+                                        hostFirstFullSizePaintComplete.value
+                                    ) 0 else 1
+                                    placeable.place(0, (placeable.height - parkedRow).coerceAtLeast(0))
                                 }
                             }
                         )
@@ -517,3 +549,11 @@ private class DesktopStubPlayerController : PlayerEngineController {
 }
 
 private const val CONTROLS_PAINT_TIMEOUT_MS = 5_000L
+
+/** Time for the reveal shield window to reach the screen before the player window moves under it. */
+private const val REVEAL_SHIELD_SETTLE_MS = 50L
+
+/** How long the shield stays fully up once the player window is in view, while its controls page repaints. */
+private const val REVEAL_SHIELD_HOLD_MS = 250L
+
+private const val REVEAL_SHIELD_FADE_MS = 150

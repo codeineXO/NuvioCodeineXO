@@ -39,6 +39,8 @@ internal fun PlayerDestination(
     onExpand: (() -> Unit)? = null,
     onClose: (() -> Unit)? = null,
     onBack: (() -> Unit)? = null,
+    /** Called as Back starts releasing the player, before [onBack] runs once the release has finished. */
+    onBackStarted: (() -> Unit)? = null,
     onOpenPartyMedia: (PartyMedia) -> Unit,
 ) {
     val popBack = rememberGuardedPopBackStack(
@@ -59,13 +61,15 @@ internal fun PlayerDestination(
         route = route,
         beforePop = ResumePromptRepository::markPlayerExitedNormally,
     )
-    val effectiveOnBack: com.nuvio.app.features.player.PlayerBackRequest = remember(onBack, defaultOnBack) {
+    val effectiveOnBack: com.nuvio.app.features.player.PlayerBackRequest = remember(onBack, onBackStarted, defaultOnBack) {
         if (onBack != null) {
             { releaseBeforeBack ->
+                // Release first: desktop puts its transition shield up there, before the page beneath comes back.
                 releaseBeforeBack(
                     { onBack() },
                     { onBack() },
                 )
+                if (onBackStarted != null) onBackStarted()
             }
         } else {
             defaultOnBack
