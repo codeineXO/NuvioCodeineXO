@@ -294,8 +294,25 @@ fun StreamsScreen(
         )
     }
 
-    // Desktop keeps the list beneath so the loading screen can fade in over it rather than cut to it.
-    if (showLoadingScreen && !isDesktop) return
+    // Desktop keeps only the backdrop beneath so the loading screen fades in over it rather than cutting to it,
+    // without the stream list flashing through while the cover waits for its artwork.
+    if (showLoadingScreen) {
+        if (isDesktop) {
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+            ) {
+                DesktopStreamsBackdrop(
+                    backdrop = background ?: poster,
+                    carriedArtwork = carriedBackdrop,
+                    dominantColorEnabled = dominantColorEnabled,
+                    hazeState = null,
+                )
+            }
+        }
+        return
+    }
 
     val metadataState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
     val pluginIds by PluginIdDiagnostics.resolutions.collectAsStateWithLifecycle()

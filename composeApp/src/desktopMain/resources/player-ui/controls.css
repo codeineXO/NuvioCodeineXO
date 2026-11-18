@@ -503,11 +503,6 @@ button:disabled {
   to { background-position: -90% 0, 0 0; }
 }
 
-@keyframes opening-artwork-drift {
-  from { transform: scale(1.015) translate3d(-.35%, -.25%, 0); }
-  to { transform: scale(1.04) translate3d(.35%, .25%, 0); }
-}
-
 .top-gradient,
 .bottom-gradient {
   position: absolute;
@@ -1621,14 +1616,20 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Same anchor as the app's backdrops (BiasAlignment(0, -0.6)), so the artwork holds still on hand-over. */
+  object-position: 50% 20%;
+}
+
+/* The loading screen's artwork and logo hold still: no load-in zoom, drift or pulse. */
+.opening-artwork,
+.opening-artwork.image-loaded,
+.opening-logo,
+.opening-logo.image-loaded {
+  transform: none;
 }
 
 .opening-overlay.has-artwork.image-loading::before {
   z-index: 1;
-}
-
-.opening-overlay.has-artwork .opening-artwork.image-loaded {
-  animation: opening-artwork-drift 14000ms ease-in-out infinite alternate;
 }
 
 .opening-scrim {
@@ -1675,8 +1676,6 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transform-origin: center;
-  animation: opening-logo-pulse 2000ms linear infinite alternate !important;
 }
 
 .opening-logo-base {
@@ -1717,9 +1716,6 @@ button:disabled {
   opacity: 1;
   -webkit-text-fill-color: #fff;
   text-shadow: 0 2px 22px rgba(0, 0, 0, .42);
-  transform-origin: center;
-  will-change: transform;
-  animation: opening-logo-pulse 2000ms linear infinite alternate !important;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1767,12 +1763,6 @@ button:disabled {
   border-radius: inherit;
   background: var(--theme-accent-gradient, var(--theme-timeline-fill));
   transition: width 900ms cubic-bezier(.4, 0, .2, 1);
-}
-
-@keyframes opening-logo-pulse {
-  to {
-    transform: scale(1.04);
-  }
 }
 
 .side-control,

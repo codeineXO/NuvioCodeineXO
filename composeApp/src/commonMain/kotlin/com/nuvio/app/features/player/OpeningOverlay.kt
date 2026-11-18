@@ -14,11 +14,7 @@ import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -47,6 +43,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
+import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.drawWithContent
@@ -127,16 +127,6 @@ private fun OpeningOverlayContent(
         animationSpec = if (isDesktop) snap() else tween(durationMillis = 700, delayMillis = 400, easing = LinearEasing),
         label = "openingOverlayContentAlpha",
     )
-    val pulse = rememberInfiniteTransition(label = "openingOverlayContentPulse")
-    val contentScale by pulse.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "openingOverlayContentScale",
-    )
     var logoLoadError by remember(logo) { mutableStateOf(false) }
     val logoUrl = logo?.takeIf { it.isNotBlank() }
 
@@ -151,24 +141,18 @@ private fun OpeningOverlayContent(
         val titleFontSize = if (isDesktop || maxWidth >= 600.dp) 42.sp else 30.sp
         val verticalBarPadding = if (isDesktop) PaddingValues() else LocalVerticalBarPadding.current
         val titleMaxWidth = minOf(maxWidth * 0.84f, 680.dp)
+        val statusMaxWidth = minOf(maxWidth * 0.84f, 620.dp)
+        val cssPx = LocalDensity.current.density
         Box(
             modifier = Modifier.matchParentSize().then(
                 if (usePageBackButton) Modifier.navigationGlassSource(zIndex = -1f) else Modifier,
             ).background(Color.Black),
         ) {
             if (artwork != null) {
-                val artworkModifier = Modifier.fillMaxSize().then(
-                    if (isDesktop) {
-                        // The first frame of the controls page's artwork drift: scale(1.015) translate(-.35%, -.25%).
-                        Modifier.graphicsLayer {
-                            scaleX = 1.015f
-                            scaleY = 1.015f
-                            translationX = -0.0035f * 1.015f * size.width
-                            translationY = -0.0025f * 1.015f * size.height
-                        }
-                    } else Modifier,
-                )
-                val artworkAlignment = if (isDesktop) Alignment.Center else Alignment.TopCenter
+                val artworkModifier = Modifier.fillMaxSize()
+                // Desktop anchors the artwork like the persistent hero, details and stream pages (and the controls
+                // page's object-position), so it holds still across the hand-over into the loading screen.
+                val artworkAlignment = if (isDesktop) BiasAlignment(0f, DesktopBackdropVerticalBias) else Alignment.TopCenter
                 // Paints synchronously while the image below is still resolving, so a new screen never opens on black.
                 OpeningArtworkCache.painterFor(artwork)?.let { cached ->
                     Image(
@@ -265,10 +249,6 @@ private fun OpeningOverlayContent(
                                     .fillMaxSize()
                                     .graphicsLayer {
                                         alpha = if (progressActive) 0.25f else contentAlpha
-                                        if (!progressActive) {
-                                            scaleX = contentScale
-                                            scaleY = contentScale
-                                        }
                                     },
                                 contentScale = ContentScale.Fit,
                                 onError = { logoLoadError = true },
@@ -298,15 +278,15 @@ private fun OpeningOverlayContent(
                                 fontSize = titleFontSize,
                                 fontWeight = FontWeight.ExtraBold,
                                 lineHeight = if (isDesktop) 47.sp else TextUnit.Unspecified,
+                                // Matches the controls page's .opening-title text-shadow.
+                                shadow = if (isDesktop) {
+                                    Shadow(color = Color.Black.copy(alpha = 0.42f), offset = Offset(0f, 2f * cssPx), blurRadius = 22f * cssPx)
+                                } else null,
                             ),
                             modifier = Modifier
-                                .then(if (isDesktop) Modifier.widthIn(max = titleMaxWidth) else Modifier)
-                                .padding(horizontal = 24.dp)
-                                .graphicsLayer {
-                                    alpha = contentAlpha
-                                    scaleX = contentScale
-                                    scaleY = contentScale
-                                },
+                                // The layout already pads by 24dp, as .opening-content does; desktop adds none here.
+                                .then(if (isDesktop) Modifier.widthIn(max = titleMaxWidth) else Modifier.padding(horizontal = 24.dp))
+                                .graphicsLayer { alpha = contentAlpha },
                         )
                     } else {
                         NuvioLoadingIndicator(
@@ -338,9 +318,12 @@ private fun OpeningOverlayContent(
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                     } else MaterialTheme.typography.labelMedium,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 24.dp),
+                                    modifier = if (isDesktop) {
+                                        // .opening-status span: max-width min(84vw, 620px).
+                                        Modifier.widthIn(max = statusMaxWidth)
+                                    } else {
+                                        Modifier.fillMaxWidth().padding(horizontal = 24.dp)
+                                    },
                                 )
                             }
                         }
