@@ -90,9 +90,11 @@ import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.features.settings.SurfaceStyle
 import androidx.compose.runtime.derivedStateOf
-import com.nuvio.app.core.ui.DesktopEdgeButton
-import com.nuvio.app.core.ui.desktopBackButtonStartPadding
-import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.nuvio.app.core.ui.desktopTopBarActionIconSize
 import com.nuvio.app.core.ui.desktopTopBarHeight
 import com.nuvio.app.core.ui.desktopTopBarTopPadding
@@ -934,6 +936,26 @@ fun HomeScreen(
                             showBackground = false,
                         )
                     }
+                    // Top bar mode: the power button lives in the pill, always right-most.
+                    if (topBarActive) {
+                        val closeLabel = stringResource(Res.string.compose_nav_close_app)
+                        Box(
+                            modifier = actionModifier
+                                .size(desktopButtonSize)
+                                .clip(CircleShape)
+                                .excludeFromRemoteNavigation()
+                                .clickable(role = Role.Button, onClick = ::requestAppExitConfirmation)
+                                .semantics { contentDescription = closeLabel },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PowerSettingsNew,
+                                contentDescription = null,
+                                modifier = Modifier.size(desktopIconSize - 4.dp),
+                                tint = colorScheme.onSurface,
+                            )
+                        }
+                    }
                 }
                 if (catalogRailEntries.isNotEmpty() && railHeight >= 18.dp) {
                     Box(Modifier.height(railHeight), contentAlignment = Alignment.CenterEnd) {
@@ -944,21 +966,6 @@ fun HomeScreen(
                         )
                     }
                 }
-            }
-            // On desktop, topChromePadding is only provided when the top bar (not the sidebar) is active.
-            if (isDesktop && topChromePadding != null) {
-                // Same edge button (size, style, slot) as every desktop page's back button.
-                DesktopEdgeButton(
-                    icon = Icons.Rounded.PowerSettingsNew,
-                    contentDescription = stringResource(Res.string.compose_nav_close_app),
-                    onClick = ::requestAppExitConfirmation,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .statusBarsPadding()
-                        .padding(start = desktopBackButtonStartPadding, top = desktopBackButtonTopPadding),
-                    navigationModifier = Modifier.excludeFromRemoteNavigation(),
-                    hazeState = fullscreenBackdropState,
-                )
             }
         }
     }
