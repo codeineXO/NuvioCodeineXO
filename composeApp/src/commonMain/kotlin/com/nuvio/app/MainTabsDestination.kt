@@ -122,28 +122,33 @@ internal fun MainTabsDestination(
         val useDesktopTopBar = isDesktop && !useNativeBottomTabs && !useDesktopSidebar
         val useFloatingTopBar = !isDesktop && isTabletLayout && !useNativeBottomTabs
         val homeCatalogSettingsUiState by remember { HomeCatalogSettingsRepository.uiState }.collectAsStateWithLifecycle()
-        val topChromePadding = if (useFloatingTopBar || useDesktopTopBar) {
-            val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            if (useDesktopTopBar) {
-                if (selectedTab == AppScreenTab.Search || selectedTab == AppScreenTab.Library ||
-                    (selectedTab == AppScreenTab.Home && homeCatalogSettingsUiState.appInterface != AppInterface.Official)
-                ) {
-                    val navigationIconSize = when {
-                        screenWidth < 800.dp -> 26.dp
-                        screenWidth > 1600.dp -> 30.dp
-                        else -> 28.dp
+        val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val homeAppInterface = homeCatalogSettingsUiState.appInterface
+        // Per tab, so a crossfading tab never takes on the incoming tab's inset mid-fade.
+        val topChromePadding: (AppScreenTab) -> androidx.compose.ui.unit.Dp? =
+            remember(useFloatingTopBar, useDesktopTopBar, statusBarPadding, screenWidth, homeAppInterface) {
+                { tab ->
+                    if (useDesktopTopBar) {
+                        if (tab == AppScreenTab.Search || tab == AppScreenTab.Library ||
+                            (tab == AppScreenTab.Home && homeAppInterface != AppInterface.Official)
+                        ) {
+                            val navigationIconSize = when {
+                                screenWidth < 800.dp -> 26.dp
+                                screenWidth > 1600.dp -> 30.dp
+                                else -> 28.dp
+                            }
+                            // Match the floating bar's top inset and height, then leave a small content gap.
+                            statusBarPadding + 10.dp + navigationIconSize + 20.dp + NuvioTokens.Space.s16
+                        } else {
+                            statusBarPadding + 48.dp + 64.dp
+                        }
+                    } else if (useFloatingTopBar) {
+                        max(statusBarPadding + 24.dp, 48.dp) + 64.dp
+                    } else {
+                        null
                     }
-                    // Match the floating bar's top inset and height, then leave a small content gap.
-                    statusBarPadding + 10.dp + navigationIconSize + 20.dp + NuvioTokens.Space.s16
-                } else {
-                    statusBarPadding + 48.dp + 64.dp
                 }
-            } else {
-                max(statusBarPadding + 24.dp, 48.dp) + 64.dp
             }
-        } else {
-            null
-        }
         val tabsRouteActiveState = rememberUpdatedState(rootRouteActive)
         val navBarScrollState = rememberNuvioNavBarScrollState()
         LaunchedEffect(selectedTab, randomPickerSelected) {

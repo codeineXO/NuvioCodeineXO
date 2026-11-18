@@ -191,7 +191,8 @@ internal data class AppTabState(
     val profileId: Int? = null,
     val searchFocusRequestCount: Int = 0,
     val tabsRouteActiveState: State<Boolean>,
-    val topChromePadding: Dp? = null,
+    /** Resolved per tab, not per selected tab, so the outgoing tab keeps its own inset through the crossfade. */
+    val topChromePadding: (AppScreenTab) -> Dp? = { null },
     val libraryDisintegrationRequest: DisintegrationRequest<String>? = null,
     val continueWatchingDisintegrationRequest: DisintegrationRequest<String>? = null,
     val requestedSettingsPageName: String? = null,
@@ -293,7 +294,7 @@ internal fun AppTabHost(
                 key(state.homeContentGeneration) {
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
-                        topChromePadding = state.topChromePadding,
+                        topChromePadding = state.topChromePadding(tab),
                         animateCollectionGifs = state.tabsRouteActiveState.value && !shuffleSelected && selectedTab == AppScreenTab.Home,
                         scrollToTopRequests = requests.homeScrollToTopRequests,
                         onCatalogClick = actions.onCatalogClick,
@@ -313,7 +314,7 @@ internal fun AppTabHost(
             AppScreenTab.Search -> {
                 SearchScreen(
                     modifier = Modifier.fillMaxSize(),
-                    topChromePadding = state.topChromePadding,
+                    topChromePadding = state.topChromePadding(tab),
                     listState = state.searchListState,
                     onPosterClick = actions.onPosterClick,
                     onPosterLongClick = actions.onPosterLongClick,
@@ -325,7 +326,7 @@ internal fun AppTabHost(
             AppScreenTab.Library -> {
                 LibraryScreen(
                     modifier = Modifier.fillMaxSize(),
-                    topChromePadding = state.topChromePadding,
+                    topChromePadding = state.topChromePadding(tab),
                     scrollToTopRequests = requests.libraryScrollToTopRequests,
                     onPosterClick = actions.onLibraryPosterClick,
                     onPosterLongClick = actions.onLibraryPosterLongClick,
@@ -343,7 +344,7 @@ internal fun AppTabHost(
             AppScreenTab.Settings -> {
                 SettingsScreen(
                     modifier = Modifier.fillMaxSize(),
-                    topChromePadding = state.topChromePadding,
+                    topChromePadding = state.topChromePadding(tab),
                     rootActionRequests = requests.settingsRootActionRequests,
                     requestedPageName = state.requestedSettingsPageName,
                     onRequestedPageConsumed = actions.onRequestedSettingsPageConsumed,
