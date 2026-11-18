@@ -1887,6 +1887,10 @@ button:disabled {
   background: rgba(0, 0, 0, .6);
 }
 
+.chapter-segment {
+  display: none;
+}
+
 #chapterList {
   gap: 8px;
 }
@@ -4603,9 +4607,11 @@ svg {
 
 .player:not(.ui-codeinexo) .codeine-seek-track-bg,
 .player:not(.ui-codeinexo) .codeine-seek-track-buffer,
+.player:not(.ui-codeinexo) .codeine-seek-track-hover,
 .player:not(.ui-codeinexo) .codeine-seek-track-progress,
 .player.ui-official .codeine-seek-track-bg,
 .player.ui-official .codeine-seek-track-buffer,
+.player.ui-official .codeine-seek-track-hover,
 .player.ui-official .codeine-seek-track-progress {
   display: none !important;
 }

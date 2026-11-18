@@ -4072,6 +4072,29 @@ const renderChaptersModal = (modalOpened = false) => {
 };
 
 let chapterMarksSignature = "";
+let chapterSegmentRanges = [];
+let chapterSegmentHoverIndex = -1;
+
+const updateChapterSegmentHover = positionMs => {
+  const durationMs = Number(state.durationMs) || 0;
+  if (codeineSeekContainer) {
+    // Hover fill only while pointing, not during keyboard seeks.
+    const hovering = positionMs !== null && durationMs > 0 && !seekDragActive && seekPointerPositionMs !== null;
+    const hoverPercent = hovering ? Math.max(0, Math.min(100, positionMs / durationMs * 100)) : 0;
+    codeineSeekContainer.style.setProperty("--hover", `${hoverPercent}%`);
+  }
+  let index = -1;
+  if (positionMs !== null && durationMs > 0) {
+    const fraction = Math.max(0, Math.min(1, positionMs / durationMs));
+    index = chapterSegmentRanges.findIndex(([start, end], i) =>
+      fraction >= start && (fraction < end || i === chapterSegmentRanges.length - 1));
+  }
+  if (index === chapterSegmentHoverIndex) return;
+  chapterSegmentHoverIndex = index;
+  chapterMarks.querySelectorAll(".chapter-segment").forEach((segment, i) => {
+    segment.classList.toggle("hovered", i === index);
+  });
+};
 
 const renderChapterMarks = () => {
   const chapters = Array.isArray(state.chapters) ? state.chapters : [];
@@ -4080,7 +4103,10 @@ const renderChapterMarks = () => {
   if (signature !== chapterMarksSignature) {
     chapterMarksSignature = signature;
     chapterMarks.textContent = "";
+    chapterSegmentRanges = [];
+    chapterSegmentHoverIndex = -1;
     if (durationMs > 0) {
+      const boundaries = [0];
       chapters.forEach(chapter => {
         const fraction = chapter.startMs / durationMs;
         if (fraction <= 0 || fraction >= 1) return;
@@ -4088,10 +4114,29 @@ const renderChapterMarks = () => {
         mark.className = "chapter-mark";
         mark.style.left = `${fraction * 100}%`;
         chapterMarks.appendChild(mark);
+        if (fraction > boundaries[boundaries.length - 1]) boundaries.push(fraction);
       });
+      boundaries.push(1);
+      // CodeineXO draws one track segment per chapter, separated by small gaps.
+      for (let i = 0; i < boundaries.length - 1; i++) {
+        const start = boundaries[i] * 100;
+        const length = (boundaries[i + 1] - boundaries[i]) * 100;
+        const isLast = i === boundaries.length - 2;
+        const segment = document.createElement("span");
+        segment.className = "chapter-segment";
+        segment.style.left = `${start}%`;
+        segment.style.width = isLast ? `${length}%` : `calc(${length}% - var(--chapter-gap, 3px))`;
+        segment.style.setProperty("--seg-start", `${start}%`);
+        segment.style.setProperty("--seg-len", String(length));
+        segment.innerHTML = '<span class="chapter-segment-buffer"></span><span class="chapter-segment-hover"></span><span class="chapter-segment-progress"></span>';
+        chapterMarks.appendChild(segment);
+        chapterSegmentRanges.push([boundaries[i], boundaries[i + 1]]);
+      }
     }
   }
-  setVisible(chapterMarks, chapters.length > 1 && durationMs > 0);
+  const showChapterMarks = chapters.length > 1 && durationMs > 0;
+  setVisible(chapterMarks, showChapterMarks);
+  if (codeineSeekContainer) codeineSeekContainer.classList.toggle("has-chapter-segments", showChapterMarks);
   const index = currentChapterIndex(chapters);
   const showTitle = !state.isInPip && index >= 0 && state.chapterTitleEnabled !== false;
   const currentTitle = showTitle ? chapters[index].title : "";
@@ -5942,6 +5987,7 @@ function clearSeekPreviewInteraction() {
   seekPointerClientX = null;
   seekPointerDownX = null;
   seekDragActive = false;
+  updateChapterSegmentHover(null);
   hideSeekrPreview();
   seekFeedback.classList.remove("visible");
   seekFeedback.setAttribute("aria-hidden", "true");
@@ -5977,6 +6023,7 @@ function refreshSeekHover() {
     setText(seekChapterLabel, chapterIndex >= 0 ? chapters[chapterIndex].title : "");
     seekPreviewPill.textContent = formatTime(mousePositionMs);
   }
+  updateChapterSegmentHover(showFeedback ? mousePositionMs : null);
   seekFeedback.classList.toggle("visible", showFeedback);
   seekFeedback.setAttribute("aria-hidden", String(!showFeedback));
   root.classList.toggle("seek-feedback-active", showFeedback);
