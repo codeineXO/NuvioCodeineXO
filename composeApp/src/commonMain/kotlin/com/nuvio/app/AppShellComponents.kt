@@ -809,10 +809,22 @@ internal fun DesktopHoverSidebar(
         onTabSelected(tab)
     }
     val currentTab by rememberUpdatedState(selectedTab)
+    val currentShuffleSelected by rememberUpdatedState(randomPickerSelected)
     val currentSelectTab by rememberUpdatedState(::selectTab)
+    val currentOpenShuffle by rememberUpdatedState {
+        onProfileStackVisibleChange(false)
+        onRandomPickerClick()
+    }
     DisposableEffect(canNavigateBack) {
         if (canNavigateBack) return@DisposableEffect onDispose {}
-        val cycle: (Boolean) -> Unit = { forward -> currentSelectTab(currentTab.cycled(forward)) }
+        val cycle: (Boolean) -> Unit = { forward ->
+            // Same order as the sidebar: Home, Search, Shuffle, Library, Settings.
+            val current = if (currentShuffleSelected) SidebarCycleStop.Shuffle else SidebarCycleStop.Tab(currentTab)
+            when (val next = current.cycled(forward)) {
+                SidebarCycleStop.Shuffle -> currentOpenShuffle()
+                is SidebarCycleStop.Tab -> currentSelectTab(next.tab)
+            }
+        }
         AppTabCycler.register(cycle)
         onDispose { AppTabCycler.unregister(cycle) }
     }
