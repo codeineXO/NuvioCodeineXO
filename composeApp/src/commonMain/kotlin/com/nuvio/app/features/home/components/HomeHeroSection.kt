@@ -1101,8 +1101,9 @@ private fun DesktopHeroContentBlock(
             Text(
                 text = description,
                 modifier = if (persistentDetailsClickModifier != null) {
-                    Modifier.fillMaxWidth(0.8f).then(persistentDetailsClickModifier)
+                    Modifier.fillMaxWidth(0.65f).then(persistentDetailsClickModifier)
                 } else Modifier,
+                textAlign = if (persistentDetailsClickModifier != null) TextAlign.Justify else null,
                 style = (if (persistentDetailsClickModifier != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(
                     fontSize = if (persistentDetailsClickModifier != null) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
                     lineHeight = if (persistentDetailsClickModifier != null) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
