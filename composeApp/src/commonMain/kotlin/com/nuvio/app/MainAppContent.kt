@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.runtime.collectAsState
 import com.nuvio.app.features.player.LocalPlayerSurfaceRevealReady
+import com.nuvio.app.features.player.PlaybackLoadingCoverHost
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.features.player.InAppPlayerManager
 import androidx.compose.material.icons.Icons
@@ -2797,6 +2798,11 @@ internal fun MainAppContent(
                         }
                     }
                 }
+            }
+
+            // One loading screen for the whole way from the stream page into the player, drawn above both.
+            if (isDesktop) {
+                PlaybackLoadingCoverHost(modifier = Modifier.zIndex(16f))
             }
 
             NuvioToastHost(

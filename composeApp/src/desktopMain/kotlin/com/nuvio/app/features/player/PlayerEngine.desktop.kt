@@ -416,20 +416,24 @@ private fun NativePlayerSurface(
             )
         }
 
-        // Mirrors the controls page: no loading screen when the loading overlay is turned off, nor while closing.
-        if (!surfaceRevealed && !isInPip && !releasingForNavigation && playerControlsState.showOpeningOverlay) {
-            OpeningOverlay(
-                artwork = playerControlsState.openingArtwork,
-                logo = playerControlsState.openingLogo,
-                title = playerControlsState.openingTitle,
-                onBack = { latestOnPlayerControlsAction.value(PlayerControlsAction.Back) },
-                horizontalSafePadding = 0.dp,
-                message = playerControlsState.openingMessage,
-                progress = playerControlsState.openingProgress,
-                usePageBackButton = true,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+        // The app-level loading cover stands in for the controls page until it has painted. It mirrors that page: no
+        // loading screen when the loading overlay is turned off, and it drops at once while closing. The docked or
+        // PiP player stays out of it, so it never hides another title's loading screen.
+        PublishPlaybackLoadingCover(
+            owner = PlaybackLoadingCoverOwner.PlayerSurface,
+            mode = when {
+                isInPip -> null
+                releasingForNavigation || surfaceRevealed -> PlaybackLoadingCoverMode.Revealed
+                playerControlsState.showOpeningOverlay -> PlaybackLoadingCoverMode.Show
+                else -> null
+            },
+            artwork = playerControlsState.openingArtwork,
+            logo = playerControlsState.openingLogo,
+            title = playerControlsState.openingTitle,
+            message = playerControlsState.openingMessage,
+            progress = playerControlsState.openingProgress,
+            onBack = { latestOnPlayerControlsAction.value(PlayerControlsAction.Back) },
+        )
 
         // Placeholder overlay shown when video has moved to PiP window. The docked mini player only shows this page
         // for the moment it takes to move the video back on expand, so keep it plain black then.

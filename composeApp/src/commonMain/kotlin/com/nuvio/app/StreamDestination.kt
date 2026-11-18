@@ -602,16 +602,15 @@ internal fun StreamDestination(
     }
 
     if (!hasResolvedVideoId) {
-        if (showLoadingScreen) {
-            StreamLoadingScreen(
-                launch = launch,
-                state = StreamsUiState(),
-                showStatus = playerSettings.showPlayerLoadingStatus,
-                resolvingDebridStream = false,
-                onBack = onBack,
-            )
-            return
-        }
+        StreamLoadingScreen(
+            visible = showLoadingScreen,
+            launch = launch,
+            state = StreamsUiState(),
+            showStatus = playerSettings.showPlayerLoadingStatus,
+            resolvingDebridStream = false,
+            onBack = onBack,
+        )
+        if (showLoadingScreen && !isDesktop) return
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -931,16 +930,15 @@ internal fun StreamDestination(
                 },
             )
         }
-        FadingStreamLoadingScreen(visible = showLoadingScreen) {
-            StreamLoadingScreen(
-                launch = launch,
-                state = streamsUiState.takeIf { it.requestToken == expectedStreamsRequestToken } ?: StreamsUiState(),
-                showStatus = playerSettings.showPlayerLoadingStatus,
-                resolvingDebridStream = resolvingDebridStream,
-                resolvingYouTubeStream = resolvingYouTubeStream,
-                onBack = onBack,
-                preparingPlayback = preparingServerStream,
-            )
-        }
+        StreamLoadingScreen(
+            visible = showLoadingScreen,
+            launch = launch,
+            state = streamsUiState.takeIf { it.requestToken == expectedStreamsRequestToken } ?: StreamsUiState(),
+            showStatus = playerSettings.showPlayerLoadingStatus,
+            resolvingDebridStream = resolvingDebridStream,
+            resolvingYouTubeStream = resolvingYouTubeStream,
+            onBack = onBack,
+            preparingPlayback = preparingServerStream,
+        )
     }
 }

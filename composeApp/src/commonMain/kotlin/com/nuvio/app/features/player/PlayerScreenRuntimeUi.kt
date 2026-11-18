@@ -1020,7 +1020,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                 showP2pRebufferStats = showP2pRebufferStats,
                 p2pRebufferMessage = p2pRebufferMessage,
                 p2pRebufferProgress = p2pRebufferProgress,
-                suppressOpeningOverlay = isDesktop && playerSurfaceSourceUrl != null,
+                // Desktop shows the app-level loading cover instead; until there is a source to hand to the player
+                // surface, this screen is the one asking for it.
+                desktopLoadingCoverWanted = playerSurfaceSourceUrl == null && !isInPip,
                 folded = fold != null,
             )
         }
@@ -2455,10 +2457,32 @@ private fun BoxScope.RenderPlaybackOverlays(
     showP2pRebufferStats: Boolean,
     p2pRebufferMessage: String?,
     p2pRebufferProgress: Float?,
-    suppressOpeningOverlay: Boolean,
+    desktopLoadingCoverWanted: Boolean,
     folded: Boolean,
 ) {
     runtime.run {
+        val openingOverlayWanted = playerSettingsUiState.showLoadingOverlay &&
+            !initialLoadCompleted &&
+            errorMessage == null
+        val openingLoadingMessage = if (playerSettingsUiState.showPlayerLoadingStatus) {
+            initialLoadingMessage ?: playerLoadingStatusMessage(
+                showStatus = true,
+                controllerReady = playerController != null,
+                snapshot = playbackSnapshot,
+            )
+        } else null
+        if (isDesktop) {
+            PublishPlaybackLoadingCover(
+                owner = PlaybackLoadingCoverOwner.PlayerScreen,
+                mode = PlaybackLoadingCoverMode.Show.takeIf { openingOverlayWanted && desktopLoadingCoverWanted },
+                artwork = background ?: poster,
+                logo = logo,
+                title = title,
+                message = openingLoadingMessage,
+                progress = initialLoadingProgress,
+                onBack = { requestBack() },
+            )
+        }
         PlayerPlaybackOverlays(
             playerControlsLocked = playerControlsLocked,
             useLegacyLayout = isDesktop || playerSettingsUiState.useLegacyPlayerLayout,
@@ -2469,21 +2493,12 @@ private fun BoxScope.RenderPlaybackOverlays(
             metrics = metrics,
             horizontalSafePadding = horizontalSafePadding,
             onUnlock = { unlockPlayerControls() },
-            showOpeningOverlay = playerSettingsUiState.showLoadingOverlay &&
-                !initialLoadCompleted &&
-                errorMessage == null &&
-                !suppressOpeningOverlay,
+            showOpeningOverlay = openingOverlayWanted && !isDesktop,
             backdropArtwork = background ?: poster,
             logo = logo,
             title = title,
             onBackWithProgress = { requestBack() },
-            openingLoadingMessage = if (playerSettingsUiState.showPlayerLoadingStatus) {
-                initialLoadingMessage ?: playerLoadingStatusMessage(
-                    showStatus = true,
-                    controllerReady = playerController != null,
-                    snapshot = playbackSnapshot,
-                )
-            } else null,
+            openingLoadingMessage = openingLoadingMessage,
             initialLoadingProgress = initialLoadingProgress,
             showP2pRebufferStats = showP2pRebufferStats,
             p2pRebufferMessage = p2pRebufferMessage,
