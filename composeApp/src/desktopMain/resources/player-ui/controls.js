@@ -6760,11 +6760,13 @@ window.playerControls = nextState => {
     : pendingIsPlaying;
   const currentVolumeLevel = hasReceivedPlayerControls ? state.volumeLevel : undefined;
   // Native progress owns the clock once initialized. Settings updates (including
-  // wheel volume changes) carry a cached Kotlin snapshot that may be older.
+  // wheel volume changes) carry a cached Kotlin snapshot that may be older. That includes loading: a stale
+  // isLoading would bring the opening overlay back over the first frames until Kotlin's next poll.
   const currentProgress = hasReceivedNativePlaybackUpdate ? {
     positionMs: state.positionMs,
     durationMs: state.durationMs,
     bufferedPositionMs: state.bufferedPositionMs,
+    isLoading: state.isLoading,
   } : {};
   state = {
     ...state,
