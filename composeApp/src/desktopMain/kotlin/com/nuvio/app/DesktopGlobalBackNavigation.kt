@@ -27,7 +27,7 @@ import java.awt.MouseInfo
 import java.awt.Point
 import java.awt.image.BufferedImage
 
-private val desktopHiddenCursor: Cursor by lazy {
+internal val desktopHiddenCursor: Cursor by lazy {
     Toolkit.getDefaultToolkit().createCustomCursor(
         BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), Point(0, 0), "nuvio-keyboard-navigation",
     )

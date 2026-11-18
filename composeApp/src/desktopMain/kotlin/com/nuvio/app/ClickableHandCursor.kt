@@ -11,25 +11,29 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
+import com.nuvio.app.core.ui.NoHandCursorKey
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Cursor
+import java.awt.Point
 import java.awt.Toolkit
 import java.awt.event.AWTEventListener
+import java.awt.event.KeyEvent
 import java.awt.event.MouseEvent
 import javax.swing.SwingUtilities
 
 /**
- * Shows the hand cursor while the mouse is over anything clickable in [window].
+ * Shows the hand cursor while the mouse is over a button-like clickable in [window], and hides the
+ * pointer on key input until the mouse really moves again.
  *
  * Compose never switches the cursor for clickable content on its own, and the app has hundreds of click
  * targets, so this looks up what is under the pointer in the semantics tree instead of touching each one.
+ * Posters, cards and context-menu rows keep the normal arrow (see [NoHandCursorKey]).
  */
 @Composable
 internal fun ClickableHandCursor(window: ComposeWindow) {
     val controller = remember(window) { HandCursorController(window) }
-    // Keyboard and remote navigation hide the pointer on the window; a hand cursor left on a child
-    // component would still show through, so drop it whenever the pointer is hidden.
+    // The phone remote hides the pointer on the window; drop a hand left on a child component.
     LaunchedEffect(controller) {
         snapshotFlow { DesktopRemoteCursorController.isHidden.value }.collect { hidden ->
             if (hidden) controller.release()
@@ -40,12 +44,14 @@ internal fun ClickableHandCursor(window: ComposeWindow) {
         onDispose {
             Toolkit.getDefaultToolkit().removeAWTEventListener(controller)
             controller.release()
+            controller.showPointer()
         }
     }
 }
 
 private const val HandCursorEventMask =
-    AWTEvent.MOUSE_MOTION_EVENT_MASK or AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_WHEEL_EVENT_MASK
+    AWTEvent.MOUSE_MOTION_EVENT_MASK or AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_WHEEL_EVENT_MASK or
+        AWTEvent.KEY_EVENT_MASK
 
 private class HandCursorController(private val window: ComposeWindow) : AWTEventListener {
     private val handCursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
@@ -53,24 +59,41 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
     private var cursorBeforeOverride: Cursor? = null
     private var pending: MouseEvent? = null
 
+    /** The component under the pointer, from the last mouse event. */
+    private var hovered: Component? = null
+    private var hiddenOn: Component? = null
+    private var cursorBeforeHide: Cursor? = null
+    private var hiddenAt: Point? = null
+
     override fun eventDispatched(event: AWTEvent) {
-        val mouseEvent = event as? MouseEvent ?: return
-        val source = mouseEvent.component ?: return
+        val source = (event.source as? Component) ?: return
         if (source !== window && !SwingUtilities.isDescendingFrom(source, window)) return
-        val alreadyScheduled = pending != null
-        pending = mouseEvent
-        // Runs after Compose has handled the event, so its own cursor choice is already applied.
-        if (!alreadyScheduled) SwingUtilities.invokeLater(::update)
+        when (event) {
+            is KeyEvent -> if (event.id == KeyEvent.KEY_PRESSED && !isModifierKey(event.keyCode)) hidePointer()
+            is MouseEvent -> {
+                if (hiddenOn != null) {
+                    // Changing the cursor can make the OS report a move at the same spot; ignore it.
+                    if (event.id == MouseEvent.MOUSE_MOVED && event.locationOnScreen == hiddenAt) return
+                    showPointer()
+                }
+                hovered = event.component
+                val alreadyScheduled = pending != null
+                pending = event
+                // Runs after Compose has handled the event, so its own cursor choice is already applied.
+                if (!alreadyScheduled) SwingUtilities.invokeLater(::update)
+            }
+        }
     }
 
     private fun update() {
         val event = pending ?: return
         pending = null
         val source = event.component ?: return
-        val wantsHand = !DesktopRemoteCursorController.isHidden.value &&
+        val wantsHand = hiddenOn == null &&
+            !DesktopRemoteCursorController.isHidden.value &&
             event.id != MouseEvent.MOUSE_EXITED &&
             event.modifiersEx and AnyButtonDownMask == 0 &&
-            isOverClickable(source, event)
+            isOverHandTarget(source, event)
         if (wantsHand) apply(source) else release()
     }
 
@@ -96,8 +119,30 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
         cursorBeforeOverride = null
     }
 
+    /** Key input means keyboard navigation: hide the pointer where it rests until the mouse moves. */
+    private fun hidePointer() {
+        if (hiddenOn != null) return
+        val component = hovered ?: return
+        val pointer = runCatching { java.awt.MouseInfo.getPointerInfo()?.location }.getOrNull() ?: return
+        val bounds = runCatching { java.awt.Rectangle(component.locationOnScreen, component.size) }.getOrNull() ?: return
+        if (!bounds.contains(pointer)) return
+        release()
+        cursorBeforeHide = if (component.isCursorSet) component.cursor else null
+        hiddenOn = component
+        hiddenAt = pointer
+        component.cursor = desktopHiddenCursor
+    }
+
+    fun showPointer() {
+        val component = hiddenOn ?: return
+        hiddenOn = null
+        hiddenAt = null
+        if (component.cursor === desktopHiddenCursor) component.cursor = cursorBeforeHide
+        cursorBeforeHide = null
+    }
+
     @OptIn(ComposeToolingApi::class)
-    private fun isOverClickable(source: Component, event: MouseEvent): Boolean {
+    private fun isOverHandTarget(source: Component, event: MouseEvent): Boolean {
         val pointInContent = SwingUtilities.convertPoint(source, event.point, window.contentPane)
         val scale = window.graphicsConfiguration?.defaultTransform?.scaleX?.toFloat() ?: 1f
         val position = Offset(pointInContent.x * scale, pointInContent.y * scale)
@@ -110,7 +155,19 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
         val config = target.config
         return !config.contains(SemanticsProperties.Disabled) &&
             !config.contains(SemanticsProperties.EditableText) &&
-            !config.contains(SemanticsActions.SetText)
+            !config.contains(SemanticsActions.SetText) &&
+            // Long-pressable targets are cards (posters, continue watching, streams, episodes).
+            !config.contains(SemanticsActions.OnLongClick) &&
+            !target.hasNoHandMarker()
+    }
+
+    private fun SemanticsNode.hasNoHandMarker(): Boolean {
+        var node: SemanticsNode? = this
+        while (node != null) {
+            if (node.config.contains(NoHandCursorKey)) return true
+            node = node.parent
+        }
+        return false
     }
 
     /** The deepest clickable node under [position], preferring children drawn last (on top). */
@@ -124,6 +181,10 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
         }
         return node.takeIf { it.config.contains(SemanticsActions.OnClick) }
     }
+
+    private fun isModifierKey(code: Int): Boolean = code == KeyEvent.VK_SHIFT || code == KeyEvent.VK_CONTROL ||
+        code == KeyEvent.VK_ALT || code == KeyEvent.VK_META || code == KeyEvent.VK_WINDOWS ||
+        code == KeyEvent.VK_ALT_GRAPH || code == KeyEvent.VK_CAPS_LOCK
 
     private companion object {
         const val AnyButtonDownMask =

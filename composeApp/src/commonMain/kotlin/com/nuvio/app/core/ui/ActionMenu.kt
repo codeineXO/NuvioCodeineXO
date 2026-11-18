@@ -292,6 +292,7 @@ internal fun ActionMenuRow(
     val color = if (action.isDestructive) tokens.colors.danger else tokens.colors.textPrimary
     Row(
         modifier.fillMaxWidth()
+            .noHandCursor()
             .hoverable(interaction)
             .navigationGlassFeedback(interaction, shape, showFocus = isRemoteKeyboardNavigationActive)
             .remoteNavigationTarget(shape = shape, insetFocusOutline = true)

@@ -138,6 +138,7 @@ internal fun Modifier.posterCardClickable(
                 }
             }
     return Modifier
+        .noHandCursor()
         .desktopPosterHoverScale(
             enabled = hoverScaleEnabled,
             interactionSource = interactionSource,
