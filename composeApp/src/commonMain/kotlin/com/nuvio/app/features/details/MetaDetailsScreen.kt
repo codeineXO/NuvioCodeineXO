@@ -692,14 +692,12 @@ internal fun MetaDetailsScreen(
             displayedMeta == null && requestState?.errorMessage == null -> {
                  val preview = heroDetails?.preview
                  if (preview != null) {
-                     PersistentHomeHero(
-                         item = preview,
-                         onDetailsClick = null,
-                         logo = heroDetails.logo,
-                         showImdbRating = metaScreenSettingsUiState.showOverallRatings,
-                         showMdbListRatings = mdbListSettings.isActive,
+                     PersistentHeroDetailsPlaceholder(
+                         preview = preview,
+                         heroDetails = heroDetails,
+                         settings = metaScreenSettingsUiState,
+                         isMdbListActive = mdbListSettings.isActive,
                          modifier = Modifier.matchParentSize(),
-                         showMetadataBadge = heroDetails.showMetadataBadge,
                      )
                  } else {
                      NuvioLoadingIndicator(modifier = Modifier.align(Alignment.Center))
@@ -2888,6 +2886,104 @@ private fun extractTmdbId(value: String?): Int? {
         ?.substringBefore(':')
         ?.substringBefore('/')
         ?.toIntOrNull()
+}
+
+/**
+ * Stand-in for the details hero while a carried Persistent Hero title loads. It lays the carried preview out
+ * exactly like the loaded [DesktopDetailHero], so the logo and metadata do not first appear in the home hero's
+ * bottom-anchored layout stretched over the whole screen and then jump into place.
+ */
+@Composable
+private fun PersistentHeroDetailsPlaceholder(
+    preview: MetaPreview,
+    heroDetails: PersistentHeroDetails,
+    settings: MetaScreenSettingsUiState,
+    isMdbListActive: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier) {
+        val useDesktopDetailLayout = isDesktop && maxWidth >= 1000.dp
+        val isDesktopOrTablet = useDesktopDetailLayout || maxWidth >= 720.dp
+        val useEnhancedLayout = isDesktopOrTablet && settings.episodeCardStyle == MetaEpisodeCardStyle.Enhanced
+        if (!useDesktopDetailLayout && !useEnhancedLayout) {
+            PersistentHomeHero(
+                item = preview,
+                onDetailsClick = null,
+                logo = heroDetails.logo,
+                showImdbRating = settings.showOverallRatings,
+                showMdbListRatings = isMdbListActive,
+                modifier = Modifier.fillMaxSize(),
+                showMetadataBadge = heroDetails.showMetadataBadge,
+            )
+            return@BoxWithConstraints
+        }
+        val meta = remember(preview) {
+            MetaDetails(
+                id = preview.id,
+                type = preview.type,
+                name = preview.name,
+                imdbId = preview.imdbId,
+                poster = preview.poster,
+                background = preview.banner,
+                logo = preview.logo,
+                description = preview.description,
+                releaseInfo = preview.releaseInfo,
+                status = preview.status,
+                imdbRating = preview.imdbRating,
+                ageRating = preview.ageRating,
+                runtime = preview.runtime,
+                externalRatings = if (isMdbListActive) preview.externalRatings else emptyList(),
+                genres = preview.genres,
+                language = preview.language,
+                imdbScore = preview.imdbScore,
+                tmdbScore = preview.tmdbScore,
+            )
+        }
+        val playLabel = stringResource(Res.string.action_play)
+        val isSaved = remember(preview.id, preview.type) { LibraryRepository.isSaved(preview.id, preview.type) }
+        val hero: @Composable (Modifier, Boolean) -> Unit = { heroModifier, compact ->
+            DesktopDetailHero(
+                meta = meta,
+                logoPlaceholder = heroDetails.logo,
+                showOverallRatings = settings.showOverallRatings,
+                isMdbListActive = isMdbListActive,
+                playButtonLabel = playLabel,
+                isPrimaryPlayEnabled = false,
+                isSaved = isSaved,
+                isWatched = false,
+                onHeightChanged = {},
+                heroTrailerSourceUrl = null,
+                heroTrailerReady = false,
+                heroTrailerMuted = true,
+                onHeroTrailerMuteToggle = {},
+                onPlayClick = {},
+                onPlayLongClick = null,
+                onShuffleClick = null,
+                shuffleEnabled = false,
+                onWatchedClick = {},
+                onSaveClick = {},
+                onSaveLongClick = null,
+                modifier = heroModifier,
+                compact = compact,
+                isEnhanced = useEnhancedLayout,
+            )
+        }
+        if (useEnhancedLayout) {
+            // Episodes are not known yet; series almost always have them, which compacts the hero to the top.
+            val hasEpisodes = preview.type.equals("series", ignoreCase = true)
+            val viewportHeight = maxHeight
+            Box(Modifier.heightIn(min = viewportHeight).fillMaxWidth()) {
+                EnhancedDetailPage(viewportHeight, hasEpisodes) {
+                    hero(
+                        if (hasEpisodes) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().heightIn(min = viewportHeight),
+                        hasEpisodes,
+                    )
+                }
+            }
+        } else {
+            hero(Modifier, false)
+        }
+    }
 }
 
 internal fun MetaDetails.toMetaPreview(): MetaPreview =
