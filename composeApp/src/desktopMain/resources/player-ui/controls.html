@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="controls.css">
+  <link rel="stylesheet" href="controls-codeinexo.css">
   <link rel="stylesheet" href="party.css">
 </head>
 <body>
@@ -237,7 +238,7 @@
           <button class="header-button" id="videoSettingsButton" data-command="videoSettings" aria-label="Video settings"><svg><use href="#icon-build"></use></svg></button>
           <button class="header-button" id="miniPlayerButton" data-command="minimize" aria-label="Mini player" title="Mini player"><svg><use href="#icon-miniplayer"></use></svg></button>
           <button class="header-button pip-lock-button" id="pipLockButton" type="button" aria-pressed="false" aria-label="Lock player controls"><svg><use href="#icon-lock"></use></svg></button>
-          <button class="header-button" id="pipButton" data-command="pictureInPicture" aria-label=""><svg><use href="#icon-pip"></use></svg></button>
+          <button class="header-button" id="pipButton" data-command="pictureInPicture" aria-label="Picture in Picture" title="Picture in Picture"><svg><use href="#icon-pip"></use></svg></button>
           <button class="header-button" id="fullscreenButton" data-command="toggleFullscreen" aria-label="Enter fullscreen"><svg><use id="fullscreenIcon" href="#icon-fullscreen"></use></svg></button>
           <button class="header-button" id="backButton" data-command="back" aria-label="Close player"><svg><use href="#icon-close"></use></svg></button>
         </nav>
@@ -465,15 +466,15 @@
           </div>
         </div>
         <div class="codeine-seek-row">
-          <span class="codeine-time-pill codeine-time-current" id="codeinePosition">00:00</span>
+          <button class="codeine-time-pill codeine-time-current" id="codeinePosition" type="button">00:00</button>
           <div class="codeine-seek-container" id="codeineSeekContainer">
             <div class="codeine-seek-track-bg"></div>
             <div class="codeine-seek-track-buffer"></div>
             <div class="codeine-seek-track-progress"></div>
-            <input id="seek" class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
+            <input id="seek" class="scrub" type="range" min="0" max="1000" step="any" value="0" aria-label="Seek">
             <div class="chapter-marks" id="chapterMarks" aria-hidden="true"></div>
           </div>
-          <span class="codeine-time-pill codeine-time-duration" id="codeineDuration">00:00</span>
+          <button class="codeine-time-pill codeine-time-duration" id="codeineDuration" type="button">00:00</button>
         </div>
         <div class="time-row">
           <span class="time-pill" id="position">00:00</span>
@@ -542,32 +543,32 @@
               <svg><use href="#icon-wand"></use></svg>
             </button>
             <div class="codeine-quick-menu" id="codeineQuickDrawer">
-              <button class="codeine-control-btn codeine-action-btn" id="codeineDrawerButton" type="button" tabindex="-1" aria-label="More playback controls" title="More playback controls" aria-expanded="false" aria-controls="codeineDrawerItems">
+              <button class="codeine-control-btn codeine-action-btn" id="codeineDrawerButton" type="button" aria-label="More playback controls" title="More playback controls" aria-expanded="false" aria-controls="codeineDrawerItems">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
               </button>
               <div class="codeine-menu-items" id="codeineDrawerItems" role="group" aria-label="More playback controls" aria-hidden="true" inert>
-                <button class="codeine-menu-action" id="codeineSpeedButton" data-command="speed" type="button" tabindex="-1" aria-label="Playback speed">
+                <button class="codeine-menu-action" id="codeineSpeedButton" data-command="speed" type="button" aria-label="Playback speed">
                   <svg><use href="#icon-speed"></use></svg><span>Playback speed</span>
                 </button>
-                <button class="codeine-menu-action" id="codeineResizeButton" data-command="resize" type="button" tabindex="-1" aria-label="Aspect ratio">
+                <button class="codeine-menu-action" id="codeineResizeButton" data-command="resize" type="button" aria-label="Aspect ratio">
                   <svg><use href="#icon-aspect"></use></svg><span>Aspect ratio</span>
                 </button>
-                <button class="codeine-menu-action" id="codeinePipButton" data-command="pictureInPicture" type="button" tabindex="-1" aria-label="Picture in Picture">
+                <button class="codeine-menu-action" id="codeinePipButton" data-command="pictureInPicture" type="button" aria-label="Picture in Picture">
                   <svg><use href="#icon-pip"></use></svg><span id="codeinePipLabel">Picture in Picture</span>
                 </button>
-                <button class="codeine-menu-action" id="codeineMiniPlayerButton" data-command="minimize" type="button" tabindex="-1" aria-label="Mini player" title="Mini player">
+                <button class="codeine-menu-action" id="codeineMiniPlayerButton" data-command="minimize" type="button" aria-label="Mini player" title="Mini player">
                   <svg><use href="#icon-miniplayer"></use></svg><span id="codeineMiniPlayerLabel">Mini player</span>
                 </button>
-                <button class="codeine-menu-action" id="codeinePartyButton" data-command="party" type="button" tabindex="-1" aria-label="Watch party" title="Watch party">
+                <button class="codeine-menu-action" id="codeinePartyButton" data-command="party" type="button" aria-label="Watch party" title="Watch party">
                   <svg><use href="#icon-party"></use></svg><span>Watch party</span>
                 </button>
-                <button class="codeine-menu-action codeine-stats-btn" id="codeineStatsButton" type="button" tabindex="-1" aria-label="Playback statistics" title="Playback statistics (i)">
+                <button class="codeine-menu-action codeine-stats-btn" id="codeineStatsButton" type="button" aria-label="Playback statistics" title="Playback statistics (i)">
                   <svg><use href="#icon-info-circle"></use></svg><span>Playback statistics</span>
                 </button>
-                <button class="codeine-menu-action" id="codeineEyeFilterButton" data-command="eyeFilter" type="button" tabindex="-1" aria-label="Eye filter" title="Eye filter">
+                <button class="codeine-menu-action" id="codeineEyeFilterButton" data-command="eyeFilter" type="button" aria-label="Eye filter" title="Eye filter">
                   <svg><use href="#icon-eye"></use></svg><span>Eye filter</span>
                 </button>
-                <button class="codeine-menu-action" id="codeineChaptersButton" data-command="chapters" type="button" tabindex="-1" aria-label="Chapters" hidden>
+                <button class="codeine-menu-action" id="codeineChaptersButton" data-command="chapters" type="button" aria-label="Chapters" hidden>
                   <svg><use href="#icon-chapters"></use></svg><span>Chapters</span>
                 </button>
               </div>

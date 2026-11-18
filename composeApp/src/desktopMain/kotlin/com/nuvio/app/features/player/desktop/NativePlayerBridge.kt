@@ -364,6 +364,7 @@ internal object NativePlayerBridge {
             "controls.css" to readTextResource("/player-ui/controls.css")
                 .replace("/* __NUVIO_PLAYER_FONT_FACES__ */", nativePlayerFontFaces())
                 .toByteArray(Charsets.UTF_8),
+            "controls-codeinexo.css" to readResourceBytes("/player-ui/controls-codeinexo.css"),
             "controls.js" to readResourceBytes("/player-ui/controls.js"),
             "party.css" to readResourceBytes("/player-ui/party.css"),
             "party.js" to readResourceBytes("/player-ui/party.js"),

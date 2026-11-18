@@ -1,0 +1,1589 @@
+/* CodeineXO layout styles. Loaded after controls.css; holds every rule scoped only to .player.ui-codeinexo. */
+
+.player.ui-codeinexo .chapter-marks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  margin-top: 0;
+  transform: translateY(-50%);
+  z-index: 3;
+}
+
+.player.ui-codeinexo .codeine-seek-container:hover .chapter-marks,
+.player.ui-codeinexo .codeine-seek-container:active .chapter-marks {
+  height: 8px;
+}
+
+.player.ui-codeinexo #eyeFilterModal .style-section {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* CodeineXO UI mode */
+.player.ui-codeinexo .progress .metadata,
+.player.ui-codeinexo .official-action-row,
+.player.ui-codeinexo .header-actions #backButton,
+.player.ui-codeinexo .header-actions #fullscreenButton,
+.player.ui-codeinexo .header-actions #miniPlayerButton,
+.player.ui-codeinexo .header-actions #partyButton,
+.player.ui-codeinexo .header-actions #pipButton {
+  display: none !important;
+}
+
+.player.ui-codeinexo {
+  --overlay-bottom: 84px;
+}
+
+.player.ui-codeinexo .progress {
+  bottom: 8px;
+  left: calc(20px + env(safe-area-inset-left));
+  right: calc(20px + env(safe-area-inset-right));
+}
+
+.player.ui-codeinexo .top-gradient,
+.player.ui-codeinexo .bottom-gradient {
+  display: none !important;
+}
+
+.player.ui-codeinexo .skip-prompt {
+  bottom: calc(var(--overlay-bottom) + env(safe-area-inset-bottom));
+}
+
+.player.ui-codeinexo .header {
+  top: calc(22px + env(safe-area-inset-top));
+  left: calc(20px + env(safe-area-inset-left));
+  right: calc(20px + env(safe-area-inset-right));
+  min-height: 40px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* Smooth and soft UI hide/unhide transitions for CodeineXO with slide animations */
+.player.ui-codeinexo .header-left,
+.player.ui-codeinexo .header-actions,
+.player.ui-codeinexo .torrent-stats-overlay,
+.player.ui-codeinexo .party-pill {
+  transform: translateY(0);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.player.ui-codeinexo .header-center {
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.player.ui-codeinexo .center-controls {
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+.player.ui-codeinexo .progress {
+  transform: translateY(0);
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.player.ui-codeinexo.chrome-hidden .header-left,
+.player.ui-codeinexo.chrome-hidden .header-actions,
+.player.ui-codeinexo.chrome-hidden .torrent-stats-overlay,
+.player.ui-codeinexo.chrome-hidden .party-pill:not(.pinned) {
+  opacity: 0;
+  transform: translateY(-24px);
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.chrome-hidden .header-center {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-24px);
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.chrome-hidden .center-controls {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.player.ui-codeinexo.chrome-hidden .progress {
+  opacity: 0;
+  transform: translateY(28px);
+  pointer-events: none;
+  transition: opacity 380ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Seeking while player UI is hidden: reveal only the seekbar (dismisses with toast) */
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-only .progress {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+  bottom: 14px !important;
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 200ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-only .codeine-seek-row {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-only .codeine-action-row {
+  display: none !important;
+}
+
+.player.ui-codeinexo.pip-mode.chrome-hidden.codeine-seeking-seekbar-only .progress {
+  bottom: 6px !important;
+}
+
+/* Exiting state: smoothly fade out seekbar only, keeping action-row completely hidden */
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-hiding .progress {
+  opacity: 0 !important;
+  transform: translateY(18px) !important;
+  pointer-events: none !important;
+  bottom: 14px !important;
+  transition: opacity 220ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 220ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-hiding .codeine-seek-row {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+
+.player.ui-codeinexo.chrome-hidden.codeine-seeking-seekbar-hiding .codeine-action-row {
+  display: none !important;
+}
+
+.player.ui-codeinexo.pip-mode.chrome-hidden.codeine-seeking-seekbar-hiding .progress {
+  bottom: 6px !important;
+}
+
+.player.ui-codeinexo.native-resizing .header-left,
+.player.ui-codeinexo.native-resizing .header-center,
+.player.ui-codeinexo.native-resizing .header-actions,
+.player.ui-codeinexo.native-resizing .center-controls,
+.player.ui-codeinexo.native-resizing .progress,
+.player.ui-codeinexo.native-resizing .torrent-stats-overlay,
+.player.ui-codeinexo.native-resizing .party-pill {
+  transition-duration: 1ms !important;
+}
+
+.player.ui-codeinexo .party-pill {
+  top: calc(70px + env(safe-area-inset-top));
+  left: calc(20px + env(safe-area-inset-left));
+  right: auto;
+  max-width: min(560px, calc(100% - 40px));
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-16px);
+  transition:
+    opacity 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color var(--motion-standard) ease;
+  will-change: opacity, transform;
+  z-index: 20;
+}
+
+.player.ui-codeinexo .party-pill.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.player.ui-codeinexo .party-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.player.ui-codeinexo .party-pill:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.player.ui-codeinexo .party-pill .party-stack-slot {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.7);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.player.ui-codeinexo .party-pill-text {
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.player.ui-codeinexo .parental-guide {
+  top: calc(86px + env(safe-area-inset-top));
+  left: calc(20px + env(safe-area-inset-left));
+}
+
+.player.ui-codeinexo.party-pill-visible .parental-guide {
+  top: calc(120px + env(safe-area-inset-top));
+}
+
+.player.ui-codeinexo.party-pill-visible .player-toast {
+  top: calc(124px + env(safe-area-inset-top));
+}
+
+.player.ui-codeinexo .parental-guide-label,
+.player.ui-codeinexo .parental-guide-separator,
+.player.ui-codeinexo .parental-guide-severity {
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.player.ui-codeinexo .header-left {
+  display: flex;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .codeine-back-button {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  min-height: 40px;
+  max-height: 40px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--theme-control-foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-standard) ease,
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.player.ui-codeinexo .codeine-back-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateZ(0) scale(1.06);
+}
+
+.player.ui-codeinexo .codeine-back-button:active {
+  transform: scale(0.93);
+}
+
+.player.ui-codeinexo .codeine-back-button svg {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
+}
+
+.player.ui-codeinexo .header-center {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  width: max-content;
+  max-width: calc(100% - 160px);
+  overflow: visible;
+  box-sizing: border-box;
+  pointer-events: none;
+  padding: 0;
+  margin: 0;
+  z-index: 2;
+}
+
+.player.ui-codeinexo .codeine-title {
+  align-self: center;
+  font-size: var(--title);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+  padding: 0 12px;
+  margin: 0;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.player.ui-codeinexo .codeine-episode {
+  font-size: var(--episode);
+  font-weight: 500;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 2px;
+  padding: 0 12px;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* overflow: hidden (needed for the ellipsis) would cut the soft text-shadow into a box; let it paint 16px past the edge. */
+@supports (overflow-clip-margin: 16px) {
+  .player.ui-codeinexo :is(.codeine-title, .codeine-episode) {
+    overflow: clip;
+    overflow-clip-margin: 16px;
+  }
+}
+
+@supports not (overflow-clip-margin: 16px) {
+  .player.ui-codeinexo .codeine-title {
+    padding: 8px 16px 16px;
+    margin: -8px 0 -16px;
+  }
+
+  .player.ui-codeinexo .codeine-episode {
+    padding: 8px 16px 16px;
+    margin: -6px 0 -16px;
+  }
+}
+
+.player.ui-codeinexo .codeine-player-badges {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: min(760px, 100%);
+  margin-top: 4px;
+  padding: 0 12px;
+  overflow: hidden;
+}
+
+.player.ui-codeinexo .codeine-player-badges .player-badge {
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+}
+
+/* CodeineXO Seekbar Row: flanking time & buffer fill */
+.player.ui-codeinexo .codeine-seek-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.player.ui-codeinexo .codeine-seek-container {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+
+.player.ui-codeinexo .codeine-seek-track-bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.20);
+  pointer-events: none;
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-track-buffer {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--buffered, 0%);
+  max-width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(47, 111, 237, 0.30);
+  background: color-mix(in srgb, var(--theme-accent, #2f6fed) 30%, transparent);
+  pointer-events: none;
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-track-progress {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--progress, 0%);
+  max-width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--theme-accent-gradient, linear-gradient(var(--theme-accent, #2f6fed), var(--theme-accent, #2f6fed)));
+  pointer-events: none;
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-bg,
+.player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-bg,
+.player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-buffer,
+.player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-buffer,
+.player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-progress,
+.player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-progress {
+  height: 8px;
+}
+
+.player.ui-codeinexo .codeine-seek-container .scrub {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: block;
+  cursor: pointer;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  z-index: 2;
+  border: none;
+  outline: none;
+  filter: none;
+}
+
+.player.ui-codeinexo .codeine-seek-row .scrub,
+.player.ui-codeinexo .scrub {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  height: 14px;
+  display: block;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* Taller invisible hit area than the 4px visible track. */
+.player.ui-codeinexo .codeine-seek-container .scrub {
+  inset: -7px 0;
+  height: auto;
+}
+
+.player.ui-codeinexo .codeine-seek-container .scrub:focus-visible {
+  outline: 2px solid var(--theme-focus);
+  outline-offset: -4px;
+  border-radius: 999px;
+}
+
+.player.ui-codeinexo .codeine-time-pill:focus-visible {
+  outline: 2px solid var(--theme-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.player.ui-codeinexo .codeine-time-pill {
+  flex: 0 0 auto;
+  font-family: inherit;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  line-height: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+  user-select: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+  min-width: 48px;
+  transition: opacity 160ms ease, color 160ms ease;
+}
+
+.player.ui-codeinexo .codeine-time-pill:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.player.ui-codeinexo .codeine-time-current {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.player.ui-codeinexo .codeine-time-duration {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.player.ui-codeinexo .codeine-seek-container .scrub::-webkit-slider-runnable-track {
+  background: transparent !important;
+}
+
+.player.ui-codeinexo .scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    var(--theme-accent-gradient, linear-gradient(var(--theme-accent, #2f6fed), var(--theme-accent, #2f6fed)))
+      left center / var(--progress, 0%) 100% no-repeat,
+    linear-gradient(to right, color-mix(in srgb, var(--theme-accent, #2f6fed) 30%, transparent), color-mix(in srgb, var(--theme-accent, #2f6fed) 30%, transparent))
+      left center / var(--buffered, 0%) 100% no-repeat,
+    rgba(255, 255, 255, 0.20);
+  transition: height 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-container:hover .scrub::-webkit-slider-runnable-track,
+.player.ui-codeinexo .codeine-seek-container:active .scrub::-webkit-slider-runnable-track,
+.player.ui-codeinexo .scrub:hover::-webkit-slider-runnable-track {
+  height: 8px;
+}
+
+.player.ui-codeinexo .scrub::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: var(--theme-accent);
+  box-shadow: 0 0 10px var(--theme-selected-ring, rgba(255, 255, 255, 0.5));
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-seek-container:hover .scrub::-webkit-slider-thumb,
+.player.ui-codeinexo .codeine-seek-container:active .scrub::-webkit-slider-thumb,
+.player.ui-codeinexo .scrub:hover::-webkit-slider-thumb,
+.player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
+  opacity: 1;
+  margin-top: -3px;
+}
+
+.player.ui-codeinexo .codeine-seek-container .scrub:active::-webkit-slider-thumb,
+.player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* CodeineXO Controls Row */
+.player.ui-codeinexo .codeine-action-row {
+  --codeine-control-size: 40px;
+  --codeine-control-gap: 4px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.player.ui-codeinexo .codeine-controls-left,
+.player.ui-codeinexo .codeine-controls-right {
+  display: flex;
+  align-items: center;
+  gap: var(--codeine-control-gap);
+  height: var(--codeine-control-size);
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo .codeine-controls-left {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.player.ui-codeinexo .codeine-chapter-title {
+  min-width: 0;
+  padding-block: 12px;
+  padding-inline: 8px;
+  margin-inline-end: -8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.player.ui-codeinexo .codeine-control-btn,
+.player.ui-codeinexo .codeine-play-btn,
+.player.ui-codeinexo .codeine-volume-btn,
+.player.ui-codeinexo .codeine-action-btn {
+  flex-shrink: 0;
+  width: var(--codeine-control-size);
+  height: var(--codeine-control-size);
+  min-width: var(--codeine-control-size);
+  max-width: var(--codeine-control-size);
+  min-height: var(--codeine-control-size);
+  max-height: var(--codeine-control-size);
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  line-height: 1;
+  color: var(--theme-control-foreground);
+  background: transparent;
+  cursor: pointer;
+  transform-origin: center;
+  transform: translateZ(0);
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    background-color var(--motion-standard) ease,
+    color var(--motion-standard) ease;
+}
+
+.player.ui-codeinexo .codeine-control-btn:hover,
+.player.ui-codeinexo .codeine-play-btn:hover,
+.player.ui-codeinexo .codeine-volume-btn:hover,
+.player.ui-codeinexo .codeine-action-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateZ(0) scale(1.06);
+}
+
+.player.ui-codeinexo .codeine-control-btn:active,
+.player.ui-codeinexo .codeine-control-btn.is-pressed,
+.player.ui-codeinexo .codeine-play-btn:active,
+.player.ui-codeinexo .codeine-volume-btn:active,
+.player.ui-codeinexo .codeine-action-btn:active {
+  transform: scale(0.93);
+}
+
+.player.ui-codeinexo .codeine-control-btn.active {
+  color: var(--theme-accent);
+}
+
+.player.ui-codeinexo .codeine-control-btn.active svg {
+  color: var(--theme-accent);
+  filter: drop-shadow(0 0 6px var(--theme-accent)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+}
+
+.player.ui-codeinexo .codeine-control-btn svg,
+.player.ui-codeinexo .codeine-play-btn svg,
+.player.ui-codeinexo .codeine-volume-btn svg,
+.player.ui-codeinexo .codeine-action-btn svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.50));
+}
+
+.player.ui-codeinexo .codeine-speed-btn {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player.ui-codeinexo .codeine-speed-btn svg {
+  display: none;
+}
+
+.player.ui-codeinexo .codeine-speed-text {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: inherit;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.70),
+    0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.player.ui-codeinexo .codeine-volume-btn {
+  margin: 0;
+}
+
+.player.ui-codeinexo .codeine-volume-control {
+  height: var(--codeine-control-size);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  color: var(--theme-control-foreground);
+  position: relative;
+}
+
+.player.ui-codeinexo .codeine-volume-slider {
+  width: 0;
+  max-width: 0;
+  height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  margin-left: 0;
+  padding: 0;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+  overflow: hidden;
+  transition:
+    width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms ease,
+    margin-left 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width, opacity;
+}
+
+.player.ui-codeinexo .codeine-volume-control:hover .codeine-volume-slider,
+.player.ui-codeinexo .codeine-volume-control:focus-within .codeine-volume-slider,
+.player.ui-codeinexo .codeine-volume-control.is-active .codeine-volume-slider {
+  width: 80px;
+  max-width: 80px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-left: 6px;
+}
+
+.player.ui-codeinexo .codeine-volume-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    var(--theme-accent-gradient, linear-gradient(var(--theme-accent), var(--theme-accent)))
+      left center / var(--volume-position, 50%) 100% no-repeat,
+    rgba(255, 255, 255, 0.24);
+}
+
+.player.ui-codeinexo .codeine-volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* CodeineXO mouse-operated quick controls popup. */
+.player.ui-codeinexo .codeine-quick-menu {
+  height: var(--codeine-control-size);
+  flex: 0 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.player.ui-codeinexo .codeine-menu-items {
+  position: absolute;
+  bottom: calc(100% + 24px);
+  right: -46px;
+  z-index: 110;
+  box-sizing: border-box;
+  width: min(336px, calc(100vw - 24px));
+  max-height: var(--quick-menu-max-height, calc(100vh - 80px));
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.90);
+  color: var(--theme-control-foreground);
+  box-shadow: none;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+.player.ui-codeinexo .codeine-menu-items.is-open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  animation: codeine-menu-enter 140ms ease-out;
+}
+
+.player.ui-codeinexo .codeine-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.player.ui-codeinexo .codeine-menu-action[hidden] { display: none; }
+
+.player.ui-codeinexo .codeine-menu-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.player.ui-codeinexo .codeine-menu-action.is-active,
+.player.ui-codeinexo .codeine-menu-action.active,
+.player.ui-codeinexo #codeineDrawerButton.active {
+  color: var(--theme-accent);
+}
+.player.ui-codeinexo #codeineEyeFilterButton.active svg,
+.player.ui-codeinexo #codeineEyeFilterButton.is-active svg {
+  color: var(--theme-accent);
+  filter: drop-shadow(0 0 6px var(--theme-accent)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+}
+.player.ui-codeinexo .codeine-menu-action svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player.ui-codeinexo .codeine-menu-items.is-open { animation: none; }
+}
+
+.player.ui-codeinexo .codeine-time-label {
+  display: none !important;
+}
+
+/* PiP adjustments for CodeineXO */
+.player.ui-codeinexo.pip-mode .codeine-seek-row {
+  gap: 8px;
+}
+.player.ui-codeinexo.pip-mode .codeine-time-pill {
+  font-size: 11px;
+  min-width: 32px;
+}
+.player.ui-codeinexo.pip-mode #codeineNextEpisodeButton,
+.player.ui-codeinexo.pip-mode #codeineTimeLabel,
+.player.ui-codeinexo.pip-mode #codeineFullscreenButton,
+.player.ui-codeinexo.pip-mode #codeineResizeButton,
+.player.ui-codeinexo.pip-mode #codeineSpeedButton,
+.player.ui-codeinexo.pip-mode #codeineStatsButton,
+.player.ui-codeinexo.pip-mode #codeineEyeFilterButton,
+.player.ui-codeinexo.pip-mode #codeineShadersButton,
+.player.ui-codeinexo.pip-mode #codeineMiniPlayerButton,
+.player.ui-codeinexo.pip-mode #codeineSourcesButton,
+.player.ui-codeinexo.pip-mode #codeineEpisodesButton,
+.player.ui-codeinexo.pip-mode #codeineSubtitlesButton,
+.player.ui-codeinexo.pip-mode #codeineAudioButton,
+.player.ui-codeinexo.pip-mode .header-center,
+.player.ui-codeinexo.pip-mode .header-left {
+  display: none !important;
+}
+.player.ui-codeinexo.pip-mode #codeineDrawerButton {
+  display: none !important;
+}
+.player.ui-codeinexo.pip-mode .codeine-menu-items {
+  position: static;
+  display: flex;
+  width: auto;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.player.ui-codeinexo.pip-mode #codeinePipButton {
+  display: grid !important;
+  place-items: center;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: 999px;
+}
+.player.ui-codeinexo.pip-mode #codeinePipLabel { display: none; }
+
+@media (max-width: 1024px) {
+  .player.ui-codeinexo .codeine-seek-row {
+    gap: 8px;
+  }
+  .player.ui-codeinexo .codeine-time-pill {
+    font-size: 12px;
+    min-width: 44px;
+    height: 14px;
+    line-height: 14px;
+  }
+  .player.ui-codeinexo .codeine-action-row {
+    --codeine-control-size: 36px;
+    --codeine-control-gap: 2px;
+    gap: 8px;
+  }
+  .player.ui-codeinexo .codeine-back-button {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    min-height: 36px;
+    max-height: 36px;
+  }
+  .player.ui-codeinexo .party-pill {
+    top: calc(66px + env(safe-area-inset-top));
+    padding: 4px;
+  }
+  .player.ui-codeinexo .codeine-speed-btn {
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+  }
+  .player.ui-codeinexo .codeine-control-btn svg,
+  .player.ui-codeinexo .codeine-play-btn svg,
+  .player.ui-codeinexo .codeine-volume-btn svg,
+  .player.ui-codeinexo .codeine-action-btn svg,
+  .player.ui-codeinexo .codeine-back-button svg {
+    width: 18px;
+    height: 18px;
+  }
+  .player.ui-codeinexo .codeine-volume-control:hover .codeine-volume-slider,
+  .player.ui-codeinexo .codeine-volume-control:focus-within .codeine-volume-slider,
+  .player.ui-codeinexo .codeine-volume-control.is-active .codeine-volume-slider {
+    width: 64px;
+    max-width: 64px;
+    margin-left: 4px;
+  }
+  .player.ui-codeinexo .header-center {
+    max-width: calc(100% - 120px);
+  }
+  .player.ui-codeinexo .codeine-time-label {
+    font-size: 12px;
+  }
+}
+
+/* ==========================================================================
+   CodeineXO Redesigned Drawer Panels
+   (Playback Speed, Anime Upscaler, Audio Tracks, Subtitles, Episodes, Sources)
+   ========================================================================== */
+
+/* All 6 Right-Side Drawers: 90% Black Base */
+.player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
+.player.ui-codeinexo .player-rail-modal .track-panel,
+.player.ui-codeinexo .player-side-modal .player-side-panel {
+  background: rgba(0, 0, 0, 0.90) !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 16px 0 0 16px !important;
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.player.ui-codeinexo :is(.modal-layer, .player-rail-modal, .player-side-modal) {
+  background: transparent !important;
+}
+
+.player.ui-codeinexo .player-rail-modal {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+  background: transparent !important;
+}
+
+.player.ui-codeinexo .player-rail-modal .track-panel {
+  width: min(520px, calc(100vw - 24px)) !important;
+  max-width: min(520px, calc(100vw - 24px)) !important;
+  height: 100% !important;
+  max-height: none !important;
+  padding: 24px;
+  transform: translateX(100%);
+  opacity: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal).modal-visible :is(.track-panel, .player-side-panel) {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal).modal-closing :is(.track-panel, .player-side-panel) {
+  transform: translateX(100%);
+  opacity: 1;
+}
+
+@media (max-width: 540px) {
+  .player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
+  .player.ui-codeinexo .player-rail-modal .track-panel,
+  .player.ui-codeinexo .player-side-modal .player-side-panel {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 20px !important;
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  }
+}
+
+/* Header Row */
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .track-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .track-title {
+  color: var(--theme-text-primary, #fff);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 500;
+  padding: 0;
+  margin: 0;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button {
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .88);
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button:hover:not(:disabled) {
+  background: rgba(40, 44, 56, .85);
+  border-color: rgba(255, 255, 255, .24);
+  color: #fff;
+}
+
+/* Theme Accent on Active Toggles (Night Mode, Custom Styling, Bold) */
+.player.ui-codeinexo #audioNightModeToggle:is(.primary, [aria-pressed="true"]),
+.player.ui-codeinexo #customSubtitleStyleToggle:is(.primary, [aria-pressed="true"]),
+.player.ui-codeinexo #boldToggle:is(.primary, [aria-pressed="true"]),
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button:is(.primary, [aria-pressed="true"]) {
+  background: var(--theme-accent, #3b82f6) !important;
+  color: var(--theme-on-accent, #fff) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+}
+
+.player.ui-codeinexo #audioNightModeToggle:is(.primary, [aria-pressed="true"]):hover:not(:disabled),
+.player.ui-codeinexo #customSubtitleStyleToggle:is(.primary, [aria-pressed="true"]):hover:not(:disabled),
+.player.ui-codeinexo #boldToggle:is(.primary, [aria-pressed="true"]):hover:not(:disabled),
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button:is(.primary, [aria-pressed="true"]):hover:not(:disabled) {
+  background: var(--theme-accent-strong, #2563eb) !important;
+  color: var(--theme-on-accent, #fff) !important;
+  border-color: rgba(255, 255, 255, 0.40) !important;
+}
+
+.player.ui-codeinexo #audioNightModeToggle:is(.primary, [aria-pressed="true"]):active:not(:disabled),
+.player.ui-codeinexo #customSubtitleStyleToggle:is(.primary, [aria-pressed="true"]):active:not(:disabled),
+.player.ui-codeinexo #boldToggle:is(.primary, [aria-pressed="true"]):active:not(:disabled),
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button:is(.primary, [aria-pressed="true"]):active:not(:disabled) {
+  background: var(--theme-accent-strong, #2563eb) !important;
+  color: var(--theme-on-accent, #fff) !important;
+  transform: scale(0.97);
+}
+
+/* Track Lists & Elevated Card Rows (Speed, Upscaler, Audio, Subtitles) */
+.player.ui-codeinexo .player-rail-modal .track-list {
+  margin-top: 16px;
+  gap: 8px;
+  padding: 6px 4px 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row,
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row {
+  padding: 12px 14px;
+  border-radius: 14px;
+  min-height: 48px;
+  font-size: 15px;
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  box-sizing: border-box;
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row:hover:not(:disabled),
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:hover:not(:disabled) {
+  background: rgba(40, 44, 56, 0.85);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row:active:not(:disabled),
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row.selected,
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected {
+  background: var(--theme-accent, #3b82f6);
+  color: var(--theme-on-accent, #fff);
+  border-color: transparent;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row.selected:hover:not(:disabled),
+.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected:hover:not(:disabled) {
+  background: var(--theme-accent-strong, #2563eb);
+  color: var(--theme-on-accent, #fff);
+  border-color: transparent;
+}
+
+/* Audio Tracks Extras (Night Mode Card) */
+.player.ui-codeinexo #audioModal .audio-panel-extras,
+.player.ui-codeinexo #audioPanelExtras {
+  margin-top: auto;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.90);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 44px;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-title {
+  color: rgba(255, 255, 255, .92);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.player.ui-codeinexo #audioModal .audio-extra-desc {
+  color: var(--theme-text-muted, rgba(255, 255, 255, .6));
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.player.ui-codeinexo #audioModal #audioNightModeToggle {
+  min-width: 68px;
+  min-height: 38px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+}
+
+/* Audio Track Rows & Text Wrapping */
+.player.ui-codeinexo #audioModal .audio-track-row {
+  align-items: flex-start;
+}
+
+.player.ui-codeinexo #audioModal .audio-track-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+}
+
+.player.ui-codeinexo #audioModal .audio-track-language {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+}
+
+/* Subtitles Panel Tabs */
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  padding: 2px 0;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-tab-filter .subtitle-import-btn {
+  margin-left: auto;
+}
+
+.player.ui-codeinexo .subtitle-import-btn-official {
+  display: none !important;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip,
+.player.ui-codeinexo .player-side-panel .filter-chip {
+  padding: 8px 18px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .88);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip:hover:not(:disabled):not(.selected) {
+  background: rgba(40, 44, 56, .85);
+  border-color: rgba(255, 255, 255, .24);
+  color: #fff;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip.selected {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-rails {
+  display: grid;
+  grid-template-columns: 185px minmax(0, 1fr) !important;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+/* Subtitles View: Dual Column */
+.player.ui-codeinexo #subtitleModal:not([data-codeine-tab="customization"]) .subtitle-language-rail,
+.player.ui-codeinexo #subtitleModal:not([data-codeine-tab="customization"]) .subtitle-options-rail {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.player.ui-codeinexo #subtitleModal:not([data-codeine-tab="customization"]) .subtitle-style-rail {
+  display: none !important;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-rail-title {
+  color: var(--theme-text-muted, rgba(255, 255, 255, .6));
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  flex: 0 0 auto;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-language-rail .track-list,
+.player.ui-codeinexo #subtitleModal .subtitle-options-rail .track-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 6px;
+  padding: 2px 2px 8px 0;
+  margin-top: 4px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-language-row {
+  padding: 10px 12px;
+  font-size: 14px;
+  min-height: 42px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row {
+  align-items: flex-start;
+  padding: 10px 12px !important;
+  min-height: 52px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-source-chip {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  color: rgba(255, 255, 255, .82);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-source-chip {
+  background: rgba(255, 255, 255, .22);
+  color: #fff;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-metadata {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: clip;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--theme-text-muted, rgba(255, 255, 255, .6));
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-option-metadata {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Customization View: Full Width Scrollable */
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-rails {
+  display: flex !important;
+  flex-direction: column;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-language-rail,
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-options-rail {
+  display: none !important;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-style-rail {
+  display: flex !important;
+  flex-direction: column;
+  width: 100% !important;
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .subtitle-style-rail .subtitle-rail-title {
+  display: none !important;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] #subtitleStylePanel {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px 16px 0;
+}
+
+.player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .style-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.player.ui-codeinexo #subtitleModal .style-section {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Elevated Source and Episode Card Rows */
+.player.ui-codeinexo #sourceModal .track-row.source-row,
+.player.ui-codeinexo #episodesModal .track-row.episode-row {
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.player.ui-codeinexo #sourceModal .track-row.source-row:hover:not(:disabled),
+.player.ui-codeinexo #episodesModal .track-row.episode-row:hover:not(:disabled) {
+  background: rgba(40, 44, 56, 0.85);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.player.ui-codeinexo #sourceModal .track-row.source-row.selected,
+.player.ui-codeinexo #episodesModal .track-row.episode-row.selected {
+  border: 2px solid var(--theme-accent, #3b82f6) !important;
+  background: color-mix(in srgb, var(--theme-accent, #3b82f6) 24%, rgba(15, 17, 24, 0.95)) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+.player.ui-codeinexo #sourceModal .track-row.source-row.selected:hover:not(:disabled),
+.player.ui-codeinexo #episodesModal .track-row.episode-row.selected:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme-accent, #3b82f6) 32%, rgba(15, 17, 24, 0.95)) !important;
+}
+
+.player.ui-codeinexo #subtitleModal .style-toggle-section {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.player.ui-codeinexo #subtitleModal .style-section:has(#subtitleStyleReset) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 8px 0 0;
+}
+
+.player.ui-codeinexo #subtitleModal #subtitleStyleReset {
+  width: 100%;
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-stepper-card {
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  min-height: 52px;
+  padding: 8px 14px;
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-detected-card {
+  background: rgba(0, 0, 0, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  min-height: 54px;
+  padding: 12px 16px;
+  margin-top: auto !important;
+  flex-shrink: 0;
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-detected-label {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.player.ui-codeinexo #shaderModal .enhancement-detected-value {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--theme-on-accent, #fff);
+  background: var(--theme-accent, #3b82f6);
+  border: 1px solid color-mix(in srgb, var(--theme-accent, #3b82f6) 75%, rgba(255, 255, 255, 0.4));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--theme-accent, #3b82f6) 45%, transparent),
+              0 2px 8px rgba(0, 0, 0, 0.35);
+  padding: 5px 16px;
+  border-radius: 999px;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .stepper-value {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .round-step {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .round-step:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: #fff;
+}
+
+.player.ui-codeinexo :is(#subtitleModal, #shaderModal) .round-step:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.player.ui-codeinexo .player-rail-modal .track-row:disabled,
+.player.ui-codeinexo .player-rail-modal .track-row.disabled {
+  opacity: 0.38 !important;
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+/* ==========================================================================
+   Playback Statistics Overlay (30% screen width, 70% black opacity, scrollable)
+   ========================================================================== */
+
+.player.ui-codeinexo .codeine-stats-btn.is-active svg {
+  color: var(--theme-accent, #e50914);
+  filter: drop-shadow(0 0 6px var(--theme-accent, #e50914));
+}

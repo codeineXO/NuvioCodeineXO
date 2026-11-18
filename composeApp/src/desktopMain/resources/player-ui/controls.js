@@ -396,6 +396,14 @@ let state = {
   externalPlayerLabel: "External",
   playLabel: "Play",
   pauseLabel: "Pause",
+  toastPlayingLabel: "Playing",
+  toastPausedLabel: "Paused",
+  toastOnLabel: "On",
+  toastOffLabel: "Off",
+  toastAudioLabel: "Audio",
+  toastSubtitlesLabel: "Subtitles",
+  toastNoAudioTracksLabel: "No audio tracks available",
+  toastNoSubtitlesLabel: "No subtitles available",
   closeLabel: "Close player",
   lockLabel: "Lock player controls",
   unlockLabel: "Unlock player controls",
@@ -791,6 +799,8 @@ const chromeInteractionSelector = [
   ".skip-prompt",
   ".next-episode-card",
 ].join(",");
+
+const toastLabel = (key, fallback) => String(state[key] || "").trim() || fallback;
 
 const send = (type, value = 0) => {
   if (activeModal === "subtitles" && state.secondarySubtitleMenu &&
@@ -1487,7 +1497,8 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
   const timePositionMs = frozenSeekTimePositionMs ?? positionMs;
   renderedTimePositionMs = timePositionMs;
   const percent = durationMs > 0 ? Math.max(0, Math.min(100, positionMs / durationMs * 100)) : 0;
-  seek.value = Math.round(percent * 10);
+  seek.value = String(percent * 10);
+  seek.setAttribute("aria-valuetext", `${formatTime(timePositionMs)} / ${formatTime(durationMs)}`);
   seek.style.setProperty("--progress", `${percent}%`);
   const bufferedMs = Math.max(positionMs, Number(bufferedPositionMs) || 0);
   let bufferedPercent = 0;
@@ -2389,7 +2400,7 @@ const initEyeFilterListeners = () => {
       syncEyeFilterOverlay();
       renderEyeFilterModal();
       send("setEyeFilterEnabled", next ? 1 : 0);
-      showPlayerToast(next ? "Eye filter: On" : "Eye filter: Off");
+      showPlayerToast(`Eye filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
     });
   }
   if (eyeFilterOpacitySlider) {
@@ -2424,7 +2435,7 @@ const initEyeFilterListeners = () => {
     state.grainFilterEnabled = next;
     renderEyeFilterModal();
     send("setGrainFilterEnabled", next ? 1 : 0);
-    showPlayerToast(next ? "Frosted matte filter: On" : "Frosted matte filter: Off");
+    showPlayerToast(`Frosted matte filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
   };
   if (eyeFilterPresetGrain) {
     eyeFilterPresetGrain.addEventListener("click", event => {
@@ -4912,7 +4923,7 @@ const requestPlaybackState = (eventType, revealControls) => {
   };
   renderChrome();
   send(eventType, nextIsPlaying ? 1 : 0);
-  showPlayerToast(nextIsPlaying ? "Playing" : "Paused");
+  showPlayerToast(nextIsPlaying ? toastLabel("toastPlayingLabel", "Playing") : toastLabel("toastPausedLabel", "Paused"));
 
   window.clearTimeout(pendingPlaybackTimer);
   pendingPlaybackTimer = window.setTimeout(() => {
@@ -5276,7 +5287,7 @@ window.addEventListener("blur", () => {
 const cycleAudioTrack = () => {
   const tracks = normalizeTracks(state.audioTracks);
   if (!tracks || tracks.length === 0) {
-    showPlayerToast("No audio tracks available");
+    showPlayerToast(toastLabel("toastNoAudioTracksLabel", "No audio tracks available"));
     return;
   }
   const currentIndex = tracks.findIndex(t => t.selected);
@@ -5284,7 +5295,7 @@ const cycleAudioTrack = () => {
   const nextTrack = tracks[nextIndex];
   send("selectAudioTrack", trackIdValue(nextTrack));
   const trackLabel = nextTrack.label || nextTrack.title || nextTrack.language || `Track ${nextIndex + 1}`;
-  showPlayerToast(`Audio: ${trackLabel}`);
+  showPlayerToast(`${toastLabel("toastAudioLabel", "Audio")}: ${trackLabel}`);
 };
 
 const cycleSubtitleTrack = () => {
@@ -5298,10 +5309,10 @@ const cycleSubtitleTrack = () => {
       } else {
         send("selectBuiltInSubtitleTrack", next.index);
       }
-      showPlayerToast(`Subtitles: ${next.title || next.sourceLabel || next.languageKey || "Track 1"}`);
+      showPlayerToast(`${toastLabel("toastSubtitlesLabel", "Subtitles")}: ${next.title || next.sourceLabel || next.languageKey || "Track 1"}`);
     } else if (currentIndex >= options.length - 1) {
       send("selectBuiltInSubtitleTrack", -1);
-      showPlayerToast("Subtitles: Off");
+      showPlayerToast(`${toastLabel("toastSubtitlesLabel", "Subtitles")}: ${toastLabel("toastOffLabel", "Off")}`);
     } else {
       const next = options[currentIndex + 1];
       if (next.kind === "addon") {
@@ -5309,7 +5320,7 @@ const cycleSubtitleTrack = () => {
       } else {
         send("selectBuiltInSubtitleTrack", next.index);
       }
-      showPlayerToast(`Subtitles: ${next.title || next.sourceLabel || next.languageKey || `Track ${currentIndex + 2}`}`);
+      showPlayerToast(`${toastLabel("toastSubtitlesLabel", "Subtitles")}: ${next.title || next.sourceLabel || next.languageKey || `Track ${currentIndex + 2}`}`);
     }
     return;
   }
@@ -5320,19 +5331,19 @@ const cycleSubtitleTrack = () => {
     if (currentIndex === -1) {
       const next = tracks[0];
       send("selectBuiltInSubtitleTrack", next.index);
-      showPlayerToast(`Subtitles: ${next.label || next.title || next.language || "Track 1"}`);
+      showPlayerToast(`${toastLabel("toastSubtitlesLabel", "Subtitles")}: ${next.label || next.title || next.language || "Track 1"}`);
     } else if (currentIndex >= tracks.length - 1) {
       send("selectBuiltInSubtitleTrack", -1);
-      showPlayerToast("Subtitles: Off");
+      showPlayerToast(`${toastLabel("toastSubtitlesLabel", "Subtitles")}: ${toastLabel("toastOffLabel", "Off")}`);
     } else {
       const next = tracks[currentIndex + 1];
       send("selectBuiltInSubtitleTrack", next.index);
-      showPlayerToast(`Subtitles: ${next.label || next.title || next.language || `Track ${currentIndex + 2}`}`);
+      showPlayerToast(`${toastLabel("toastSubtitlesLabel", "Subtitles")}: ${next.label || next.title || next.language || `Track ${currentIndex + 2}`}`);
     }
     return;
   }
 
-  showPlayerToast("No subtitles available");
+  showPlayerToast(toastLabel("toastNoSubtitlesLabel", "No subtitles available"));
 };
 
 document.querySelectorAll("[data-command]").forEach(button => {
@@ -6395,11 +6406,13 @@ if (codeineVolumeButton) {
 const closeQuickMenu = () => {
   if (!isQuickMenuOpen) return;
   isQuickMenuOpen = false;
+  const hadFocusInside = codeineDrawerItems.contains(document.activeElement);
   codeineDrawerItems.classList.remove("is-open");
   codeineDrawerItems.inert = true;
   codeineDrawerItems.setAttribute("aria-hidden", "true");
   codeineDrawerButton.setAttribute("aria-expanded", "false");
   codeineDrawerButton.classList.remove("active");
+  if (hadFocusInside) codeineDrawerButton.focus({ preventScroll: true });
   noteChromeActivity(true);
 };
 
@@ -6421,7 +6434,7 @@ const positionQuickMenu = () => {
 
 codeineDrawerButton.addEventListener("click", event => {
   event.stopPropagation();
-  if (event.detail === 0) return;
+  const fromKeyboard = event.detail === 0;
   if (isQuickMenuOpen) {
     closeQuickMenu();
     return;
@@ -6435,23 +6448,53 @@ codeineDrawerButton.addEventListener("click", event => {
   codeineDrawerButton.classList.add("active");
   positionQuickMenu();
   noteChromeActivity(true);
+  if (fromKeyboard) quickMenuItems()[0]?.focus({ preventScroll: true });
 });
 
-// Keep mouse interaction from moving keyboard focus into this mouse-only menu.
+// Mouse clicks must not move focus into the menu; keyboard users reach it with Tab and arrow keys.
 codeineQuickDrawer.addEventListener("mousedown", event => event.preventDefault());
+const quickMenuItems = () => Array.from(codeineDrawerItems.querySelectorAll("button"))
+  .filter(button => !button.hidden && !button.disabled && button.offsetParent !== null);
 codeineQuickDrawer.addEventListener("keydown", event => {
-  if (isPlayerBackKey(event)) return;
-  event.preventDefault();
+  if (isPlayerBackKey(event)) {
+    if (!isQuickMenuOpen) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeQuickMenu();
+    codeineDrawerButton.focus({ preventScroll: true });
+    return;
+  }
+  if (event.key === "Tab") return;
   event.stopImmediatePropagation();
+  if (event.key === "Enter") return;
+  event.preventDefault();
+  if (event.code === "Space") {
+    if (!event.repeat && event.target.closest("button")) event.target.closest("button").click();
+    return;
+  }
+  if (!isQuickMenuOpen) return;
+  const items = quickMenuItems();
+  if (!items.length) return;
+  const index = items.indexOf(document.activeElement);
+  let next = -1;
+  if (event.key === "ArrowDown" || event.key === "ArrowRight") next = index < 0 ? 0 : (index + 1) % items.length;
+  else if (event.key === "ArrowUp" || event.key === "ArrowLeft") next = index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length;
+  else if (event.key === "Home") next = 0;
+  else if (event.key === "End") next = items.length - 1;
+  if (next >= 0) items[next].focus({ preventScroll: true });
+});
+codeineQuickDrawer.addEventListener("keyup", event => {
+  if (event.code === "Space") {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+});
+codeineQuickDrawer.addEventListener("focusout", event => {
+  if (isQuickMenuOpen && !codeineQuickDrawer.contains(event.relatedTarget)) closeQuickMenu();
 });
 codeineDrawerItems.addEventListener("click", event => {
   const action = event.target.closest("button");
   if (!action) return;
-  if (event.detail === 0) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    return;
-  }
   if (action === codeineResizeButton || action.dataset.command === "resize") return;
   closeQuickMenu();
 }, true);
@@ -7434,7 +7477,7 @@ document.addEventListener("keydown", event => {
       renderEyeFilterModal();
     }
     send("setEyeFilterEnabled", next ? 1 : 0);
-    showPlayerToast(next ? "Eye filter: On" : "Eye filter: Off");
+    showPlayerToast(`Eye filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
     return;
   }
 
@@ -7447,7 +7490,7 @@ document.addEventListener("keydown", event => {
       renderEyeFilterModal();
     }
     send("setGrainFilterEnabled", next ? 1 : 0);
-    showPlayerToast(next ? "Frosted matte filter: On" : "Frosted matte filter: Off");
+    showPlayerToast(`Frosted matte filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
     return;
   }
 

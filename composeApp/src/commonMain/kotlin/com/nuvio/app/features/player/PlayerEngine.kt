@@ -178,6 +178,21 @@ data class PlayerChapterControls(
     val chapterRemainingTemplate: String = "{time} left",
 )
 
+/**
+ * Localized texts for the player's on-screen toast messages. Kept in their own class because PlayerControlsState's
+ * constructor is close to the JVM limit of 255 parameter slots.
+ */
+data class PlayerToastLabels(
+    val playing: String = "Playing",
+    val paused: String = "Paused",
+    val on: String = "On",
+    val off: String = "Off",
+    val audio: String = "Audio",
+    val subtitles: String = "Subtitles",
+    val noAudioTracks: String = "No audio tracks available",
+    val noSubtitles: String = "No subtitles available",
+)
+
 data class PlayerControlsState(
     val title: String = "",
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
@@ -224,6 +239,7 @@ data class PlayerControlsState(
     val externalPlayerLabel: String = "External",
     val playLabel: String = "Play",
     val pauseLabel: String = "Pause",
+    val toastLabels: PlayerToastLabels = PlayerToastLabels(),
     val closeLabel: String = "Close player",
     val mutedLabel: String = "",
     val volumeLevelLabelFormat: String = "",
