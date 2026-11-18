@@ -5160,3 +5160,28 @@ svg {
   align-items: center;
   gap: 6px;
 }
+
+/* Keyboard shortcut badge (menus and panels) */
+.kbd-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.82);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.eye-filter-toggle-title .kbd-badge {
+  margin-left: 6px;
+  position: relative;
+  top: -1px;
+}

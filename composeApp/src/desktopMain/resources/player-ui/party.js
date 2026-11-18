@@ -203,7 +203,6 @@ const renderPartyChrome = () => {
     codeinePartyButton.classList.toggle("party-active", Boolean(party.active));
     codeinePartyButton.classList.toggle("active", Boolean(party.active || activeModal === "party"));
     codeinePartyButton.setAttribute("aria-label", title);
-    codeinePartyButton.setAttribute("title", title);
   }
 
   const members = partyMembers();

@@ -512,73 +512,74 @@
 
         <div class="codeine-action-row" aria-label="Playback controls">
           <div class="codeine-controls-left">
-            <button class="codeine-control-btn codeine-play-btn" id="codeineToggle" data-command="toggle" aria-label="Play">
+            <button class="codeine-control-btn codeine-play-btn" id="codeineToggle" data-command="toggle" aria-label="Play" data-shortcut="Space K">
               <svg><use id="codeineToggleIcon" href="#icon-play"></use></svg>
             </button>
-            <button class="codeine-control-btn codeine-action-btn optional" id="codeineNextEpisodeButton" data-command="playNextEpisode" aria-label="Next episode" hidden>
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineNextEpisodeButton" data-command="playNextEpisode" aria-label="Next episode" data-shortcut="N" hidden>
               <svg><use href="#icon-codeine-next"></use></svg>
             </button>
             <div class="volume-control codeine-volume-control" id="codeineVolumeControl" aria-label="Volume">
-              <button class="volume-button codeine-volume-btn" id="codeineVolumeButton" aria-label="Mute" type="button">
+              <button class="volume-button codeine-volume-btn" id="codeineVolumeButton" aria-label="Mute" data-shortcut="M" type="button">
                 <svg><use id="codeineVolumeIcon" href="#icon-volume-compact"></use></svg>
               </button>
               <input id="codeineVolumeSlider" class="volume-slider codeine-volume-slider" type="range" min="0" max="200" value="100" aria-label="Volume">
             </div>
-            <span class="codeine-chapter-title" id="codeineChapterTitle" hidden></span>
+            <button class="codeine-chapter-title" id="codeineChapterTitle" type="button" data-command="chapters" data-tooltip="Chapters" data-shortcut="C" hidden></button>
             <div class="codeine-time-label" id="codeineTimeLabel">0:00 / 0:00</div>
           </div>
           <div class="codeine-controls-right">
-            <button class="codeine-control-btn codeine-action-btn optional" id="codeineEpisodesButton" data-command="episodes" aria-label="Episodes">
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineEpisodesButton" data-command="episodes" aria-label="Episodes" data-shortcut="E">
               <svg><use href="#icon-episodes"></use></svg>
             </button>
-            <button class="codeine-control-btn codeine-action-btn optional" id="codeineSourcesButton" data-command="sources" aria-label="Sources">
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineSourcesButton" data-command="sources" aria-label="Sources" data-shortcut="Q">
               <svg><use href="#icon-source"></use></svg>
             </button>
-            <button class="codeine-control-btn codeine-action-btn" id="codeineSubtitlesButton" data-command="subtitles" aria-label="Subtitles">
+            <button class="codeine-control-btn codeine-action-btn" id="codeineSubtitlesButton" data-command="subtitles" aria-label="Subtitles" data-shortcut="S">
               <svg><use href="#icon-subs"></use></svg>
             </button>
-            <button class="codeine-control-btn codeine-action-btn" id="codeineAudioButton" data-command="audio" aria-label="Audio">
+            <button class="codeine-control-btn codeine-action-btn" id="codeineAudioButton" data-command="audio" aria-label="Audio" data-shortcut="A">
               <svg><use href="#icon-audio"></use></svg>
             </button>
-            <button class="codeine-control-btn codeine-action-btn" id="codeineShadersButton" data-command="shaders" aria-label="Enhancements" title="Enhancements">
+            <button class="codeine-control-btn codeine-action-btn" id="codeineShadersButton" data-command="shaders" aria-label="Enhancements" data-shortcut="U">
               <svg><use href="#icon-wand"></use></svg>
             </button>
             <div class="codeine-quick-menu" id="codeineQuickDrawer">
-              <button class="codeine-control-btn codeine-action-btn" id="codeineDrawerButton" type="button" aria-label="More playback controls" title="More playback controls" aria-expanded="false" aria-controls="codeineDrawerItems">
+              <button class="codeine-control-btn codeine-action-btn" id="codeineDrawerButton" type="button" aria-label="More playback controls" data-shortcut="." aria-expanded="false" aria-controls="codeineDrawerItems">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
               </button>
               <div class="codeine-menu-items" id="codeineDrawerItems" role="group" aria-label="More playback controls" aria-hidden="true" inert>
                 <button class="codeine-menu-action" id="codeineSpeedButton" data-command="speed" type="button" aria-label="Playback speed">
-                  <svg><use href="#icon-speed"></use></svg><span>Playback speed</span>
+                  <svg><use href="#icon-speed"></use></svg><span>Playback speed</span><span class="codeine-menu-keys"><kbd class="kbd-badge">`</kbd></span>
                 </button>
                 <button class="codeine-menu-action" id="codeineResizeButton" data-command="resize" type="button" aria-label="Aspect ratio">
-                  <svg><use href="#icon-aspect"></use></svg><span>Aspect ratio</span>
+                  <svg><use href="#icon-aspect"></use></svg><span>Aspect ratio</span><span class="codeine-menu-keys"><kbd class="kbd-badge">R</kbd></span>
                 </button>
                 <button class="codeine-menu-action" id="codeinePipButton" data-command="pictureInPicture" type="button" aria-label="Picture in Picture">
-                  <svg><use href="#icon-pip"></use></svg><span id="codeinePipLabel">Picture in Picture</span>
+                  <svg><use href="#icon-pip"></use></svg><span id="codeinePipLabel">Picture in Picture</span><span class="codeine-menu-keys"><kbd class="kbd-badge">P</kbd></span>
                 </button>
-                <button class="codeine-menu-action" id="codeineMiniPlayerButton" data-command="minimize" type="button" aria-label="Mini player" title="Mini player">
-                  <svg><use href="#icon-miniplayer"></use></svg><span id="codeineMiniPlayerLabel">Mini player</span>
+                <button class="codeine-menu-action" id="codeineMiniPlayerButton" data-command="minimize" type="button" aria-label="Mini player">
+                  <svg><use href="#icon-miniplayer"></use></svg><span id="codeineMiniPlayerLabel">Mini player</span><span class="codeine-menu-keys"><kbd class="kbd-badge">Y</kbd></span>
                 </button>
-                <button class="codeine-menu-action" id="codeinePartyButton" data-command="party" type="button" aria-label="Watch party" title="Watch party">
-                  <svg><use href="#icon-party"></use></svg><span>Watch party</span>
+                <button class="codeine-menu-action" id="codeinePartyButton" data-command="party" type="button" aria-label="Watch party">
+                  <svg><use href="#icon-party"></use></svg><span>Watch party</span><span class="codeine-menu-keys"><kbd class="kbd-badge">W</kbd></span>
                 </button>
-                <button class="codeine-menu-action codeine-stats-btn" id="codeineStatsButton" type="button" aria-label="Playback statistics" title="Playback statistics (i)">
-                  <svg><use href="#icon-info-circle"></use></svg><span>Playback statistics</span>
+                <button class="codeine-menu-action codeine-stats-btn" id="codeineStatsButton" type="button" aria-label="Playback statistics">
+                  <svg><use href="#icon-info-circle"></use></svg><span>Playback statistics</span><span class="codeine-menu-keys"><kbd class="kbd-badge">I</kbd></span>
                 </button>
-                <button class="codeine-menu-action" id="codeineEyeFilterButton" data-command="eyeFilter" type="button" aria-label="Eye filter" title="Eye filter">
-                  <svg><use href="#icon-eye"></use></svg><span>Eye filter</span>
+                <button class="codeine-menu-action" id="codeineEyeFilterButton" data-command="eyeFilter" type="button" aria-label="Eye filter">
+                  <svg><use href="#icon-eye"></use></svg><span>Eye filter</span><span class="codeine-menu-keys"><kbd class="kbd-badge">0</kbd><kbd class="kbd-badge">9</kbd></span>
                 </button>
                 <button class="codeine-menu-action" id="codeineChaptersButton" data-command="chapters" type="button" aria-label="Chapters" hidden>
-                  <svg><use href="#icon-chapters"></use></svg><span>Chapters</span>
+                  <svg><use href="#icon-chapters"></use></svg><span>Chapters</span><span class="codeine-menu-keys"><kbd class="kbd-badge">C</kbd></span>
                 </button>
               </div>
             </div>
-            <button class="codeine-control-btn codeine-action-btn" id="codeineFullscreenButton" data-command="toggleFullscreen" aria-label="Toggle fullscreen">
+            <button class="codeine-control-btn codeine-action-btn" id="codeineFullscreenButton" data-command="toggleFullscreen" aria-label="Toggle fullscreen" data-shortcut="F">
               <svg><use id="codeineFullscreenIcon" href="#icon-fullscreen"></use></svg>
             </button>
           </div>
         </div>
+        <div class="codeine-tooltip" id="codeineTooltip" role="tooltip" aria-hidden="true"><span class="codeine-tooltip-text"></span><span class="codeine-tooltip-keys"></span></div>
       </section>
       <section class="player-toast seek-feedback" id="seekFeedback" aria-hidden="true">
         <span id="seekPreviewPill"></span>
@@ -622,7 +623,7 @@
             <div class="style-section eye-filter-toggle-card">
               <div class="eye-filter-toggle-row">
                 <div class="eye-filter-toggle-info">
-                  <span class="eye-filter-toggle-title">Eye Filter [0]</span>
+                  <span class="eye-filter-toggle-title">Eye Filter <kbd class="kbd-badge">0</kbd></span>
                   <span class="eye-filter-toggle-desc">Warm tint or screen dimmer to reduce eye strain</span>
                 </div>
                 <button class="filter-switch" id="eyeFilterToggleSwitch" type="button" role="switch" aria-checked="false">
@@ -690,7 +691,7 @@
             <div class="style-section eye-filter-grain-card" id="eyeFilterGrainCard">
               <div class="eye-filter-toggle-row">
                 <div class="eye-filter-toggle-info">
-                  <span class="eye-filter-toggle-title">Frosted Matte Filter [9]</span>
+                  <span class="eye-filter-toggle-title">Frosted Matte Filter <kbd class="kbd-badge">9</kbd></span>
                   <span class="eye-filter-toggle-desc">Static frosted veil for hemophobia protection</span>
                 </div>
                 <button class="filter-switch" id="grainFilterToggleSwitch" type="button" role="switch" aria-checked="false">

@@ -2792,6 +2792,8 @@ internal fun PlayerControlsState.toControlsJson(
         append(',')
         appendJsonField("isInPip", DesktopPlayerPictureInPicture.isEnabled)
         append(',')
+        appendJsonField("isMiniPlayer", DesktopPlayerPictureInPicture.isEnabled && DesktopPlayerPictureInPicture.isDocked)
+        append(',')
         appendJsonField("controlsVisible", controlsVisible)
         append(',')
         appendJsonArrayField("parentalWarnings", parentalWarnings) { appendParentalWarningJson(it) }

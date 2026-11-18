@@ -918,11 +918,9 @@ const syncVolumeControl = () => {
     codeineVolumeSlider.value = String(percent);
     codeineVolumeSlider.setAttribute("aria-label", label);
     codeineVolumeSlider.setAttribute("aria-valuetext", percent > 100 ? `${percent}%, boosted` : `${percent}%`);
-    codeineVolumeSlider.setAttribute("title", label);
     codeineVolumeIcon.setAttribute("href", percent === 0 ? "#icon-volume-muted-compact" : "#icon-volume-compact");
     if (codeineVolumeButton) {
       codeineVolumeButton.setAttribute("aria-label", btnLabel);
-      codeineVolumeButton.setAttribute("title", btnLabel);
     }
   }
 };
@@ -4886,18 +4884,15 @@ const renderChrome = () => {
       codeineNextEpisodeButton.hidden = !state.nextEpisodePlayable;
       const nextLabel = state.nextEpisodeHeaderLabel || "Next episode";
       setAttr(codeineNextEpisodeButton, "aria-label", nextLabel);
-      setAttr(codeineNextEpisodeButton, "title", nextLabel);
     }
     if (codeinePipButton) {
       const pipLabel = String(state.pipLabel || "").trim();
       setAttr(codeinePipButton, "aria-label", pipLabel);
-      setAttr(codeinePipButton, "title", pipLabel);
       codeinePipButton.hidden = !pipLabel;
       document.getElementById("codeinePipLabel").textContent = pipLabel;
     }
     if (codeineMiniPlayerButton) {
       setAttr(codeineMiniPlayerButton, "aria-label", miniLabel);
-      setAttr(codeineMiniPlayerButton, "title", miniLabel);
       document.getElementById("codeineMiniPlayerLabel").textContent = miniLabel;
     }
     if (codeineBackButton) {
@@ -4905,17 +4900,10 @@ const renderChrome = () => {
     }
     setVisible(codeineSourcesButton, Boolean(state.showSources));
     setVisible(codeineEpisodesButton, Boolean(state.showEpisodes));
-    if (codeineResizeButton) setAttr(codeineResizeButton, "title", state.resizeModeLabel || "Fit");
-    if (codeineSpeedButton) setAttr(codeineSpeedButton, "title", state.playbackSpeedLabel || "1x");
-    if (codeineSubtitlesButton) setAttr(codeineSubtitlesButton, "title", state.subtitlesLabel || "Subs");
-    if (codeineAudioButton) setAttr(codeineAudioButton, "title", state.audioLabel || "Audio");
     if (codeineShadersButton) {
       codeineShadersButton.classList.toggle("active", isEnhancementActive);
-      setAttr(codeineShadersButton, "title", enhancementsTitle);
       setAttr(codeineShadersButton, "aria-label", enhancementsTitle);
     }
-    if (codeineSourcesButton) setAttr(codeineSourcesButton, "title", state.sourcesLabel || "Sources");
-    if (codeineEpisodesButton) setAttr(codeineEpisodesButton, "title", state.episodesLabel || "Episodes");
   }
 
   syncFullscreenButtons();
@@ -4984,8 +4972,6 @@ const shortcutCommandForEvent = event => {
   if (event.metaKey || event.ctrlKey || event.altKey) return "";
   const isShift = Boolean(event.shiftKey);
   switch (event.code) {
-    case "KeyK":
-      return "keyboardToggle";
     case "ArrowLeft":
       return isShift ? "keyboardFineSeekBack" : "keyboardSeekBack";
     case "KeyJ":
@@ -5063,22 +5049,6 @@ const performActionCommand = command => {
   setFocusedActionButton(button, { focus: true });
   button.click();
   return true;
-};
-
-const actionShortcutCommandForEvent = event => {
-  if (event.metaKey || event.ctrlKey || event.altKey) return "";
-  switch (event.code) {
-    case "KeyS":
-      return "subtitles";
-    case "KeyT":
-      return "audio";
-    case "KeyC":
-      return "sources";
-    case "KeyE":
-      return "episodes";
-    default:
-      return "";
-  }
 };
 
 const keepChromeVisibleFromKeyboard = () => {
@@ -6510,6 +6480,11 @@ codeineQuickDrawer.addEventListener("keydown", event => {
   }
   if (event.key === "Tab") return;
   event.stopImmediatePropagation();
+  if (event.code === "Period" && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    event.preventDefault();
+    closeQuickMenu();
+    return;
+  }
   if (event.key === "Enter") return;
   event.preventDefault();
   if (event.code === "Space") {
@@ -6636,11 +6611,11 @@ const toggleCodeineTimeRemaining = event => {
 
 if (codeineDuration) {
   codeineDuration.addEventListener("click", toggleCodeineTimeRemaining);
-  codeineDuration.setAttribute("title", "Click to toggle remaining time");
+  codeineDuration.setAttribute("data-tooltip", "Toggle remaining time");
 }
 if (codeinePosition) {
   codeinePosition.addEventListener("click", toggleCodeineTimeRemaining);
-  codeinePosition.setAttribute("title", "Click to toggle remaining time");
+  codeinePosition.setAttribute("data-tooltip", "Toggle remaining time");
 }
 
 window.playerUpdate = update => {
@@ -6976,6 +6951,9 @@ const clearSpeedBoostHoldTimer = () => {
     speedBoostHoldTimer = null;
   }
 }
+
+// Space and K share tap-to-toggle and hold-to-speed-boost behaviour.
+const isPlayPauseHoldKey = event => event.code === "Space" || event.code === "KeyK";
 
 const clearSpaceHoldTimer = () => {
   if (spaceHoldTimer) {
@@ -7360,7 +7338,7 @@ document.addEventListener("keyup", event => {
     clearSpaceHoldTimerAndStopSpeedBoost();
     return;
   }
-  if (event.code === "Space") {
+  if (isPlayPauseHoldKey(event)) {
     if (clearSpaceHoldTimerAndStopSpeedBoost()) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (activeModal || isTextEntryTarget(event.target)) return;
@@ -7623,11 +7601,56 @@ document.addEventListener("keydown", event => {
     return;
   }
 
+  if (event.code === "KeyU") {
+    event.preventDefault();
+    if (activeModal === "shaders") closePlayerModal(true);
+    else openPlayerModal("shaders");
+    return;
+  }
+  if (event.code === "KeyC") {
+    event.preventDefault();
+    if (activeModal === "chapters") closePlayerModal(true);
+    else if (Array.isArray(state.chapters) && state.chapters.length > 0 && !state.isInPip) openPlayerModal("chapters");
+    return;
+  }
+  if (event.code === "KeyW") {
+    event.preventDefault();
+    if (activeModal === "party") closePlayerModal(true);
+    else if (!partyButton.hidden && !state.isInPip) openPlayerModal("party");
+    return;
+  }
+
+
   if (event.code === "KeyI") {
     event.preventDefault();
     togglePlaybackStatsOverlay();
     return;
   }
+
+  if (event.code === "KeyR") {
+    event.preventDefault();
+    showCommandToast("resize");
+    send("resize", 0);
+    return;
+  }
+  if (event.code === "KeyY") {
+    event.preventDefault();
+    if (state.isMiniPlayer) {
+      // Toggling the docked mini player window expands it back to the full player.
+      send("pictureInPicture", 0);
+    } else if (!state.isInPip) {
+      if (activeModal) closePlayerModal(true);
+      send("minimize", 0);
+    }
+    return;
+  }
+  if (event.code === "Period" && !event.shiftKey && root.classList.contains("ui-codeinexo") && !state.isInPip) {
+    event.preventDefault();
+    if (activeModal) closePlayerModal(true);
+    codeineDrawerButton.click();
+    return;
+  }
+
 
   if (activeModal) {
     return;
@@ -7641,7 +7664,7 @@ document.addEventListener("keydown", event => {
       return;
     }
   }
-  if (event.shiftKey && event.code === "KeyN") {
+  if (event.code === "KeyN") {
     event.preventDefault();
     noteChromeActivity(true);
     send("playNextEpisode", 0);
@@ -7756,7 +7779,7 @@ document.addEventListener("keydown", event => {
     return;
   }
 
-  if (canSpeedBoostStart() && event.code === "Space") {
+  if (canSpeedBoostStart() && isPlayPauseHoldKey(event)) {
     event.preventDefault();
     if (event.repeat) {
       if (!isSpeedBoosting) {
@@ -7954,6 +7977,133 @@ if (overlayDirtyBridge) {
   ].forEach(type => document.addEventListener(type, markOverlayDirty, true));
   if (document.fonts) document.fonts.addEventListener("loadingdone", markOverlayDirty);
 }
+
+// CodeineXO tooltips: one shared bubble anchored above the seekbar, replacing native title boxes.
+const codeineTooltip = document.getElementById("codeineTooltip");
+const codeineTooltipTargetSelector =
+  ".codeine-action-row button[aria-label], .codeine-action-row button[data-tooltip], .codeine-seek-row .codeine-time-pill[data-tooltip]";
+let codeineTooltipTarget = null;
+let codeineTooltipShowTimer = 0;
+let codeineTooltipHideTimer = 0;
+let codeineTooltipWarm = false;
+
+const codeineTooltipEligible = target => Boolean(
+  target &&
+  codeineTooltip &&
+  root.classList.contains("ui-codeinexo") &&
+  !root.classList.contains("chrome-hidden") &&
+  !root.classList.contains("pip-mode") &&
+  !activeModal &&
+  !(isQuickMenuOpen && target === codeineDrawerButton) &&
+  !target.hidden &&
+  !target.closest(".codeine-menu-items"),
+);
+
+const renderCodeineTooltipContent = target => {
+  const text = String(target.getAttribute("data-tooltip") || target.getAttribute("aria-label") || "").trim();
+  const shortcut = String(target.getAttribute("data-shortcut") || "").trim();
+  const textEl = codeineTooltip.querySelector(".codeine-tooltip-text");
+  const keysEl = codeineTooltip.querySelector(".codeine-tooltip-keys");
+  if (textEl.textContent !== text) textEl.textContent = text;
+  const keysKey = shortcut;
+  if (keysEl.dataset.keys !== keysKey) {
+    keysEl.dataset.keys = keysKey;
+    keysEl.replaceChildren(...(shortcut ? shortcut.split(/[+\s]+/) : []).map(key => {
+      const kbd = document.createElement("kbd");
+      kbd.className = "codeine-tooltip-key";
+      kbd.textContent = key;
+      return kbd;
+    }));
+  }
+  keysEl.hidden = !shortcut;
+  return Boolean(text);
+};
+
+const positionCodeineTooltip = target => {
+  const host = codeineTooltip.offsetParent;
+  const seekRow = document.querySelector(".codeine-seek-row");
+  if (!host || !seekRow) return;
+  const hostRect = host.getBoundingClientRect();
+  // Rects are in zoomed viewport pixels; convert back to the host's layout pixels.
+  const ratio = host.offsetWidth > 0 ? hostRect.width / host.offsetWidth : 1;
+  const targetRect = target.getBoundingClientRect();
+  const seekRect = seekRow.getBoundingClientRect();
+  const width = codeineTooltip.offsetWidth;
+  const edge = 4;
+  const center = (targetRect.left + targetRect.width / 2 - hostRect.left) / ratio;
+  const left = Math.max(edge, Math.min(host.offsetWidth - width - edge, center - width / 2));
+  const bottom = (seekRect.top - hostRect.top) / ratio - 10;
+  codeineTooltip.style.left = `${left}px`;
+  codeineTooltip.style.top = `${bottom}px`;
+};
+
+const showCodeineTooltip = target => {
+  window.clearTimeout(codeineTooltipShowTimer);
+  window.clearTimeout(codeineTooltipHideTimer);
+  if (!codeineTooltipEligible(target) || !renderCodeineTooltipContent(target)) {
+    hideCodeineTooltip(true);
+    return;
+  }
+  codeineTooltipTarget = target;
+  positionCodeineTooltip(target);
+  codeineTooltip.classList.add("is-visible");
+  codeineTooltipWarm = true;
+};
+
+function hideCodeineTooltip(immediate = false) {
+  window.clearTimeout(codeineTooltipShowTimer);
+  codeineTooltipTarget = null;
+  if (!codeineTooltip) return;
+  codeineTooltip.classList.remove("is-visible");
+  window.clearTimeout(codeineTooltipHideTimer);
+  if (immediate) {
+    codeineTooltipWarm = false;
+  } else {
+    codeineTooltipHideTimer = window.setTimeout(() => { codeineTooltipWarm = false; }, 240);
+  }
+}
+
+const scheduleCodeineTooltip = target => {
+  window.clearTimeout(codeineTooltipShowTimer);
+  window.clearTimeout(codeineTooltipHideTimer);
+  if (codeineTooltipWarm) {
+    showCodeineTooltip(target);
+    return;
+  }
+  codeineTooltipTarget = target;
+  codeineTooltipShowTimer = window.setTimeout(() => showCodeineTooltip(target), 380);
+};
+
+if (codeineTooltip) {
+  document.addEventListener("pointerover", event => {
+    const target = event.target.closest ? event.target.closest(codeineTooltipTargetSelector) : null;
+    if (target === codeineTooltipTarget) return;
+    if (target) scheduleCodeineTooltip(target);
+    else if (codeineTooltipTarget) hideCodeineTooltip();
+  }, true);
+  document.addEventListener("pointerdown", () => {
+    if (codeineTooltipTarget) hideCodeineTooltip(true);
+  }, true);
+  document.addEventListener("focusin", event => {
+    const target = event.target.closest ? event.target.closest(codeineTooltipTargetSelector) : null;
+    if (target && target.matches(":focus-visible")) showCodeineTooltip(target);
+    else if (codeineTooltipTarget && !target) hideCodeineTooltip(true);
+  });
+  window.addEventListener("blur", () => hideCodeineTooltip(true));
+  // Keep the bubble in sync with live labels (Play/Pause, Mute/Unmute) and hide it when chrome goes away.
+  new MutationObserver(records => {
+    if (!codeineTooltipTarget || !codeineTooltip.classList.contains("is-visible")) return;
+    if (!codeineTooltipEligible(codeineTooltipTarget)) {
+      hideCodeineTooltip(true);
+      return;
+    }
+    if (records.some(record => record.target === codeineTooltipTarget)) {
+      renderCodeineTooltipContent(codeineTooltipTarget);
+      positionCodeineTooltip(codeineTooltipTarget);
+    }
+  }).observe(root, { subtree: true, attributes: true, attributeFilter: ["aria-label", "data-tooltip", "class", "hidden"] });
+}
+
 
 setProgress(0, 0, 0);
 focusShortcutRoot();
