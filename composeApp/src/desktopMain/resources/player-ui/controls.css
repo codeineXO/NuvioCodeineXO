@@ -1925,7 +1925,7 @@ button:disabled {
 
 .player.ui-codeinexo .codeine-seek-container:hover .chapter-marks,
 .player.ui-codeinexo .codeine-seek-container:active .chapter-marks {
-  height: 6px;
+  height: 8px;
 }
 
 .chapter-marks[hidden] {
@@ -5120,8 +5120,8 @@ svg {
   max-width: 100%;
   height: 4px;
   border-radius: 999px;
-  background: rgba(47, 111, 237, 0.35);
-  background: color-mix(in srgb, var(--theme-accent, #2f6fed) 35%, transparent);
+  background: rgba(47, 111, 237, 0.30);
+  background: color-mix(in srgb, var(--theme-accent, #2f6fed) 30%, transparent);
   pointer-events: none;
   transition: height 140ms ease;
 }
@@ -5146,7 +5146,7 @@ svg {
 .player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-buffer,
 .player.ui-codeinexo .codeine-seek-container:hover .codeine-seek-track-progress,
 .player.ui-codeinexo .codeine-seek-container:active .codeine-seek-track-progress {
-  height: 6px;
+  height: 8px;
 }
 
 .player.ui-codeinexo .codeine-seek-container .scrub {
@@ -5228,7 +5228,7 @@ svg {
   background:
     var(--theme-accent-gradient, linear-gradient(var(--theme-accent, #2f6fed), var(--theme-accent, #2f6fed)))
       left center / var(--progress, 0%) 100% no-repeat,
-    linear-gradient(to right, color-mix(in srgb, var(--theme-accent, #2f6fed) 35%, transparent), color-mix(in srgb, var(--theme-accent, #2f6fed) 35%, transparent))
+    linear-gradient(to right, color-mix(in srgb, var(--theme-accent, #2f6fed) 30%, transparent), color-mix(in srgb, var(--theme-accent, #2f6fed) 30%, transparent))
       left center / var(--buffered, 0%) 100% no-repeat,
     rgba(255, 255, 255, 0.20);
   transition: height 140ms ease;
@@ -5237,7 +5237,7 @@ svg {
 .player.ui-codeinexo .codeine-seek-container:hover .scrub::-webkit-slider-runnable-track,
 .player.ui-codeinexo .codeine-seek-container:active .scrub::-webkit-slider-runnable-track,
 .player.ui-codeinexo .scrub:hover::-webkit-slider-runnable-track {
-  height: 6px;
+  height: 8px;
 }
 
 .player.ui-codeinexo .scrub::-webkit-slider-thumb {
@@ -5258,6 +5258,7 @@ svg {
 .player.ui-codeinexo .scrub:hover::-webkit-slider-thumb,
 .player.ui-codeinexo .scrub:active::-webkit-slider-thumb {
   opacity: 1;
+  margin-top: -3px;
 }
 
 .player.ui-codeinexo .codeine-seek-container .scrub:active::-webkit-slider-thumb,
