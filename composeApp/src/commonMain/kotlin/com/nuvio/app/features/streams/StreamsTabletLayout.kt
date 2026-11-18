@@ -59,6 +59,7 @@ import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.StreamResultsWideArtworkAspectRatio
+import com.nuvio.app.core.ui.WideDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
 import com.nuvio.app.core.ui.dominantBackdropBlendColor
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
@@ -294,7 +295,8 @@ internal fun DesktopStreamsBackdrop(
     )
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val aspectRatio = maxWidth.value / maxHeight.value
-        val useWideArtworkFrame = aspectRatio > StandardDesktopViewportAspectRatio
+        // Near-16:9 windows (e.g. maximized with taskbar) fill and crop; only true ultrawide pins a framed artwork.
+        val useWideArtworkFrame = aspectRatio >= WideDesktopViewportAspectRatio
         val cropWideArtwork = aspectRatio > StreamResultsWideArtworkAspectRatio
         val artworkWidth = expandingWideArtworkWidthDp(
             maxWidth.value,
