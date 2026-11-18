@@ -1746,3 +1746,13 @@
 .player.ui-codeinexo.pip-mode .codeine-menu-keys {
   display: none;
 }
+
+/* Seek fill end: raw percent while the thumb is hidden, thumb-centre aligned while it shows (see controls.js). */
+.player.ui-codeinexo .codeine-seek-container {
+  --progress: var(--progress-raw, 0%);
+}
+
+.player.ui-codeinexo .codeine-seek-container:hover,
+.player.ui-codeinexo .codeine-seek-container:active {
+  --progress: var(--progress-thumb, var(--progress-raw, 0%));
+}

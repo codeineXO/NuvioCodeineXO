@@ -1490,6 +1490,30 @@ const formatTime = milliseconds => {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
 
+// The range thumb travels from half its width to width minus half, so a plain percent fill stops short of the
+// thumb centre and the hover fill shows through. Map the fill end onto the thumb centre instead.
+const CODEINE_SEEK_THUMB_PX = 14;
+let codeineSeekTrackWidth = 0;
+let codeineLastProgressPercent = 0;
+const codeineThumbAlignedPercent = percent => {
+  codeineLastProgressPercent = percent;
+  const width = codeineSeekTrackWidth;
+  if (!(width > CODEINE_SEEK_THUMB_PX)) return percent;
+  const half = CODEINE_SEEK_THUMB_PX / 2;
+  return ((half + (percent / 100) * (width - CODEINE_SEEK_THUMB_PX)) / width) * 100;
+};
+// The raw fill shows while the thumb is hidden; the stylesheet swaps in the thumb-aligned one while it is visible.
+const applyCodeineSeekProgress = percent => {
+  codeineSeekContainer.style.setProperty("--progress-raw", `${percent}%`);
+  codeineSeekContainer.style.setProperty("--progress-thumb", `${codeineThumbAlignedPercent(percent)}%`);
+};
+if (codeineSeekContainer && window.ResizeObserver) {
+  new ResizeObserver(() => {
+    codeineSeekTrackWidth = codeineSeekContainer.clientWidth;
+    applyCodeineSeekProgress(codeineLastProgressPercent);
+  }).observe(codeineSeekContainer);
+}
+
 const setProgress = (positionMs, durationMs, bufferedPositionMs = state.bufferedPositionMs) => {
   const timePositionMs = frozenSeekTimePositionMs ?? positionMs;
   renderedTimePositionMs = timePositionMs;
@@ -1508,7 +1532,7 @@ const setProgress = (positionMs, durationMs, bufferedPositionMs = state.buffered
   }
   seek.style.setProperty("--buffered", `${bufferedPercent}%`);
   if (codeineSeekContainer) {
-    codeineSeekContainer.style.setProperty("--progress", `${percent}%`);
+    applyCodeineSeekProgress(percent);
     codeineSeekContainer.style.setProperty("--buffered", `${bufferedPercent}%`);
   }
   seek.style.setProperty("--bufferProgress", `${bufferedPercent}%`);
@@ -6480,11 +6504,6 @@ codeineQuickDrawer.addEventListener("keydown", event => {
   }
   if (event.key === "Tab") return;
   event.stopImmediatePropagation();
-  if (event.code === "Period" && !event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
-    event.preventDefault();
-    closeQuickMenu();
-    return;
-  }
   if (event.key === "Enter") return;
   event.preventDefault();
   if (event.code === "Space") {
@@ -7644,12 +7663,6 @@ document.addEventListener("keydown", event => {
     }
     return;
   }
-  if (event.code === "Period" && !event.shiftKey && root.classList.contains("ui-codeinexo") && !state.isInPip) {
-    event.preventDefault();
-    if (activeModal) closePlayerModal(true);
-    codeineDrawerButton.click();
-    return;
-  }
 
 
   if (activeModal) {
@@ -8103,6 +8116,49 @@ if (codeineTooltip) {
     }
   }).observe(root, { subtree: true, attributes: true, attributeFilter: ["aria-label", "data-tooltip", "class", "hidden"] });
 }
+
+
+// CodeineXO: the player chrome never keeps keyboard focus, so keys always reach the player shortcuts.
+// Panels and the quick menu keep normal focus behaviour.
+const chromeNoFocusSelector = ".header, .progress, .center-controls, .skip-prompt, .opening-actions";
+const chromeNoFocusExclusions = ".codeine-menu-items, .modal-layer";
+const isChromeNoFocusTarget = element => Boolean(
+  root.classList.contains("ui-codeinexo") &&
+  element && element.closest &&
+  element.closest(chromeNoFocusSelector) &&
+  !element.closest(chromeNoFocusExclusions),
+);
+const isChromeNoFocusSlider = element => Boolean(element && element.tagName === "INPUT" && element.type === "range");
+
+document.querySelectorAll(".header, .progress, .center-controls, .opening-actions").forEach(section => {
+  section.querySelectorAll("button, input").forEach(control => {
+    if (!control.closest(chromeNoFocusExclusions)) control.tabIndex = -1;
+  });
+});
+const skipPromptButton = document.getElementById("skipPrompt");
+if (skipPromptButton) skipPromptButton.tabIndex = -1;
+
+// Stop buttons taking focus on press; clicks still fire.
+document.addEventListener("mousedown", event => {
+  const control = event.target.closest && event.target.closest("button");
+  if (control && isChromeNoFocusTarget(control)) event.preventDefault();
+}, true);
+// Sliders need their default press to drag, so hand focus back once the drag ends.
+const releaseChromeSliderFocus = () => {
+  window.setTimeout(() => {
+    if (isChromeNoFocusTarget(document.activeElement)) focusShortcutRoot();
+  }, 0);
+};
+window.addEventListener("pointerup", releaseChromeSliderFocus, true);
+window.addEventListener("pointercancel", releaseChromeSliderFocus, true);
+// Anything that still lands on the chrome (programmatic focus) goes back to the player root.
+document.addEventListener("focusin", event => {
+  const target = event.target;
+  if (!isChromeNoFocusTarget(target) || isChromeNoFocusSlider(target)) return;
+  window.setTimeout(() => {
+    if (document.activeElement === target) focusShortcutRoot();
+  }, 0);
+}, true);
 
 
 setProgress(0, 0, 0);
