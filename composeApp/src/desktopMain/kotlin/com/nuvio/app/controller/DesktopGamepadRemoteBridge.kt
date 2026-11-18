@@ -1,9 +1,11 @@
 package com.nuvio.app.controller
 
+import com.nuvio.app.AppTabCycler
 import com.nuvio.app.composeInputComponent
 import com.nuvio.app.controller.audio.ControllerSoundPlayer
 import com.nuvio.app.controller.audio.DesktopControllerSound
 import com.nuvio.app.core.ui.RemoteNavigationDispatcher
+import com.nuvio.app.features.remote.RemotePlayerLink
 import java.awt.Frame
 import java.awt.Robot
 import java.awt.event.KeyEvent
@@ -19,7 +21,8 @@ import kotlinx.coroutines.launch
  *
  * Upstream's [DesktopControllerInput] polls XInput (Windows) or SDL2 (Linux/macOS); its events are
  * turned into real key presses here, the same way the phone remote's D-pad is, so every screen and
- * the player handle a controller exactly like the keyboard.
+ * the player handle a controller exactly like the keyboard. X plays/pauses the player; LB/RB seek
+ * 10 s in the player and switch the main tabs elsewhere.
  */
 internal object DesktopGamepadRemoteBridge {
     private val robot by lazy { runCatching { Robot() }.getOrNull() }
@@ -59,11 +62,32 @@ internal object DesktopGamepadRemoteBridge {
                 XboxButton.Menu -> if (appInFront()) {
                     SwingUtilities.invokeLater { RemoteNavigationDispatcher.openContextMenu() }
                 }
+                XboxButton.X -> if (appInFront() && playerOpen()) {
+                    RemotePlayerLink.send("toggle", 0.0)
+                    ControllerSoundPlayer.playSelect()
+                }
+                XboxButton.LB -> page(forward = false)
+                XboxButton.RB -> page(forward = true)
                 else -> Unit
             }
             is ControllerEvent.ButtonReleased,
             is ControllerEvent.AnalogScroll,
             -> Unit
+        }
+    }
+
+    private fun playerOpen(): Boolean = RemotePlayerLink.state.value != null
+
+    /** Bumpers seek 10 s in the player, and step through the main tabs everywhere else. */
+    private fun page(forward: Boolean) {
+        if (!appInFront()) return
+        if (playerOpen()) {
+            RemotePlayerLink.send(if (forward) "keyboardSeek10Forward" else "keyboardSeek10Back", 0.0)
+            ControllerSoundPlayer.playNavigate()
+        } else {
+            SwingUtilities.invokeLater {
+                if (AppTabCycler.cycle(forward)) ControllerSoundPlayer.playNavigate()
+            }
         }
     }
 

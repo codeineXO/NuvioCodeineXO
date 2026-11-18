@@ -80,7 +80,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.State
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -805,6 +807,14 @@ internal fun DesktopHoverSidebar(
     fun selectTab(tab: AppScreenTab) {
         onProfileStackVisibleChange(false)
         onTabSelected(tab)
+    }
+    val currentTab by rememberUpdatedState(selectedTab)
+    val currentSelectTab by rememberUpdatedState(::selectTab)
+    DisposableEffect(canNavigateBack) {
+        if (canNavigateBack) return@DisposableEffect onDispose {}
+        val cycle: (Boolean) -> Unit = { forward -> currentSelectTab(currentTab.cycled(forward)) }
+        AppTabCycler.register(cycle)
+        onDispose { AppTabCycler.unregister(cycle) }
     }
 
     val session = LocalRemoteNavigation.current
