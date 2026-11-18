@@ -23,17 +23,18 @@ import com.nuvio.app.navigation.playerEnterFadeMillis
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Longest the loading screen waits for its artwork before fading in without it. */
-private const val ARTWORK_WAIT_MS = 400L
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.nuvio.app.navigation.PlayerEnterArtworkWaitMillis
 
 /**
  * Who is asking for the desktop playback loading screen. Later owners sit on top, so the player's own state wins
  * over the stream page it was opened from.
  */
-internal enum class PlaybackLoadingCoverOwner(val fadesIn: Boolean) {
-    StreamPage(fadesIn = true),
-    PlayerScreen(fadesIn = false),
-    PlayerSurface(fadesIn = false),
+internal enum class PlaybackLoadingCoverOwner {
+    StreamPage,
+    PlayerScreen,
+    PlayerSurface,
 }
 
 internal enum class PlaybackLoadingCoverMode {
@@ -74,6 +75,10 @@ internal object PlaybackLoadingCover {
 
     val revealed: Boolean
         get() = requests.values.any { it.mode == PlaybackLoadingCoverMode.Revealed }
+
+    /** True once the loading screen is drawn fully opaque, hiding everything beneath it. */
+    var opaque by mutableStateOf(false)
+        internal set
 
     val active: PlaybackLoadingCoverRequest?
         get() = if (revealed) null else requests.values
@@ -117,33 +122,31 @@ internal fun PlaybackLoadingCoverHost(modifier: Modifier = Modifier) {
     val lastContent = remember { arrayOfNulls<PlaybackLoadingCoverContent>(1) }
     val current = active
     if (current != null) lastContent[0] = current.content
-    val fadesIn = current?.owner?.fadesIn == true
     val shown = current != null
     val fadeMillis = playerEnterFadeMillis()
     val artwork = current?.content?.artwork
-    LaunchedEffect(shown, fadesIn, revealed) {
+    // Every owner fades the screen in from hidden, in step with the player layer's own entry fade; a hand-over
+    // between owners keeps the running animation, so the page beneath never cuts away.
+    LaunchedEffect(shown, revealed) {
         when {
-            shown && fadesIn -> {
+            shown -> {
                 // Fade in only once the artwork is decoded (the stream page prefetches it), so the screen does not
                 // open on black with just the logo. The page beneath stays up meanwhile, briefly at most.
                 if (artwork != null && alpha.value == 0f) {
-                    withTimeoutOrNull(ARTWORK_WAIT_MS) {
+                    withTimeoutOrNull(PlayerEnterArtworkWaitMillis.toLong()) {
                         snapshotFlow { OpeningArtworkCache.painterFor(artwork) != null }.first { it }
                     }
                 }
                 alpha.animateTo(1f, tween(fadeMillis, easing = FastOutSlowInEasing))
             }
-            shown -> alpha.snapTo(1f)
             revealed -> alpha.snapTo(0f)
             else -> alpha.animateTo(0f, tween(fadeMillis, easing = FastOutSlowInEasing))
         }
     }
-    // Snap on and off in the same frame as the request, so a hand-over never shows a frame of the page beneath.
-    val drawAlpha = when {
-        shown && !fadesIn -> 1f
-        revealed -> 0f
-        else -> alpha.value
-    }
+    // Drop off in the same frame as the reveal, so the controls page's own copy takes over without a gap.
+    val drawAlpha = if (revealed) 0f else alpha.value
+    val opaque = shown && drawAlpha >= 1f
+    SideEffect { PlaybackLoadingCover.opaque = opaque }
     val content = current?.content ?: lastContent[0]
     if (content == null || (!shown && drawAlpha <= 0f)) {
         if (!shown) lastContent[0] = null

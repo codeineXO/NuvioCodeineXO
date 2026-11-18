@@ -1599,12 +1599,14 @@ internal fun MainAppContent(
             } else {
                 liquidGlassNativeTabBarSupported && liquidGlassNativeTabBarEnabled && initialHomeReady
             }
-            val useDesktopSidebar = isDesktop &&
+            // Page layout keeps the sidebar inset while the player is on top, so the outgoing page
+            // (e.g. streams) doesn't reflow full-width during the transition to the loading overlay.
+            val desktopSidebarLayoutActive = isDesktop &&
                 isTabletLayout &&
                 !useNativeBottomTabs &&
                 desktopNavigationLayout == DesktopNavigationLayout.Sidebar &&
-                currentRoute !is PlayerRoute &&
                 currentRoute !is OnboardingRoute
+            val useDesktopSidebar = desktopSidebarLayoutActive && currentRoute !is PlayerRoute
             val isSubpage = currentRoute != null && currentRoute !is TabsRoute && currentRoute !is PlayerRoute && currentRoute !is OnboardingRoute
 
             val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
@@ -1631,7 +1633,7 @@ internal fun MainAppContent(
                 NavBarStyle.COMPACT -> animatedSidebarWidth
                 else -> DesktopSidebarCollapsedWidth
             }
-            val contentStartPadding = if (useDesktopSidebar) {
+            val contentStartPadding = if (desktopSidebarLayoutActive) {
                 reservedSidebarWidth + DesktopSidebarOuterInset * 2
             } else {
                 0.dp
@@ -1754,8 +1756,8 @@ internal fun MainAppContent(
                     LocalUseNativeNavigation provides useNativeNavigation,
                     LocalNativeNavigationBarHidden provides (currentRoute?.hidesNavigationBar == true),
                     LocalVerticalBarPadding provides if (drawsUnderVerticalBar) verticalBarPadding else PaddingValues(),
-                    LocalDesktopSidebarActive provides useDesktopSidebar,
-                    LocalDesktopSidebarContentInset provides if (useDesktopSidebar) contentStartPadding else 0.dp,
+                    LocalDesktopSidebarActive provides desktopSidebarLayoutActive,
+                    LocalDesktopSidebarContentInset provides contentStartPadding,
                 ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                 // Capture the live page before navigation padding, independently of page glass sources.
@@ -2721,6 +2723,15 @@ internal fun MainAppContent(
                 if (!isDesktop) return@LaunchedEffect
                 when {
                     playerOverlayActive && playerExiting -> playerEnterProgress.snapTo(0f)
+                    playerOverlayActive && playerEnterProgress.value < 1f &&
+                        com.nuvio.app.features.player.PlaybackLoadingCover.active != null -> {
+                        // The loading screen fades in over the page on its own; fading the black player in beneath it
+                        // too would darken the page twice as fast and read as a dip to black. Appear once it covers.
+                        kotlinx.coroutines.withTimeoutOrNull(com.nuvio.app.navigation.playerEnterHoldMillis().toLong()) {
+                            snapshotFlow { com.nuvio.app.features.player.PlaybackLoadingCover.opaque }.first { it }
+                        }
+                        playerEnterProgress.snapTo(1f)
+                    }
                     playerOverlayActive -> playerEnterProgress.animateTo(
                         targetValue = 1f,
                         animationSpec = tween(playerEnterFadeMillis(), easing = FastOutSlowInEasing),

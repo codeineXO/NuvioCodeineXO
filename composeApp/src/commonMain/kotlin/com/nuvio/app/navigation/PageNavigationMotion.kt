@@ -35,7 +35,13 @@ internal fun pageNavigationMotion(forward: Boolean): ContentTransform {
 }
 
 /** Fade for the full-screen player rising over the app; the native video surface appears once it completes. */
-internal fun playerEnterFadeMillis(): Int = pageFadeMillis(320)
+internal fun playerEnterFadeMillis(): Int = pageFadeMillis(380)
+
+/** Longest the desktop loading screen waits for its artwork before fading in without it. */
+internal const val PlayerEnterArtworkWaitMillis = 400
+
+/** How long the page beneath stays drawn under the player's entry: the cover's artwork wait plus its fade. */
+internal fun playerEnterHoldMillis(): Int = playerEnterFadeMillis() + PlayerEnterArtworkWaitMillis
 
 /**
  * Leaving the player: the page beneath is drawn at full opacity at once and the black player page lifts
@@ -50,7 +56,7 @@ internal fun playerExitNavigationMotion(): ContentTransform =
  * here would dim the page under the half-faded player and read as a black flash.
  */
 internal fun playerEnterNavigationMotion(): ContentTransform {
-    val hold = playerEnterFadeMillis()
+    val hold = playerEnterHoldMillis()
     return fadeIn(tween(durationMillis = 1, delayMillis = hold)) togetherWith
         fadeOut(tween(hold + 1), targetAlpha = 1f)
 }
