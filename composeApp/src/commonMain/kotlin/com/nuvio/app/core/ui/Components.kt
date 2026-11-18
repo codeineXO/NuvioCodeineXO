@@ -232,12 +232,20 @@ fun NuvioScreenHeader(
         ) {
             Row(
                 modifier = Modifier.weight(1f),
-                verticalAlignment = if (isDesktop && onBack != null) Alignment.Top else Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
             ) {
-                if (onBack != null && (!LocalDesktopSidebarActive.current || showBackWithDesktopSidebar)) {
+                if (onBack != null && isDesktop) {
+                    NuvioBackButton(
+                        onClick = onBack,
+                        usePageStyle = true,
+                        keyboardNavigationEnabled = backButtonKeyboardNavigationEnabled,
+                        backgroundOnly = backButtonBackgroundOnly,
+                        showWithDesktopSidebar = showBackWithDesktopSidebar,
+                    )
+                } else if (onBack != null && (!LocalDesktopSidebarActive.current || showBackWithDesktopSidebar)) {
                     IconButton(onClick = onBack, modifier = (if (isDesktop) Modifier
-                        .size(headerButtonSize)
+                        .size(desktopBackButtonSize)
                     else Modifier).navigationGlass(backgroundOnly = backButtonBackgroundOnly).then(if (backButtonKeyboardNavigationEnabled) {
                         Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)
                     } else Modifier.excludeFromRemoteNavigation())) {
@@ -245,7 +253,7 @@ fun NuvioScreenHeader(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(Res.string.action_back),
                             tint = frostedGlassSecondaryContentColor(if (isDesktop) MaterialTheme.colorScheme.onBackground else tokens.colors.textPrimary),
-                            modifier = if (isDesktop) Modifier.size(headerIconSize) else Modifier,
+                            modifier = if (isDesktop) Modifier.size(desktopBackButtonIconSize) else Modifier,
                         )
                     }
                 }

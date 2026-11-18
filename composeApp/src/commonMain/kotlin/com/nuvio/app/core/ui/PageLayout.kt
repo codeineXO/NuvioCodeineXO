@@ -6,8 +6,8 @@ import androidx.compose.ui.graphics.Color
 
 /** Shared placement of desktop back navigation, matching enhanced details. */
 internal val desktopBackButtonTopPadding = 16.dp
-internal val desktopBackButtonSize = 48.dp
-internal val desktopBackButtonIconSize = 24.dp
+internal val desktopBackButtonSize = 38.dp
+internal val desktopBackButtonIconSize = 22.dp
 internal val desktopBackButtonContainerColor = Color.Black.copy(alpha = 0.34f)
 
 /** Desktop top bar layout metrics for vertical alignment and responsive height. */

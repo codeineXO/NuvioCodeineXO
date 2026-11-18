@@ -72,6 +72,7 @@ import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.DesktopBackdropVerticalBias
 import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
+import com.nuvio.app.core.ui.desktopBackButtonSize
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
@@ -342,7 +343,7 @@ fun DesktopDetailHero(
                 .padding(
                     start = pageHorizontalPadding + LocalDesktopSidebarContentInset.current,
                     end = space.s32,
-                    top = if (isEnhanced && compact) desktopBackButtonTopPadding + 48.dp + space.s8 else 0.dp,
+                    top = if (isEnhanced && compact) desktopBackButtonTopPadding + desktopBackButtonSize + space.s8 else 0.dp,
                     bottom = if (compact) space.s8 else space.s40,
                 ),
         ) {

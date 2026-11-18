@@ -223,7 +223,7 @@ private fun OpeningOverlayContent(
             containerColor = Color.Black.copy(alpha = if (usePageBackButton) 0.34f else 0.3f),
             showContainerOnDesktop = usePageBackButton,
             contentColor = if (usePageBackButton) MaterialTheme.colorScheme.onBackground else Color.White,
-            buttonSize = if (usePageBackButton && isDesktop) 48.dp else 44.dp,
+            buttonSize = 44.dp,
             iconSize = 24.dp,
             contentDescription = stringResource(if (usePageBackButton) Res.string.action_back else Res.string.compose_player_close),
         )

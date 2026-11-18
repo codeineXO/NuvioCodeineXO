@@ -6,6 +6,7 @@ import com.nuvio.app.core.ui.LocalDesktopSidebarActive
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
 import com.nuvio.app.core.ui.desktopBackButtonIconSize
 import com.nuvio.app.core.ui.desktopBackButtonTopPadding
+import com.nuvio.app.core.ui.NuvioBackButton
 
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.remoteNavigationGroup
@@ -422,10 +423,14 @@ internal fun CatalogHeader(
             .nuvioConsumePointerEvents()
             .padding(start = pageHorizontalPadding + sidebarInset, end = pageHorizontalPadding)
             .padding(top = effectiveTopPadding, bottom = NuvioTokens.Space.s4),
-        verticalAlignment = if (isDesktop) Alignment.Top else Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(tokens.spacing.controlGap),
     ) {
-        if (!LocalDesktopSidebarActive.current) IconButton(
+        if (isDesktop) NuvioBackButton(
+            onClick = onBack,
+            usePageStyle = true,
+            keyboardNavigationEnabled = false,
+        ) else if (!LocalDesktopSidebarActive.current) IconButton(
             onClick = onBack,
             modifier = (if (isDesktop) Modifier.size(desktopBackButtonSize) else Modifier)
                 .navigationGlass()
