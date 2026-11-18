@@ -7,8 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -36,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.layout.onSizeChanged
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
@@ -548,7 +545,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         playbackStatsMetadata = playbackStatsMetadata,
         title = title,
         mediaContentType = mediaClassification.type,
-        isMiniPlayer = args.isMiniPlayer,
         playerUiMode = playerSettingsUiState.playerUiMode.storageKey,
         seekPreviewEnabled = playerSettingsUiState.seekPreviewEnabled,
         seekPreviewWhileDragging = playerSettingsUiState.seekPreviewWhileDragging,
@@ -722,7 +718,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         ),
         isLocked = playerControlsLocked,
         lockedOverlayVisible = lockedOverlayVisible,
-        controlsVisible = !args.isMiniPlayer && controlsVisible && !playerControlsLocked,
+        controlsVisible = controlsVisible && !playerControlsLocked,
         parentalWarnings = parentalWarnings,
         showParentalGuide = showParentalGuide,
         showSubmitIntro = isSeries &&
@@ -839,52 +835,26 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         nextEpisodeIsMixed = isFillerEnabled && nextEpisodeForControls?.isMixed == true,
     )
     val gestureCallbacks = rememberSurfaceGestureCallbacks()
-    val fold = LocalFold.current?.takeIf { !isInPip && !args.isMiniPlayer }
+    val fold = LocalFold.current?.takeIf { !isInPip }
     val videoModifier = if (fold != null) Modifier.fillMaxWidth().height(fold.top) else Modifier.fillMaxSize()
     val panelModifier = if (fold != null) Modifier.fillMaxSize().padding(top = fold.bottom) else Modifier.fillMaxSize()
-    val playbackGesturesEnabled = !args.isMiniPlayer && !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
-    val enableSurfaceGestures = !args.isMiniPlayer && !isDesktop && !isInPip
+    val playbackGesturesEnabled = !isDesktop && !isInPip && initialLoadCompleted && errorMessage == null
+    val enableSurfaceGestures = !isDesktop && !isInPip
 
     BindAutoSyncRuntimeEffects() // AutoSync hook
 
-    val focusManager = LocalFocusManager.current
-    val wasMiniPlayer = remember { mutableStateOf(args.isMiniPlayer) }
-    LaunchedEffect(args.isMiniPlayer) {
-        val returningFromMini = wasMiniPlayer.value && !args.isMiniPlayer
-        wasMiniPlayer.value = args.isMiniPlayer
-        if (returningFromMini) {
-            focusManager.clearFocus(force = true)
-            playerController?.requestKeyboardFocus()
-        }
-    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(end = partyPanelInset)
             .clipToBounds()
-            .then(
-                if (args.isMiniPlayer) {
-                    Modifier
-                        .clip(RectangleShape)
-                        .background(MaterialTheme.nuvio.colors.surfaceElevated)
-                } else {
-                    Modifier.background(Color.Black)
-                }
-            ),
+            .background(Color.Black),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (args.isMiniPlayer) {
-                        Modifier
-                            .weight(1f)
-                            .clip(RectangleShape)
-                    } else {
-                        Modifier.fillMaxHeight()
-                    }
-                )
+                .fillMaxHeight()
                 .onSizeChanged { layoutSize = it }
                 .then(
                 if (enableSurfaceGestures) {
@@ -1012,93 +982,67 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             )
         }
 
-        if (!args.isMiniPlayer) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !playbackSnapshot.isPlaying && !playbackSnapshot.isEnded && !controlsVisible && !playerControlsLocked && !isInPip && fold == null,
-                enter = fadeIn(animationSpec = tween(durationMillis = 220)),
-                exit = fadeOut(animationSpec = tween(durationMillis = 180)),
-            ) {
-                PauseMetadataOverlay(
-                    title = title,
-                    logo = logo,
-                    isEpisode = isEpisode,
-                    seasonNumber = activeSeasonNumber,
-                    episodeNumber = activeEpisodeNumber,
-                    episodeTitle = activeEpisodeTitle,
-                    pauseDescription = activePauseDescription?.takeUnless { it.isBlank() },
-                    providerName = activeProviderName,
-                    metrics = metrics,
-                    horizontalSafePadding = horizontalSafePadding,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-
-            if (!isDesktop) {
-                RenderPlayerControls(
-                    displayedPositionMs = displayedPositionMs,
-                    isEpisode = isEpisode,
-                    folded = fold != null,
-                    modifier = panelModifier,
-                )
-            }
-            Box(modifier = videoModifier) {
-                RenderPlaybackOverlays(
-                    runtime = runtime,
-                    displayedPositionMs = displayedPositionMs,
-                    currentGestureFeedback = currentGestureFeedback,
-                    initialLoadingMessage = initialLoadingMessage,
-                    initialLoadingProgress = initialLoadingProgress,
-                    showP2pRebufferStats = showP2pRebufferStats,
-                    p2pRebufferMessage = p2pRebufferMessage,
-                    p2pRebufferProgress = p2pRebufferProgress,
-                    suppressOpeningOverlay = isDesktop && playerSurfaceSourceUrl != null,
-                    folded = fold != null,
-                )
-            }
-        }
-    }
-
-        if (args.isMiniPlayer) {
-            val miniSubtitle = if (isEpisode) {
-                val base = "S${seasonNumber}E${episodeNumber}"
-                val displayTitle = localizedEpisodeTitle(episodeTitle, episodeNumber)
-                if (!displayTitle.isNullOrBlank()) "$base • $displayTitle" else base
-            } else {
-                activeStreamTitle.ifBlank { activeProviderName }
-            }
-
-            InAppMiniPlayerControls(
+        androidx.compose.animation.AnimatedVisibility(
+            visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !playbackSnapshot.isPlaying && !playbackSnapshot.isEnded && !controlsVisible && !playerControlsLocked && !isInPip && fold == null,
+            enter = fadeIn(animationSpec = tween(durationMillis = 220)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 180)),
+        ) {
+            PauseMetadataOverlay(
                 title = title,
-                subtitle = miniSubtitle,
-                isPlaying = playbackSnapshot.isPlaying,
-                progressFraction = if (playbackSnapshot.durationMs > 0L) {
-                    (displayedPositionMs.toFloat() / playbackSnapshot.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else 0f,
-                onTogglePlayback = { togglePlayback() },
-                onExpand = { args.onExpand?.invoke() },
-                onClose = { args.onClose?.invoke() },
+                logo = logo,
+                isEpisode = isEpisode,
+                seasonNumber = activeSeasonNumber,
+                episodeNumber = activeEpisodeNumber,
+                episodeTitle = activeEpisodeTitle,
+                pauseDescription = activePauseDescription?.takeUnless { it.isBlank() },
+                providerName = activeProviderName,
+                metrics = metrics,
+                horizontalSafePadding = horizontalSafePadding,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        if (!isDesktop) {
+            RenderPlayerControls(
+                displayedPositionMs = displayedPositionMs,
+                isEpisode = isEpisode,
+                folded = fold != null,
+                modifier = panelModifier,
+            )
+        }
+        Box(modifier = videoModifier) {
+            RenderPlaybackOverlays(
+                runtime = runtime,
+                displayedPositionMs = displayedPositionMs,
+                currentGestureFeedback = currentGestureFeedback,
+                initialLoadingMessage = initialLoadingMessage,
+                initialLoadingProgress = initialLoadingProgress,
+                showP2pRebufferStats = showP2pRebufferStats,
+                p2pRebufferMessage = p2pRebufferMessage,
+                p2pRebufferProgress = p2pRebufferProgress,
+                suppressOpeningOverlay = isDesktop && playerSurfaceSourceUrl != null,
+                folded = fold != null,
             )
         }
     }
+    }
 
-    if (!args.isMiniPlayer) {
-        Box(modifier = panelModifier) {
-            if (!isDesktop) {
-                RenderParty(
-                    runtime = runtime,
-                    panelWidth = partyPanelWidth,
-                    modal = !dockPartyPanel,
-                    panelVisible = showPartyPanel && !isInPip,
-                )
-            }
-            RenderPlayerModals(displayedPositionMs = displayedPositionMs)
+    Box(modifier = panelModifier) {
+        if (!isDesktop) {
+            RenderParty(
+                runtime = runtime,
+                panelWidth = partyPanelWidth,
+                modal = !dockPartyPanel,
+                panelVisible = showPartyPanel && !isInPip,
+            )
         }
+        RenderPlayerModals(displayedPositionMs = displayedPositionMs)
     }
 
     // Desktop parks the native video window while the player shuts down on Back. Its in-app overlays (buffer
     // stats, status chips and the like) normally sit hidden behind that window, so cover them until navigation
     // completes; if the release fails the cover lifts with it.
-    if (isDesktop && !args.isMiniPlayer && playerReleaseSurfaceRetention.inFlight) {
+    if (isDesktop && playerReleaseSurfaceRetention.inFlight) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1147,7 +1091,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(
     val partyActive = partyState.party != null
     val playerBadges = if (isDesktop) emptyList() else rememberPlayerBadges()
     val subtitleDelayToastLabel = stringResource(Res.string.compose_player_subtitle_delay)
-    LaunchedEffect(playerSettingsUiState.seekPreviewEnabled, playerSettingsUiState.playerUiMode, isInPip, args.isMiniPlayer) {
+    LaunchedEffect(playerSettingsUiState.seekPreviewEnabled, playerSettingsUiState.playerUiMode, isInPip) {
         seekPreviewInteraction.clear()
     }
     DisposableEffect(Unit) {
@@ -1287,7 +1231,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(
                                 seekPreviewInteraction.keyboardPositionMs != null -> seekPreviewInteraction.keyboardPositionMs
                                 else -> seekPreviewInteraction.hoverPositionMs
                             },
-                            isVisible = !isInPip && !args.isMiniPlayer && when {
+                            isVisible = !isInPip && when {
                                 seekPreviewInteraction.dragging -> playerSettingsUiState.seekPreviewWhileDragging
                                 seekPreviewInteraction.keyboardPositionMs != null -> playerSettingsUiState.seekPreviewWhileKeyboardSeeking
                                 else -> seekPreviewInteraction.hoverPositionMs != null && playerSettingsUiState.seekPreviewWhileHovering

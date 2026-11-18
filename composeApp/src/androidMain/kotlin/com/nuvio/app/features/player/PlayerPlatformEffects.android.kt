@@ -104,6 +104,12 @@ actual fun ManagePlayerPictureInPicture(
 
 actual fun togglePlayerPictureInPicture() = Unit
 
+actual fun playerMiniPlayerUsesDockedWindow(): Boolean = false
+
+actual fun dockPlayerForMiniPlayer(onDocked: () -> Unit) = onDocked()
+
+actual fun undockMiniPlayer() = Unit
+
 @Composable
 actual fun rememberIsInPictureInPicture(): Boolean {
     val context = LocalContext.current

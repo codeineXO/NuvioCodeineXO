@@ -1,8 +1,6 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -324,26 +322,6 @@ private fun NativePlayerSurface(
         DesktopPlayerPictureInPicture.setWindowTitle(playerControlsState.pipWindowTitle)
     }
 
-    LaunchedEffect(host, playerControlsState.isMiniPlayer, platformDensity) {
-        host.setMiniPlayerMode(
-            isMini = playerControlsState.isMiniPlayer,
-            radiusPx = 0,
-        )
-    }
-
-    val wasMiniPlayer = remember { mutableStateOf(playerControlsState.isMiniPlayer) }
-    LaunchedEffect(playerControlsState.isMiniPlayer) {
-        val returningFromMini = wasMiniPlayer.value && !playerControlsState.isMiniPlayer
-        wasMiniPlayer.value = playerControlsState.isMiniPlayer
-        if (returningFromMini) {
-            controller.requestKeyboardFocus()
-            delay(50L)
-            controller.requestKeyboardFocus()
-            delay(150L)
-            controller.requestKeyboardFocus()
-        }
-    }
-
     LaunchedEffect(controller) {
         DesktopPlayerPictureInPicture.changes.drop(1).collect {
             controller.updateControls(latestControlsState.value)
@@ -377,7 +355,6 @@ private fun NativePlayerSurface(
     val pipChanges by DesktopPlayerPictureInPicture.changes.collectAsState()
     val isInPip = pipChanges >= 0 && DesktopPlayerPictureInPicture.isEnabled
 
-    val isMiniPlayer = playerControlsState.isMiniPlayer
     val surfaceRevealReady = LocalPlayerSurfaceRevealReady.current
     // The native window paints solid black from the moment it is shown, while mpv and the controls page are still
     // starting. Keep it collapsed behind an app-drawn loading screen until the page reports its first painted frame.
@@ -397,20 +374,12 @@ private fun NativePlayerSurface(
     // Stop waiting for the page once there is no loading screen to show (loaded, failed, or turned off), so the
     // handshake never holds back the picture or an error.
     val surfaceRevealed = !releasingForNavigation &&
-        (isMiniPlayer || (surfaceRevealReady && (controlsPainted.value || !playerControlsState.showOpeningOverlay)))
+        surfaceRevealReady && (controlsPainted.value || !playerControlsState.showOpeningOverlay)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .then(
-                if (isMiniPlayer) {
-                    Modifier
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .background(Color.Transparent)
-                } else {
-                    Modifier.background(Color.Black)
-                }
-            ),
+            .background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
         // SwingPanel keeps the stable AWT host. PiP moves only the native player
@@ -418,7 +387,9 @@ private fun NativePlayerSurface(
         CompositionLocalProvider(LocalDensity provides platformDensity) {
             SwingPanel(
                 factory = { host },
-                modifier = if (isInPip) {
+                // Docked, the player page is parked off-screen at full size, so the host keeps its size and the video
+                // comes back without a resize.
+                modifier = if (isInPip && !DesktopPlayerPictureInPicture.isDocked) {
                     Modifier
                         .align(Alignment.BottomEnd)
                         .requiredSize(1.dp)
@@ -436,17 +407,12 @@ private fun NativePlayerSurface(
                                 }
                             }
                         )
-                        .then(
-                            if (isMiniPlayer) {
-                                Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                            } else Modifier
-                        )
                 } else {
                     Modifier
                         .align(Alignment.BottomEnd)
                         .requiredSize(1.dp)
                 },
-                background = if (isMiniPlayer) Color.Transparent else Color.Black,
+                background = Color.Black,
             )
         }
 
@@ -465,7 +431,8 @@ private fun NativePlayerSurface(
             )
         }
 
-        // Placeholder overlay shown when video has moved to PiP window
+        // Placeholder overlay shown when video has moved to PiP window. The docked mini player only shows this page
+        // for the moment it takes to move the video back on expand, so keep it plain black then.
         if (isInPip) {
             Box(
                 modifier = Modifier
@@ -473,7 +440,7 @@ private fun NativePlayerSurface(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(
+                if (!DesktopPlayerPictureInPicture.isDocked) Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier.padding(24.dp),

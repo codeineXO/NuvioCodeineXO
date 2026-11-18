@@ -14,25 +14,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.runtime.collectAsState
 import com.nuvio.app.features.player.LocalPlayerSurfaceRevealReady
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.features.player.InAppPlayerManager
-import kotlin.math.roundToInt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -172,6 +165,9 @@ import com.nuvio.app.features.player.recordExternalPlaybackProgress
 import com.nuvio.app.features.player.ExternalPlayerPlatform
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.player.PlayerLaunchStore
+import com.nuvio.app.features.player.dockPlayerForMiniPlayer
+import com.nuvio.app.features.player.undockMiniPlayer
+import com.nuvio.app.features.player.playerMiniPlayerUsesDockedWindow
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.prepareExternalPlayerLaunch
@@ -423,15 +419,11 @@ internal fun MainAppContent(
     }.collectAsStateWithLifecycle()
     val activePlayerLaunch by InAppPlayerManager.activeLaunch.collectAsStateWithLifecycle()
     val isMiniPlayer by InAppPlayerManager.isMiniPlayer.collectAsStateWithLifecycle()
+    // Read at placement only by the player overlay, so minimizing does not recompose the player.
+    val miniPlayerState = InAppPlayerManager.isMiniPlayer.collectAsState()
     val activeLaunchId by InAppPlayerManager.activeLaunchId.collectAsStateWithLifecycle()
-    val miniPlayerOffsetX by InAppPlayerManager.offsetX.collectAsStateWithLifecycle()
-    val miniPlayerOffsetY by InAppPlayerManager.offsetY.collectAsStateWithLifecycle()
 
-    LaunchedEffect(isMiniPlayer) {
-        if (!isMiniPlayer) {
-            InAppPlayerManager.resetOffset()
-        }
-    }
+    val miniPlayerDocked = remember { playerMiniPlayerUsesDockedWindow() }
 
     val streamAutoPlayEnabled by PlayerSettingsRepository.uiState.collectMappedAsState(
         StreamAutoPlayPolicy::isEffectivelyEnabled,
@@ -898,6 +890,18 @@ internal fun MainAppContent(
             if (launch != null) {
                 InAppPlayerManager.play(currentRoute.launchId, launch)
             }
+        }
+    }
+
+    // Expanding the mini player, from its own controls or its docked window, brings back the full player page.
+    LaunchedEffect(isMiniPlayer, activeLaunchId) {
+        if (!ownsAppRuntime || isMiniPlayer) return@LaunchedEffect
+        // Expanding from the docked window moves the video home itself; this covers any other way back.
+        undockMiniPlayer()
+        val launchId = activeLaunchId ?: return@LaunchedEffect
+        val launch = activePlayerLaunch ?: return@LaunchedEffect
+        if (currentRoute !is PlayerRoute) {
+            navController.navigate(PlayerRoute(launchId = launchId, title = launch.title))
         }
     }
 
@@ -2079,10 +2083,13 @@ internal fun MainAppContent(
                             onDispose { visiblePlayerEntries -= 1 }
                         }
                     }
+                    // The player draws above navigation; this black page only backs it. Minimizing pops it while the
+                    // video is already in the mini window, so let it leave invisibly rather than fade black over the app.
+                    val minimized by InAppPlayerManager.isMiniPlayer.collectAsState()
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black),
+                            .then(if (minimized) Modifier else Modifier.background(Color.Black)),
                     )
                 }
                 entry<CatalogRoute> { route ->
@@ -2744,63 +2751,26 @@ internal fun MainAppContent(
                 val playerRoute = remember(currentActiveLaunchId) {
                     PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title)
                 }
-                BoxWithConstraints(
+                Box(
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    val density = LocalDensity.current
-                    val windowWidthPx = with(density) { maxWidth.toPx() }
-                    val windowHeightPx = with(density) { maxHeight.toPx() }
-                    val padEndPx = with(density) { 24.dp.toPx() }
-                    val padBottomPx = with(density) { 24.dp.toPx() }
-                    val playerWidthPx = with(density) { 340.dp.toPx() }
-                    val playerHeightPx = with(density) { 238.dp.toPx() }
-                    val minOffsetX = -(windowWidthPx - padEndPx - playerWidthPx).coerceAtLeast(0f)
-                    val maxOffsetX = padEndPx
-                    val minOffsetY = -(windowHeightPx - padBottomPx - playerHeightPx).coerceAtLeast(0f)
-                    val maxOffsetY = padBottomPx
-
-                    LaunchedEffect(miniPlayerOffsetX, miniPlayerOffsetY, minOffsetX, maxOffsetX, minOffsetY, maxOffsetY) {
-                        val clampedX = miniPlayerOffsetX.coerceIn(minOffsetX, maxOffsetX)
-                        val clampedY = miniPlayerOffsetY.coerceIn(minOffsetY, maxOffsetY)
-                        if (clampedX != miniPlayerOffsetX || clampedY != miniPlayerOffsetY) {
-                            InAppPlayerManager.setOffset(clampedX, clampedY)
-                        }
-                    }
-
-                    val miniModifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = 24.dp)
-                        .offset {
-                            IntOffset(
-                                miniPlayerOffsetX.coerceIn(minOffsetX, maxOffsetX).roundToInt(),
-                                miniPlayerOffsetY.coerceIn(minOffsetY, maxOffsetY).roundToInt(),
-                            )
-                        }
-                        .pointerInput(minOffsetX, maxOffsetX, minOffsetY, maxOffsetY) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                InAppPlayerManager.dragBy(dragAmount.x, dragAmount.y)
-                            }
-                        }
-                        .size(width = 340.dp, height = 238.dp)
-                        .shadow(elevation = 16.dp, shape = RectangleShape)
-                        .border(
-                            width = 1.dp,
-                            color = Color.White.copy(alpha = 0.15f),
-                            shape = RectangleShape,
-                        )
-                        .clip(RectangleShape)
-                        .background(MaterialTheme.nuvio.colors.surfaceElevated)
-                        .zIndex(25f)
-
-                    val fullModifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = playerEnterProgress.value }
-                        .background(Color.Black)
-                        .zIndex(15f)
-
                     Box(
-                        modifier = if (isMiniPlayer) miniModifier else fullModifier,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            // Minimized, the video plays in the docked window. Park the player off-screen instead of
+                            // shrinking it: the state is read only at placement, so going in and out of the mini player
+                            // neither recomposes nor re-measures the player, and it keeps running without drawing or
+                            // taking input.
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) {
+                                    val parked = miniPlayerState.value
+                                    placeable.place(if (parked) placeable.width * 2 else 0, 0)
+                                }
+                            }
+                            .graphicsLayer { alpha = playerEnterProgress.value }
+                            .background(Color.Black)
+                            .zIndex(15f),
                     ) {
                         CompositionLocalProvider(LocalPlayerSurfaceRevealReady provides playerSurfaceRevealReady) {
                         key(currentActiveLaunchId) {
@@ -2823,21 +2793,19 @@ internal fun MainAppContent(
                                     }
                                 },
                                 onOpenPartyMedia = ::openPartyMedia,
-                                isMiniPlayer = isMiniPlayer,
-                                onMinimize = {
-                                    InAppPlayerManager.minimize()
-                                    if (currentRoute is PlayerRoute) {
-                                        navController.popBackStack()
+                                // The mini player is only offered where it can dock in its own window.
+                                onMinimize = if (!miniPlayerDocked) null else {
+                                    {
+                                        // Dock the video first, then collapse the page, so the picture never drops out.
+                                        dockPlayerForMiniPlayer {
+                                            InAppPlayerManager.minimize()
+                                            if (navController.currentRoute is PlayerRoute) {
+                                                navController.popBackStack()
+                                            }
+                                        }
                                     }
                                 },
-                                onExpand = {
-                                    InAppPlayerManager.expand()
-                                    if (currentRoute !is PlayerRoute) {
-                                        navController.navigate(
-                                            PlayerRoute(launchId = currentActiveLaunchId, title = currentActiveLaunch.title),
-                                        )
-                                    }
-                                },
+                                onExpand = { InAppPlayerManager.expand() },
                                 onClose = {
                                     InAppPlayerManager.close()
                                     if (currentRoute is PlayerRoute) {

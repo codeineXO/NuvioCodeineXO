@@ -40,6 +40,15 @@ expect fun ManagePlayerPictureInPicture(
 
 expect fun togglePlayerPictureInPicture()
 
+/** True when the mini player shows in its own window docked over the app instead of inside the page. */
+expect fun playerMiniPlayerUsesDockedWindow(): Boolean
+
+/** Moves the video into the docked mini player window, then runs [onDocked]; [onDocked] is skipped if docking fails. */
+expect fun dockPlayerForMiniPlayer(onDocked: () -> Unit)
+
+/** Moves the video back from the docked mini player window, if it is there. */
+expect fun undockMiniPlayer()
+
 @Composable
 expect fun rememberIsInPictureInPicture(): Boolean
 

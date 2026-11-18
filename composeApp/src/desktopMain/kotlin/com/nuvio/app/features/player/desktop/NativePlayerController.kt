@@ -26,7 +26,6 @@ import com.nuvio.app.features.player.AudioTrack
 import com.nuvio.app.features.player.ImportedSubtitleFile
 import com.nuvio.app.features.player.SubtitleImportBridge
 import com.nuvio.app.features.player.findPreferredAudioTrackIndex
-import com.nuvio.app.features.player.InAppPlayerManager
 import com.nuvio.app.features.player.ParentalWarning
 import com.nuvio.app.features.player.PlayerControlsAction
 import com.nuvio.app.features.player.PlayerControlsState
@@ -684,7 +683,6 @@ internal class NativePlayerController(
 
     @Synchronized
     fun updateControls(state: PlayerControlsState) {
-        val wasMiniPlayer = controlsState.isMiniPlayer
         host.setControlsVisible(state.controlsVisible)
         val currentHandle = handle
         val current = currentHandle.takeIf { it != 0L } ?: run {
@@ -747,9 +745,6 @@ internal class NativePlayerController(
         val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage, currentPlaybackStats)
             .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount}"
         NativePlayerBridge.updateControls(current, controlsJson)
-        if (wasMiniPlayer && !state.isMiniPlayer) {
-            requestKeyboardFocus()
-        }
     }
 
     /** Each phone remote "close" bumps the token the controls page watches to close its open panel. */
@@ -818,7 +813,10 @@ internal class NativePlayerController(
         SwingUtilities.invokeLater {
             val current = handle.takeIf { it != 0L } ?: return@invokeLater
             if (DesktopPlayerPictureInPicture.isEnabled) {
-                DesktopPlayerPictureInPicture.pipWindow?.videoHolderPanel?.requestFocusInWindow()
+                val pip = DesktopPlayerPictureInPicture.pipWindow
+                // Never pull keyboard focus out of the page the user is browsing into the docked mini player.
+                if (DesktopPlayerPictureInPicture.isDocked && pip?.window?.isFocused != true) return@invokeLater
+                pip?.videoHolderPanel?.requestFocusInWindow()
                 NativePlayerBridge.requestFocus(current)
                 return@invokeLater
             }
@@ -1159,8 +1157,6 @@ internal class NativePlayerController(
                     }
                 }
             }
-            "miniPlayerDragX" -> InAppPlayerManager.dragBy(value.toFloat(), 0f)
-            "miniPlayerDragY" -> InAppPlayerManager.dragBy(0f, value.toFloat())
             "resizePip" -> DesktopPlayerPictureInPicture.resizeWindow(value)
             "volumeChange" -> setFallbackVolume(value.toFloat())
             "volumeChangeTemporary" -> setTemporaryVolume(value.toFloat())
@@ -2450,8 +2446,6 @@ internal fun PlayerControlsState.toControlsJson(
 ): String =
     buildString {
         append('{')
-        appendJsonField("isMiniPlayer", isMiniPlayer)
-        append(',')
         appendJsonField("playerUiMode", playerUiMode)
         append(',')
         appendJsonField("seekPreviewEnabled", seekPreviewEnabled)

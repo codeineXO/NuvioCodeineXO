@@ -196,7 +196,6 @@ data class PlayerToastLabels(
 data class PlayerControlsState(
     val title: String = "",
     val mediaContentType: MediaContentType = MediaContentType.UNKNOWN,
-    val isMiniPlayer: Boolean = false,
     val playerUiMode: String = "codeine_xo",
     val seekPreviewEnabled: Boolean = false,
     val seekPreviewWhileDragging: Boolean = true,

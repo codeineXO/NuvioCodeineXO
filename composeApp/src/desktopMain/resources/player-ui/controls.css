@@ -560,7 +560,7 @@ button:disabled {
   pointer-events: auto;
 }
 
-.player:is(.chrome-hidden, .opening-active, .error-active, .pip-mode, .mini-player-mode) .parental-guide-trigger {
+.player:is(.chrome-hidden, .opening-active, .error-active, .pip-mode) .parental-guide-trigger {
   pointer-events: none;
 }
 
@@ -1532,47 +1532,6 @@ button:disabled {
     height: 87px;
   }
 
-}
-
-.player.mini-player-mode .pause-metadata-content {
-  padding: min(12px, 4vh) min(14px, 4vw);
-  gap: min(4px, 1.5vh);
-  overflow: hidden;
-}
-
-.player.mini-player-mode .pause-clock {
-  top: min(10px, 4vh);
-  right: min(12px, 4vw);
-  font-size: min(22px, 9vh, 7vw);
-}
-
-.player.mini-player-mode .pause-logo {
-  width: min(160px, 48vw);
-  height: min(40px, 20vh);
-  flex-shrink: 0;
-}
-
-.player.mini-player-mode .pause-title {
-  max-width: 72%;
-  margin-top: 0;
-  font-size: min(18px, 9vh, 5vw);
-  -webkit-line-clamp: 1;
-}
-
-.player.mini-player-mode .pause-episode-info,
-.player.mini-player-mode .pause-episode-title {
-  max-width: 82%;
-  margin-top: 0;
-  font-size: min(12px, 6vh, 3.5vw);
-  line-height: 1.25;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  -webkit-line-clamp: 1;
-}
-
-.player.mini-player-mode .pause-description {
-  display: none;
 }
 
 .opening-overlay {
@@ -4826,37 +4785,6 @@ svg {
 @keyframes codeine-menu-enter {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.player.mini-player-mode #codeineHeader,
-.player.mini-player-mode #codeineCenterControls,
-.player.mini-player-mode #codeineBottomBar,
-.player.mini-player-mode #codeineControls,
-.player.mini-player-mode .codeine-center-controls,
-.player.mini-player-mode .codeine-bottom-bar,
-.player.mini-player-mode .codeine-top-header,
-.player.mini-player-mode .codeine-quick-menu,
-.player.mini-player-mode .header,
-.player.mini-player-mode .footer,
-.player.mini-player-mode .center-controls,
-.player.mini-player-mode .modal,
-.player.mini-player-mode #playbackError,
-.player.mini-player-mode #openingOverlay,
-.player.mini-player-mode .action-pill,
-.player.mini-player-mode .toast,
-.player.mini-player-mode #toast,
-.player.mini-player-mode #skipPrompt,
-.player.mini-player-mode #nextEpisodeCard,
-.player.mini-player-mode #timeOverlay,
-.player.mini-player-mode #p2pStatsOverlay,
-.player.mini-player-mode #parentalGuide,
-.player.mini-player-mode #partyPill,
-.player.mini-player-mode .party-pill {
-  display: none !important;
-}
-
-.player.mini-player-mode {
-  cursor: pointer !important;
 }
 
 .subtitle-rail-header {

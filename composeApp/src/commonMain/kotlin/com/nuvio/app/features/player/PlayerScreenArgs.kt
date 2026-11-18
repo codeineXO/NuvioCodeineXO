@@ -50,7 +50,6 @@ internal data class PlayerScreenArgs(
     val subtitleExtras: SubtitleRequestExtras? = null,
     val launchId: Long? = null,
     val streamLaunchId: Long? = null,
-    val isMiniPlayer: Boolean = false,
     val onMinimize: (() -> Unit)? = null,
     val onExpand: (() -> Unit)? = null,
     val onClose: (() -> Unit)? = null,

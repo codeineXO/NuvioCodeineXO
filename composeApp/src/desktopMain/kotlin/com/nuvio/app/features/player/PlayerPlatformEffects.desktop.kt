@@ -72,6 +72,16 @@ actual fun togglePlayerPictureInPicture() {
     DesktopPlayerPictureInPicture.toggle()
 }
 
+actual fun playerMiniPlayerUsesDockedWindow(): Boolean = DesktopPlayerPictureInPicture.supportsDocking
+
+actual fun dockPlayerForMiniPlayer(onDocked: () -> Unit) {
+    DesktopPlayerPictureInPicture.enterDocked(onDocked)
+}
+
+actual fun undockMiniPlayer() {
+    DesktopPlayerPictureInPicture.exitDocked()
+}
+
 @Composable
 internal actual fun rememberPlatformPlayerGestureController(): PlayerGestureController? = null
 

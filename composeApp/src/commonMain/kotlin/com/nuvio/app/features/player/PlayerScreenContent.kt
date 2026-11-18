@@ -124,7 +124,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
     BoxWithConstraints(
         modifier = args.modifier
             .fillMaxSize()
-            .background(if (args.isMiniPlayer) Color.Transparent else Color.Black)
+            .background(Color.Black)
             .pointerInput(Unit) {
                 awaitPointerEventScope {
                     while (true) {
@@ -232,13 +232,11 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         }
         runtime.resetIdentityStateIfNeeded()
 
-        if (!args.isMiniPlayer) {
-            EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
-            ManagePlayerPictureInPicture(
-                isPlaying = isPlaying,
-                videoSize = videoSize,
-            )
-        }
+        EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
+        ManagePlayerPictureInPicture(
+            isPlaying = isPlaying,
+            videoSize = videoSize,
+        )
         runtime.BindPlayerRuntimeEffects()
         runtime.RenderPlayerRuntimeUi(
             partyPanelWidth = partyPanelWidth,

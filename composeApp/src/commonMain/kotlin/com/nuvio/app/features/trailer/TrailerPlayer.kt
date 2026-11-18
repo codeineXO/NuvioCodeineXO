@@ -140,7 +140,6 @@ private fun TrailerPlaybackSurface(
             title = title,
             playerUiMode = playerSettings.playerUiMode.storageKey,
             showRemainingTime = playerSettings.showRemainingTime,
-            isMiniPlayer = false,
             themeAccentColor = themeColors.accent.toCssColorString(),
             themeAccentGradientColors = accentGradient
                 .takeIf { it.size > 1 }

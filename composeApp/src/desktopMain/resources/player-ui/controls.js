@@ -491,7 +491,6 @@ let state = {
   isPlaying: false,
   isEnded: false,
   isLoading: true,
-  isMiniPlayer: false,
   controlsVisible: true,
   parentalWarnings: [],
   showParentalGuide: false,
@@ -4656,7 +4655,7 @@ const syncChromeAutoHideTimer = showOpening => {
 };
 
 const noteChromeActivity = (force = false) => {
-  if (!state.controlsVisible || state.isMiniPlayer) return;
+  if (!state.controlsVisible) return;
   const now = window.performance ? window.performance.now() : Date.now();
   if (!force && now - chromeInteractionLastNotedAt < chromeActivityThrottleMs) {
     syncChromeAutoHideTimer(isOpeningOverlayActive());
@@ -4693,7 +4692,7 @@ const renderChrome = () => {
   const isPlaying = Boolean(state.isPlaying);
   const showError = renderPlaybackError();
   const isCodeineXo = (state.playerUiMode || "codeine_xo") === "codeine_xo";
-  if (isQuickMenuOpen && (!isCodeineXo || state.isInPip || state.isMiniPlayer || showError || activeModal || !state.controlsVisible)) {
+  if (isQuickMenuOpen && (!isCodeineXo || state.isInPip || showError || activeModal || !state.controlsVisible)) {
     closeQuickMenu();
   }
   codeineDrawerItems.inert = !isQuickMenuOpen && !state.isInPip;
@@ -4702,14 +4701,13 @@ const renderChrome = () => {
   root.classList.toggle("ui-official", !isCodeineXo);
   root.dataset.playerUi = isCodeineXo ? "codeinexo" : "official";
   root.classList.toggle("pip-mode", Boolean(state.isInPip));
-  root.classList.toggle("mini-player-mode", Boolean(state.isMiniPlayer));
   if (!state.isInPip && isPipLocked) setPipLocked(false);
   if (state.isInPip && activeModal) closePlayerModal(false, false);
   const modalActive = hasOpenModal();
   root.classList.toggle("modal-active", modalActive);
   const pipPointerOutside = Boolean(state.isInPip && isPipPointerOutside);
   root.classList.toggle("pip-pointer-outside", pipPointerOutside);
-  const chromeHidden = Boolean(showError || !state.controlsVisible || state.isMiniPlayer || pipPointerOutside);
+  const chromeHidden = Boolean(showError || !state.controlsVisible || pipPointerOutside);
   if ((chromeHidden && (seekDragActive || seekPointerPositionMs !== null)) || state.isInPip || showError) clearSeekPreviewInteraction();
   root.classList.toggle("chrome-hidden", chromeHidden);
   if (!chromeHidden || state.showSeekbarWhileSeeking === false) {
@@ -5222,7 +5220,6 @@ document.addEventListener("contextmenu", event => {
 
 document.addEventListener("pointermove", event => {
   updatePointerCoordinates(event);
-  if (state.isMiniPlayer) return;
   noteCursorActivity();
   const inside = isChromeInteractionTarget(event.target);
   updateChromePointerInside(inside);
@@ -5967,7 +5964,7 @@ function seekPreviewTriggerEnabled(trigger) {
 }
 
 function refreshSeekHover() {
-  if (seekHoverContentKey && (seekHoverContentKey !== seekHoverSourceKey() || state.isInPip || state.isMiniPlayer || (state.controlsVisible === false && (seekDragActive || seekPointerPositionMs !== null)))) {
+  if (seekHoverContentKey && (seekHoverContentKey !== seekHoverSourceKey() || state.isInPip || (state.controlsVisible === false && (seekDragActive || seekPointerPositionMs !== null)))) {
     clearSeekPreviewInteraction();
     return;
   }
@@ -6172,7 +6169,7 @@ function syncSeekrPreviews() {
 }
 
 function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
-  if (!codeineSeekPreview || state.isInPip || state.isMiniPlayer) {
+  if (!codeineSeekPreview || state.isInPip) {
     hideSeekrPreview();
     return;
   }
@@ -6439,7 +6436,7 @@ codeineDrawerButton.addEventListener("click", event => {
     closeQuickMenu();
     return;
   }
-  if (state.isInPip || state.isMiniPlayer || playbackErrorText() || activeModal) return;
+  if (state.isInPip || playbackErrorText() || activeModal) return;
   isQuickMenuOpen = true;
   codeineDrawerItems.inert = false;
   codeineDrawerItems.setAttribute("aria-hidden", "false");
@@ -6757,7 +6754,6 @@ window.playerControls = nextState => {
   const previousStreamTitle = state.streamTitle || "";
   const previousPlayerUiScale = state.playerUiScale;
   const previousParty = state.party;
-  const wasMiniPlayer = Boolean(state.isMiniPlayer);
   const replayingParty = !hasReceivedPlayerControls;
   const currentPlaybackState = pendingIsPlaying === null
     ? state.isPlaying
@@ -6776,11 +6772,8 @@ window.playerControls = nextState => {
     ...currentProgress,
     isPlaying: currentPlaybackState,
     volumeLevel: currentVolumeLevel ?? nextState.volumeLevel,
-    controlsVisible: nextState.isMiniPlayer ? false : (nextState.controlsVisible ?? true),
+    controlsVisible: nextState.controlsVisible ?? true,
   };
-  if (wasMiniPlayer && !state.isMiniPlayer) {
-    focusShortcutRoot();
-  }
   const mediaMetadataChanged = (nextState.title !== undefined && nextState.title !== previousTitle) ||
     (nextState.episodeText !== undefined && nextState.episodeText !== previousEpisodeText) ||
     (nextState.streamTitle !== undefined && nextState.streamTitle !== previousStreamTitle);
@@ -7016,32 +7009,7 @@ root.addEventListener("contextmenu", event => {
   event.preventDefault();
 });
 
-let miniPlayerPointerDown = false;
-let miniPlayerPointerStartX = 0;
-let miniPlayerPointerStartY = 0;
-let miniPlayerLastScreenX = 0;
-let miniPlayerLastScreenY = 0;
-let miniPlayerIsDragging = false;
-let suppressNextMiniPlayerClick = false;
-
 root.addEventListener("pointerdown", event => {
-  if (state.isMiniPlayer) {
-    if (event.button === 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      miniPlayerPointerDown = true;
-      miniPlayerPointerStartX = event.screenX;
-      miniPlayerPointerStartY = event.screenY;
-      miniPlayerLastScreenX = event.screenX;
-      miniPlayerLastScreenY = event.screenY;
-      miniPlayerIsDragging = false;
-      suppressNextMiniPlayerClick = false;
-      if (root.setPointerCapture) {
-        try { root.setPointerCapture(event.pointerId); } catch (_) {}
-      }
-    }
-    return;
-  }
   if (!canSpeedBoostStart() || state.isInPip || playbackErrorText() || isControlsSurfaceEvent(event)) return;
   if (event.button !== 0) return;
 
@@ -7082,23 +7050,6 @@ const getPipEdgeHit = (clientX, clientY) => {
 };
 
 window.addEventListener("pointermove", event => {
-  if (state.isMiniPlayer && miniPlayerPointerDown) {
-    const totalDist = Math.hypot(event.screenX - miniPlayerPointerStartX, event.screenY - miniPlayerPointerStartY);
-    if (!miniPlayerIsDragging && totalDist > 4) {
-      miniPlayerIsDragging = true;
-      suppressNextMiniPlayerClick = true;
-    }
-    if (miniPlayerIsDragging) {
-      const scale = window.devicePixelRatio || 1;
-      const dx = (event.screenX - miniPlayerLastScreenX) * scale;
-      const dy = (event.screenY - miniPlayerLastScreenY) * scale;
-      if (dx !== 0) send("miniPlayerDragX", dx);
-      if (dy !== 0) send("miniPlayerDragY", dy);
-      miniPlayerLastScreenX = event.screenX;
-      miniPlayerLastScreenY = event.screenY;
-    }
-    return;
-  }
   if (speedBoostHoldTimer && !isHoldSpeedActive) {
     const dx = Math.abs(event.clientX - rootPointerStartX);
     const dy = Math.abs(event.clientY - rootPointerStartY);
@@ -7133,27 +7084,12 @@ window.addEventListener("pointermove", event => {
 });
 
 window.addEventListener("pointerup", event => {
-  if (state.isMiniPlayer) {
-    if (miniPlayerPointerDown) {
-      if (!miniPlayerIsDragging) {
-        requestPlaybackState("setPlaybackStateQuiet", false);
-        suppressNextMiniPlayerClick = true;
-      }
-      if (root.releasePointerCapture) {
-        try { root.releasePointerCapture(event.pointerId); } catch (_) {}
-      }
-    }
-    miniPlayerPointerDown = false;
-    miniPlayerIsDragging = false;
-  }
   pipPointerDown = false;
   clearSpeedBoostHoldTimer();
   preventClickAndStopSpeedBoost();
 });
 
 window.addEventListener("pointercancel", () => {
-  miniPlayerPointerDown = false;
-  miniPlayerIsDragging = false;
   pipPointerDown = false;
   clearSuppressNextRootClick();
   clearSpeedBoostHoldTimer();
@@ -7161,8 +7097,6 @@ window.addEventListener("pointercancel", () => {
 });
 
 window.addEventListener("blur", () => {
-  miniPlayerPointerDown = false;
-  miniPlayerIsDragging = false;
   pipPointerDown = false;
   clearSuppressNextRootClick();
   if (document.body.style.cursor && document.body.style.cursor.includes("resize")) {
@@ -7172,16 +7106,6 @@ window.addEventListener("blur", () => {
 
 root.addEventListener("click", event => {
   if (event.button !== 0) return;
-  if (state.isMiniPlayer) {
-    event.stopPropagation();
-    event.preventDefault();
-    if (suppressNextMiniPlayerClick) {
-      suppressNextMiniPlayerClick = false;
-      return;
-    }
-    requestPlaybackState("setPlaybackStateQuiet", false);
-    return;
-  }
   if (isPipLocked) return;
   if (suppressNextRootClick) {
     clearSuppressNextRootClick();
@@ -7348,7 +7272,6 @@ if (pipLockBadge) {
 }
 
 root.addEventListener("dblclick", event => {
-  if (state.isMiniPlayer) return;
   if (event.button !== 0) return;
   if (isPipLocked || isPipResizing) return;
   if (playbackErrorText() || isControlsSurfaceEvent(event)) return;
