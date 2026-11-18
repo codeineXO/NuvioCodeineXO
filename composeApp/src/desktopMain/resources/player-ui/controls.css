@@ -1365,13 +1365,8 @@ button:disabled {
   display: block;
   pointer-events: none;
   opacity: 0;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, .95) 0%,
-      rgba(0, 0, 0, .75) 48%,
-      rgba(0, 0, 0, 0) 100%
-    );
+  /* Flat scrim: gradients band on the 8-bit WebView output. */
+  background: rgba(0, 0, 0, .7);
   transition: opacity 180ms ease;
 }
 
