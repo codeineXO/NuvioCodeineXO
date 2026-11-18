@@ -195,6 +195,7 @@ fun main(args: Array<String>) {
                 window.isVisible = true
                 applyNativeDesktopWindowChrome(window)
                 installLinuxExtendedMouseButtons()
+                com.nuvio.app.controller.DesktopGamepadRemoteBridge.start()
                 // Windows fullscreen is emulated natively and isn't reflected by
                 // WindowPlacement, so it must be re-applied once the window peer exists.
                 fullscreenController.applyRestoredFullscreenState(window, windowState, wasFullscreenOnLastExit)
