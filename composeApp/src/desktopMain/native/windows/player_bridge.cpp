@@ -2212,7 +2212,6 @@ private:
     std::chrono::steady_clock::time_point startupBegan{};  // set before startupPhase
     std::vector<std::string> startupUserOptionNames;       // Guarded by mpvMutex.
     long long startupInitialPositionMs = 0;                // Guarded by mpvMutex.
-    std::atomic_bool keyframeResumePending = false;
     std::atomic_bool initialStartPending = false;
     std::atomic_bool hlsDetectionSent = false;
     std::atomic_bool replacingSource = false;
@@ -2776,22 +2775,11 @@ private:
     // Caller owns mpvMutex. Opens [url] at the startup resume position, replacing any file
     // that is still opening.
     int loadSourceLocked(const std::string &url) {
-        const auto userSet = [this](const char *name) {
-            return std::find(startupUserOptionNames.begin(), startupUserOptionNames.end(), name) !=
-                startupUserOptionNames.end();
-        };
         std::string loadOptions;
         if (startupInitialPositionMs > 0) {
             char startBuffer[64];
             std::snprintf(startBuffer, sizeof(startBuffer), "start=%.3f", (double)startupInitialPositionMs / 1000.0);
             loadOptions = startBuffer;
-            // Resume on the keyframe before the saved position instead of decoding forward to
-            // it. File-local, and restored to precise seeking once the resume seek has landed,
-            // so user seeks keep their exact targets.
-            if (!userSet("hr-seek")) {
-                loadOptions += ",hr-seek=no";
-                keyframeResumePending.store(true);
-            }
         }
         if (isHlsSource(url)) {
             appendHlsFileOptions(loadOptions, startupUserOptionNames);
@@ -3308,9 +3296,6 @@ private:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         (void)mpvApi().requestLogMessages(mpv, "warn");
-        if (keyframeResumePending.exchange(false)) {
-            (void)mpvApi().setPropertyString(mpv, "hr-seek", "default");
-        }
     }
 
     void handleMpvLog(std::string_view prefix, std::string_view message) {
