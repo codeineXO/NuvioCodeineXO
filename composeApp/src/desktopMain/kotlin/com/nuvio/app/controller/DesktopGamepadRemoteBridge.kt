@@ -31,7 +31,12 @@ internal object DesktopGamepadRemoteBridge {
 
     fun start() {
         if (job != null) return
+        // Load the clips but keep upstream's focus engine silent: it still sees every controller event
+        // and would play a second select/back sound. This bridge plays the sounds itself.
         DesktopControllerSound.install()
+        ControllerSoundPlayer.backend = null
+        // No screen registers engine nodes in this fork, so leave directions and A to Compose.
+        ControllerFocusEngine.deferNavigationToCompose = true
         job = scope.launch {
             ControllerManager.events.collect(::handle)
         }
@@ -54,17 +59,17 @@ internal object DesktopGamepadRemoteBridge {
                     ControllerDirection.Left -> KeyEvent.VK_LEFT
                     ControllerDirection.Right -> KeyEvent.VK_RIGHT
                 }
-                if (press(key)) ControllerSoundPlayer.playNavigate()
+                if (press(key)) DesktopControllerSound.playNavigate()
             }
             is ControllerEvent.ButtonPressed -> when (event.button) {
-                XboxButton.A -> if (press(KeyEvent.VK_ENTER)) ControllerSoundPlayer.playSelect()
-                XboxButton.B -> if (press(KeyEvent.VK_ESCAPE)) ControllerSoundPlayer.playBack()
+                XboxButton.A -> if (press(KeyEvent.VK_ENTER)) DesktopControllerSound.playSelect()
+                XboxButton.B -> if (press(KeyEvent.VK_ESCAPE)) DesktopControllerSound.playBack()
                 XboxButton.Menu -> if (appInFront()) {
                     SwingUtilities.invokeLater { RemoteNavigationDispatcher.openContextMenu() }
                 }
                 XboxButton.X -> if (appInFront() && playerOpen()) {
                     RemotePlayerLink.send("toggle", 0.0)
-                    ControllerSoundPlayer.playSelect()
+                    DesktopControllerSound.playSelect()
                 }
                 XboxButton.LB -> page(forward = false)
                 XboxButton.RB -> page(forward = true)
@@ -83,10 +88,10 @@ internal object DesktopGamepadRemoteBridge {
         if (!appInFront()) return
         if (playerOpen()) {
             RemotePlayerLink.send(if (forward) "keyboardSeek10Forward" else "keyboardSeek10Back", 0.0)
-            ControllerSoundPlayer.playNavigate()
+            DesktopControllerSound.playNavigate()
         } else {
             SwingUtilities.invokeLater {
-                if (AppTabCycler.cycle(forward)) ControllerSoundPlayer.playNavigate()
+                if (AppTabCycler.cycle(forward)) DesktopControllerSound.playNavigate()
             }
         }
     }
