@@ -1363,10 +1363,8 @@ private fun SeasonTextChipScrollRow(
                                     ),
                                     color = if (isSelected) {
                                         MaterialTheme.colorScheme.onBackground
-                                    } else if (isEnhanced) {
-                                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
                                     } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.98f)
                                     },
                                 )
                             }
@@ -1803,7 +1801,7 @@ private fun SeasonPosterButton(
             color = if (isSelected) {
                 MaterialTheme.colorScheme.onBackground
             } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.98f)
             },
             textAlign = TextAlign.Center,
             maxLines = 1,
