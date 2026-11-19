@@ -43,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
@@ -561,11 +560,6 @@ private fun TabletMovieInfoPanel(
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = (-0.5).sp,
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.8f),
-                            offset = Offset(0f, 2f),
-                            blurRadius = 4f,
-                        ),
                     ),
                     color = Color.White,
                     textAlign = TextAlign.Center,
@@ -600,11 +594,6 @@ private fun TabletEpisodeInfoPanel(
 ) {
     var logoLoadError by remember(logo) { mutableStateOf(false) }
     val logoUrl = logo?.takeIf { it.isNotBlank() }
-    val textShadow = Shadow(
-        color = Color.Black,
-        offset = Offset(0f, 0f),
-        blurRadius = 4f,
-    )
 
     Column(
         modifier = modifier.fillMaxWidth(0.8f)
@@ -631,7 +620,6 @@ private fun TabletEpisodeInfoPanel(
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = (-0.5).sp,
-                        shadow = textShadow,
                     ),
                     color = Color.White,
                     textAlign = TextAlign.Center,
@@ -654,7 +642,6 @@ private fun TabletEpisodeInfoPanel(
                     fontSize = 16.sp,
                     lineHeight = 24.sp,
                     fontWeight = FontWeight.SemiBold,
-                    shadow = textShadow,
                 ),
                 color = Color.White.copy(alpha = 0.95f),
                 textAlign = TextAlign.Center,
