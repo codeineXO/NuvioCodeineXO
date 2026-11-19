@@ -1074,6 +1074,7 @@ button:disabled {
 .player.pip-mode .metadata,
 .player.pip-mode [data-command="resize"],
 .player.pip-mode [data-command="speed"],
+.player.pip-mode [data-command="quality"],
 .player.pip-mode [data-command="subtitles"],
 .player.pip-mode [data-command="audio"],
 .player.pip-mode [data-command="shaders"],

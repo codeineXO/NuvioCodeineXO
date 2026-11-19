@@ -116,6 +116,8 @@ internal fun PlaybackVideoSettings(
             if (isWindows) {
                 SettingsGroup(isTablet = isTablet) {
                     LocalWindowsMpvConfigRow.current(isTablet, decoderEnabled)
+                    SettingsGroupDivider(isTablet = isTablet)
+                    HlsMaxResolutionSetting(isTablet)
                 }
                 SettingsSection(
                     title = stringResource(Res.string.settings_playback_nvidia_rtx_video_section),

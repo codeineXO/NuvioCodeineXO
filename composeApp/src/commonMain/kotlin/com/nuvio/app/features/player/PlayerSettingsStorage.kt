@@ -263,6 +263,8 @@ internal expect object PlayerSettingsStorage {
     fun savePlayerUiScale(scale: Int)
     fun loadNvidiaRtxHdrEnabled(): Boolean?
     fun saveNvidiaRtxHdrEnabled(enabled: Boolean)
+    fun loadHlsMaxResolution(): Int?
+    fun saveHlsMaxResolution(height: Int)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

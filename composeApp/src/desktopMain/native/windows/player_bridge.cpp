@@ -2810,6 +2810,31 @@ public:
         return true;
     }
 
+    // Swaps the playing file for [url] (e.g. another HLS quality) resuming at [positionMs].
+    // Re-enters the startup phase so the old file's end is handled as a replacement, not as
+    // playback ending, and the app re-adds its external tracks once the new file starts.
+    bool replaceSource(const std::string &url, long long positionMs) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv || stopping.load() || url.empty()) return false;
+        const long long startMs = std::max(0LL, positionMs);
+        startupInitialPositionMs = startMs;
+        initialStartSeconds = (double)startMs / 1000.0;
+        initialStartPending.store(startMs > 0);
+        hlsDetectionSent.store(true);
+        startupBegan = std::chrono::steady_clock::now();
+        startupPhase.store(true);
+        replacingSource.store(true);
+        int result = loadSourceLocked(url);
+        if (result < 0) {
+            replacingSource.store(false);
+            startupPhase.store(false);
+            initialStartPending.store(false);
+            return false;
+        }
+        sourceOpenStage.store(SourceOpenStage::AwaitingStart);
+        return true;
+    }
+
 private:
 
     bool initializeMpvLocked(
@@ -4619,6 +4644,18 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_reloadStartupSourc
     if (!player) return JNI_FALSE;
     try {
         return player->reloadStartupSource(jstringToUtf8(env, url)) ? JNI_TRUE : JNI_FALSE;
+    } catch (const std::exception &error) {
+        throwJavaError(env, error.what());
+        return JNI_FALSE;
+    }
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_replaceSource(JNIEnv *env, jobject, jlong handle, jstring url, jlong positionMs) {
+    auto player = playerFromHandle(handle);
+    if (!player) return JNI_FALSE;
+    try {
+        return player->replaceSource(jstringToUtf8(env, url), (long long)positionMs) ? JNI_TRUE : JNI_FALSE;
     } catch (const std::exception &error) {
         throwJavaError(env, error.what());
         return JNI_FALSE;

@@ -1830,6 +1830,10 @@ actual object PlayerSettingsStorage {
 
     actual fun savePlayerUiScale(scale: Int) {}
 
+    // HLS quality capping is a Windows desktop feature.
+    actual fun loadHlsMaxResolution(): Int? = null
+    actual fun saveHlsMaxResolution(height: Int) = Unit
+
     actual fun loadNvidiaRtxHdrEnabled(): Boolean? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(nvidiaRtxHdrEnabledKey)

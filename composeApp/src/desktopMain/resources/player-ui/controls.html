@@ -64,6 +64,10 @@
     <symbol id="icon-aspect" viewBox="0 0 24 24">
       <path d="M19,3 C20.5976809,3 21.9036609,4.24891996 21.9949073,5.82372721 L22,6 L22,18 C22,19.5976809 20.75108,20.9036609 19.1762728,20.9949073 L19,21 L5,21 C3.40231912,21 2.09633912,19.75108 2.00509269,18.1762728 L2,18 L2,6 C2,4.40231912 3.24891996,3.09633912 4.82372721,3.00509269 L5,3 L19,3 Z M19,5 L5,5 C4.48716416,5 4.06449284,5.38604019 4.00672773,5.88337887 L4,6 L4,18 C4,18.5128358 4.38604019,18.9355072 4.88337887,18.9932723 L5,19 L19,19 C19.5128358,19 19.9355072,18.6139598 19.9932723,18.1166211 L20,18 L20,6 C20,5.48716416 19.6139598,5.06449284 19.1166211,5.00672773 L19,5 Z M17,12 C17.5128358,12 17.9355072,12.3860402 17.9932723,12.8833789 L18,13 L18,16 C18,16.5128358 17.6139598,16.9355072 17.1166211,16.9932723 L17,17 L14,17 C13.4477153,17 13,16.5522847 13,16 C13,15.4871642 13.3860402,15.0644928 13.8833789,15.0067277 L14,15 L16,15 L16,13 C16,12.4871642 16.3860402,12.0644928 16.8833789,12.0067277 L17,12 Z M10,7 C10.5522847,7 11,7.44771525 11,8 C11,8.51283584 10.6139598,8.93550716 10.1166211,8.99327227 L10,9 L8,9 L8,11 C8,11.5128358 7.61395981,11.9355072 7.11662113,11.9932723 L7,12 C6.48716416,12 6.06449284,11.6139598 6.00672773,11.1166211 L6,11 L6,8 C6,7.48716416 6.38604019,7.06449284 6.88337887,7.00672773 L7,7 L10,7 Z"/>
     </symbol>
+    <symbol id="icon-quality" viewBox="0 0 24 24">
+      <rect x="1" y="4" width="22" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M5.5 8.5v7M5.5 12h4M9.5 8.5v7M13 8.5v7h2a3.5 3.5 0 0 0 0-7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
     <symbol id="icon-speed" viewBox="0 0 24 24">
       <path d="M20.38 8.57l-1.23 1.85A8 8 0 0 1 18.93 18H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44Z"/>
       <path d="M10.59 15.41a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83Z"/>
@@ -497,6 +501,7 @@
             <button class="action" id="eyeFilterButton" data-command="eyeFilter" aria-label="Eye filter" title="Eye filter"><svg><use href="#icon-eye"></use></svg><span id="eyeFilterLabel">Eye Filter</span></button>
             <button class="action optional" id="sourcesButton" data-command="sources"><svg><use href="#icon-source"></use></svg><span id="sourcesLabel">Sources</span></button>
             <button class="action optional" id="episodesButton" data-command="episodes"><svg><use href="#icon-episodes"></use></svg><span id="episodesLabel">Episodes</span></button>
+            <button class="action optional" id="qualityButton" data-command="quality" aria-label="Quality" title="Quality" hidden><svg><use href="#icon-quality"></use></svg><span id="qualityLabel">Quality</span></button>
             <button class="action optional" id="chaptersButton" data-command="chapters" hidden><svg><use href="#icon-chapters"></use></svg><span id="chaptersLabel">Chapters</span></button>
           </div>
           <div class="playback-status">
@@ -528,6 +533,9 @@
             <div class="codeine-time-label" id="codeineTimeLabel">0:00 / 0:00</div>
           </div>
           <div class="codeine-controls-right">
+            <button class="codeine-control-btn codeine-action-btn optional" id="codeineQualityButton" data-command="quality" aria-label="Quality" data-shortcut="D" hidden>
+              <svg><use href="#icon-quality"></use></svg>
+            </button>
             <button class="codeine-control-btn codeine-action-btn optional" id="codeineEpisodesButton" data-command="episodes" aria-label="Episodes" data-shortcut="E">
               <svg><use href="#icon-episodes"></use></svg>
             </button>
@@ -598,6 +606,17 @@
             </div>
           </div>
           <div class="track-list" id="speedOptionList"></div>
+        </div>
+      </section>
+      <section class="modal-layer player-rail-modal" id="qualityModal" aria-label="Quality" hidden>
+        <div class="track-panel audio-rail-panel">
+          <div class="track-header-row">
+            <div class="track-title track-header" id="qualityPanelTitle">Quality</div>
+            <div class="panel-actions">
+              <button class="panel-button" id="qualityCloseButton" type="button">Close</button>
+            </div>
+          </div>
+          <div class="track-list" id="qualityOptionList"></div>
         </div>
       </section>
       <section class="modal-layer player-rail-modal" id="shaderModal" aria-label="Enhancements" hidden>

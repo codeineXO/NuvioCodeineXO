@@ -78,6 +78,8 @@ import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.hls_quality_title
+import nuvio.composeapp.generated.resources.hls_quality_switching
 import nuvio.composeapp.generated.resources.settings_playback_mpv_config_fallback
 import nuvio.composeapp.generated.resources.settings_playback_mpv_night_filter_error
 import org.jetbrains.compose.resources.getString
@@ -129,12 +131,43 @@ internal class NativePlayerController(
     private val hlsDeferredSubtitles = MutableStateFlow<List<StreamSubtitle>>(emptyList())
     override val engineStreamSubtitles: StateFlow<List<StreamSubtitle>> = hlsDeferredSubtitles.asStateFlow()
 
+    /** The trimmed HLS master playing now; its variants back the player's Quality picker. */
+    @Volatile
+    private var hlsPrepared: HlsStartupTrim.Prepared? = null
+
+    /**
+     * A quality switch resuming at [positionMs]. Until [replaced], the old file keeps playing as
+     * usual; after it, snapshots hold [positionMs] until the new file has started ([fileStarted])
+     * and plays near that position. [sinceNanos] times out whichever phase is current.
+     */
+    private class QualitySwitch(
+        @Volatile var positionMs: Long,
+        val durationMs: Long,
+        @Volatile var sinceNanos: Long,
+        val audioLabel: String?,
+        val audioLanguage: String?,
+    ) {
+        @Volatile var replaced = false
+        @Volatile var fileStarted = false
+    }
+
+    @Volatile
+    private var qualitySwitch: QualitySwitch? = null
+
+    @Volatile
+    private var qualityPanelTitle: String? = null
+    private var qualityPanelTitleRequested = false
+
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
         val log = Logger.withTag("NativePlayerControls")
 
         /** Cap on waiting for the previous player's teardown so a hung one cannot block playback. */
         const val TEARDOWN_WAIT_MS = 5_000L
+
+        /** A keyframe resume may land a few seconds before the requested position. */
+        const val QUALITY_SWITCH_LANDING_SLACK_MS = 6_000L
+        const val QUALITY_SWITCH_TIMEOUT_MS = 20_000L
 
         @Volatile
         var rememberedVolumeLevel: Float = DesktopPlayerVolumeStorage.loadVolumeLevel() ?: 1f
@@ -534,7 +567,15 @@ internal class NativePlayerController(
                 }
                 // Windows only: play a local master trimmed to the top variant, and offer its
                 // subtitle renditions as stream subtitles instead of opening them all up front.
-                val hlsTrim = if (config != null) HlsStartupTrim.prepare(resolvedSource, pending.headerLines) else null
+                val hlsTrim = if (config != null) {
+                    HlsStartupTrim.prepare(
+                        resolvedSource,
+                        pending.headerLines,
+                        maxHeight = PlayerSettingsRepository.uiState.value.hlsMaxResolution,
+                    )
+                } else {
+                    null
+                }
                 // Windows only: open a gateway's redirect target directly, so mpv's opens and
                 // seeks do not each go through the gateway again (HLS sources are left as is).
                 val playSource = when {
@@ -542,7 +583,11 @@ internal class NativePlayerController(
                     config != null -> DirectSourceRedirect.resolve(resolvedSource, pending.headerLines)
                     else -> resolvedSource
                 }
-                if (pendingSource === pending) hlsDeferredSubtitles.value = hlsTrim?.subtitles.orEmpty()
+                if (pendingSource === pending) {
+                    hlsDeferredSubtitles.value = hlsTrim?.subtitles.orEmpty()
+                    hlsPrepared = hlsTrim
+                    qualitySwitch = null
+                }
                 runCatching {
                     create(
                         hostViewPtr,
@@ -722,6 +767,8 @@ internal class NativePlayerController(
         currentVolumeLevel = stateWithEnhancements.volumeLevel ?: currentVolumeLevel
         controlsState = stateWithEnhancements
         RemotePlayerLink.publish(this, stateWithEnhancements)
+        val hlsQuality = currentHlsQualityControls()
+        RemotePlayerLink.publishQuality(this, hlsQuality)
         val isBwActive = stateWithEnhancements.eyeFilterEnabled &&
             (stateWithEnhancements.eyeFilterColor.equals("BW", ignoreCase = true) || stateWithEnhancements.eyeFilterColor.equals("#BW", ignoreCase = true))
         val isGrainActive = PlayerSettingsRepository.uiState.value.grainFilterEnabled
@@ -738,6 +785,7 @@ internal class NativePlayerController(
             isInPip = DesktopPlayerPictureInPicture.isEnabled,
             playerUiScale = currentUiScale,
             edgeButtonGeometry = PlayerEdgeButtonGeometryStore.current,
+            hlsQuality = hlsQuality,
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
@@ -751,8 +799,30 @@ internal class NativePlayerController(
             closeModalsToken = stateWithEnhancements.closeModalsToken + remoteCloseCount,
         )
         val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage, currentPlaybackStats)
-            .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount}"
+            .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount" +
+            structureKey.hlsQuality.toJsonFields() + "}"
         NativePlayerBridge.updateControls(current, controlsJson)
+    }
+
+    /** Quality picker state; kept off [PlayerControlsState], whose constructor is at the JVM parameter limit. */
+    private fun currentHlsQualityControls(): HlsQualityControls {
+        val prepared = hlsPrepared
+        val title = qualityPanelTitle ?: run {
+            if (!qualityPanelTitleRequested) {
+                qualityPanelTitleRequested = true
+                playerScope.launch {
+                    qualityPanelTitle = runCatching { getString(Res.string.hls_quality_title) }.getOrDefault("Quality")
+                    SwingUtilities.invokeLater { refreshControlsForQuality() }
+                }
+            }
+            "Quality"
+        }
+        return HlsQualityControls(
+            options = prepared?.let { hlsQualityOptions(it.variants) }.orEmpty(),
+            selectedIndex = prepared?.let { selectedQualityOption(it) } ?: -1,
+            switching = qualitySwitch != null,
+            title = title,
+        )
     }
 
     /** Each phone remote "close" bumps the token the controls page watches to close its open panel. */
@@ -1063,7 +1133,10 @@ internal class NativePlayerController(
                 SwingUtilities.invokeLater { onControlsPainted?.invoke() }
             }
             "hlsDetected" -> reloadDetectedHlsSource()
+            "selectHlsQuality" -> switchHlsQuality(value.toInt())
             "startupSourceReplaced" -> {
+                // A quality switch's new file has started; its position readings can now count.
+                qualitySwitch?.takeIf { it.replaced }?.fileStarted = true
                 // The replaced file took its externally added tracks with it.
                 pendingSubtitleUri?.let { setSubtitleUri(it) }
                 pendingAudioUri?.let { if (attachedSource?.sourceAudioUrl != it) setAudioUri(it) }
@@ -1268,14 +1341,129 @@ internal class NativePlayerController(
         if (HlsStartupTrim.looksLikeHls(source.sourceUrl)) return // Already trimmed (or untrimmable).
         ensureScopesActive()
         downloadScope.launch {
-            val trim = HlsStartupTrim.prepare(source.sourceUrl, source.headerLines, knownHls = true) ?: return@launch
+            val trim = HlsStartupTrim.prepare(
+                source.sourceUrl,
+                source.headerLines,
+                knownHls = true,
+                maxHeight = PlayerSettingsRepository.uiState.value.hlsMaxResolution,
+            ) ?: return@launch
             if (handle != target || attachedSource !== source) return@launch
             val reloaded = runCatching { NativePlayerBridge.reloadStartupSource(target, trim.localUrl) }
                 .onFailure { error -> log.w(error) { "HLS startup reload failed handle=$target" } }
                 .getOrDefault(false)
             log.d { "HLS detected by content type; trimmed reload=$reloaded handle=$target" }
-            if (reloaded && attachedSource === source) hlsDeferredSubtitles.value = trim.subtitles
+            if (reloaded && attachedSource === source) {
+                hlsDeferredSubtitles.value = trim.subtitles
+                hlsPrepared = trim
+                SwingUtilities.invokeLater { refreshControlsForQuality() }
+            }
         }
+    }
+
+    private fun refreshControlsForQuality() {
+        if (handle != 0L) updateControls(controlsState)
+    }
+
+    /**
+     * Plays another variant of the trimmed HLS master: re-trims the cached master to it and swaps
+     * the playing file, resuming at the current position. Lasts for this stream only.
+     */
+    private fun switchHlsQuality(variantIndex: Int) {
+        val prepared = hlsPrepared ?: return
+        val target = handle.takeIf { it != 0L } ?: return
+        val source = attachedSource ?: return
+        if (qualitySwitch != null || variantIndex == prepared.selectedIndex) return
+        val selectedAudio = cachedAudioTracks.firstOrNull { it.selected }
+        val startPosition = runCatching { NativePlayerBridge.positionMs(target) }.getOrDefault(0L)
+        val startDuration = runCatching { NativePlayerBridge.durationMs(target) }.getOrDefault(0L)
+        val pending = QualitySwitch(
+            positionMs = startPosition,
+            durationMs = startDuration,
+            sinceNanos = System.nanoTime(),
+            audioLabel = selectedAudio?.label,
+            audioLanguage = selectedAudio?.language,
+        )
+        qualitySwitch = pending
+        val optionLabel = hlsQualityOptions(prepared.variants).firstOrNull { it.variantIndex == variantIndex }?.label
+        log.d { "HLS quality switch variant=$variantIndex label=$optionLabel position=$startPosition handle=$target" }
+        refreshControlsForQuality()
+        ensureScopesActive()
+        downloadScope.launch {
+            val next = prepared.withVariant(variantIndex)
+            SwingUtilities.invokeLater {
+                if (handle != target || attachedSource !== source || hlsPrepared !== prepared) return@invokeLater
+                if (qualitySwitch !== pending) return@invokeLater // Timed out meanwhile.
+                // Resume from where playback is now: the re-trim may have taken a moment.
+                val resumeAt = runCatching { NativePlayerBridge.positionMs(target) }.getOrDefault(0L)
+                    .takeIf { it > 0L } ?: startPosition
+                val replaced = next != null && runCatching {
+                    NativePlayerBridge.replaceSource(target, next.localUrl, resumeAt)
+                }.onFailure { error -> log.w(error) { "HLS quality switch failed handle=$target" } }.getOrDefault(false)
+                if (replaced && next != null) {
+                    hlsPrepared = next
+                    pending.positionMs = resumeAt
+                    pending.sinceNanos = System.nanoTime()
+                    pending.replaced = true
+                    if (optionLabel != null) {
+                        showMpvNotice(target) {
+                            runCatching { getString(Res.string.hls_quality_switching, optionLabel) }.getOrDefault(optionLabel)
+                        }
+                    }
+                } else {
+                    qualitySwitch = null
+                }
+                refreshControlsForQuality()
+            }
+        }
+    }
+
+    /**
+     * While a quality switch reloads, report the resume position (and loading) instead of the
+     * new file's 0 so progress, the seek bar and watch history do not jump back. Ends once the
+     * new file plays near that position, or after a timeout.
+     */
+    private fun applyQualitySwitch(snapshot: PlayerPlaybackSnapshot): PlayerPlaybackSnapshot {
+        val pending = qualitySwitch ?: return snapshot
+        val elapsedMs = (System.nanoTime() - pending.sinceNanos) / 1_000_000L
+        if (!pending.replaced) {
+            // The old file is still the one playing: report it as is.
+            if (elapsedMs > QUALITY_SWITCH_TIMEOUT_MS && qualitySwitch === pending) {
+                qualitySwitch = null
+                SwingUtilities.invokeLater { refreshControlsForQuality() }
+            }
+            return snapshot
+        }
+        // Only the new file's readings count: the old one sat near the same position.
+        val landed = pending.fileStarted && !snapshot.isLoading && snapshot.durationMs > 0L &&
+            snapshot.positionMs >= pending.positionMs - QUALITY_SWITCH_LANDING_SLACK_MS
+        if (landed || elapsedMs > QUALITY_SWITCH_TIMEOUT_MS) {
+            qualitySwitch = null
+            SwingUtilities.invokeLater {
+                restoreAudioAfterQualitySwitch(pending)
+                refreshControlsForQuality()
+            }
+            return snapshot
+        }
+        return snapshot.copy(
+            isLoading = true,
+            isOpening = false,
+            isPlaying = false,
+            isEnded = false,
+            positionMs = pending.positionMs,
+            durationMs = maxOf(snapshot.durationMs, pending.durationMs),
+            bufferedPositionMs = pending.positionMs,
+        )
+    }
+
+    /** The new variant may order its audio tracks differently; re-pick the one that was playing. */
+    private fun restoreAudioAfterQualitySwitch(pending: QualitySwitch) {
+        if (pending.audioLabel == null && pending.audioLanguage == null) return
+        val tracks = getAudioTracks()
+        if (tracks.any { it.isSelected && it.label == pending.audioLabel && it.language == pending.audioLanguage }) return
+        val match = tracks.firstOrNull { it.label == pending.audioLabel && it.language == pending.audioLanguage }
+            ?: tracks.firstOrNull { pending.audioLanguage != null && it.language == pending.audioLanguage }
+            ?: return
+        selectAudioTrack(match.index)
     }
 
     private fun updateLocalProgress(positionMs: Long) {
@@ -1464,7 +1652,7 @@ internal class NativePlayerController(
                 downloadSpeedAvailable = WindowsMpvSubStyleHelper.supportsCacheSpeed(),
                 videoWidth = videoSize.width,
                 videoHeight = videoSize.height,
-            )
+            ).let(::applyQualitySwitch)
         }.getOrDefault(PlayerPlaybackSnapshot(isLoading = true))
     }
 
@@ -1694,6 +1882,8 @@ internal class NativePlayerController(
         cancelInFlightSubtitleDownload()
         cachedSubtitleTracks = emptyList()
         cachedAudioTracks = emptyList()
+        hlsPrepared = null
+        qualitySwitch = null
         pendingSubtitleUri = null
         pendingAudioUri = null
         lastSentControlsStructureKey = null
@@ -1735,6 +1925,8 @@ internal class NativePlayerController(
             cancelInFlightSubtitleDownload()
             cachedSubtitleTracks = emptyList()
             cachedAudioTracks = emptyList()
+            hlsPrepared = null
+            qualitySwitch = null
             pendingSubtitleUri = null
             pendingAudioUri = null
             lastSentControlsStructureKey = null
@@ -2463,7 +2655,29 @@ private data class NativeControlsStructureKey(
     val isInPip: Boolean,
     val playerUiScale: Int = 100,
     val edgeButtonGeometry: PlayerEdgeButtonGeometry = PlayerEdgeButtonGeometry(),
+    val hlsQuality: HlsQualityControls = HlsQualityControls(),
 )
+
+internal data class HlsQualityControls(
+    val options: List<PlayerControlQualityOption> = emptyList(),
+    val selectedIndex: Int = -1,
+    val switching: Boolean = false,
+    val title: String = "Quality",
+) {
+    /** Leading-comma JSON fields appended to the controls object. */
+    fun toJsonFields(): String = buildString {
+        append(",\"hlsQualityOptions\":[")
+        options.forEachIndexed { i, option ->
+            if (i > 0) append(',')
+            append("{\"variantIndex\":").append(option.variantIndex)
+            append(",\"label\":").append(JsonPrimitive(option.label))
+            append('}')
+        }
+        append("],\"hlsQualitySelectedIndex\":").append(selectedIndex)
+        append(",\"hlsQualitySwitching\":").append(switching)
+        append(",\"qualityPanelTitle\":").append(JsonPrimitive(title))
+    }
+}
 
 internal fun PlayerControlsState.toControlsJson(
     isFullscreen: Boolean,

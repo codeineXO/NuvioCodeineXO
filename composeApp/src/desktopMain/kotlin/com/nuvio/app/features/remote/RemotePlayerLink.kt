@@ -2,6 +2,7 @@ package com.nuvio.app.features.remote
 
 import com.nuvio.app.features.player.AudioTrack
 import com.nuvio.app.features.player.PlayerControlsState
+import com.nuvio.app.features.player.desktop.HlsQualityControls
 import com.nuvio.app.features.player.desktop.NativePlayerController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +18,7 @@ internal object RemotePlayerLink {
         "subtitleSlot", "selectAudioTrack", "toggleAudioNightMode",
         "setAnimeUpscalerOption", "setAnimeUpscalerMode", "setSvpMode",
         "setPlaybackSpeed", "setEyeFilterEnabled", "setGrainFilterEnabled", "selectChapter",
-        "subtitleCustomStyleToggle",
+        "subtitleCustomStyleToggle", "selectHlsQuality",
     )
 
     private val subtitleSlotActions = setOf(
@@ -37,6 +38,7 @@ internal object RemotePlayerLink {
         "audio" to "codeineAudioButton",
         "enhance" to "codeineShadersButton",
         "speed" to "codeineSpeedButton",
+        "quality" to "codeineQualityButton",
         "aspect" to "codeineResizeButton",
         "eyeFilter" to "codeineEyeFilterButton",
         "chapters" to "codeineChaptersButton",
@@ -48,6 +50,10 @@ internal object RemotePlayerLink {
     private val _state = MutableStateFlow<PlayerControlsState?>(null)
     val state: StateFlow<PlayerControlsState?> = _state
 
+    /** The Quality picker, kept apart from [state]: it is not part of the controls state. */
+    private val _quality = MutableStateFlow<HlsQualityControls?>(null)
+    val quality: StateFlow<HlsQualityControls?> = _quality
+
     @Volatile
     private var controller: NativePlayerController? = null
 
@@ -56,10 +62,16 @@ internal object RemotePlayerLink {
         _state.value = state
     }
 
+    fun publishQuality(from: NativePlayerController, quality: HlsQualityControls) {
+        if (controller !== from) return
+        _quality.value = quality
+    }
+
     fun clear(from: NativePlayerController) {
         if (controller !== from) return
         controller = null
         _state.value = null
+        _quality.value = null
     }
 
     /** Audio tracks come from mpv, not the controls state. */

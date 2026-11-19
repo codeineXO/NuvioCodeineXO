@@ -147,6 +147,8 @@ data class PlayerSettingsUiState(
     val grainFilterEnabled: Boolean = false,
     val playerUiScale: Int = 100,
     val nvidiaRtxHdrEnabled: Boolean = false,
+    /** Highest HLS variant height played at startup; 0 plays the best variant. */
+    val hlsMaxResolution: Int = 0,
 )
 
 /** How many further sources falling back may try after the auto-selected one fails, by default and at most. */
@@ -284,6 +286,7 @@ object PlayerSettingsRepository {
     private var grainFilterEnabled = false
     private var playerUiScale = 100
     private var nvidiaRtxHdrEnabled = false
+    private var hlsMaxResolution = 0
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -410,6 +413,7 @@ object PlayerSettingsRepository {
         grainFilterEnabled = false
         playerUiScale = 100
         nvidiaRtxHdrEnabled = false
+        hlsMaxResolution = 0
         publish()
     }
 
@@ -636,6 +640,7 @@ object PlayerSettingsRepository {
         grainFilterEnabled = PlayerSettingsStorage.loadGrainFilterEnabled() ?: false
         playerUiScale = PlayerSettingsStorage.loadPlayerUiScale()?.coerceIn(50, 150) ?: 100
         nvidiaRtxHdrEnabled = PlayerSettingsStorage.loadNvidiaRtxHdrEnabled() ?: false
+        hlsMaxResolution = PlayerSettingsStorage.loadHlsMaxResolution()?.takeIf { it in HlsMaxResolutionOptions } ?: 0
         publish()
     }
 
@@ -1504,6 +1509,15 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveNvidiaRtxHdrEnabled(enabled)
     }
 
+    fun setHlsMaxResolution(height: Int) {
+        ensureLoaded()
+        val value = height.takeIf { it in HlsMaxResolutionOptions } ?: 0
+        if (hlsMaxResolution == value) return
+        hlsMaxResolution = value
+        publish()
+        PlayerSettingsStorage.saveHlsMaxResolution(value)
+    }
+
     fun setLibassRenderType(renderType: String) {
         ensureLoaded()
         if (libassRenderType == renderType) return
@@ -1808,6 +1822,7 @@ object PlayerSettingsRepository {
             grainFilterEnabled = grainFilterEnabled,
             playerUiScale = playerUiScale,
             nvidiaRtxHdrEnabled = nvidiaRtxHdrEnabled,
+            hlsMaxResolution = hlsMaxResolution,
         )
     }
 
@@ -1819,3 +1834,6 @@ object PlayerSettingsRepository {
         }
     }
 }
+
+/** Allowed HLS max-resolution caps (variant height); 0 means best available. */
+val HlsMaxResolutionOptions: List<Int> = listOf(0, 2160, 1440, 1080, 720, 480, 360)

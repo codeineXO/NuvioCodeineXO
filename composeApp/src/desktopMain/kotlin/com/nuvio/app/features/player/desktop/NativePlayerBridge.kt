@@ -148,6 +148,8 @@ internal object NativePlayerBridge {
     external fun addAudioUrl(handle: Long, url: String)
     /** Windows only: replaces a source that has not started playing yet. */
     external fun reloadStartupSource(handle: Long, url: String): Boolean
+    /** Windows only: swaps the playing file for [url], resuming at [positionMs]. */
+    external fun replaceSource(handle: Long, url: String, positionMs: Long): Boolean
     external fun popLastImportedSubtitle(handle: Long): String?
     external fun clearExternalSubtitles(handle: Long)
     external fun clearExternalSubtitlesAndSelect(handle: Long, trackId: Int)

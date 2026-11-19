@@ -549,6 +549,7 @@
   <symbol id="i-library" viewBox="0 0 24 24"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></symbol>
   <symbol id="i-layout-official" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/></symbol>
   <symbol id="i-layout-persistent_hero" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="9" rx="1.5"/><rect x="3" y="15" width="18" height="5" rx="1.5"/></symbol>
+  <symbol id="i-quality" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="4"/><path d="M5.5 8.5v7M5.5 12h4M9.5 8.5v7M13 8.5v7h2a3.5 3.5 0 0 0 0-7z"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
   <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8.5" r="2.5"/><path d="M10 14.5h.01M14 14.5h.01M10 18h.01M14 18h.01"/></symbol>
 </svg>
@@ -812,6 +813,7 @@
   <div class="sheet-head"><div class="grip"></div><div class="bar"><h2 class="t-title2">More playback controls</h2></div></div>
   <div class="sheet-body">
     <div class="group-list more">
+      <button class="row" data-click="quality" data-panel="quality" id="quality-item" hidden><svg class="line" aria-hidden="true"><use href="#i-quality"/></svg><span class="copy">Quality<small id="quality-state"></small></span></button>
       <button class="row" data-click="speed" data-panel="speed"><svg class="ic"><use href="#icon-speed"/></svg>Playback speed</button>
       <button class="row" data-click="aspect" data-stay><svg class="ic"><use href="#icon-aspect"/></svg><span class="copy">Aspect ratio<small id="aspect"></small></span></button>
       <button class="row" data-click="enhance" data-panel="enhance"><svg class="ic"><use href="#icon-wand"/></svg>Enhance</button>
@@ -1038,6 +1040,10 @@
     $('volume-label').textContent = Math.round(Number($('volume').value) * 100) + '%';
     $('aspect').textContent = msg.aspect;
     $('chapters-item').hidden = !msg.chapters.length;
+    const qualityOptions = msg.quality?.options || [];
+    $('quality-item').hidden = qualityOptions.length < 2;
+    $('quality-state').textContent = qualityOptions.find((o) => o.variantIndex === msg.quality?.selected)?.label || '';
+    if (openPanel === 'quality' && qualityOptions.length < 2) closeSheetFromPlayer();
     $('skip-segment').textContent = msg.skipSegment?.label || '';
     if (previous.active && previous.closeModalsToken !== msg.closeModalsToken) closeSheetFromPlayer();
     if (msg.p2pConsent && !previous.p2pConsent) {
@@ -2892,6 +2898,15 @@
         toggle('Eye filter', '', state.eyeFilter, (on) => player('setEyeFilterEnabled', on ? 1 : 0)),
         toggle('Frosted matte filter', 'Film grain & frosted effect', state.frostedFilter, (on) => player('setGrainFilterEnabled', on ? 1 : 0))
       ));
+    },
+
+    quality() {
+      const q = state.quality || { options: [] };
+      header(q.title || 'Quality');
+      add(group(...q.options.map((option) => choice({
+        label: option.label, checked: option.variantIndex === q.selected, disabled: q.switching,
+        onClick: () => { if (option.variantIndex !== q.selected) player('selectHlsQuality', option.variantIndex); closeSheet(); },
+      }))));
     },
 
     chapters() {

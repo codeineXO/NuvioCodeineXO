@@ -280,6 +280,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 if (isWindows) {
                     PlaybackBufferSetting(isTablet)
                     SettingsGroupDivider(isTablet = isTablet)
+                    HlsMaxResolutionSetting(isTablet)
+                    SettingsGroupDivider(isTablet = isTablet)
                 }
                 SettingsNavigationRow(
                     title = stringResource(Res.string.settings_playback_player_ui),

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hls_quality_title">Quality</string>
+    <string name="hls_quality_best">Best available</string>
+    <string name="hls_quality_switching">Switching to %1$s</string>
+    <string name="hls_max_resolution_title">HLS default resolution</string>
+    <string name="hls_max_resolution_description">Adaptive (HLS) streams start at the best quality up to this resolution. Change it for the current stream from the player\'s Quality button.</string>
+</resources>

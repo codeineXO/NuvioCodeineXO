@@ -123,8 +123,9 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
                         combine(
                             RemotePlayerLink.state,
                             PlayerSettingsRepository.uiState.map { it.grainFilterEnabled }.distinctUntilChanged(),
-                        ) { state, _ ->
-                            RemotePlayerPanels.message(state, RemotePlayerLink.audioTracks())
+                            RemotePlayerLink.quality,
+                        ) { state, _, quality ->
+                            RemotePlayerPanels.message(state, RemotePlayerLink.audioTracks(), quality)
                         }.distinctUntilChanged().collect { send(Frame.Text(it)) }
                     }
                     // Browsing: Home's rows and the search results.

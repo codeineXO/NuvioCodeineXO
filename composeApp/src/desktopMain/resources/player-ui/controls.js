@@ -168,6 +168,12 @@ const subtitleImportBtnOfficial = document.getElementById("subtitleImportBtnOffi
 const subtitleDropOverlay = document.getElementById("subtitleDropOverlay");
 const speedModal = document.getElementById("speedModal");
 const speedCloseButton = document.getElementById("speedCloseButton");
+const qualityModal = document.getElementById("qualityModal");
+const qualityCloseButton = document.getElementById("qualityCloseButton");
+const qualityOptionList = document.getElementById("qualityOptionList");
+const qualityPanelTitle = document.getElementById("qualityPanelTitle");
+const qualityButton = document.getElementById("qualityButton");
+const codeineQualityButton = document.getElementById("codeineQualityButton");
 const speedOptionList = document.getElementById("speedOptionList");
 const speedPanelTitle = document.getElementById("speedPanelTitle");
 const shaderModal = document.getElementById("shaderModal");
@@ -1774,6 +1780,7 @@ const modalByName = {
   audio: audioModal,
   subtitles: subtitleModal,
   speed: speedModal,
+  quality: qualityModal,
   shaders: shaderModal,
   eyeFilter: eyeFilterModal,
   sources: sourceModal,
@@ -1973,6 +1980,38 @@ const renderSpeedOptionList = () => {
   });
   lastRenderedModal = "speed";
   lastRenderedModalSignature = getSpeedModalSignature();
+};
+
+const hasHlsQualityOptions = () => Array.isArray(state.hlsQualityOptions) && state.hlsQualityOptions.length > 1;
+
+const renderQualityOptionList = () => {
+  if (!qualityOptionList) return;
+  qualityOptionList.textContent = "";
+  if (qualityPanelTitle) {
+    qualityPanelTitle.textContent = state.qualityPanelTitle || "Quality";
+  }
+  const options = Array.isArray(state.hlsQualityOptions) ? state.hlsQualityOptions : [];
+  const switching = Boolean(state.hlsQualitySwitching);
+  options.forEach(opt => {
+    const isSelected = Number(opt.variantIndex) === Number(state.hlsQualitySelectedIndex);
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `track-row${isSelected ? " selected" : ""}`;
+    if (switching) row.setAttribute("aria-disabled", "true");
+    row.addEventListener("click", event => {
+      event.stopPropagation();
+      if (!isSelected && !state.hlsQualitySwitching) send("selectHlsQuality", Number(opt.variantIndex));
+      window.setTimeout(closePlayerModal, 120);
+    });
+    const labelElement = document.createElement("span");
+    labelElement.className = "track-label";
+    labelElement.textContent = String(opt.label || "");
+    row.appendChild(labelElement);
+    row.appendChild(buildCheckIcon());
+    qualityOptionList.appendChild(row);
+  });
+  lastRenderedModal = "quality";
+  lastRenderedModalSignature = getQualityModalSignature();
 };
 
 const animeUpscalerProfiles = [
@@ -4239,6 +4278,13 @@ const getAudioModalSignature = () => [
   trackListSignature(state.audioTracks),
 ].join("##");
 
+const getQualityModalSignature = () => JSON.stringify([
+  state.qualityPanelTitle || "",
+  state.hlsQualityOptions || [],
+  state.hlsQualitySelectedIndex,
+  Boolean(state.hlsQualitySwitching),
+]);
+
 const getSpeedModalSignature = () => [
   state.speedPanelTitle || "",
   state.playbackSpeedLabel || "",
@@ -4392,6 +4438,7 @@ const getActiveModalSignature = modal => {
   if (modal === "audio") return getAudioModalSignature();
   if (modal === "subtitles") return getSubtitlesModalSignature();
   if (modal === "speed") return getSpeedModalSignature();
+  if (modal === "quality") return getQualityModalSignature();
   if (modal === "shaders") return getShaderModalSignature();
   if (modal === "eyeFilter") return `${state.eyeFilterEnabled}##${state.eyeFilterColor}##${state.eyeFilterOpacity}##${state.grainFilterEnabled}`;
   if (modal === "sources") return getSourcesModalSignature();
@@ -4419,6 +4466,7 @@ const renderActiveModal = (modalOpened = false, force = false) => {
   if (activeModal === "audio") renderAudioTrackList();
   else if (activeModal === "subtitles") renderSubtitleModal();
   else if (activeModal === "speed") renderSpeedOptionList();
+  else if (activeModal === "quality") renderQualityOptionList();
   else if (activeModal === "shaders") renderShaderOptionList();
   else if (activeModal === "eyeFilter") renderEyeFilterModal();
   else if (activeModal === "sources") renderSourceModal(modalOpened);
@@ -4910,6 +4958,10 @@ const renderChrome = () => {
   setVisible(submitIntroButton, Boolean(state.showSubmitIntro));
   setVisible(videoSettingsButton, Boolean(state.showVideoSettings));
   setVisible(sourcesButton, Boolean(state.showSources));
+  setVisible(qualityButton, hasHlsQualityOptions());
+  setActionButtonLabel("quality", state.qualityPanelTitle || "Quality");
+  const qualityLabelElement = document.getElementById("qualityLabel");
+  if (qualityLabelElement) setTextContent(qualityLabelElement, state.qualityPanelTitle || "Quality");
   setVisible(episodesButton, Boolean(state.showEpisodes));
   renderChapterControls();
   syncActionFocusState();
@@ -4960,6 +5012,8 @@ const renderChrome = () => {
       setAttr(codeineBackButton, "aria-label", state.closeLabel || "Close player");
     }
     setVisible(codeineSourcesButton, Boolean(state.showSources));
+    setVisible(codeineQualityButton, hasHlsQualityOptions());
+    if (codeineQualityButton) setAttr(codeineQualityButton, "aria-label", state.qualityPanelTitle || "Quality");
     setVisible(codeineEpisodesButton, Boolean(state.showEpisodes));
     if (codeineShadersButton) {
       codeineShadersButton.classList.toggle("active", isEnhancementActive);
@@ -5493,6 +5547,10 @@ document.querySelectorAll("[data-command]").forEach(button => {
       openPlayerModal("speed");
       return;
     }
+    if (command === "quality") {
+      if (hasHlsQualityOptions()) openPlayerModal("quality");
+      return;
+    }
     if (command === "party") {
       // The CodeineXO party button already has its handler in party.js.
       if (button.id === "codeinePartyButton") return;
@@ -5825,7 +5883,7 @@ sourceCloseButton.addEventListener("click", event => {
   event.stopPropagation();
   closePlayerModal();
 });
-[speedCloseButton, shaderCloseButton, audioCloseButton, subtitleCloseButton].forEach(btn => {
+[speedCloseButton, qualityCloseButton, shaderCloseButton, audioCloseButton, subtitleCloseButton].forEach(btn => {
   if (btn) {
     btn.addEventListener("click", event => {
       event.stopPropagation();
@@ -7644,6 +7702,12 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     if (activeModal === "subtitles") closePlayerModal(true);
     else openPlayerModal("subtitles");
+    return;
+  }
+  if (event.code === "KeyD" && (hasHlsQualityOptions() || activeModal === "quality")) {
+    event.preventDefault();
+    if (activeModal === "quality") closePlayerModal(true);
+    else openPlayerModal("quality");
     return;
   }
   if (event.code === "KeyE") {

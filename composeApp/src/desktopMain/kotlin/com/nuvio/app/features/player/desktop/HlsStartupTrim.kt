@@ -22,7 +22,18 @@ import java.util.zip.GZIPInputStream
  * audio group and no subtitle renditions skips most of those requests; the subtitle renditions are
  * offered as stream subtitles instead and fetched only when picked.
  */
-internal data class HlsTrimmedMaster(val master: String, val subtitles: List<StreamSubtitle>)
+/** One playable quality of a master playlist; [index] is its position among the master's variants. */
+internal data class HlsVariant(val index: Int, val height: Int, val bandwidth: Long, val codecs: String)
+
+/** One entry of the player's Quality picker; [variantIndex] identifies the HLS variant to play. */
+internal data class PlayerControlQualityOption(val variantIndex: Int, val label: String)
+
+internal data class HlsTrimmedMaster(
+    val master: String,
+    val subtitles: List<StreamSubtitle>,
+    val variants: List<HlsVariant> = emptyList(),
+    val selectedIndex: Int = -1,
+)
 
 internal object HlsMasterTrimmer {
     private val attributePattern = Regex("""([A-Z0-9-]+)=("[^"]*"|[^,]*)""")
@@ -31,10 +42,15 @@ internal object HlsMasterTrimmer {
     private class Variant(val infoLine: String, val uri: String, val attributes: Map<String, String>) {
         val height: Int = attributes["RESOLUTION"]?.substringAfter('x', "")?.toIntOrNull() ?: 0
         val bandwidth: Long = attributes["BANDWIDTH"]?.toLongOrNull() ?: 0L
+        val codecs: String = attributes["CODECS"].orEmpty()
     }
 
-    /** Returns null when [master] is not a master playlist or trimming would not skip anything. */
-    fun trim(master: String, base: URI): HlsTrimmedMaster? {
+    /**
+     * Returns null when [master] is not a master playlist or trimming would not skip anything.
+     * Keeps the variant at [variantIndex] when given, else the best one no taller than [maxHeight]
+     * (0 = no cap).
+     */
+    fun trim(master: String, base: URI, maxHeight: Int = 0, variantIndex: Int? = null): HlsTrimmedMaster? {
         val lines = master.removePrefix("﻿").lines().map { it.trimEnd('\r') }
         if (lines.firstOrNull()?.trim() != "#EXTM3U") return null
         // Variable substitution would have to be resolved before URIs can be rewritten.
@@ -54,7 +70,7 @@ internal object HlsMasterTrimmer {
             index++
         }
         if (variants.isEmpty()) return null
-        val best = variants.maxWith(compareBy<Variant> { it.height }.thenBy { it.bandwidth })
+        val best = variantIndex?.let(variants::getOrNull) ?: pickVariant(variants, maxHeight)
 
         val subtitleGroup = best.attributes["SUBTITLES"]
         val subtitles = mutableListOf<StreamSubtitle>()
@@ -94,10 +110,19 @@ internal object HlsMasterTrimmer {
             }
         }
         if (variants.size == 1 && droppedRenditions == 0) return null
+        val options = variants.mapIndexed { i, v -> HlsVariant(i, v.height, v.bandwidth, v.codecs) }
 
         output.append(best.infoLine.withoutAttribute("SUBTITLES")).append('\n')
         output.append(resolve(base, best.uri) ?: return null).append('\n')
-        return HlsTrimmedMaster(output.toString(), subtitles)
+        return HlsTrimmedMaster(output.toString(), subtitles, options, variants.indexOf(best))
+    }
+
+    private fun pickVariant(variants: List<Variant>, maxHeight: Int): Variant {
+        val order = compareBy<Variant> { it.height }.thenBy { it.bandwidth }
+        if (maxHeight <= 0) return variants.maxWith(order)
+        return variants.filter { it.height in 1..maxHeight }.maxWithOrNull(order)
+            ?: variants.filter { it.height > 0 }.minByOrNull { it.height }
+            ?: variants.maxWith(order)
     }
 
     private fun parseAttributes(text: String): Map<String, String> =
@@ -157,7 +182,26 @@ internal object HlsStartupTrim {
             .build()
     }
 
-    data class Prepared(val localUrl: String, val subtitles: List<StreamSubtitle>)
+    /** [master]/[base] keep the fetched playlist so a quality switch re-trims it without refetching. */
+    class Prepared(
+        val localUrl: String,
+        val subtitles: List<StreamSubtitle>,
+        val variants: List<HlsVariant> = emptyList(),
+        val selectedIndex: Int = -1,
+        private val master: String = "",
+        private val base: URI? = null,
+    ) {
+        /** The same master trimmed to the variant at [variantIndex], published as a new local playlist. */
+        fun withVariant(variantIndex: Int): Prepared? {
+            val origin = base ?: return null
+            if (variantIndex !in variants.indices) return null
+            return runCatching {
+                val trimmed = HlsMasterTrimmer.trim(master, origin, variantIndex = variantIndex) ?: return null
+                val url = LocalPlaylistServer.publish(trimmed.master) ?: return null
+                Prepared(url, trimmed.subtitles, trimmed.variants, trimmed.selectedIndex, master, origin)
+            }.onFailure { error -> log.w(error) { "HLS variant re-trim failed" } }.getOrNull()
+        }
+    }
 
     /** Same test as the native bridge's isHlsSource. */
     fun looksLikeHls(url: String): Boolean {
@@ -171,16 +215,24 @@ internal object HlsStartupTrim {
      * [knownHls] skips the URL test for a source the player already identified as HLS by its
      * response content type.
      */
-    fun prepare(sourceUrl: String, headerLines: List<String>, knownHls: Boolean = false): Prepared? {
+    fun prepare(
+        sourceUrl: String,
+        headerLines: List<String>,
+        knownHls: Boolean = false,
+        maxHeight: Int = 0,
+    ): Prepared? {
         val lower = sourceUrl.lowercase(Locale.ROOT)
         val isHttp = lower.startsWith("http://") || lower.startsWith("https://")
         if (!(if (knownHls) isHttp else looksLikeHls(sourceUrl))) return null
         return runCatching {
             val (body, base) = fetch(sourceUrl, headerLines) ?: return null
-            val trimmed = HlsMasterTrimmer.trim(body, base) ?: return null
+            val trimmed = HlsMasterTrimmer.trim(body, base, maxHeight = maxHeight) ?: return null
             val localUrl = LocalPlaylistServer.publish(trimmed.master) ?: return null
-            log.d { "trimmed HLS master: ${trimmed.subtitles.size} subtitle renditions deferred" }
-            Prepared(localUrl, trimmed.subtitles)
+            log.d {
+                "trimmed HLS master: ${trimmed.subtitles.size} subtitle renditions deferred, " +
+                    "variant ${trimmed.selectedIndex + 1}/${trimmed.variants.size} cap=$maxHeight"
+            }
+            Prepared(localUrl, trimmed.subtitles, trimmed.variants, trimmed.selectedIndex, body, base)
         }.onFailure { error -> log.w(error) { "HLS master trim skipped" } }.getOrNull()
     }
 
@@ -248,5 +300,48 @@ internal object HlsStartupTrim {
             synchronized(playlists) { playlists[token] = master.toByteArray(Charsets.UTF_8) }
             return "http://127.0.0.1:${active.address.port}/hls/$token/master.m3u8"
         }
+    }
+}
+
+/**
+ * Picker entries for [variants], highest first. Exact duplicates (same height, bitrate and
+ * codecs, e.g. one per audio group) collapse to the first; same-height entries name their codec.
+ */
+internal fun hlsQualityOptions(variants: List<HlsVariant>): List<PlayerControlQualityOption> {
+    val distinct = variants.distinctBy { Triple(it.height, it.bandwidth, it.codecs) }
+        .sortedWith(compareByDescending<HlsVariant> { it.height }.thenByDescending { it.bandwidth })
+    val heightCounts = distinct.groupingBy { it.height }.eachCount()
+    return distinct.map { variant ->
+        val parts = mutableListOf<String>()
+        if (variant.height > 0) parts += "${variant.height}p"
+        if (variant.bandwidth > 0) parts += formatHlsBitrate(variant.bandwidth)
+        if ((heightCounts[variant.height] ?: 0) > 1) hlsCodecName(variant.codecs)?.let { parts += it }
+        PlayerControlQualityOption(variant.index, parts.joinToString(" · ").ifEmpty { "#${variant.index + 1}" })
+    }
+}
+
+/** The picker entry standing for the variant [prepared] plays (its duplicate's, if collapsed). */
+internal fun selectedQualityOption(prepared: HlsStartupTrim.Prepared): Int {
+    val playing = prepared.variants.getOrNull(prepared.selectedIndex) ?: return -1
+    return prepared.variants.first {
+        it.height == playing.height && it.bandwidth == playing.bandwidth && it.codecs == playing.codecs
+    }.index
+}
+
+private fun formatHlsBitrate(bitsPerSecond: Long): String =
+    if (bitsPerSecond >= 1_000_000L) {
+        String.format(Locale.ROOT, "%.1f Mbps", bitsPerSecond / 1_000_000.0)
+    } else {
+        "${bitsPerSecond / 1_000L} kbps"
+    }
+
+private fun hlsCodecName(codecs: String): String? {
+    val video = codecs.split(',').map { it.trim().lowercase(Locale.ROOT) }
+    return when {
+        video.any { it.startsWith("hvc1") || it.startsWith("hev1") } -> "HEVC"
+        video.any { it.startsWith("av01") } -> "AV1"
+        video.any { it.startsWith("vp09") || it.startsWith("vp9") } -> "VP9"
+        video.any { it.startsWith("avc1") || it.startsWith("avc3") } -> "AVC"
+        else -> null
     }
 }

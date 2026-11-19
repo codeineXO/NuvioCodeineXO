@@ -10,6 +10,7 @@ import com.nuvio.app.features.player.SubtitleColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineColorSwatches
 import com.nuvio.app.features.player.SubtitleOutlineEffect
 import com.nuvio.app.features.player.backgroundBoxColor
+import com.nuvio.app.features.player.desktop.HlsQualityControls
 import com.nuvio.app.features.player.toStorageHexString
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.add
@@ -25,7 +26,11 @@ import kotlinx.serialization.json.putJsonObject
  */
 internal object RemotePlayerPanels {
     /** `{"k":"player","active":false}`, or the player's bar and panels while it is open. */
-    fun message(state: PlayerControlsState?, audioTracks: List<AudioTrack>): String = buildJsonObject {
+    fun message(
+        state: PlayerControlsState?,
+        audioTracks: List<AudioTrack>,
+        quality: HlsQualityControls? = null,
+    ): String = buildJsonObject {
         put("k", "player")
         put("active", state != null)
         if (state == null) return@buildJsonObject
@@ -63,6 +68,16 @@ internal object RemotePlayerPanels {
         subtitles(state)
         audio(state, audioTracks)
         enhancements(state)
+        if (quality != null && quality.options.size > 1) {
+            putJsonObject("quality") {
+                put("title", quality.title)
+                put("selected", quality.selectedIndex)
+                put("switching", quality.switching)
+                putJsonArray("options") {
+                    quality.options.forEach { addJsonObject { put("variantIndex", it.variantIndex); put("label", it.label) } }
+                }
+            }
+        }
         putJsonArray("chapters") {
             state.chapterControls.chapters.forEach { addJsonObject { put("title", it.title); put("startMs", it.startMs) } }
         }
