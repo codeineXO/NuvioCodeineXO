@@ -118,10 +118,10 @@ internal object WindowsMpvSubStyleHelper {
         val free = freeHandle
         return runCatching {
             Arena.ofConfined().use { arena ->
-                val pName = arena.allocateUtf8String(name)
+                val pName = arena.allocateFrom(name)
                 val res = getPropStr.invoke(mpvCtx, pName) as? MemorySegment
                 if (res != null && res.address() != 0L) {
-                    val str = res.reinterpret(1024).getUtf8String(0)
+                    val str = res.reinterpret(1024).getString(0)
                     free?.invoke(res)
                     str
                 } else {
@@ -135,7 +135,7 @@ internal object WindowsMpvSubStyleHelper {
         val getProp = getPropertyHandle ?: return 0L
         return runCatching {
             Arena.ofConfined().use { arena ->
-                val pName = arena.allocateUtf8String(name)
+                val pName = arena.allocateFrom(name)
                 val pOut = arena.allocate(ValueLayout.JAVA_LONG)
                 val res = getProp.invoke(mpvCtx, pName, 4 /* MPV_FORMAT_INT64 */, pOut) as Int
                 if (res >= 0) {
@@ -152,7 +152,7 @@ internal object WindowsMpvSubStyleHelper {
         val getProp = getPropertyHandle ?: return 0.0
         return runCatching {
             Arena.ofConfined().use { arena ->
-                val pName = arena.allocateUtf8String(name)
+                val pName = arena.allocateFrom(name)
                 val pOut = arena.allocate(ValueLayout.JAVA_DOUBLE)
                 val res = getProp.invoke(mpvCtx, pName, 5 /* MPV_FORMAT_DOUBLE */, pOut) as Int
                 if (res >= 0) {
@@ -209,7 +209,7 @@ internal object WindowsMpvSubStyleHelper {
             // Validate that this is indeed an mpv_handle by checking client name
             val cNameSeg = clientNameHandle?.invoke(mpvSeg) as? MemorySegment
             if (cNameSeg == null || cNameSeg.address() == 0L) return null
-            val name = cNameSeg.reinterpret(64).getUtf8String(0)
+            val name = cNameSeg.reinterpret(64).getString(0)
             if (name.isNullOrBlank()) return null
 
             mpvSeg
@@ -225,8 +225,8 @@ internal object WindowsMpvSubStyleHelper {
         runCatching {
             Arena.ofConfined().use { arena ->
                 fun setProp(name: String, value: String) {
-                    val pName = arena.allocateUtf8String(name)
-                    val pVal = arena.allocateUtf8String(value)
+                    val pName = arena.allocateFrom(name)
+                    val pVal = arena.allocateFrom(value)
                     setPropertyStringHandle?.invoke(mpvCtx, pName, pVal)
                 }
 

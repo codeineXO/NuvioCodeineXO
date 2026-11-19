@@ -1348,6 +1348,8 @@ compose.desktop {
             // Keep AWT from loading its own GTK (Swing L&F/file dialogs): the
             // bridge owns the process's GTK via initGtkEarly (skoruppa's fix).
             "-Djdk.gtk.version=0",
+            // JNI player bridge, Skiko and the FFM mpv helper load native code; JDK 24+ warns without this.
+            "--enable-native-access=ALL-UNNAMED",
             "--add-opens=java.desktop/java.awt=ALL-UNNAMED",
             "--add-opens=java.desktop/java.awt.event=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED",
