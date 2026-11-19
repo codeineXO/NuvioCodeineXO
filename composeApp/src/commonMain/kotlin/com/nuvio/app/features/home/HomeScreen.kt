@@ -592,13 +592,20 @@ fun HomeScreen(
                 if (showHeroSlot) {
                     item(key = HOME_HERO_KEY, contentType = "hero") {
                         val heroShape = RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp)
+                        val heroCardTopPadding = topChromePadding ?: NuvioTokens.Space.s16
+                        // The card sits below the top chrome with a gap under it; size it to what remains.
+                        val heroViewportHeight = if (useGutterLayout) {
+                            (maxHeight - heroCardTopPadding - NuvioTokens.Space.s24).coerceAtLeast(0.dp)
+                        } else {
+                            maxHeight
+                        }
                         val heroContainerModifier = if (useGutterLayout) {
                             Modifier
                                 .fillMaxWidth()
                                 .padding(
                                     start = sidebarContentInset + effectivePosterSectionPadding,
                                     end = effectivePosterSectionPadding,
-                                    top = topChromePadding ?: NuvioTokens.Space.s16,
+                                    top = heroCardTopPadding,
                                     bottom = NuvioTokens.Space.s24,
                                 )
                                 .clip(heroShape)
@@ -619,7 +626,7 @@ fun HomeScreen(
                             when {
                                 isLoading -> HomeSkeletonHero(
                                     modifier = Modifier,
-                                    viewportHeight = maxHeight,
+                                    viewportHeight = heroViewportHeight,
                                     mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
                                     sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
                                     containerMode = useGutterLayout,
@@ -628,7 +635,7 @@ fun HomeScreen(
                                 homeUiState.heroItems.isNotEmpty() -> HomeHeroSection(
                                     items = homeHeroState.items,
                                     modifier = Modifier.remoteNavigationScrollToTop(homeListState),
-                                    viewportHeight = maxHeight,
+                                    viewportHeight = heroViewportHeight,
                                     mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
                                     sectionPadding = if (isDesktop && !useGutterLayout) homeSectionPadding else null,
                                     containerMode = useGutterLayout,
@@ -641,7 +648,7 @@ fun HomeScreen(
 
                                 else -> HomeHeroReservedSpace(
                                     modifier = Modifier,
-                                    viewportHeight = maxHeight,
+                                    viewportHeight = heroViewportHeight,
                                     mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
                                     containerMode = useGutterLayout,
                                 )

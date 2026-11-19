@@ -131,6 +131,7 @@ private const val ULTRAWIDE_HERO_VIEWPORT_HEIGHT_RATIO = 1f
 private const val DESKTOP_HERO_ULTRAWIDE_HORIZONTAL_PADDING_DP = 120f
 private const val DESKTOP_HERO_ULTRAWIDE_BOTTOM_PADDING_DP = 192f
 private const val DESKTOP_HERO_TOP_FADE_HEIGHT_DP = 160f
+private const val DESKTOP_HERO_CARD_MIN_HEIGHT_DP = 320f
 private const val DESKTOP_HERO_BOTTOM_FADE_HEIGHT_DP = 300f
 
 internal data class HomeHeroLayout(
@@ -237,6 +238,7 @@ fun HomeHeroSection(
             viewportHeightDp = viewportHeight?.value,
             mobileBelowSectionHeightHintDp = mobileBelowSectionHeightHint?.value,
             preferDesktopLayout = isDesktop,
+            containerMode = containerMode,
         )
         val heroWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
         val heroHeightPx = with(LocalDensity.current) { layout.heroHeight.toPx() }
@@ -920,6 +922,7 @@ fun HomeHeroReservedSpace(
             viewportHeightDp = viewportHeight?.value,
             mobileBelowSectionHeightHintDp = mobileBelowSectionHeightHint?.value,
             preferDesktopLayout = isDesktop,
+            containerMode = containerMode,
         )
 
         Spacer(
@@ -1192,12 +1195,19 @@ internal fun homeHeroLayout(
     viewportHeightDp: Float? = null,
     mobileBelowSectionHeightHintDp: Float? = null,
     preferDesktopLayout: Boolean = false,
+    containerMode: Boolean = false,
 ): HomeHeroLayout {
     if (preferDesktopLayout) {
-        val heroHeight = desktopHeroHeight(
+        val fullBleedHeight = desktopHeroHeight(
             maxWidthDp = maxWidthDp,
             viewportHeightDp = viewportHeightDp,
         )
+        // A card must fit the viewport space it was given; full-bleed heroes may run past it.
+        val heroHeight = if (containerMode && viewportHeightDp != null) {
+            fullBleedHeight.coerceAtMost(viewportHeightDp.dp.coerceAtLeast(DESKTOP_HERO_CARD_MIN_HEIGHT_DP.dp))
+        } else {
+            fullBleedHeight
+        }
         val ultrawideProgress = ultrawideViewportProgress(
             widthDp = maxWidthDp,
             heightDp = viewportHeightDp,
@@ -1221,7 +1231,8 @@ internal fun homeHeroLayout(
                 stop = DESKTOP_HERO_ULTRAWIDE_BOTTOM_PADDING_DP,
                 fraction = ultrawideProgress,
             ).dp,
-            topFadeHeight = DESKTOP_HERO_TOP_FADE_HEIGHT_DP.dp,
+            // The top fade backs chrome drawn over a full-bleed hero; a card sits below that chrome.
+            topFadeHeight = if (containerMode) 0.dp else DESKTOP_HERO_TOP_FADE_HEIGHT_DP.dp,
             bottomFadeHeight = DESKTOP_HERO_BOTTOM_FADE_HEIGHT_DP.dp,
             logoWidthFraction = 0.74f,
             backgroundMotionStrength = 1f - ultrawideProgress,
