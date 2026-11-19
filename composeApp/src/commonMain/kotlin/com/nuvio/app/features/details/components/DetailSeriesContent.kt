@@ -1,6 +1,7 @@
 package com.nuvio.app.features.details.components
 
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
+import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.FrostedGlassTokens
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.core.ui.frostedGlassBorder
@@ -363,7 +364,11 @@ fun DetailSeriesContent(
     val viewListRequester = remember(meta.id) { FocusRequester() }
     val popupScope = rememberCoroutineScope()
     val continuousListState = rememberContinuousEpisodeListState(meta.id, currentSeason, seasons, groupedEpisodes)
-    if (isEnhanced && episodeListOpen) {
+    // The popup is a separate layer: once this page stops being the active route it would otherwise
+    // stay drawn over the incoming page until this one is disposed at the end of the transition.
+    val screenActive = LocalScreenActive.current
+    LaunchedEffect(screenActive) { if (!screenActive) episodeListOpen = false }
+    if (isEnhanced && episodeListOpen && screenActive) {
         ContinuousEpisodeListPopup(
             meta = meta,
             seasons = seasons,
