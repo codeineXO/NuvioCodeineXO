@@ -706,27 +706,54 @@ constexpr char kRtxFilterLabel[] = "nuvio-rtx";
 constexpr char kRtxHdrFormatLabel[] = "nuvio-rtx-hdr";
 constexpr char kNightFilterLabel[] = "nuvio-audio-night";
 
+// Splits a command-line list action such as `glsl-shaders-append` into its
+// option and action. Returns false for plain option names.
+static bool splitMpvListAction(const std::string &name, std::string &base, std::string &action) {
+    if (name == "glsl-shader") {
+        base = "glsl-shaders";
+        action = "append";
+        return true;
+    }
+    for (const char *suffix : {"add", "append", "pre", "set", "remove", "clr", "toggle"}) {
+        const size_t length = std::strlen(suffix) + 1;
+        if (name.size() > length && name[name.size() - length] == '-' &&
+            name.compare(name.size() - length + 1, std::string::npos, suffix) == 0) {
+            base = name.substr(0, name.size() - length);
+            action = suffix;
+            return true;
+        }
+    }
+    return false;
+}
+
+static std::string mpvOptionBaseName(const std::string &name) {
+    std::string base, action;
+    return splitMpvListAction(name, base, action) ? base : name;
+}
+
 static bool applyCustomMpvOptions(
     MpvApi &api, mpv_handle *handle, const std::vector<std::string> &options,
     std::vector<std::string> &errors, bool initialized
 ) {
-    // The option setter accepts scalar values. List actions and CLI aliases
-    // need mpv commands, which become available after initialization.
+    // The option setter accepts plain values. List actions need mpv commands,
+    // which become available after initialization; filter chains and the
+    // shader list are applied then too so they land after the app's own.
     bool success = true;
     for (size_t index = 0; index < options.size(); index += 2) {
         const auto &name = options[index];
         const auto *value = options[index + 1].c_str();
+        std::string listBase, listAction;
+        const bool isListAction = splitMpvListAction(name, listBase, listAction);
         const bool video = name == "vf" || name == "vf-add";
         const bool audio = name == "af" || name == "af-add";
-        const bool appendShader = name == "glsl-shader" || name == "glsl-shaders-append";
-        if (initialized != (video || audio || appendShader || name == "glsl-shaders")) continue;
+        if (initialized != (video || audio || isListAction || name == "glsl-shaders")) continue;
 
         int result;
         if (video || audio) {
             const char *command[] = {video ? "vf" : "af", name.size() == 2 ? "set" : "add", value, nullptr};
             result = api.command(handle, command);
-        } else if (appendShader) {
-            const char *command[] = {"change-list", "glsl-shaders", "append", value, nullptr};
+        } else if (isListAction) {
+            const char *command[] = {"change-list", listBase.c_str(), listAction.c_str(), value, nullptr};
             result = api.command(handle, command);
         } else if (initialized) {
             result = api.setPropertyString(handle, "glsl-shaders", value);
@@ -1259,9 +1286,24 @@ public:
             << ",\"cacheUsedBytes\":" << cacheBytes << ",\"cacheSpeedBytes\":" << cacheSpeed << ',';
 
         out << "\"mpv\":{";
-        for (const auto *option : {"scale", "cscale", "dscale", "deband", "dither-depth", "tone-mapping"}) {
+        for (const auto *option : {
+            "scale", "cscale", "dscale", "tscale", "deband", "dither-depth", "tone-mapping",
+            "linear-downscaling", "correct-downscaling", "sigmoid-upscaling",
+            "hdr-compute-peak", "gamut-mapping-mode", "target-peak", "gpu-api",
+        }) {
             stringField(option, stringProperty((std::string("options/") + option).c_str()));
         }
+        stringField("currentVo", stringProperty("current-vo"));
+        stringField("currentGpuContext", stringProperty("current-gpu-context"));
+        out << "\"speedCorrection\":" << number("video-speed-correction") << ',';
+        dropCounter("mistimedFrames", "mistimed-frame-count", "mistimed-frame-count");
+        dropCounter("delayedFrames", "vo-delayed-frame-count", "vo-delayed-frame-count");
+        out << "\"customOptions\":[";
+        for (size_t i = 0; i < startupUserOptionNames.size(); ++i) {
+            if (i) out << ',';
+            quote(startupUserOptionNames[i]);
+        }
+        out << "],";
         filterChain("vf");
         filterChain("af");
         stringField("videoSync", stringProperty("options/video-sync"));
@@ -1668,6 +1710,7 @@ public:
     void setAudioLanguages(const std::string &languages) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
+        if (userOptionSetLocked("alang")) return;
         mpvApi().setPropertyString(mpv, "alang", languages.c_str());
         mpvApi().setPropertyString(mpv, "aid", "auto");
     }
@@ -2049,8 +2092,9 @@ public:
     ) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
-        const bool directoryOk = mpvApi().setPropertyString(mpv, "sub-fonts-dir", fontsDir.c_str()) >= 0;
-        const bool fontOk = mpvApi().setPropertyString(mpv, "sub-font", font.c_str()) >= 0;
+        const bool userFont = userOptionSetLocked("sub-font") || userOptionSetLocked("sub-fonts-dir");
+        const bool directoryOk = !userFont && mpvApi().setPropertyString(mpv, "sub-fonts-dir", fontsDir.c_str()) >= 0;
+        const bool fontOk = !userFont && mpvApi().setPropertyString(mpv, "sub-font", font.c_str()) >= 0;
         const bool fontChanged = font != appliedSubtitleFont || fontsDir != appliedSubtitleFontsDir;
         // The directory contents are read when the subtitle decoder is created. A new
         // imported font can replace the file in the same directory, so compare family too.
@@ -2073,8 +2117,8 @@ public:
                 appliedSubtitleFontsDir = fontsDir;
             }
         }
-        mpvApi().setPropertyString(mpv, "sub-shadow-color", shadowColor.c_str());
-        mpvApi().setProperty(mpv, "sub-shadow-offset", MPV_FORMAT_DOUBLE, &shadowOffset);
+        if (!userOptionSetLocked("sub-shadow-color")) mpvApi().setPropertyString(mpv, "sub-shadow-color", shadowColor.c_str());
+        if (!userOptionSetLocked("sub-shadow-offset")) mpvApi().setProperty(mpv, "sub-shadow-offset", MPV_FORMAT_DOUBLE, &shadowOffset);
     }
 
     void applySubtitleStyle(
@@ -2109,7 +2153,7 @@ public:
         bool stripSdhChanged = !hasAppliedSubtitleStyle || appliedSubtitleStripSdh != stripSdh;
 
         if (modeChanged) {
-            setStringProperty("sub-ass-override", useLibass ? "scale" : "force");
+            setAppStringProperty("sub-ass-override", useLibass ? "scale" : "force");
         }
         if (modeChanged || (!useLibass && boldChanged)) {
             std::lock_guard<std::mutex> lock(mpvMutex);
@@ -2119,14 +2163,14 @@ public:
                 useLibass ? "clr" : "set",
                 useLibass ? "" : (bold ? "Bold=1" : "Bold=0"), nullptr
             };
-            mpvApi().command(mpv, styleOverridesCommand);
+            if (!userOptionSetLocked("sub-ass-style-overrides")) mpvApi().command(mpv, styleOverridesCommand);
         }
         if (modeChanged || sizeChanged || positionChanged) {
             std::lock_guard<std::mutex> lock(mpvMutex);
             if (!mpv) return;
             if (modeChanged || sizeChanged) {
-                mpvApi().setProperty(mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale);
-                mpvApi().setProperty(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size);
+                if (!userOptionSetLocked("sub-scale")) mpvApi().setProperty(mpv, "sub-scale", MPV_FORMAT_DOUBLE, &scale);
+                if (!userOptionSetLocked("sub-font-size")) mpvApi().setProperty(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size);
             }
             if (modeChanged || positionChanged) {
                 mpvApi().setProperty(mpv, "sub-pos", MPV_FORMAT_INT64, &position);
@@ -2135,38 +2179,38 @@ public:
 
         {
             if (modeChanged || textColorChanged) {
-                setStringProperty("sub-color", resolvedTextColor);
+                setAppStringProperty("sub-color", resolvedTextColor);
             }
             if (modeChanged || backgroundColorChanged) {
-                setStringProperty("sub-back-color", resolvedBackgroundColor);
-                setStringProperty(
+                setAppStringProperty("sub-back-color", resolvedBackgroundColor);
+                setAppStringProperty(
                     "sub-border-style",
                     resolvedBackgroundColor.rfind("#00", 0) == 0 ? "outline-and-shadow" : "background-box"
                 );
-                setStringProperty(
+                setAppStringProperty(
                     "sub-shadow-offset",
                     resolvedBackgroundColor.rfind("#00", 0) == 0 ? "0" : "4"
                 );
-                setStringProperty(
+                setAppStringProperty(
                     "sub-blur",
                     "0"
                 );
             }
             if (modeChanged || outlineColorChanged) {
-                setStringProperty("sub-outline-color", resolvedOutlineColor);
+                setAppStringProperty("sub-outline-color", resolvedOutlineColor);
             }
             if (modeChanged || boldChanged) {
-                setStringProperty("sub-bold", bold ? "yes" : "no");
+                setAppStringProperty("sub-bold", bold ? "yes" : "no");
             }
             if (modeChanged || outlineSizeChanged) {
                 std::lock_guard<std::mutex> lock(mpvMutex);
                 if (!mpv) return;
-                mpvApi().setProperty(mpv, "sub-outline-size", MPV_FORMAT_DOUBLE, &outline);
+                if (!userOptionSetLocked("sub-outline-size")) mpvApi().setProperty(mpv, "sub-outline-size", MPV_FORMAT_DOUBLE, &outline);
             }
         }
         if (stripSdhChanged) {
-            setStringProperty("sub-filter-sdh", stripSdh ? "yes" : "no");
-            setStringProperty("sub-filter-sdh-harder", stripSdh ? "yes" : "no");
+            setAppStringProperty("sub-filter-sdh", stripSdh ? "yes" : "no");
+            setAppStringProperty("sub-filter-sdh-harder", stripSdh ? "yes" : "no");
         }
 
         hasAppliedSubtitleStyle = true;
@@ -2745,11 +2789,17 @@ private:
             if (!initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, customOptions)) {
                 api.terminateDestroy(mpv);
                 mpv = nullptr;
+                customOptions.clear();
                 customConfigFallback = true;
                 initializeMpvLocked(api, audioUrl, headerLines, initialPositionMs, decoderPriority, fastProfile, {});
             }
             startupUserOptionNames.clear();
-            for (size_t i = 0; i + 1 < customOptions.size(); i += 2) startupUserOptionNames.push_back(customOptions[i]);
+            for (size_t i = 0; i + 1 < customOptions.size(); i += 2) {
+                auto name = mpvOptionBaseName(customOptions[i]);
+                if (std::find(startupUserOptionNames.begin(), startupUserOptionNames.end(), name) == startupUserOptionNames.end()) {
+                    startupUserOptionNames.push_back(std::move(name));
+                }
+            }
             customOptions.clear();
             userShaderPaths = readMpvShaderPaths(api, mpv);
             startupInitialPositionMs = std::max(0LL, initialPositionMs);
@@ -2916,9 +2966,6 @@ private:
             setMpvOptionStringLocked("gpu-shader-cache-dir", shaderCacheDirectory.c_str());
         }
 
-        std::vector<std::string> errors(options.size() / 2);
-        if (!applyCustomMpvOptions(api, mpv, options, errors, false)) return false;
-
         if (initialPositionMs > 0) {
             // mpv starts prefetching into the demuxer cache from the start of
             // the file as soon as the file opens, but a `loadfile ... start=`
@@ -2971,6 +3018,10 @@ private:
             setMpvOptionStringLocked("audio-files", audioUrl.c_str());
             setMpvOptionStringLocked("aid", "auto");
         }
+
+        // Custom options go last so they override the app defaults above.
+        std::vector<std::string> errors(options.size() / 2);
+        if (!applyCustomMpvOptions(api, mpv, options, errors, false)) return false;
 
         int initResult = api.initialize(mpv);
         if (initResult < 0) {
@@ -3489,14 +3540,22 @@ private:
         std::string maxBytesStr = std::to_string(maxBytes);
         std::string maxBackBytesStr = std::to_string(maxBackBytes);
         std::string secondsStr = std::to_string((int64_t)seconds);
-        (void)mpvApi().setPropertyString(mpv, "demuxer-max-bytes", maxBytesStr.c_str());
-        (void)mpvApi().setPropertyString(mpv, "demuxer-max-back-bytes", maxBackBytesStr.c_str());
-        (void)mpvApi().setPropertyString(mpv, "cache-secs", secondsStr.c_str());
-        (void)mpvApi().setPropertyString(mpv, "demuxer-readahead-secs", secondsStr.c_str());
-        (void)mpvApi().setProperty(mpv, "demuxer-max-bytes", MPV_FORMAT_INT64, &maxBytes);
-        (void)mpvApi().setProperty(mpv, "demuxer-max-back-bytes", MPV_FORMAT_INT64, &maxBackBytes);
-        (void)mpvApi().setProperty(mpv, "cache-secs", MPV_FORMAT_DOUBLE, &seconds);
-        (void)mpvApi().setProperty(mpv, "demuxer-readahead-secs", MPV_FORMAT_DOUBLE, &seconds);
+        if (!userOptionSetLocked("demuxer-max-bytes")) {
+            (void)mpvApi().setPropertyString(mpv, "demuxer-max-bytes", maxBytesStr.c_str());
+            (void)mpvApi().setProperty(mpv, "demuxer-max-bytes", MPV_FORMAT_INT64, &maxBytes);
+        }
+        if (!userOptionSetLocked("demuxer-max-back-bytes")) {
+            (void)mpvApi().setPropertyString(mpv, "demuxer-max-back-bytes", maxBackBytesStr.c_str());
+            (void)mpvApi().setProperty(mpv, "demuxer-max-back-bytes", MPV_FORMAT_INT64, &maxBackBytes);
+        }
+        if (!userOptionSetLocked("cache-secs")) {
+            (void)mpvApi().setPropertyString(mpv, "cache-secs", secondsStr.c_str());
+            (void)mpvApi().setProperty(mpv, "cache-secs", MPV_FORMAT_DOUBLE, &seconds);
+        }
+        if (!userOptionSetLocked("demuxer-readahead-secs")) {
+            (void)mpvApi().setPropertyString(mpv, "demuxer-readahead-secs", secondsStr.c_str());
+            (void)mpvApi().setProperty(mpv, "demuxer-readahead-secs", MPV_FORMAT_DOUBLE, &seconds);
+        }
     }
 
     double doubleProperty(const char *name, double fallback) {
@@ -3548,6 +3607,16 @@ private:
     bool setStringProperty(const char *name, const std::string &value) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         return mpv && mpvApi().setPropertyString(mpv, name, value.c_str()) >= 0;
+    }
+
+    // Caller owns mpvMutex. Options set by the custom mpv config win over app-driven values.
+    bool userOptionSetLocked(const char *name) const {
+        return std::find(startupUserOptionNames.begin(), startupUserOptionNames.end(), name) != startupUserOptionNames.end();
+    }
+
+    bool setAppStringProperty(const char *name, const std::string &value) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        return mpv && !userOptionSetLocked(name) && mpvApi().setPropertyString(mpv, name, value.c_str()) >= 0;
     }
 
     bool command(const std::vector<std::string> &args) {

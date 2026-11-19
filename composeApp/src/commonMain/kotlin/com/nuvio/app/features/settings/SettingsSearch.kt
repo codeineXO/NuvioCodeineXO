@@ -751,6 +751,7 @@ internal fun settingsSearchEntries(
                             "custom-mpv-config",
                             stringResource(Res.string.settings_playback_mpv_config),
                             stringResource(Res.string.settings_playback_mpv_config_description),
+                            sectionOverride = "Video Enhancements",
                         ),
                     )
                 }

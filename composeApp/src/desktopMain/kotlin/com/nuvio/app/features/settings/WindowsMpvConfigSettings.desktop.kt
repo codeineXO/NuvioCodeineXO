@@ -70,11 +70,12 @@ private fun WindowsMpvConfigEditor(title: String, onClose: () -> Unit) {
     ) {
         Text(
             text = stringResource(
-                Res.string.settings_playback_mpv_config_supported,
-                WindowsMpvConfig.supportedOptions.joinToString(),
+                Res.string.settings_playback_mpv_config_blocked,
+                WindowsMpvConfig.blockedOptions.joinToString() + ", input-*, window-*, watch-later-*",
             ),
             style = MaterialTheme.typography.bodySmall,
         )
+        val warnings = remember(draft) { WindowsMpvConfig.parse(draft).warnings }
         OutlinedTextField(
             value = draft,
             onValueChange = {
@@ -87,10 +88,17 @@ private fun WindowsMpvConfigEditor(title: String, onClose: () -> Unit) {
             enabled = !validating,
             isError = issues.isNotEmpty() || runtimeError,
             minLines = 4,
-            maxLines = 8,
+            maxLines = 14,
         )
-        if (issues.isNotEmpty() || runtimeError) {
+        if (issues.isNotEmpty() || runtimeError || warnings.isNotEmpty()) {
             Column(Modifier.heightIn(max = 100.dp).verticalScroll(rememberScrollState())) {
+                warnings.forEach { warning ->
+                    Text(
+                        stringResource(Res.string.settings_playback_mpv_config_profile_ignored, warning.line ?: 0, warning.detail),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (runtimeError) {
                     Text(
                         stringResource(Res.string.settings_playback_mpv_config_validation_failed),
@@ -107,6 +115,8 @@ private fun WindowsMpvConfigEditor(title: String, onClose: () -> Unit) {
                             stringResource(Res.string.settings_playback_mpv_config_invalid_value, issue.line ?: 0, issue.detail)
                         WindowsMpvConfig.ErrorKind.ReservedLabel ->
                             stringResource(Res.string.settings_playback_mpv_config_reserved_label, issue.detail)
+                        WindowsMpvConfig.ErrorKind.ProfileIgnored ->
+                            stringResource(Res.string.settings_playback_mpv_config_profile_ignored, issue.line ?: 0, issue.detail)
                     }
                     Text(message, color = MaterialTheme.colorScheme.error)
                 }

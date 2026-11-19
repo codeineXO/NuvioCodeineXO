@@ -115,8 +115,6 @@ internal fun PlaybackVideoSettings(
             }
             if (isWindows) {
                 SettingsGroup(isTablet = isTablet) {
-                    LocalWindowsMpvConfigRow.current(isTablet, decoderEnabled)
-                    SettingsGroupDivider(isTablet = isTablet)
                     HlsMaxResolutionSetting(isTablet)
                 }
                 SettingsSection(

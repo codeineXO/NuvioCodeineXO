@@ -1351,7 +1351,14 @@ const renderPlaybackStats = () => {
       fallback: "Defaults after config error",
     }[stats.mpvConfigStatus] || "Unavailable";
     statText("statMpvConfig", stats.mpvConfigReopen ? `${configStatus}\nReopen to apply` : configStatus);
+    statText("statMpvCustomOptions", mpv.customOptions?.length ? mpv.customOptions.join(", ") : "None");
+    const renderer = [mpv.currentVo, mpv.currentGpuContext || mpv["gpu-api"]].filter(Boolean).join(" · ");
+    statText("statMpvRenderer", renderer || "Unavailable");
     statText("statMpvScaling", `Luma: ${mpv.scale || "Default"} · Chroma: ${mpv.cscale || "Default"} · Downscale: ${mpv.dscale || "Default"}`);
+    const flag = value => value === "yes" ? "on" : value === "no" ? "off" : (value || "?");
+    statText("statMpvScalingOptions", `Linear downscaling: ${flag(mpv["linear-downscaling"])} · Correct downscaling: ${flag(mpv["correct-downscaling"])} · Sigmoid: ${flag(mpv["sigmoid-upscaling"])}`);
+    const targetPeak = mpv["target-peak"];
+    statText("statMpvHdr", `Peak detection: ${flag(mpv["hdr-compute-peak"])} · Gamut: ${mpv["gamut-mapping-mode"] || "Default"} · Target peak: ${targetPeak && targetPeak !== "auto" ? `${targetPeak} nits` : "auto"}`);
     statText("statMpvDeband", mpv.deband || "Unavailable");
     statText("statMpvDither", mpv["dither-depth"] || "Unavailable");
     statText("statMpvToneMap", mpv["tone-mapping"] || "Unavailable");
@@ -1360,8 +1367,13 @@ const renderPlaybackStats = () => {
     statText("statMpvDisplaySync", mpv.videoSync ? `${mpv.videoSync} · ${displaySyncStatus}` : displaySyncStatus);
     const interpolationStatus = mpv.displaySyncActive === false ? "Enabled · display sync inactive"
       : "Enabled";
-    statText("statMpvInterpolation", mpv.interpolation === "yes" ? interpolationStatus
+    statText("statMpvInterpolation", mpv.interpolation === "yes"
+      ? `${interpolationStatus} · ${mpv.tscale || "default"}`
       : mpv.interpolation === "no" ? "Off" : "Unavailable");
+    const timingCount = value => Number.isFinite(value) ? value.toLocaleString() : "?";
+    const speed = Number(mpv.speedCorrection);
+    const speedText = speed > 0 && mpv.displaySyncActive ? ` · Speed: ${speed >= 1 ? "+" : ""}${((speed - 1) * 100).toFixed(3)}%` : "";
+    statText("statMpvTiming", `Mistimed: ${timingCount(mpv.mistimedFrames)} · Delayed: ${timingCount(mpv.delayedFrames)}${speedText}`);
     statText("statMpvShaders", mpv.shaders?.length ? mpv.shaders.join("\n") : "None");
     document.getElementById("statMpvShaderErrorRow").hidden = !mpv.shaderError;
     statText("statMpvShaderError", mpv.shaderError || "");

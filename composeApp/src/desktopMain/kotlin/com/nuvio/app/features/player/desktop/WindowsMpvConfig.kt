@@ -32,20 +32,43 @@ internal object WindowsMpvConfig {
         }
     }
 
-    val supportedOptions = setOf(
-        "scale", "cscale", "dscale", "deband", "dither-depth", "tone-mapping",
-        "video-sync", "interpolation",
-        "glsl-shader", "glsl-shaders", "glsl-shaders-append", "glsl-shader-opts",
-        "vf", "vf-add", "af", "af-add",
+    /**
+     * Options that would detach mpv from the embedded window, take over input or the
+     * window, load external code, or replace values the app derives per stream.
+     * Everything else is passed to libmpv, which validates the values.
+     */
+    val blockedOptions = setOf(
+        "wid", "vo", "gpu-context", "config", "config-dir", "include", "use-filedir-conf",
+        "osc", "terminal", "idle", "keep-open", "force-window", "fs", "fullscreen", "geometry",
+        "script", "scripts", "load-scripts", "ytdl", "ytdl-format", "ytdl-raw-options",
+        "http-header-fields", "user-agent", "referrer", "cookies", "cookies-file",
+        "audio-file", "audio-files", "start", "pause", "playlist", "playlist-start",
+        "resume-playback", "save-position-on-quit",
     )
+    private val blockedPrefixes = listOf("input-", "window-", "watch-later-")
+
+    /** List option suffixes mpv accepts on the command line, e.g. `glsl-shaders-append`. */
+    private val listActionSuffixes = listOf("-add", "-append", "-pre", "-set", "-remove", "-clr", "-toggle")
+
+    fun baseOptionName(name: String): String {
+        if (name == "glsl-shader") return "glsl-shaders"
+        val suffix = listActionSuffixes.firstOrNull { name.endsWith(it) && name.length > it.length }
+        return if (suffix == null) name else name.dropLast(suffix.length)
+    }
+
+    fun isBlocked(name: String): Boolean {
+        val base = baseOptionName(name)
+        return base in blockedOptions || blockedPrefixes.any(base::startsWith)
+    }
 
     data class Option(val line: Int, val name: String, val value: String)
 
-    enum class ErrorKind { Syntax, Unsupported, InvalidValue, ReservedLabel }
+    enum class ErrorKind { Syntax, Unsupported, InvalidValue, ReservedLabel, ProfileIgnored }
 
     data class Issue(val kind: ErrorKind, val line: Int? = null, val detail: String = "")
 
-    data class Parsed(val options: List<Option>, val issues: List<Issue>) {
+    /** [warnings] do not block saving or playback; they mark lines that were skipped. */
+    data class Parsed(val options: List<Option>, val issues: List<Issue>, val warnings: List<Issue> = emptyList()) {
         fun nativeOptions(): Array<String> = options.flatMap { listOf(it.name, it.value) }.toTypedArray()
     }
 
@@ -69,32 +92,72 @@ internal object WindowsMpvConfig {
     fun parse(text: String): Parsed {
         val options = mutableListOf<Option>()
         val issues = mutableListOf<Issue>()
+        val warnings = mutableListOf<Issue>()
+        var inProfile = false
         text.removePrefix("\uFEFF").lineSequence().forEachIndexed { index, raw ->
             val line = raw.trim()
             if (line.isEmpty() || line.startsWith('#')) return@forEachIndexed
 
             val number = index + 1
-            val separator = line.indexOf('=')
-            if (separator <= 0 || '\u0000' in line) {
+            if ('\u0000' in line) {
                 issues += Issue(ErrorKind.Syntax, number)
                 return@forEachIndexed
             }
-            val name = line.substring(0, separator).trim()
-            if (name !in supportedOptions) {
+            // mpv.conf profile sections: only [default] (top level) is applied.
+            if (line.startsWith('[')) {
+                val end = line.indexOf(']')
+                if (end <= 1 || !isCommentOrBlank(line.substring(end + 1))) {
+                    issues += Issue(ErrorKind.Syntax, number)
+                    return@forEachIndexed
+                }
+                val profile = line.substring(1, end).trim()
+                inProfile = profile != "default"
+                if (inProfile) warnings += Issue(ErrorKind.ProfileIgnored, number, profile)
+                return@forEachIndexed
+            }
+            if (inProfile) return@forEachIndexed
+
+            val body = line.removePrefix("--")
+            // A `#` before the first `=` starts a comment after a bare flag.
+            val separator = body.indexOf('=').takeUnless { equals ->
+                val comment = body.indexOf('#')
+                comment in 0 until equals
+            } ?: -1
+            val rawName = (if (separator < 0) body.substringBefore('#') else body.substring(0, separator)).trim()
+            if (rawName.isEmpty() || rawName.any { it.isWhitespace() || it == '"' || it == '\'' }) {
+                issues += Issue(ErrorKind.Syntax, number)
+                return@forEachIndexed
+            }
+            val (name, value) = if (separator < 0) {
+                // Bare flags: `deband` sets yes, `no-deband` sets no.
+                if (rawName.startsWith("no-") && rawName.length > 3) rawName.substring(3) to "no" else rawName to "yes"
+            } else {
+                rawName to (parseValue(body.substring(separator + 1)) ?: run {
+                    issues += Issue(ErrorKind.Syntax, number)
+                    return@forEachIndexed
+                })
+            }
+            if (isBlocked(name)) {
                 issues += Issue(ErrorKind.Unsupported, number, name)
                 return@forEachIndexed
             }
-
-            val value = line.substring(separator + 1).trim()
-            val quote = value.firstOrNull()
-            if ((quote == '"' || quote == '\'') && (value.length < 2 || value.last() != quote)) {
-                issues += Issue(ErrorKind.Syntax, number)
-                return@forEachIndexed
-            }
-            val unquoted = if (quote == '"' || quote == '\'') value.substring(1, value.lastIndex) else value
-            options += Option(number, name, unquoted)
+            options += Option(number, name, value)
         }
-        return Parsed(options, issues)
+        return Parsed(options, issues, warnings)
+    }
+
+    private fun isCommentOrBlank(text: String): Boolean = text.trim().let { it.isEmpty() || it.startsWith('#') }
+
+    /** Returns the value with quotes removed and any trailing `# comment` stripped, or null on bad quoting. */
+    private fun parseValue(text: String): String? {
+        val value = text.trim()
+        val quote = value.firstOrNull()
+        if (quote == '"' || quote == '\'') {
+            val close = value.indexOf(quote, startIndex = 1)
+            if (close < 0 || !isCommentOrBlank(value.substring(close + 1))) return null
+            return value.substring(1, close)
+        }
+        return value.substringBefore('#').trim()
     }
 
     fun validate(text: String): List<Issue> {
