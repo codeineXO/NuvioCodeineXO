@@ -141,7 +141,7 @@ modules:
       - cp -a /run/build/nuvio/. /app/opt/Nuvio/
       - install -Dm755 /run/build/nuvio/nuvio-launcher.sh /app/bin/nuvio
       - install -Dm644 /run/build/nuvio/com.nuvio.media.desktop.metainfo.xml /app/share/metainfo/com.nuvio.media.desktop.metainfo.xml
-      - install -Dm644 /run/build/nuvio/lib/Nuvio.png /app/share/icons/hicolor/512x512/apps/com.nuvio.media.desktop.png
+      - install -Dm644 /run/build/nuvio/lib/NuvioCodeineXO.png /app/share/icons/hicolor/512x512/apps/com.nuvio.media.desktop.png
       - |
         bash -euo pipefail -c '
           mkdir -p /app/share/applications

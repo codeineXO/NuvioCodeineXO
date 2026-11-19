@@ -612,17 +612,14 @@ jobs:
             --no-daemon \
             --stacktrace
 
-          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio"
+          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/NuvioCodeineXO"
           if [[ ! -d "${app_root}" ]]; then
             echo "Expected the Linux app bundle at ${app_root} after createReleaseDistributable." >&2
             find composeApp/build/compose -maxdepth 6 2>/dev/null | head -n 200 >&2
             exit 1
           fi
 
-          executable_path="${app_root}/bin/Nuvio"
-          if [[ ! -x "${executable_path}" ]]; then
-            executable_path="${app_root}/bin/nuvio"
-          fi
+          executable_path="${app_root}/bin/NuvioCodeineXO"
           if [[ ! -x "${executable_path}" ]]; then
             echo "Expected a Linux app executable under ${app_root}/bin after createReleaseDistributable." >&2
             find "${app_root}" -maxdepth 3 2>/dev/null | head -n 200 >&2
@@ -643,11 +640,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio"
-          alt_app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/Nuvio/Nuvio"
-          if [[ -d "${alt_app_root}" ]]; then
-            app_root="${alt_app_root}"
-          fi
+          app_root="${GITHUB_WORKSPACE}/composeApp/build/compose/binaries/main-release/app/NuvioCodeineXO"
 
           if [[ ! -d "${app_root}" ]]; then
             echo "Expected the Linux app bundle at ${app_root}." >&2
@@ -655,10 +648,7 @@ jobs:
             exit 1
           fi
 
-          executable_path="${app_root}/bin/Nuvio"
-          if [[ ! -x "${executable_path}" ]]; then
-            executable_path="${app_root}/bin/nuvio"
-          fi
+          executable_path="${app_root}/bin/NuvioCodeineXO"
           if [[ ! -x "${executable_path}" ]]; then
             echo "Expected a Linux app executable under ${app_root}/bin." >&2
             find "${app_root}" -maxdepth 4 2>/dev/null | head -n 300 >&2

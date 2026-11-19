@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Must match compose.desktop.nativeDistributions.packageName in composeApp/build.gradle.kts:
+# jpackage names the launcher bin/<name>, the icon lib/<name>.png and installs to /opt/<name lowercased>.
+readonly NUVIO_LINUX_APP_NAME="NuvioCodeineXO"
+readonly NUVIO_LINUX_INSTALL_DIR="/opt/nuviocodeinexo"
 readonly NUVIO_LINUX_SHORTCUT_RELATIVE_PATH="usr/share/applications/nuvio.desktop"
 readonly NUVIO_LINUX_SHORTCUT_NAME="Nuvio"
 readonly NUVIO_LINUX_SHORTCUT_COMMENT="Nuvio Media Player"
@@ -41,7 +45,9 @@ nuvio_linux_write_desktop_entry() {
     local root_dir="$1"
     local desktop_file="$root_dir/$NUVIO_LINUX_SHORTCUT_RELATIVE_PATH"
     mkdir -p "$(dirname "$desktop_file")"
-    nuvio_linux_write_desktop_entry_file "$desktop_file" "/opt/nuvio/bin/Nuvio %u" "/opt/nuvio/lib/Nuvio.png"
+    nuvio_linux_write_desktop_entry_file "$desktop_file" \
+        "${NUVIO_LINUX_INSTALL_DIR}/bin/${NUVIO_LINUX_APP_NAME} %u" \
+        "${NUVIO_LINUX_INSTALL_DIR}/lib/${NUVIO_LINUX_APP_NAME}.png"
 }
 
 nuvio_linux_ensure_uri_handler() {
@@ -80,7 +86,7 @@ nuvio_linux_ensure_uri_handler() {
     fi
 }
 
-# jpackage drops its own generated entry (/opt/nuvio/lib/<pkg>-<name>.desktop)
+# jpackage drops its own generated entry (<install dir>/lib/<pkg>-<name>.desktop)
 # and registers it from the maintainer scripts with xdg-desktop-menu. We ship a
 # better one in usr/share/applications, so keeping both meant two icons after
 # every install/upgrade. Remove the hook and the file it points at.
