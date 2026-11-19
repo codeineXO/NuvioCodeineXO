@@ -1698,6 +1698,8 @@ internal fun MetaDetailsScreen(
                                 )
                             }
 
+                            // Enhanced keeps the flat artwork scrim on page 2 instead of fading to a colour wash.
+                            if (!useEnhancedLayout) {
                             val scrolledBackgroundColor = if (dominantColorEnabled) {
                                 dominantBackdropColor
                             } else {
@@ -1721,6 +1723,7 @@ internal fun MetaDetailsScreen(
                                     }
                                     .background(scrolledBackgroundColor),
                             )
+                            }
                         }
                         val detailContent: LazyListScope.() -> Unit = {
                             if (useEnhancedLayout) {

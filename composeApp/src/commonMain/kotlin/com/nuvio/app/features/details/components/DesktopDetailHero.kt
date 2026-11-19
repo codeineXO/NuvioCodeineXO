@@ -95,6 +95,8 @@ import nuvio.composeapp.generated.resources.source_imdb
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
+private const val EnhancedDetailArtworkScrimAlpha = 0.60f
+
 @Composable
 internal fun EnhancedDetailPage(
     viewportHeight: Dp,
@@ -208,52 +210,8 @@ fun DesktopDetailBackdrop(
             Box(
                 modifier = backdropModifier
                     .navigationGlassSource(zIndex = 0.5f, enabled = enableGlassSource)
-                    .drawWithCache {
-                        val topFadeHeightPx = 160.dp.toPx()
-                        val topFade = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = opacity.overlayHeavy * gradientIntensity),
-                                Color.Transparent,
-                            ),
-                            startY = 0f,
-                            endY = topFadeHeightPx,
-                        )
-                        val sideFade = Brush.horizontalGradient(
-                            colorStops = arrayOf(
-                                0.00f to Color.Black.copy(alpha = 0.88f * gradientIntensity),
-                                0.08f to Color.Black.copy(alpha = 0.82f * gradientIntensity),
-                                0.16f to Color.Black.copy(alpha = 0.68f * gradientIntensity),
-                                0.26f to Color.Black.copy(alpha = 0.46f * gradientIntensity),
-                                0.36f to Color.Black.copy(alpha = 0.24f * gradientIntensity),
-                                0.46f to Color.Black.copy(alpha = 0.08f * gradientIntensity),
-                                0.56f to Color.Transparent,
-                            ),
-                        )
-                        val bottomFadeHeightPx = 300.dp.toPx()
-                        val bottomFade = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.35f * gradientIntensity),
-                                Color.Black.copy(alpha = 0.75f * gradientIntensity),
-                            ),
-                            startY = (size.height - bottomFadeHeightPx).coerceAtLeast(0f),
-                            endY = size.height,
-                        )
-                        onDrawBehind {
-                            drawRect(sideFade)
-                            val topHeight = topFadeHeightPx.coerceAtMost(size.height)
-                            drawRect(
-                                brush = topFade,
-                                size = size.copy(height = topHeight),
-                            )
-                            val bottomHeight = bottomFadeHeightPx.coerceAtMost(size.height)
-                            drawRect(
-                                brush = bottomFade,
-                                topLeft = Offset(0f, size.height - bottomHeight),
-                                size = size.copy(height = bottomHeight),
-                            )
-                        }
-                    },
+                    // Flat scrim matching the stream selection backdrop so the hand-off reads as one surface.
+                    .background(Color.Black.copy(alpha = EnhancedDetailArtworkScrimAlpha)),
             )
         } else {
             Box(
