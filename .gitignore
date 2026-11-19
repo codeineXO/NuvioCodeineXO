@@ -40,8 +40,6 @@ iosApp/Configuration/DeviceSigning.local.json
 .mpvkit-build.sparseimage
 
 # Compiled native WiX helpers
-composeApp/src/desktopMain/wix/UninstallPrompt.exe
-composeApp/src/desktopMain/wix/DesktopShortcutHelper.exe
 
 # Package & Installer Artifacts
 *.msi

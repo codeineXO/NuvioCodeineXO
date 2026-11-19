@@ -461,61 +461,51 @@ jobs:
           }
           "WEBVIEW2_ROOT=$webView2Root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build MSI
+      - name: Build EXE installer
         shell: pwsh
         run: |
           & .\gradlew.bat `
-            :composeApp:packageReleaseMsi `
+            :composeApp:packageReleaseExe `
             :desktopSentry:sentryUploadSourceBundleJava `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace
+          if ($LASTEXITCODE -ne 0) {
+            throw "packageReleaseExe failed with exit code $LASTEXITCODE."
+          }
 
-      - name: Verify MSI
+      - name: Verify EXE installer
         shell: pwsh
         env:
           RELEASE_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
-          $msiRelativePath = "composeApp\build\compose\release-msis\Nuvio-Windows-x64-$env:RELEASE_VERSION.msi"
-          if (-not (Test-Path $msiRelativePath)) {
-            throw "Expected MSI was not produced: $msiRelativePath"
+          $publishedExes = @(Get-ChildItem "composeApp\build\compose\release-exes" -Filter "*.exe" -File -ErrorAction SilentlyContinue)
+          if ($publishedExes.Count -ne 1) {
+            throw "Expected exactly one EXE in composeApp\build\compose\release-exes, found $($publishedExes.Count)."
           }
-          $msiPath = (Resolve-Path $msiRelativePath).Path
-          $extractDir = Join-Path $env:RUNNER_TEMP "nuvio-msi-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
-          $extractLog = Join-Path $env:RUNNER_TEMP "nuvio-msi-extract.log"
-          New-Item -ItemType Directory -Path $extractDir | Out-Null
-
-          $extractArguments = @(
-            "/a",
-            "`"$msiPath`"",
-            "/qn",
-            "TARGETDIR=`"$extractDir`"",
-            "/l*v",
-            "`"$extractLog`""
-          )
-          $extractProcess = Start-Process `
-            -FilePath msiexec.exe `
-            -ArgumentList $extractArguments `
-            -Wait `
-            -PassThru
-          if ($extractProcess.ExitCode -ne 0) {
-            Get-Content $extractLog -Tail 200
-            throw "MSI administrative extraction failed with exit code $($extractProcess.ExitCode)."
+          $outputDir = "composeApp\build\compose\release-installers"
+          New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+          $exePath = Join-Path $outputDir "Nuvio-Windows-x64-$env:RELEASE_VERSION.exe"
+          Copy-Item $publishedExes[0].FullName $exePath -Force
+          if ((Get-Item $exePath).Length -lt 50MB) {
+            throw "The EXE installer is unexpectedly small: $((Get-Item $exePath).Length) bytes."
           }
 
-          $appJar = Get-ChildItem $extractDir `
+          # The installer packs the release distributable as-is, so verify that payload.
+          $appRoot = "composeApp\build\compose\binaries\main-release\app\NuvioCodeineXO"
+          $appJar = Get-ChildItem $appRoot `
             -Recurse `
             -Filter "composeApp-desktop-*.jar" `
             | Select-Object -First 1
           if ($null -eq $appJar) {
-            throw "The extracted MSI does not contain the desktop application JAR."
+            throw "The release distributable does not contain the desktop application JAR."
           }
 
           $jarEntries = & jar tf $appJar.FullName
           if ($LASTEXITCODE -ne 0) {
-            throw "Could not inspect the extracted desktop application JAR."
+            throw "Could not inspect the desktop application JAR."
           }
           $requiredEntries = @(
             "native/windows/player_bridge.dll",
@@ -528,54 +518,51 @@ jobs:
           )
           foreach ($entry in $requiredEntries) {
             if ($jarEntries -notcontains $entry) {
-              throw "The extracted MSI application is missing $entry"
+              throw "The desktop application JAR is missing $entry"
             }
           }
 
-          $javaRuntimeJvm = Get-ChildItem $extractDir `
-            -Recurse `
-            -Filter "jvm.dll" `
-            | Where-Object { $_.FullName -match "[\\/]runtime[\\/]bin[\\/]server[\\/]jvm\.dll$" } `
-            | Select-Object -First 1
-          if ($null -eq $javaRuntimeJvm) {
-            throw "The extracted MSI does not contain the bundled Java runtime."
+          $javaRuntimeJvm = Join-Path $appRoot "runtime\bin\server\jvm.dll"
+          if (-not (Test-Path $javaRuntimeJvm)) {
+            throw "The release distributable does not contain the bundled Java runtime."
           }
+          $runtimeVersion = Select-String -Path (Join-Path $appRoot "runtime\release") -Pattern '^JAVA_VERSION=' | Select-Object -First 1
 
-          $manifestPath = "composeApp\build\compose\release-msis\Nuvio-Windows-x64-$env:RELEASE_VERSION-contents.txt"
-          $extractedFiles = Get-ChildItem $extractDir -Recurse -File | Sort-Object FullName
+          $manifestPath = Join-Path $outputDir "Nuvio-Windows-x64-$env:RELEASE_VERSION-contents.txt"
+          $appFiles = Get-ChildItem $appRoot -Recurse -File | Sort-Object FullName
           $nativeEntries = $jarEntries `
             | Where-Object { $_ -like "native/windows/*" } `
             | Sort-Object
           $manifest = [Collections.Generic.List[string]]::new()
-          $manifest.Add("MSI=Nuvio-Windows-x64-$env:RELEASE_VERSION.msi")
-          $manifest.Add("MSI_SHA256=$((Get-FileHash $msiPath -Algorithm SHA256).Hash.ToLowerInvariant())")
-          $manifest.Add("MSI_SIGNATURE_STATUS=$((Get-AuthenticodeSignature $msiPath).Status)")
-          $manifest.Add("EXTRACTED_FILE_COUNT=$($extractedFiles.Count)")
-          $manifest.Add("APP_JAR=$([IO.Path]::GetRelativePath($extractDir, $appJar.FullName).Replace('\', '/'))")
-          $manifest.Add("JAVA_RUNTIME_JVM=$([IO.Path]::GetRelativePath($extractDir, $javaRuntimeJvm.FullName).Replace('\', '/'))")
+          $manifest.Add("EXE=Nuvio-Windows-x64-$env:RELEASE_VERSION.exe")
+          $manifest.Add("EXE_SHA256=$((Get-FileHash $exePath -Algorithm SHA256).Hash.ToLowerInvariant())")
+          $manifest.Add("EXE_SIGNATURE_STATUS=$((Get-AuthenticodeSignature $exePath).Status)")
+          $manifest.Add("JAVA_RUNTIME=$($runtimeVersion.Line)")
+          $manifest.Add("APP_FILE_COUNT=$($appFiles.Count)")
+          $manifest.Add("APP_JAR=$([IO.Path]::GetRelativePath($appRoot, $appJar.FullName).Replace('\', '/'))")
           $manifest.Add("")
           $manifest.Add("NATIVE_JAR_ENTRIES")
           foreach ($entry in $nativeEntries) {
             $manifest.Add($entry)
           }
           $manifest.Add("")
-          $manifest.Add("EXTRACTED_FILES")
-          foreach ($file in $extractedFiles) {
-            $relativePath = [IO.Path]::GetRelativePath($extractDir, $file.FullName).Replace('\', '/')
+          $manifest.Add("APP_FILES")
+          foreach ($file in $appFiles) {
+            $relativePath = [IO.Path]::GetRelativePath($appRoot, $file.FullName).Replace('\', '/')
             $manifest.Add("$relativePath`t$($file.Length)")
           }
           $manifest | Set-Content $manifestPath -Encoding utf8
 
-          Get-Item $msiPath | Format-List Name, Length, LastWriteTime
-          $manifest | Select-Object -First (9 + $nativeEntries.Count)
+          Get-Item $exePath | Format-List Name, Length, LastWriteTime
+          $manifest | Select-Object -First (8 + $nativeEntries.Count)
 
-      - name: Upload MSI
+      - name: Upload EXE installer
         uses: actions/upload-artifact@v7
         with:
           name: nuvio-desktop-${{ needs.metadata.outputs.version }}-windows-x64
           path: |
-            composeApp/build/compose/release-msis/Nuvio-Windows-x64-${{ needs.metadata.outputs.version }}.msi
-            composeApp/build/compose/release-msis/Nuvio-Windows-x64-${{ needs.metadata.outputs.version }}-contents.txt
+            composeApp/build/compose/release-installers/Nuvio-Windows-x64-${{ needs.metadata.outputs.version }}.exe
+            composeApp/build/compose/release-installers/Nuvio-Windows-x64-${{ needs.metadata.outputs.version }}-contents.txt
           if-no-files-found: error
           retention-days: 14
 
@@ -1047,7 +1034,7 @@ jobs:
           release_assets=(
             "release/Nuvio-macOS-arm64-${RELEASE_VERSION}.dmg"
             "release/Nuvio-macOS-x86_64-${RELEASE_VERSION}.dmg"
-            "release/Nuvio-Windows-x64-${RELEASE_VERSION}.msi"
+            "release/Nuvio-Windows-x64-${RELEASE_VERSION}.exe"
             "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.flatpak"
             "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.deb"
             "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.rpm"
@@ -1076,7 +1063,7 @@ jobs:
           release_assets=(
             "release/Nuvio-macOS-arm64-${RELEASE_VERSION}.dmg"
             "release/Nuvio-macOS-x86_64-${RELEASE_VERSION}.dmg"
-            "release/Nuvio-Windows-x64-${RELEASE_VERSION}.msi"
+            "release/Nuvio-Windows-x64-${RELEASE_VERSION}.exe"
             "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.flatpak"
             "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.deb"
             "release/Nuvio-Linux-x86_64-${RELEASE_VERSION}.rpm"

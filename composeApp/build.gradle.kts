@@ -479,9 +479,6 @@ val desktopReleaseVersionCode = (
     ?.toIntOrNull()
     ?: 1
 val desktopReleasePackageVersion = jpackageCompatibleVersion(desktopReleaseVersionName)
-// Keep the fork's MSI upgrade family separate from the official Nuvio installer.
-// Sharing an UpgradeCode makes Windows Installer uninstall this app as a related product.
-val windowsMsiUpgradeUuid = "a9ef29b7-31f4-4c26-8c2a-f990d3dce9b4"
 val iosDistribution = (
     providers.gradleProperty("nuvio.ios.distribution").orNull
         ?: System.getenv("NUVIO_IOS_DISTRIBUTION")
@@ -1077,10 +1074,8 @@ if (isWindowsHost) {
         "createRuntimeImage",
         "package",
         "packageDistributionForCurrentOS",
-        "packageMsi",
         "packageUberJarForCurrentOS",
         "packageReleaseDistributionForCurrentOS",
-        "packageReleaseMsi",
         "packageReleaseUberJarForCurrentOS",
     )
     tasks.matching { it.name in desktopNativePlayerTasks }.configureEach {
@@ -1371,8 +1366,6 @@ compose.desktop {
             vendor = "Nuvio Media"
             if (isMacHost) {
                 appResourcesRootDir.set(macosPlayerAppResourcesRoot)
-            } else if (isWindowsHost) {
-                appResourcesRootDir.set(layout.projectDirectory.dir("src/desktopMain/wix"))
             }
             modules(
                 "java.instrument",
@@ -1421,10 +1414,6 @@ compose.desktop {
             }
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.ico"))
-                upgradeUuid = windowsMsiUpgradeUuid
-                shortcut = true
-                menu = true
-                menuGroup = "NuvioCodeineXO"
             }
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icons/nuvio-app-icon-transparent.png"))
@@ -1476,51 +1465,6 @@ fun publishMacosDmgArtifact(dmg: File) {
         dmg.copyTo(publishedDmg, overwrite = true)
     }
     logger.lifecycle("Published macOS DMG artifact: ${publishedDmg.absolutePath}")
-}
-
-fun publishWindowsMsiOutput(release: Boolean) {
-    if (!isWindowsHost) return
-
-    val distributionName = if (release) "main-release" else "main"
-    val outputDir = layout.buildDirectory.dir("compose/binaries/$distributionName/msi").get().asFile
-    val finalMsi = outputDir.resolve("NuvioCodeineXO-$desktopReleaseVersionName.msi")
-    val defaultMsi = outputDir.resolve("NuvioCodeineXO-$desktopReleasePackageVersion.msi")
-    val legacyDefaultMsi = outputDir.resolve("Nuvio-$desktopReleasePackageVersion.msi")
-    val legacyNamedMsi = outputDir.resolve("Nuvio-Windows-$windowsPlayerBridgeArch-$desktopReleaseVersionName.msi")
-    val sourceMsi = defaultMsi.takeIf { it.exists() }
-        ?: legacyDefaultMsi.takeIf { it.exists() }
-        ?: legacyNamedMsi.takeIf { it.exists() }
-        ?: finalMsi.takeIf { it.exists() }
-        ?: error("Expected Windows MSI output in ${outputDir.absolutePath}")
-
-    if (sourceMsi.canonicalFile != finalMsi.canonicalFile) {
-        if (finalMsi.exists()) {
-            finalMsi.delete()
-        }
-        if (!sourceMsi.renameTo(finalMsi)) {
-            sourceMsi.copyTo(finalMsi, overwrite = true)
-            sourceMsi.delete()
-        }
-    }
-
-    logger.lifecycle("Windows MSI artifact: ${finalMsi.absolutePath}")
-    publishWindowsMsiArtifact(finalMsi)
-
-    // Clean up temporary jpackage working directories to save disk space
-    val jpackageTempDir = rootProject.layout.projectDirectory.dir("build/jpackage-temp").asFile
-    if (jpackageTempDir.exists()) {
-        jpackageTempDir.deleteRecursively()
-    }
-}
-
-fun publishWindowsMsiArtifact(msi: File) {
-    val publishedDir = layout.buildDirectory.dir("compose/release-msis").get().asFile
-    publishedDir.mkdirs()
-    val publishedMsi = publishedDir.resolve(msi.name)
-    if (msi.canonicalFile != publishedMsi.canonicalFile) {
-        msi.copyTo(publishedMsi, overwrite = true)
-    }
-    logger.lifecycle("Published Windows MSI artifact: ${publishedMsi.absolutePath}")
 }
 
 fun publishWindowsExeOutput(release: Boolean) {
@@ -1606,61 +1550,6 @@ tasks.matching { it.name == "notarizeReleaseDmg" }.configureEach {
 }
 
 if (isWindowsHost) {
-    val jpackageWrapperDir = rootProject.layout.projectDirectory.dir("build/jpackage-wrapper").asFile
-    val prepareJPackageWrapper = tasks.register("prepareJPackageWrapper") {
-        val sourceFile = layout.projectDirectory.file("src/desktopMain/wix/JPackageWrapper.cs").asFile
-        val outputExe = jpackageWrapperDir.resolve("bin/jpackage.exe")
-        val promptSourceFile = layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.cs").asFile
-        val promptOutputExe = layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.exe").asFile
-        val shortcutHelperSourceFile = layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.cs").asFile
-        val shortcutHelperOutputExe = layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.exe").asFile
-        inputs.files(sourceFile, promptSourceFile, shortcutHelperSourceFile)
-        outputs.files(outputExe, promptOutputExe, shortcutHelperOutputExe)
-        doLast {
-            outputExe.parentFile.mkdirs()
-            val cscCandidates = listOf(
-                File("C:/Windows/Microsoft.NET/Framework64/v4.0.30319/csc.exe"),
-                File("C:/Windows/Microsoft.NET/Framework/v4.0.30319/csc.exe")
-            )
-            val csc = cscCandidates.firstOrNull(File::exists)
-                ?: error("Cannot find csc.exe to compile jpackage wrapper and WiX helpers.")
-            val procWrapper = ProcessBuilder(csc.absolutePath, "/nologo", "/out:${outputExe.absolutePath}", sourceFile.absolutePath)
-                .inheritIO()
-                .start()
-            val exitCodeWrapper = procWrapper.waitFor()
-            check(exitCodeWrapper == 0) { "csc compilation of jpackage wrapper failed with exit code $exitCodeWrapper" }
-
-            val procPrompt = ProcessBuilder(csc.absolutePath, "/nologo", "/target:winexe", "/out:${promptOutputExe.absolutePath}", promptSourceFile.absolutePath)
-                .inheritIO()
-                .start()
-            val exitCodePrompt = procPrompt.waitFor()
-            check(exitCodePrompt == 0) { "csc compilation of UninstallPrompt failed with exit code $exitCodePrompt" }
-
-            val procShortcutHelper = ProcessBuilder(csc.absolutePath, "/nologo", "/target:winexe", "/out:${shortcutHelperOutputExe.absolutePath}", shortcutHelperSourceFile.absolutePath)
-                .inheritIO()
-                .start()
-            val exitCodeShortcutHelper = procShortcutHelper.waitFor()
-            check(exitCodeShortcutHelper == 0) { "csc compilation of DesktopShortcutHelper failed with exit code $exitCodeShortcutHelper" }
-        }
-    }
-    gradle.taskGraph.whenReady {
-        allTasks.filter { it.name in listOf("packageMsi", "packageReleaseMsi") }.forEach { task ->
-            (task as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask)?.javaHome?.set(jpackageWrapperDir.absolutePath)
-        }
-    }
-    tasks.matching { it.name in listOf("packageMsi", "packageReleaseMsi") }.configureEach {
-        dependsOn(prepareJPackageWrapper)
-        inputs.file(layout.projectDirectory.file("src/desktopMain/wix/UninstallPrompt.cs"))
-        inputs.file(layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.cs"))
-        inputs.file(layout.projectDirectory.file("src/desktopMain/wix/main.wxs"))
-        doFirst {
-            // Tell the wrapper which real JDK to forward to: the one this Gradle daemon runs on.
-            jpackageWrapperDir.resolve("real-java-home.txt").writeText(System.getProperty("java.home"))
-            val task = this as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
-            task?.javaHome?.set(jpackageWrapperDir.absolutePath)
-        }
-    }
-
     fun findIsccCompiler(): File {
         val onPath = findExecutableOnPath("iscc") ?: findExecutableOnPath("iscc.exe")
         if (onPath != null) return onPath
@@ -1766,20 +1655,6 @@ if (isWindowsHost) {
     }
     tasks.matching { it.name == "packageDistributionForCurrentOS" }.configureEach {
         dependsOn(packageExe)
-    }
-}
-
-tasks.matching { it.name == "packageMsi" }.configureEach {
-    notCompatibleWithConfigurationCache("Windows MSI artifact publication uses script file operations.")
-    doLast {
-        publishWindowsMsiOutput(release = false)
-    }
-}
-
-tasks.matching { it.name == "packageReleaseMsi" }.configureEach {
-    notCompatibleWithConfigurationCache("Windows MSI artifact publication uses script file operations.")
-    doLast {
-        publishWindowsMsiOutput(release = true)
     }
 }
 
