@@ -1088,7 +1088,10 @@ tasks.withType<KotlinCompilationTask<*>>().configureEach {
 }
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().matching { it.name == "desktopTest" }.configureEach {
-    jvmArgs("--add-opens=java.desktop/java.awt.event=ALL-UNNAMED")
+    jvmArgs(
+        "--add-opens=java.desktop/java.awt.event=ALL-UNNAMED",
+        "--enable-native-access=ALL-UNNAMED",
+    )
 }
 
 kotlin {
@@ -1356,6 +1359,8 @@ compose.desktop {
             "-XX:MinHeapFreeRatio=10",
             "-XX:MaxHeapFreeRatio=30",
             "-XX:+UseStringDeduplication",
+            // JDK 25 (JEP 519): 8-byte object headers instead of 12, shrinking every object on the heap.
+            "-XX:+UseCompactObjectHeaders",
             smokePlayerUrl?.takeIf { it.isNotBlank() }?.let { "-Dnuvio.desktop.smokePlayerUrl=$it" },
         )
 
