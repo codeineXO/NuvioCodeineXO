@@ -30,24 +30,6 @@ internal fun PlayerScreenRuntime.isAtNextEpisodeThreshold(): Boolean {
         !initialSeekApplied || isScrubbingTimeline || errorMessage != null ||
         isShortPlaceholderDuration(playbackSnapshot.durationMs)
     ) return false
-    // Preload: trigger source fetch before the button appears
-    if (playerSettingsUiState.preloadNextEpisodeSources && !nextEpisodePreloadTriggered && nextEpisodeInfo != null && !isNetworkOffline()) {
-        val preloadLeadMs = maxOf(playerSettingsUiState.streamAutoPlayTimeoutSeconds.toLong() * 1_000L, 10_000L)
-            .coerceAtMost(30_000L)
-        val shouldPreloadByCard = PlayerNextEpisodeRules.shouldShowNextEpisodeCard(
-            positionMs = playbackSnapshot.positionMs + preloadLeadMs,
-            durationMs = playbackSnapshot.durationMs,
-            skipIntervals = skipIntervals,
-            thresholdMode = playerSettingsUiState.nextEpisodeThresholdMode,
-            thresholdPercent = playerSettingsUiState.nextEpisodeThresholdPercent,
-            thresholdMinutesBeforeEnd = playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,
-        )
-        val shouldPreloadByEnd = playbackSnapshot.durationMs > 0L &&
-            (playbackSnapshot.durationMs - playbackSnapshot.positionMs) <= preloadLeadMs
-        if (shouldPreloadByCard || shouldPreloadByEnd) {
-            preloadNextEpisodeSources()
-        }
-    }
     return playbackSnapshot.isEnded || PlayerNextEpisodeRules.shouldShowNextEpisodeCard(
         positionMs = playbackSnapshot.positionMs,
         durationMs = playbackSnapshot.durationMs,
@@ -331,28 +313,43 @@ internal fun CoroutineScope.launchPlayerNextEpisodeAutoPlay(
     }
 }
 
-internal fun PlayerScreenRuntime.preloadNextEpisodeSources() {
-    if (nextEpisodePreloadTriggered) return
-    val nextEp = nextEpisodeInfo ?: return
-    if (nextEp.hasAired != true) return
-    val type = contentType ?: return
-    // Offline: preloading streams is a network search; retry once connectivity returns.
+/**
+ * Starts searching for the next episode's sources shortly before the next episode card appears.
+ * Runs again whenever the episode streams state no longer holds that search (it was cleared by a
+ * panel, cancelled by a source switch, or the episode changed), so each episode gets its preload.
+ */
+internal fun PlayerScreenRuntime.preloadNextEpisodeSourcesIfDue() {
+    if (!playerSettingsUiState.preloadNextEpisodeSources) return
+    val nextEp = nextEpisodeInfo?.takeIf { it.hasAired == true } ?: return
+    // The episodes panel shares the episode streams state; never replace what it shows.
+    if (episodeStreamsPanelState.showStreams || nextEpisodeAutoPlaySearching) return
+    if (playbackSnapshotKey != activePlaybackKey || playbackSnapshot.isLoading ||
+        !initialSeekApplied || isScrubbingTimeline || errorMessage != null ||
+        isShortPlaceholderDuration(playbackSnapshot.durationMs)
+    ) return
+
+    val preloadLeadMs = maxOf(playerSettingsUiState.streamAutoPlayTimeoutSeconds.toLong() * 1_000L, 10_000L)
+        .coerceAtMost(30_000L)
+    val dueByCard = PlayerNextEpisodeRules.shouldShowNextEpisodeCard(
+        positionMs = playbackSnapshot.positionMs + preloadLeadMs,
+        durationMs = playbackSnapshot.durationMs,
+        skipIntervals = skipIntervals,
+        thresholdMode = playerSettingsUiState.nextEpisodeThresholdMode,
+        thresholdPercent = playerSettingsUiState.nextEpisodeThresholdPercent,
+        thresholdMinutesBeforeEnd = playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,
+    )
+    val dueByEnd = playbackSnapshot.durationMs > 0L &&
+        (playbackSnapshot.durationMs - playbackSnapshot.positionMs) <= preloadLeadMs
+    if (!dueByCard && !dueByEnd) return
+
+    val type = contentType ?: parentMetaType
+    if (PlayerStreamsRepository.hasEpisodeStreamsFor(type, nextEp.videoId, nextEp.season, nextEp.episode)) return
+    // Offline: preloading streams is a network search; retried on a later tick once back online.
     if (isNetworkOffline()) return
-
-    nextEpisodePreloadTriggered = true
-    nextEpisodePreloadJob?.cancel()
-    nextEpisodePreloadJob = scope.launch {
-        PlayerStreamsRepository.loadEpisodeStreams(
-            type = type,
-            videoId = nextEp.videoId,
-            season = nextEp.season,
-            episode = nextEp.episode
-        )
-    }
-}
-
-internal fun PlayerScreenRuntime.cancelNextEpisodePreload() {
-    nextEpisodePreloadJob?.cancel()
-    nextEpisodePreloadJob = null
-    nextEpisodePreloadTriggered = false
+    PlayerStreamsRepository.loadEpisodeStreams(
+        type = type,
+        videoId = nextEp.videoId,
+        season = nextEp.season,
+        episode = nextEp.episode,
+    )
 }

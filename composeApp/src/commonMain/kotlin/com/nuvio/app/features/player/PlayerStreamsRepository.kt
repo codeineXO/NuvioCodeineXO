@@ -102,9 +102,43 @@ object PlayerStreamsRepository {
     }
 
     fun stopSourcesLoading() {
-        PluginRepository.setLocalPluginSearchPaused(true)
         cancelSourceJob()
+        pauseLocalPluginSearchIfIdle()
     }
+
+    /** True when the episode streams state already holds (or is loading) results for this episode. */
+    fun hasEpisodeStreamsFor(
+        type: String,
+        videoId: String,
+        season: Int?,
+        episode: Int?,
+    ): Boolean {
+        if (episodeStreamsRequestKey != requestKeyFor(type, videoId, season, episode, currentPluginUiState())) return false
+        val current = _episodeStreamsState.value
+        return current.groups.isNotEmpty() || current.emptyStateReason != null || current.isAnyLoading
+    }
+
+    // Local plugin search pausing is global to the plugin runtime, so stopping one panel must not
+    // pause a search the other panel (or the next episode preload) still runs.
+    private fun pauseLocalPluginSearchIfIdle() {
+        if (sourceJob?.isActive == true || episodeStreamsJob?.isActive == true) return
+        PluginRepository.setLocalPluginSearchPaused(true)
+    }
+
+    private fun currentPluginUiState(): PluginsUiState = if (AppFeaturePolicy.pluginsEnabled) {
+        PluginRepository.initialize()
+        PluginRepository.uiState.value
+    } else {
+        PluginsUiState(pluginsEnabled = false)
+    }
+
+    private fun requestKeyFor(
+        type: String,
+        videoId: String,
+        season: Int?,
+        episode: Int?,
+        pluginUiState: PluginsUiState,
+    ): String = "$type::$videoId::$season::$episode::pluginsGrouped=${pluginUiState.groupStreamsByRepository}"
 
     fun pauseSearchForPlayback() {
         PluginRepository.setLocalPluginSearchPaused(true)
@@ -157,8 +191,8 @@ object PlayerStreamsRepository {
     }
 
     fun clearEpisodeStreams() {
-        PluginRepository.setLocalPluginSearchPaused(true)
         episodeStreamsJob?.cancel()
+        pauseLocalPluginSearchIfIdle()
         episodeStreamsRequestKey = null
         _episodeStreamsState.value = StreamsUiState()
     }
@@ -184,13 +218,8 @@ object PlayerStreamsRepository {
         jobHolder: () -> Job?,
         setJob: (Job) -> Unit,
     ) {
-        val pluginUiState = if (AppFeaturePolicy.pluginsEnabled) {
-            PluginRepository.initialize()
-            PluginRepository.uiState.value
-        } else {
-            PluginsUiState(pluginsEnabled = false)
-        }
-        val requestKey = "$type::$videoId::$season::$episode::pluginsGrouped=${pluginUiState.groupStreamsByRepository}"
+        val pluginUiState = currentPluginUiState()
+        val requestKey = requestKeyFor(type, videoId, season, episode, pluginUiState)
         PluginRepository.setLocalPluginSearchPaused(false)
         val current = stateFlow.value
         val cachedKey = requestKeyHolder()

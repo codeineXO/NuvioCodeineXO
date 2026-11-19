@@ -636,7 +636,6 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             }
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
-            cancelNextEpisodePreload()
             val currentSeekTrack = seekPreviewTrack
             seekPreviewTrack = null
             scope.launch { currentSeekTrack?.clear() }
@@ -1106,6 +1105,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         playerSettingsUiState.streamAutoPlayNextEpisodeEnabled,
         nextEpisodeCardDismissed,
     ) {
+        preloadNextEpisodeSourcesIfDue()
         val shouldShow = nextEpisodeInfo != null && !nextEpisodeCardDismissed && isAtNextEpisodeThreshold()
         if (nextEpisodeAutoPlayAutomatic &&
             (!shouldShow || !playerSettingsUiState.streamAutoPlayNextEpisodeEnabled)
