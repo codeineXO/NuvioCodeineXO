@@ -10,7 +10,6 @@ import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.nuvio
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -61,14 +60,12 @@ import com.nuvio.app.core.ui.StandardDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.StreamResultsWideArtworkAspectRatio
 import com.nuvio.app.core.ui.WideDesktopViewportAspectRatio
 import com.nuvio.app.core.ui.expandingWideArtworkWidthDp
-import com.nuvio.app.core.ui.dominantBackdropBlendColor
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.FrostedGlassTokens
 import com.nuvio.app.core.ui.frostedGlassShadow
 import com.nuvio.app.core.ui.frostedGlassBorder
 import com.nuvio.app.core.ui.navigationGlassSource
 import com.nuvio.app.core.ui.navigationGlass
-import com.kmpalette.extensions.painter.rememberPainterDominantColorState
 import androidx.compose.ui.platform.LocalLayoutDirection
 import com.nuvio.app.core.ui.platformPhysicalTopInset
 import com.nuvio.app.core.ui.shimmer
@@ -106,7 +103,6 @@ internal fun TabletStreamsLayout(
     resumePositionMs: Long?,
     resumeProgressFraction: Float?,
     resumeControls: @Composable (Modifier) -> Unit,
-    dominantColorEnabled: Boolean,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit,
     onStreamLongPress: (StreamItem) -> Unit,
     onStreamSecondaryClick: (StreamItem, Offset) -> Unit,
@@ -159,7 +155,6 @@ internal fun TabletStreamsLayout(
         DesktopStreamsBackdrop(
             backdrop = background ?: poster,
             carriedArtwork = carriedBackdrop,
-            dominantColorEnabled = dominantColorEnabled,
             hazeState = hazeState,
         )
 
@@ -263,36 +258,18 @@ internal fun TabletStreamsLayout(
 
 /**
  * Desktop stream-page artwork. [carriedArtwork] is the persistent hero's already-loaded painter for the same
- * title; it is drawn immediately and crossfades into [backdrop] once that loads, so there is no blank frame.
+ * title; it is drawn as is, without loading [backdrop] again, so there is no blank frame or self-crossfade.
  */
 @Composable
 internal fun DesktopStreamsBackdrop(
     backdrop: String?,
     carriedArtwork: Painter?,
-    dominantColorEnabled: Boolean,
     hazeState: HazeState?,
     modifier: Modifier = Modifier,
 ) {
+    // No dominant colour here: extracting it redraws the full-size backdrop into a bitmap on the UI thread,
+    // ~90ms that landed before the first frame and swallowed the page's fade-in.
     val colorScheme = MaterialTheme.colorScheme
-    var dominantBackdropPainter by remember(backdrop) { mutableStateOf(carriedArtwork) }
-    val dominantColorState = rememberPainterDominantColorState(
-        defaultColor = colorScheme.background,
-        defaultOnColor = colorScheme.onBackground,
-    )
-    LaunchedEffect(dominantColorEnabled, dominantBackdropPainter) {
-        dominantBackdropPainter?.takeIf { dominantColorEnabled }?.let { painter ->
-            runCatching { dominantColorState.updateFrom(painter) }
-        }
-    }
-    val wideFadeColor by animateColorAsState(
-        targetValue = if (dominantColorEnabled) {
-            dominantBackdropBlendColor(dominantColorState.color, colorScheme.background)
-        } else {
-            colorScheme.background
-        },
-        animationSpec = tween(durationMillis = 320),
-        label = "stream_dominant_backdrop_color",
-    )
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val aspectRatio = maxWidth.value / maxHeight.value
         // Near-16:9 windows (e.g. maximized with taskbar) fill and crop; only true ultrawide pins a framed artwork.
@@ -316,7 +293,7 @@ internal fun DesktopStreamsBackdrop(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationGlassSource(zIndex = -1f)
-                .background(if (useWideArtworkFrame) wideFadeColor else colorScheme.background)
+                .background(colorScheme.background)
                 .then(
                     if (hazeState != null && LocalFrostedGlassEnabled.current) {
                         Modifier.hazeSource(state = hazeState, zIndex = -1f)
@@ -325,13 +302,16 @@ internal fun DesktopStreamsBackdrop(
         ) {
             if (backdrop != null || carriedArtwork != null) {
                 DetailBackdropImage(
-                    model = backdrop,
+                    // The artwork carried from the previous page is this same backdrop, already decoded. Loading it again
+                    // only crossfades the picture into itself, and redrawing that under the glass panels costs
+                    // several ~100ms frames in the middle of the page's fade-in.
+                    model = if (carriedArtwork != null) null else backdrop,
                     contentDescription = null,
                     carriedArtwork = carriedArtwork,
                     modifier = artworkModifier,
                     alignment = BiasAlignment(-0.05f, DesktopBackdropVerticalBias),
                     contentScale = if (useWideArtworkFrame && !cropWideArtwork) ContentScale.Fit else ContentScale.Crop,
-                    onSuccess = { state -> dominantBackdropPainter = state.painter },
+                    onSuccess = {},
                 )
             }
 

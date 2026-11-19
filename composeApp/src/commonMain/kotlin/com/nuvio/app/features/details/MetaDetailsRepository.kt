@@ -221,6 +221,9 @@ object MetaDetailsRepository {
         return cachedMeta.withUnreleasedFilter()
     }
 
+    /** The cached meta [fetch] would return at once for `type:id`, without fetching; null when not cached. */
+    fun peekFetched(type: String, id: String): MetaDetails? = cachedMetaByRequestKey["$type:$id"]?.baseMeta
+
     fun clear() {
         requestGeneration++
         activeRequestKey = null

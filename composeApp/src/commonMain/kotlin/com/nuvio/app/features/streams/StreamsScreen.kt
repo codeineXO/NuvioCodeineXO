@@ -125,7 +125,6 @@ import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.debrid.toastMessage
-import com.nuvio.app.features.details.MetaScreenBackgroundMode
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.savedMetadataForContent
@@ -203,8 +202,6 @@ fun StreamsScreen(
         WatchedRepository.ensureLoaded()
         WatchedRepository.uiState
     }.collectAsStateWithLifecycle()
-    val dominantColorEnabled = isDesktop &&
-        metaScreenSettings.backgroundMode == MetaScreenBackgroundMode.DominantColor
     remember {
         if (AppFeaturePolicy.downloadsEnabled) {
             DownloadsRepository.ensureLoaded()
@@ -306,12 +303,26 @@ fun StreamsScreen(
                 DesktopStreamsBackdrop(
                     backdrop = background ?: poster,
                     carriedArtwork = carriedBackdrop,
-                    dominantColorEnabled = dominantColorEnabled,
                     hazeState = null,
                 )
             }
         }
         return
+    }
+
+    // Until this page's request has started, the shared state is cleared or belongs to an earlier
+    // request, so show the loading skeletons rather than its empty state or its old results.
+    val currentRequestToken = StreamsRepository.requestToken(
+        type = type,
+        videoId = videoId,
+        season = seasonNumber,
+        episode = episodeNumber,
+        manualSelection = manualSelection,
+    )
+    val displayedUiState = if (uiState.requestToken == currentRequestToken) {
+        uiState
+    } else {
+        StreamsUiState(requestToken = currentRequestToken, isAnyLoading = true)
     }
 
     val metadataState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
@@ -383,13 +394,12 @@ fun StreamsScreen(
                 seasonNumber = seasonNumber,
                 episodeNumber = episodeNumber,
                 episodeTitle = episodeTitle,
-                uiState = uiState,
+                uiState = displayedUiState,
                 debridEnabled = debridSettings.canResolvePlayableLinks,
                 appendInstantServiceToDefaultName = debridSettings.canResolvePlayableLinks && !debridSettings.hasCustomStreamFormatting,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
                 resumeControls = resumeControls,
-                dominantColorEnabled = dominantColorEnabled,
                 onStreamSelected = { stream, positionMs, progressFraction ->
                     onStreamSelected(stream, positionMs, progressFraction, restartSelected)
                 },
@@ -415,7 +425,7 @@ fun StreamsScreen(
                 episodeNumber = episodeNumber,
                 episodeTitle = episodeTitle,
                 blurEpisodeThumbnail = blurEpisodeThumbnail,
-                uiState = uiState,
+                uiState = displayedUiState,
                 debridEnabled = debridSettings.canResolvePlayableLinks,
                 appendInstantServiceToDefaultName = debridSettings.canResolvePlayableLinks && !debridSettings.hasCustomStreamFormatting,
                 resumePositionMs = effectiveResumePositionMs,
@@ -975,7 +985,9 @@ internal fun StreamList(
     val filteredGroups = uiState.filteredGroups
     val hasGroups = filteredGroups.isNotEmpty()
     val hasAnyStreams = filteredGroups.any { it.streams.isNotEmpty() }
-    val anyLoading = filteredGroups.any { it.isLoading }
+    // A request that has not built its source placeholders yet still counts as loading.
+    val awaitingRequest = uiState.groups.isEmpty() && uiState.isAnyLoading
+    val anyLoading = awaitingRequest || filteredGroups.any { it.isLoading }
     val streamSections = remember(filteredGroups) {
         buildStreamSectionRenderModels(filteredGroups)
     }
@@ -1082,7 +1094,7 @@ internal fun StreamList(
                 }
             }
             when {
-                hasGroups && anyLoading && !hasAnyStreams -> {
+                (hasGroups || awaitingRequest) && anyLoading && !hasAnyStreams -> {
                     item(
                         key = "streams_loading",
                         contentType = STREAM_CONTENT_TYPE_LOADING,

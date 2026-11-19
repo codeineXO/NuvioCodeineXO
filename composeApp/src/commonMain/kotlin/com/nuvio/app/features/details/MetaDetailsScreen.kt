@@ -1565,6 +1565,22 @@ internal fun MetaDetailsScreen(
                         label = "detail_dominant_backdrop_color",
                     )
 
+                    // Hand this page's drawn backdrop to the stream page it opens, so that page shows the same
+                    // image at once rather than uploading a fresh copy under its glass panels mid-transition.
+                    val heroDetailsSource = LocalPersistentHeroDetailsSource.current
+                    val handoffBackdrop = dominantBackdropPainter ?: carriedBackdrop
+                    androidx.compose.runtime.DisposableEffect(active, heroDetailsSource, type, id, meta.id, handoffBackdrop) {
+                        val capture: (String, String) -> PersistentHeroDetails? = { captureType, captureId ->
+                            val matches = (captureType == type && captureId == id) ||
+                                (captureType == meta.type && captureId == meta.id)
+                            if (matches) PersistentHeroDetails(null, handoffBackdrop, null, false) else null
+                        }
+                        if (active && handoffBackdrop != null) heroDetailsSource?.capture = capture
+                        onDispose {
+                            if (heroDetailsSource?.capture === capture) heroDetailsSource.capture = null
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

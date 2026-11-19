@@ -23,8 +23,6 @@ import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.details.MetaDetailsRepository
-import com.nuvio.app.features.details.MetaScreenBackgroundMode
-import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.streams.DesktopStreamsBackdrop
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
@@ -108,13 +106,30 @@ internal fun StreamDestination(
         launch.parentMetaId != null &&
             launch.seasonNumber != null &&
             launch.episodeNumber != null
+    // Coming from the details page the title's episodes are already loaded, so take the episode id from
+    // them while building the first frame instead of showing the resolving placeholder for a frame first.
+    val cachedEpisodeVideoId = remember(
+        launch.parentMetaType,
+        launch.type,
+        launch.parentMetaId,
+        launch.seasonNumber,
+        launch.episodeNumber,
+    ) {
+        if (!shouldResolveEpisodeVideoId) return@remember null
+        val metaId = launch.parentMetaId ?: return@remember null
+        MetaDetailsRepository.peekFetched(launch.parentMetaType ?: launch.type, metaId)
+            ?.videos
+            ?.firstOrNull { video -> video.season == launch.seasonNumber && video.episode == launch.episodeNumber }
+            ?.id
+            ?.takeIf { it.isNotBlank() }
+    }
     var effectiveVideoId by rememberSaveable(
         launch.videoId,
         launch.parentMetaId,
         launch.seasonNumber,
         launch.episodeNumber,
     ) {
-        mutableStateOf(launch.videoId)
+        mutableStateOf(cachedEpisodeVideoId ?: launch.videoId)
     }
     var hasResolvedVideoId by rememberSaveable(
         launch.videoId,
@@ -122,7 +137,7 @@ internal fun StreamDestination(
         launch.seasonNumber,
         launch.episodeNumber,
     ) {
-        mutableStateOf(!shouldResolveEpisodeVideoId)
+        mutableStateOf(!shouldResolveEpisodeVideoId || cachedEpisodeVideoId != null)
     }
 
     LaunchedEffect(
@@ -133,6 +148,11 @@ internal fun StreamDestination(
         launch.seasonNumber,
         launch.episodeNumber,
     ) {
+        if (cachedEpisodeVideoId != null) {
+            effectiveVideoId = cachedEpisodeVideoId
+            hasResolvedVideoId = true
+            return@LaunchedEffect
+        }
         effectiveVideoId = launch.videoId
         if (!shouldResolveEpisodeVideoId) {
             hasResolvedVideoId = true
@@ -617,11 +637,9 @@ internal fun StreamDestination(
         ) {
             // Hold the carried hero artwork while the episode resolves so the page never drops to blank.
             route.persistentHeroDetails?.backdrop?.let { carried ->
-                val metaSettings by MetaScreenSettingsRepository.uiState.collectAsStateWithLifecycle()
                 DesktopStreamsBackdrop(
                     backdrop = launch.background ?: launch.poster,
                     carriedArtwork = carried,
-                    dominantColorEnabled = metaSettings.backgroundMode == MetaScreenBackgroundMode.DominantColor,
                     hazeState = null,
                 )
             }
