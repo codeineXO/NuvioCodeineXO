@@ -38,6 +38,7 @@ import com.nuvio.app.core.ui.AppPopup
 import com.nuvio.app.core.ui.LocalRemoteNavigation
 import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.core.ui.PlatformBackHandler
+import com.nuvio.app.core.ui.RegisterActionMenuOverlayHost
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioDesktopDragScroll
@@ -191,6 +192,7 @@ internal fun ContinuousEpisodeListPopup(
     }
 
     PlatformBackHandler(enabled = true, onBack = onDismiss)
+    RegisterActionMenuOverlayHost()
     AppPopup(
         popupPositionProvider = CenteredEpisodePopupPosition,
         onDismissRequest = onDismiss,

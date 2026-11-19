@@ -31,6 +31,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.window.Popup
+import com.nuvio.app.isDesktop
+import androidx.compose.ui.window.PopupProperties
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -69,6 +72,17 @@ internal object ActionMenuCoordinator {
     var panelBounds: Rect? = null
     var dismiss: ((restoreFocus: Boolean) -> Unit)? = null
     var pendingRestore: (() -> Unit)? = null
+    /** Open popup layers (e.g. episode list) that would cover an in-page menu. */
+    var overlayHosts by mutableIntStateOf(0)
+}
+
+/** Call from a popup that may open action menus, so they render above it. */
+@Composable
+internal fun RegisterActionMenuOverlayHost() {
+    DisposableEffect(Unit) {
+        ActionMenuCoordinator.overlayHosts++
+        onDispose { ActionMenuCoordinator.overlayHosts-- }
+    }
 }
 
 internal class ActionMenuAction(
@@ -189,8 +203,25 @@ internal fun NuvioActionMenu(
         }
         PlatformBackHandler(enabled = true) { close() }
 
-        BoxWithConstraints(
-            Modifier.fillMaxSize().onGloballyPositioned { rootOrigin = it.positionInRoot() },
+        // In-page menus sit below popup layers; lift into a popup when one is open.
+        val inPopup = remember { isDesktop && ActionMenuCoordinator.overlayHosts > 0 }
+        val menuContent: @Composable () -> Unit = { BoxWithConstraints(
+            Modifier.fillMaxSize()
+                .onGloballyPositioned { rootOrigin = it.positionInRoot() }
+                .then(if (inPopup) Modifier.pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val position = event.changes.firstOrNull()?.position?.plus(rootOrigin) ?: continue
+                            if (ActionMenuCoordinator.panelBounds?.contains(position) == true) continue
+                            if (event.type == PointerEventType.Scroll) close(restoreFocus = false)
+                            else if (event.type == PointerEventType.Press) {
+                                close()
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    }
+                } else Modifier),
         ) {
             val density = LocalDensity.current
             val margin = with(density) { 8.dp.roundToPx() }
@@ -249,6 +280,15 @@ internal fun NuvioActionMenu(
                 )
                 layout(constraints.maxWidth, constraints.maxHeight) { panel.place(position) }
             }
+        } }
+        if (inPopup) {
+            Popup(
+                alignment = androidx.compose.ui.Alignment.TopStart,
+                properties = PopupProperties(focusable = true),
+                onDismissRequest = { close() },
+            ) { menuContent() }
+        } else {
+            menuContent()
         }
     }
 }
