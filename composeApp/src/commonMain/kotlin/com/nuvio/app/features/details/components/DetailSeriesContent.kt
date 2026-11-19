@@ -113,6 +113,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -425,6 +426,8 @@ fun DetailSeriesContent(
                 },
             ),
         ) {
+            // Keep the season header above the episode row's upward overdraw.
+            Box(Modifier.zIndex(1f)) {
             SeriesSeasonSelector(
                 navigationEntry = seasonNavigationEntry,
                 fillerNavigationEntry = navigationEntry.takeIf { enhancedFillerNavigation },
@@ -455,6 +458,7 @@ fun DetailSeriesContent(
                 onSelect = { selectedSeasonOverride = it },
                 onLongPress = onSeasonLongPress,
             )
+            }
 
             AnimatedContent(
                 targetState = currentSeason,
@@ -520,7 +524,8 @@ fun DetailSeriesContent(
                             blurRadius = 8f,
                         )
                         Row(
-                            modifier = Modifier.fillMaxWidth().remoteNavigationGroup(rememberRow = true),
+                            // Above the episode row's upward hover/glow overdraw so it can't steal clicks.
+                            modifier = Modifier.zIndex(1f).fillMaxWidth().remoteNavigationGroup(rememberRow = true),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

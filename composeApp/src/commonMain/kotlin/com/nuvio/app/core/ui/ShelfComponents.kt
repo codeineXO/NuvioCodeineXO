@@ -204,7 +204,9 @@ fun <T> NuvioShelfSection(
         if (title.isNotBlank()) {
             NuvioShelfSectionHeader(
                 title = title,
-                modifier = Modifier.padding(horizontal = headerHorizontalPadding),
+                // The row below overdraws upward for hover/glow; keep the header
+                // above it so the row's expanded bounds don't eat button clicks.
+                modifier = Modifier.zIndex(1f).padding(horizontal = headerHorizontalPadding),
                 onViewAllClick = onViewAllClick,
                 onTitleClick = onTitleClick,
                 showRowNavigationControls = showRowNavigationControls,
