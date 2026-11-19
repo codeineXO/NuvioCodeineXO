@@ -382,7 +382,6 @@ internal fun PlayerScreenRuntime.cycleResizeMode() {
             PlayerResizeMode.Stretch -> resizeModeStretchLabel
         },
     )
-    controlsVisible = true
 }
 
 internal fun PlayerScreenRuntime.cyclePlaybackSpeed() {

@@ -3228,6 +3228,10 @@ button:disabled {
   margin-top: 6px;
 }
 
+.color-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--theme-focus, #3185f5);
+}
+
 .eye-filter-slider-header {
   display: flex !important;
   width: 100% !important;
@@ -4761,10 +4765,6 @@ svg {
 
 .seek-chapter-label[hidden] {
   display: none;
-}
-
-.player.seek-feedback-active #playerToast {
-  visibility: hidden;
 }
 
 @keyframes codeine-menu-enter {

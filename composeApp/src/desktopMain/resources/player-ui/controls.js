@@ -2007,7 +2007,28 @@ const getShaderModalSignature = () => [
   state.mediaContentType || "",
 ].join("##");
 
-const renderShaderOptionList = () => {
+// Rebuilding a list destroys its focused button; refocus the button at the same position
+// (or the nearest enabled one) so keyboard/controller navigation keeps its place.
+const renderPreservingFocus = (container, render) => {
+  const active = document.activeElement;
+  const focusIndex = container && active && container.contains(active)
+    ? Array.from(container.querySelectorAll("button")).indexOf(active)
+    : -1;
+  render();
+  if (focusIndex < 0 || container.contains(document.activeElement)) return;
+  const buttons = Array.from(container.querySelectorAll("button"));
+  const usable = button => button && !button.disabled && !button.hidden;
+  let target = null;
+  for (let offset = 0; offset < buttons.length && !target; offset += 1) {
+    if (usable(buttons[focusIndex - offset])) target = buttons[focusIndex - offset];
+    else if (usable(buttons[focusIndex + offset])) target = buttons[focusIndex + offset];
+  }
+  if (target) target.focus({ preventScroll: false });
+};
+
+const renderShaderOptionList = () => renderPreservingFocus(shaderOptionList, renderShaderOptionListContent);
+
+const renderShaderOptionListContent = () => {
   if (!shaderOptionList) return;
   shaderOptionList.textContent = "";
   if (shaderPanelTitle) {
@@ -4981,6 +5002,26 @@ const isTextEntryTarget = target => {
   return Boolean(element && element.type !== "range");
 };
 
+// Eye filter panel is static markup (switches, sliders, chips, hex field), so it gets its own
+// arrow navigation: Up/Down (and Left/Right outside sliders/text) move focus; sliders keep
+// Left/Right for adjusting and the hex field keeps them for the caret.
+const handleEyeFilterArrowKey = event => {
+  if (!eyeFilterModal) return false;
+  const active = document.activeElement;
+  const horizontal = event.code === "ArrowLeft" || event.code === "ArrowRight";
+  if (horizontal && active && (active.type === "range" || isTextEntryTarget(active))) return true;
+  const items = Array.from(eyeFilterModal.querySelectorAll(
+    ".eye-filter-track-list button:not([disabled]), .eye-filter-track-list input:not([disabled])"
+  )).filter(el => !el.closest("[hidden]") && (el.offsetWidth > 0 || el.offsetHeight > 0));
+  if (!items.length) return false;
+  event.preventDefault();
+  const current = items.indexOf(active);
+  const forward = event.code === "ArrowDown" || event.code === "ArrowRight";
+  const next = current < 0 ? 0 : (current + (forward ? 1 : -1) + items.length) % items.length;
+  items[next].focus();
+  return true;
+};
+
 const requestPlaybackState = (eventType, revealControls) => {
   const currentIsPlaying = pendingIsPlaying === null
     ? Boolean(state.isPlaying)
@@ -6002,7 +6043,6 @@ function clearSeekPreviewInteraction() {
   hideSeekrPreview();
   seekFeedback.classList.remove("visible");
   seekFeedback.setAttribute("aria-hidden", "true");
-  root.classList.remove("seek-feedback-active");
 }
 
 function activeSeekPreview() {
@@ -6037,7 +6077,6 @@ function refreshSeekHover() {
   updateChapterSegmentHover(showFeedback ? mousePositionMs : null);
   seekFeedback.classList.toggle("visible", showFeedback);
   seekFeedback.setAttribute("aria-hidden", String(!showFeedback));
-  root.classList.toggle("seek-feedback-active", showFeedback);
   if (showFeedback) positionSeekFeedback(mousePositionMs, seekDragActive ? null : seekPointerClientX);
   const preview = activeSeekPreview();
   if (!preview) { hideSeekrPreview(); return; }
@@ -7463,6 +7502,25 @@ document.addEventListener("keydown", event => {
     clearSpaceHoldTimerAndStopSpeedBoost();
     return;
   }
+  if (activeModal === "eyeFilter" && event.code.startsWith("Arrow") && handleEyeFilterArrowKey(event)) {
+    return;
+  }
+  // Single-line hex fields keep Left/Right for the caret but must not trap Up/Down.
+  if (activeModal && (event.code === "ArrowUp" || event.code === "ArrowDown")
+      && event.target && event.target.classList && event.target.classList.contains("color-hex-input")) {
+    const modalEl = isPartyConfirmOpen() ? partyConfirm : modalByName[activeModal];
+    const focusable = modalEl
+      ? Array.from(modalEl.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"])'))
+        .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0)
+      : [];
+    const currentIndex = focusable.indexOf(event.target);
+    if (currentIndex >= 0 && focusable.length > 1) {
+      event.preventDefault();
+      const step = event.code === "ArrowDown" ? 1 : -1;
+      focusable[(currentIndex + step + focusable.length) % focusable.length].focus();
+    }
+    return;
+  }
   if (isTextEntryTarget(event.target)) {
     return;
   }
@@ -7513,42 +7571,6 @@ document.addEventListener("keydown", event => {
     }
   }
 
-  if (activeModal === "audio" && (event.code === "ArrowUp" || event.code === "ArrowDown")) {
-    event.preventDefault();
-    if (state.audioTracks && state.audioTracks.length > 0) {
-      const currentIndex = state.audioTracks.findIndex(t => t.selected);
-      let nextIndex = currentIndex;
-      if (event.code === "ArrowUp") {
-        nextIndex = currentIndex > 0 ? currentIndex - 1 : state.audioTracks.length - 1;
-      } else {
-        nextIndex = currentIndex >= 0 && currentIndex < state.audioTracks.length - 1 ? currentIndex + 1 : 0;
-      }
-      if (nextIndex !== currentIndex && nextIndex >= 0) {
-        send("selectAudioTrack", trackIdValue(state.audioTracks[nextIndex]));
-      }
-    }
-    return;
-  }
-
-  if (activeModal === "speed" && (event.code === "ArrowUp" || event.code === "ArrowDown")) {
-    event.preventDefault();
-    const currentSpeedStr = String(state.playbackSpeedLabel || "1x");
-    let currentIndex = pendingSpeedIndex !== null ? pendingSpeedIndex : speedOptions.findIndex(o => currentSpeedStr.startsWith(o.label.split(" ")[0]));
-    if (currentIndex >= 0) {
-      if (event.code === "ArrowUp") {
-        currentIndex = currentIndex > 0 ? currentIndex - 1 : speedOptions.length - 1;
-      } else {
-        currentIndex = currentIndex < speedOptions.length - 1 ? currentIndex + 1 : 0;
-      }
-      pendingSpeedIndex = currentIndex;
-      window.clearTimeout(pendingSpeedTimer);
-      pendingSpeedTimer = window.setTimeout(() => pendingSpeedIndex = null, 1000);
-      queueSettingToast("speed");
-      send("setPlaybackSpeed", speedOptions[currentIndex].value);
-    }
-    return;
-  }
-
   if (activeModal && event.code.startsWith("Arrow") && (!document.activeElement || document.activeElement.tagName === "BODY" || document.activeElement === root)) {
     let items;
     if (activeModal === "subtitles") {
@@ -7557,8 +7579,13 @@ document.addEventListener("keydown", event => {
     } else if (activeModal === "chapters") {
       items = Array.from(chapterList.querySelectorAll('.chapter-row:not([disabled]):not([hidden])'))
         .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+    } else if (activeModal === "shaders" && shaderOptionList) {
+      // Steppers stay focusable even when every row is disabled (both features off).
+      items = Array.from(shaderOptionList.querySelectorAll('button:not([disabled]):not([hidden])'))
+        .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
     } else {
-      items = Array.from(document.querySelectorAll('.track-row:not([disabled]):not([hidden])'))
+      const scope = modalByName[activeModal] || document;
+      items = Array.from(scope.querySelectorAll('.track-row:not([disabled]):not([hidden])'))
         .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
     }
     if (items.length) {
@@ -7655,6 +7682,12 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     if (activeModal === "shaders") closePlayerModal(true);
     else openPlayerModal("shaders");
+    return;
+  }
+  if (event.key === "=" || (event.code === "Equal" && !event.shiftKey)) {
+    event.preventDefault();
+    if (activeModal === "eyeFilter") closePlayerModal(true);
+    else openPlayerModal("eyeFilter");
     return;
   }
   if (event.code === "KeyC") {
