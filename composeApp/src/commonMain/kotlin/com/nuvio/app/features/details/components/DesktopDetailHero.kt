@@ -282,7 +282,11 @@ fun DesktopDetailHero(
     ) {
         val actionHorizontalInset = fullscreenActionHorizontalInsetForWidth(maxWidth.value)
         val pageHorizontalPadding = desktopPageHorizontalPaddingForWidth(maxWidth.value)
-        val heroAlignment = if (compact) Alignment.TopStart else Alignment.CenterStart
+        val heroAlignment = when {
+            compact -> Alignment.TopStart
+            isEnhanced -> Alignment.CenterStart
+            else -> Alignment.BottomStart
+        }
         val heroTextShadow = if (isEnhanced) Shadow(
             color = Color.Black.copy(alpha = 0.78f),
             offset = Offset(0f, 2f),
