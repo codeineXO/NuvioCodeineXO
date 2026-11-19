@@ -1,5 +1,6 @@
 package com.nuvio.app.features.trakt
 
+import com.nuvio.app.core.storage.BoundedCacheMap
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpGetTextWithHeaders
 import com.nuvio.app.features.addons.httpRequestRaw
@@ -32,7 +33,7 @@ object TraktCommentsRepository {
     )
 
     private val cacheMutex = Mutex()
-    private val cache = mutableMapOf<String, TimedCache>()
+    private val cache = BoundedCacheMap<String, TimedCache>(64)
 
     suspend fun getCommentsPage(
         meta: MetaDetails,

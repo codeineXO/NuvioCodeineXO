@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.storage.BoundedCacheMap
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpRequestRaw
 import kotlinx.coroutines.sync.Mutex
@@ -38,7 +39,7 @@ internal data class ParentalGuideLabels(
 internal object ParentalGuideRepository {
     private val log = Logger.withTag("ParentalGuide")
     private val json = Json { ignoreUnknownKeys = true }
-    private val cache = mutableMapOf<String, ParentalGuideResult?>()
+    private val cache = BoundedCacheMap<String, ParentalGuideResult?>(128)
     private val cacheMutex = Mutex()
 
     suspend fun getParentalGuide(imdbId: String): ParentalGuideResult? {

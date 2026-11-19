@@ -1354,6 +1354,11 @@ compose.desktop {
             "--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.windows=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED",
+            // Hand idle heap back to the OS instead of holding the peak reservation for the session.
+            "-XX:G1PeriodicGCInterval=30000",
+            "-XX:MinHeapFreeRatio=10",
+            "-XX:MaxHeapFreeRatio=30",
+            "-XX:+UseStringDeduplication",
             smokePlayerUrl?.takeIf { it.isNotBlank() }?.let { "-Dnuvio.desktop.smokePlayerUrl=$it" },
         )
 

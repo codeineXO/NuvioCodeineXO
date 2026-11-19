@@ -1,5 +1,6 @@
 package com.nuvio.app.features.anime
 
+import com.nuvio.app.core.storage.BoundedCacheMap
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpGetTextWithHeaders
 import com.nuvio.app.features.details.MetaDetails
@@ -28,7 +29,7 @@ object AnimeFillerRepository {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     // In-memory cache: cacheKey -> AnimeFillerEpisodes
-    private val memoryCache = mutableMapOf<String, AnimeFillerEpisodes>()
+    private val memoryCache = BoundedCacheMap<String, AnimeFillerEpisodes>(64)
     // AnimeFillerList shows directory cache: normalized title -> slug
     private var aflShowsCache: Map<String, String>? = null
 
