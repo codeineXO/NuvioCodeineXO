@@ -4,6 +4,7 @@ package com.nuvio.app.core.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -75,10 +76,15 @@ internal fun FullscreenActionButton(
             },
         contentAlignment = Alignment.Center,
     ) {
+        // Inset the custom glyph so its visible bounds match Material icons (~18/24 of the box):
+        // the enter paths span 2..22 of 24, the exit paths fill their whole viewport.
         PlayerFullscreenIcon(
             isExit = isActive,
             tint = contentColor.copy(alpha = if (enabled) 1f else 0.38f),
-            modifier = Modifier.size(iconSize),
+            strokeWidth = 2f,
+            modifier = Modifier
+                .size(iconSize)
+                .padding(iconSize * (if (isActive) 3f else 1f) / 24f),
         )
     }
 }
@@ -88,6 +94,7 @@ internal fun PlayerFullscreenIcon(
     isExit: Boolean,
     tint: Color,
     modifier: Modifier = Modifier,
+    strokeWidth: Float = 1.5f,
 ) {
     val iconPaths = remember(isExit) {
         if (isExit) {
@@ -120,7 +127,7 @@ internal fun PlayerFullscreenIcon(
                     drawPath(
                         path = path,
                         color = tint,
-                        style = Stroke(width = 1.5f, cap = StrokeCap.Round),
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
                     )
                 } else {
                     drawPath(path = path, color = tint)

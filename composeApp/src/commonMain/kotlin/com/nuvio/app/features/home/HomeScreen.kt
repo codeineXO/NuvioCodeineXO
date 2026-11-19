@@ -876,7 +876,8 @@ fun HomeScreen(
             // Compact actions, kept vertically centered on the desktop top bar.
             val desktopActionShrink = 8.dp
             val desktopButtonSize = desktopTopBarHeight(maxWidth) - desktopActionShrink
-            val desktopIconSize = desktopTopBarActionIconSize(maxWidth) - 2.dp
+            // One icon box size for every pill action so glyphs read at the same optical size.
+            val desktopIconSize = desktopTopBarActionIconSize(maxWidth) - 4.dp
             val desktopActionTopPadding = desktopTopBarTopPadding + desktopActionShrink / 2
             // Mirror the desktop top bar: transparent at the top (always in persistent hero),
             // frosted blur once scrolled in other layouts.
@@ -914,7 +915,10 @@ fun HomeScreen(
                     modifier = Modifier
                         .offset(x = if (isDesktop) actionHorizontalInset - space.s16 else 0.dp)
                         .height(if (isDesktop) desktopButtonSize else 48.dp)
-                        .topBarActionGlass(RoundedCornerShape(NuvioTokens.Radius.full)),
+                        .topBarActionGlass(RoundedCornerShape(NuvioTokens.Radius.full))
+                        // Buttons are narrower than the pill height; pad by half the difference so
+                        // the end icons sit centred in the rounded caps and spacing stays even.
+                        .padding(horizontal = if (isDesktop && isFullscreenActionSupported) space.s4 / 2 else 0.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val actionModifier = if (isDesktop && isFullscreenActionSupported) {
@@ -937,7 +941,7 @@ fun HomeScreen(
                         FullscreenActionButton(
                             modifier = actionModifier,
                             buttonSize = if (isDesktop) desktopButtonSize else 48.dp,
-                            iconSize = if (isDesktop) desktopIconSize - 4.dp else 24.dp,
+                            iconSize = if (isDesktop) desktopIconSize else 24.dp,
                             contentColor = colorScheme.onSurface,
                             hazeState = fullscreenBackdropState,
                             showBackground = false,
@@ -958,7 +962,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Rounded.PowerSettingsNew,
                                 contentDescription = null,
-                                modifier = Modifier.size(desktopIconSize - 4.dp),
+                                modifier = Modifier.size(desktopIconSize),
                                 tint = colorScheme.onSurface,
                             )
                         }
