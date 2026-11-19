@@ -5,6 +5,11 @@ using System.Text;
 
 class JPackageWrapper
 {
+    static bool HasJPackage(string javaHome)
+    {
+        return !string.IsNullOrEmpty(javaHome) && File.Exists(Path.Combine(javaHome, @"bin\jpackage.exe"));
+    }
+
     static int Main(string[] args)
     {
         try
@@ -34,18 +39,27 @@ class JPackageWrapper
                 Console.WriteLine("[JPackageWrapper] Successfully staged custom WiX templates to " + resourcesDir);
             }
 
-            string realJavaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
-            if (string.IsNullOrEmpty(realJavaHome) || !File.Exists(Path.Combine(realJavaHome, @"bin\jpackage.exe")))
+            // Prefer the JDK Gradle is running on (written by the packageMsi task), then JAVA_HOME.
+            string realJavaHome = null;
+            string javaHomeFile = Path.GetFullPath(Path.Combine(currentDir, @"..\real-java-home.txt"));
+            if (File.Exists(javaHomeFile))
             {
-                realJavaHome = @"C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot";
+                string fromFile = File.ReadAllText(javaHomeFile).Trim();
+                if (HasJPackage(fromFile)) realJavaHome = fromFile;
+            }
+            if (realJavaHome == null)
+            {
+                string fromEnv = Environment.GetEnvironmentVariable("JAVA_HOME");
+                if (HasJPackage(fromEnv)) realJavaHome = fromEnv;
+            }
+            if (realJavaHome == null)
+            {
+                Console.Error.WriteLine("[JPackageWrapper Error] Cannot find a JDK with jpackage.exe. Checked " + javaHomeFile + " and JAVA_HOME.");
+                return 1;
             }
 
             string realJPackage = Path.Combine(realJavaHome, @"bin\jpackage.exe");
-            if (!File.Exists(realJPackage))
-            {
-                Console.Error.WriteLine("[JPackageWrapper Error] Cannot find real jpackage at " + realJPackage);
-                return 1;
-            }
+            Console.WriteLine("[JPackageWrapper] Using jpackage from " + realJavaHome);
 
             StringBuilder sb = new StringBuilder();
             bool hasVerbose = false;

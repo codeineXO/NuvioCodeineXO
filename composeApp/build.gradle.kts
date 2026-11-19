@@ -1652,6 +1652,8 @@ if (isWindowsHost) {
         inputs.file(layout.projectDirectory.file("src/desktopMain/wix/DesktopShortcutHelper.cs"))
         inputs.file(layout.projectDirectory.file("src/desktopMain/wix/main.wxs"))
         doFirst {
+            // Tell the wrapper which real JDK to forward to: the one this Gradle daemon runs on.
+            jpackageWrapperDir.resolve("real-java-home.txt").writeText(System.getProperty("java.home"))
             val task = this as? org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
             task?.javaHome?.set(jpackageWrapperDir.absolutePath)
         }
