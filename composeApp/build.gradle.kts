@@ -1258,7 +1258,8 @@ kotlin {
                 implementation(libs.ktor.server.cio)
                 implementation(libs.ktor.server.websockets)
                 implementation(libs.zxing.core)
-                implementation("com.squareup.okhttp3:okhttp:4.12.0")
+                // OkHttp 5: fast fallback (Happy Eyeballs) races IPv6/IPv4 so broken IPv6 routes cannot stall connects.
+                implementation("com.squareup.okhttp3:okhttp:5.3.2")
                 implementation(libs.quickjs.kt)
                 implementation(libs.ksoup)
                 implementation(libs.sentry.jvm)
