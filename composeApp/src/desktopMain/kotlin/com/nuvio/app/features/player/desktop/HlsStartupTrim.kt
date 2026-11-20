@@ -52,7 +52,7 @@ internal object HlsMasterTrimmer {
     }
 
     /**
-     * Returns null when [master] is not a master playlist or trimming would not skip anything.
+     * Returns null when [master] is not a master playlist (or cannot be rewritten safely).
      * Keeps the variant at [variantIndex] when given, else the best one no taller than [maxHeight]
      * (0 = no cap).
      */
@@ -103,7 +103,6 @@ internal object HlsMasterTrimmer {
 
         val subtitleGroup = best.attributes["SUBTITLES"]
         val subtitles = mutableListOf<StreamSubtitle>()
-        var droppedRenditions = 0
         val output = StringBuilder()
         for (line in lines) {
             when {
@@ -133,13 +132,14 @@ internal object HlsMasterTrimmer {
                         else -> true
                     }
                     if (keep) output.append(absolutizeUriAttribute(line, base) ?: return null).append('\n')
-                    else droppedRenditions++
                 }
                 line.startsWith("#") -> output.append(absolutizeUriAttribute(line, base) ?: return null).append('\n')
                 else -> Unit
             }
         }
-        if (variants.size == 1 && droppedRenditions == 0) return null
+        // Nothing dropped still returns the (absolutized) master: the caller already downloaded
+        // it, and serving that copy locally spares mpv fetching it again, twice (its own format
+        // probe, then FFmpeg's demuxer), which on slow origins took several seconds.
         val options = variants.mapIndexed { i, v -> HlsVariant(i, v.height, v.bandwidth, v.codecs) }
 
         output.append(best.infoLine.withoutAttribute("SUBTITLES")).append('\n')
