@@ -13,9 +13,6 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
 /**
@@ -120,76 +117,6 @@ internal object HlsMasterTrimmer {
         return HlsTrimmedMaster(output.toString(), subtitles, options, variants.indexOf(best))
     }
 
-    /** Media playlists a trimmed (absolute-URI) master points at: renditions first, then the variant. */
-    fun mediaPlaylistUris(master: String): List<String> {
-        val uris = mutableListOf<String>()
-        for (raw in master.lines()) {
-            val line = raw.trim()
-            when {
-                line.startsWith("#EXT-X-MEDIA:") ->
-                    uriAttributePattern.find(line)?.groupValues?.get(1)?.let(uris::add)
-                line.isNotEmpty() && !line.startsWith("#") -> uris += line
-            }
-        }
-        return uris.distinct()
-    }
-
-    /** A VOD media playlist with every URI made absolute, plus its encryption key URLs in order. */
-    class MediaPlaylist(val text: String, val keyUrls: List<String>)
-
-    /**
-     * Returns null for anything that must keep being fetched from its origin: live or event
-     * playlists (no `#EXT-X-ENDLIST`, so FFmpeg has to reload them), masters, variable
-     * substitution, or URIs that cannot be resolved against [base].
-     */
-    fun absolutizeMediaPlaylist(text: String, base: URI): MediaPlaylist? {
-        val lines = text.removePrefix("﻿").lines().map { it.trimEnd('\r') }
-        if (lines.firstOrNull()?.trim() != "#EXTM3U") return null
-        if (lines.none { it.trim() == "#EXT-X-ENDLIST" }) return null
-        if (lines.any { it.startsWith("#EXT-X-DEFINE") || it.startsWith("#EXT-X-STREAM-INF:") }) return null
-        val keyUrls = mutableListOf<String>()
-        val output = StringBuilder()
-        for (line in lines) {
-            when {
-                line.isBlank() -> continue
-                line.startsWith("#") -> {
-                    val absolute = absolutizeUriAttribute(line, base) ?: return null
-                    if (absolute.startsWith("#EXT-X-KEY:")) {
-                        val attributes = parseAttributes(absolute.substringAfter(':'))
-                        val uri = attributes["URI"]
-                        val method = attributes["METHOD"]
-                        if (method != null && method != "NONE" && uri != null &&
-                            (uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true))
-                        ) {
-                            keyUrls += uri
-                        }
-                    }
-                    output.append(absolute).append('\n')
-                }
-                else -> output.append(resolve(base, line) ?: return null).append('\n')
-            }
-        }
-        return MediaPlaylist(output.toString(), keyUrls.distinct())
-    }
-
-    /** Swaps URI lines and `URI="…"` attributes found in [replacements]; everything else is kept. */
-    fun replaceUris(playlist: String, replacements: Map<String, String>): String {
-        if (replacements.isEmpty()) return playlist
-        return playlist.lines().joinToString("\n") { line ->
-            val trimmed = line.trim()
-            when {
-                trimmed.isEmpty() -> line
-                !trimmed.startsWith("#") -> replacements[trimmed] ?: line
-                else -> {
-                    val match = uriAttributePattern.find(line)
-                    val replacement = match?.let { replacements[it.groupValues[1]] }
-                    if (match == null || replacement == null) line
-                    else line.replaceRange(match.range, "URI=\"$replacement\"")
-                }
-            }
-        }
-    }
-
     private fun pickVariant(variants: List<Variant>, maxHeight: Int): Variant {
         val order = compareBy<Variant> { it.height }.thenBy { it.bandwidth }
         if (maxHeight <= 0) return variants.maxWith(order)
@@ -255,17 +182,6 @@ internal object HlsStartupTrim {
             .build()
     }
 
-    // Media playlists and keys are tiny; a key can be over 1 KiB only if something is wrong.
-    private const val MaxKeyBytes = 1 shl 10
-    // Covers the first segment of each playlist (FFmpeg's probe) without fetching a rotating
-    // key per segment up front; later keys stay on the origin.
-    private const val MaxKeysPerPlaylist = 3
-    private val PrefetchBudget: Duration = Duration.ofSeconds(10)
-
-    private val prefetchExecutor = Executors.newCachedThreadPool { task ->
-        Thread(task, "nuvio-hls-prefetch").apply { isDaemon = true }
-    }
-
     /** [master]/[base] keep the fetched playlist so a quality switch re-trims it without refetching. */
     class Prepared(
         val localUrl: String,
@@ -274,7 +190,6 @@ internal object HlsStartupTrim {
         val selectedIndex: Int = -1,
         private val master: String = "",
         private val base: URI? = null,
-        private val headerLines: List<String> = emptyList(),
     ) {
         /** The same master trimmed to the variant at [variantIndex], published as a new local playlist. */
         fun withVariant(variantIndex: Int): Prepared? {
@@ -282,8 +197,8 @@ internal object HlsStartupTrim {
             if (variantIndex !in variants.indices) return null
             return runCatching {
                 val trimmed = HlsMasterTrimmer.trim(master, origin, variantIndex = variantIndex) ?: return null
-                val url = LocalPlaylistServer.publish(prefetchMedia(trimmed.master, headerLines)) ?: return null
-                Prepared(url, trimmed.subtitles, trimmed.variants, trimmed.selectedIndex, master, origin, headerLines)
+                val url = LocalPlaylistServer.publish(trimmed.master) ?: return null
+                Prepared(url, trimmed.subtitles, trimmed.variants, trimmed.selectedIndex, master, origin)
             }.onFailure { error -> log.w(error) { "HLS variant re-trim failed" } }.getOrNull()
         }
     }
@@ -310,70 +225,18 @@ internal object HlsStartupTrim {
         val isHttp = lower.startsWith("http://") || lower.startsWith("https://")
         if (!(if (knownHls) isHttp else looksLikeHls(sourceUrl))) return null
         return runCatching {
-            val master = fetch(sourceUrl, headerLines, MaxPlaylistBytes) ?: return null
-            val body = String(master.bytes, Charsets.UTF_8)
-            val base = master.uri
+            val (body, base) = fetch(sourceUrl, headerLines) ?: return null
             val trimmed = HlsMasterTrimmer.trim(body, base, maxHeight = maxHeight) ?: return null
-            val localUrl = LocalPlaylistServer.publish(prefetchMedia(trimmed.master, headerLines)) ?: return null
+            val localUrl = LocalPlaylistServer.publish(trimmed.master) ?: return null
             log.d {
                 "trimmed HLS master: ${trimmed.subtitles.size} subtitle renditions deferred, " +
                     "variant ${trimmed.selectedIndex + 1}/${trimmed.variants.size} cap=$maxHeight"
             }
-            Prepared(localUrl, trimmed.subtitles, trimmed.variants, trimmed.selectedIndex, body, base, headerLines)
+            Prepared(localUrl, trimmed.subtitles, trimmed.variants, trimmed.selectedIndex, body, base)
         }.onFailure { error -> log.w(error) { "HLS master trim skipped" } }.getOrNull()
     }
 
-    /**
-     * FFmpeg fetches the media playlists of [master], then the key of each playlist's first
-     * segment, strictly one after another; on a slow origin that adds up to many seconds before
-     * the first frame. Fetches them all in parallel instead and points [master] at local copies.
-     * Anything not ready within [PrefetchBudget], live playlists and responses that set cookies
-     * (FFmpeg would carry those to segment requests) keep their origin URL.
-     */
-    private fun prefetchMedia(master: String, headerLines: List<String>): String {
-        val uris = HlsMasterTrimmer.mediaPlaylistUris(master)
-        if (uris.isEmpty()) return master
-        val started = System.nanoTime()
-        val deadline = started + PrefetchBudget.toNanos()
-        val pending = uris.associateWith { uri ->
-            CompletableFuture.supplyAsync({ prefetchMediaPlaylist(uri, headerLines, deadline) }, prefetchExecutor)
-        }
-        val local = pending.mapNotNull { (uri, future) -> awaitUntil(future, deadline)?.let { uri to it } }.toMap()
-        log.d {
-            "HLS prefetch: ${local.size}/${uris.size} media playlists local in " +
-                "${(System.nanoTime() - started) / 1_000_000} ms"
-        }
-        return HlsMasterTrimmer.replaceUris(master, local)
-    }
-
-    private fun prefetchMediaPlaylist(uri: String, headerLines: List<String>, deadline: Long): String? {
-        val fetched = runCatching { fetch(uri, headerLines, MaxPlaylistBytes) }.getOrNull() ?: return null
-        if (fetched.setsCookie) return null
-        val media = HlsMasterTrimmer.absolutizeMediaPlaylist(String(fetched.bytes, Charsets.UTF_8), fetched.uri)
-            ?: return null
-        val keys = media.keyUrls.take(MaxKeysPerPlaylist).associateWith { keyUrl ->
-            CompletableFuture.supplyAsync({ prefetchKey(keyUrl, headerLines) }, prefetchExecutor)
-        }
-        val localKeys = keys.mapNotNull { (keyUrl, future) -> awaitUntil(future, deadline)?.let { keyUrl to it } }.toMap()
-        val text = HlsMasterTrimmer.replaceUris(media.text, localKeys)
-        return LocalPlaylistServer.publish(text, "media.m3u8", PlaylistContentType)
-    }
-
-    private fun prefetchKey(keyUrl: String, headerLines: List<String>): String? {
-        val fetched = runCatching { fetch(keyUrl, headerLines, MaxKeyBytes) }.getOrNull() ?: return null
-        if (fetched.setsCookie || fetched.bytes.isEmpty()) return null
-        return LocalPlaylistServer.publish(fetched.bytes, "key.bin", "application/octet-stream")
-    }
-
-    private fun <T> awaitUntil(future: CompletableFuture<T?>, deadline: Long): T? {
-        val remaining = deadline - System.nanoTime()
-        if (remaining <= 0 && !future.isDone) return null
-        return runCatching { future.get(remaining.coerceAtLeast(0), TimeUnit.NANOSECONDS) }.getOrNull()
-    }
-
-    private class Fetched(val bytes: ByteArray, val uri: URI, val setsCookie: Boolean)
-
-    private fun fetch(url: String, headerLines: List<String>, maxBytes: Int): Fetched? {
+    private fun fetch(url: String, headerLines: List<String>): Pair<String, URI>? {
         val builder = HttpRequest.newBuilder(URI.create(url))
             .timeout(Duration.ofSeconds(6))
             .GET()
@@ -382,24 +245,18 @@ internal object HlsStartupTrim {
         if (response.statusCode() !in 200..299) return null
         var bytes = response.body()
         if (response.headers().firstValue("Content-Encoding").orElse("").equals("gzip", ignoreCase = true)) {
-            bytes = GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readNBytes(maxBytes + 1) }
+            bytes = GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readNBytes(MaxPlaylistBytes + 1) }
         }
-        if (bytes.size > maxBytes) return null
-        return Fetched(bytes, response.uri(), response.headers().firstValue("Set-Cookie").isPresent)
+        if (bytes.size > MaxPlaylistBytes) return null
+        return String(bytes, Charsets.UTF_8) to response.uri()
     }
 
-    private const val PlaylistContentType = "application/vnd.apple.mpegurl"
-
     private object LocalPlaylistServer {
-        private const val MaxEntries = 256
-        private const val MaxTotalBytes = 32L shl 20
-
-        private class Entry(val bytes: ByteArray, val contentType: String)
-
-        // Insertion order: the current playback's entries are always the newest, so evicting
-        // the oldest never drops a playlist or key the playing stream may still request.
-        private var totalBytes = 0L // Guarded by playlists.
-        private val playlists = LinkedHashMap<String, Entry>()
+        private const val MaxEntries = 16
+        private val playlists = object : LinkedHashMap<String, ByteArray>() {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>?): Boolean =
+                size > MaxEntries
+        }
 
         private val server: HttpServer? by lazy {
             var created: HttpServer? = null
@@ -411,17 +268,17 @@ internal object HlsStartupTrim {
                         createContext("/hls/") { exchange ->
                             try {
                                 val token = exchange.requestURI.path.removePrefix("/hls/").substringBefore('/')
-                                val entry = synchronized(playlists) { playlists[token] }
+                                val body = synchronized(playlists) { playlists[token] }
                                 when {
-                                    entry == null -> exchange.sendResponseHeaders(404, -1)
+                                    body == null -> exchange.sendResponseHeaders(404, -1)
                                     exchange.requestMethod.equals("HEAD", ignoreCase = true) -> {
-                                        exchange.responseHeaders.add("Content-Type", entry.contentType)
+                                        exchange.responseHeaders.add("Content-Type", "application/vnd.apple.mpegurl")
                                         exchange.sendResponseHeaders(200, -1)
                                     }
                                     else -> {
-                                        exchange.responseHeaders.add("Content-Type", entry.contentType)
-                                        exchange.sendResponseHeaders(200, entry.bytes.size.toLong())
-                                        exchange.responseBody.write(entry.bytes)
+                                        exchange.responseHeaders.add("Content-Type", "application/vnd.apple.mpegurl")
+                                        exchange.sendResponseHeaders(200, body.size.toLong())
+                                        exchange.responseBody.write(body)
                                     }
                                 }
                             } finally {
@@ -437,25 +294,11 @@ internal object HlsStartupTrim {
             created
         }
 
-        fun publish(master: String): String? =
-            publish(master.toByteArray(Charsets.UTF_8), "master.m3u8", PlaylistContentType)
-
-        fun publish(text: String, name: String, contentType: String): String? =
-            publish(text.toByteArray(Charsets.UTF_8), name, contentType)
-
-        fun publish(bytes: ByteArray, name: String, contentType: String): String? {
+        fun publish(master: String): String? {
             val active = server ?: return null
             val token = UUID.randomUUID().toString()
-            synchronized(playlists) {
-                totalBytes += bytes.size
-                playlists[token] = Entry(bytes, contentType)
-                val oldest = playlists.entries.iterator()
-                while (playlists.size > 1 && (playlists.size > MaxEntries || totalBytes > MaxTotalBytes)) {
-                    totalBytes -= oldest.next().value.bytes.size
-                    oldest.remove()
-                }
-            }
-            return "http://127.0.0.1:${active.address.port}/hls/$token/$name"
+            synchronized(playlists) { playlists[token] = master.toByteArray(Charsets.UTF_8) }
+            return "http://127.0.0.1:${active.address.port}/hls/$token/master.m3u8"
         }
     }
 }
