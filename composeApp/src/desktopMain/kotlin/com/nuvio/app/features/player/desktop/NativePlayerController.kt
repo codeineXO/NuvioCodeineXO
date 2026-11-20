@@ -193,6 +193,9 @@ internal class NativePlayerController(
     @Volatile
     private var startupAudioLanguages: String = ""
 
+    private fun startupAudioLanguageList(): List<String> =
+        startupAudioLanguages.split(',').map(String::trim).filter(String::isNotEmpty)
+
     private val _releasingForNavigation = MutableStateFlow(false)
 
     /** True from a Back request until its release fails; the host parks the video window meanwhile. */
@@ -578,6 +581,7 @@ internal class NativePlayerController(
                         resolvedSource,
                         pending.headerLines,
                         maxHeight = PlayerSettingsRepository.uiState.value.hlsMaxResolution,
+                        audioLanguages = startupAudioLanguageList(),
                     )
                 } else {
                     null
@@ -1352,6 +1356,7 @@ internal class NativePlayerController(
                 source.headerLines,
                 knownHls = true,
                 maxHeight = PlayerSettingsRepository.uiState.value.hlsMaxResolution,
+                audioLanguages = startupAudioLanguageList(),
             ) ?: return@launch
             if (handle != target || attachedSource !== source) return@launch
             val reloaded = runCatching { NativePlayerBridge.reloadStartupSource(target, trim.localUrl) }
@@ -1376,10 +1381,35 @@ internal class NativePlayerController(
      */
     private fun switchHlsQuality(variantIndex: Int) {
         val prepared = hlsPrepared ?: return
+        if (variantIndex == prepared.selectedIndex) return
+        val optionLabel = hlsQualityOptions(prepared.variants).firstOrNull { it.variantIndex == variantIndex }?.label
+        log.d { "HLS quality switch variant=$variantIndex label=$optionLabel handle=$handle" }
+        switchHlsSource(prepared, noticeLabel = optionLabel) { it.withVariant(variantIndex) }
+    }
+
+    /**
+     * The trimmed master keeps one audio rendition (FFmpeg would otherwise open them all), so
+     * picking another one plays the master re-trimmed to it, like a quality switch.
+     */
+    private fun switchHlsAudio(audioIndex: Int) {
+        val prepared = hlsPrepared ?: return
+        if (audioIndex == prepared.selectedAudioIndex) return
+        log.d { "HLS audio switch rendition=$audioIndex handle=$handle" }
+        switchHlsSource(prepared, noticeLabel = null) { it.withAudio(audioIndex) }
+    }
+
+    /** Swaps the playing file for [retrim]'s master, resuming at the current position. */
+    private fun switchHlsSource(
+        prepared: HlsStartupTrim.Prepared,
+        noticeLabel: String?,
+        retrim: (HlsStartupTrim.Prepared) -> HlsStartupTrim.Prepared?,
+    ) {
         val target = handle.takeIf { it != 0L } ?: return
         val source = attachedSource ?: return
-        if (qualitySwitch != null || variantIndex == prepared.selectedIndex) return
+        if (qualitySwitch != null) return
+        // With several audio renditions the re-trim carries the audio choice itself.
         val selectedAudio = cachedAudioTracks.firstOrNull { it.selected }
+            .takeIf { prepared.audioRenditions.size <= 1 }
         val startPosition = runCatching { NativePlayerBridge.positionMs(target) }.getOrDefault(0L)
         val startDuration = runCatching { NativePlayerBridge.durationMs(target) }.getOrDefault(0L)
         val pending = QualitySwitch(
@@ -1390,12 +1420,11 @@ internal class NativePlayerController(
             audioLanguage = selectedAudio?.language,
         )
         qualitySwitch = pending
-        val optionLabel = hlsQualityOptions(prepared.variants).firstOrNull { it.variantIndex == variantIndex }?.label
-        log.d { "HLS quality switch variant=$variantIndex label=$optionLabel position=$startPosition handle=$target" }
+        val optionLabel = noticeLabel
         refreshControlsForQuality()
         ensureScopesActive()
         downloadScope.launch {
-            val next = prepared.withVariant(variantIndex)
+            val next = retrim(prepared)
             SwingUtilities.invokeLater {
                 if (handle != target || attachedSource !== source || hlsPrepared !== prepared) return@invokeLater
                 if (qualitySwitch !== pending) return@invokeLater // Timed out meanwhile.
@@ -2024,6 +2053,19 @@ internal class NativePlayerController(
     override fun getAudioTracks(): List<AudioTrack> {
         val tracks = decodeTracks { NativePlayerBridge.audioTracksJson(it) }
         cachedAudioTracks = tracks
+        // mpv only sees the one rendition the trimmed master keeps; list them all so they can
+        // still be picked (each pick re-trims the master, see switchHlsAudio).
+        hlsPrepared?.takeIf { it.audioRenditions.size > 1 }?.let { prepared ->
+            return prepared.audioRenditions.map { rendition ->
+                AudioTrack(
+                    index = rendition.index,
+                    id = "hls-audio-${rendition.index}",
+                    label = rendition.name ?: rendition.language ?: "Audio ${rendition.index + 1}",
+                    language = rendition.language,
+                    isSelected = rendition.index == prepared.selectedAudioIndex,
+                )
+            }
+        }
         return tracks.map { track ->
             AudioTrack(
                 index = track.index,
@@ -2084,6 +2126,10 @@ internal class NativePlayerController(
 
     override fun selectAudioTrack(index: Int) {
         val current = handle.takeIf { it != 0L } ?: return
+        if ((hlsPrepared?.audioRenditions?.size ?: 0) > 1) {
+            SwingUtilities.invokeLater { switchHlsAudio(index) }
+            return
+        }
         val cachedTrackId = resolveTrackId(index, cachedAudioTracks)
         executePlayerCommand { activeHandle ->
             val trackId = cachedTrackId ?: run {
