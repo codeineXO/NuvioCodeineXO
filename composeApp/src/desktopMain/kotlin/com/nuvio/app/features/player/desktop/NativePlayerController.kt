@@ -190,6 +190,9 @@ internal class NativePlayerController(
         val onFailed: (String) -> Unit,
     )
 
+    @Volatile
+    private var startupAudioLanguages: String = ""
+
     private val _releasingForNavigation = MutableStateFlow(false)
 
     /** True from a Back request until its release fails; the host parks the video window meanwhile. */
@@ -560,7 +563,10 @@ internal class NativePlayerController(
                     if (config != null) {
                         val options = if (parsed == null) emptyArray()
                             else if (parsed.issues.isEmpty()) parsed.nativeOptions() else null
-                        NativePlayerBridge.createWindows(host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options, sink)
+                        NativePlayerBridge.createWindows(
+                            host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options,
+                            startupAudioLanguages, sink,
+                        )
                     } else {
                         NativePlayerBridge.create(host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, sink)
                     }
@@ -2068,7 +2074,10 @@ internal class NativePlayerController(
     }
 
     override fun applyAudioLanguagePreferences(languages: List<String>) {
-        handle.takeIf { it != 0L }?.let { NativePlayerBridge.setAudioLanguages(it, languages.joinToString(",")) }
+        // The runtime sends preferences before mpv exists; keep them so the player opens the
+        // preferred track instead of switching tracks (and re-seeking) after the first frame.
+        startupAudioLanguages = languages.joinToString(",")
+        handle.takeIf { it != 0L }?.let { NativePlayerBridge.setAudioLanguages(it, startupAudioLanguages) }
         val trackIndex = findPreferredAudioTrackIndex(getAudioTracks(), languages)
         if (trackIndex >= 0) selectAudioTrack(trackIndex)
     }

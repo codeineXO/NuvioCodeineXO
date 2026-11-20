@@ -1704,15 +1704,27 @@ public:
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         int64_t id = trackId;
+        // Already playing this track (e.g. alang picked it at open): leave the decoder alone.
+        int64_t current = -1;
+        if (mpvApi().getProperty(mpv, "aid", MPV_FORMAT_INT64, &current) >= 0 && current == id) return;
         mpvApi().setProperty(mpv, "aid", MPV_FORMAT_INT64, &id);
+    }
+
+    /** Applied as alang before the first loadfile, so mpv opens the preferred track directly. */
+    void setStartupAudioLanguages(std::string languages) {
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        startupAudioLanguages = std::move(languages);
     }
 
     void setAudioLanguages(const std::string &languages) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
         if (userOptionSetLocked("alang")) return;
+        // Re-selecting with unchanged languages would reopen the audio decoder and seek again.
+        if (languages == appliedAudioLanguages) return;
         mpvApi().setPropertyString(mpv, "alang", languages.c_str());
         mpvApi().setPropertyString(mpv, "aid", "auto");
+        appliedAudioLanguages = languages;
     }
 
     void selectSubtitleTrackId(int trackId) {
@@ -2255,6 +2267,8 @@ private:
     std::atomic_bool startupPhase = false;
     std::chrono::steady_clock::time_point startupBegan{};  // set before startupPhase
     std::vector<std::string> startupUserOptionNames;       // Guarded by mpvMutex.
+    std::string startupAudioLanguages;                     // Guarded by mpvMutex.
+    std::string appliedAudioLanguages;                     // Guarded by mpvMutex.
     long long startupInitialPositionMs = 0;                // Guarded by mpvMutex.
     std::atomic_bool initialStartPending = false;
     std::atomic_bool hlsDetectionSent = false;
@@ -2810,6 +2824,10 @@ private:
             // verbose response lines.
             api.requestLogMessages(mpv, "v");
             setRtxFilterLocked(rtxRequested);
+            if (!startupAudioLanguages.empty() && !userOptionSetLocked("alang")) {
+                api.setPropertyString(mpv, "alang", startupAudioLanguages.c_str());
+                appliedAudioLanguages = startupAudioLanguages;
+            }
 
             int commandResult = loadSourceLocked(sourceUrl);
             if (commandResult < 0) {
@@ -4011,6 +4029,7 @@ static jlong createWindowsPlayer(
     jboolean nvidiaRtxHdrEnabled,
     jobjectArray options,
     bool invalidConfig,
+    jstring audioLanguages,
     jobject eventSink
 ) {
     HWND hostHwnd = (HWND)(intptr_t)hostViewPtr;
@@ -4041,6 +4060,7 @@ static jlong createWindowsPlayer(
     }
 
     auto player = std::make_shared<WindowsMpvWebPlayer>();
+    if (audioLanguages) player->setStartupAudioLanguages(jstringToUtf8(env, audioLanguages));
     try {
         player->initialize(
             hostHwnd,
@@ -4079,15 +4099,16 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_create(
     JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
     jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jboolean rtxHdr, jobject sink
 ) {
-    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, nullptr, false, sink);
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, nullptr, false, nullptr, sink);
 }
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_createWindows(
     JNIEnv *env, jobject, jlong host, jstring source, jstring audio, jobjectArray headers,
-    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jboolean rtxHdr, jobjectArray options, jobject sink
+    jboolean play, jlong position, jstring controls, jint decoder, jboolean rtx, jboolean rtxHdr, jobjectArray options,
+    jstring audioLanguages, jobject sink
 ) {
-    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options, !options, sink);
+    return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options, !options, audioLanguages, sink);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

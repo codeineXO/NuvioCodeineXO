@@ -78,6 +78,8 @@ internal object NativePlayerBridge {
         nvidiaRtxSuperResolutionEnabled: Boolean,
         nvidiaRtxHdrEnabled: Boolean,
         options: Array<String>?,
+        /** Comma-separated mpv `alang`, applied before the first file opens; empty = none. */
+        audioLanguages: String,
         eventSink: NativePlayerEventSink,
     ): Long
 

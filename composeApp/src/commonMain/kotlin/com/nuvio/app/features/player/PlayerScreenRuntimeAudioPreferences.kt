@@ -24,8 +24,20 @@ internal data class AppliedAudioPreferences(
     val tracks: List<AudioTrack>,
 )
 
+/**
+ * "Original" resolves through the content's metadata, which can arrive after playback starts.
+ * Until then the targets are only the device-language fallback, so applying them before the
+ * player has tracks would open that language and switch away once the original is known.
+ */
+private val PlayerScreenRuntime.awaitingOriginalAudioLanguage: Boolean
+    get() = normalizeLanguageCode(playerSettingsUiState.preferredAudioLanguage) == AudioLanguageOption.ORIGINAL &&
+        contentLanguage == null
+
 internal fun PlayerScreenRuntime.applyPreferredAudioTrack(targets: List<String>) {
     if (isUserExplicitAudioSelection) return
+    // Before tracks exist this only primes the player's startup language; leave the stream's
+    // default track in place rather than priming a fallback that may be replaced.
+    if (audioTracks.isEmpty() && awaitingOriginalAudioLanguage) return
     val controller = playerController ?: return
     val preferences = AppliedAudioPreferences(
         controller = controller,
