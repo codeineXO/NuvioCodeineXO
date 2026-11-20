@@ -256,6 +256,8 @@ internal fun PlaybackStreamSettings(
                 }
             }
         }
+
+        StreamFilterSettingsSection(isTablet = isTablet)
     }
 
     if (showReuseCacheDurationDialog) {

@@ -13,6 +13,7 @@ import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
+import com.nuvio.app.features.streams.StreamFilterSettingsRepository
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
@@ -231,9 +232,14 @@ internal fun PlayerScreenModalHosts(
         sourceIsMixed = false
     }
 
+    val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
+    // Read-only: the panel shows the filter and sort set on the stream page.
+    val filteredSourceStreamsState = remember(sourceStreamsState, streamFilterSettings) {
+        sourceStreamsState.copy(streamFilter = streamFilterSettings)
+    }
     PlayerSourcesPanel(
         visible = showSourcesPanel,
-        streamsUiState = sourceStreamsState,
+        streamsUiState = filteredSourceStreamsState,
         contentTitle = contentTitle,
         currentSeason = activeSeasonNumber,
         currentEpisode = activeEpisodeNumber,

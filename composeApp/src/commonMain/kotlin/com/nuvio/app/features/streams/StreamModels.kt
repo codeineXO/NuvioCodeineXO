@@ -356,10 +356,30 @@ data class StreamsUiState(
     val isDirectAutoPlayFlow: Boolean = false,
     val showDirectAutoPlayOverlay: Boolean = false,
     val overlayMessage: String? = null,
+    /** Filter and sort applied for display only; repositories leave it null. */
+    val streamFilter: StreamFilterSettings? = null,
 ) {
-    val filteredGroups: List<AddonStreamGroup>
+    /** All addons are shown with a sort, so results are one list sorted across addons. */
+    val isMergedSort: Boolean
+        get() = selectedFilter == null && streamFilter?.hasActiveSort == true
+
+    /** Groups for the selected addon, before [streamFilter] is applied. */
+    val addonFilteredGroups: List<AddonStreamGroup>
         get() = if (selectedFilter == null) groups
                 else groups.filter { it.addonId == selectedFilter }
+
+    private val streamFilterResult: StreamFilterResult by lazy {
+        val filter = streamFilter
+        if (filter == null) StreamFilterResult(addonFilteredGroups, 0)
+        else StreamFilterEngine.apply(addonFilteredGroups, filter, mergeGroups = isMergedSort)
+    }
+
+    val filteredGroups: List<AddonStreamGroup>
+        get() = streamFilterResult.groups
+
+    /** Streams [streamFilter] hides from the selected addon's results. */
+    val hiddenByFilterCount: Int
+        get() = streamFilterResult.hiddenCount
 
     val allStreams: List<StreamItem>
         get() = filteredGroups.flatMap { it.streams }

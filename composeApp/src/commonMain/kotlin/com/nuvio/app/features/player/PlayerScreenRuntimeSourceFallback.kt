@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.features.streams.StreamFilterSettingsRepository
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.enabledAddons
@@ -190,5 +191,6 @@ internal fun nextSourceFallbackCandidate(
         selectedPlugins = settings.streamAutoPlaySelectedPlugins,
         debridEnabled = debridEnabled,
         activeResolverProviderId = activeResolverProviderId,
+        autoPlayFilter = StreamFilterSettingsRepository.autoPlayFilter(),
     ).readyStreams.firstOrNull()
 }

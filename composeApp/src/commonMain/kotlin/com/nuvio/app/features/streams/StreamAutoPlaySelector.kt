@@ -50,6 +50,7 @@ object StreamAutoPlaySelector {
         bingeGroupOnly: Boolean = false,
         debridEnabled: Boolean = true,
         activeResolverProviderId: String? = null,
+        autoPlayFilter: StreamFilterSettings? = null,
     ): StreamItem? =
         evaluateAutoPlayStream(
             streams = streams,
@@ -64,6 +65,7 @@ object StreamAutoPlaySelector {
             bingeGroupOnly = bingeGroupOnly,
             debridEnabled = debridEnabled,
             activeResolverProviderId = activeResolverProviderId,
+            autoPlayFilter = autoPlayFilter,
         ).stream
 
     fun evaluateAutoPlayStream(
@@ -79,7 +81,9 @@ object StreamAutoPlaySelector {
         bingeGroupOnly: Boolean = false,
         debridEnabled: Boolean = true,
         activeResolverProviderId: String? = null,
+        autoPlayFilter: StreamFilterSettings? = null,
     ): StreamAutoPlayEvaluation {
+        val streams = if (autoPlayFilter == null) streams else StreamFilterEngine.forAutoPlay(streams, autoPlayFilter)
         if (streams.isEmpty()) return StreamAutoPlayEvaluation()
 
         val sourceScopedStreams = when (source) {

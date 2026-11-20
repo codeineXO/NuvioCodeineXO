@@ -35,6 +35,7 @@ import com.nuvio.app.features.streams.isSelectableForPlayback
 import com.nuvio.app.features.streams.rememberStreamSizeLabelFormat
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_no_streams_found
+import nuvio.composeapp.generated.resources.stream_filter_player_hidden_hint
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -99,7 +100,11 @@ internal fun PlayerStreamList(
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Text(
-                    text = error ?: stringResource(Res.string.compose_player_no_streams_found),
+                    text = error ?: if (streamsUiState.hiddenByFilterCount > 0) {
+                        stringResource(Res.string.stream_filter_player_hidden_hint, streamsUiState.hiddenByFilterCount)
+                    } else {
+                        stringResource(Res.string.compose_player_no_streams_found)
+                    },
                     color = Color.White.copy(alpha = if (error == null) 0.7f else 0.85f),
                     style = MaterialTheme.typography.bodyLarge,
                 )

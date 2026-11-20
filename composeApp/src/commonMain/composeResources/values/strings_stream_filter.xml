@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stream_filter_button">Filter</string>
+    <string name="stream_filter_button_count">Filter (%1$d)</string>
+    <string name="stream_sort_button">Sort</string>
+    <string name="stream_filter_reset">Reset filters</string>
+    <string name="stream_filter_reset_all">Reset filters &amp; sort</string>
+    <string name="stream_filter_reset_confirm_title">Reset filters &amp; sort?</string>
+    <string name="stream_filter_reset_confirm_message">All stream filters and the sort order go back to their defaults.</string>
+    <string name="stream_filter_search_hint">Search streams</string>
+    <string name="stream_filter_unknown">Unknown</string>
+
+    <string name="stream_filter_section_general">General</string>
+    <string name="stream_filter_section_resolution">Resolution</string>
+    <string name="stream_filter_section_quality">Quality</string>
+    <string name="stream_filter_section_source">Source</string>
+    <string name="stream_filter_section_hdr">HDR</string>
+    <string name="stream_filter_section_codec">Codec</string>
+    <string name="stream_filter_section_audio">Audio</string>
+    <string name="stream_filter_section_channels">Channels</string>
+    <string name="stream_filter_section_size">Size</string>
+    <string name="stream_filter_section_language">Language</string>
+
+    <string name="stream_filter_section_format">Format</string>
+    <string name="stream_filter_section_provider">Provider</string>
+    <string name="stream_filter_section_release_group">Release group</string>
+
+    <string name="stream_filter_format_hls">HLS</string>
+    <string name="stream_filter_format_dash">DASH</string>
+    <string name="stream_filter_format_mkv">MKV</string>
+    <string name="stream_filter_format_mp4">MP4</string>
+    <string name="stream_filter_format_other">Other video</string>
+    <string name="stream_filter_format_youtube">YouTube</string>
+
+    <string name="stream_filter_include_keywords">Must include any of</string>
+    <string name="stream_filter_exclude_keywords">Hide if it contains</string>
+    <string name="stream_filter_keywords_hint">Comma-separated, e.g. remux, x265</string>
+
+    <string name="stream_filter_cached_only">Cached / instant only</string>
+    <string name="stream_filter_hide_low_quality">Hide CAM / TS</string>
+
+    <string name="stream_filter_resolution_4k">4K</string>
+    <string name="stream_filter_resolution_1440">1440p</string>
+    <string name="stream_filter_resolution_1080">1080p</string>
+    <string name="stream_filter_resolution_720">720p</string>
+    <string name="stream_filter_resolution_sd">SD</string>
+
+    <string name="stream_filter_source_direct">Direct</string>
+    <string name="stream_filter_source_debrid">Debrid</string>
+    <string name="stream_filter_source_torrent">Torrent</string>
+    <string name="stream_filter_source_external">External</string>
+
+    <string name="stream_filter_hdr_dolby_vision">Dolby Vision</string>
+    <string name="stream_filter_hdr_hdr10_plus">HDR10+</string>
+    <string name="stream_filter_hdr_hdr">HDR</string>
+    <string name="stream_filter_hdr_sdr">SDR</string>
+
+    <string name="stream_filter_min_size_gb">Min GB</string>
+    <string name="stream_filter_max_size_gb">Max GB</string>
+    <string name="stream_filter_hide_unknown_size">Hide unknown size</string>
+
+    <string name="stream_sort_default">Default order</string>
+    <string name="stream_sort_best_quality">Best quality</string>
+    <string name="stream_sort_size_desc">Largest first</string>
+    <string name="stream_sort_size_asc">Smallest first</string>
+    <string name="stream_sort_bitrate_desc">Highest bitrate</string>
+    <string name="stream_sort_seeders_desc">Most seeders</string>
+    <string name="stream_sort_cached_first">Cached first</string>
+
+    <string name="stream_filter_hidden_title">All streams hidden by filters</string>
+    <string name="stream_filter_hidden_message">%1$d streams don\'t match your filters.</string>
+    <string name="stream_filter_player_hidden_hint">%1$d streams hidden by filters. Change them on the stream page.</string>
+
+    <string name="stream_filter_settings_section">Stream filters</string>
+    <string name="stream_filter_settings_sort">Sort streams</string>
+    <string name="stream_filter_settings_filters">Filter streams</string>
+    <string name="stream_filter_settings_filters_none">No filters</string>
+    <string name="stream_filter_settings_filters_active">%1$d active</string>
+    <string name="stream_filter_autoplay_respects">Autoplay respects filters</string>
+    <string name="stream_filter_autoplay_respects_description">Autoplay only picks streams that pass your stream filters.</string>
+</resources>

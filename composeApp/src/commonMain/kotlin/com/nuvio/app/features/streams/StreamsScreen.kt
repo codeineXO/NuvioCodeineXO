@@ -229,14 +229,26 @@ fun StreamsScreen(
         initialProgressFraction = resumeProgressFraction,
         startFromBeginning = false,
     )
+    val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
     val resumeControls: @Composable (Modifier) -> Unit = { bannerModifier ->
-        ResumeBanner(
-            positionMs = availableResumeState.positionMs,
-            progressFraction = availableResumeState.progressFraction,
-            startFromBeginning = restartSelected,
-            onStartFromBeginningChange = { restartSelected = it },
-            modifier = bannerModifier,
-        )
+        Row(
+            modifier = bannerModifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                ResumeBanner(
+                    positionMs = availableResumeState.positionMs,
+                    progressFraction = availableResumeState.progressFraction,
+                    startFromBeginning = restartSelected,
+                    onStartFromBeginningChange = { restartSelected = it },
+                )
+            }
+            StreamSortFilterMenus(
+                settings = streamFilterSettings,
+                streams = uiState.addonFilteredGroups.flatMap { it.streams },
+            )
+        }
     }
     val storedProgress = if (startFromBeginning) {
         null
@@ -319,10 +331,12 @@ fun StreamsScreen(
         episode = episodeNumber,
         manualSelection = manualSelection,
     )
-    val displayedUiState = if (uiState.requestToken == currentRequestToken) {
-        uiState
-    } else {
-        StreamsUiState(requestToken = currentRequestToken, isAnyLoading = true)
+    val displayedUiState = remember(uiState, currentRequestToken, streamFilterSettings) {
+        if (uiState.requestToken == currentRequestToken) {
+            uiState.copy(streamFilter = streamFilterSettings)
+        } else {
+            StreamsUiState(requestToken = currentRequestToken, isAnyLoading = true)
+        }
     }
 
     val metadataState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
@@ -989,17 +1003,28 @@ internal fun StreamList(
     val awaitingRequest = uiState.groups.isEmpty() && uiState.isAnyLoading
     val anyLoading = awaitingRequest || filteredGroups.any { it.isLoading }
     val streamSections = remember(filteredGroups) {
-        buildStreamSectionRenderModels(filteredGroups)
+        buildStreamSectionRenderModels(filteredGroups, groupBySource = !uiState.isMergedSort)
     }
     val torrentNotSupportedText = stringResource(Res.string.streams_torrent_not_supported)
     val listState = rememberLazyListState()
+    // Re-sorting keeps the first visible card in view, which drags the list down to wherever it
+    // moved; start from the top instead whenever the filter or sort changes.
+    val resultsFilterKey = uiState.streamFilter?.copy(autoPlayRespectsFilters = false)
+    val shownResultsFilterKey = remember { arrayOf(resultsFilterKey) }
+    if (resultsFilterKey != shownResultsFilterKey[0]) {
+        shownResultsFilterKey[0] = resultsFilterKey
+        // Applied in the same layout pass as the new order, so the list never jumps first.
+        listState.requestScrollToItem(0)
+    }
     val fetchingText = stringResource(Res.string.streams_fetching)
     val findingStreamsText = stringResource(Res.string.streams_finding_streams)
     val checkingMoreAddonsText = stringResource(Res.string.streams_checking_more_addons)
     val formatStreamSize = rememberStreamSizeLabelFormat()
     val sharedStream = LocalSharedStream.current
     val resultsNavigation = LocalStreamResultsNavigation.current
-    val firstResult = remember(streamSections, sharedStream, debridEnabled, uiState.selectedFilter) {
+    // A merged, sorted list has no addon sections, so it has no headers.
+    val showGroupHeaders = uiState.selectedFilter == null && !uiState.isMergedSort
+    val firstResult = remember(streamSections, sharedStream, debridEnabled, uiState.selectedFilter, uiState.isMergedSort) {
         if (sharedStream != null) {
             "shared_stream" to 0
         } else {
@@ -1007,7 +1032,7 @@ internal fun StreamList(
             var first: Pair<String, Int>? = null
             streamSections.forEach { section ->
                 if (section.group.streams.isNotEmpty() || section.group.isLoading) {
-                    if (uiState.selectedFilter == null) index++
+                    if (showGroupHeaders) index++
                     section.sources.forEach { source ->
                         if (section.showSourceHeaders) index++
                         source.streams.forEach { item ->
@@ -1108,7 +1133,11 @@ internal fun StreamList(
                         key = "streams_empty",
                         contentType = STREAM_CONTENT_TYPE_EMPTY,
                     ) {
-                        EmptyStateBlock(reason = uiState.emptyStateReason)
+                        if (uiState.hiddenByFilterCount > 0) {
+                            FilterHiddenStateBlock(hiddenCount = uiState.hiddenByFilterCount)
+                        } else {
+                            EmptyStateBlock(reason = uiState.emptyStateReason)
+                        }
                     }
                 }
 
@@ -1116,11 +1145,12 @@ internal fun StreamList(
                     streamSections.forEach { section ->
                         streamSection(
                             section = section,
-                            showHeader = uiState.selectedFilter == null,
+                            showHeader = showGroupHeaders,
                             debridEnabled = debridEnabled,
                             appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
                             showFileSizeBadges = streamBadgeSettings.showFileSizeBadges,
-                            showAddonLogo = streamBadgeSettings.showAddonLogo,
+                            // Without addon headers, each card names its addon.
+                            showAddonLogo = streamBadgeSettings.showAddonLogo || uiState.isMergedSort,
                             badgePlacement = streamBadgeSettings.badgePlacement,
                             torrentNotSupportedText = torrentNotSupportedText,
                             fetchingText = fetchingText,
@@ -1159,14 +1189,18 @@ internal fun StreamList(
     }
 }
 
-private fun buildStreamSectionRenderModels(groups: List<AddonStreamGroup>): List<StreamSectionRenderModel> =
+private fun buildStreamSectionRenderModels(
+    groups: List<AddonStreamGroup>,
+    groupBySource: Boolean = true,
+): List<StreamSectionRenderModel> =
     groups
         .withDuplicateSafeLazyKeys { group -> streamSectionRenderKey(group) }
         .map { keyedGroup ->
             val group = keyedGroup.value
             val sectionKey = keyedGroup.lazyKey.toString()
-            val streamsBySource = group.streams.groupBy(::streamSourceName)
-            val sortedSources = streamsBySource.keys.sortedBy { it.lowercase() }
+            // A merged list keeps its sort order, so it is not split by provider.
+            val streamsBySource = if (groupBySource) group.streams.groupBy(::streamSourceName) else mapOf("" to group.streams)
+            val sortedSources = if (groupBySource) streamsBySource.keys.sortedBy { it.lowercase() } else listOf("")
 
             StreamSectionRenderModel(
                 sectionKey = sectionKey,
@@ -1765,6 +1799,42 @@ private fun LoadingStateBlock(
         repeat(4) {
             StreamCardSkeleton()
         }
+    }
+}
+
+@Composable
+private fun FilterHiddenStateBlock(hiddenCount: Int) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.SearchOff,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        )
+        Text(
+            text = stringResource(Res.string.stream_filter_hidden_title),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(Res.string.stream_filter_hidden_message, hiddenCount),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+        )
+        StreamFilterChip(
+            label = stringResource(Res.string.stream_filter_reset),
+            isSelected = false,
+            onClick = {
+                StreamFilterSettingsRepository.update { it.reset().copy(sort = it.sort, cachedFirst = it.cachedFirst) }
+            },
+        )
     }
 }
 
