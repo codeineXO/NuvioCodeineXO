@@ -6177,17 +6177,26 @@ function seekPreviewGeometry(count, tileWidth, viewportWidth, targetX) {
   return { scale, width, center };
 }
 
+// Rects and clientX are in zoomed viewport pixels, but style offsets are layout pixels that the player UI
+// zoom scales again. Divide viewport distances by this before writing them to style.
+function playerZoomRatio(rootRect = root.getBoundingClientRect()) {
+  return root.offsetWidth > 0 && rootRect.width > 0 ? rootRect.width / root.offsetWidth : 1;
+}
+
 // Use one clamped center for the thumbnail strip and its caption, including text-only hover.
+// previewWidth is in layout pixels; returns the center in viewport pixels.
 function positionSeekFeedback(positionMs, clientX, previewWidth = 0) {
   const rootRect = root.getBoundingClientRect();
+  const ratio = playerZoomRatio(rootRect);
   const timelineRect = seek.getBoundingClientRect();
   const fraction = state.durationMs > 0 ? Math.max(0, Math.min(1, positionMs / state.durationMs)) : 0;
   const targetX = clientX != null ? clientX : timelineRect.left + fraction * timelineRect.width;
-  const groupWidth = Math.max(seekFeedback.getBoundingClientRect().width, previewWidth);
-  const center = Math.max(rootRect.left + 16 + groupWidth / 2,
-    Math.min(rootRect.right - 16 - groupWidth / 2, targetX));
-  seekFeedback.style.left = (center - rootRect.left) + "px";
-  seekFeedback.style.bottom = (rootRect.bottom - timelineRect.top + 12) + "px";
+  const groupWidth = Math.max(seekFeedback.getBoundingClientRect().width, previewWidth * ratio);
+  const edge = 16 * ratio;
+  const center = Math.max(rootRect.left + edge + groupWidth / 2,
+    Math.min(rootRect.right - edge - groupWidth / 2, targetX));
+  seekFeedback.style.left = ((center - rootRect.left) / ratio) + "px";
+  seekFeedback.style.bottom = ((rootRect.bottom - timelineRect.top) / ratio + 12) + "px";
   return center;
 }
 
@@ -6360,10 +6369,12 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
   const sideFrames = (count - 1) / 2;
   const timelineRect = seek.getBoundingClientRect();
   const rootRect = root.getBoundingClientRect();
-  const windowWidth = rootRect.width;
+  const ratio = playerZoomRatio(rootRect);
+  const windowWidth = rootRect.width / ratio;
   const fraction = state.durationMs > 0 ? Math.max(0, Math.min(1, positionMs / state.durationMs)) : 0;
   const targetX = clientX != null ? clientX : timelineRect.left + fraction * timelineRect.width;
-  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, targetX - rootRect.left);
+  // Geometry is in layout pixels, like the tile sizes it scales.
+  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, (targetX - rootRect.left) / ratio);
   if (seekFilmstripCarousel) seekFilmstripCarousel.style.gap = (8 * geometry.scale) + "px";
 
   for (let index = 0; index < previewTiles.length; index++) {
@@ -6385,12 +6396,12 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
     ? codeineSeekPreview.offsetParent.getBoundingClientRect() : { left: 0 };
   const showFeedback = seekFeedback.classList.contains("visible");
   const center = showFeedback ? positionSeekFeedback(positionMs, clientX, geometry.width)
-    : geometry.center + rootRect.left;
-  codeineSeekPreview.style.left = (center - parentRect.left) + "px";
+    : geometry.center * ratio + rootRect.left;
+  codeineSeekPreview.style.left = ((center - parentRect.left) / ratio) + "px";
   const parentBottom = codeineSeekPreview.offsetParent
     ? codeineSeekPreview.offsetParent.getBoundingClientRect().bottom : window.innerHeight;
   const captionHeight = showFeedback ? seekFeedback.getBoundingClientRect().height : 0;
-  codeineSeekPreview.style.bottom = (parentBottom - timelineRect.top + 20 + captionHeight + tileHeight * geometry.scale * 0.04) + "px";
+  codeineSeekPreview.style.bottom = ((parentBottom - timelineRect.top + captionHeight) / ratio + 20 + tileHeight * geometry.scale * 0.04) + "px";
 
   codeineSeekPreview.classList.add("visible");
 }
