@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 private const val ChunkSize = 65536L
 
 private val hashClient = desktopHttpClient.newBuilder()
+    .cache(null) // Range reads of video files; the addon response cache has nothing to gain here.
     .connectTimeout(5, TimeUnit.SECONDS)
     .readTimeout(5, TimeUnit.SECONDS)
     .build()
