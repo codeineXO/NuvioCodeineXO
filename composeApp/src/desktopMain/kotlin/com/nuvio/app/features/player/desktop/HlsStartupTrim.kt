@@ -1,7 +1,9 @@
 package com.nuvio.app.features.player.desktop
 
 import co.touchlab.kermit.Logger
+import com.nuvio.app.features.player.SubtitleLanguageMatching
 import com.nuvio.app.features.player.languageMatchesPreference
+import com.nuvio.app.features.player.normalizeLanguageCode
 import com.nuvio.app.features.streams.StreamSubtitle
 import com.sun.net.httpserver.HttpServer
 import java.io.ByteArrayInputStream
@@ -86,12 +88,15 @@ internal object HlsMasterTrimmer {
         val best = variantIndex?.let(variants::getOrNull) ?: pickVariant(variants, maxHeight)
 
         // FFmpeg opens (and probes the first segment of) every audio rendition in the group, so
-        // keep only the one that will play, like ExoPlayer on mobile. Renditions without a URI
-        // are muxed into the variant and cost nothing, so they stay.
+        // keep only the one that will play, like ExoPlayer on mobile. A group that also has a
+        // rendition muxed into the variant (no URI) is left whole: that track cannot be dropped
+        // or picked by re-trimming, so mpv keeps choosing among all of them as before.
         val audioGroup = best.attributes["AUDIO"]
         val audioRenditions = lines.filter { it.startsWith("#EXT-X-MEDIA:") }
             .map { parseAttributes(it.substringAfter(':')) }
-            .filter { it["TYPE"] == "AUDIO" && it["GROUP-ID"] == audioGroup && it["URI"] != null }
+            .filter { it["TYPE"] == "AUDIO" && it["GROUP-ID"] == audioGroup }
+            .takeIf { group -> group.all { it["URI"] != null } }
+            .orEmpty()
         val chosenAudio = pickAudioRendition(audioRenditions, audioName, audioLanguages)
         val audioOptions = audioRenditions.mapIndexed { i, attributes ->
             HlsAudioRendition(
@@ -113,8 +118,7 @@ internal object HlsMasterTrimmer {
                     val type = attributes["TYPE"]
                     val group = attributes["GROUP-ID"]
                     val keep = when (type) {
-                        "AUDIO" -> group == audioGroup &&
-                            (attributes["URI"] == null || chosenAudio == null || attributes == chosenAudio)
+                        "AUDIO" -> group == audioGroup && (chosenAudio == null || attributes == chosenAudio)
                         "VIDEO" -> group == best.attributes["VIDEO"]
                         "SUBTITLES" -> {
                             val uri = attributes["URI"]
@@ -164,8 +168,18 @@ internal object HlsMasterTrimmer {
         audioName?.trim()?.takeIf { it.isNotEmpty() }?.let { name ->
             renditions.firstOrNull { it["NAME"].equals(name, ignoreCase = true) }?.let { return it }
         }
+        // Same order as the runtime's findPreferredAudioTrackIndex, so it keeps this pick once tracks load.
         for (language in audioLanguages) {
             renditions.firstOrNull { languageMatchesPreference(it["LANGUAGE"], language) }?.let { return it }
+            renditions.firstOrNull {
+                normalizeLanguageCode(it["LANGUAGE"]) == null &&
+                    SubtitleLanguageMatching.trackMatchesLanguage(
+                        name = it["NAME"].orEmpty(),
+                        language = null,
+                        trackId = null,
+                        target = language,
+                    )
+            }?.let { return it }
         }
         return renditions.firstOrNull { it["DEFAULT"] == "YES" } ?: renditions.first()
     }
@@ -306,14 +320,20 @@ internal object HlsStartupTrim {
         knownHls: Boolean = false,
         maxHeight: Int = 0,
         audioLanguages: List<String> = emptyList(),
+        audioName: String? = null,
     ): Prepared? {
         val lower = sourceUrl.lowercase(Locale.ROOT)
         val isHttp = lower.startsWith("http://") || lower.startsWith("https://")
         if (!(if (knownHls) isHttp else looksLikeHls(sourceUrl))) return null
         return runCatching {
             val (body, base) = fetch(sourceUrl, headerLines) ?: return null
-            val trimmed = HlsMasterTrimmer.trim(body, base, maxHeight = maxHeight, audioLanguages = audioLanguages)
-                ?: return null
+            val trimmed = HlsMasterTrimmer.trim(
+                body,
+                base,
+                maxHeight = maxHeight,
+                audioLanguages = audioLanguages,
+                audioName = audioName,
+            ) ?: return null
             val localUrl = LocalPlaylistServer.publish(trimmed.master) ?: return null
             log.d {
                 "trimmed HLS master: ${trimmed.subtitles.size} subtitle renditions deferred, " +
@@ -331,6 +351,14 @@ internal object HlsStartupTrim {
             .withSourceHeaders(headerLines)
         val response = client.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray())
         if (response.statusCode() !in 200..299) return null
+        // FFmpeg carries cookies from the master response into its playlist and segment requests;
+        // a local copy would lose them, so such sources play from the origin.
+        val setsCookie = generateSequence<HttpResponse<*>>(response) { it.previousResponse().orElse(null) }
+            .any { it.headers().firstValue("Set-Cookie").isPresent }
+        if (setsCookie) {
+            log.d { "HLS master sets cookies; playing it from the origin" }
+            return null
+        }
         var bytes = response.body()
         if (response.headers().firstValue("Content-Encoding").orElse("").equals("gzip", ignoreCase = true)) {
             bytes = GZIPInputStream(ByteArrayInputStream(bytes)).use { it.readNBytes(MaxPlaylistBytes + 1) }

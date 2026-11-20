@@ -1931,6 +1931,13 @@ const onEpisodesModalClosed = () => {
 const normalizeTracks = tracks =>
   Array.isArray(tracks) ? tracks.filter(track => track && typeof track === "object") : [];
 
+// A trimmed HLS master hands mpv one audio rendition; the app then sends every rendition of
+// the group as hlsAudioTracks, which stand in for mpv's list (picking one re-trims the master).
+const effectiveAudioTracks = nativeTracks => {
+  const hlsAudioTracks = normalizeTracks(state.hlsAudioTracks);
+  return hlsAudioTracks.length > 0 ? hlsAudioTracks : normalizeTracks(nativeTracks);
+};
+
 const trackIdValue = track => {
   const parsed = Number(track && track.id);
   return Number.isFinite(parsed) ? parsed : -1;
@@ -6792,7 +6799,7 @@ window.playerUpdate = update => {
   if (durationMs > 2000 && (bufferedPositionMs >= durationMs - 2000 || positionMs >= durationMs - 1500)) {
     bufferedPositionMs = durationMs;
   }
-  const audioTracks = normalizeTracks(update.audioTracks);
+  const audioTracks = effectiveAudioTracks(update.audioTracks);
   const subtitleTracks = normalizeTracks(update.subtitleTracks);
   const audioTracksChanged = trackListSignature(audioTracks) !== trackListSignature(state.audioTracks);
   const subtitleTracksChanged = trackListSignature(subtitleTracks) !== trackListSignature(state.subtitleTracks);
@@ -6954,6 +6961,7 @@ window.playerControls = nextState => {
     volumeLevel: currentVolumeLevel ?? nextState.volumeLevel,
     controlsVisible: nextState.controlsVisible ?? true,
   };
+  state.audioTracks = effectiveAudioTracks(state.audioTracks);
   const mediaMetadataChanged = (nextState.title !== undefined && nextState.title !== previousTitle) ||
     (nextState.episodeText !== undefined && nextState.episodeText !== previousEpisodeText) ||
     (nextState.streamTitle !== undefined && nextState.streamTitle !== previousStreamTitle);

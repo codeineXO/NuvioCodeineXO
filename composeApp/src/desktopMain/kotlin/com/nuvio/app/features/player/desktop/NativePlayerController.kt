@@ -193,6 +193,10 @@ internal class NativePlayerController(
     @Volatile
     private var startupAudioLanguages: String = ""
 
+    /** The title's saved audio track name; the HLS trim keeps that rendition when it has one. */
+    @Volatile
+    private var startupAudioName: String? = null
+
     private fun startupAudioLanguageList(): List<String> =
         startupAudioLanguages.split(',').map(String::trim).filter(String::isNotEmpty)
 
@@ -582,6 +586,7 @@ internal class NativePlayerController(
                         pending.headerLines,
                         maxHeight = PlayerSettingsRepository.uiState.value.hlsMaxResolution,
                         audioLanguages = startupAudioLanguageList(),
+                        audioName = startupAudioName,
                     )
                 } else {
                     null
@@ -832,7 +837,22 @@ internal class NativePlayerController(
             selectedIndex = prepared?.let { selectedQualityOption(it) } ?: -1,
             switching = qualitySwitch != null,
             title = title,
+            audioTracks = prepared?.let(::hlsAudioTracks).orEmpty(),
         )
+    }
+
+    /** All renditions of the playing audio group, when the trimmed master kept one of several. */
+    private fun hlsAudioTracks(prepared: HlsStartupTrim.Prepared): List<AudioTrack>? {
+        if (prepared.audioRenditions.size <= 1) return null
+        return prepared.audioRenditions.map { rendition ->
+            AudioTrack(
+                index = rendition.index,
+                id = "hls-audio-${rendition.index}",
+                label = rendition.name ?: rendition.language ?: "Audio ${rendition.index + 1}",
+                language = rendition.language,
+                isSelected = rendition.index == prepared.selectedAudioIndex,
+            )
+        }
     }
 
     /** Each phone remote "close" bumps the token the controls page watches to close its open panel. */
@@ -1357,6 +1377,7 @@ internal class NativePlayerController(
                 knownHls = true,
                 maxHeight = PlayerSettingsRepository.uiState.value.hlsMaxResolution,
                 audioLanguages = startupAudioLanguageList(),
+                audioName = startupAudioName,
             ) ?: return@launch
             if (handle != target || attachedSource !== source) return@launch
             val reloaded = runCatching { NativePlayerBridge.reloadStartupSource(target, trim.localUrl) }
@@ -2055,17 +2076,7 @@ internal class NativePlayerController(
         cachedAudioTracks = tracks
         // mpv only sees the one rendition the trimmed master keeps; list them all so they can
         // still be picked (each pick re-trims the master, see switchHlsAudio).
-        hlsPrepared?.takeIf { it.audioRenditions.size > 1 }?.let { prepared ->
-            return prepared.audioRenditions.map { rendition ->
-                AudioTrack(
-                    index = rendition.index,
-                    id = "hls-audio-${rendition.index}",
-                    label = rendition.name ?: rendition.language ?: "Audio ${rendition.index + 1}",
-                    language = rendition.language,
-                    isSelected = rendition.index == prepared.selectedAudioIndex,
-                )
-            }
-        }
+        hlsPrepared?.let(::hlsAudioTracks)?.let { return it }
         return tracks.map { track ->
             AudioTrack(
                 index = track.index,
@@ -2124,6 +2135,10 @@ internal class NativePlayerController(
         if (trackIndex >= 0) selectAudioTrack(trackIndex)
     }
 
+    override fun primeStartupAudioName(name: String?) {
+        startupAudioName = name
+    }
+
     override fun selectAudioTrack(index: Int) {
         val current = handle.takeIf { it != 0L } ?: return
         if ((hlsPrepared?.audioRenditions?.size ?: 0) > 1) {
@@ -2142,8 +2157,27 @@ internal class NativePlayerController(
                 return@executePlayerCommand
             }
             log.d { "selectAudioTrack index=$index trackId=$trackId count=${cachedAudioTracks.size} handle=$activeHandle" }
+            val alreadyPlaying = cachedAudioTracks.any { it.selected && it.id.toIntOrNull() == trackId }
             NativePlayerBridge.selectAudioTrack(activeHandle, trackId)
+            if (!alreadyPlaying && isHlsPlayback(activeHandle)) {
+                // FFmpeg only downloads the playing HLS rendition, so a newly picked one starts at
+                // the demuxer's read-ahead point: mpv stays muted until it arrives, then speeds the
+                // video up to catch up. An exact seek to here restarts every stream in sync.
+                val position = runCatching { NativePlayerBridge.positionMs(activeHandle) }.getOrDefault(0L)
+                if (position > 0L) {
+                    log.d { "HLS in-place audio switch; resyncing at positionMs=$position handle=$activeHandle" }
+                    performSeekTo(activeHandle, position)
+                }
+            }
         }
+    }
+
+    /** An HLS source mpv plays itself (untrimmed, or trimmed with its audio group left whole). */
+    private fun isHlsPlayback(handle: Long): Boolean {
+        if (hlsPrepared != null) return true
+        if (attachedSource?.sourceUrl?.let(HlsStartupTrim::looksLikeHls) == true) return true
+        val format = runCatching { NativePlayerBridge.stringProperty(handle, "file-format") }.getOrDefault("")
+        return format.split(',').any { it.trim() == "hls" || it.trim() == "applehttp" }
     }
 
     override fun selectSubtitleTrack(index: Int) {
@@ -2718,9 +2752,24 @@ internal data class HlsQualityControls(
     val selectedIndex: Int = -1,
     val switching: Boolean = false,
     val title: String = "Quality",
+    /** The HLS audio renditions when the trimmed master kept one of several; empty otherwise. */
+    val audioTracks: List<AudioTrack> = emptyList(),
 ) {
     /** Leading-comma JSON fields appended to the controls object. */
     fun toJsonFields(): String = buildString {
+        // Same shape as the native track list; the controls page shows it instead of mpv's,
+        // which only has the one rendition. The id is the rendition index the runtime maps back.
+        append(",\"hlsAudioTracks\":[")
+        audioTracks.forEachIndexed { i, track ->
+            if (i > 0) append(',')
+            append("{\"index\":").append(track.index)
+            append(",\"id\":").append(JsonPrimitive(track.index.toString()))
+            append(",\"label\":").append(JsonPrimitive(track.label))
+            append(",\"language\":").append(JsonPrimitive(track.language.orEmpty()))
+            append(",\"selected\":").append(track.isSelected)
+            append(",\"forced\":false}")
+        }
+        append(']')
         append(",\"hlsQualityOptions\":[")
         options.forEachIndexed { i, option ->
             if (i > 0) append(',')

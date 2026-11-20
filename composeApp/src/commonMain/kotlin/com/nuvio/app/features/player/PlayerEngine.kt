@@ -24,6 +24,8 @@ interface PlayerEngineController {
     fun getAudioTracks(): List<AudioTrack>
     fun getSubtitleTracks(): List<SubtitleTrack>
     fun applyAudioLanguagePreferences(languages: List<String>)
+    /** The title's saved audio track name, primed before tracks exist so the engine can open it directly. */
+    fun primeStartupAudioName(name: String?) {}
     fun selectAudioTrack(index: Int)
     fun selectSubtitleTrack(index: Int)
     fun setSubtitleUri(url: String)

@@ -39,11 +39,14 @@ internal fun PlayerScreenRuntime.applyPreferredAudioTrack(targets: List<String>)
         // Before tracks exist this only primes the player's startup language. The title's saved
         // audio choice is restored once tracks load and overrides the preference, so prime that
         // instead; otherwise the player opens one track and switches right after the first frame.
-        val savedLanguage = PlayerTrackPreferenceStorage.load(parentMetaId)
-            ?.audioLanguage
-            ?.let(::normalizeLanguageCode)
+        val saved = PlayerTrackPreferenceStorage.load(parentMetaId)
+        playerController?.primeStartupAudioName(saved?.audioName?.takeIf { it.isNotBlank() })
+        val savedLanguage = saved?.audioLanguage?.let(::normalizeLanguageCode)
         if (savedLanguage != null) {
-            playerController?.applyAudioLanguagePreferences(listOf(savedLanguage))
+            // The preferences stay behind it for a stream that lacks the saved language, except
+            // an unresolved Original preference, whose device-language fallback may be replaced.
+            val fallback = if (awaitingOriginalAudioLanguage) emptyList() else targets
+            playerController?.applyAudioLanguagePreferences((listOf(savedLanguage) + fallback).distinct())
             return
         }
         // Leave the stream's default track in place rather than priming a fallback that may be replaced.
