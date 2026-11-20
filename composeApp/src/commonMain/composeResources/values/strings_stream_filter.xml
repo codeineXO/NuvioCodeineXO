@@ -13,7 +13,7 @@
     <string name="stream_filter_section_general">General</string>
     <string name="stream_filter_section_resolution">Resolution</string>
     <string name="stream_filter_section_quality">Quality</string>
-    <string name="stream_filter_section_source">Source</string>
+    <string name="stream_filter_section_source">Stream type</string>
     <string name="stream_filter_section_hdr">HDR</string>
     <string name="stream_filter_section_codec">Codec</string>
     <string name="stream_filter_section_audio">Audio</string>

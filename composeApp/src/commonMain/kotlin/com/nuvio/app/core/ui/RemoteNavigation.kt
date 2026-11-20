@@ -878,6 +878,7 @@ internal fun Modifier.remoteNavigationTarget(
     insetFocusOutline: Boolean = false,
     verticalOnly: Boolean = false,
     focusOutlineWidth: Dp = 2.dp,
+    typeToEdit: Boolean = false,
 ): Modifier = composed {
     val guardedModifier = if (textField) this.remoteTextInputGuard() else this
     val session = LocalRemoteNavigation.current ?: return@composed guardedModifier
@@ -1124,6 +1125,14 @@ internal fun Modifier.remoteNavigationTarget(
                     }
                     else if (event.type == KeyEventType.KeyUp) enteringEdit = false
                     true
+                }
+                // A printable key starts editing and still reaches the field, so no Enter is needed first.
+                textField && typeToEdit && !editing && event.type == KeyEventType.KeyDown &&
+                    !event.isCtrlPressed && !event.isAltPressed && !event.isMetaPressed &&
+                    event.utf16CodePoint.let { it >= 0x20 && it != 0x7F && it != 0xFFFF } -> {
+                    editing = true
+                    editingCallback?.invoke(true)
+                    false
                 }
                 textField && editing -> false
                 textField && direction == FocusDirection.Right && session.targets.any {

@@ -4,6 +4,8 @@ package com.nuvio.app.core.ui
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +23,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,23 +44,39 @@ fun Menu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     offset: DpOffset = DpOffset(NuvioTokens.Space.none, NuvioTokens.Space.s6),
+    useGlass: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
     val scrollState = rememberScrollState()
+    val shape = if (useGlass) tokens.shapes.compactCard else MenuShape
     PlatformBackHandler(enabled = expanded, onBack = onDismissRequest)
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        modifier = modifier.widthIn(min = MenuMinWidth).nuvioDesktopDragScroll(scrollState, Orientation.Vertical),
+        modifier = modifier.widthIn(min = MenuMinWidth)
+            .then(if (useGlass) Modifier.navigationGlass(shape = shape, panel = true, backgroundOnly = true) else Modifier)
+            .nuvioDesktopDragScroll(scrollState, Orientation.Vertical),
         scrollState = scrollState,
         offset = offset,
-        shape = MenuShape,
-        containerColor = tokens.colors.surfacePopover,
+        shape = shape,
+        containerColor = if (useGlass) Color.Transparent else tokens.colors.surfacePopover,
         tonalElevation = tokens.elevation.flat,
-        shadowElevation = tokens.elevation.overlay,
-        border = BorderStroke(tokens.borders.thin, SurfaceEdge),
-        content = { AppOverlayInput { content() } },
+        shadowElevation = if (useGlass) tokens.elevation.flat else tokens.elevation.overlay,
+        border = if (useGlass) BorderStroke(tokens.borders.thin, tokens.colors.borderDefault) else BorderStroke(tokens.borders.thin, SurfaceEdge),
+        content = {
+            AppOverlayInput {
+                if (useGlass) {
+                    // Inner controls render as settings-style insets on the glass panel.
+                    CompositionLocalProvider(
+                        LocalSettingsSurfaceStyleEnabled provides true,
+                        LocalSettingsPanelPresent provides true,
+                    ) { DarkGlassPanelContent { content() } }
+                } else {
+                    content()
+                }
+            }
+        },
     )
 }
 
@@ -67,16 +87,28 @@ fun MenuItem(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     enabled: Boolean = true,
+    useGlass: Boolean = false,
 ) {
     val tokens = MaterialTheme.nuvio
+    val shape = tokens.shapes.compactCard
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = NuvioTokens.Space.s8)
-            .clip(tokens.shapes.compactCard)
-            .background(if (selected) tokens.colors.accent.copy(alpha = tokens.opacity.hover) else Color.Transparent)
-            .remoteNavigationTarget(shape = tokens.shapes.compactCard).clickable(enabled = enabled, onClick = onClick)
-            .padding(NuvioTokens.Space.s12),
+            .clip(shape)
+            .background(
+                when {
+                    !selected -> Color.Transparent
+                    useGlass -> tokens.colors.accent.copy(alpha = tokens.opacity.selected)
+                    else -> tokens.colors.accent.copy(alpha = tokens.opacity.hover)
+                },
+            )
+            // A click leaves focus on the row; the keyboard focus ring comes from the navigation target.
+            .then(if (useGlass) Modifier.navigationGlassFeedback(interactionSource, shape, showFocus = false) else Modifier)
+            .remoteNavigationTarget(shape = shape)
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current, enabled = enabled, onClick = onClick)
+            .padding(horizontal = NuvioTokens.Space.s12, vertical = if (useGlass) NuvioTokens.Space.s10 else NuvioTokens.Space.s12),
         horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
         verticalAlignment = Alignment.CenterVertically,
     ) {

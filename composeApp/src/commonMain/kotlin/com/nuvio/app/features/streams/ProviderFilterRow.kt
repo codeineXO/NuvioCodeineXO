@@ -199,7 +199,8 @@ internal fun StreamFilterChip(
             .then(
                 if (LocalStreamResultsGlass.current) {
                     (if (isSelected) Modifier.background(containerColor) else Modifier.streamResultsSurface().streamResultsBorder(RoundedCornerShape(16.dp)))
-                        .navigationGlassFeedback(interactionSource, RoundedCornerShape(16.dp))
+                        // Clicks leave focus here; the keyboard ring comes from the navigation target.
+                        .navigationGlassFeedback(interactionSource, RoundedCornerShape(16.dp), showFocus = false)
                         .hoverable(interactionSource)
                 } else Modifier.background(containerColor),
             )

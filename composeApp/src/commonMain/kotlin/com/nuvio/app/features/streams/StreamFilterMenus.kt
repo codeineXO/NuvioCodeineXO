@@ -1,12 +1,38 @@
 package com.nuvio.app.features.streams
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.LayoutModifier
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
+import com.nuvio.app.core.ui.nuvioDesktopDragScroll
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,6 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.style.TextOverflow
+import com.nuvio.app.core.ui.navigationGlass
+import com.nuvio.app.core.ui.navigationGlassFeedback
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -200,52 +230,105 @@ private fun formatLabel(value: StreamFilterFormat, unknown: String): String = wh
 @Composable
 internal fun StreamSizeFields(settings: StreamFilterSettings, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StreamSizeField(
+        StreamFilterTextField(
+            value = if (settings.minSizeGb > 0) settings.minSizeGb.toString() else "",
+            onValueChange = { text -> StreamFilterSettingsRepository.update { it.copy(minSizeGb = text.toSizeGb()) } },
             label = stringResource(Res.string.stream_filter_min_size_gb),
-            value = settings.minSizeGb,
-            onValueChange = { gb -> StreamFilterSettingsRepository.update { it.copy(minSizeGb = gb) } },
+            placeholder = "0",
+            numeric = true,
             modifier = Modifier.weight(1f),
         )
-        StreamSizeField(
+        StreamFilterTextField(
+            value = if (settings.maxSizeGb > 0) settings.maxSizeGb.toString() else "",
+            onValueChange = { text -> StreamFilterSettingsRepository.update { it.copy(maxSizeGb = text.toSizeGb()) } },
             label = stringResource(Res.string.stream_filter_max_size_gb),
-            value = settings.maxSizeGb,
-            onValueChange = { gb -> StreamFilterSettingsRepository.update { it.copy(maxSizeGb = gb) } },
+            placeholder = "∞",
+            numeric = true,
             modifier = Modifier.weight(1f),
         )
     }
 }
 
-@Composable
-private fun StreamSizeField(label: String, value: Int, onValueChange: (Int) -> Unit, modifier: Modifier) {
-    OutlinedTextField(
-        value = if (value > 0) value.toString() else "",
-        onValueChange = { text -> onValueChange(text.filter(Char::isDigit).take(4).toIntOrNull() ?: 0) },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = modifier.remoteNavigationTarget(textField = true),
-    )
-}
+private fun String.toSizeGb(): Int = filter(Char::isDigit).take(4).toIntOrNull() ?: 0
 
 /** Saved include / exclude keyword fields, shared by the stream page menu and settings. */
 @Composable
 internal fun StreamKeywordFields(settings: StreamFilterSettings, modifier: Modifier = Modifier) {
-    androidx.compose.foundation.layout.Column(modifier = modifier) {
-        OutlinedTextField(
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        StreamFilterTextField(
             value = settings.includeKeywords,
             onValueChange = { text -> StreamFilterSettingsRepository.update { it.copy(includeKeywords = text) } },
-            label = { Text(stringResource(Res.string.stream_filter_include_keywords)) },
-            placeholder = { Text(stringResource(Res.string.stream_filter_keywords_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().remoteNavigationTarget(textField = true),
+            label = stringResource(Res.string.stream_filter_include_keywords),
+            placeholder = stringResource(Res.string.stream_filter_keywords_hint),
+            modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        StreamFilterTextField(
             value = settings.excludeKeywords,
             onValueChange = { text -> StreamFilterSettingsRepository.update { it.copy(excludeKeywords = text) } },
-            label = { Text(stringResource(Res.string.stream_filter_exclude_keywords)) },
-            placeholder = { Text(stringResource(Res.string.stream_filter_keywords_hint)) },
+            label = stringResource(Res.string.stream_filter_exclude_keywords),
+            placeholder = stringResource(Res.string.stream_filter_keywords_hint),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Compact inset field; follows the surrounding glass panel style and accepts typing on focus. */
+@Composable
+private fun StreamFilterTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    numeric: Boolean = false,
+) {
+    val tokens = MaterialTheme.nuvio
+    val shape = tokens.shapes.compactCard
+    val interactionSource = remember { MutableInteractionSource() }
+    val focused by interactionSource.collectIsFocusedAsState()
+    val textStyle = MaterialTheme.typography.bodyMedium
+    Column(modifier = modifier) {
+        if (label != null) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = tokens.colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp),
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).remoteNavigationTarget(textField = true),
+            textStyle = textStyle.copy(color = tokens.colors.textPrimary),
+            cursorBrush = SolidColor(tokens.colors.accent),
+            keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
+            interactionSource = interactionSource,
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationGlass(shape = shape, backgroundOnly = true)
+                .navigationGlassFeedback(interactionSource, shape, showFocus = false)
+                .border(tokens.borders.thin, if (focused) tokens.colors.borderFocus else tokens.colors.borderDefault, shape)
+                .remoteNavigationTarget(textField = true, shape = shape, typeToEdit = true),
+            decorationBox = { inner ->
+                Box(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            style = textStyle,
+                            color = tokens.colors.textMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    inner()
+                }
+            },
         )
     }
 }
@@ -315,23 +398,29 @@ private fun StreamSortMenu(settings: StreamFilterSettings) {
             isSelected = settings.hasActiveSort,
             onClick = { expanded = true },
         )
-        Menu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            StreamSortMode.entries.forEach { mode ->
-                MenuItem(
-                    text = stringResource(mode.labelRes()),
-                    selected = settings.sort == mode,
-                    onClick = {
-                        StreamFilterSettingsRepository.update { it.copy(sort = mode) }
-                        expanded = false
-                    },
-                )
+        Menu(expanded = expanded, onDismissRequest = { expanded = false }, useGlass = true) {
+            MenuInsetGroup {
+                StreamSortMode.entries.forEach { mode ->
+                    MenuItem(
+                        text = stringResource(mode.labelRes()),
+                        selected = settings.sort == mode,
+                        useGlass = true,
+                        onClick = {
+                            StreamFilterSettingsRepository.update { it.copy(sort = mode) }
+                            expanded = false
+                        },
+                    )
+                }
             }
             MenuSectionTitle(stringResource(Res.string.stream_filter_section_general))
-            MenuItem(
-                text = stringResource(Res.string.stream_sort_cached_first),
-                selected = settings.cachedFirst,
-                onClick = { StreamFilterSettingsRepository.update { it.copy(cachedFirst = !it.cachedFirst) } },
-            )
+            MenuInsetGroup {
+                MenuItem(
+                    text = stringResource(Res.string.stream_sort_cached_first),
+                    selected = settings.cachedFirst,
+                    useGlass = true,
+                    onClick = { StreamFilterSettingsRepository.update { it.copy(cachedFirst = !it.cachedFirst) } },
+                )
+            }
         }
     }
 }
@@ -350,68 +439,157 @@ private fun StreamFilterMenu(settings: StreamFilterSettings, streams: List<Strea
             isSelected = activeCount > 0,
             onClick = { expanded = true },
         )
-        Menu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            // Options are only worked out while the menu is open.
-            val options = remember(streams) { StreamFilterEngine.options(streams) }
-            if (settings.hasActiveFilters) {
-                MenuItem(
+        Menu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(FilterMenuWidth),
+            useGlass = true,
+        ) {
+            FilterMenuViewport {
+                // Options are only worked out while the menu is open.
+                val options = remember(streams) { StreamFilterEngine.options(streams) }
+                // Always shown so the menu keeps its size; disabled while nothing is filtered.
+                MenuAccentPill(
                     text = stringResource(Res.string.stream_filter_reset),
+                    enabled = settings.hasActiveFilters,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
                     onClick = {
                         StreamFilterSettingsRepository.update {
                             it.reset().copy(sort = it.sort, cachedFirst = it.cachedFirst)
                         }
-                        expanded = false
                     },
                 )
-            }
-            OutlinedTextField(
-                value = settings.query,
-                onValueChange = { query -> StreamFilterSettingsRepository.update { it.copy(query = query) } },
-                placeholder = { Text(stringResource(Res.string.stream_filter_search_hint)) },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-                    .remoteNavigationTarget(textField = true),
-            )
-            StreamKeywordFields(
-                settings = settings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-            )
-            MenuSectionTitle(stringResource(Res.string.stream_filter_section_size))
-            StreamSizeFields(
-                settings = settings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-            )
-            streamFilterSections(settings, options).forEach { section ->
-                MenuSectionTitle(section.title)
-                section.items.forEach { item ->
-                    MenuItem(
-                        text = item.count?.let { "${item.label} ($it)" } ?: item.label,
-                        selected = item.selected,
-                        onClick = { StreamFilterSettingsRepository.update(item.toggle) },
-                    )
+                StreamFilterTextField(
+                    value = settings.query,
+                    onValueChange = { query -> StreamFilterSettingsRepository.update { it.copy(query = query) } },
+                    placeholder = stringResource(Res.string.stream_filter_search_hint),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+                StreamKeywordFields(
+                    settings = settings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                MenuSectionTitle(stringResource(Res.string.stream_filter_section_size))
+                StreamSizeFields(
+                    settings = settings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                streamFilterSections(settings, options).forEach { section ->
+                    MenuSectionTitle(section.title)
+                    MenuInsetGroup {
+                        section.items.forEach { item ->
+                            MenuItem(
+                                text = item.count?.let { "${item.label} ($it)" } ?: item.label,
+                                selected = item.selected,
+                                useGlass = true,
+                                onClick = { StreamFilterSettingsRepository.update(item.toggle) },
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+private val FilterMenuWidth = 320.dp
+private val FilterMenuMaxHeight = 560.dp
+
+/** Scrolls the filter menu itself so a scrollbar can sit beside the options. */
+@Composable
+private fun FilterMenuViewport(content: @Composable () -> Unit) {
+    val density = LocalDensity.current
+    val windowHeight = with(density) { LocalWindowInfo.current.containerSize.height.toDp() }
+    // Leave room for the anchor chip and the popup margins.
+    val maxHeight = (windowHeight - 160.dp).coerceIn(200.dp, FilterMenuMaxHeight)
+    val scrollState = rememberScrollState()
+    Box(Modifier.then(FilterMenuViewportLayout(FilterMenuWidth, maxHeight)).heightIn(max = maxHeight)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .nuvioDesktopDragScroll(scrollState, Orientation.Vertical)
+                .padding(end = 6.dp),
+        ) { content() }
+        if (scrollState.maxValue > 0) {
+            NuvioDesktopVerticalScrollbar(
+                scrollState,
+                Modifier.align(Alignment.CenterEnd).height(maxHeight).padding(vertical = 4.dp),
+            )
+        }
+    }
+}
+
+/** DropdownMenu sizes by intrinsics; report the viewport, never the whole scrolling list. */
+private class FilterMenuViewportLayout(private val width: Dp, private val height: Dp) : LayoutModifier {
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int) = width.roundToPx()
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurable: IntrinsicMeasurable, height: Int) = width.roundToPx()
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int) = height.roundToPx()
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int) = height.roundToPx()
+}
+
 @Composable
 private fun MenuSectionTitle(title: String) {
-    if (title.isEmpty()) {
-        Box(Modifier.padding(vertical = 4.dp))
-        return
-    }
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.nuvio.colors.textSecondary,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
+    val tokens = MaterialTheme.nuvio
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 12.dp)
+            .height(tokens.borders.thin)
+            .background(tokens.colors.borderDefault),
     )
+    if (title.isEmpty()) return
+    Text(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.nuvio.colors.textMuted,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 6.dp),
+    )
+}
+
+/** Rows grouped on the same inset scrim as the stream result cards. */
+@Composable
+private fun MenuInsetGroup(content: @Composable () -> Unit) {
+    val shape = MaterialTheme.nuvio.shapes.compactCard
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .clip(shape)
+            .streamResultsSurface()
+            .streamResultsBorder(shape)
+            .padding(vertical = 6.dp),
+    ) { content() }
+}
+
+@Composable
+private fun MenuAccentPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    val tokens = MaterialTheme.nuvio
+    Box(
+        modifier = modifier
+            .then(if (enabled) Modifier.remoteNavigationTarget(shape = CircleShape) else Modifier)
+            .clip(CircleShape)
+            .background(if (enabled) tokens.colors.accent else tokens.colors.textMuted.copy(alpha = 0.35f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = if (enabled) tokens.colors.onAccent else tokens.colors.textMuted,
+        )
+    }
 }
