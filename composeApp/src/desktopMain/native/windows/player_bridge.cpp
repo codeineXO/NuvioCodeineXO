@@ -3495,9 +3495,14 @@ private:
         // cookies, user agent, rw_timeout, ...) to segment requests, so
         // network-timeout ("timeout") stops at the master playlist; rw_timeout
         // (microseconds) is what bounds a stalled segment read.
+        // No reconnect_streamed: segments served chunked (no Content-Length) are
+        // "streamed" to FFmpeg, so with it every normal segment end reads as a
+        // dropped connection. FFmpeg then reconnects, and a server that ignores
+        // Range sends the whole segment again, which is appended: timestamps jump
+        // back and mpv resets playback to an earlier position.
         if (!userSet("stream-lavf-o")) {
             append("stream-lavf-o",
-                "reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,"
+                "reconnect=1,reconnect_on_network_error=1,"
                 "reconnect_on_http_error=" + quoteMpvValue("408,429,500,502,503,504") +
                 ",reconnect_delay_max=2,rw_timeout=10000000");
         }
