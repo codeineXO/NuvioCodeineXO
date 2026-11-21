@@ -60,6 +60,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Trakt மூலம் வழங்கப்படுகிறது</string>
     <string name="detail_more_like_this_powered_by_simkl">Simkl மூலம் வழங்கப்படுகிறது</string>
     <string name="details_seasons">சீசன்கள்</string>
+    <string name="details_episodes_view_list">பட்டியலைக் காண்க</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d சீசன்</item>
         <item quantity="other">%1$d சீசன்கள்</item>

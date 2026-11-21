@@ -808,6 +808,7 @@
   <string name="details_failed_to_load">Caricamento fallito</string>
   <string name="details_more_like_this">Altri titoli simili</string>
   <string name="details_seasons">Stagioni</string>
+  <string name="details_episodes_view_list">Visualizza elenco</string>
   <string name="details_series_missing_numbers">L'addon ha restituito i video per questa serie, ma nessuno include numeri di stagione o episodio.</string>
   <string name="details_series_no_metadata">L'addon non ha fornito metadati sugli episodi per questa serie.</string>
   <string name="details_series_unpublished">Gli episodi non sono ancora stati pubblicati da questo addon.</string>

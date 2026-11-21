@@ -1209,6 +1209,7 @@
     <string name="detail_more_like_this_powered_by_tmdb">Oferit de TMDB</string>
     <string name="detail_more_like_this_powered_by_trakt">Oferit de Trakt</string>
     <string name="details_seasons">Sezoane</string>
+    <string name="details_episodes_view_list">Vezi lista</string>
     <string name="details_series_missing_numbers">Această extensie a returnat videoclipuri pentru serial, dar niciunul nu a inclus numărul sezonului sau al episodului.</string>
     <string name="details_series_no_metadata">Această extensie nu a furnizat metadate despre episoade pentru acest serial.</string>
     <string name="details_series_unpublished">Episoadele nu au fost încă publicate de această extensie.</string>

@@ -910,6 +910,7 @@
     <string name="details_failed_to_load">Laden fehlgeschlagen</string>
     <string name="details_more_like_this">Mehr davon</string>
     <string name="details_seasons">Staffeln</string>
+    <string name="details_episodes_view_list">Liste anzeigen</string>
     <string name="details_series_missing_numbers">Dieses Addon hat Videos für die Serie zurückgegeben, aber keines enthielt Staffel- oder Episodennummern.</string>
     <string name="details_series_no_metadata">Dieses Addon hat keine Episoden-Metadaten für diese Serie bereitgestellt.</string>
     <string name="details_series_unpublished">Episoden wurden von diesem Addon noch nicht veröffentlicht.</string>

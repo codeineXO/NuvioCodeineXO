@@ -1591,6 +1591,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Données fournies par Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">Données fournies par Simkl</string>
     <string name="details_seasons">Saisons</string>
+    <string name="details_episodes_view_list">Voir la liste</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d saison</item>
         <item quantity="other">%1$d saisons</item>

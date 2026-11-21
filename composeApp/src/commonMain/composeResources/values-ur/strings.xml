@@ -1494,6 +1494,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Trakt کے ذریعے</string>
     <string name="detail_more_like_this_powered_by_simkl">Simkl کے ذریعے</string>
     <string name="details_seasons">سیزنز</string>
+    <string name="details_episodes_view_list">فہرست دیکھیں</string>
     <string name="details_series_missing_numbers">اس Addon نے سیریز کے لیے ویڈیوز فراہم کیں، لیکن کسی میں بھی season یا episode number موجود نہیں تھا۔</string>
     <string name="details_series_no_metadata">اس Addon نے اس سیریز کے episodes کا metadata فراہم نہیں کیا۔</string>
     <string name="details_series_unpublished">اس Addon نے ابھی episodes شائع نہیں کیے۔</string>

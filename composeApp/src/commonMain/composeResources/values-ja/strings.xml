@@ -1571,6 +1571,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Powered by Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">Powered by Simkl</string>
     <string name="details_seasons">シーズン</string>
+    <string name="details_episodes_view_list">リストを表示</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d シーズン</item>
         <item quantity="other">%1$d シーズン</item>

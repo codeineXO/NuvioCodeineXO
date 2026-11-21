@@ -1011,6 +1011,7 @@
     <string name="details_failed_to_load">Sikertelen betöltés</string>
     <string name="details_more_like_this">Hasonló tartalmak</string>
     <string name="details_seasons">Évadok</string>
+    <string name="details_episodes_view_list">Lista megtekintése</string>
     <string name="details_series_missing_numbers">Ez a kiegészítő adott vissza videókat a sorozathoz, de egyik sem tartalmazott évad- vagy epizódszámot.</string>
     <string name="details_series_no_metadata">Ez a kiegészítő nem szolgáltatott epizód-metaadatokat ehhez a sorozathoz.</string>
     <string name="details_series_unpublished">A kiegészítő még nem tette közzé ezeket az epizódokat.</string>

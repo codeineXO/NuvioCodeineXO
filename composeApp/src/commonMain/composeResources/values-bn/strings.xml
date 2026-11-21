@@ -1495,6 +1495,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Trakt-এর সৌজন্যে</string>
     <string name="detail_more_like_this_powered_by_simkl">Simkl-এর সৌজন্যে</string>
     <string name="details_seasons">সিজন</string>
+    <string name="details_episodes_view_list">তালিকা দেখুন</string>
     <string name="details_series_missing_numbers">এই অ্যাডন থেকে সিরিজের ভিডিও পাওয়া গেলেও, সেগুলোতে সিজন বা পর্ব নম্বর ছিল না।</string>
     <string name="details_series_no_metadata">এই অ্যাডন এই সিরিজের জন্য পর্ব মেটাডেটা প্রদান করেনি।</string>
     <string name="details_series_unpublished">এই অ্যাডন থেকে এখনও কোনো পর্ব প্রকাশিত হয়নি।</string>

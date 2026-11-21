@@ -1429,6 +1429,7 @@
     <string name="detail_more_like_this_powered_by_tmdb">При поддержке TMDB</string>
     <string name="detail_more_like_this_powered_by_trakt">При поддержке Trakt</string>
     <string name="details_seasons">Сезоны</string>
+    <string name="details_episodes_view_list">Показать список</string>
     <string name="details_series_missing_numbers">Этот аддон возвращал видео к сериалу, но ни в одном из них не были указаны номера сезонов или серий.</string>
     <string name="details_series_no_metadata">Это дополнение не предоставило метаданные эпизода этого сериала.</string>
     <string name="details_series_unpublished">Эпизоды этим аддоном еще не опубликованы.</string>

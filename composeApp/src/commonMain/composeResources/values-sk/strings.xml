@@ -1158,6 +1158,7 @@
     <string name="detail_more_like_this_powered_by_tmdb">Zabezpečuje TMDB</string>
     <string name="detail_more_like_this_powered_by_trakt">Zabezpečuje Trakt</string>
     <string name="details_seasons">Série</string>
+    <string name="details_episodes_view_list">Zobraziť zoznam</string>
     <string name="details_series_missing_numbers">Tento doplnok vrátil videá pre seriál, ale žiadne neobsahovalo čísla série alebo epizódy.</string>
     <string name="details_series_no_metadata">Tento doplnok neposkytol metadáta epizód pre tento seriál.</string>
     <string name="details_series_unpublished">Epizódy ešte neboli zverejnené týmto doplnkom.</string>

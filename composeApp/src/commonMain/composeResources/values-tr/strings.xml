@@ -1356,6 +1356,7 @@
     <string name="detail_more_like_this_powered_by_tmdb">TMDB altyapısıyla</string>
     <string name="detail_more_like_this_powered_by_trakt">Trakt altyapısıyla</string>
     <string name="details_seasons">Sezonlar</string>
+    <string name="details_episodes_view_list">Listeyi Görüntüle</string>
     <string name="details_series_missing_numbers">Bu eklenti dizi için videolar döndürdü ama hiçbirinde sezon veya bölüm numarası yok.</string>
     <string name="details_series_no_metadata">Bu eklenti bu dizi için bölüm meta verisi sağlamadı.</string>
     <string name="details_series_unpublished">Bölümler bu eklenti tarafından henüz yayınlanmadı.</string>

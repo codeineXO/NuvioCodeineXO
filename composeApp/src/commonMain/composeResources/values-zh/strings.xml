@@ -1558,6 +1558,7 @@
     <string name="detail_more_like_this_powered_by_trakt">由 Trakt 提供</string>
     <string name="detail_more_like_this_powered_by_simkl">由 Simkl 提供</string>
     <string name="details_seasons">季</string>
+    <string name="details_episodes_view_list">查看列表</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d 季</item>
         <item quantity="other">%1$d 季</item>

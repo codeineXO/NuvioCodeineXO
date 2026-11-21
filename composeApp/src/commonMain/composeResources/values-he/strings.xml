@@ -1580,6 +1580,7 @@
     <string name="detail_more_like_this_powered_by_trakt">מבוסס על Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">מבוסס על Simkl</string>
     <string name="details_seasons">עונות</string>
+    <string name="details_episodes_view_list">הצג רשימה</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d עונה</item>
         <item quantity="other">%1$d עונות</item>

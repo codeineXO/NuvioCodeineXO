@@ -1134,6 +1134,7 @@
     <string name="details_failed_to_load">Nie udało się załadować</string>
     <string name="details_more_like_this">Podobne</string>
     <string name="details_seasons">Sezony</string>
+    <string name="details_episodes_view_list">Pokaż listę</string>
     <string name="details_series_missing_numbers">Ten dodatek zwrócił filmy dla serialu, ale żaden nie zawierał numerów sezonów ani odcinków.</string>
     <string name="details_series_no_metadata">Ten dodatek nie dostarczył metadanych odcinków dla tego serialu.</string>
     <string name="details_series_unpublished">Odcinki nie zostały jeszcze opublikowane przez ten dodatek.</string>

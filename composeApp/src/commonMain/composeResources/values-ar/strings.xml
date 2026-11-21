@@ -1558,6 +1558,7 @@
     <string name="detail_more_like_this_powered_by_trakt">بدعم من Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">بدعم من Simkl</string>
     <string name="details_seasons">المواسم</string>
+    <string name="details_episodes_view_list">عرض القائمة</string>
     <plurals name="details_season_count">
         <item quantity="zero">لا توجد مواسم</item>
         <item quantity="one">موسم واحد</item>

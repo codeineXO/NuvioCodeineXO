@@ -1587,6 +1587,7 @@
     <string name="detail_more_like_this_powered_by_trakt">На основі Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">На основі Simkl</string>
     <string name="details_seasons">Сезони</string>
+    <string name="details_episodes_view_list">Показати список</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d сезон</item>
         <item quantity="few">%1$d сезони</item>

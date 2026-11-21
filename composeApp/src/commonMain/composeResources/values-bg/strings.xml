@@ -1565,6 +1565,7 @@
     <string name="detail_more_like_this_powered_by_tmdb">Захранвано от TMDB</string>
     <string name="detail_more_like_this_powered_by_trakt">Захранвано от Trakt</string>
     <string name="details_seasons">Сезони</string>
+    <string name="details_episodes_view_list">Преглед на списъка</string>
     <string name="details_series_missing_numbers">Тази добавка върна видеа за сериала, но нито едно не включваше номера на сезон или епизод.</string>
     <string name="details_series_no_metadata">Тази добавка не предостави метаданни за епизоди за този сериал.</string>
     <string name="details_series_unpublished">Епизодите все още не са публикувани от тази добавка.</string>

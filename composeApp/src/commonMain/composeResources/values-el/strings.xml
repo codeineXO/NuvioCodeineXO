@@ -1114,6 +1114,7 @@
     <string name="details_failed_to_load">Αποτυχία φόρτωσης</string>
     <string name="details_more_like_this">Περισσότερα σαν αυτό</string>
     <string name="details_seasons">Σεζόν</string>
+    <string name="details_episodes_view_list">Προβολή λίστας</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d σεζόν</item>
         <item quantity="other">%1$d σεζόν</item>

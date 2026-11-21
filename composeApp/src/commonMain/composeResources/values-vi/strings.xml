@@ -1587,6 +1587,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Cung cấp bởi Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">Cung cấp bởi Simkl</string>
     <string name="details_seasons">Các mùa</string>
+    <string name="details_episodes_view_list">Xem danh sách</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d Mùa</item>
         <item quantity="other">%1$d Mùa</item>

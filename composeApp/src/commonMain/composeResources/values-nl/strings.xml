@@ -1571,6 +1571,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Mogelijk gemaakt door Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">Aangeboden door Simkl</string>
     <string name="details_seasons">Seizoenen</string>
+    <string name="details_episodes_view_list">Lijst bekijken</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d seizoen</item>
         <item quantity="other">%1$d seizoenen</item>

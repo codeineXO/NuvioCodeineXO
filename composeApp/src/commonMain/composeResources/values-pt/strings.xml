@@ -1172,6 +1172,7 @@
     <string name="detail_more_like_this_powered_by_tmdb">Com dados do TMDB</string>
     <string name="detail_more_like_this_powered_by_trakt">Com dados do Trakt</string>
     <string name="details_seasons">Temporadas</string>
+    <string name="details_episodes_view_list">Ver lista</string>
     <string name="details_series_missing_numbers">Este addon devolveu vídeos para a série, mas nenhum incluía números de temporada ou episódio.</string>
     <string name="details_series_no_metadata">Este addon não forneceu metadados de episódios para esta série.</string>
     <string name="details_series_unpublished">Os episódios ainda não foram publicados por este addon.</string>

@@ -1542,6 +1542,7 @@
     <string name="detail_more_like_this_powered_by_trakt">Pokreće Trakt</string>
     <string name="detail_more_like_this_powered_by_simkl">Pokreće Simkl</string>
     <string name="details_seasons">Sezone</string>
+    <string name="details_episodes_view_list">Prikaži popis</string>
     <plurals name="details_season_count">
         <item quantity="one">%1$d sezona</item>
         <item quantity="few">%1$d sezone</item>
