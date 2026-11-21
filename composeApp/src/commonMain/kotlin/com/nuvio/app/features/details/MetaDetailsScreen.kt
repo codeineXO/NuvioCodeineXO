@@ -88,6 +88,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import com.nuvio.app.core.ui.HorizontalWheelEvents
 import com.nuvio.app.core.ui.LocalRemoteNavigationPageBoundary
+import com.nuvio.app.core.ui.LocalRemoteNavigation
 import com.nuvio.app.core.ui.rememberRemoteNavigationPageBoundary
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
 import com.nuvio.app.core.ui.LocalHorizontalWheelEvents
@@ -1462,12 +1463,15 @@ internal fun MetaDetailsScreen(
                     }
                     val focusEnhancedSections = rememberRemoteNextSectionFocus(secondPageState, firstItemIndex = 0)
                     var switchingPage by remember(type, id) { mutableStateOf(false) }
+                    val remoteNavigation = LocalRemoteNavigation.current
                     val switchEnhancedPage: (Boolean, Boolean, Boolean) -> Unit = { nextPage, toBottom, focusSection ->
                         if (!switchingPage) {
                             switchingPage = true
                             detailsScope.launch {
                                 try {
-                                    enhancedMoreFocus.requestFocus()
+                                    // Park keyboard focus before the page swap disposes it; a wheel or
+                                    // mouse switch has no focus to rescue and shouldn't move it.
+                                    if (remoteNavigation?.keyboard == true) enhancedMoreFocus.requestFocus()
                                     pageTransition.change(forward = nextPage, shouldChange = { enhancedSecondPage != nextPage }) {
                                         enhancedSecondPage = nextPage
                                         withFrameNanos { }

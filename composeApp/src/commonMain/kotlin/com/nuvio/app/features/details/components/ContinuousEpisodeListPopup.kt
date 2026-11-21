@@ -54,9 +54,11 @@ import kotlin.math.abs
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-internal class ContinuousEpisodeListState(initialHeaderIndex: Int, initialEpisodeIndex: Int) {
+internal class ContinuousEpisodeListState(val initialSeason: Int, initialHeaderIndex: Int, initialEpisodeIndex: Int) {
     val scroll = LazyListState(firstVisibleItemIndex = initialHeaderIndex)
     var focusedIndex by mutableIntStateOf(initialEpisodeIndex)
+    /** Survives list rebuilds (e.g. the filler toggle) where [focusedIndex] would point elsewhere. */
+    var focusedKey: String? by mutableStateOf(null)
 }
 
 @Composable
@@ -67,10 +69,18 @@ internal fun rememberContinuousEpisodeListState(
     episodes: Map<Int, List<MetaVideo>>,
 ): ContinuousEpisodeListState = remember(metaId, selectedSeason) {
     val precedingCount = seasons.takeWhile { it != selectedSeason }.sumOf { 1 + episodes[it].orEmpty().size }
-    ContinuousEpisodeListState(precedingCount, precedingCount + if (episodes[selectedSeason].isNullOrEmpty()) 0 else 1)
+    ContinuousEpisodeListState(selectedSeason, precedingCount, precedingCount + if (episodes[selectedSeason].isNullOrEmpty()) 0 else 1)
 }
 
 private data class EpisodeListEntry(val season: Int, val episode: MetaVideo?, val key: String)
+
+/** Episode ids identify the entry; the index is only appended to disambiguate duplicate ids. */
+private fun episodeEntryKeys(season: Int, episodes: List<MetaVideo>): List<String> {
+    val duplicateIds = episodes.groupingBy { it.id }.eachCount().filterValues { it > 1 }.keys
+    return episodes.mapIndexed { index, episode ->
+        if (episode.id in duplicateIds) "episode:$season:${episode.id}#$index" else "episode:$season:${episode.id}"
+    }
+}
 
 // Popup alignment normally uses the episode section's anchor, rather than the app window.
 private object CenteredEpisodePopupPosition : PopupPositionProvider {
@@ -107,8 +117,9 @@ internal fun ContinuousEpisodeListPopup(
         buildList {
             seasons.forEach { season ->
                 add(EpisodeListEntry(season, null, "season:$season"))
-                groupedEpisodes[season].orEmpty().forEachIndexed { index, episode ->
-                    add(EpisodeListEntry(season, episode, "episode:$season:$index:${episode.id}"))
+                val seasonEpisodes = groupedEpisodes[season].orEmpty()
+                episodeEntryKeys(season, seasonEpisodes).forEachIndexed { index, key ->
+                    add(EpisodeListEntry(season, seasonEpisodes[index], key))
                 }
             }
         }
@@ -296,7 +307,10 @@ internal fun ContinuousEpisodeListPopup(
                                     scrubbedSeason = season
                                     val header = entries.indexOfFirst { it.season == season && it.episode == null }
                                     val episodeIndex = episodeIndices.firstOrNull { entries[it].season == season }
-                                    if (episodeIndex != null) state.focusedIndex = episodeIndex
+                                    if (episodeIndex != null) {
+                                        state.focusedIndex = episodeIndex
+                                        state.focusedKey = entries[episodeIndex].key
+                                    }
                                     seasonScroll?.cancel()
                                     // Scrubbing should track the selected season without measuring every intervening episode.
                                     if (header >= 0) seasonScroll = scope.launch { state.scroll.scrollToItem(header) }
@@ -421,7 +435,12 @@ internal fun ContinuousEpisodeListPopup(
                                         onEpisodeLongPress = onEpisodeLongPress,
                                         popupPresentation = true,
                                         modifier = Modifier.focusRequester(requesters[index])
-                                            .onFocusChanged { if (it.hasFocus) state.focusedIndex = index },
+                                            .onFocusChanged {
+                                                if (it.hasFocus) {
+                                                    state.focusedIndex = index
+                                                    state.focusedKey = entry.key
+                                                }
+                                            },
                                     )
                                 }
                             }
@@ -434,7 +453,14 @@ internal fun ContinuousEpisodeListPopup(
         LaunchedEffect(entries) {
             withFrameNanos { }
             if (episodeIndices.isEmpty()) closeFocus.requestFocus()
-            else focusEpisode(state.focusedIndex.takeIf { it in episodeIndices } ?: episodeIndices.first())
+            else {
+                // Resolve by key: the stored index goes stale when the entries are rebuilt.
+                val target = state.focusedKey?.let { key -> entries.indexOfFirst { it.key == key } }?.takeIf { it in episodeIndices }
+                    ?: episodeIndices.firstOrNull { entries[it].season == state.initialSeason }
+                    ?: episodeIndices.first()
+                state.focusedIndex = target
+                focusEpisode(target)
+            }
         }
     }
 }
