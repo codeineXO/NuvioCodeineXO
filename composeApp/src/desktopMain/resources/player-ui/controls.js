@@ -2003,6 +2003,33 @@ const renderSpeedOptionList = () => {
 
 const hasHlsQualityOptions = () => Array.isArray(state.hlsQualityOptions) && state.hlsQualityOptions.length > 1;
 
+// Quality cog badge: SD / HD / FHD / 2K / 4K for the playing HLS variant; none when the resolution is unknown.
+let qualityBadgeText = null;
+const getQualityBadgeText = () => {
+  const options = Array.isArray(state.hlsQualityOptions) ? state.hlsQualityOptions : [];
+  const selected = options.find(opt => Number(opt.variantIndex) === Number(state.hlsQualitySelectedIndex));
+  const match = selected ? /^(\d{3,4})p/.exec(String(selected.label || "")) : null;
+  const height = match ? Number(match[1]) : 0;
+  if (height >= 2160) return "4K";
+  if (height >= 1440) return "2K";
+  if (height >= 1080) return "FHD";
+  if (height >= 720) return "HD";
+  if (height > 0) return "SD";
+  return "";
+};
+
+const syncQualityTierIcons = () => {
+  const text = getQualityBadgeText();
+  if (text === qualityBadgeText) return;
+  qualityBadgeText = text;
+  [qualityButton, codeineQualityButton].forEach(button => {
+    const badge = button?.querySelector(".quality-badge");
+    if (!badge) return;
+    badge.textContent = text;
+    badge.hidden = !text;
+  });
+};
+
 const renderQualityOptionList = () => {
   if (!qualityOptionList) return;
   qualityOptionList.textContent = "";
@@ -4978,6 +5005,7 @@ const renderChrome = () => {
   setVisible(videoSettingsButton, Boolean(state.showVideoSettings));
   setVisible(sourcesButton, Boolean(state.showSources));
   setVisible(qualityButton, hasHlsQualityOptions());
+  syncQualityTierIcons();
   setActionButtonLabel("quality", state.qualityPanelTitle || "Quality");
   const qualityLabelElement = document.getElementById("qualityLabel");
   if (qualityLabelElement) setTextContent(qualityLabelElement, state.qualityPanelTitle || "Quality");

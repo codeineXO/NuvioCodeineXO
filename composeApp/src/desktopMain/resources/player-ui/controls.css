@@ -2136,6 +2136,33 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+/* Quality button: cog with a resolution badge (both UIs). */
+.quality-icon {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-style: normal;
+  line-height: 0;
+}
+
+.quality-badge:not([hidden]) {
+  position: absolute;
+  top: -5px;
+  right: -9px;
+  display: block;
+  padding: 2px 3px;
+  border-radius: 3px;
+  background: var(--theme-accent, #e50914);
+  color: var(--theme-on-accent, #fff);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  vertical-align: baseline;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .action span {
   min-width: 0;
   overflow: hidden;
