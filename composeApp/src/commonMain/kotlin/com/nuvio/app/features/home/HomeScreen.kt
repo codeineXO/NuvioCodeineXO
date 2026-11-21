@@ -555,6 +555,7 @@ fun HomeScreen(
             "home", activeProfileId to homeSettingsUiState.appInterface, navigationRows,
             homeListState, homeUiState.isLoading || addonManifestsLoading,
             enterFromViewport = showCatalogRail,
+            snapRows = persistentHero,
         )
 
         val heroSeed = if (persistentHero) {

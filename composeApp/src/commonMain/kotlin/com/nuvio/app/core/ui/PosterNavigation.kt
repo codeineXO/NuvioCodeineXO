@@ -36,6 +36,8 @@ internal class PosterNavigationPage {
     var active = false
     var stopAtBottom = false
     var enterFromViewport = false
+    /** Rows snap their top edge to the viewport (persistent hero), matching wheel and drag. */
+    var snapRows = false
     var origin: PosterOrigin? by mutableStateOf(null)
     var lane: Float? = null
     var restorationState by mutableStateOf(PosterRestorationState.Idle)
@@ -101,6 +103,7 @@ internal fun BindPosterNavigationPage(
     loading: Boolean,
     stopAtBottom: Boolean = false,
     enterFromViewport: Boolean = false,
+    snapRows: Boolean = LocalSnapVerticalRows.current,
 ) {
     val session = LocalRemoteNavigation.current ?: return
     val route = LocalRemoteRoute.current
@@ -123,6 +126,7 @@ internal fun BindPosterNavigationPage(
         page.rows = rows
         page.stopAtBottom = stopAtBottom
         page.enterFromViewport = enterFromViewport
+        page.snapRows = snapRows
         page.state = state
         page.route = route
         if (active && !page.active && page.origin != null) {
@@ -456,7 +460,8 @@ internal suspend fun RemoteNavigationSession.revealPosterRow(
                 .minByOrNull { abs(it.index - row.lazyIndex) }
             if (nearest == null) 0f else {
                 val offset = nearest.offset.toFloat() + (row.lazyIndex - nearest.index).toFloat() * (nearest.size + layout.mainAxisItemSpacing)
-                offset + nearest.size / 2f - (viewportStart(layout) + layout.viewportEndOffset) / 2f
+                if (page.snapRows) offset - viewportStart(layout)
+                else offset + nearest.size / 2f - (viewportStart(layout) + layout.viewportEndOffset) / 2f
             }
         }
     } else if (visible == null) {

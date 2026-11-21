@@ -749,8 +749,9 @@ private fun NuvioViewAllPill(
         modifier = modifier
             .height(ShelfHeaderControlSize)
             .widthIn(min = ShelfHeaderControlSize)
-            // Draw the matching focus outline outside the glass clip.
-            .then(if (onClick != null) Modifier.remoteNavigationTarget(shape = pillShape) else Modifier)
+            // Draw the matching focus outline outside the glass clip. The pill is the header's
+            // tallest child, so keep the stroke inside it: snapped rows clip at their top edge.
+            .then(if (onClick != null) Modifier.remoteNavigationTarget(shape = pillShape, insetFocusOutline = true) else Modifier)
             .then(if (onClick != null) {
                 Modifier.navigationGlass(shape = pillShape, backgroundOnly = true)
             } else Modifier)
