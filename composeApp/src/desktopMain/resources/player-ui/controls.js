@@ -83,6 +83,7 @@ const codeineSubtitlesButton = document.getElementById("codeineSubtitlesButton")
 const codeineAudioButton = document.getElementById("codeineAudioButton");
 const codeineShadersButton = document.getElementById("codeineShadersButton");
 const codeineStatsButton = document.getElementById("codeineStatsButton");
+const statsButton = document.getElementById("statsButton");
 const playbackStatsOverlay = document.getElementById("playbackStatsOverlay");
 const playbackStatsCloseBtn = document.getElementById("playbackStatsCloseBtn");
 const playbackStatsContent = document.getElementById("playbackStatsContent");
@@ -1239,6 +1240,10 @@ const togglePlaybackStatsOverlay = () => {
   if (codeineStatsButton) {
     codeineStatsButton.classList.toggle("is-active", isPlaybackStatsVisible);
     codeineStatsButton.setAttribute("aria-pressed", String(isPlaybackStatsVisible));
+  }
+  if (statsButton) {
+    statsButton.classList.toggle("active", isPlaybackStatsVisible);
+    statsButton.setAttribute("aria-pressed", String(isPlaybackStatsVisible));
   }
   send("setPlaybackStatsVisible", isPlaybackStatsVisible ? 1 : 0);
   if (isPlaybackStatsVisible) {
@@ -6740,6 +6745,14 @@ new ResizeObserver(positionQuickMenu).observe(root);
 if (codeineStatsButton) {
   codeineStatsButton.addEventListener("click", event => {
     event.stopPropagation();
+    noteChromeActivity();
+    togglePlaybackStatsOverlay();
+  });
+}
+if (statsButton) {
+  statsButton.addEventListener("click", event => {
+    event.stopPropagation();
+    setFocusedActionButton(statsButton, { focus: false });
     noteChromeActivity();
     togglePlaybackStatsOverlay();
   });

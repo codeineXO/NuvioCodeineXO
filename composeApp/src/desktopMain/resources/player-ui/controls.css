@@ -1085,6 +1085,7 @@ button:disabled {
 .player.pip-mode [data-command="episodes"],
 .player.pip-mode [data-command="chapters"],
 .player.pip-mode [data-command="playNextEpisode"],
+.player.pip-mode #statsButton,
 .player.pip-mode .next-episode-card,
 .player.pip-mode .skip-prompt,
 .player.pip-mode .parental-guide,
