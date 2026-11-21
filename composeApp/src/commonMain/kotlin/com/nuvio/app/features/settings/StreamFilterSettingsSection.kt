@@ -1,10 +1,13 @@
 package com.nuvio.app.features.settings
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +26,7 @@ import com.nuvio.app.core.ui.DialogButtonStyle
 import com.nuvio.app.core.ui.DialogButtons
 import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
+import com.nuvio.app.core.ui.NuvioDesktopVerticalScrollbar
 import com.nuvio.app.features.streams.StreamFilterSettingsRepository
 import com.nuvio.app.features.streams.StreamKeywordFields
 import com.nuvio.app.features.streams.StreamSizeFields
@@ -157,37 +162,42 @@ private fun StreamFilterSettingsDialog(onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = stringResource(Res.string.stream_filter_settings_filters),
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 420.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item(key = "keywords") {
-                StreamKeywordFields(settings = filterSettings, modifier = Modifier.fillMaxWidth())
-                StreamSizeFields(settings = filterSettings, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-            }
-            sections.forEach { section ->
-                item(key = "title:${section.title}") {
-                    Text(
-                        text = section.title,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
+        val listState = rememberLazyListState()
+        Box(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item(key = "keywords") {
+                    StreamKeywordFields(settings = filterSettings, modifier = Modifier.fillMaxWidth())
+                    StreamSizeFields(settings = filterSettings, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
-                section.items.forEach { filterItem ->
-                    item(key = filterItem.key) {
-                        DialogOption(
-                            text = filterItem.label,
-                            selected = filterItem.selected,
-                            role = Role.Checkbox,
-                            onClick = { StreamFilterSettingsRepository.update(filterItem.toggle) },
+                sections.forEach { section ->
+                    item(key = "title:${section.title}") {
+                        Text(
+                            text = section.title,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
                         )
+                    }
+                    section.items.forEach { filterItem ->
+                        item(key = filterItem.key) {
+                            DialogOption(
+                                text = filterItem.label,
+                                selected = filterItem.selected,
+                                role = Role.Checkbox,
+                                onClick = { StreamFilterSettingsRepository.update(filterItem.toggle) },
+                            )
+                        }
                     }
                 }
             }
+            NuvioDesktopVerticalScrollbar(listState, Modifier.align(Alignment.CenterEnd).fillMaxHeight())
         }
         DialogButtons {
             DialogButton(
