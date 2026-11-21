@@ -14,7 +14,7 @@
     <string name="stream_filter_section_resolution">Resolution</string>
     <string name="stream_filter_section_quality">Quality</string>
     <string name="stream_filter_section_source">Stream type</string>
-    <string name="stream_filter_section_hdr">HDR</string>
+    <string name="stream_filter_section_hdr">Video format</string>
     <string name="stream_filter_section_codec">Codec</string>
     <string name="stream_filter_section_audio">Audio</string>
     <string name="stream_filter_section_channels">Channels</string>
@@ -54,6 +54,7 @@
     <string name="stream_filter_hdr_hdr10_plus">HDR10+</string>
     <string name="stream_filter_hdr_hdr">HDR</string>
     <string name="stream_filter_hdr_sdr">SDR</string>
+    <string name="stream_filter_hdr_none">Non-HDR</string>
 
     <string name="stream_filter_min_size_gb">Min GB</string>
     <string name="stream_filter_max_size_gb">Max GB</string>
@@ -76,6 +77,6 @@
     <string name="stream_filter_settings_filters">Filter streams</string>
     <string name="stream_filter_settings_filters_none">No filters</string>
     <string name="stream_filter_settings_filters_active">%1$d active</string>
-    <string name="stream_filter_autoplay_respects">Autoplay respects filters</string>
-    <string name="stream_filter_autoplay_respects_description">Autoplay only picks streams that pass your stream filters.</string>
+    <string name="stream_filter_autoplay_respects">Use stream filters for auto stream selection</string>
+    <string name="stream_filter_autoplay_respects_description">Auto stream selection and fallback use stream filters and sort</string>
 </resources>

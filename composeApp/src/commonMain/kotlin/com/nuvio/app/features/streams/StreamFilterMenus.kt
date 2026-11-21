@@ -147,7 +147,7 @@ internal fun streamFilterSections(
 
     val resolutionLabels = StreamFilterResolution.entries.associateWith { resolutionLabel(it, unknown) }
     val sourceLabels = StreamFilterSource.entries.associateWith { stringResource(it.labelRes()) }
-    val hdrLabels = StreamFilterHdr.entries.associateWith { hdrLabel(it, unknown) }
+    val hdrLabels = StreamFilterHdr.entries.associateWith { hdrLabel(it) }
     val formatLabels = StreamFilterFormat.entries.associateWith { formatLabel(it, unknown) }
 
     return listOf(
@@ -398,12 +398,12 @@ private fun resolutionLabel(value: StreamFilterResolution, unknown: String): Str
 }
 
 @Composable
-private fun hdrLabel(value: StreamFilterHdr, unknown: String): String = when (value) {
+private fun hdrLabel(value: StreamFilterHdr): String = when (value) {
     StreamFilterHdr.DOLBY_VISION -> stringResource(Res.string.stream_filter_hdr_dolby_vision)
     StreamFilterHdr.HDR10_PLUS -> stringResource(Res.string.stream_filter_hdr_hdr10_plus)
     StreamFilterHdr.HDR -> stringResource(Res.string.stream_filter_hdr_hdr)
     StreamFilterHdr.SDR -> stringResource(Res.string.stream_filter_hdr_sdr)
-    StreamFilterHdr.UNKNOWN -> unknown
+    StreamFilterHdr.UNKNOWN -> stringResource(Res.string.stream_filter_hdr_none)
 }
 
 /** Sort and Filter dropdowns for the stream page; they edit [StreamFilterSettingsRepository]. */
