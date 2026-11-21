@@ -53,9 +53,9 @@ class StreamFilterEngineTest {
         val hdr = StreamFilterSettings(hdr = setOf(StreamFilterHdr.HDR))
         assertEquals(listOf("4K HDR"), names(StreamFilterEngine.apply(group(uhd, fhd), hdr)))
 
-        val small = StreamFilterSettings(maxSizeGb = 2)
+        val small = StreamFilterSettings(maxSizeGb = 2.0)
         assertEquals(listOf("CAM", "Mystery"), names(StreamFilterEngine.apply(group(uhd, fhd, cam, unknown), small)))
-        val range = StreamFilterSettings(minSizeGb = 5, maxSizeGb = 10, hideUnknownSize = true)
+        val range = StreamFilterSettings(minSizeGb = 5.0, maxSizeGb = 10.0, hideUnknownSize = true)
         assertEquals(listOf("1080p"), names(StreamFilterEngine.apply(group(uhd, fhd, cam, unknown), range)))
         assertEquals(2, range.activeFilterCount)
     }

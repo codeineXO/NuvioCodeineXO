@@ -46,8 +46,8 @@ data class StreamFilterSettings(
     val audio: Set<DebridStreamAudioTag> = emptySet(),
     val channels: Set<DebridStreamAudioChannel> = emptySet(),
     /** Size limits in GB; 0 means no limit. */
-    val minSizeGb: Int = 0,
-    val maxSizeGb: Int = 0,
+    val minSizeGb: Double = 0.0,
+    val maxSizeGb: Double = 0.0,
     val hideUnknownSize: Boolean = false,
     val languages: Set<DebridStreamLanguage> = emptySet(),
     /** Provider (source) names; see [StreamFilterFacts.provider]. */

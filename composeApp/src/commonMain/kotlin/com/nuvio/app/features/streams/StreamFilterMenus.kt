@@ -230,26 +230,64 @@ private fun formatLabel(value: StreamFilterFormat, unknown: String): String = wh
 @Composable
 internal fun StreamSizeFields(settings: StreamFilterSettings, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StreamFilterTextField(
-            value = if (settings.minSizeGb > 0) settings.minSizeGb.toString() else "",
-            onValueChange = { text -> StreamFilterSettingsRepository.update { it.copy(minSizeGb = text.toSizeGb()) } },
+        StreamSizeField(
+            valueGb = settings.minSizeGb,
+            onValueChange = { gb -> StreamFilterSettingsRepository.update { it.copy(minSizeGb = gb) } },
             label = stringResource(Res.string.stream_filter_min_size_gb),
             placeholder = "0",
-            numeric = true,
             modifier = Modifier.weight(1f),
         )
-        StreamFilterTextField(
-            value = if (settings.maxSizeGb > 0) settings.maxSizeGb.toString() else "",
-            onValueChange = { text -> StreamFilterSettingsRepository.update { it.copy(maxSizeGb = text.toSizeGb()) } },
+        StreamSizeField(
+            valueGb = settings.maxSizeGb,
+            onValueChange = { gb -> StreamFilterSettingsRepository.update { it.copy(maxSizeGb = gb) } },
             label = stringResource(Res.string.stream_filter_max_size_gb),
             placeholder = "∞",
-            numeric = true,
             modifier = Modifier.weight(1f),
         )
     }
 }
 
-private fun String.toSizeGb(): Int = filter(Char::isDigit).take(4).toIntOrNull() ?: 0
+/** Keeps the raw text locally so partial decimals like "." or "0." survive while typing. */
+@Composable
+private fun StreamSizeField(
+    valueGb: Double,
+    onValueChange: (Double) -> Unit,
+    label: String,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    var text by remember { mutableStateOf(valueGb.toSizeText()) }
+    if (text.toSizeGb() != valueGb) text = valueGb.toSizeText()
+    StreamFilterTextField(
+        value = text,
+        onValueChange = { raw ->
+            val cleaned = raw.sanitizeSizeText()
+            text = cleaned
+            onValueChange(cleaned.toSizeGb())
+        },
+        label = label,
+        placeholder = placeholder,
+        numeric = true,
+        modifier = modifier,
+    )
+}
+
+private fun String.sanitizeSizeText(): String {
+    val normalized = replace(',', '.').filter { it.isDigit() || it == '.' }
+    val dot = normalized.indexOf('.')
+    if (dot < 0) return normalized.take(4)
+    val whole = normalized.substring(0, dot).take(4)
+    val fraction = normalized.substring(dot + 1).filter(Char::isDigit).take(2)
+    return "$whole.$fraction"
+}
+
+private fun String.toSizeGb(): Double = toDoubleOrNull()?.takeIf { it > 0 } ?: 0.0
+
+private fun Double.toSizeText(): String = when {
+    this <= 0 -> ""
+    this % 1.0 == 0.0 -> toLong().toString()
+    else -> toString()
+}
 
 /** Saved include / exclude keyword fields, shared by the stream page menu and settings. */
 @Composable
@@ -304,7 +342,7 @@ private fun StreamFilterTextField(
             singleLine = true,
             textStyle = textStyle.copy(color = tokens.colors.textPrimary),
             cursorBrush = SolidColor(tokens.colors.accent),
-            keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
+            keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Decimal) else KeyboardOptions.Default,
             interactionSource = interactionSource,
             modifier = Modifier
                 .fillMaxWidth()
