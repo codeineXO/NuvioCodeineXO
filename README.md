@@ -46,8 +46,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Dual Subtitles:** Select a secondary subtitle to show above primary subtitle for whatever reason.  
 
 ### ✨ Visuals, UX & Settings
-* **CodeineXO Aura & Frosted Glass Aesthetics:** Ambient interactive background glow with frosted glass styling across panels, cards and surfaces.
-* **Redesigned the Sidebar:** Floating sidebar with frosted glass style.
+* **Stream Results Filter:** Filter and sort stream results in app across all titles and episodes, and option to apply the filter in auto stream playback and fallback. 
 * **Phone Remote Navigation:** Use your phone or mobile device as a remote for navigating the app and controlling playback. 
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
@@ -56,6 +55,8 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Updated Interface:** Three dedicated interface layouts for effortless navigation- Persistent Hero, Scroll Posters and Official.
 * **Poster Hover Previews:** Redesigned landscape hover preview with details and ratings.
 * **Clickable Ratings:** All rating badges are clickable to open in browser. 
+* **CodeineXO Aura & Frosted Glass Aesthetics:** Ambient interactive background glow with frosted glass styling across panels, cards and surfaces.
+* **Redesigned the Sidebar:** Floating sidebar with frosted glass style.
 * **Dedicated CodeineXO Settings:** Consolidated fork options into a dedicated settings page with full search indexing, Seekr API key integration, and mirrored playback controls.
 * **Sharp Vector Badges & Ratings:** Crisp vector SVG rating badges across catalog cards, hero headers, and episode rows for high-DPI clarity.
 * **Catalog Navigation & Polish:** Drag-to-scroll and directional arrow buttons on carousels, sidebar quick exit button, and copy addon manifest link shortcuts.
@@ -103,7 +104,8 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 | `R` | Cycle aspect ratio |
 | `Y` | Switch to mini player / back to full player |
 | `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
-| `I`  | Show / Hide Playback Stats for Nerds |
+| `I` | Show / Hide Playback Stats for Nerds |
+| `=` | Open eye filter panel |
 | `0` (Zero) | Toggle eye filter |
 | `9` | Toggle frosted matte filter |
 | `Enter` | Skip intro / recap when the skip prompt is shown |
