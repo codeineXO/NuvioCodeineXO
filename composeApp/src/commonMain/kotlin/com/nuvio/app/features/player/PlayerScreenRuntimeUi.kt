@@ -75,6 +75,7 @@ import com.nuvio.app.features.streams.StreamFilterEngine
 import com.nuvio.app.features.streams.StreamFilterSettings
 import com.nuvio.app.features.streams.StreamFilterSettingsRepository
 import com.nuvio.app.features.streams.StreamItem
+import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.streams.isSelectableForPlayback
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
@@ -1547,7 +1548,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(rawType: String, valu
             prepareSourcesForPlayerControls(forceRefresh = true)
         }
         "selectSource" -> {
-            val stream = playerControlSourceEntries().getOrNull(value.toInt())?.second ?: return true
+            val stream = playerControlStreamEntries(sourceStreamsState).getOrNull(value.toInt())?.second ?: return true
             if (requestP2pConsentForPlayerControls(stream = stream, episode = null)) return true
             switchToSource(stream)
             playerControlsCloseModalsToken += 1
@@ -1573,7 +1574,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(rawType: String, valu
         }
         "selectEpisodeStream" -> {
             val episode = episodeStreamsPanelState.selectedEpisode ?: return true
-            val stream = episodeStreamsRepoState.groups.flatMap { it.streams }.getOrNull(value.toInt()) ?: return true
+            val stream = playerControlStreamEntries(episodeStreamsRepoState).getOrNull(value.toInt())?.second ?: return true
             if (requestP2pConsentForPlayerControls(stream = stream, episode = episode)) return true
             switchToEpisodeStream(stream, episode)
             playerControlsCloseModalsToken += 1
@@ -2193,14 +2194,15 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeStreamFilters(
 /**
  * Sources in the order the player controls list them: the stream page's filter and sort applied
  * read-only, each paired with its addon id for the overlay's addon chips. Shared with
- * "selectSource" so a clicked index resolves to the stream that was shown.
+ * "selectSource" / "selectEpisodeStream" so a clicked index resolves to the stream that was shown.
  */
-private fun PlayerScreenRuntime.playerControlSourceEntries(
+private fun playerControlStreamEntries(
+    state: StreamsUiState,
     settings: StreamFilterSettings = StreamFilterSettingsRepository.settings.value,
 ): List<Pair<String, StreamItem>> {
-    val rawGroups = sourceStreamsState.groups
+    val rawGroups = state.groups
     // The stream page's search belongs to that page; the player never applies it.
-    val filteredGroups = sourceStreamsState.copy(streamFilter = settings.copy(query = "")).filteredGroups
+    val filteredGroups = state.copy(streamFilter = settings.copy(query = "")).filteredGroups
     // A merged sort puts every addon in one group; map each stream back to its own addon.
     val addonIdByStream by lazy {
         rawGroups.flatMap { group -> group.streams.map { it to group.addonId } }.toMap()
@@ -2228,7 +2230,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerCont
     // Filter and sort only when the sources or the filter change, not on every recomposition.
     val currentSourceStreamsState = sourceStreamsState
     val sources = remember(currentSourceStreamsState, streamFilterSettings) {
-        playerControlSourceEntries(streamFilterSettings)
+        playerControlStreamEntries(currentSourceStreamsState, streamFilterSettings)
     }
     val currentIndex = sources.map { it.second }.currentPlayerStreamIndex(currentPlayerStream())
     return sources.mapIndexed { index, (filterId, stream) ->
@@ -2264,9 +2266,12 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeStreamItems(): List<Pla
     val showFileSizeBadges = streamBadgeState.showFileSizeBadges
     val showAddonLogo = streamBadgeState.showAddonLogo
     val badgePlacement = streamBadgeState.badgePlacement.name
-    return episodeStreamsRepoState.groups.flatMap { group ->
-        group.streams.map { stream -> group.addonId to stream }
-    }.mapIndexed { index, (filterId, stream) ->
+    val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
+    val currentEpisodeStreamsState = episodeStreamsRepoState
+    val streams = remember(currentEpisodeStreamsState, streamFilterSettings) {
+        playerControlStreamEntries(currentEpisodeStreamsState, streamFilterSettings)
+    }
+    return streams.mapIndexed { index, (filterId, stream) ->
         PlayerControlSourceItem(
             index = index,
             filterId = filterId,

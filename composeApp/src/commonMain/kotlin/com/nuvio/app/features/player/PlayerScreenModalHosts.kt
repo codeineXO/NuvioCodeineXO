@@ -237,6 +237,9 @@ internal fun PlayerScreenModalHosts(
     val filteredSourceStreamsState = remember(sourceStreamsState, streamFilterSettings) {
         sourceStreamsState.copy(streamFilter = streamFilterSettings.copy(query = ""))
     }
+    val filteredEpisodeStreamsState = remember(episodeStreamsRepoState, streamFilterSettings) {
+        episodeStreamsRepoState.copy(streamFilter = streamFilterSettings.copy(query = ""))
+    }
     PlayerSourcesPanel(
         visible = showSourcesPanel,
         streamsUiState = filteredSourceStreamsState,
@@ -268,7 +271,7 @@ internal fun PlayerScreenModalHosts(
             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
             episodeRatings = episodeImdbRatings,
             episodeStreamsState = episodeStreamsPanelState.copy(
-                streamsUiState = episodeStreamsRepoState,
+                streamsUiState = filteredEpisodeStreamsState,
             ),
             onSeasonSelected = { },
             onEpisodeSelected = { episode ->
