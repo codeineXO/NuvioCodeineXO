@@ -80,6 +80,7 @@ typedef enum mpv_event_id {
     MPV_EVENT_START_FILE = 6,
     MPV_EVENT_END_FILE = 7,
     MPV_EVENT_FILE_LOADED = 8,
+    MPV_EVENT_VIDEO_RECONFIG = 17,
     // mpv's documented "seek request is finished" notification. Values must
     // match libmpv's mpv_event_id exactly.
     MPV_EVENT_PLAYBACK_RESTART = 21,
@@ -1866,30 +1867,44 @@ public:
     }
 
     bool setRtxFilterLocked(bool enabled) {
-        if (rtxFilterAttached == enabled) {
+        // RTX Video HDR converts SDR to HDR, so it is skipped on PQ/HLG sources.
+        const bool wantHdr = enabled && rtxHdrRequested && !rtxSourceIsHdr;
+        const bool wantVpp = enabled && (rtxSuperResolutionRequested || wantHdr);
+        if (rtxFilterAttached == enabled && rtxVppAttached == wantVpp && rtxHdrAttached == wantHdr) {
             rtxStatus = enabled ? "attached" : (rtxRequested ? "suspended" : "off");
             return true;
         }
         const std::string label = std::string("@") + kRtxFilterLabel;
         const std::string hdrLabel = std::string("@") + kRtxHdrFormatLabel;
-        bool success;
-        if (enabled) {
+        bool success = true;
+        // d3d11vpp options change as a whole, so detach before attaching a new pass.
+        if (rtxHdrAttached) {
+            changeFilterLocked("vf", "remove", hdrLabel);
+            rtxHdrAttached = false;
+        }
+        if (rtxVppAttached) {
+            success = changeFilterLocked("vf", "remove", label);
+            if (success) rtxVppAttached = false;
+        }
+        if (success && wantVpp) {
             // Super Resolution and RTX Video HDR share one d3d11vpp pass; HDR also needs
             // its 10-bit PQ/BT.2020 output tagged by a second, separately labelled filter.
             std::string vpp = "d3d11vpp=";
             if (rtxSuperResolutionRequested) vpp += "scale=2:scaling-mode=nvidia";
-            if (rtxHdrRequested) {
+            if (wantHdr) {
                 if (rtxSuperResolutionRequested) vpp += ":";
                 vpp += "format=x2bgr10:nvidia-true-hdr";
             }
             success = changeFilterLocked("vf", "add", label + ":" + vpp);
-            if (success && rtxHdrRequested) {
+            if (success) rtxVppAttached = true;
+            if (success && wantHdr) {
                 success = changeFilterLocked("vf", "add", hdrLabel + ":format=x2bgr10:transfer=pq:primaries=bt.2020");
-                if (!success) changeFilterLocked("vf", "remove", label);
+                if (success) {
+                    rtxHdrAttached = true;
+                } else if (changeFilterLocked("vf", "remove", label)) {
+                    rtxVppAttached = false;
+                }
             }
-        } else {
-            if (rtxHdrRequested) changeFilterLocked("vf", "remove", hdrLabel);
-            success = changeFilterLocked("vf", "remove", label);
         }
         if (success) rtxFilterAttached = enabled;
         rtxStatus = success ? (enabled ? "attached" : "suspended") : "failed";
@@ -2278,6 +2293,9 @@ private:
     bool rtxSuperResolutionRequested = false;
     bool rtxHdrRequested = false;
     bool rtxFilterAttached = false;
+    bool rtxVppAttached = false;
+    bool rtxHdrAttached = false;
+    bool rtxSourceIsHdr = false;  // Set from video-params/gamma on MPV_EVENT_VIDEO_RECONFIG.
 
     bool hasAppliedSubtitleStyle = false;
     bool appliedSubtitleUseLibass = false;
@@ -3274,6 +3292,18 @@ private:
         }
     }
 
+    // Re-checks the source transfer when the video format is known or changes, so
+    // RTX Video HDR is attached only to SDR sources.
+    void updateRtxForSource() {
+        const std::string gamma = stringProperty("video-params/gamma", "");
+        if (gamma.empty()) return;
+        const bool sourceIsHdr = gamma == "pq" || gamma == "hlg";
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (!mpv || !rtxHdrRequested || sourceIsHdr == rtxSourceIsHdr) return;
+        rtxSourceIsHdr = sourceIsHdr;
+        if (rtxFilterAttached) setRtxFilterLocked(true);
+    }
+
     void drainMpvEvents() {
         while (!stopping.load()) {
             mpv_handle *current = nullptr;
@@ -3299,6 +3329,9 @@ private:
             }
             if (event->event_id == MPV_EVENT_SHUTDOWN) {
                 return;
+            }
+            if (event->event_id == MPV_EVENT_VIDEO_RECONFIG) {
+                updateRtxForSource();
             }
             if (event->event_id == MPV_EVENT_LOG_MESSAGE && event->data) {
                 const auto &message = *static_cast<const mpv_event_log_message *>(event->data);
@@ -3887,7 +3920,7 @@ private:
 
     std::string channelLayoutName(const std::string &channels, int channelCount) {
         std::string normalized = trim(channels);
-        if (!normalized.empty() && lowerCopy(normalized) != "unknown") {
+        if (!normalized.empty() && lowerCopy(normalized).rfind("unknown", 0) != 0) {
             std::string lower = lowerCopy(normalized);
             if (lower == "mono") return "Mono";
             if (lower == "stereo") return "Stereo";
