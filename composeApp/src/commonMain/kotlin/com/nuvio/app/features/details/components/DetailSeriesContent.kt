@@ -562,9 +562,12 @@ fun DetailSeriesContent(
                                         episodeArrows.scrollPage(forward = true)
                                     },
                                 )
+                                // Outgoing season content stays composed during the transition; only the
+                                // current season's button may own the shared focus targets.
+                                val isCurrentSeasonContent = seasonForContent == currentSeason
                                 ViewListButton(
-                                    modifier = Modifier.focusRequester(viewListRequester),
-                                    focusDestination = viewListFocus,
+                                    modifier = if (isCurrentSeasonContent) Modifier.focusRequester(viewListRequester) else Modifier,
+                                    focusDestination = viewListFocus.takeIf { isCurrentSeasonContent },
                                     onUp = {
                                         if (fixedPath) seasonNavigationEntry?.requestFocus(restoreRememberedRow = false)
                                         else if (seasons.size > 1) seasonNavigationEntry?.requestFocus()

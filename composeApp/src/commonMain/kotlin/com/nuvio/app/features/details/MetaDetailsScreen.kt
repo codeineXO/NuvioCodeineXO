@@ -1437,7 +1437,7 @@ internal fun MetaDetailsScreen(
                         hasPlayAction = useDesktopDetailLayout || useEnhancedLayout || isSectionEnabled(MetaScreenSectionKey.ACTIONS),
                         beforeReveal = {
                             if (useEnhancedLayout && enhancedSecondPage) {
-                                pageTransition.change(forward = false) {
+                                pageTransition.change(forward = false, shouldChange = { enhancedSecondPage }) {
                                     enhancedSecondPage = false
                                     withFrameNanos { }
                                     withFrameNanos { }
@@ -1468,7 +1468,7 @@ internal fun MetaDetailsScreen(
                             detailsScope.launch {
                                 try {
                                     enhancedMoreFocus.requestFocus()
-                                    pageTransition.change(forward = nextPage) {
+                                    pageTransition.change(forward = nextPage, shouldChange = { enhancedSecondPage != nextPage }) {
                                         enhancedSecondPage = nextPage
                                         withFrameNanos { }
                                         withFrameNanos { }

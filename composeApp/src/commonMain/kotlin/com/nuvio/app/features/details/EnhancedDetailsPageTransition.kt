@@ -10,6 +10,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.navigationMotionDuration
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /** Fade through a replacement so the two pages never share the foreground. */
 internal class EnhancedDetailsPageTransition {
@@ -19,7 +23,19 @@ internal class EnhancedDetailsPageTransition {
     var forward by mutableStateOf(true)
         private set
 
-    suspend fun change(forward: Boolean, replace: suspend () -> Unit) {
+    private val mutex = Mutex()
+
+    /**
+     * Changes run one at a time so concurrent callers can't cancel each other's fade mid-swap.
+     * [shouldChange] is re-checked once this change owns the transition, since a queued change
+     * may already have been satisfied by the one before it.
+     */
+    suspend fun change(
+        forward: Boolean,
+        shouldChange: () -> Boolean = { true },
+        replace: suspend () -> Unit,
+    ) = mutex.withLock {
+        if (!shouldChange()) return@withLock
         this.forward = forward
         entering = false
         try {
@@ -28,7 +44,7 @@ internal class EnhancedDetailsPageTransition {
             entering = true
             opacity.animateTo(1f, tween(navigationMotionDuration(NuvioTokens.Motion.normalMillis), easing = NuvioTokens.Motion.standard))
         } finally {
-            opacity.snapTo(1f)
+            withContext(NonCancellable) { opacity.snapTo(1f) }
         }
     }
 }
