@@ -408,6 +408,56 @@ internal fun MainAppContent(
             selectedContinueWatchingMenuInvocation = null
             selectedPosterActionTarget = target
         }
+        val removeLibraryItemFromList: (LibraryItem, String?) -> Unit = { libraryItem, targetListKey ->
+            if (librarySourceMode != LibrarySourceMode.LOCAL) {
+                coroutineScope.launch {
+                    val listKey = targetListKey
+                    val removeMembership: suspend (Set<TrackingProviderId>) ->
+                        TrackingMembershipApplyResult = { confirmedProviders ->
+                        if (listKey.isNullOrBlank()) {
+                            val currentMembership = LibraryRepository.getMembershipSnapshot(libraryItem)
+                            LibraryRepository.applyMembershipChanges(
+                                item = libraryItem,
+                                desiredMembership = currentMembership.mapValues { false },
+                                confirmedRemovalProviders = confirmedProviders,
+                            )
+                        } else {
+                            LibraryRepository.removeFromList(
+                                item = libraryItem,
+                                listKey = listKey,
+                                confirmedRemovalProviders = confirmedProviders,
+                            )
+                        }
+                    }
+                    executeTrackingMembershipOperation(
+                        operation = { removeMembership(emptySet()) },
+                        onSuccess = { result ->
+                            if (result.requiresRemovalConfirmation) {
+                                pendingTrackingRemoval = PendingTrackingMembershipRemoval(
+                                    itemTitle = libraryItem.name,
+                                    confirmations = result.requiredRemovalConfirmations,
+                                    retry = removeMembership,
+                                    onApplied = {},
+                                    onFailure = { error ->
+                                        NuvioToastController.show(
+                                            error.message
+                                                ?: trackingListsUpdateFailedMessage,
+                                        )
+                                    },
+                                )
+                            }
+                        },
+                        onFailure = { error ->
+                            NuvioToastController.show(
+                                error.message ?: trackingListsUpdateFailedMessage,
+                            )
+                        },
+                    )
+                }
+            } else {
+                LibraryRepository.remove(libraryItem.id)
+            }
+        }
         val launchOverlayProfile by ProfileRepository.state.collectMappedAsState { state ->
             state.activeProfile ?: state.profiles.firstOrNull()
         }
@@ -1861,6 +1911,9 @@ internal fun MainAppContent(
                                         ),
                                     )
                                 },
+                                onLibraryPosterRemove = { item, section ->
+                                    removeLibraryItemFromList(item, section?.type)
+                                },
                                 onLibrarySectionViewAllClick = onLibrarySectionViewAllClick,
                                 onCloudFilePlay = { item, file ->
                                     coroutineScope.launch {
@@ -2393,54 +2446,7 @@ internal fun MainAppContent(
                             val libraryItem = posterActionTarget.libraryItem
                                 ?: preview.toLibraryItem(savedAtEpochMs = 0L)
                             if (posterActionTarget.libraryItem != null) {
-                                if (isRemoteLibrarySource) {
-                                    coroutineScope.launch {
-                                        val listKey = posterActionTarget.libraryListKey
-                                        val removeMembership: suspend (Set<TrackingProviderId>) ->
-                                            TrackingMembershipApplyResult = { confirmedProviders ->
-                                            if (listKey.isNullOrBlank()) {
-                                                val currentMembership = LibraryRepository.getMembershipSnapshot(libraryItem)
-                                                LibraryRepository.applyMembershipChanges(
-                                                    item = libraryItem,
-                                                    desiredMembership = currentMembership.mapValues { false },
-                                                    confirmedRemovalProviders = confirmedProviders,
-                                                )
-                                            } else {
-                                                LibraryRepository.removeFromList(
-                                                    item = libraryItem,
-                                                    listKey = listKey,
-                                                    confirmedRemovalProviders = confirmedProviders,
-                                                )
-                                            }
-                                        }
-                                        executeTrackingMembershipOperation(
-                                            operation = { removeMembership(emptySet()) },
-                                            onSuccess = { result ->
-                                                if (result.requiresRemovalConfirmation) {
-                                                    pendingTrackingRemoval = PendingTrackingMembershipRemoval(
-                                                        itemTitle = libraryItem.name,
-                                                        confirmations = result.requiredRemovalConfirmations,
-                                                        retry = removeMembership,
-                                                        onApplied = {},
-                                                        onFailure = { error ->
-                                                            NuvioToastController.show(
-                                                                error.message
-                                                                    ?: trackingListsUpdateFailedMessage,
-                                                            )
-                                                        },
-                                                    )
-                                                }
-                                            },
-                                            onFailure = { error ->
-                                                NuvioToastController.show(
-                                                    error.message ?: trackingListsUpdateFailedMessage,
-                                                )
-                                            },
-                                        )
-                                    }
-                                } else {
-                                    LibraryRepository.remove(libraryItem.id)
-                                }
+                                removeLibraryItemFromList(libraryItem, posterActionTarget.libraryListKey)
                             } else {
                                 if (!isRemoteLibrarySource) {
                                     LibraryRepository.toggleLocalSaved(libraryItem)

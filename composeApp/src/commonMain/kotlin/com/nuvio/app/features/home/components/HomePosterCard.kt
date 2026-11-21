@@ -21,6 +21,7 @@ fun HomePosterCard(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     showLandscapeOverlay: Boolean = true,
+    onRemove: (() -> Unit)? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val isLandscapeMode = useLandscapeBackdropMode || posterCardStyle.catalogLandscapeModeEnabled
@@ -57,6 +58,7 @@ fun HomePosterCard(
             fillMaxWidth = fillMaxWidth,
             onClick = onClick,
             onLongClick = onLongClick,
+            onRemove = onRemove,
         )
     }
 }

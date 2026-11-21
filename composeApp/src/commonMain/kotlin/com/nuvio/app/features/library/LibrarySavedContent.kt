@@ -202,6 +202,7 @@ internal fun LazyListScope.libraryVerticalContent(
     posterPattern: String,
     onPosterClick: ((LibraryItem) -> Unit)?,
     onPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)?,
+    onPosterRemove: ((LibraryItem, LibrarySection?) -> Unit)? = null,
 ) {
     items(
         items = projection.entries.chunked(columns),
@@ -229,6 +230,11 @@ internal fun LazyListScope.libraryVerticalContent(
                 { preview -> rowEntries.findEntry(preview)?.item?.let(callback) }
             },
             onPosterLongClick = onPosterLongClick?.let { callback ->
+                { preview ->
+                    rowEntries.findEntry(preview)?.let { entry -> callback(entry.item, entry.section) }
+                }
+            },
+            onPosterRemove = onPosterRemove?.let { callback ->
                 { preview ->
                     rowEntries.findEntry(preview)?.let { entry -> callback(entry.item, entry.section) }
                 }

@@ -137,6 +137,7 @@ fun LibraryScreen(
     scrollToTopRequests: Flow<Unit> = emptyFlow(),
     onPosterClick: ((LibraryItem) -> Unit)? = null,
     onPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)? = null,
+    onPosterRemove: ((LibraryItem, LibrarySection?) -> Unit)? = null,
     onSectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)? = null,
     onCloudFilePlay: ((CloudLibraryItem, CloudLibraryFile) -> Unit)? = null,
     onConnectCloudClick: (() -> Unit)? = null,
@@ -663,6 +664,7 @@ fun LibraryScreen(
                                 onPosterClick = onPosterClick,
                                 onSectionViewAllClick = onSectionViewAllClick,
                                 onPosterLongClick = onPosterLongClick,
+                                onPosterRemove = onPosterRemove,
                                 onDisintegrated = disintegration::onExited,
                             )
                             LibraryLayoutMode.VERTICAL -> libraryVerticalContent(
@@ -673,6 +675,7 @@ fun LibraryScreen(
                                 posterPattern = effectivePosterPattern,
                                 onPosterClick = onPosterClick,
                                 onPosterLongClick = onPosterLongClick,
+                                onPosterRemove = onPosterRemove,
                             )
                         }
                     }
@@ -1406,6 +1409,7 @@ private fun LazyListScope.librarySections(
     onPosterClick: ((LibraryItem) -> Unit)?,
     onSectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)?,
     onPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)?,
+    onPosterRemove: ((LibraryItem, LibrarySection?) -> Unit)?,
     onDisintegrated: (String) -> Unit,
 ) {
     items(
@@ -1451,6 +1455,7 @@ private fun LazyListScope.librarySections(
                     } else {
                         onPosterLongClick?.let { { it(item, entrySource) } }
                     },
+                    onRemove = if (entry.exiting) null else onPosterRemove?.let { { it(item, entrySource) } },
                 )
             }
         }

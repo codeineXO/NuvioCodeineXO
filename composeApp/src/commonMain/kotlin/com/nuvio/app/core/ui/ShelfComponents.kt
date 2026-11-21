@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -89,6 +90,7 @@ import nuvio.composeapp.generated.resources.home_view_all
 import nuvio.composeapp.generated.resources.home_scroll_left
 import nuvio.composeapp.generated.resources.home_scroll_right
 import nuvio.composeapp.generated.resources.poster_logo_content_description
+import nuvio.composeapp.generated.resources.hero_remove_from_library
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -468,6 +470,7 @@ fun NuvioPosterCard(
     fillMaxWidth: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    onRemove: (() -> Unit)? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val tokens = MaterialTheme.nuvio
@@ -592,6 +595,12 @@ fun NuvioPosterCard(
             }
 
             NuvioPosterWatchedOverlay(isWatched = isWatched)
+            if (onRemove != null) {
+                NuvioPosterRemoveButton(
+                    onRemove = onRemove,
+                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                )
+            }
         }
         if (shouldShowTitleBelow) {
             Text(
@@ -897,4 +906,26 @@ internal fun Modifier.desktopPosterHoverScale(
             },
         )
         .hoverable(interactionSource)
+}
+
+@Composable
+internal fun NuvioPosterRemoveButton(
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.70f))
+            .clickable(onClick = onRemove),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Close,
+            contentDescription = stringResource(Res.string.hero_remove_from_library),
+            tint = Color.White,
+            modifier = Modifier.size(14.dp),
+        )
+    }
 }

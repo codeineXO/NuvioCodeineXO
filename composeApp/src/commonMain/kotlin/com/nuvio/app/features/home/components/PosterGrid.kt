@@ -34,6 +34,7 @@ import com.nuvio.app.core.ui.NuvioAsyncImage as AsyncImage
 import com.nuvio.app.core.ui.NuvioAsyncImage
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
+import com.nuvio.app.core.ui.NuvioPosterRemoveButton
 import com.nuvio.app.core.ui.SkeletonPoster
 import com.nuvio.app.core.ui.desktopPosterHoverScale
 import com.nuvio.app.core.ui.nuvioCardDepth
@@ -60,6 +61,7 @@ internal fun PosterGridRow(
     fullyWatchedSeriesKeys: Set<String> = emptySet(),
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
+    onPosterRemove: ((MetaPreview) -> Unit)? = null,
     firstPosterFocus: RemoteNavigationFocusDestination? = null,
     posterBackgroundColor: Color = MaterialTheme.colorScheme.surface,
 ) {
@@ -86,6 +88,7 @@ internal fun PosterGridRow(
                 ),
                 onClick = onPosterClick?.let { { it(item) } },
                 onLongClick = onPosterLongClick?.let { { it(item) } },
+                onRemove = onPosterRemove?.let { { it(item) } },
             )
             }
         }
@@ -128,6 +131,7 @@ private fun PosterGridTile(
     isWatched: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    onRemove: (() -> Unit)? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val glowArtworkKey = "${item.poster}\n${item.rawPosterUrl}"
@@ -201,6 +205,12 @@ private fun PosterGridTile(
                     }
                 }
                 NuvioPosterWatchedOverlay(isWatched = isWatched)
+                if (onRemove != null) {
+                    NuvioPosterRemoveButton(
+                        onRemove = onRemove,
+                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                    )
+                }
             }
             if (!hideLabels) {
                 Text(
