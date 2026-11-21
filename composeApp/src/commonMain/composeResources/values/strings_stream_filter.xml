@@ -72,7 +72,7 @@
     <string name="stream_filter_hidden_message">%1$d streams don\'t match your filters.</string>
     <string name="stream_filter_player_hidden_hint">%1$d streams hidden by filters. Change them on the stream page.</string>
 
-    <string name="stream_filter_settings_section">Stream filters</string>
+    <string name="stream_filter_settings_section">STREAM FILTERS</string>
     <string name="stream_filter_settings_sort">Sort streams</string>
     <string name="stream_filter_settings_filters">Filter streams</string>
     <string name="stream_filter_settings_filters_none">No filters</string>

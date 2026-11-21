@@ -502,6 +502,11 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }
     }
 
+    // ─── Stream Filters ───
+    if (section == null) {
+        item { StreamFilterSettingsSection(isTablet = isTablet) }
+    }
+
     // ─── Anime ───
     }
     if (section == null || section == SettingsPage.PlaybackSkipSegments) {
