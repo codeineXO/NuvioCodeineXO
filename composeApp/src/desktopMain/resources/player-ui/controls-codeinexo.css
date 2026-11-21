@@ -65,12 +65,12 @@
 
 .player.ui-codeinexo #eyeFilterModal .style-section {
   width: 100%;
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: var(--cx-card-bg);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
   box-sizing: border-box;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1073,17 +1073,41 @@
    (Playback Speed, Anime Upscaler, Audio Tracks, Subtitles, Episodes, Sources)
    ========================================================================== */
 
-/* All 6 Right-Side Drawers: 90% Black Base */
-.player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
+/* Drawer tokens: tune every CodeineXO drawer from here. */
+.player.ui-codeinexo {
+  --cx-panel-width: clamp(360px, 30vw, 440px);
+  --cx-compact-width: clamp(300px, 24vw, 360px);
+  --cx-panel-inset: 16px;
+  --cx-panel-radius: 20px;
+  --cx-panel-pad: 16px;
+  --cx-panel-bg: rgba(0, 0, 0, 0.7); /* same as .codeine-tooltip */
+  --cx-seekbar-clearance: 76px; /* bottom controls (~72px) + small gap */
+  --cx-panel-border: rgba(255, 255, 255, 0.06);
+  --cx-section-gap: 12px;
+  --cx-item-gap: 6px;
+  --cx-card-bg: rgba(255, 255, 255, 0.04);
+  --cx-card-hover: rgba(255, 255, 255, 0.09);
+  --cx-chip-bg: rgba(255, 255, 255, 0.08);
+  --cx-chip-hover: rgba(255, 255, 255, 0.14);
+  --cx-card-radius: 10px;
+}
+
+/* All Right-Side Drawers: floating, inset, translucent */
+.player.ui-codeinexo :is(#speedModal, #qualityModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
 .player.ui-codeinexo .player-rail-modal .track-panel,
 .player.ui-codeinexo .player-side-modal .player-side-panel {
-  background: rgba(0, 0, 0, 0.90) !important;
-  border: 0 !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-radius: 16px 0 0 16px !important;
-  box-shadow:
-    inset 1px 0 0 rgba(255, 255, 255, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  width: var(--cx-panel-width) !important;
+  max-width: calc(100vw - var(--cx-panel-inset) * 2) !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: var(--cx-panel-inset);
+  margin-bottom: var(--cx-seekbar-clearance);
+  padding: var(--cx-panel-pad) !important;
+  background: var(--cx-panel-bg) !important;
+  border: 1px solid var(--cx-panel-border) !important;
+  border-radius: var(--cx-panel-radius) !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
 }
 
 .player.ui-codeinexo :is(.modal-layer, .player-rail-modal, .player-side-modal) {
@@ -1095,43 +1119,78 @@
   align-items: stretch;
   justify-content: flex-end;
   padding: 0;
-  background: transparent !important;
 }
 
 .player.ui-codeinexo .player-rail-modal .track-panel {
-  width: min(520px, calc(100vw - 24px)) !important;
-  max-width: min(520px, calc(100vw - 24px)) !important;
-  height: 100% !important;
-  max-height: none !important;
-  padding: 24px;
-  transform: translateX(100%);
-  opacity: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-sizing: border-box;
+}
+
+/* Soft fade in/out (must finish inside the 240ms close timer in controls.js) */
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) :is(.track-panel, .player-side-panel) {
+  opacity: 0;
+  transform: scale(0.985);
+  transform-origin: right center;
+  transition:
+    opacity 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal).modal-visible :is(.track-panel, .player-side-panel) {
-  transform: translateX(0);
   opacity: 1;
+  transform: scale(1);
 }
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal).modal-closing :is(.track-panel, .player-side-panel) {
-  transform: translateX(100%);
-  opacity: 1;
+  opacity: 0;
+  transform: scale(0.985);
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 1, 1),
+    transform 200ms cubic-bezier(0.4, 0, 1, 1) !important;
+}
+
+/* Compact drawers: size to content, anchored just above the seekbar, scroll when long */
+.player.ui-codeinexo :is(#speedModal, #qualityModal, #shaderModal, #eyeFilterModal, #audioModal, #chaptersModal) {
+  align-items: flex-end;
+}
+
+.player.ui-codeinexo :is(#speedModal, #qualityModal, #shaderModal, #eyeFilterModal, #audioModal, #chaptersModal) :is(.track-panel, .player-side-panel) {
+  height: auto !important;
+  margin-bottom: var(--cx-seekbar-clearance);
+  max-height: calc(100% - var(--cx-panel-inset) - var(--cx-seekbar-clearance)) !important;
+  transform-origin: right bottom;
+}
+
+.player.ui-codeinexo :is(#speedModal, #qualityModal, #shaderModal, #eyeFilterModal, #audioModal, #chaptersModal) .track-list {
+  flex: 0 1 auto;
+}
+
+/* Simple pick-lists get a narrower drawer too */
+.player.ui-codeinexo :is(#speedModal, #qualityModal, #audioModal, #chaptersModal) .track-panel.track-panel {
+  width: var(--cx-compact-width) !important;
+}
+
+.player.ui-codeinexo :is(#speedModal, #qualityModal, #shaderModal, #eyeFilterModal, #audioModal) :is(.audio-panel-extras, .enhancement-detected-card) {
+  margin-top: var(--cx-section-gap) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) :is(.track-panel, .player-side-panel) {
+    transform: none !important;
+    transition: opacity 1ms linear !important;
+  }
 }
 
 @media (max-width: 540px) {
-  .player.ui-codeinexo :is(#speedModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
+  .player.ui-codeinexo :is(#speedModal, #qualityModal, #shaderModal, #audioModal, #subtitleModal, #sourceModal, #episodesModal) :is(.track-panel, .player-side-panel),
   .player.ui-codeinexo .player-rail-modal .track-panel,
   .player.ui-codeinexo .player-side-modal .player-side-panel {
     width: 100vw !important;
     max-width: 100vw !important;
-    padding: 20px !important;
+    margin: 0;
     border-radius: 0 !important;
-    border-left: 0 !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    border: 0 !important;
   }
 }
 
@@ -1147,9 +1206,9 @@
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .track-title {
   color: var(--theme-text-primary, #fff);
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 500;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
   padding: 0;
   margin: 0;
 }
@@ -1162,22 +1221,57 @@
 }
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button {
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, .14);
+  background: var(--cx-chip-bg);
+  border: 1px solid transparent;
   color: rgba(255, 255, 255, .88);
-  min-height: 40px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: 14px;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
 .player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-button:hover:not(:disabled) {
-  background: rgba(40, 44, 56, .85);
-  border-color: rgba(255, 255, 255, .24);
+  background: var(--cx-chip-hover);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Close buttons: icon-only (label stays as the accessible name) */
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-actions .panel-button[id$="CloseButton"] {
+  position: relative;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
+  overflow: hidden;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-actions .panel-button[id$="CloseButton"]::before {
+  content: "\2715";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, .75);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-actions .panel-button[id$="CloseButton"]:hover:not(:disabled) {
+  background: var(--cx-chip-bg);
+}
+
+.player.ui-codeinexo :is(.player-rail-modal, .player-side-modal) .panel-actions .panel-button[id$="CloseButton"]:hover:not(:disabled)::before {
   color: #fff;
 }
 
@@ -1213,9 +1307,9 @@
 
 /* Track Lists & Elevated Card Rows (Speed, Upscaler, Audio, Subtitles) */
 .player.ui-codeinexo .player-rail-modal .track-list {
-  margin-top: 16px;
-  gap: 8px;
-  padding: 6px 4px 8px;
+  margin-top: var(--cx-section-gap);
+  gap: var(--cx-item-gap);
+  padding: 2px 2px 8px 0;
   flex: 1 1 auto;
   min-height: 0;
   max-height: none !important;
@@ -1226,40 +1320,40 @@
 }
 
 .player.ui-codeinexo .player-rail-modal .track-row,
-.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row {
-  padding: 12px 14px;
-  border-radius: 14px;
-  min-height: 48px;
-  font-size: 15px;
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+.player.ui-codeinexo :is(#speedOptionList, #qualityOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row {
+  padding: 9px 12px;
+  border-radius: var(--cx-card-radius);
+  min-height: 40px;
+  font-size: 14px;
+  background: var(--cx-card-bg);
+  border: 1px solid transparent;
+  box-shadow: none;
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
   box-sizing: border-box;
 }
 
 .player.ui-codeinexo .player-rail-modal .track-row:hover:not(:disabled),
-.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:hover:not(:disabled) {
-  background: rgba(40, 44, 56, 0.85);
-  border-color: rgba(255, 255, 255, 0.24);
+.player.ui-codeinexo :is(#speedOptionList, #qualityOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:hover:not(:disabled) {
+  background: var(--cx-card-hover);
+  border-color: transparent;
 }
 
 .player.ui-codeinexo .player-rail-modal .track-row:active:not(:disabled),
-.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:active:not(:disabled) {
+.player.ui-codeinexo :is(#speedOptionList, #qualityOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row:active:not(:disabled) {
   transform: scale(0.985);
 }
 
 .player.ui-codeinexo .player-rail-modal .track-row.selected,
-.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected {
+.player.ui-codeinexo :is(#speedOptionList, #qualityOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected {
   background: var(--theme-accent, #3b82f6);
   color: var(--theme-on-accent, #fff);
   border-color: transparent;
   font-weight: 700;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  box-shadow: none;
 }
 
 .player.ui-codeinexo .player-rail-modal .track-row.selected:hover:not(:disabled),
-.player.ui-codeinexo :is(#speedOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected:hover:not(:disabled) {
+.player.ui-codeinexo :is(#speedOptionList, #qualityOptionList, #shaderOptionList, #audioTrackList, #subtitleTrackList, #addonSubtitleList) .track-row.selected:hover:not(:disabled) {
   background: var(--theme-accent-strong, #2563eb);
   color: var(--theme-on-accent, #fff);
   border-color: transparent;
@@ -1270,10 +1364,10 @@
 .player.ui-codeinexo #audioPanelExtras {
   margin-top: auto;
   padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.90);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--cx-card-bg);
+  box-shadow: none;
   flex: 0 0 auto;
 }
 
@@ -1338,7 +1432,7 @@
 .player.ui-codeinexo #subtitleModal .subtitle-tab-filter {
   display: flex;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: var(--cx-section-gap);
   margin-bottom: 8px;
   padding: 2px 0;
   flex: 0 0 auto;
@@ -1354,20 +1448,20 @@
 
 .player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip,
 .player.ui-codeinexo .player-side-panel .filter-chip {
-  padding: 8px 18px;
-  font-size: 13px;
+  padding: 6px 12px;
+  font-size: 12px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, .14);
+  background: var(--cx-chip-bg);
+  border: 1px solid transparent;
   color: rgba(255, 255, 255, .88);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
 .player.ui-codeinexo :is(#subtitleModal, #sourceModal, #episodesModal) .filter-chip:hover:not(:disabled):not(.selected) {
-  background: rgba(40, 44, 56, .85);
-  border-color: rgba(255, 255, 255, .24);
+  background: var(--cx-chip-hover);
+  border-color: transparent;
   color: #fff;
 }
 
@@ -1376,13 +1470,13 @@
   color: #000000 !important;
   border-color: transparent !important;
   font-weight: 700;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+  box-shadow: none;
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-rails {
   display: grid;
-  grid-template-columns: 185px minmax(0, 1fr) !important;
-  gap: 12px;
+  grid-template-columns: 140px minmax(0, 1fr) !important;
+  gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
@@ -1424,15 +1518,15 @@
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-language-row {
-  padding: 10px 12px;
-  font-size: 14px;
-  min-height: 42px;
+  padding: 8px 10px;
+  font-size: 13px;
+  min-height: 36px;
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-row {
   align-items: flex-start;
-  padding: 10px 12px !important;
-  min-height: 52px;
+  padding: 8px 10px !important;
+  min-height: 44px;
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-copy {
@@ -1525,18 +1619,18 @@
 .player.ui-codeinexo #subtitleModal[data-codeine-tab="customization"] .style-card {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
 }
 
 .player.ui-codeinexo #subtitleModal .style-section {
   width: 100%;
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: var(--cx-card-bg);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
   box-sizing: border-box;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1545,24 +1639,86 @@
 /* Elevated Source and Episode Card Rows */
 .player.ui-codeinexo #sourceModal .track-row.source-row,
 .player.ui-codeinexo #episodesModal .track-row.episode-row {
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: var(--cx-card-bg);
+  border: 1px solid transparent;
+  box-shadow: none;
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
 .player.ui-codeinexo #sourceModal .track-row.source-row:hover:not(:disabled),
 .player.ui-codeinexo #episodesModal .track-row.episode-row:hover:not(:disabled) {
-  background: rgba(40, 44, 56, 0.85);
-  border-color: rgba(255, 255, 255, 0.24);
+  background: var(--cx-card-hover);
+  border-color: transparent;
+}
+
+/* Compact side-panel lists, source and episode rows */
+.player.ui-codeinexo .player-side-panel .filter-row {
+  margin-top: var(--cx-section-gap);
+}
+
+.player.ui-codeinexo .player-side-panel .track-list {
+  margin-top: var(--cx-section-gap);
+  gap: var(--cx-item-gap);
+  padding: 2px 2px 8px 0;
+}
+
+.player.ui-codeinexo #episodeList {
+  gap: var(--cx-item-gap);
+}
+
+.player.ui-codeinexo #seasonFilterList {
+  gap: 8px;
+}
+
+.player.ui-codeinexo #seasonFilterList .filter-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.player.ui-codeinexo #sourceModal .track-row.source-row {
+  min-height: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.player.ui-codeinexo #episodesModal .track-row.episode-row {
+  min-height: 0;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.player.ui-codeinexo #episodesModal .episode-thumb {
+  width: 114px;
+  height: 64px;
+  border-radius: 8px;
+}
+
+.player.ui-codeinexo #episodesModal .episode-code {
+  left: 4px;
+  bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.player.ui-codeinexo #episodesModal .episode-copy {
+  gap: 2px;
+}
+
+.player.ui-codeinexo #episodesModal .episode-name {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
 }
 
 .player.ui-codeinexo #sourceModal .track-row.source-row.selected,
 .player.ui-codeinexo #episodesModal .track-row.episode-row.selected {
-  border: 2px solid var(--theme-accent, #3b82f6) !important;
+  border: 1px solid var(--theme-accent, #3b82f6) !important;
   background: color-mix(in srgb, var(--theme-accent, #3b82f6) 24%, rgba(15, 17, 24, 0.95)) !important;
   color: #fff !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  box-shadow: none !important;
 }
 
 .player.ui-codeinexo #sourceModal .track-row.source-row.selected:hover:not(:disabled),
@@ -1589,19 +1745,19 @@
 }
 
 .player.ui-codeinexo #shaderModal .enhancement-stepper-card {
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: var(--cx-card-bg);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  box-shadow: none;
   min-height: 52px;
   padding: 8px 14px;
 }
 
 .player.ui-codeinexo #shaderModal .enhancement-detected-card {
-  background: rgba(0, 0, 0, 0.90);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  background: var(--cx-card-bg);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  box-shadow: none;
   min-height: 54px;
   padding: 12px 16px;
   margin-top: auto !important;
