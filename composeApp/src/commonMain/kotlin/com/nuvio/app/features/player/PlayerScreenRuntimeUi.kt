@@ -2418,7 +2418,12 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(secondary: B
 
                 is SubtitleSelectionOption.Addon -> {
                     val isImported = option.subtitle.language == SubtitleImportedLanguageKey
-                    val title = if (isImported) option.subtitle.display else languageLabelForCode(option.subtitle.language)
+                    val addonTitle = option.subtitle.title?.trim()?.takeIf { it.isNotBlank() }
+                    val title = if (isImported) {
+                        option.subtitle.display
+                    } else {
+                        addonTitle ?: languageLabelForCode(option.subtitle.language)
+                    }
                     PlayerControlSubtitleOptionItem(
                         id = option.id,
                         languageKey = language.key,
@@ -2426,14 +2431,12 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(secondary: B
                         index = visibleAddons.indexOf(option.subtitle),
                         sourceLabel = if (isImported) importedLabel else (option.subtitle.addonName ?: addonLabel),
                         title = title,
-                        metadata = if (isImported) {
+                        // The language heading and addon chip already cover the display text;
+                        // the addon id is shown only when no label tells rows apart.
+                        metadata = if (isImported || addonTitle != null) {
                             ""
                         } else {
-                            listOfNotNull(option.subtitle.label, option.subtitle.display)
-                                .map { it.trim() }
-                                .filter { it.isNotBlank() && it != title }
-                                .distinct()
-                                .joinToString("\n")
+                            option.subtitle.label?.trim()?.takeIf { it.isNotBlank() && it != title }.orEmpty()
                         },
                         isSelected = option.id == selectedOptionId,
                         isAutoSynced = option.id == selectedOptionId &&

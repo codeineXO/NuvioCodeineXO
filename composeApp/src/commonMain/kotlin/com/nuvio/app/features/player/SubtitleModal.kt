@@ -463,16 +463,18 @@ private fun SubtitleOptionRow(
         is SubtitleSelectionOption.Addon -> {
             val isImported = option.subtitle.language == SubtitleImportedLanguageKey
             sourceLabel = if (isImported) stringResource(Res.string.compose_player_imported) else (option.subtitle.addonName ?: stringResource(Res.string.addon_title))
-            title = if (isImported) option.subtitle.display else languageLabelForCode(option.subtitle.language)
-            metadata = if (isImported) {
+            val addonTitle = option.subtitle.title?.trim()?.takeIf { it.isNotBlank() }
+            title = if (isImported) {
+                option.subtitle.display
+            } else {
+                addonTitle ?: languageLabelForCode(option.subtitle.language)
+            }
+            // The language heading and addon chip already cover the display text;
+            // the addon id is shown only when no label tells rows apart.
+            metadata = if (isImported || addonTitle != null) {
                 null
             } else {
-                listOfNotNull(option.subtitle.label, option.subtitle.display)
-                    .map { it.trim() }
-                    .filter { it.isNotBlank() && it != title }
-                    .distinct()
-                    .joinToString("\n")
-                    .ifBlank { null }
+                option.subtitle.label?.trim()?.takeIf { it.isNotBlank() && it != title }
             }
         }
     }
