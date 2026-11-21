@@ -71,6 +71,9 @@ import com.nuvio.app.features.p2p.formatP2pSpeed
 import com.nuvio.app.features.player.skip.SkipIntroRepository
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamBadgeSettingsRepository
+import com.nuvio.app.features.streams.StreamFilterEngine
+import com.nuvio.app.features.streams.StreamFilterSettings
+import com.nuvio.app.features.streams.StreamFilterSettingsRepository
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.isSelectableForPlayback
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
@@ -1544,8 +1547,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(rawType: String, valu
             prepareSourcesForPlayerControls(forceRefresh = true)
         }
         "selectSource" -> {
-            val streams = sourceStreamsState.groups.flatMap { it.streams }
-            val stream = streams.getOrNull(value.toInt()) ?: return true
+            val stream = playerControlSourceEntries().getOrNull(value.toInt())?.second ?: return true
             if (requestP2pConsentForPlayerControls(stream = stream, episode = null)) return true
             switchToSource(stream)
             playerControlsCloseModalsToken += 1
@@ -2188,6 +2190,32 @@ private fun PlayerScreenRuntime.buildPlayerControlEpisodeStreamFilters(
         selectedFilter = selectedFilter,
     )
 
+/**
+ * Sources in the order the player controls list them: the stream page's filter and sort applied
+ * read-only, each paired with its addon id for the overlay's addon chips. Shared with
+ * "selectSource" so a clicked index resolves to the stream that was shown.
+ */
+private fun PlayerScreenRuntime.playerControlSourceEntries(
+    settings: StreamFilterSettings = StreamFilterSettingsRepository.settings.value,
+): List<Pair<String, StreamItem>> {
+    val rawGroups = sourceStreamsState.groups
+    val filteredGroups = sourceStreamsState.copy(streamFilter = settings).filteredGroups
+    // A merged sort puts every addon in one group; map each stream back to its own addon.
+    val addonIdByStream by lazy {
+        rawGroups.flatMap { group -> group.streams.map { it to group.addonId } }.toMap()
+    }
+    return filteredGroups.flatMap { group ->
+        group.streams.map { stream ->
+            val addonId = if (group.addonId == StreamFilterEngine.MERGED_GROUP_ID) {
+                addonIdByStream[stream] ?: stream.addonId
+            } else {
+                group.addonId
+            }
+            addonId to stream
+        }
+    }
+}
+
 @Composable
 private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerControlSourceItem> {
     val canResolveDebrid = DebridSettingsRepository.uiState.value.canResolvePlayableLinks
@@ -2195,9 +2223,8 @@ private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerCont
     val showFileSizeBadges = streamBadgeState.showFileSizeBadges
     val showAddonLogo = streamBadgeState.showAddonLogo
     val badgePlacement = streamBadgeState.badgePlacement.name
-    val sources = sourceStreamsState.groups.flatMap { group ->
-        group.streams.map { stream -> group.addonId to stream }
-    }
+    val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
+    val sources = playerControlSourceEntries(streamFilterSettings)
     val currentIndex = sources.map { it.second }.currentPlayerStreamIndex(currentPlayerStream())
     return sources.mapIndexed { index, (filterId, stream) ->
         PlayerControlSourceItem(
