@@ -2199,7 +2199,8 @@ private fun PlayerScreenRuntime.playerControlSourceEntries(
     settings: StreamFilterSettings = StreamFilterSettingsRepository.settings.value,
 ): List<Pair<String, StreamItem>> {
     val rawGroups = sourceStreamsState.groups
-    val filteredGroups = sourceStreamsState.copy(streamFilter = settings).filteredGroups
+    // The stream page's search belongs to that page; the player never applies it.
+    val filteredGroups = sourceStreamsState.copy(streamFilter = settings.copy(query = "")).filteredGroups
     // A merged sort puts every addon in one group; map each stream back to its own addon.
     val addonIdByStream by lazy {
         rawGroups.flatMap { group -> group.streams.map { it to group.addonId } }.toMap()
@@ -2224,7 +2225,11 @@ private fun PlayerScreenRuntime.buildPlayerControlSourceItems(): List<PlayerCont
     val showAddonLogo = streamBadgeState.showAddonLogo
     val badgePlacement = streamBadgeState.badgePlacement.name
     val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
-    val sources = playerControlSourceEntries(streamFilterSettings)
+    // Filter and sort only when the sources or the filter change, not on every recomposition.
+    val currentSourceStreamsState = sourceStreamsState
+    val sources = remember(currentSourceStreamsState, streamFilterSettings) {
+        playerControlSourceEntries(streamFilterSettings)
+    }
     val currentIndex = sources.map { it.second }.currentPlayerStreamIndex(currentPlayerStream())
     return sources.mapIndexed { index, (filterId, stream) ->
         PlayerControlSourceItem(

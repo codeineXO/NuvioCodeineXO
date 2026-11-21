@@ -30,9 +30,24 @@ object StreamFilterSettingsRepository {
 
     fun reset() = update { it.reset() }
 
-    /** The filter autoplay should apply, or null when autoplay ignores filters. */
+    /** Storage is per profile; reload so one profile's filters never show or save under another. */
+    fun onProfileChanged() {
+        lastTitleId = null
+        _settings.value = load()
+    }
+
+    private var lastTitleId: String? = null
+
+    /** Clears the search when the stream page opens a different title, so it doesn't follow the user. */
+    fun onTitleOpened(titleId: String) {
+        if (titleId == lastTitleId) return
+        lastTitleId = titleId
+        if (_settings.value.query.isNotEmpty()) _settings.update { it.copy(query = "") }
+    }
+
+    /** The filter autoplay should apply, or null when autoplay ignores filters. Never includes the search. */
     fun autoPlayFilter(): StreamFilterSettings? =
-        _settings.value.takeIf { it.autoPlayRespectsFilters }
+        _settings.value.takeIf { it.autoPlayRespectsFilters }?.copy(query = "")
 
     private fun load(): StreamFilterSettings =
         StreamFilterSettingsStorage.loadPayload()

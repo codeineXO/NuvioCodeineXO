@@ -229,6 +229,8 @@ fun StreamsScreen(
         initialProgressFraction = resumeProgressFraction,
         startFromBeginning = false,
     )
+    // Before collecting, so a new title never renders with the previous title's search.
+    remember(parentMetaId) { StreamFilterSettingsRepository.onTitleOpened(parentMetaId) }
     val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
     val resumeControls: @Composable (Modifier) -> Unit = { bannerModifier ->
         Row(

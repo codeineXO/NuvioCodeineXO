@@ -233,9 +233,9 @@ internal fun PlayerScreenModalHosts(
     }
 
     val streamFilterSettings by StreamFilterSettingsRepository.settings.collectAsStateWithLifecycle()
-    // Read-only: the panel shows the filter and sort set on the stream page.
+    // Read-only: the panel shows the filter and sort set on the stream page, without its search.
     val filteredSourceStreamsState = remember(sourceStreamsState, streamFilterSettings) {
-        sourceStreamsState.copy(streamFilter = streamFilterSettings)
+        sourceStreamsState.copy(streamFilter = streamFilterSettings.copy(query = ""))
     }
     PlayerSourcesPanel(
         visible = showSourcesPanel,
