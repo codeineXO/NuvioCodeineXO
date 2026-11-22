@@ -2151,17 +2151,17 @@ const renderShaderOptionListContent = () => {
 
   const applyUpscalerOptionByIndex = index => {
     const nextOption = animeUpscalerToggleOptions[index];
-    state.animeUpscalerOption = nextOption.key;
+    setLocalState("animeUpscalerOption", nextOption.key);
     if (nextOption.key === "off") {
-      state.animeUpscalerActive = false;
-      state.isAutoBypassed = false;
+      setLocalState("animeUpscalerActive", false);
+      setLocalState("isAutoBypassed", false);
     } else if (nextOption.key === "always_on") {
-      state.animeUpscalerActive = true;
-      state.isAutoBypassed = false;
+      setLocalState("animeUpscalerActive", true);
+      setLocalState("isAutoBypassed", false);
     } else if (nextOption.key === "auto") {
       const isAnime = state.mediaContentType === "anime" || state.mediaContentType === "cartoon";
-      state.animeUpscalerActive = isAnime;
-      state.isAutoBypassed = !isAnime;
+      setLocalState("animeUpscalerActive", isAnime);
+      setLocalState("isAutoBypassed", !isAnime);
     }
     send("setAnimeUpscalerOption", nextOption.value);
     renderShaderOptionList();
@@ -2279,7 +2279,7 @@ const renderShaderOptionListContent = () => {
       return;
     }
     const mode = svpOff ? lastEnabledSvpMode : "off";
-    state.svpMode = mode;
+    setLocalState("svpMode", mode);
     send("setSvpMode", mode === "off" ? 0 : mode === "global" ? 2 : 1);
     renderShaderOptionList();
     renderChrome();
@@ -2311,7 +2311,7 @@ const renderShaderOptionListContent = () => {
       event.stopPropagation();
       if (svpOff) return;
       lastEnabledSvpMode = opt.mode;
-      state.svpMode = opt.mode;
+      setLocalState("svpMode", opt.mode);
       send("setSvpMode", opt.modeValue);
       renderShaderOptionList();
       renderChrome();
@@ -2378,6 +2378,7 @@ const applyPlayerUiScale = (scale, notifyHost) => {
   document.documentElement.style.zoom = String(clamped / 100);
   applyEdgeButtonGeometry();
   if (notifyHost) {
+    markPendingHostValue("playerUiScale", clamped);
     send("playerUiScale", clamped);
   }
 };
@@ -2399,7 +2400,7 @@ const syncEyeFilterOverlay = () => {
 
 const applyEyeFilterColor = color => {
   const norm = (color || "#000000").toUpperCase();
-  state.eyeFilterColor = norm;
+  setLocalState("eyeFilterColor", norm);
   if (norm === "BW" || norm === "#BW") {
     eyeFilterHsv = { hue: 0, saturation: 0, brightness: 0 };
     syncEyeFilterOverlay();
@@ -2522,7 +2523,7 @@ const updateEyeFilterFromSliders = (channel, commit = false) => {
   if (eyeFilterHexInput && document.activeElement !== eyeFilterHexInput) {
     eyeFilterHexInput.value = hex;
   }
-  state.eyeFilterColor = hex;
+  setLocalState("eyeFilterColor", hex);
   syncEyeFilterOverlay();
 
   if (eyeFilterPresetBlack) {
@@ -2554,7 +2555,7 @@ const initEyeFilterListeners = () => {
     eyeFilterToggleSwitch.addEventListener("click", event => {
       event.stopPropagation();
       const next = !state.eyeFilterEnabled;
-      state.eyeFilterEnabled = next;
+      setLocalState("eyeFilterEnabled", next);
       syncEyeFilterOverlay();
       renderEyeFilterModal();
       send("setEyeFilterEnabled", next ? 1 : 0);
@@ -2564,7 +2565,7 @@ const initEyeFilterListeners = () => {
   if (eyeFilterOpacitySlider) {
     eyeFilterOpacitySlider.addEventListener("input", () => {
       const val = Math.max(0.10, Math.min(0.80, Number(eyeFilterOpacitySlider.value) / 100));
-      state.eyeFilterOpacity = val;
+      setLocalState("eyeFilterOpacity", val);
       if (eyeFilterOpacityValue) eyeFilterOpacityValue.textContent = `${eyeFilterOpacitySlider.value}%`;
       syncEyeFilterOverlay();
       send("setEyeFilterOpacity", val);
@@ -2590,7 +2591,7 @@ const initEyeFilterListeners = () => {
   }
   const toggleGrainFilter = () => {
     const next = !state.grainFilterEnabled;
-    state.grainFilterEnabled = next;
+    setLocalState("grainFilterEnabled", next);
     renderEyeFilterModal();
     send("setGrainFilterEnabled", next ? 1 : 0);
     showPlayerToast(`Frosted matte filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
@@ -2696,7 +2697,7 @@ const renderAudioTrackList = () => {
     audioNightModeToggle.onclick = event => {
       event.stopPropagation();
       const next = !Boolean(state.audioNightModeEnabled);
-      state.audioNightModeEnabled = next;
+      setLocalState("audioNightModeEnabled", next);
       send("toggleAudioNightMode", next ? 1 : 0);
       renderAudioTrackList();
     };
@@ -7205,8 +7206,44 @@ const announceControlsPainted = () => {
   waitForImages();
 };
 
+// Settings the controls change locally before the host confirms them. Host updates built before the
+// host saw the change carry the old value; applying those flips the setting back for a moment
+// (the eye filter visibly flickered). A pending value wins until the host echoes it or it expires.
+const PENDING_HOST_VALUE_MS = 1500;
+const pendingHostValues = new Map();
+
+const markPendingHostValue = (key, value) => {
+  pendingHostValues.set(key, { value, until: Date.now() + PENDING_HOST_VALUE_MS });
+};
+
+const setLocalState = (key, value) => {
+  state[key] = value;
+  markPendingHostValue(key, value);
+};
+
+const keepPendingHostValues = nextState => {
+  if (!nextState || pendingHostValues.size === 0) return nextState;
+  const now = Date.now();
+  let patched = null;
+  for (const [key, pending] of pendingHostValues) {
+    if (now > pending.until) {
+      pendingHostValues.delete(key);
+      continue;
+    }
+    if (!(key in nextState)) continue;
+    if (nextState[key] === pending.value) {
+      pendingHostValues.delete(key);
+      continue;
+    }
+    patched = patched || { ...nextState };
+    patched[key] = pending.value;
+  }
+  return patched || nextState;
+};
+
 window.playerControls = nextState => {
   applyShortcutState(nextState && nextState.shortcuts);
+  nextState = keepPendingHostValues(nextState);
   const previousCloseToken = Number(state.closeModalsToken) || 0;
   const previousRemoteClickToken = Number(state.remoteClickToken) || 0;
   const previousSubmitIntroSuccessToken = Number(state.submitIntroSuccessToken) || 0;
@@ -8047,7 +8084,7 @@ const runShortcutAction = (action, event) => {
       return true;
     case "eyeFilterToggle": {
       const next = !state.eyeFilterEnabled;
-      state.eyeFilterEnabled = next;
+      setLocalState("eyeFilterEnabled", next);
       syncEyeFilterOverlay();
       if (activeModal === "eyeFilter") renderEyeFilterModal();
       send("setEyeFilterEnabled", next ? 1 : 0);
@@ -8056,7 +8093,7 @@ const runShortcutAction = (action, event) => {
     }
     case "grainFilterToggle": {
       const next = !state.grainFilterEnabled;
-      state.grainFilterEnabled = next;
+      setLocalState("grainFilterEnabled", next);
       if (activeModal === "eyeFilter") renderEyeFilterModal();
       send("setGrainFilterEnabled", next ? 1 : 0);
       showPlayerToast(`Frosted matte filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);

@@ -825,7 +825,11 @@ internal class NativePlayerController(
         val controlsLogSummary = "handle=$current title=${stateWithEnhancements.title.take(40)} " +
             "duration=${stateWithEnhancements.durationMs} speed=${stateWithEnhancements.playbackSpeedLabel} " +
             "audioLabel=${stateWithEnhancements.audioLabel} subsLabel=${stateWithEnhancements.subtitlesLabel} " +
-            "fullscreen=$isFullscreen"
+            "fullscreen=$isFullscreen " +
+            "eyeFilter=${stateWithEnhancements.eyeFilterEnabled}/${stateWithEnhancements.eyeFilterColor}/${stateWithEnhancements.eyeFilterOpacity} " +
+            "grain=${PlayerSettingsRepository.uiState.value.grainFilterEnabled} " +
+            "upscaler=${stateWithEnhancements.animeUpscalerOption}/bypassed=${stateWithEnhancements.isAutoBypassed} " +
+            "svp=${stateWithEnhancements.svpMode} nightMode=${stateWithEnhancements.audioNightModeEnabled}"
         if (controlsLogSummary != lastLoggedControlsSummary) {
             lastLoggedControlsSummary = controlsLogSummary
             log.d { "updateControls $controlsLogSummary pos=${stateWithEnhancements.positionMs}" }
