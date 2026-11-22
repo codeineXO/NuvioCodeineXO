@@ -2,6 +2,10 @@ package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.features.remote.RemoteServer
+import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.core.build.TrailerPlaybackMode
+import com.nuvio.app.features.updater.AppUpdaterPlatform
+import com.nuvio.app.features.player.AndroidPlaybackEngine
 import nuvio.composeapp.generated.resources.compose_settings_remote_search_description
 
 import androidx.compose.animation.AnimatedVisibility
@@ -1110,6 +1114,259 @@ internal fun settingsSearchEntries(
             section = stringResource(Res.string.settings_tracking_features),
             category = accountCategory,
         )
+    }
+
+    // Rows below mirror each page's own visibility conditions.
+    fun row(page: SettingsPage, key: String, title: String, section: String, description: String = "") =
+        addRow(page = page, key = key, title = title, description = description, pageLabel = pageTitles.getValue(page), section = section)
+
+    val codeineXOSection = "CodeineXO"
+    row(SettingsPage.CodeineXO, "xo-onboarding", "Revisit CodeineXO Onboarding", "Quick setup", "Re-run setup wizard or review and apply recommended presets")
+    listOf(
+        "xo-subtitle-font" to "Subtitle Font",
+        "xo-subtitle-outline-style" to "Outline Style",
+        "xo-subtitle-outline-thickness" to "Outline Thickness",
+        "xo-subtitle-text-color" to stringResource(Res.string.settings_playback_subtitle_text_color),
+        "xo-subtitle-outline-color" to stringResource(Res.string.settings_playback_subtitle_outline_color),
+    ).forEach { (key, title) -> row(SettingsPage.CodeineXO, key, title, playbackSubtitleRendering) }
+
+    // Layout section of the CodeineXO page, also shown on the Layout page.
+    buildList {
+        add("xo-aura-customize" to stringResource(Res.string.aura_customize))
+        add("xo-surface-style" to stringResource(Res.string.settings_surface_style))
+        add("xo-app-interface" to stringResource(Res.string.settings_app_interface))
+        add("xo-always-animate-collections" to stringResource(Res.string.settings_homescreen_always_animate_collections))
+        add("xo-hide-year" to stringResource(Res.string.settings_poster_hide_year))
+        add("xo-metadata-info" to stringResource(Res.string.settings_show_metadata_info))
+        if (isDesktop) {
+            add("xo-app-scale" to stringResource(Res.string.settings_appearance_app_scale))
+            add("xo-player-ui-scale" to stringResource(Res.string.settings_playback_player_ui_scale))
+            add("xo-keyboard-navigation" to stringResource(Res.string.settings_keyboard_navigation))
+            add("xo-poster-gutter-size" to stringResource(Res.string.settings_poster_gutter_size))
+        }
+    }.forEach { (key, title) -> row(SettingsPage.Layout, key, title, codeineXOSection) }
+
+    // Playback sections of the CodeineXO page are injected into playback pages on desktop only.
+    if (isDesktop) {
+        listOf(
+            Triple("xo-player-ui", stringResource(Res.string.settings_playback_player_ui), SettingsPage.PlaybackInterface),
+            Triple("xo-show-clock", stringResource(Res.string.settings_playback_show_clock_in_player), SettingsPage.PlaybackInterface),
+            Triple("xo-seekbar-while-seeking", stringResource(Res.string.settings_playback_show_seekbar_while_seeking), SettingsPage.PlaybackInterface),
+            Triple("xo-eye-filter", "Enable Eye Filter", SettingsPage.PlaybackInterface),
+            Triple("xo-eye-filter-color", "Eye Filter Color", SettingsPage.PlaybackInterface),
+            Triple("xo-eye-filter-opacity", "Eye Filter Opacity", SettingsPage.PlaybackInterface),
+            Triple("xo-frosted-matte", "Frosted Matte Filter (Hemophobia Protection)", SettingsPage.PlaybackInterface),
+            Triple("xo-anime-upscaler", "Anime Upscaler", SettingsPage.PlaybackVideo),
+            Triple("xo-upscaler-mode", "Upscaler Mode", SettingsPage.PlaybackVideo),
+            Triple("xo-motion-interpolation", "Motion Interpolation (SVP)", SettingsPage.PlaybackVideo),
+            Triple("xo-audio-night-mode", stringResource(Res.string.settings_playback_audio_night_mode), SettingsPage.PlaybackAudio),
+            Triple("xo-anime-filler-detection", "Anime Filler Detection", SettingsPage.PlaybackSkipSegments),
+            Triple("xo-hide-anime-filler", "Hide Anime Filler Episodes", SettingsPage.PlaybackSkipSegments),
+        ).forEach { (key, title, page) -> row(page, key, title, codeineXOSection) }
+        if (P2pSettingsRepository.isVisible) {
+            listOf(
+                "xo-p2p-show-stats" to stringResource(Res.string.settings_p2p_show_stats_title),
+                "xo-p2p" to stringResource(Res.string.settings_p2p_title),
+                "xo-p2p-hide-stats" to stringResource(Res.string.settings_p2p_hide_stats_title),
+                "xo-p2p-profile" to stringResource(Res.string.settings_p2p_profile_title),
+                "xo-p2p-cache-size" to stringResource(Res.string.settings_p2p_cache_size_title),
+                "xo-p2p-clear-cache" to stringResource(Res.string.settings_p2p_clear_cache_title),
+            ).forEach { (key, title) ->
+                row(if (key == "xo-p2p-show-stats") SettingsPage.PlaybackInterface else SettingsPage.PlaybackP2p, key, title, codeineXOSection)
+            }
+        }
+        val downloadsSection = stringResource(Res.string.compose_settings_root_downloads_title)
+        row(SettingsPage.ContentDiscovery, "download-location", stringResource(Res.string.downloads_choose_directory), downloadsSection)
+        row(SettingsPage.ContentDiscovery, "download-location-default", stringResource(Res.string.downloads_location_default), downloadsSection)
+        row(SettingsPage.Layout, "desktop-navigation", stringResource(Res.string.settings_appearance_desktop_navigation), stringResource(Res.string.settings_appearance_nav_bar_style))
+        row(SettingsPage.Appearance, "app-scale", stringResource(Res.string.settings_appearance_app_scale), stringResource(Res.string.settings_appearance_section_display))
+        val hoverBehavior = stringResource(Res.string.settings_hover_preview_section_behavior)
+        row(SettingsPage.HoverPreview, "hover-preview-enabled", stringResource(Res.string.settings_hover_preview_enabled), hoverBehavior)
+        if (AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP) {
+            val hoverTrailer = stringResource(Res.string.settings_hover_preview_section_trailer)
+            row(SettingsPage.HoverPreview, "hover-preview-trailer", stringResource(Res.string.settings_hover_preview_trailer_enabled), hoverTrailer)
+            row(SettingsPage.HoverPreview, "hover-preview-trailer-sound", stringResource(Res.string.settings_hover_preview_trailer_sound_enabled), hoverTrailer)
+        }
+        val stepsSection = stringResource(Res.string.settings_shortcuts_steps)
+        listOf(
+            Res.string.settings_shortcuts_step_seek_short,
+            Res.string.settings_shortcuts_step_seek_long,
+            Res.string.settings_shortcuts_step_seek_fine,
+            Res.string.settings_shortcuts_step_volume,
+            Res.string.settings_shortcuts_step_subtitle_delay,
+            Res.string.settings_shortcuts_reset_all,
+        ).forEachIndexed { index, res -> row(SettingsPage.Shortcuts, "shortcut-step-$index", stringResource(res), stepsSection) }
+    }
+    if (isWindows) {
+        row(SettingsPage.PlaybackVideo, "hls-max-resolution", stringResource(Res.string.hls_max_resolution_title), codeineXOSection)
+        val rtxSection = stringResource(Res.string.settings_playback_nvidia_rtx_video_section)
+        row(SettingsPage.PlaybackVideo, "rtx-super-resolution", stringResource(Res.string.settings_playback_nvidia_rtx_super_resolution), rtxSection)
+        row(SettingsPage.PlaybackVideo, "rtx-hdr", stringResource(Res.string.settings_playback_nvidia_rtx_hdr), rtxSection)
+    }
+    if (RemoteServer.platform != null) {
+        listOf("remote-phone" to "Phone Remote", "remote-port" to "Remote Port", "remote-qr" to stringResource(Res.string.compose_settings_remote_generate_qr_code))
+            .forEach { (key, title) -> row(SettingsPage.Remote, key, title, "Remote") }
+    }
+
+    // Discord Rich Presence lives on Advanced (and the CodeineXO page on desktop).
+    if (DiscordRichPresenceRepository.isSupported) {
+        val discordSection = stringResource(Res.string.settings_advanced_section_discord)
+        listOf(
+            Res.string.settings_advanced_discord_rich_presence,
+            Res.string.settings_advanced_discord_activity_type,
+            Res.string.settings_advanced_discord_activity_mode,
+            Res.string.settings_advanced_discord_full_poster,
+            Res.string.settings_advanced_discord_episode_small_image,
+            Res.string.settings_advanced_discord_episode_name,
+        ).forEachIndexed { index, res -> row(SettingsPage.Advanced, "discord-$index", stringResource(res), discordSection) }
+    }
+    if (com.nuvio.app.core.diagnostics.DebugLogSettings.isSupported) {
+        val debugSection = stringResource(Res.string.debug_log_section)
+        row(SettingsPage.Advanced, "debug-log-redact", stringResource(Res.string.debug_log_redact), debugSection)
+        row(SettingsPage.Advanced, "debug-log-open-folder", stringResource(Res.string.debug_log_open_folder), debugSection)
+    }
+    if (checkForUpdatesAvailable && !AppUpdaterPlatform.hasSingleUpdateChannel) {
+        row(SettingsPage.About, "update-channel", stringResource(Res.string.updates_channel_title), stringResource(Res.string.compose_settings_root_about_section))
+    }
+    row(SettingsPage.About, "privacy-policy", stringResource(Res.string.compose_settings_page_privacy_policy), stringResource(Res.string.compose_settings_root_about_section))
+    row(SettingsPage.About, "open-on-github", stringResource(Res.string.compose_settings_open_on_github), stringResource(Res.string.compose_settings_root_about_section))
+
+    // Playback rows not covered by the section lists above.
+    addPlaybackRows(
+        addRow = ::addRow,
+        pageLabel = playbackPage,
+        section = playbackPlayer,
+        page = SettingsPage.PlaybackInterface,
+        rows = buildList {
+            add(PlaybackSearchRow("loading-status", stringResource(Res.string.playback_show_loading_status)))
+            add(PlaybackSearchRow("parental-guide", stringResource(Res.string.settings_playback_parental_guide)))
+            add(PlaybackSearchRow("player-preference", stringResource(Res.string.settings_playback_player_preference), page = SettingsPage.PlaybackPlayer))
+            if (externalPlayerSupported && !isIos) {
+                add(PlaybackSearchRow("external-forward-subtitles", stringResource(Res.string.settings_playback_external_player_forward_subtitles), page = SettingsPage.PlaybackPlayer))
+                add(PlaybackSearchRow("external-send-skip-segments", stringResource(Res.string.settings_playback_external_player_send_skip_segments), page = SettingsPage.PlaybackPlayer))
+            }
+            if (!isIos && !isDesktop) add(PlaybackSearchRow("playback-engine", stringResource(Res.string.settings_playback_engine), page = SettingsPage.PlaybackPlayer))
+        },
+    )
+    addPlaybackRows(
+        addRow = ::addRow,
+        pageLabel = playbackPage,
+        section = playbackNextEpisode,
+        page = SettingsPage.PlaybackUpNext,
+        rows = listOf(
+            PlaybackSearchRow("auto-play-next-fallback", stringResource(Res.string.settings_playback_auto_play_next_episode_fallback)),
+            PlaybackSearchRow("reuse-binge-group", stringResource(Res.string.settings_playback_reuse_binge_group)),
+            PlaybackSearchRow("preload-next-episode", stringResource(Res.string.settings_playback_preload_next_episode)),
+            PlaybackSearchRow("auto-skip-segments", stringResource(Res.string.settings_playback_auto_skip_segments), page = SettingsPage.PlaybackSkipSegments),
+        ),
+    )
+    addPlaybackRows(
+        addRow = ::addRow,
+        pageLabel = playbackPage,
+        section = playbackSubtitleAudio,
+        page = SettingsPage.PlaybackSubtitles,
+        rows = buildList {
+            add(PlaybackSearchRow("subtitle-auto-sync", stringResource(Res.string.settings_playback_subtitle_auto_sync)))
+            add(PlaybackSearchRow("subtitle-strip-sdh", stringResource(Res.string.settings_playback_subtitle_strip_sdh)))
+            add(PlaybackSearchRow("subtitle-use-forced", stringResource(Res.string.settings_playback_subtitle_use_forced)))
+            add(PlaybackSearchRow("subtitle-preferred-only", stringResource(Res.string.settings_playback_subtitle_show_preferred_only)))
+            listOf(
+                Res.string.settings_playback_subtitle_size,
+                Res.string.settings_playback_subtitle_bold,
+                Res.string.settings_playback_subtitle_text_color,
+                Res.string.compose_player_text_opacity,
+                Res.string.settings_playback_subtitle_background_color,
+                Res.string.subtitle_background_roundness,
+                Res.string.settings_playback_subtitle_outline,
+                Res.string.settings_playback_subtitle_outline_color,
+                Res.string.subtitle_outline_width,
+                Res.string.subtitle_shadow,
+                Res.string.subtitle_shadow_opacity,
+                Res.string.subtitle_shadow_size,
+                Res.string.settings_playback_subtitle_vertical_offset,
+            ).forEachIndexed { index, res -> add(PlaybackSearchRow("subtitle-style-$index", stringResource(res))) }
+            if (!isIos) {
+                add(PlaybackSearchRow("downmix-channels", stringResource(Res.string.settings_playback_downmix_channels), page = SettingsPage.PlaybackAudio))
+                add(PlaybackSearchRow("downmix-maintain-volume", stringResource(Res.string.settings_playback_downmix_maintain_volume), page = SettingsPage.PlaybackAudio))
+            }
+        },
+    )
+    if (!isIos && !isDesktop) {
+        addPlaybackRows(
+            addRow = ::addRow,
+            pageLabel = playbackPage,
+            section = playbackDecoder,
+            page = SettingsPage.PlaybackBuffer,
+            rows = buildList {
+                listOf(
+                    Res.string.settings_playback_buffer_min,
+                    Res.string.settings_playback_buffer_max,
+                    Res.string.settings_playback_buffer_initial,
+                    Res.string.settings_playback_buffer_rebuffer,
+                    Res.string.settings_playback_buffer_back,
+                    Res.string.settings_playback_buffer_target,
+                    Res.string.settings_playback_vod_cache_auto_size,
+                    Res.string.settings_playback_vod_cache_size,
+                ).forEachIndexed { index, res -> add(PlaybackSearchRow("buffer-$index", stringResource(res))) }
+                if (playerSettings.androidPlaybackEngine != AndroidPlaybackEngine.ExoPlayer) {
+                    add(PlaybackSearchRow("libmpv-video-output", stringResource(Res.string.settings_playback_libmpv_video_output), page = SettingsPage.PlaybackVideo))
+                    add(PlaybackSearchRow("libmpv-hardware-decoding", stringResource(Res.string.settings_playback_libmpv_hardware_decoding), page = SettingsPage.PlaybackVideo))
+                    add(PlaybackSearchRow("libmpv-yuv420p", stringResource(Res.string.settings_playback_libmpv_yuv420p), page = SettingsPage.PlaybackVideo))
+                }
+            },
+        )
+    }
+
+    // Stream filters appear on the Stream Selection page (and the CodeineXO page on desktop).
+    val streamFilterSection = stringResource(Res.string.stream_filter_settings_section)
+    listOf(
+        Res.string.stream_filter_settings_sort,
+        Res.string.stream_filter_settings_filters,
+        Res.string.stream_filter_autoplay_respects,
+        Res.string.stream_filter_reset_all,
+    ).forEachIndexed { index, res -> row(SettingsPage.PlaybackStreamSelection, "stream-filter-$index", stringResource(res), streamFilterSection) }
+    row(SettingsPage.Streams, "stream-badges-in-player", stringResource(Res.string.settings_stream_badges_in_player_title), stringResource(Res.string.settings_stream_badges_section))
+
+    val posterCardSection = stringResource(Res.string.settings_poster_card_style)
+    row(SettingsPage.PosterCustomization, "poster-hide-year", stringResource(Res.string.settings_poster_hide_year), posterCardSection)
+    row(SettingsPage.PosterCustomization, "poster-landscape-clearlogo", stringResource(Res.string.settings_poster_always_show_landscape_clearlogo), posterCardSection)
+    row(SettingsPage.PosterCustomization, "custom-poster-urls", stringResource(Res.string.settings_custom_poster_title), stringResource(Res.string.settings_custom_poster_title))
+    row(SettingsPage.PosterCustomization, "card-depth-enabled", stringResource(Res.string.settings_card_depth_enabled), stringResource(Res.string.settings_card_depth_title))
+    row(SettingsPage.PosterCustomization, "card-depth-edge-coverage", stringResource(Res.string.settings_card_depth_edge_coverage), stringResource(Res.string.settings_card_depth_title))
+    row(SettingsPage.ContinueWatching, "continue-watching-sort-mode", stringResource(Res.string.settings_continue_watching_sort_mode_title), stringResource(Res.string.settings_continue_watching_section_sort_order))
+    row(SettingsPage.MetaScreen, "meta-metadata-info", stringResource(Res.string.settings_show_metadata_info), stringResource(Res.string.settings_meta_section_appearance))
+    if (AppFeaturePolicy.heroTrailerPlaybackSupported && AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP) {
+        row(SettingsPage.MetaScreen, "meta-hero-trailer", stringResource(Res.string.settings_meta_hero_trailer_playback), stringResource(Res.string.settings_meta_section_appearance))
+    }
+
+    val trackingFeatures = stringResource(Res.string.settings_tracking_features)
+    listOf(
+        "tracking-ratings" to stringResource(Res.string.settings_tracking_ratings),
+        "tracking-anime-id" to stringResource(Res.string.settings_tracking_anime_id_title),
+        "tracking-mdblist-lists" to stringResource(Res.string.settings_mdblist_library_lists),
+    ).forEach { (key, title) ->
+        addRow(page = SettingsPage.TraktAuthentication, key = key, title = title, pageLabel = trackingPage, section = trackingFeatures, category = accountCategory)
+    }
+
+    // Debrid page.
+    val debridPage = pageTitles.getValue(SettingsPage.Debrid)
+    addPage(page = SettingsPage.Debrid, key = "debrid", title = debridPage, description = stringResource(Res.string.settings_debrid_section_title))
+    listOf(
+        Res.string.settings_debrid_cloud_library to Res.string.settings_debrid_section_title,
+        Res.string.settings_debrid_enable to Res.string.settings_debrid_section_title,
+        Res.string.settings_debrid_resolve_with to Res.string.settings_debrid_section_title,
+        Res.string.settings_debrid_section_providers to Res.string.settings_debrid_section_providers,
+        Res.string.settings_debrid_prepare_instant_playback to Res.string.settings_debrid_section_instant_playback,
+        Res.string.settings_debrid_prepare_stream_count to Res.string.settings_debrid_section_instant_playback,
+        Res.string.settings_debrid_max_results to Res.string.settings_debrid_section_result_management,
+        Res.string.settings_debrid_sort_results to Res.string.settings_debrid_section_result_management,
+        Res.string.settings_debrid_per_resolution_limit to Res.string.settings_debrid_section_result_management,
+        Res.string.settings_debrid_per_quality_limit to Res.string.settings_debrid_section_result_management,
+        Res.string.settings_debrid_size_range to Res.string.settings_debrid_section_result_management,
+        Res.string.settings_debrid_name_template to Res.string.settings_debrid_section_formatting,
+        Res.string.settings_debrid_description_template to Res.string.settings_debrid_section_formatting,
+    ).forEachIndexed { index, (title, section) ->
+        row(SettingsPage.Debrid, "debrid-$index", stringResource(title), stringResource(section))
     }
 
     return entries

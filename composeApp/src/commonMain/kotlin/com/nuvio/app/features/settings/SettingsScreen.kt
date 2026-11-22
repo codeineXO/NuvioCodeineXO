@@ -624,7 +624,8 @@ private fun MobileSettingsScreen(
     saveableStateHolder.SaveableStateProvider(page.name) {
         RemoteNavigationContentScope(page) {
         var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
-        var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
+        // Desktop has no pull-to-reveal gesture at list bounds, so the field stays visible.
+        var rootSearchVisible by rememberSaveable { mutableStateOf(isDesktop) }
         var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
         val listState = rememberLazyListState()
         ScreenActivityEffect(listState) { screenActive ->
@@ -708,24 +709,25 @@ private fun MobileSettingsScreen(
                 item { Spacer(modifier = Modifier.height(44.dp)) }
             }
 
+            val searchEntries: @Composable () -> List<SettingsSearchEntry> = {
+                settingsSearchEntries(
+                    isTablet = false,
+                    pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
+                    notificationsEnabled = AppFeaturePolicy.notificationsEnabled,
+                    externalPlayerSupported = AppFeaturePolicy.externalPlayerSupported,
+                    supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
+                    accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
+                    personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
+                    liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                    switchProfileAvailable = onSwitchProfile != null,
+                    checkForUpdatesAvailable = onCheckForUpdatesClick != null,
+                )
+            }
             when (page) {
                 SettingsPage.Root -> {
                     settingsSearchRootContent(
                         query = settingsSearchQuery,
-                        entries = {
-                            settingsSearchEntries(
-                                isTablet = false,
-                                pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
-                                notificationsEnabled = AppFeaturePolicy.notificationsEnabled,
-                                externalPlayerSupported = AppFeaturePolicy.externalPlayerSupported,
-                                supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
-                                accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
-                                personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
-                                liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                                switchProfileAvailable = onSwitchProfile != null,
-                                checkForUpdatesAvailable = onCheckForUpdatesClick != null,
-                            )
-                        },
+                        entries = searchEntries,
                         isTablet = false,
                         showSearchField = rootSearchVisible,
                         animateSearchField = rootSearchRevealAnimating,
@@ -745,12 +747,25 @@ private fun MobileSettingsScreen(
                 SettingsPage.Account -> accountSettingsContent(
                     isTablet = false,
                 )
-                SettingsPage.CodeineXO -> codeineXOSettingsContent(
-                    isTablet = false,
-                    onOnboardingClick = onOnboardingClick,
-                )
-                SettingsPage.Remote -> item { RemoteSettings(isTablet = false) }
-                SettingsPage.Shortcuts -> shortcutsSettingsContent(isTablet = false)
+                SettingsPage.CodeineXO, SettingsPage.Remote, SettingsPage.Shortcuts -> {
+                    settingsSearchRootContent(
+                        query = settingsSearchQuery,
+                        entries = searchEntries,
+                        isTablet = false,
+                        showSearchField = true,
+                        animateSearchField = false,
+                        onQueryChange = { settingsSearchQuery = it },
+                        onTargetClick = { openSearchTarget(it) },
+                    )
+                    if (settingsSearchQuery.isBlank()) when (page) {
+                        SettingsPage.CodeineXO -> codeineXOSettingsContent(
+                            isTablet = false,
+                            onOnboardingClick = onOnboardingClick,
+                        )
+                        SettingsPage.Remote -> item { RemoteSettings(isTablet = false) }
+                        else -> shortcutsSettingsContent(isTablet = false)
+                    }
+                }
                 SettingsPage.SupportersContributors -> {
                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
                         supportersContributorsContent(isTablet = false)
@@ -1037,7 +1052,8 @@ private fun TabletSettingsScreen(
         ) {
                 saveableStateHolder.SaveableStateProvider(settingsContentKey(page, activeCategory)) {
                     var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
-                    var rootSearchVisible by rememberSaveable { mutableStateOf(false) }
+                    // Desktop has no pull-to-reveal gesture at list bounds, so the field stays visible.
+                    var rootSearchVisible by rememberSaveable { mutableStateOf(isDesktop) }
                     var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
                     val hapticFeedback = LocalHapticFeedback.current
                     val hapticScope = rememberCoroutineScope()
@@ -1168,12 +1184,25 @@ private fun TabletSettingsScreen(
                                 SettingsPage.Account -> accountSettingsContent(
                                     isTablet = true,
                                 )
-                                SettingsPage.CodeineXO -> codeineXOSettingsContent(
-                                    isTablet = true,
-                                    onOnboardingClick = onOnboardingClick,
-                                )
-                                SettingsPage.Remote -> item { RemoteSettings(isTablet = true) }
-                                SettingsPage.Shortcuts -> shortcutsSettingsContent(isTablet = true)
+                                SettingsPage.CodeineXO, SettingsPage.Remote, SettingsPage.Shortcuts -> {
+                                    settingsSearchRootContent(
+                                        query = settingsSearchQuery,
+                                        entries = searchEntries,
+                                        isTablet = true,
+                                        showSearchField = true,
+                                        animateSearchField = false,
+                                        onQueryChange = { settingsSearchQuery = it },
+                                        onTargetClick = { openSearchTarget(it) },
+                                    )
+                                    if (settingsSearchQuery.isBlank()) when (page) {
+                                        SettingsPage.CodeineXO -> codeineXOSettingsContent(
+                                            isTablet = true,
+                                            onOnboardingClick = onOnboardingClick,
+                                        )
+                                        SettingsPage.Remote -> item { RemoteSettings(isTablet = true) }
+                                        else -> shortcutsSettingsContent(isTablet = true)
+                                    }
+                                }
                                 SettingsPage.SupportersContributors -> {
                                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
                                         supportersContributorsContent(isTablet = true)
