@@ -33,6 +33,7 @@ internal fun SettingsNavigationLayout(
     topOffset: Dp,
     onCategorySelected: (SettingsCategory) -> Unit,
     onCodeineClick: () -> Unit,
+    onShortcutsClick: () -> Unit,
     onRemoteClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
@@ -49,13 +50,18 @@ internal fun SettingsNavigationLayout(
                 SettingsCategory.entries.forEach { item ->
                     key(item) {
                         SettingsSidebarItem(stringResource(item.labelRes), item.icon,
-                            selected = item == category && page != SettingsPage.CodeineXO && page != SettingsPage.Remote,
+                            selected = item == category && page != SettingsPage.CodeineXO &&
+                                page != SettingsPage.Shortcuts && page != SettingsPage.Remote,
                             onClick = { onCategorySelected(item) })
                     }
                 }
                 key(SettingsPage.CodeineXO) {
                     SettingsSidebarItem(stringResource(Res.string.compose_settings_page_codeine_xo), Icons.Rounded.AutoAwesome,
                         selected = page == SettingsPage.CodeineXO, onClick = onCodeineClick)
+                }
+                key(SettingsPage.Shortcuts) {
+                    SettingsSidebarItem(stringResource(SettingsPage.Shortcuts.titleRes), SettingsPage.Shortcuts.icon,
+                        selected = page == SettingsPage.Shortcuts, onClick = onShortcutsClick)
                 }
                 if (RemoteServer.platform != null) {
                     key(SettingsPage.Remote) {

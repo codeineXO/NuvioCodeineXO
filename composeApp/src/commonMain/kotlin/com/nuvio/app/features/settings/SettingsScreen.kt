@@ -152,7 +152,7 @@ private fun SettingsPage.isEnabledByPolicy(): Boolean =
 
 private fun SettingsPage.showsHeaderBackButton(): Boolean =
     when (this) {
-        SettingsPage.CodeineXO, SettingsPage.Remote -> false
+        SettingsPage.CodeineXO, SettingsPage.Shortcuts, SettingsPage.Remote -> false
         else -> previousPage() != null
     }
 
@@ -750,6 +750,7 @@ private fun MobileSettingsScreen(
                     onOnboardingClick = onOnboardingClick,
                 )
                 SettingsPage.Remote -> item { RemoteSettings(isTablet = false) }
+                SettingsPage.Shortcuts -> shortcutsSettingsContent(isTablet = false)
                 SettingsPage.SupportersContributors -> {
                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
                         supportersContributorsContent(isTablet = false)
@@ -1031,6 +1032,7 @@ private fun TabletSettingsScreen(
                 if (page != SettingsPage.Root) onPageChange(SettingsPage.Root)
             },
             onCodeineClick = { openInlinePage(SettingsPage.CodeineXO) },
+            onShortcutsClick = { openInlinePage(SettingsPage.Shortcuts) },
             onRemoteClick = { openInlinePage(SettingsPage.Remote) },
         ) {
                 saveableStateHolder.SaveableStateProvider(settingsContentKey(page, activeCategory)) {
@@ -1171,6 +1173,7 @@ private fun TabletSettingsScreen(
                                     onOnboardingClick = onOnboardingClick,
                                 )
                                 SettingsPage.Remote -> item { RemoteSettings(isTablet = true) }
+                                SettingsPage.Shortcuts -> shortcutsSettingsContent(isTablet = true)
                                 SettingsPage.SupportersContributors -> {
                                     if (AppFeaturePolicy.supportersContributorsPageEnabled) {
                                         supportersContributorsContent(isTablet = true)

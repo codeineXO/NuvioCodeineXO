@@ -5251,3 +5251,84 @@ html.edge-button-geometry .player.ui-codeinexo .codeine-back-button {
   left: calc(var(--edge-button-left) - 20px);
   top: calc(var(--edge-button-top) - 22px);
 }
+
+/* Keyboard shortcut cheat sheet (F1 by default) */
+.shortcut-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .62);
+}
+.shortcut-sheet-overlay[hidden] {
+  display: none;
+}
+.shortcut-sheet-panel {
+  max-width: min(1100px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: var(--surface-elevated, #16171d);
+  border: 1px solid var(--border-default, rgba(255, 255, 255, .12));
+  color: var(--text-primary, #fff);
+}
+.shortcut-sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.shortcut-sheet-columns {
+  columns: 3 260px;
+  column-gap: 32px;
+}
+.shortcut-sheet-group {
+  break-inside: avoid;
+  margin-bottom: 18px;
+}
+.shortcut-sheet-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted, rgba(255, 255, 255, .6));
+  margin-bottom: 8px;
+}
+.shortcut-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.shortcut-sheet-label {
+  color: var(--text-secondary, rgba(255, 255, 255, .72));
+}
+.shortcut-sheet-keys {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.shortcut-sheet-keys kbd {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: var(--text-primary, #fff);
+}
+
+/* Separates alternative keys in keymap-driven badges and tooltips ("Space / K"). */
+.kbd-separator,
+.codeine-tooltip-separator {
+  opacity: .6;
+  margin: 0 3px;
+  font-size: .85em;
+}
+.codeine-menu-keys[hidden] {
+  display: none;
+}

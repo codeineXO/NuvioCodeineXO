@@ -1383,6 +1383,8 @@ private fun PlayerScreenRuntime.requestBack() {
     }
 }
 
+private val shortcutSteps get() = com.nuvio.app.features.player.shortcuts.PlayerShortcutSettings.steps.value
+
 private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControlsAction): Boolean {
     playerControlsLog.d { "action=$action ${playerControlLogContext()}" }
     when (action) {
@@ -1405,25 +1407,25 @@ private fun PlayerScreenRuntime.handlePlayerControlsAction(action: PlayerControl
             return seekFromNativeControls(-3_000L)
         }
         PlayerControlsAction.KeyboardSeekBack -> {
-            return seekFromNativeControls(-3_000L, revealControls = false)
+            return seekFromNativeControls(-shortcutSteps.seekShortMs.toLong(), revealControls = false)
         }
         PlayerControlsAction.KeyboardSeek10Back -> {
-            return seekFromNativeControls(-10_000L, revealControls = false)
+            return seekFromNativeControls(-shortcutSteps.seekLongMs.toLong(), revealControls = false)
         }
         PlayerControlsAction.SeekForward -> {
             return seekFromNativeControls(3_000L)
         }
         PlayerControlsAction.KeyboardSeekForward -> {
-            return seekFromNativeControls(3_000L, revealControls = false)
+            return seekFromNativeControls(shortcutSteps.seekShortMs.toLong(), revealControls = false)
         }
         PlayerControlsAction.KeyboardSeek10Forward -> {
-            return seekFromNativeControls(10_000L, revealControls = false)
+            return seekFromNativeControls(shortcutSteps.seekLongMs.toLong(), revealControls = false)
         }
         PlayerControlsAction.KeyboardFineSeekBack -> {
-            return seekFromNativeControls(-1_000L, revealControls = false)
+            return seekFromNativeControls(-shortcutSteps.seekFineMs.toLong(), revealControls = false)
         }
         PlayerControlsAction.KeyboardFineSeekForward -> {
-            return seekFromNativeControls(1_000L, revealControls = false)
+            return seekFromNativeControls(shortcutSteps.seekFineMs.toLong(), revealControls = false)
         }
         PlayerControlsAction.KeyboardVolumeDown,
         PlayerControlsAction.KeyboardVolumeUp -> {

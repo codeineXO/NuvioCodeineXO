@@ -932,11 +932,28 @@ const syncVolumeControl = () => {
   }
 };
 
+// Keyboard seeks use the step sizes from the Shortcuts settings; the on-screen buttons stay at 3s.
+const seekDeltaMsForCommand = command => {
+  const shortMs = Number(shortcutSteps.seekShortMs) || 3000;
+  const longMs = Number(shortcutSteps.seekLongMs) || 10000;
+  if (command === "seekBack") return -3000;
+  if (command === "seekForward") return 3000;
+  if (command === "keyboardSeekBack") return -shortMs;
+  if (command === "keyboardSeekForward") return shortMs;
+  if (command === "keyboardSeek10Back") return -longMs;
+  if (command === "keyboardSeek10Forward") return longMs;
+  return 0;
+};
+
+const formatSeekDelta = deltaMs => {
+  const seconds = Math.abs(deltaMs) / 1000;
+  const text = Number.isInteger(seconds) ? String(seconds) : seconds.toFixed(1);
+  return `${deltaMs < 0 ? "-" : "+"}${text}s`;
+};
+
 const seekToastLabel = command => {
-  if (command === "seekBack" || command === "keyboardSeekBack") return "-3s";
-  if (command === "seekForward" || command === "keyboardSeekForward") return "+3s";
-  if (command === "keyboardSeek10Back") return "-10s";
-  if (command === "keyboardSeek10Forward") return "+10s";
+  const deltaMs = seekDeltaMsForCommand(command);
+  if (deltaMs) return formatSeekDelta(deltaMs);
   if (command === "pictureInPicture" || command === "pip") return state.pipLabel || "";
   return "";
 };
@@ -986,15 +1003,8 @@ const showCommandToast = command => {
   queueSettingToast(command);
   const seekLabel = seekToastLabel(command);
   if (seekLabel) {
-    if (command === "seekBack" || command === "keyboardSeekBack") {
-      markSeek((Number(state.positionMs) || 0) - 3000);
-    } else if (command === "seekForward" || command === "keyboardSeekForward") {
-      markSeek((Number(state.positionMs) || 0) + 3000);
-    } else if (command === "keyboardSeek10Back") {
-      markSeek((Number(state.positionMs) || 0) - 10000);
-    } else if (command === "keyboardSeek10Forward") {
-      markSeek((Number(state.positionMs) || 0) + 10000);
-    }
+    const seekDeltaMs = seekDeltaMsForCommand(command);
+    if (seekDeltaMs) markSeek((Number(state.positionMs) || 0) + seekDeltaMs);
     triggerSeekbarOnlyOnSeek();
     showPlayerToast(seekLabel);
   }
@@ -5155,25 +5165,251 @@ const requestPlaybackState = (eventType, revealControls) => {
 const isInteractiveControlTarget = target => Boolean(
   target && target.closest && target.closest("button, input, textarea, select, a, [contenteditable='true']"),
 );
-const shortcutCommandForEvent = event => {
-  if (event.metaKey || event.ctrlKey || event.altKey) return "";
-  const isShift = Boolean(event.shiftKey);
-  switch (event.code) {
-    case "ArrowLeft":
-      return isShift ? "keyboardFineSeekBack" : "keyboardSeekBack";
-    case "KeyJ":
-      return isShift ? "keyboardFineSeekBack" : "keyboardSeek10Back";
-    case "ArrowRight":
-      return isShift ? "keyboardFineSeekForward" : "keyboardSeekForward";
-    case "KeyL":
-      return isShift ? "keyboardFineSeekForward" : "keyboardSeek10Forward";
-    case "ArrowUp":
-      return "keyboardVolumeUp";
-    case "ArrowDown":
-      return "keyboardVolumeDown";
-    default:
-      return "";
+// Keymap and step sizes come from the app's Shortcuts settings (state.shortcuts); these defaults
+// apply until the first controls update arrives.
+const defaultShortcutBindings = {
+  "Space": "togglePlay", "KeyK": "togglePlay",
+  "ArrowLeft": "seekBack", "ArrowRight": "seekForward",
+  "KeyJ": "seekBackLong", "KeyL": "seekForwardLong",
+  "Shift+ArrowLeft": "seekBackFine", "Shift+KeyJ": "seekBackFine",
+  "Shift+ArrowRight": "seekForwardFine", "Shift+KeyL": "seekForwardFine",
+  "Comma": "frameBack", "Period": "frameForward",
+  "ArrowUp": "volumeUp", "ArrowDown": "volumeDown", "KeyM": "mute",
+  "Shift+Comma": "speedDown", "Shift+Period": "speedUp", "Slash": "speedReset",
+  "KeyN": "nextEpisode", "KeyB": "cycleSubtitles", "Shift+KeyB": "cycleAudio", "KeyV": "toggleSubtitles",
+  "KeyG": "subtitleDelayDown", "KeyH": "subtitleDelayUp", "KeyO": "subtitleOpacity",
+  "KeyA": "audioPanel", "KeyS": "subtitlesPanel", "Backquote": "speedPanel", "KeyD": "qualityPanel",
+  "KeyE": "episodesPanel", "KeyQ": "sourcesPanel", "KeyC": "chaptersPanel", "KeyU": "shadersPanel",
+  "Equal": "eyeFilterPanel", "KeyW": "partyPanel",
+  "KeyF": "fullscreen", "KeyY": "miniPlayer", "KeyP": "pictureInPicture", "KeyR": "resize",
+  "KeyI": "streamStats", "Digit0": "eyeFilterToggle", "Numpad0": "eyeFilterToggle",
+  "Digit9": "grainFilterToggle", "Numpad9": "grainFilterToggle",
+  "Shift+KeyS": "screenshot", "F1": "cheatSheet",
+};
+let shortcutBindings = defaultShortcutBindings;
+let shortcutSteps = { seekShortMs: 3000, seekLongMs: 10000, seekFineMs: 1000, volumePercent: 5, subtitleDelayMs: 100 };
+let shortcutSheet = null;
+
+const applyShortcutState = shortcuts => {
+  if (!shortcuts || typeof shortcuts !== "object") return;
+  if (shortcuts.bindings && typeof shortcuts.bindings === "object") {
+    const changed = JSON.stringify(shortcuts.bindings) !== JSON.stringify(shortcutBindings);
+    shortcutBindings = shortcuts.bindings;
+    if (changed) refreshShortcutBadges();
   }
+  if (shortcuts.steps && typeof shortcuts.steps === "object") shortcutSteps = { ...shortcutSteps, ...shortcuts.steps };
+  if (shortcuts.sheet && typeof shortcuts.sheet === "object") {
+    shortcutSheet = shortcuts.sheet;
+    if (cheatSheetOverlay && !cheatSheetOverlay.hidden) renderCheatSheet();
+  }
+};
+
+const shortcutCodeLabels = {
+  ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓",
+  Comma: ",", Period: ".", Slash: "/", Backslash: "\\", Backquote: "`", Equal: "=", Minus: "-",
+  BracketLeft: "[", BracketRight: "]", Semicolon: ";", Quote: "'", PageUp: "PgUp", PageDown: "PgDn",
+  NumpadAdd: "Num+", NumpadSubtract: "Num-", NumpadMultiply: "Num*", NumpadDivide: "Num/", NumpadDecimal: "Num.",
+};
+
+const shortcutCodeLabel = code => {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^Numpad\d$/.test(code)) return `Num${code.slice(6)}`;
+  return shortcutCodeLabels[code] || code;
+};
+
+/** Each binding of [action] as its key labels, e.g. [["Shift", "B"]], in binding order. */
+const shortcutKeysForAction = action => Object.keys(shortcutBindings)
+  .filter(chord => shortcutBindings[chord] === action)
+  .map(chord => {
+    const parts = chord.split("+");
+    const code = parts.pop();
+    return [...parts, shortcutCodeLabel(code)];
+  });
+
+// Elements whose tooltip (data-shortcut) or menu badge shows the key for an action.
+const shortcutTooltipTargets = {
+  codeineToggle: "togglePlay",
+  codeineNextEpisodeButton: "nextEpisode",
+  codeineVolumeButton: "mute",
+  codeineChapterTitle: "chaptersPanel",
+  codeineQualityButton: "qualityPanel",
+  codeineEpisodesButton: "episodesPanel",
+  codeineSourcesButton: "sourcesPanel",
+  codeineSubtitlesButton: "subtitlesPanel",
+  codeineAudioButton: "audioPanel",
+  codeineShadersButton: "shadersPanel",
+  codeineFullscreenButton: "fullscreen",
+};
+const shortcutMenuTargets = {
+  codeineSpeedButton: "speedPanel",
+  codeineResizeButton: "resize",
+  codeinePipButton: "pictureInPicture",
+  codeineMiniPlayerButton: "miniPlayer",
+  codeinePartyButton: "partyPanel",
+  codeineStatsButton: "streamStats",
+  codeineEyeFilterButton: "eyeFilterPanel",
+  codeineChaptersButton: "chaptersPanel",
+};
+
+const fillShortcutBadges = (container, keys) => {
+  container.replaceChildren();
+  keys.forEach((parts, index) => {
+    if (index > 0) {
+      const separator = document.createElement("span");
+      separator.className = "kbd-separator";
+      separator.textContent = "/";
+      container.appendChild(separator);
+    }
+    for (const part of parts) {
+      const kbd = document.createElement("kbd");
+      kbd.className = "kbd-badge";
+      kbd.textContent = part;
+      container.appendChild(kbd);
+    }
+  });
+  container.hidden = keys.length === 0;
+};
+
+const refreshShortcutBadges = () => {
+  for (const [id, action] of Object.entries(shortcutTooltipTargets)) {
+    const element = document.getElementById(id);
+    if (!element) continue;
+    const keys = shortcutKeysForAction(action);
+    element.dataset.shortcutKeys = JSON.stringify(keys);
+    element.setAttribute("data-shortcut", keys.map(parts => parts.join("+")).join(" "));
+  }
+  for (const [id, action] of Object.entries(shortcutMenuTargets)) {
+    const container = document.getElementById(id)?.querySelector(".codeine-menu-keys");
+    if (container) fillShortcutBadges(container, shortcutKeysForAction(action));
+  }
+  const filterTitles = document.querySelectorAll(".eye-filter-toggle-title");
+  ["eyeFilterToggle", "grainFilterToggle"].forEach((action, index) => {
+    const title = filterTitles[index];
+    if (!title) return;
+    title.querySelectorAll("kbd, .kbd-separator").forEach(el => el.remove());
+    const holder = document.createElement("span");
+    fillShortcutBadges(holder, shortcutKeysForAction(action).slice(0, 1));
+    title.append(...holder.childNodes);
+  });
+  if (codeineTooltip) {
+    const keysEl = codeineTooltip.querySelector(".codeine-tooltip-keys");
+    if (keysEl) delete keysEl.dataset.keys;
+  }
+};
+
+const shortcutModifierKeys = ["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock", "OS"];
+
+const shortcutChordForEvent = event => {
+  if (!event.code || shortcutModifierKeys.includes(event.key)) return "";
+  let chord = "";
+  if (event.ctrlKey || event.metaKey) chord += "Ctrl+";
+  if (event.altKey) chord += "Alt+";
+  if (event.shiftKey) chord += "Shift+";
+  return chord + event.code;
+};
+
+const shortcutActionForEvent = event => {
+  const chord = shortcutChordForEvent(event);
+  return chord ? (shortcutBindings[chord] || "") : "";
+};
+
+// Seek and volume actions keep the existing native command names.
+const shortcutCommandForAction = action => ({
+  seekBack: "keyboardSeekBack",
+  seekForward: "keyboardSeekForward",
+  seekBackLong: "keyboardSeek10Back",
+  seekForwardLong: "keyboardSeek10Forward",
+  seekBackFine: "keyboardFineSeekBack",
+  seekForwardFine: "keyboardFineSeekForward",
+  volumeUp: "keyboardVolumeUp",
+  volumeDown: "keyboardVolumeDown",
+}[action] || "");
+
+let cheatSheetOverlay = null;
+
+// Used until the app's localized sheet arrives (or if it never does): the current bindings with
+// names derived from the action ids, e.g. "seekBackFine" -> "Seek back fine".
+const fallbackCheatSheet = () => {
+  const actions = [...new Set(Object.values(shortcutBindings))];
+  const label = action => {
+    const words = action.replace(/([A-Z])/g, " $1").toLowerCase().trim();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
+  return {
+    title: "Keyboard shortcuts",
+    groups: [{
+      title: "",
+      items: actions.map(action => ({
+        label: label(action),
+        keys: shortcutKeysForAction(action).map(parts => parts.join(" + ")),
+      })),
+    }],
+  };
+};
+
+const renderCheatSheet = () => {
+  if (!cheatSheetOverlay) return;
+  const hasSheet = shortcutSheet && Array.isArray(shortcutSheet.groups) &&
+    shortcutSheet.groups.some(group => Array.isArray(group.items) && group.items.length > 0);
+  const sheet = hasSheet ? shortcutSheet : fallbackCheatSheet();
+  cheatSheetOverlay.replaceChildren();
+  const panel = document.createElement("div");
+  panel.className = "shortcut-sheet-panel";
+  const heading = document.createElement("div");
+  heading.className = "shortcut-sheet-title";
+  heading.textContent = sheet.title || "Keyboard shortcuts";
+  panel.appendChild(heading);
+  const columns = document.createElement("div");
+  columns.className = "shortcut-sheet-columns";
+  for (const group of Array.isArray(sheet.groups) ? sheet.groups : []) {
+    if (!Array.isArray(group.items) || group.items.length === 0) continue;
+    const section = document.createElement("section");
+    section.className = "shortcut-sheet-group";
+    const groupTitle = document.createElement("div");
+    groupTitle.className = "shortcut-sheet-group-title";
+    groupTitle.textContent = group.title || "";
+    section.appendChild(groupTitle);
+    for (const item of group.items) {
+      const row = document.createElement("div");
+      row.className = "shortcut-sheet-row";
+      const label = document.createElement("span");
+      label.className = "shortcut-sheet-label";
+      label.textContent = item.label || "";
+      const keys = document.createElement("span");
+      keys.className = "shortcut-sheet-keys";
+      for (const key of Array.isArray(item.keys) ? item.keys : []) {
+        const kbd = document.createElement("kbd");
+        kbd.textContent = key;
+        keys.appendChild(kbd);
+      }
+      row.append(label, keys);
+      section.appendChild(row);
+    }
+    columns.appendChild(section);
+  }
+  panel.appendChild(columns);
+  cheatSheetOverlay.appendChild(panel);
+};
+
+const isCheatSheetOpen = () => Boolean(cheatSheetOverlay && !cheatSheetOverlay.hidden);
+
+const setCheatSheetOpen = open => {
+  if (!cheatSheetOverlay) {
+    if (!open) return;
+    cheatSheetOverlay = document.createElement("div");
+    cheatSheetOverlay.className = "shortcut-sheet-overlay";
+    cheatSheetOverlay.hidden = true;
+    cheatSheetOverlay.addEventListener("pointerdown", event => {
+      event.stopPropagation();
+      if (event.target === cheatSheetOverlay) setCheatSheetOpen(false);
+    });
+    cheatSheetOverlay.addEventListener("click", event => event.stopPropagation());
+    cheatSheetOverlay.addEventListener("dblclick", event => event.stopPropagation());
+    document.body.appendChild(cheatSheetOverlay);
+  }
+  if (open) renderCheatSheet();
+  cheatSheetOverlay.hidden = !open;
 };
 
 const visibleActionButtons = () =>
@@ -5260,7 +5496,7 @@ const finishPartySeek = () => {
 const fineSeek = (isForward, stepMsOverride) => {
   triggerSeekbarOnlyOnSeek();
   const direction = isForward ? "forward" : "backward";
-  const step = Math.max(500, Number(stepMsOverride) || 1000);
+  const step = Math.max(500, Number(stepMsOverride) || Number(shortcutSteps.seekFineMs) || 1000);
   const stepMs = isForward ? step : -step;
 
   if (fineSeekDirection === direction && fineSeekBasePosMs !== null) {
@@ -5304,7 +5540,11 @@ const fineSeek = (isForward, stepMsOverride) => {
   }, 800);
 };
 
-const sendKeyboardVolume = delta => {
+// Keys and the mouse wheel both use the volume step from the Shortcuts settings.
+const shortcutVolumeStepLevel = () =>
+  Number(shortcutSteps.volumePercent) > 0 ? Number(shortcutSteps.volumePercent) / 100 : volumeStepLevel;
+
+const sendKeyboardVolume = (delta, stepLevel = shortcutVolumeStepLevel()) => {
   const currentLevel = typeof state.volumeLevel === "number" && Number.isFinite(state.volumeLevel)
     ? state.volumeLevel
     : 1;
@@ -5312,7 +5552,7 @@ const sendKeyboardVolume = delta => {
     showPlayerToast(volumeToastLabel(delta));
     return;
   }
-  const adjustedLevel = currentLevel + (delta * volumeStepLevel);
+  const adjustedLevel = currentLevel + (delta * stepLevel);
   const nextLevel = clampVolumeLevel(adjustedLevel);
   state.volumeLevel = nextLevel;
   if (nextLevel > 0) {
@@ -6965,6 +7205,7 @@ const announceControlsPainted = () => {
 };
 
 window.playerControls = nextState => {
+  applyShortcutState(nextState && nextState.shortcuts);
   const previousCloseToken = Number(state.closeModalsToken) || 0;
   const previousRemoteClickToken = Number(state.remoteClickToken) || 0;
   const previousSubmitIntroSuccessToken = Number(state.submitIntroSuccessToken) || 0;
@@ -7171,8 +7412,10 @@ const clearSpeedBoostHoldTimer = () => {
   }
 }
 
-// Space and K share tap-to-toggle and hold-to-speed-boost behaviour.
-const isPlayPauseHoldKey = event => event.code === "Space" || event.code === "KeyK";
+// Play/pause keys share tap-to-toggle and hold-to-speed-boost behaviour.
+const isPlayPauseHoldKey = event => shortcutActionForEvent(event) === "togglePlay";
+// The physical key that armed the hold timer, so releasing a modifier first still ends the press.
+let activePlayPauseCode = "";
 
 const clearSpaceHoldTimer = () => {
   if (spaceHoldTimer) {
@@ -7557,7 +7800,8 @@ document.addEventListener("keyup", event => {
     clearSpaceHoldTimerAndStopSpeedBoost();
     return;
   }
-  if (isPlayPauseHoldKey(event)) {
+  if (isPlayPauseHoldKey(event) || (activePlayPauseCode && event.code === activePlayPauseCode)) {
+    activePlayPauseCode = "";
     if (clearSpaceHoldTimerAndStopSpeedBoost()) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (activeModal || isTextEntryTarget(event.target)) return;
@@ -7568,9 +7812,276 @@ document.addEventListener("keyup", event => {
   }
 });
 
+const modalSafeShortcutActions = new Set([
+  "speedPanel", "audioPanel", "subtitlesPanel", "qualityPanel", "episodesPanel", "sourcesPanel",
+  "shadersPanel", "eyeFilterPanel", "chaptersPanel", "partyPanel", "streamStats", "resize",
+  "miniPlayer", "screenshot", "cheatSheet", "eyeFilterToggle", "grainFilterToggle",
+]);
+
+const toggleModalShortcut = name => {
+  if (activeModal === name) closePlayerModal(true);
+  else openPlayerModal(name);
+};
+
+const stepPlaybackSpeedShortcut = direction => {
+  const currentSpeedStr = String(state.playbackSpeedLabel || "1x");
+  const currentIndex = pendingSpeedIndex !== null
+    ? pendingSpeedIndex
+    : speedOptions.findIndex(o => currentSpeedStr.startsWith(o.label.split(" ")[0]));
+  const nextIndex = direction === 0 ? speedOptions.findIndex(o => o.value === 1.0) : currentIndex + direction;
+  if (direction !== 0 && (currentIndex < 0 || nextIndex < 0 || nextIndex >= speedOptions.length)) return;
+  pendingSpeedIndex = nextIndex;
+  window.clearTimeout(pendingSpeedTimer);
+  pendingSpeedTimer = window.setTimeout(() => pendingSpeedIndex = null, 1000);
+  queueSettingToast("speed");
+  send("setPlaybackSpeed", speedOptions[nextIndex].value);
+};
+
+const keyboardSeekShortcut = action => {
+  focusShortcutRoot();
+  noteChromeActivity();
+  triggerSeekbarOnlyOnSeek();
+  const isForward = action === "seekForward" || action === "seekForwardLong";
+  const isLong = action === "seekBackLong" || action === "seekForwardLong";
+  const stepMs = Number(isLong ? shortcutSteps.seekLongMs : shortcutSteps.seekShortMs) || (isLong ? 10000 : 3000);
+  const deltaMs = stepMs * (isForward ? 1 : -1);
+  const durationMs = Math.max(0, Number(state.durationMs) || 0);
+  const currentMs = Number(state.positionMs) || 0;
+  const nextPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, currentMs + deltaMs) : currentMs + deltaMs);
+  state.positionMs = nextPosMs;
+  markSeek(nextPosMs);
+  setProgress(nextPosMs, durationMs);
+  showKeyboardSeekPreview(nextPosMs);
+  const command = shortcutCommandForAction(action);
+  showCommandToast(command);
+  send(command, 0);
+};
+
+const toggleSubtitlesShortcut = () => {
+  const isOff = !state.secondarySubtitleActive && !normalizeTracks(state.subtitleTracks).some(t => t.selected);
+  if (subtitlesHidden && !isOff) {
+    showHiddenSubtitles();
+  } else if (isOff) {
+    if (window.lastActiveSubtitle) {
+      if (window.lastActiveSubtitle.kind === "builtIn") send("selectBuiltInSubtitleTrack", window.lastActiveSubtitle.index);
+      else send("selectAddonSubtitle", window.lastActiveSubtitle.index);
+    } else {
+      const options = subtitleSelectionOptions();
+      if (options.length > 0) {
+        if (options[0].kind === "builtIn") send("selectBuiltInSubtitleTrack", options[0].index);
+        else send("selectAddonSubtitle", options[0].index);
+      } else if (state.subtitleTracks && state.subtitleTracks.length > 0) {
+        send("selectBuiltInSubtitleTrack", state.subtitleTracks[0].index);
+      }
+    }
+  } else {
+    subtitlesHidden = true;
+    send("subtitleVisibility", 0);
+  }
+};
+
+/** Runs a keymap action; returns false when it does not apply right now. */
+const runShortcutAction = (action, event) => {
+  switch (action) {
+    case "togglePlay":
+      // Plain keys toggle on release (see keyup); this path is for Ctrl/Alt chords.
+      focusShortcutRoot();
+      noteChromeActivity();
+      requestPlaybackState("setPlaybackStateQuiet", false);
+      return true;
+    case "seekBack":
+    case "seekForward":
+    case "seekBackLong":
+    case "seekForwardLong":
+      keyboardSeekShortcut(action);
+      return true;
+    case "seekBackFine":
+    case "seekForwardFine":
+      focusShortcutRoot();
+      noteChromeActivity();
+      fineSeek(action === "seekForwardFine");
+      return true;
+    case "volumeUp":
+    case "volumeDown":
+      focusShortcutRoot();
+      noteChromeActivity();
+      sendKeyboardVolume(action === "volumeUp" ? 1 : -1);
+      return true;
+    case "frameBack":
+    case "frameForward":
+      focusShortcutRoot();
+      send(action === "frameForward" ? "frameStep" : "frameBackStep", 0);
+      return true;
+    case "mute":
+      if (state.volumeLevel > 0) {
+        preMuteVolumeLevel = state.volumeLevel;
+        state.volumeLevel = 0;
+      } else {
+        state.volumeLevel = preMuteVolumeLevel > 0 ? preMuteVolumeLevel : 1.0;
+      }
+      syncVolumeControl();
+      send("volumeChangeTemporary", state.volumeLevel);
+      showPlayerToast(volumeToastLabel(0), { icon: state.volumeLevel > 0 ? "icon-volume" : "icon-volume-muted" });
+      return true;
+    case "speedDown":
+      stepPlaybackSpeedShortcut(-1);
+      return true;
+    case "speedUp":
+      stepPlaybackSpeedShortcut(1);
+      return true;
+    case "speedReset":
+      stepPlaybackSpeedShortcut(0);
+      return true;
+    case "nextEpisode":
+      noteChromeActivity(true);
+      send("playNextEpisode", 0);
+      return true;
+    case "cycleAudio":
+      if (state.audioTracks && state.audioTracks.length > 0) {
+        const currentIndex = state.audioTracks.findIndex(t => t.selected);
+        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.audioTracks.length : 0;
+        send("selectAudioTrack", trackIdValue(state.audioTracks[nextIndex]));
+      }
+      return true;
+    case "cycleSubtitles":
+      noteChromeActivity(true);
+      cycleSubtitleTrack();
+      return true;
+    case "toggleSubtitles":
+      toggleSubtitlesShortcut();
+      return true;
+    case "subtitleDelayDown":
+    case "subtitleDelayUp": {
+      const step = Number(shortcutSteps.subtitleDelayMs) || 100;
+      changeSubtitleDelay(action === "subtitleDelayUp" ? step : -step);
+      return true;
+    }
+    case "subtitleOpacity": {
+      const style = state.subtitleStyle || {};
+      const currentOpacity = Math.round((parseArgb(style.textColor).alpha / 255) * 100);
+      if (currentOpacity > 50) {
+        window.lastSubtitleOpacity = currentOpacity;
+        send("subtitleTextOpacity", 50);
+      } else {
+        send("subtitleTextOpacity", window.lastSubtitleOpacity && window.lastSubtitleOpacity > 50 ? window.lastSubtitleOpacity : 100);
+      }
+      return true;
+    }
+    case "pictureInPicture":
+      send("pictureInPicture", 0);
+      return true;
+    case "fullscreen":
+      focusShortcutRoot();
+      togglePlayerFullscreen();
+      return true;
+    case "speedPanel":
+      toggleModalShortcut("speed");
+      return true;
+    case "audioPanel":
+      toggleModalShortcut("audio");
+      return true;
+    case "subtitlesPanel":
+      toggleModalShortcut("subtitles");
+      return true;
+    case "qualityPanel":
+      if (!hasHlsQualityOptions() && activeModal !== "quality") return false;
+      toggleModalShortcut("quality");
+      return true;
+    case "episodesPanel":
+      if (activeModal === "episodes") {
+        closePlayerModal(true);
+      } else {
+        if (state.episodeStreamsVisible) {
+          state.episodeStreamsVisible = false;
+          episodeStreamFilterId = "";
+          if (episodeListView && episodeStreamsView) {
+            episodeListView.hidden = false;
+            episodeStreamsView.hidden = true;
+          }
+          send("backToEpisodes", 0);
+        }
+        episodeStreamFilterId = "";
+        openPlayerModal("episodes");
+        send("episodes", 0);
+      }
+      return true;
+    case "sourcesPanel":
+      if (activeModal === "sources") {
+        closePlayerModal(true);
+      } else {
+        sourceFilterId = "";
+        openPlayerModal("sources");
+        send("sources", 0);
+      }
+      return true;
+    case "shadersPanel":
+      toggleModalShortcut("shaders");
+      return true;
+    case "eyeFilterPanel":
+      toggleModalShortcut("eyeFilter");
+      return true;
+    case "chaptersPanel":
+      if (activeModal === "chapters") closePlayerModal(true);
+      else if (Array.isArray(state.chapters) && state.chapters.length > 0 && !state.isInPip) openPlayerModal("chapters");
+      return true;
+    case "partyPanel":
+      if (activeModal === "party") closePlayerModal(true);
+      else if (!partyButton.hidden && !state.isInPip) openPlayerModal("party");
+      return true;
+    case "streamStats":
+      togglePlaybackStatsOverlay();
+      return true;
+    case "resize":
+      showCommandToast("resize");
+      send("resize", 0);
+      return true;
+    case "miniPlayer":
+      if (state.isMiniPlayer) {
+        // Toggling the docked mini player window expands it back to the full player.
+        send("pictureInPicture", 0);
+      } else if (!state.isInPip) {
+        if (activeModal) closePlayerModal(true);
+        send("minimize", 0);
+      }
+      return true;
+    case "eyeFilterToggle": {
+      const next = !state.eyeFilterEnabled;
+      state.eyeFilterEnabled = next;
+      syncEyeFilterOverlay();
+      if (activeModal === "eyeFilter") renderEyeFilterModal();
+      send("setEyeFilterEnabled", next ? 1 : 0);
+      showPlayerToast(`Eye filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
+      return true;
+    }
+    case "grainFilterToggle": {
+      const next = !state.grainFilterEnabled;
+      state.grainFilterEnabled = next;
+      if (activeModal === "eyeFilter") renderEyeFilterModal();
+      send("setGrainFilterEnabled", next ? 1 : 0);
+      showPlayerToast(`Frosted matte filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
+      return true;
+    }
+    case "screenshot":
+      send("screenshot", 0);
+      return true;
+    case "cheatSheet":
+      clearSpaceHoldTimerAndStopSpeedBoost();
+      setCheatSheetOpen(!isCheatSheetOpen());
+      return true;
+    default:
+      return false;
+  }
+};
+
 document.addEventListener("keydown", event => {
   if (handleFontPickerKey(event)) return;
   const isBackKey = isPlayerBackKey(event);
+  if (isCheatSheetOpen()) {
+    if (shortcutModifierKeys.includes(event.key)) return;
+    event.preventDefault();
+    if (isBackKey || shortcutActionForEvent(event) === "cheatSheet") setCheatSheetOpen(false);
+    return;
+  }
   if (isBackKey && isQuickMenuOpen) {
     event.preventDefault();
     closeQuickMenu();
@@ -7599,9 +8110,9 @@ document.addEventListener("keydown", event => {
     return;
   }
   if (playbackErrorText()) return;
+  const shortcutAction = shortcutActionForEvent(event);
   const isMacFullscreenShortcut = event.code === "KeyF" && event.metaKey && event.ctrlKey && !event.altKey;
-  const isPlainKeyF = event.code === "KeyF" && !event.metaKey && !event.ctrlKey && !event.altKey;
-  if (event.code === "F11" || isMacFullscreenShortcut || (isPlainKeyF && !isTextEntryTarget(event.target))) {
+  if (event.code === "F11" || isMacFullscreenShortcut || (shortcutAction === "fullscreen" && !isTextEntryTarget(event.target))) {
     clearSpaceHoldTimerAndStopSpeedBoost();
     event.preventDefault();
     focusShortcutRoot();
@@ -7630,6 +8141,10 @@ document.addEventListener("keydown", event => {
   }
   if (event.metaKey || event.ctrlKey || event.altKey || event.key === "Alt" || event.key === "Control" || event.key === "Meta") {
     clearSpaceHoldTimerAndStopSpeedBoost();
+    // Chords with Ctrl/Alt never clash with focus navigation or text entry, so they fire anywhere.
+    if (shortcutAction && !isTextEntryTarget(event.target) && runShortcutAction(shortcutAction, event, true)) {
+      event.preventDefault();
+    }
     return;
   }
   if (activeModal === "eyeFilter" && event.code.startsWith("Arrow") && handleEyeFilterArrowKey(event)) {
@@ -7655,30 +8170,10 @@ document.addEventListener("keydown", event => {
     return;
   }
 
-  if (event.code === "Digit0" || event.code === "Numpad0") {
+  if (shortcutAction === "eyeFilterToggle" || shortcutAction === "grainFilterToggle") {
     clearSpaceHoldTimerAndStopSpeedBoost();
     event.preventDefault();
-    const next = !state.eyeFilterEnabled;
-    state.eyeFilterEnabled = next;
-    syncEyeFilterOverlay();
-    if (activeModal === "eyeFilter") {
-      renderEyeFilterModal();
-    }
-    send("setEyeFilterEnabled", next ? 1 : 0);
-    showPlayerToast(`Eye filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
-    return;
-  }
-
-  if (event.code === "Digit9" || event.code === "Numpad9") {
-    clearSpaceHoldTimerAndStopSpeedBoost();
-    event.preventDefault();
-    const next = !state.grainFilterEnabled;
-    state.grainFilterEnabled = next;
-    if (activeModal === "eyeFilter") {
-      renderEyeFilterModal();
-    }
-    send("setGrainFilterEnabled", next ? 1 : 0);
-    showPlayerToast(`Frosted matte filter: ${next ? toastLabel("toastOnLabel", "On") : toastLabel("toastOffLabel", "Off")}`);
+    runShortcutAction(shortcutAction, event, true);
     return;
   }
 
@@ -7757,113 +8252,11 @@ document.addEventListener("keydown", event => {
     }
   }
 
-  if (event.code === "Backquote") {
-    event.preventDefault();
-    if (activeModal === "speed") closePlayerModal(true);
-    else openPlayerModal("speed");
+  // Panels, overlays and filters also work while a panel is open; everything else waits for it to close.
+  if (shortcutAction && modalSafeShortcutActions.has(shortcutAction)) {
+    if (runShortcutAction(shortcutAction, event)) event.preventDefault();
     return;
   }
-
-  if (event.code === "KeyA") {
-    event.preventDefault();
-    if (activeModal === "audio") closePlayerModal(true);
-    else openPlayerModal("audio");
-    return;
-  }
-  if (event.code === "KeyS") {
-    event.preventDefault();
-    if (activeModal === "subtitles") closePlayerModal(true);
-    else openPlayerModal("subtitles");
-    return;
-  }
-  if (event.code === "KeyD" && (hasHlsQualityOptions() || activeModal === "quality")) {
-    event.preventDefault();
-    if (activeModal === "quality") closePlayerModal(true);
-    else openPlayerModal("quality");
-    return;
-  }
-  if (event.code === "KeyE") {
-    event.preventDefault();
-    if (activeModal === "episodes") {
-      closePlayerModal(true);
-    } else {
-      if (state.episodeStreamsVisible) {
-        state.episodeStreamsVisible = false;
-        episodeStreamFilterId = "";
-        if (episodeListView && episodeStreamsView) {
-          episodeListView.hidden = false;
-          episodeStreamsView.hidden = true;
-        }
-        send("backToEpisodes", 0);
-      }
-      episodeStreamFilterId = "";
-      openPlayerModal("episodes");
-      send("episodes", 0);
-    }
-    return;
-  }
-  if (event.code === "KeyQ") {
-    event.preventDefault();
-    if (activeModal === "sources") {
-      closePlayerModal(true);
-    } else {
-      sourceFilterId = "";
-      openPlayerModal("sources");
-      send("sources", 0);
-    }
-    return;
-  }
-
-  if (event.code === "KeyU") {
-    event.preventDefault();
-    if (activeModal === "shaders") closePlayerModal(true);
-    else openPlayerModal("shaders");
-    return;
-  }
-  if (event.key === "=" || (event.code === "Equal" && !event.shiftKey)) {
-    event.preventDefault();
-    if (activeModal === "eyeFilter") closePlayerModal(true);
-    else openPlayerModal("eyeFilter");
-    return;
-  }
-  if (event.code === "KeyC") {
-    event.preventDefault();
-    if (activeModal === "chapters") closePlayerModal(true);
-    else if (Array.isArray(state.chapters) && state.chapters.length > 0 && !state.isInPip) openPlayerModal("chapters");
-    return;
-  }
-  if (event.code === "KeyW") {
-    event.preventDefault();
-    if (activeModal === "party") closePlayerModal(true);
-    else if (!partyButton.hidden && !state.isInPip) openPlayerModal("party");
-    return;
-  }
-
-
-  if (event.code === "KeyI") {
-    event.preventDefault();
-    togglePlaybackStatsOverlay();
-    return;
-  }
-
-  if (event.code === "KeyR") {
-    event.preventDefault();
-    showCommandToast("resize");
-    send("resize", 0);
-    return;
-  }
-  if (event.code === "KeyY") {
-    event.preventDefault();
-    if (state.isMiniPlayer) {
-      // Toggling the docked mini player window expands it back to the full player.
-      send("pictureInPicture", 0);
-    } else if (!state.isInPip) {
-      if (activeModal) closePlayerModal(true);
-      send("minimize", 0);
-    }
-    return;
-  }
-
 
   if (activeModal) {
     return;
@@ -7877,122 +8270,11 @@ document.addEventListener("keydown", event => {
       return;
     }
   }
-  if (event.code === "KeyN") {
-    event.preventDefault();
-    noteChromeActivity(true);
-    send("playNextEpisode", 0);
-    return;
-  }
-  if (event.code === "KeyB") {
-    event.preventDefault();
-    if (state.audioTracks && state.audioTracks.length > 0) {
-      const currentIndex = state.audioTracks.findIndex(t => t.selected);
-      const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.audioTracks.length : 0;
-      send("selectAudioTrack", trackIdValue(state.audioTracks[nextIndex]));
-    }
-    return;
-  }
-  if (event.code === "KeyV") {
-    event.preventDefault();
-    const isOff = !state.secondarySubtitleActive && !normalizeTracks(state.subtitleTracks).some(t => t.selected);
-    if (subtitlesHidden && !isOff) {
-      showHiddenSubtitles();
-    } else if (isOff) {
-      if (window.lastActiveSubtitle) {
-        if (window.lastActiveSubtitle.kind === "builtIn") send("selectBuiltInSubtitleTrack", window.lastActiveSubtitle.index);
-        else send("selectAddonSubtitle", window.lastActiveSubtitle.index);
-      } else {
-        const options = subtitleSelectionOptions();
-        if (options.length > 0) {
-          if (options[0].kind === "builtIn") send("selectBuiltInSubtitleTrack", options[0].index);
-          else send("selectAddonSubtitle", options[0].index);
-        } else if (state.subtitleTracks && state.subtitleTracks.length > 0) {
-          send("selectBuiltInSubtitleTrack", state.subtitleTracks[0].index);
-        }
-      }
-    } else {
-      subtitlesHidden = true;
-      send("subtitleVisibility", 0);
-    }
-    return;
-  }
-  if (event.code === "KeyG") {
-    event.preventDefault();
-    changeSubtitleDelay(-100);
-    return;
-  }
-  if (event.code === "KeyH") {
-    event.preventDefault();
-    changeSubtitleDelay(100);
-    return;
-  }
-  if (event.code === "KeyM") {
-    event.preventDefault();
-    if (state.volumeLevel > 0) {
-      preMuteVolumeLevel = state.volumeLevel;
-      state.volumeLevel = 0;
-    } else {
-      state.volumeLevel = preMuteVolumeLevel > 0 ? preMuteVolumeLevel : 1.0;
-    }
-    syncVolumeControl();
-    send("volumeChangeTemporary", state.volumeLevel);
-    showPlayerToast(volumeToastLabel(0), { icon: state.volumeLevel > 0 ? "icon-volume" : "icon-volume-muted" });
-    return;
-  }
-  if (event.code === "KeyO") {
-    event.preventDefault();
-    const style = state.subtitleStyle || {};
-    const currentOpacity = Math.round((parseArgb(style.textColor).alpha / 255) * 100);
-    if (currentOpacity > 50) {
-      window.lastSubtitleOpacity = currentOpacity;
-      send("subtitleTextOpacity", 50);
-    } else {
-      send("subtitleTextOpacity", window.lastSubtitleOpacity && window.lastSubtitleOpacity > 50 ? window.lastSubtitleOpacity : 100);
-    }
-    return;
-  }
-  if (event.code === "KeyP") {
-    event.preventDefault();
-    send("pictureInPicture", 0);
-    return;
-  }
-  if (event.shiftKey && event.code === "Comma") {
-    event.preventDefault();
-    const currentSpeedStr = String(state.playbackSpeedLabel || "1x");
-    let currentIndex = pendingSpeedIndex !== null ? pendingSpeedIndex : speedOptions.findIndex(o => currentSpeedStr.startsWith(o.label.split(" ")[0]));
-    if (currentIndex > 0) {
-      pendingSpeedIndex = currentIndex - 1;
-      window.clearTimeout(pendingSpeedTimer);
-      pendingSpeedTimer = window.setTimeout(() => pendingSpeedIndex = null, 1000);
-      queueSettingToast("speed");
-      send("setPlaybackSpeed", speedOptions[pendingSpeedIndex].value);
-    }
-    return;
-  }
-  if (event.shiftKey && event.code === "Period") {
-    event.preventDefault();
-    const currentSpeedStr = String(state.playbackSpeedLabel || "1x");
-    let currentIndex = pendingSpeedIndex !== null ? pendingSpeedIndex : speedOptions.findIndex(o => currentSpeedStr.startsWith(o.label.split(" ")[0]));
-    if (currentIndex >= 0 && currentIndex < speedOptions.length - 1) {
-      pendingSpeedIndex = currentIndex + 1;
-      window.clearTimeout(pendingSpeedTimer);
-      pendingSpeedTimer = window.setTimeout(() => pendingSpeedIndex = null, 1000);
-      queueSettingToast("speed");
-      send("setPlaybackSpeed", speedOptions[pendingSpeedIndex].value);
-    }
-    return;
-  }
-  if (event.code === "Slash") {
-    event.preventDefault();
-    pendingSpeedIndex = speedOptions.findIndex(o => o.value === 1.0);
-    window.clearTimeout(pendingSpeedTimer);
-    pendingSpeedTimer = window.setTimeout(() => pendingSpeedIndex = null, 1000);
-    queueSettingToast("speed");
-    send("setPlaybackSpeed", 1.0);
-    return;
-  }
 
-  if (canSpeedBoostStart() && isPlayPauseHoldKey(event)) {
+  // Play/pause toggles on key release; holding the key starts the speed boost instead.
+  if (shortcutAction === "togglePlay") {
+    activePlayPauseCode = event.code;
+    if (!canSpeedBoostStart()) return;
     event.preventDefault();
     if (event.repeat) {
       if (!isSpeedBoosting) {
@@ -8009,52 +8291,9 @@ document.addEventListener("keydown", event => {
     }, 220);
     return;
   }
-  const command = shortcutCommandForEvent(event);
-  if (!command) {
-    return;
+  if (shortcutAction && runShortcutAction(shortcutAction, event)) {
+    event.preventDefault();
   }
-  event.preventDefault();
-  focusShortcutRoot();
-  noteChromeActivity();
-  if (command === "keyboardVolumeUp") {
-    sendKeyboardVolume(1);
-    return;
-  }
-  if (command === "keyboardVolumeDown") {
-    sendKeyboardVolume(-1);
-    return;
-  }
-  if (command === "keyboardToggle") {
-    requestPlaybackState("setPlaybackStateQuiet", false);
-    return;
-  }
-  if (command === "keyboardFineSeekForward") {
-    fineSeek(true);
-    return;
-  }
-  if (command === "keyboardFineSeekBack") {
-    fineSeek(false);
-    return;
-  }
-  if (
-    command === "keyboardSeekForward" ||
-    command === "keyboardSeekBack" ||
-    command === "keyboardSeek10Forward" ||
-    command === "keyboardSeek10Back"
-  ) {
-    triggerSeekbarOnlyOnSeek();
-    const isForward = command === "keyboardSeekForward" || command === "keyboardSeek10Forward";
-    const is10 = command === "keyboardSeek10Forward" || command === "keyboardSeek10Back";
-    const deltaMs = (is10 ? 10000 : 3000) * (isForward ? 1 : -1);
-    const durationMs = Math.max(0, Number(state.durationMs) || 0);
-    const nextPosMs = Math.max(0, durationMs > 0 ? Math.min(durationMs, (Number(state.positionMs) || 0) + deltaMs) : (Number(state.positionMs) || 0) + deltaMs);
-    state.positionMs = nextPosMs;
-    markSeek(nextPosMs);
-    setProgress(nextPosMs, durationMs);
-    showKeyboardSeekPreview(nextPosMs);
-  }
-  showCommandToast(command);
-  send(command, 0);
 });
 
 let subtitleDragCounter = 0;
@@ -8218,17 +8457,35 @@ const renderCodeineTooltipContent = target => {
   const textEl = codeineTooltip.querySelector(".codeine-tooltip-text");
   const keysEl = codeineTooltip.querySelector(".codeine-tooltip-keys");
   if (textEl.textContent !== text) textEl.textContent = text;
-  const keysKey = shortcut;
+  // Keymap-driven targets carry their bindings as [["Shift", "B"], ["K"]]; others fall back to data-shortcut.
+  let keys;
+  try {
+    keys = target.dataset.shortcutKeys ? JSON.parse(target.dataset.shortcutKeys) : null;
+  } catch (_) {
+    keys = null;
+  }
+  if (!Array.isArray(keys)) keys = shortcut ? shortcut.split(/\s+/).map(alt => alt.split("+")) : [];
+  const keysKey = JSON.stringify(keys);
   if (keysEl.dataset.keys !== keysKey) {
     keysEl.dataset.keys = keysKey;
-    keysEl.replaceChildren(...(shortcut ? shortcut.split(/[+\s]+/) : []).map(key => {
-      const kbd = document.createElement("kbd");
-      kbd.className = "codeine-tooltip-key";
-      kbd.textContent = key;
-      return kbd;
-    }));
+    const children = [];
+    keys.forEach((parts, index) => {
+      if (index > 0) {
+        const separator = document.createElement("span");
+        separator.className = "codeine-tooltip-separator";
+        separator.textContent = "/";
+        children.push(separator);
+      }
+      for (const part of parts) {
+        const kbd = document.createElement("kbd");
+        kbd.className = "codeine-tooltip-key";
+        kbd.textContent = part;
+        children.push(kbd);
+      }
+    });
+    keysEl.replaceChildren(...children);
   }
-  keysEl.hidden = !shortcut;
+  keysEl.hidden = keys.length === 0;
   return Boolean(text);
 };
 
@@ -8366,4 +8623,5 @@ focusShortcutRoot();
 syncEyeFilterOverlay();
 render();
 syncSeekrPreviews();
+refreshShortcutBadges();
 send("controlsReady", 0);

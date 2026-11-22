@@ -253,6 +253,13 @@ internal fun settingsSearchEntries(
         description = stringResource(Res.string.compose_settings_root_codeine_xo_description),
         category = advancedCategory,
     )
+    addPage(
+        page = SettingsPage.Shortcuts,
+        key = "shortcuts",
+        title = pageTitles.getValue(SettingsPage.Shortcuts),
+        description = stringResource(Res.string.settings_shortcuts_description),
+        category = advancedCategory,
+    )
     if (RemoteServer.platform != null) {
         addPage(
             page = SettingsPage.Remote,

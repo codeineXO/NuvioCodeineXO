@@ -80,6 +80,12 @@ fun main(args: Array<String>) {
         enabled = keyboardNavigationStore.getBoolean("enabled") ?: true,
         save = { keyboardNavigationStore.putBoolean("enabled", it) },
     )
+    val playerShortcutStore = com.nuvio.app.core.storage.DesktopStorage.store("nuvio_player_shortcuts")
+    com.nuvio.app.features.player.shortcuts.PlayerShortcutSettings.initialize(
+        load = playerShortcutStore::getString,
+        save = playerShortcutStore::putString,
+    )
+    com.nuvio.app.features.player.shortcuts.installShortcutCaptureDispatcher()
     val randomPickerStore = com.nuvio.app.core.storage.DesktopStorage.store("nuvio_random_picker")
     com.nuvio.app.features.randompicker.RandomPickerPreferences.load = { profileId ->
         randomPickerStore.getString(com.nuvio.app.core.storage.ProfileScopedKey.of("filters", profileId))

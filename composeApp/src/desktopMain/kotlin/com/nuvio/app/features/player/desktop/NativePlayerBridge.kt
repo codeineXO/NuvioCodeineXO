@@ -88,6 +88,8 @@ internal object NativePlayerBridge {
     external fun windowsPlaybackStatsJson(handle: Long): String?
     external fun setWindowsGlslShaders(handle: Long, shaders: Array<String>): Boolean
     external fun setWindowsAudioNightFilter(handle: Long, filter: String): Boolean
+    /** Runs an mpv input command (e.g. `frame-step`) on the Windows player. */
+    external fun windowsCommand(handle: Long, args: Array<String>): Boolean
 
     external fun dispose(handle: Long)
     external fun updateControls(handle: Long, controlsJson: String)

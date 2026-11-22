@@ -82,6 +82,8 @@ import nuvio.composeapp.generated.resources.hls_quality_title
 import nuvio.composeapp.generated.resources.hls_quality_switching
 import nuvio.composeapp.generated.resources.settings_playback_mpv_config_fallback
 import nuvio.composeapp.generated.resources.settings_playback_mpv_night_filter_error
+import nuvio.composeapp.generated.resources.player_shortcut_screenshot_failed
+import nuvio.composeapp.generated.resources.player_shortcut_screenshot_saved
 import org.jetbrains.compose.resources.getString
 import java.awt.Component
 import java.awt.event.WindowAdapter
@@ -157,6 +159,16 @@ internal class NativePlayerController(
     @Volatile
     private var qualityPanelTitle: String? = null
     private var qualityPanelTitleRequested = false
+    @Volatile private var shortcutLabels: com.nuvio.app.features.player.shortcuts.PlayerShortcutLabels? = null
+    private var shortcutLabelsRequested = false
+    private var shortcutsJsonCache: Pair<
+        Triple<
+            com.nuvio.app.features.player.shortcuts.PlayerKeymap,
+            com.nuvio.app.features.player.shortcuts.PlayerShortcutSteps,
+            com.nuvio.app.features.player.shortcuts.PlayerShortcutLabels?,
+        >,
+        String,
+    >? = null
 
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
@@ -801,6 +813,7 @@ internal class NativePlayerController(
             playerUiScale = currentUiScale,
             edgeButtonGeometry = PlayerEdgeButtonGeometryStore.current,
             hlsQuality = hlsQuality,
+            shortcutsJson = currentShortcutsJson(),
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
@@ -815,8 +828,30 @@ internal class NativePlayerController(
         )
         val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage, currentPlaybackStats)
             .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount" +
-            structureKey.hlsQuality.toJsonFields() + "}"
+            structureKey.hlsQuality.toJsonFields() + ",\"shortcuts\":" + structureKey.shortcutsJson + "}"
         NativePlayerBridge.updateControls(current, controlsJson)
+    }
+
+    /** Keymap, step sizes and cheat sheet for the controls script. */
+    private fun currentShortcutsJson(): String {
+        val labels = shortcutLabels
+        if (labels == null && !shortcutLabelsRequested) {
+            shortcutLabelsRequested = true
+            playerScope.launch {
+                shortcutLabels = runCatching { com.nuvio.app.features.player.shortcuts.PlayerShortcutLabels.load() }
+                    .onFailure { log.w(it) { "Failed to load shortcut labels" } }
+                    .getOrNull()
+                SwingUtilities.invokeLater { refreshControlsForQuality() }
+            }
+        }
+        val keymap = com.nuvio.app.features.player.shortcuts.PlayerShortcutSettings.keymap.value
+        val steps = com.nuvio.app.features.player.shortcuts.PlayerShortcutSettings.steps.value
+        val inputs = Triple(keymap, steps, labels)
+        // Controls update many times a second during playback; rebuild only when an input changed.
+        shortcutsJsonCache?.let { (cachedInputs, json) -> if (cachedInputs == inputs) return json }
+        val json = com.nuvio.app.features.player.shortcuts.playerShortcutsJson(keymap, steps, labels)
+        shortcutsJsonCache = inputs to json
+        return json
     }
 
     /** Quality picker state; kept off [PlayerControlsState], whose constructor is at the JVM parameter limit. */
@@ -1154,6 +1189,28 @@ internal class NativePlayerController(
         }
     }
 
+    private fun runShortcutCommand(vararg args: String): Boolean {
+        val current = handle
+        if (current == 0L || DesktopHostOs.current != DesktopHostOs.WINDOWS) return false
+        return runCatching { NativePlayerBridge.windowsCommand(current, arrayOf(*args)) }
+            .onFailure { log.w(it) { "mpv command ${args.firstOrNull()} failed" } }
+            .getOrDefault(false)
+    }
+
+    private fun takeScreenshot() {
+        val current = handle
+        val directory = java.io.File(System.getProperty("user.home"), "Pictures/NuvioCodeineXO")
+        val safeTitle = controlsState.title.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(60).ifEmpty { "screenshot" }
+        val stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+        val file = java.io.File(directory, "$safeTitle-$stamp.png")
+        val saved = directory.mkdirs().let { directory.isDirectory } &&
+            runShortcutCommand("screenshot-to-file", file.absolutePath, "subtitles")
+        showMpvNotice(current) {
+            if (saved) getString(Res.string.player_shortcut_screenshot_saved, file.name)
+            else getString(Res.string.player_shortcut_screenshot_failed)
+        }
+    }
+
     private fun handlePlayerEvent(type: String, value: Double) {
         if (type.shouldLogNativeControlEvent()) {
             log.d { "event received handle=$handle type=$type value=$value" }
@@ -1227,6 +1284,8 @@ internal class NativePlayerController(
                     seekTo(value.toLong())
                 }
             }
+            "frameStep", "frameBackStep" -> runShortcutCommand(if (type == "frameStep") "frame-step" else "frame-back-step")
+            "screenshot" -> takeScreenshot()
             "playerUiScale" -> {
                 PlayerSettingsRepository.setPlayerUiScale(kotlin.math.round(value).toInt().coerceIn(50, 150))
             }
@@ -1527,6 +1586,8 @@ internal class NativePlayerController(
         updateControls(controlsState)
     }
 
+    private val shortcutSteps get() = com.nuvio.app.features.player.shortcuts.PlayerShortcutSettings.steps.value
+
     private fun handleFallbackAction(action: PlayerControlsAction) {
         log.d { "fallback action=$action handle=$handle" }
         when (action) {
@@ -1546,16 +1607,16 @@ internal class NativePlayerController(
                     NativePlayerBridge.setPaused(current, !isPaused)
                 }
             }
-            PlayerControlsAction.SeekBack,
-            PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-3_000L)
-            PlayerControlsAction.KeyboardSeek10Back -> fallbackSeekBy(-10_000L)
-            PlayerControlsAction.SeekForward,
-            PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(3_000L)
-            PlayerControlsAction.KeyboardSeek10Forward -> fallbackSeekBy(10_000L)
-            PlayerControlsAction.KeyboardFineSeekBack -> fallbackSeekBy(-1_000L)
-            PlayerControlsAction.KeyboardFineSeekForward -> fallbackSeekBy(1_000L)
-            PlayerControlsAction.KeyboardVolumeDown -> adjustFallbackVolume(-10f)
-            PlayerControlsAction.KeyboardVolumeUp -> adjustFallbackVolume(10f)
+            PlayerControlsAction.SeekBack -> fallbackSeekBy(-3_000L)
+            PlayerControlsAction.KeyboardSeekBack -> fallbackSeekBy(-shortcutSteps.seekShortMs.toLong())
+            PlayerControlsAction.KeyboardSeek10Back -> fallbackSeekBy(-shortcutSteps.seekLongMs.toLong())
+            PlayerControlsAction.SeekForward -> fallbackSeekBy(3_000L)
+            PlayerControlsAction.KeyboardSeekForward -> fallbackSeekBy(shortcutSteps.seekShortMs.toLong())
+            PlayerControlsAction.KeyboardSeek10Forward -> fallbackSeekBy(shortcutSteps.seekLongMs.toLong())
+            PlayerControlsAction.KeyboardFineSeekBack -> fallbackSeekBy(-shortcutSteps.seekFineMs.toLong())
+            PlayerControlsAction.KeyboardFineSeekForward -> fallbackSeekBy(shortcutSteps.seekFineMs.toLong())
+            PlayerControlsAction.KeyboardVolumeDown -> adjustFallbackVolume(-shortcutSteps.volumePercent.toFloat())
+            PlayerControlsAction.KeyboardVolumeUp -> adjustFallbackVolume(shortcutSteps.volumePercent.toFloat())
             PlayerControlsAction.PictureInPicture -> togglePictureInPictureFromShortcut()
             PlayerControlsAction.Speed -> cycleFallbackSpeed()
             else -> Unit
@@ -2745,6 +2806,7 @@ private data class NativeControlsStructureKey(
     val playerUiScale: Int = 100,
     val edgeButtonGeometry: PlayerEdgeButtonGeometry = PlayerEdgeButtonGeometry(),
     val hlsQuality: HlsQualityControls = HlsQualityControls(),
+    val shortcutsJson: String = "{}",
 )
 
 internal data class HlsQualityControls(

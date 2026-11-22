@@ -1599,6 +1599,10 @@ public:
         return doubleProperty("speed", 1.0);
     }
 
+    bool runCommand(const std::vector<std::string> &args) {
+        return command(args);
+    }
+
     void adjustVolume(double delta) {
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
@@ -4705,6 +4709,14 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setWindowsGlslShad
 ) {
     const auto player = playerFromHandle(handle);
     return player && player->setGlslShaders(jstringArrayToVector(env, shaders)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_windowsCommand(
+    JNIEnv *env, jobject, jlong handle, jobjectArray args
+) {
+    const auto player = playerFromHandle(handle);
+    return player && player->runCommand(jstringArrayToVector(env, args)) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

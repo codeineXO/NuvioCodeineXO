@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.NetworkCheck
@@ -106,6 +107,11 @@ internal enum class SettingsPage(
     ),
     CodeineXO(
         titleRes = Res.string.compose_settings_page_codeine_xo,
+        category = SettingsCategory.System,
+        parentPage = Root,
+    ),
+    Shortcuts(
+        titleRes = Res.string.settings_page_shortcuts,
         category = SettingsCategory.System,
         parentPage = Root,
     ),
@@ -292,6 +298,7 @@ internal val SettingsPage.icon: ImageVector
     get() = when (this) {
         SettingsPage.CodeineXO -> Icons.Default.Build
         SettingsPage.Remote -> Icons.Default.PhoneAndroid
+        SettingsPage.Shortcuts -> Icons.Default.Keyboard
         SettingsPage.Root -> Icons.Rounded.Settings
         SettingsPage.Account -> Icons.Default.Person
         SettingsPage.SupportersContributors -> Icons.Default.Favorite
