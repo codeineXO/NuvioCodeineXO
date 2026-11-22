@@ -6737,7 +6737,13 @@ function updateSeekPointer(event) {
   const rect = seek.getBoundingClientRect();
   if (!state.durationMs || !rect.width) { clearSeekPreviewInteraction(); return; }
   seekPointerClientX = Math.max(rect.left, Math.min(rect.right, event.clientX));
-  const fraction = Math.max(0, Math.min(1, (seekPointerClientX - rect.left) / rect.width));
+  // Map like the native range does (thumb center travels inset by half the thumb width), so the hovered
+  // time and preview match where a click on the track actually seeks.
+  const thumbPx = (seek.closest(".ui-codeinexo") ? 14 : 10) * (seek.offsetWidth > 0 ? rect.width / seek.offsetWidth : 1);
+  const travel = rect.width - thumbPx;
+  const fraction = travel > 0
+    ? Math.max(0, Math.min(1, (seekPointerClientX - rect.left - thumbPx / 2) / travel))
+    : Math.max(0, Math.min(1, (seekPointerClientX - rect.left) / rect.width));
   seekPointerPositionMs = Math.round(fraction * state.durationMs);
   seekHoverContentKey = seekHoverSourceKey();
   refreshSeekHover();
