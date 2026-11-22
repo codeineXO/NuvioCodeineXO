@@ -2301,6 +2301,10 @@ private:
     long long startupInitialPositionMs = 0;                // Guarded by mpvMutex.
     std::atomic_bool initialStartPending = false;
     std::atomic_bool hlsDetectionSent = false;
+    // Set once FFmpeg refuses an HLS playlist for its extension/MIME type; every later load
+    // of this source then forces the hls demuxer.
+    std::atomic_bool forceHlsDemuxer = false;
+    std::string lastLoadedUrl;                             // Guarded by mpvMutex.
     std::atomic_bool replacingSource = false;
     std::atomic_bool replacementStarting = false;
     bool rtxRequested = false;
@@ -2881,9 +2885,16 @@ private:
             std::snprintf(startBuffer, sizeof(startBuffer), "start=%.3f", (double)startupInitialPositionMs / 1000.0);
             loadOptions = startBuffer;
         }
-        if (isHlsSource(url)) {
+        const bool forceHls = forceHlsDemuxer.load();
+        if (forceHls || isHlsSource(url)) {
             appendHlsFileOptions(loadOptions, startupUserOptionNames);
         }
+        if (forceHls && std::find(startupUserOptionNames.begin(), startupUserOptionNames.end(),
+                "demuxer-lavf-format") == startupUserOptionNames.end()) {
+            if (!loadOptions.empty()) loadOptions.push_back(',');
+            loadOptions += "demuxer-lavf-format=hls";
+        }
+        lastLoadedUrl = url;
         std::vector<const char *> loadCommand = {"loadfile", url.c_str()};
         if (!loadOptions.empty()) {
             loadCommand.push_back("replace");
@@ -3398,11 +3409,38 @@ private:
         return lower.find("mpegurl") != std::string::npos;
     }
 
+    // FFmpeg's hls probe saw an HLS playlist but refused it because neither the URL extension
+    // nor the MIME type is an HLS one (e.g. "playlist.jpg" served as image/jpeg). mpv then
+    // opens it as something else (a still image for .jpg/.png) or fails.
+    static bool isDisguisedHlsLine(std::string_view prefix, std::string_view text) {
+        return prefix == "ffmpeg" &&
+            text.rfind("Not detecting m3u8/hls with non standard extension", 0) == 0;
+    }
+
+    // Reopens the still-opening source with the hls demuxer forced. Runs on the event thread
+    // before the image fallback can finish startup.
+    void reloadAsForcedHls() {
+        std::string url;
+        {
+            std::lock_guard<std::mutex> lock(mpvMutex);
+            url = lastLoadedUrl;
+        }
+        if (url.empty() || forceHlsDemuxer.exchange(true)) return;
+        // Leave the master trim alone: the forced reload already opens the source as HLS.
+        hlsDetectionSent.store(true);
+        (void)reloadStartupSource(url);
+    }
+
     void handleStartupEvent(const mpv_event &event) {
         switch (event.event_id) {
             case MPV_EVENT_LOG_MESSAGE:
                 if (event.data) {
                     const auto &message = *static_cast<const mpv_event_log_message *>(event.data);
+                    if (message.text && !forceHlsDemuxer.load() && !replacingSource.load() &&
+                        isDisguisedHlsLine(message.prefix ? message.prefix : "", message.text)) {
+                        reloadAsForcedHls();
+                        break;
+                    }
                     if (message.text && !hlsDetectionSent.load() && !replacingSource.load() &&
                         isHlsDetectionLine(message.prefix ? message.prefix : "", message.text) &&
                         !hlsDetectionSent.exchange(true)) {
