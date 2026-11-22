@@ -890,11 +890,11 @@
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  padding: 8px;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.90);
+  gap: var(--cx-item-gap);
+  padding: var(--cx-panel-pad);
+  border-radius: var(--cx-panel-radius);
+  border: 1px solid var(--cx-panel-border);
+  background: var(--cx-panel-bg);
   color: var(--theme-control-foreground);
   box-shadow: none;
   visibility: hidden;
@@ -920,8 +920,8 @@
   min-height: 48px;
   padding: 8px;
   border: 0;
-  border-radius: 16px;
-  background: transparent;
+  border-radius: var(--cx-card-radius);
+  background: var(--cx-card-bg);
   color: inherit;
   font: inherit;
   font-size: 12px;
@@ -933,7 +933,7 @@
 .player.ui-codeinexo .codeine-menu-action[hidden] { display: none; }
 
 .player.ui-codeinexo .codeine-menu-action:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--cx-card-hover);
 }
 .player.ui-codeinexo .codeine-menu-action.is-active,
 .player.ui-codeinexo .codeine-menu-action.active,
@@ -1009,6 +1009,7 @@
   min-height: 40px;
   padding: 0;
   border-radius: 999px;
+  background: transparent;
 }
 .player.ui-codeinexo.pip-mode #codeinePipLabel { display: none; }
 
@@ -1074,7 +1075,8 @@
    ========================================================================== */
 
 /* Drawer tokens: tune every CodeineXO drawer from here. */
-.player.ui-codeinexo {
+.player.ui-codeinexo,
+.shortcut-sheet-overlay.cx-sheet {
   --cx-panel-width: clamp(360px, 30vw, 440px);
   --cx-compact-width: clamp(300px, 24vw, 360px);
   --cx-panel-inset: 16px;
@@ -1912,4 +1914,108 @@
 .player.ui-codeinexo .codeine-seek-container:hover,
 .player.ui-codeinexo .codeine-seek-container:active {
   --progress: var(--progress-thumb, var(--progress-raw, 0%));
+}
+
+/* Playback stats: match the CodeineXO drawer panels */
+.player.ui-codeinexo .playback-stats-overlay {
+  left: var(--cx-panel-inset);
+  top: var(--cx-panel-inset);
+  bottom: var(--cx-seekbar-clearance);
+  width: var(--cx-compact-width);
+  height: auto;
+  max-height: none;
+  max-width: calc(100vw - var(--cx-panel-inset) * 2);
+  background: var(--cx-panel-bg);
+  border: 1px solid var(--cx-panel-border);
+  border-radius: var(--cx-panel-radius);
+  box-shadow: none;
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-header-bar {
+  padding: var(--cx-panel-pad) var(--cx-panel-pad) var(--cx-section-gap);
+  border-bottom: 0;
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, .75);
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-close-btn:hover {
+  background: var(--cx-chip-bg);
+  color: #fff;
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-scroll-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cx-item-gap);
+  padding: 0 var(--cx-panel-pad) var(--cx-panel-pad);
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-section {
+  padding: 0 12px 8px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--cx-card-radius);
+  background: var(--cx-card-bg);
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-section-header {
+  padding: 10px 0 6px;
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-section.collapsed {
+  padding-bottom: 4px;
+}
+
+.player.ui-codeinexo .playback-stats-overlay .stats-section-header:hover {
+  color: #fff;
+}
+
+/* Shortcut sheet: lives on <body>, tagged .cx-sheet while the CodeineXO UI is active */
+.shortcut-sheet-overlay.cx-sheet {
+  background: transparent;
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-panel {
+  padding: var(--cx-panel-pad);
+  background: var(--cx-panel-bg);
+  border: 1px solid var(--cx-panel-border);
+  border-radius: var(--cx-panel-radius);
+  box-shadow: none;
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-title {
+  font-size: 15px;
+  margin: 0 0 var(--cx-section-gap);
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-columns {
+  column-gap: var(--cx-section-gap);
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-group {
+  margin-bottom: var(--cx-section-gap);
+  padding: 10px 12px;
+  border-radius: var(--cx-card-radius);
+  background: var(--cx-card-bg);
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-group-title {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: var(--cx-item-gap);
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-row {
+  padding: 3px 0;
+}
+
+.shortcut-sheet-overlay.cx-sheet .shortcut-sheet-keys kbd {
+  border: 0;
+  background: var(--cx-chip-bg);
 }

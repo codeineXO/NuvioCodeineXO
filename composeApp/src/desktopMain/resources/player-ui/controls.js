@@ -5408,6 +5408,7 @@ const setCheatSheetOpen = open => {
     cheatSheetOverlay.addEventListener("dblclick", event => event.stopPropagation());
     document.body.appendChild(cheatSheetOverlay);
   }
+  cheatSheetOverlay.classList.toggle("cx-sheet", root.classList.contains("ui-codeinexo"));
   if (open) renderCheatSheet();
   cheatSheetOverlay.hidden = !open;
 };
