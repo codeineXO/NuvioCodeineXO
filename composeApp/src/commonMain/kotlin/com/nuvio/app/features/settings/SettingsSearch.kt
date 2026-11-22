@@ -830,6 +830,7 @@ internal fun settingsSearchEntries(
             PlaybackSearchRow("settings_seek_preview_hovering", stringResource(Res.string.settings_seek_preview_hovering)),
             PlaybackSearchRow("settings_seek_preview_keyboard", stringResource(Res.string.settings_seek_preview_keyboard)),
             PlaybackSearchRow("settings_seek_preview_count", stringResource(Res.string.settings_seek_preview_count)),
+            PlaybackSearchRow("settings_seek_preview_size", stringResource(Res.string.settings_seek_preview_size)),
         ),
     )
 

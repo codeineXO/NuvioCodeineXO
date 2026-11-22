@@ -2885,6 +2885,8 @@ internal fun PlayerControlsState.toControlsJson(
         append(",")
         appendJsonField("seekPreviewThumbnailCount", seekPreviewThumbnailCount)
         append(',')
+        appendJsonField("seekPreviewSizePercent", seekPreviewSizePercent)
+        append(',')
         appendJsonField("seekPreviewVttUrl", seekPreviewVttUrl)
         append(',')
         appendJsonField("seekrApiKey", seekrApiKey)

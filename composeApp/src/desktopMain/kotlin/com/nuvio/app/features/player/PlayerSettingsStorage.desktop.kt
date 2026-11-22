@@ -32,6 +32,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val seekPreviewWhileHoveringKey = "seek_preview_while_hovering"
     private const val seekPreviewWhileKeyboardSeekingKey = "seek_preview_while_keyboard_seeking"
     private const val seekPreviewThumbnailCountKey = "seek_preview_thumbnail_count"
+    private const val seekPreviewSizePercentKey = "seek_preview_size_percent"
     private const val seekrApiKeyKey = "seekr_api_key"
     private const val showRemainingTimeKey = "show_remaining_time"
     private const val eyeFilterEnabledKey = "eye_filter_enabled"
@@ -417,6 +418,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
 
     actual fun loadSeekPreviewThumbnailCount(): Int? = loadInt(seekPreviewThumbnailCountKey)
     actual fun saveSeekPreviewThumbnailCount(value: Int) = saveInt(seekPreviewThumbnailCountKey, value)
+    actual fun loadSeekPreviewSizePercent(): Int? = loadInt(seekPreviewSizePercentKey)
+    actual fun saveSeekPreviewSizePercent(value: Int) = saveInt(seekPreviewSizePercentKey, value)
 
     actual fun loadSeekrApiKey(): String? = loadString(seekrApiKeyKey)
     actual fun saveSeekrApiKey(apiKey: String) = saveString(seekrApiKeyKey, apiKey)

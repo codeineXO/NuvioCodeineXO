@@ -575,6 +575,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         seekPreviewWhileHovering = playerSettingsUiState.seekPreviewWhileHovering,
         seekPreviewWhileKeyboardSeeking = playerSettingsUiState.seekPreviewWhileKeyboardSeeking,
         seekPreviewThumbnailCount = playerSettingsUiState.seekPreviewThumbnailCount,
+        seekPreviewSizePercent = playerSettingsUiState.seekPreviewSizePercent,
         seekPreviewVttUrl = seekPreviewTrack?.vttUrl.orEmpty(),
         seekrApiKey = playerSettingsUiState.seekrApiKey,
         seekrImdbId = resolvedImdbId.orEmpty(),

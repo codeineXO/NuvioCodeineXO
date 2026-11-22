@@ -532,6 +532,7 @@ let state = {
   seekPreviewWhileHovering: true,
   seekPreviewWhileKeyboardSeeking: true,
   seekPreviewThumbnailCount: 5,
+  seekPreviewSizePercent: 100,
   seekPreviewVttUrl: "",
   seekrApiKey: "",
   seekrImdbId: "",
@@ -6451,9 +6452,14 @@ function seekPreviewCount(value) {
   return [1, 3, 5].includes(value) ? value : 5;
 }
 
-function seekPreviewGeometry(count, tileWidth, viewportWidth, targetX) {
+function seekPreviewSizeFactor(value) {
+  return [75, 100, 125].includes(value) ? value / 100 : 1;
+}
+
+// The size setting scales the whole strip; a strip wider than the window still shrinks to fit.
+function seekPreviewGeometry(count, tileWidth, viewportWidth, targetX, sizeFactor = 1) {
   const unscaledWidth = count * tileWidth + (count - 1) * 8 + tileWidth * 0.08;
-  const scale = Math.min(1, Math.max(0, viewportWidth - 32) / unscaledWidth);
+  const scale = Math.min(sizeFactor, Math.max(0, viewportWidth - 32) / unscaledWidth);
   const width = unscaledWidth * scale;
   const center = Math.max(16 + width / 2, Math.min(viewportWidth - 16 - width / 2, targetX));
   return { scale, width, center };
@@ -6656,7 +6662,8 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
   const fraction = state.durationMs > 0 ? Math.max(0, Math.min(1, positionMs / state.durationMs)) : 0;
   const targetX = clientX != null ? clientX : timelineRect.left + fraction * timelineRect.width;
   // Geometry is in layout pixels, like the tile sizes it scales.
-  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, (targetX - rootRect.left) / ratio);
+  const geometry = seekPreviewGeometry(count, tileWidth, windowWidth, (targetX - rootRect.left) / ratio,
+    seekPreviewSizeFactor(state.seekPreviewSizePercent));
   if (seekFilmstripCarousel) seekFilmstripCarousel.style.gap = (8 * geometry.scale) + "px";
 
   for (let index = 0; index < previewTiles.length; index++) {

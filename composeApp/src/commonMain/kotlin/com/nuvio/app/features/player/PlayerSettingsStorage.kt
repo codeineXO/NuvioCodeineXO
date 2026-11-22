@@ -246,6 +246,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSeekPreviewWhileKeyboardSeeking(value: Boolean)
     fun loadSeekPreviewThumbnailCount(): Int?
     fun saveSeekPreviewThumbnailCount(value: Int)
+    fun loadSeekPreviewSizePercent(): Int?
+    fun saveSeekPreviewSizePercent(value: Int)
 
     fun loadSeekrApiKey(): String?
     fun saveSeekrApiKey(apiKey: String)

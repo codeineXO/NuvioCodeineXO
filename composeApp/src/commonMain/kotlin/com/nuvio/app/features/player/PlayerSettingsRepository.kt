@@ -139,6 +139,7 @@ data class PlayerSettingsUiState(
     val seekPreviewWhileHovering: Boolean = true,
     val seekPreviewWhileKeyboardSeeking: Boolean = true,
     val seekPreviewThumbnailCount: Int = 5,
+    val seekPreviewSizePercent: Int = 100,
     val seekrApiKey: String = "",
     val showRemainingTime: Boolean = false,
     val eyeFilterEnabled: Boolean = false,
@@ -153,6 +154,7 @@ data class PlayerSettingsUiState(
 
 /** How many further sources falling back may try after the auto-selected one fails, by default and at most. */
 const val DEFAULT_SOURCE_FALLBACK_MAX_SOURCES = 3
+val SeekPreviewSizePercents: List<Int> = listOf(75, 100, 125)
 val SOURCE_FALLBACK_MAX_SOURCES_RANGE = 1..10
 
 /** How long a source may take to start before falling back treats it as failed, by default and the allowed range, in seconds. */
@@ -278,6 +280,7 @@ object PlayerSettingsRepository {
     private var seekPreviewWhileHovering = true
     private var seekPreviewWhileKeyboardSeeking = true
     private var seekPreviewThumbnailCount = 5
+    private var seekPreviewSizePercent = 100
     private var seekrApiKey = ""
     private var showRemainingTime = false
     private var eyeFilterEnabled = false
@@ -405,6 +408,7 @@ object PlayerSettingsRepository {
         seekPreviewWhileHovering = true
         seekPreviewWhileKeyboardSeeking = true
         seekPreviewThumbnailCount = 5
+        seekPreviewSizePercent = 100
         seekrApiKey = ""
         showRemainingTime = false
         eyeFilterEnabled = false
@@ -632,6 +636,7 @@ object PlayerSettingsRepository {
         seekPreviewWhileHovering = PlayerSettingsStorage.loadSeekPreviewWhileHovering() ?: true
         seekPreviewWhileKeyboardSeeking = PlayerSettingsStorage.loadSeekPreviewWhileKeyboardSeeking() ?: true
         seekPreviewThumbnailCount = PlayerSettingsStorage.loadSeekPreviewThumbnailCount()?.takeIf { it in listOf(1, 3, 5) } ?: 5
+        seekPreviewSizePercent = PlayerSettingsStorage.loadSeekPreviewSizePercent()?.takeIf { it in SeekPreviewSizePercents } ?: 100
         seekrApiKey = PlayerSettingsStorage.loadSeekrApiKey() ?: ""
         showRemainingTime = PlayerSettingsStorage.loadShowRemainingTime() ?: false
         eyeFilterEnabled = PlayerSettingsStorage.loadEyeFilterEnabled() ?: false
@@ -1436,6 +1441,15 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSeekPreviewThumbnailCount(normalized)
     }
 
+    fun setSeekPreviewSizePercent(value: Int) {
+        ensureLoaded()
+        val normalized = value.takeIf { it in SeekPreviewSizePercents } ?: 100
+        if (seekPreviewSizePercent == normalized) return
+        seekPreviewSizePercent = normalized
+        publish()
+        PlayerSettingsStorage.saveSeekPreviewSizePercent(normalized)
+    }
+
     fun setSeekrApiKey(apiKey: String) {
         ensureLoaded()
         val trimmed = apiKey.trim()
@@ -1814,6 +1828,7 @@ object PlayerSettingsRepository {
             seekPreviewWhileHovering = seekPreviewWhileHovering,
             seekPreviewWhileKeyboardSeeking = seekPreviewWhileKeyboardSeeking,
             seekPreviewThumbnailCount = seekPreviewThumbnailCount,
+            seekPreviewSizePercent = seekPreviewSizePercent,
             seekrApiKey = seekrApiKey,
             showRemainingTime = showRemainingTime,
             eyeFilterEnabled = eyeFilterEnabled,

@@ -7,6 +7,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.PlayerSettingsUiState
+import com.nuvio.app.features.player.SeekPreviewSizePercents
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -14,6 +15,7 @@ import org.jetbrains.compose.resources.stringResource
 internal fun SeekPreviewSettingsSection(settings: PlayerSettingsUiState, isTablet: Boolean) {
     var showKeyDialog by rememberSaveable { mutableStateOf(false) }
     var showCountDialog by rememberSaveable { mutableStateOf(false) }
+    var showSizeDialog by rememberSaveable { mutableStateOf(false) }
     SettingsSection(
         title = stringResource(Res.string.settings_seek_preview_section),
         isTablet = isTablet,
@@ -67,6 +69,13 @@ internal fun SeekPreviewSettingsSection(settings: PlayerSettingsUiState, isTable
                     isTablet = isTablet,
                     onClick = { showCountDialog = true },
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_seek_preview_size),
+                    description = seekPreviewSizeLabel(settings.seekPreviewSizePercent),
+                    isTablet = isTablet,
+                    onClick = { showSizeDialog = true },
+                )
             }
         }
     }
@@ -93,4 +102,27 @@ internal fun SeekPreviewSettingsSection(settings: PlayerSettingsUiState, isTable
             onDismiss = { showCountDialog = false },
         )
     }
+    if (showSizeDialog && settings.seekPreviewEnabled) {
+        IosEnumSelectionDialog(
+            title = stringResource(Res.string.settings_seek_preview_size),
+            options = SeekPreviewSizePercents,
+            selected = settings.seekPreviewSizePercent,
+            label = { seekPreviewSizeLabel(it) },
+            onSelect = {
+                PlayerSettingsRepository.setSeekPreviewSizePercent(it)
+                showSizeDialog = false
+            },
+            onDismiss = { showSizeDialog = false },
+        )
+    }
+}
+
+@Composable
+private fun seekPreviewSizeLabel(percent: Int): String {
+    val name = when (percent) {
+        75 -> stringResource(Res.string.settings_seek_preview_size_small)
+        125 -> stringResource(Res.string.settings_seek_preview_size_large)
+        else -> stringResource(Res.string.settings_seek_preview_size_medium)
+    }
+    return "$name ($percent%)"
 }

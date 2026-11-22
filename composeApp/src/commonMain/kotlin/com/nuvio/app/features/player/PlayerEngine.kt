@@ -225,6 +225,7 @@ data class PlayerControlsState(
     val seekPreviewWhileHovering: Boolean = true,
     val seekPreviewWhileKeyboardSeeking: Boolean = true,
     val seekPreviewThumbnailCount: Int = 5,
+    val seekPreviewSizePercent: Int = 100,
     val seekPreviewVttUrl: String = "",
     val seekrApiKey: String = "",
     val seekrImdbId: String = "",

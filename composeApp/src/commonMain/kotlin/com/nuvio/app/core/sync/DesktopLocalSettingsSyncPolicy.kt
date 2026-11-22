@@ -72,6 +72,7 @@ internal fun playerSettingsSyncState(state: PlayerSettingsUiState, desktop: Bool
         seekPreviewWhileHovering = true,
         seekPreviewWhileKeyboardSeeking = true,
         seekPreviewThumbnailCount = 5,
+        seekPreviewSizePercent = 100,
         seekrApiKey = "",
         eyeFilterEnabled = false,
         eyeFilterColor = "#000000",
