@@ -16,6 +16,12 @@ sealed interface SeekrContent {
         val season: Int,
         val episode: Int,
     ) : SeekrContent
+
+    /** Kitsu ids; used only when no IMDb/TMDB id resolves. `kitsu_id` is sent by the official SDK. */
+    data class Anime(
+        val kitsuId: Int,
+        val episode: Int? = null,
+    ) : SeekrContent
 }
 
 data class SeekrTile(
@@ -44,6 +50,13 @@ internal data class SpriteLookup(
     @SerialName("vtt_url") val vttUrl: String,
     @SerialName("scale") val scale: Double = 1.0,
     @SerialName("source_duration_ms") val sourceDurationMs: Long = 0,
+    @SerialName("exact") val exact: Boolean = false,
+    @SerialName("media_type") val mediaType: String = "",
+)
+
+@Serializable
+internal data class SeekrErrorBody(
+    @SerialName("error") val error: String = "",
 )
 
 @Serializable

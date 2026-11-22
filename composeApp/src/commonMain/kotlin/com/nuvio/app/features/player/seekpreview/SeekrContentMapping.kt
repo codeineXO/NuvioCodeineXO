@@ -1,6 +1,8 @@
 package com.nuvio.app.features.player.seekpreview
 
 internal object SeekrContentMapping {
+    private val kitsuPattern = Regex("kitsu:(\\d+)(?::(\\d+))?", RegexOption.IGNORE_CASE)
+
     fun from(
         parentMetaId: String?,
         videoId: String?,
@@ -39,7 +41,14 @@ internal object SeekrContentMapping {
             }
         }
 
-        if (imdbId == null && tmdbId == null) return null
+        if (imdbId == null && tmdbId == null) {
+            // Documented ids failed to resolve; fall back to Kitsu (`kitsu:<id>[:<episode>]`).
+            val kitsu = candidates.firstNotNullOfOrNull { kitsuPattern.matchEntire(it.trim()) } ?: return null
+            val kitsuId = kitsu.groupValues[1].toIntOrNull()?.takeIf { it > 0 } ?: return null
+            val kitsuEpisode = kitsu.groupValues[2].toIntOrNull()?.takeIf { it > 0 }
+                ?: episodeNumber?.takeIf { it > 0 }
+            return SeekrContent.Anime(kitsuId = kitsuId, episode = kitsuEpisode)
+        }
 
         val isSeries = (seasonNumber != null && episodeNumber != null) ||
             contentType?.lowercase() in setOf("series", "tv", "show", "episode")

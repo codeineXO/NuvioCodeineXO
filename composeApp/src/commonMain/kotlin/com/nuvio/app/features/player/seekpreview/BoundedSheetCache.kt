@@ -8,6 +8,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -17,6 +19,8 @@ internal class BoundedSheetCache(
     private val maxDecodedSheets: Int = 5,
     private val maxDecodedBytes: Long = if (isDesktop) 32L * 1024 * 1024 else Long.MAX_VALUE,
     private val loadSheet: suspend (String) -> ImageBitmap? = ::loadPreviewSheet,
+    /** Called when a signed sheet URL has expired (HTTP 403); the caller should look the title up again. */
+    private val onExpired: () -> Unit = {},
 ) {
     private val mutex = Mutex()
     private val memoryCache = LinkedHashMap<String, ImageBitmap>(maxDecodedSheets + 2, 0.75f, true)
@@ -27,23 +31,39 @@ internal class BoundedSheetCache(
         require(maxDecodedSheets > 0 && maxDecodedBytes > 0)
     }
 
+    /** Signed URLs change on every lookup; cache by the stable path so refreshed tracks reuse decoded sheets. */
     suspend fun get(sheetUrl: String): ImageBitmap? {
+        val key = sheetUrl.substringBefore('?')
         var owner = false
         val pending = mutex.withLock {
-            memoryCache[sheetUrl]?.let { return it }
-            inFlight[sheetUrl] ?: CompletableDeferred<ImageBitmap?>().also {
-                inFlight[sheetUrl] = it
+            memoryCache[key]?.let { return it }
+            // A load cancelled with its owner (e.g. a superseded preload) must not be joined.
+            inFlight[key]?.takeUnless { it.isCancelled } ?: CompletableDeferred<ImageBitmap?>().also {
+                inFlight[key] = it
                 owner = true
             }
         }
-        if (!owner) return pending.await()
+        if (!owner) {
+            try {
+                return pending.await()
+            } catch (error: CancellationException) {
+                currentCoroutineContext().ensureActive()
+                // The owner was cancelled, not us: start our own load.
+                return get(sheetUrl)
+            }
+        }
         try {
-            val bitmap = loadSheet(sheetUrl)
+            val bitmap = try {
+                loadSheet(sheetUrl)
+            } catch (_: SeekrSheetExpiredException) {
+                onExpired()
+                null
+            }
             mutex.withLock {
                 // clear() removes the request identity; old loads may still serve their callers.
-                if (inFlight[sheetUrl] === pending) {
+                if (inFlight[key] === pending) {
                     if (bitmap != null && bitmap.decodedSize() <= maxDecodedBytes) {
-                        memoryCache.put(sheetUrl, bitmap)?.let { decodedBytes -= it.decodedSize() }
+                        memoryCache.put(key, bitmap)?.let { decodedBytes -= it.decodedSize() }
                         decodedBytes += bitmap.decodedSize()
                         while (memoryCache.size > maxDecodedSheets || decodedBytes > maxDecodedBytes) {
                             val oldest = memoryCache.entries.iterator()
@@ -51,7 +71,7 @@ internal class BoundedSheetCache(
                             oldest.remove()
                         }
                     }
-                    inFlight.remove(sheetUrl)
+                    inFlight.remove(key)
                 }
             }
             pending.complete(bitmap)
@@ -62,7 +82,7 @@ internal class BoundedSheetCache(
         } finally {
             withContext(NonCancellable) {
                 mutex.withLock {
-                    if (inFlight[sheetUrl] === pending) inFlight.remove(sheetUrl)
+                    if (inFlight[key] === pending) inFlight.remove(key)
                 }
             }
         }
@@ -80,6 +100,9 @@ internal class BoundedSheetCache(
         width.toLong() * height * if (config == ImageBitmapConfig.F16) 8 else 4
 }
 
+/** Signed sprite URLs answer 403 once they expire. */
+internal class SeekrSheetExpiredException : Exception("Seekr sprite URL expired")
+
 private suspend fun loadPreviewSheet(sheetUrl: String): ImageBitmap? =
     withContext(Dispatchers.Default) {
         val response = runCatching {
@@ -95,6 +118,7 @@ private suspend fun loadPreviewSheet(sheetUrl: String): ImageBitmap? =
             return@withContext null
         }
 
+        if (response.status == 403) throw SeekrSheetExpiredException()
         if (response.status !in 200..299 || response.bodyBytes.isEmpty()) {
             return@withContext null
         }

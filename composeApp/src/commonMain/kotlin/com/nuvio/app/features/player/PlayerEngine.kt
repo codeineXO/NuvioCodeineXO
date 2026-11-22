@@ -227,7 +227,6 @@ data class PlayerControlsState(
     val seekPreviewThumbnailCount: Int = 5,
     val seekPreviewSizePercent: Int = 100,
     val seekPreviewVttUrl: String = "",
-    val seekrApiKey: String = "",
     val seekrImdbId: String = "",
     val seekrTmdbId: Int = 0,
     val seekrSeason: Int = 0,

@@ -1,9 +1,14 @@
 package com.nuvio.app.features.player.seekpreview
 
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+
 internal class SeekrPreviewTrack(
     val cues: List<SeekrCue>,
     val vttUrl: String? = null,
-    private val sheetCache: BoundedSheetCache = BoundedSheetCache(),
+    /** Identity of the looked-up title; a refresh for the same content reuses [sheetCache]. */
+    val content: SeekrContent? = null,
+    internal val sheetCache: BoundedSheetCache = BoundedSheetCache(),
 ) {
     val isEmpty: Boolean get() = cues.isEmpty()
 
@@ -46,6 +51,25 @@ internal class SeekrPreviewTrack(
     suspend fun thumbnailAt(positionMs: Long): SeekrThumbnail? {
         val index = cueIndexAt(positionMs)
         return thumbnailAtIndex(index)
+    }
+
+    /** The sheet holding cue [index], then the nearest different sheets before and after it. */
+    fun nearbySheetUrls(index: Int): List<String> {
+        val center = cues.getOrNull(index)?.tile?.sheetUrl ?: return emptyList()
+        val previous = (index - 1 downTo 0).firstNotNullOfOrNull { i ->
+            cues[i].tile.sheetUrl.takeIf { it != center }
+        }
+        val next = (index + 1..cues.lastIndex).firstNotNullOfOrNull { i ->
+            cues[i].tile.sheetUrl.takeIf { it != center }
+        }
+        return listOfNotNull(center, next, previous)
+    }
+
+    /** Warms the sheet cache around [index] so scrubbing across a sheet boundary doesn't wait on the network. */
+    suspend fun preloadAround(index: Int) {
+        coroutineScope {
+            nearbySheetUrls(index).forEach { url -> launch { sheetCache.get(url) } }
+        }
     }
 
     suspend fun clear() {

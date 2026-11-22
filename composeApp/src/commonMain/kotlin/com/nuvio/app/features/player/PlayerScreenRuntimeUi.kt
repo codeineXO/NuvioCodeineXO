@@ -577,7 +577,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         seekPreviewThumbnailCount = playerSettingsUiState.seekPreviewThumbnailCount,
         seekPreviewSizePercent = playerSettingsUiState.seekPreviewSizePercent,
         seekPreviewVttUrl = seekPreviewTrack?.vttUrl.orEmpty(),
-        seekrApiKey = playerSettingsUiState.seekrApiKey,
         seekrImdbId = resolvedImdbId.orEmpty(),
         seekrTmdbId = resolvedTmdbId ?: 0,
         seekrSeason = activeSeasonNumber ?: 0,
@@ -1503,6 +1502,7 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(rawType: String, valu
         "hideChrome" -> {
             controlsVisible = false
         }
+        "seekPreviewExpired" -> requestSeekPreviewRefresh()
         "keepChromeVisible" -> {
             controlsVisible = true
             controlsActivityTick += 1

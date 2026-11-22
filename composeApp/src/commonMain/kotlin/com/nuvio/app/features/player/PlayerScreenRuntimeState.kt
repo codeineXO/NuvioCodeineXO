@@ -230,6 +230,11 @@ internal class PlayerScreenRuntime(
     var scrubbingPositionMs by mutableStateOf<Long?>(null)
     val seekPreviewInteraction = com.nuvio.app.features.player.seekpreview.SeekPreviewInteraction()
     var seekPreviewTrack by mutableStateOf<com.nuvio.app.features.player.seekpreview.SeekrPreviewTrack?>(null)
+    /** Seekr identity resolved at playback start; null while unresolved or unavailable. */
+    var seekPreviewContent by mutableStateOf<com.nuvio.app.features.player.seekpreview.SeekrContent?>(null)
+    var seekPreviewRefreshTick by mutableStateOf(0)
+    var seekPreviewRefreshCount = 0
+    var seekPreviewLastRefreshMark: kotlin.time.TimeSource.Monotonic.ValueTimeMark? = null
     var pausedForTimelineScrub by mutableStateOf(false)
     var resumingAfterTimelineScrubForPresence by mutableStateOf(false)
     var pausedOverlayVisible by mutableStateOf(false)

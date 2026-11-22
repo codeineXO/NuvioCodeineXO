@@ -534,7 +534,6 @@ let state = {
   seekPreviewThumbnailCount: 5,
   seekPreviewSizePercent: 100,
   seekPreviewVttUrl: "",
-  seekrApiKey: "",
   seekrImdbId: "",
   seekrTmdbId: 0,
   seekrSeason: 0,
@@ -6363,7 +6362,8 @@ nextEpisodeCard.addEventListener("click", event => {
 
 let seekrCues = [];
 let seekrLoadedVttUrl = "";
-let seekrLastQueryKey = "";
+let seekrExpiryReported = false;
+const seekrProbedSheets = new Map();
 let seekrContentKey = "";
 let seekrRequestGeneration = 0;
 let seekHoverPositionMs = null;
@@ -6555,12 +6555,17 @@ function findSeekrCueIndex(cues, positionMs) {
   return Math.min(Math.max(0, low), cues.length - 1);
 }
 
+function resetSeekrState() {
+  seekrRequestGeneration++;
+  seekrCues = [];
+  seekrLoadedVttUrl = "";
+  seekrProbedSheets.clear();
+  seekrExpiryReported = false;
+}
+
 function syncSeekrPreviews() {
   if (!state.seekPreviewEnabled) {
-    seekrRequestGeneration++;
-    seekrCues = [];
-    seekrLoadedVttUrl = "";
-    seekrLastQueryKey = "";
+    resetSeekrState();
     window.clearTimeout(seekKeyboardTimer);
     seekKeyboardPositionMs = null;
     refreshSeekHover();
@@ -6571,64 +6576,68 @@ function syncSeekrPreviews() {
   if (newContentKey !== seekrContentKey) {
     clearSeekPreviewInteraction();
     seekrContentKey = newContentKey;
-    seekrRequestGeneration++;
-    seekrCues = [];
-    seekrLoadedVttUrl = "";
-    seekrLastQueryKey = "";
+    resetSeekrState();
   }
 
-  if (state.seekPreviewVttUrl && state.seekPreviewVttUrl !== seekrLoadedVttUrl) {
-    const generation = ++seekrRequestGeneration;
-    const vttUrl = state.seekPreviewVttUrl;
-    seekrCues = [];
-    seekrLoadedVttUrl = vttUrl;
-    refreshSeekHover();
-    fetch(vttUrl)
-      .then(res => res.text())
-      .then(text => {
-        if (generation !== seekrRequestGeneration) return;
-        seekrCues = parseSeekrVtt(text, vttUrl);
-        refreshSeekHover();
-      })
-      .catch(() => {});
+  // Kotlin owns the /sprites lookup (and the API key); this only renders its VTT.
+  const vttUrl = state.seekPreviewVttUrl || "";
+  if (!vttUrl) {
+    if (seekrLoadedVttUrl) {
+      resetSeekrState();
+      refreshSeekHover();
+    }
     return;
   }
+  if (vttUrl === seekrLoadedVttUrl) return;
 
-  const queryKey = `${newContentKey}:${state.seekrApiKey || ''}`;
-  if (!state.seekPreviewVttUrl && !seekrLoadedVttUrl && queryKey !== seekrLastQueryKey && (state.seekrImdbId || state.seekrTmdbId > 0)) {
-    const generation = ++seekrRequestGeneration;
-    seekrLastQueryKey = queryKey;
-    const params = new URLSearchParams();
-    if (state.durationMs > 0) params.set("duration_ms", state.durationMs);
-    if (state.seekrSeason > 0 && state.seekrEpisode > 0) {
-      if (state.seekrImdbId) params.set("show_imdb_id", state.seekrImdbId);
-      if (state.seekrTmdbId > 0) params.set("show_tmdb_id", state.seekrTmdbId);
-      params.set("season", state.seekrSeason);
-      params.set("episode", state.seekrEpisode);
-    } else {
-      if (state.seekrImdbId) params.set("imdb_id", state.seekrImdbId);
-      if (state.seekrTmdbId > 0) params.set("tmdb_id", state.seekrTmdbId);
-    }
+  // A refreshed URL keeps the current cues on screen until the new VTT parses.
+  const generation = ++seekrRequestGeneration;
+  seekrLoadedVttUrl = vttUrl;
+  fetch(vttUrl)
+    .then(res => res.ok ? res.text() : Promise.reject(new Error(String(res.status))))
+    .then(text => {
+      if (generation !== seekrRequestGeneration) return;
+      seekrCues = parseSeekrVtt(text, vttUrl);
+      seekrProbedSheets.clear();
+      seekrExpiryReported = false;
+      refreshSeekHover();
+    })
+    .catch(() => {
+      if (generation === seekrRequestGeneration) reportSeekrExpired();
+    });
+}
 
-    const headers = {};
-    if (state.seekrApiKey) headers["X-API-Key"] = state.seekrApiKey.trim();
+function reportSeekrExpired() {
+  if (seekrExpiryReported) return;
+  seekrExpiryReported = true;
+  send("seekPreviewExpired", 0);
+}
 
-    fetch(`https://api.seekr.tv/sprites?${params.toString()}`, { headers })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (generation !== seekrRequestGeneration) return null;
-        if (!data || !data.vttUrl) return;
-        const vtt = data.vttUrl.includes("?") ? `${data.vttUrl}&st=1` : `${data.vttUrl}?st=1`;
-        seekrLoadedVttUrl = vtt;
-        return fetch(vtt).then(res => res.text());
-      })
-      .then(text => {
-        if (text && generation === seekrRequestGeneration) {
-          seekrCues = parseSeekrVtt(text, seekrLoadedVttUrl);
-          refreshSeekHover();
-        }
-      })
-      .catch(() => {});
+/**
+ * Loads each signed sheet once into a held Image: it warms the cache the CSS tile backgrounds read from, and
+ * reports failures (CSS backgrounds fail silently) so an expired URL (403) triggers a fresh lookup.
+ */
+function probeSeekrSheet(sheetUrl) {
+  if (!sheetUrl || seekrProbedSheets.has(sheetUrl)) return;
+  const vttUrl = seekrLoadedVttUrl;
+  const probe = new Image();
+  probe.onerror = () => {
+    if (vttUrl === seekrLoadedVttUrl) reportSeekrExpired();
+  };
+  seekrProbedSheets.set(sheetUrl, probe);
+  probe.src = sheetUrl;
+}
+
+/** Preloads the sheet under the cursor and the nearest different sheets on either side. */
+function preloadSeekrSheetsAround(index) {
+  const center = seekrCues[index] && seekrCues[index].sheetUrl;
+  if (!center) return;
+  probeSeekrSheet(center);
+  for (let i = index + 1; i < seekrCues.length; i++) {
+    if (seekrCues[i].sheetUrl !== center) { probeSeekrSheet(seekrCues[i].sheetUrl); break; }
+  }
+  for (let i = index - 1; i >= 0; i--) {
+    if (seekrCues[i].sheetUrl !== center) { probeSeekrSheet(seekrCues[i].sheetUrl); break; }
   }
 }
 
@@ -6649,6 +6658,7 @@ function updateSeekrPreview(positionMs, clientX, trigger = "hovering") {
   seekHoverClientX = clientX;
   seekHoverContentKey = seekHoverSourceKey();
 
+  preloadSeekrSheetsAround(centerIdx);
   const centerCue = seekrCues[centerIdx];
   const tileWidth = (centerCue && centerCue.w) || 144;
   const tileHeight = (centerCue && centerCue.h) || 81;

@@ -110,6 +110,8 @@ internal fun SeekPreviewFilmstripOverlay(
         slots = newSlots
 
         motion.moveBy(stepDiff, sideFrames)
+        // Neighbouring sheets download while the user dwells; a new cue index cancels this.
+        track.preloadAround(currentCueIndex)
     }
 
     val density = LocalDensity.current

@@ -54,13 +54,18 @@ import com.nuvio.app.features.streams.hasLikelyExpiringPlaybackCredentials
 import com.nuvio.app.features.tracking.TrackingScrobbleAction
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.isDesktop
+import co.touchlab.kermit.Logger
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.nuvio.app.features.player.seekpreview.SeekrContentMapping
+import com.nuvio.app.features.player.seekpreview.BoundedSheetCache
 import com.nuvio.app.features.player.seekpreview.SeekrLookupClient
+import com.nuvio.app.features.player.seekpreview.SeekrLookupResult
 import com.nuvio.app.features.player.seekpreview.SeekrPreviewTrack
 import kotlinx.coroutines.withTimeoutOrNull
 import nuvio.composeapp.generated.resources.*
@@ -187,6 +192,8 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         isScrubbingTimeline = false
         scrubbingPositionMs = null
         seekPreviewTrack = null
+        seekPreviewRefreshCount = 0
+        seekPreviewLastRefreshMark = null
         seekPreviewInteraction.clear()
         pausedForTimelineScrub = false
         resumingAfterTimelineScrubForPresence = false
@@ -241,9 +248,10 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
     val seekrApiKey = playerSettingsUiState.seekrApiKey
     val currentDurationMs = playbackSnapshot.durationMs
 
+    // Seekr identity: resolved once per title, separately from the lookup so refreshes skip the TMDB calls.
     LaunchedEffect(
         seekPreviewEnabled,
-        seekrApiKey,
+        seekrApiKey.isBlank(),
         parentMetaId,
         parentMetaType,
         activeVideoId,
@@ -251,18 +259,11 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         activeEpisodeNumber,
         playerMeta?.id,
         playerMeta?.imdbId,
-        currentDurationMs > 0L,
     ) {
-        if (!seekPreviewEnabled) {
-            val oldTrack = seekPreviewTrack
-            seekPreviewTrack = null
-            oldTrack?.clear()
+        if (!seekPreviewEnabled || seekrApiKey.isBlank()) {
+            seekPreviewContent = null
             return@LaunchedEffect
         }
-
-        // Seekr rejects lookups without duration_ms (400); wait until playback reports it.
-        if (currentDurationMs <= 0L) return@LaunchedEffect
-
         val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
         val resolvedImdbId = extractImdbId(parentMetaId)
             ?: extractImdbId(targetMeta?.imdbId)
@@ -273,7 +274,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             ?: TmdbService.ensureTmdbId(targetMeta?.id ?: parentMetaId, parentMetaType, fallbackImdbId = resolvedImdbId)?.toIntOrNull()
             ?: TmdbService.ensureTmdbId(resolvedImdbId ?: parentMetaId, parentMetaType, fallbackImdbId = targetMeta?.imdbId)?.toIntOrNull()
 
-        val content = SeekrContentMapping.from(
+        seekPreviewContent = SeekrContentMapping.from(
             parentMetaId = parentMetaId,
             videoId = activeVideoId,
             contentType = contentType ?: parentMetaType,
@@ -282,28 +283,53 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             explicitImdbId = resolvedImdbId,
             explicitTmdbId = resolvedTmdbId,
         )
+    }
 
-        if (content == null) {
+    val seekPreviewLookupContent = seekPreviewContent
+    LaunchedEffect(
+        seekPreviewEnabled,
+        seekrApiKey,
+        seekPreviewLookupContent,
+        currentDurationMs > 0L,
+        seekPreviewRefreshTick,
+    ) {
+        suspend fun replaceTrack(track: SeekrPreviewTrack?) {
             val oldTrack = seekPreviewTrack
-            seekPreviewTrack = null
-            oldTrack?.clear()
-            return@LaunchedEffect
+            seekPreviewTrack = track
+            if (oldTrack != null && oldTrack.sheetCache !== track?.sheetCache) oldTrack.clear()
         }
 
-        val trackResult = SeekrLookupClient.loadTrackResult(
+        val content = seekPreviewLookupContent
+        if (!seekPreviewEnabled || seekrApiKey.isBlank() || content == null) {
+            replaceTrack(null)
+            return@LaunchedEffect
+        }
+        // Seekr rejects lookups without duration_ms (400); wait until playback reports it.
+        if (currentDurationMs <= 0L) return@LaunchedEffect
+
+        val previousTrack = seekPreviewTrack?.takeIf { it.content == content }
+        val result = SeekrLookupClient.lookupWithRetry(
             content = content,
             durationMs = currentDurationMs,
             apiKey = seekrApiKey,
+            // Desktop renders previews in controls.js, which downloads the VTT itself.
+            fetchCues = !isDesktop,
         )
-
-        if (trackResult != null && trackResult.cues.isNotEmpty()) {
-            val oldTrack = seekPreviewTrack
-            seekPreviewTrack = SeekrPreviewTrack(cues = trackResult.cues, vttUrl = trackResult.vttUrl)
-            oldTrack?.clear()
-        } else {
-            val oldTrack = seekPreviewTrack
-            seekPreviewTrack = null
-            oldTrack?.clear()
+        when (result) {
+            is SeekrLookupResult.Loaded -> replaceTrack(
+                SeekrPreviewTrack(
+                    cues = result.cues,
+                    vttUrl = result.vttUrl,
+                    content = content,
+                    sheetCache = previousTrack?.sheetCache
+                        ?: BoundedSheetCache(onExpired = { requestSeekPreviewRefresh() }),
+                ),
+            )
+            else -> {
+                seekrLog.i { "lookup failed: $result" }
+                // A failed refresh keeps the old track: its decoded sheets still render.
+                if (previousTrack == null) replaceTrack(null)
+            }
         }
     }
 
@@ -1344,3 +1370,20 @@ internal fun findCredentialRefreshCandidate(
 
 private const val CREDENTIAL_REFRESH_POLL_COUNT = 30
 private const val CREDENTIAL_REFRESH_POLL_INTERVAL_MS = 500L
+
+private val seekrLog = Logger.withTag("Seekr")
+private const val SeekPreviewMaxRefreshes = 3
+private val SeekPreviewRefreshInterval = 60.seconds
+
+/** Signed Seekr URLs expired (sprite 403): look the title up again, rate-limited per playback. */
+internal fun PlayerScreenRuntime.requestSeekPreviewRefresh() {
+    scope.launch {
+        if (seekPreviewTrack == null || seekPreviewRefreshCount >= SeekPreviewMaxRefreshes) return@launch
+        val last = seekPreviewLastRefreshMark
+        if (last != null && last.elapsedNow() < SeekPreviewRefreshInterval) return@launch
+        seekPreviewRefreshCount += 1
+        seekPreviewLastRefreshMark = TimeSource.Monotonic.markNow()
+        seekrLog.i { "sprite URLs expired; refreshing lookup (${seekPreviewRefreshCount}/$SeekPreviewMaxRefreshes)" }
+        seekPreviewRefreshTick += 1
+    }
+}

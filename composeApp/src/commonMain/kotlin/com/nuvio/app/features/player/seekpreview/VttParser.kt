@@ -14,7 +14,9 @@ internal object VttParser {
                 if (parts.size == 2) {
                     val startMs = parseTimestamp(parts[0].trim())
                     val endMs = parseTimestamp(parts[1].trim())
-                    val payload = lines.drop(i + 1).firstOrNull { it.isNotBlank() }?.trim()
+                    var payloadIndex = i + 1
+                    while (payloadIndex < lines.size && lines[payloadIndex].isBlank()) payloadIndex++
+                    val payload = lines.getOrNull(payloadIndex)?.trim()?.takeUnless { it.contains("-->") }
                     val tile = payload?.let { parseTile(it, baseUrl) }
                     if (tile != null) {
                         cues += SeekrCue(
