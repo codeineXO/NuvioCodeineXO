@@ -94,6 +94,40 @@ internal object DesktopStorage {
         }
     }
 
+    // Debug-log masking works on whole words of a key name (split on _ . - and camelCase), so
+    // `trakt_access_token` and `debrid_torbox_api_key` are hidden but `auto_skip_post_credits`,
+    // `pinned_rows` and `selected_icon_key` stay readable.
+    private val keyWordSplit = Regex("[_.\\-]+|(?<=[a-z0-9])(?=[A-Z])")
+    private val secretWords = setOf(
+        "token", "secret", "password", "passwd", "cookie", "session", "verifier", "pin", "credentials",
+    )
+    private val keyQualifiers = setOf("api", "apikey", "publishable", "private", "access", "auth")
+    private val plainValue = Regex("true|false|-?\\d+(\\.\\d+)?")
+
+    private fun nameWords(name: String): List<String> =
+        name.split(keyWordSplit).filter { it.isNotEmpty() }.map { it.lowercase() }
+
+    internal fun isSensitiveSettingKey(key: String): Boolean {
+        val words = nameWords(key)
+        if (words.any { it in secretWords || it == "apikey" }) return true
+        // "key" alone is too common (icon_key, sort_key); only api/access/auth keys are secrets.
+        return words.zipWithNext().any { (before, word) -> word == "key" && before in keyQualifiers }
+    }
+
+    /** Stores that hold only credentials or identities; every value in them is hidden. */
+    internal fun isCredentialStore(storeName: String): Boolean {
+        val words = nameWords(storeName)
+        return words.any { it == "auth" || it == "credentials" || it == "identity" } ||
+            storeName.contains("member_access")
+    }
+
+    /** Booleans and numbers carry no secrets and are the most useful breadcrumbs. */
+    internal fun maskSettingValue(storeName: String, key: String, value: String?): String? = when {
+        value == null || plainValue.matches(value) -> value
+        isCredentialStore(storeName) || isSensitiveSettingKey(key) -> "<hidden>"
+        else -> value
+    }
+
     internal class Store(
         private val file: Path,
     ) {
@@ -120,7 +154,21 @@ internal object DesktopStorage {
             } else {
                 properties.setProperty(key, value) != value
             }
-            if (changed) schedulePersist()
+            if (changed) {
+                schedulePersist()
+                logSettingChange(key, value)
+            }
+        }
+
+        // Settings breadcrumbs for the debug log; high-churn stores (progress, caches) are skipped.
+        private val storeName = file.fileName.toString().removeSuffix(".properties")
+        private val logsChanges = listOf("progress", "cache", "enrichment").none { storeName.contains(it) }
+
+        // Credentials, addon/server URLs and identities: log that the key changed, never the value.
+
+        private fun logSettingChange(key: String, value: String?) {
+            if (!logsChanges) return
+            com.nuvio.app.core.diagnostics.DebugLog.settingChanged(storeName, key, maskSettingValue(storeName, key, value))
         }
 
         fun getBoolean(key: String): Boolean? =

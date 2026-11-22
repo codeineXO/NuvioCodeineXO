@@ -1,10 +1,10 @@
 package com.nuvio.app.features.settings
 
-import com.nuvio.app.core.diagnostics.SentryConfig
 import com.nuvio.app.core.storage.DesktopStorage
 
 internal actual object SentrySettingsPlatform {
-    actual val crashReportsSupported: Boolean = SentryConfig.DESKTOP_DSN.isNotBlank()
+    // Fork: never send crash reports to the upstream Sentry project.
+    actual val crashReportsSupported: Boolean = false
     actual val usesDesktopCopy: Boolean = true
 }
 

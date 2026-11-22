@@ -330,6 +330,11 @@ internal fun MainAppContent(
             warmProfileBoundRepositories()
         }
         val currentRoute = navBackStack.lastOrNull() as? AppRoute
+        LaunchedEffect(currentRoute, selectedTab, shuffleSelected) {
+            com.nuvio.app.core.diagnostics.DebugLog.navigation(
+                "route=${currentRoute.toString().take(300)} tab=$selectedTab shuffle=$shuffleSelected depth=${navBackStack.size}",
+            )
+        }
         val rootFocusKey: Any = if (shuffleSelected) RandomPickerRoute else TabsRoute to selectedTab
         // Migrate a restored legacy Shuffle route into the root host.
         LaunchedEffect(currentRoute) {

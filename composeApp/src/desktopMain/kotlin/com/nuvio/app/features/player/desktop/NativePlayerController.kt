@@ -84,6 +84,8 @@ import nuvio.composeapp.generated.resources.settings_playback_mpv_config_fallbac
 import nuvio.composeapp.generated.resources.settings_playback_mpv_night_filter_error
 import nuvio.composeapp.generated.resources.player_shortcut_screenshot_failed
 import nuvio.composeapp.generated.resources.player_shortcut_screenshot_saved
+import nuvio.composeapp.generated.resources.debug_log_toast_off
+import nuvio.composeapp.generated.resources.debug_log_toast_on
 import org.jetbrains.compose.resources.getString
 import java.awt.Component
 import java.awt.event.WindowAdapter
@@ -189,6 +191,7 @@ internal class NativePlayerController(
 
         val subtitleDownloadClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
+                .addInterceptor(com.nuvio.app.core.network.DebugLogHttpInterceptor)
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .followRedirects(true)
@@ -325,6 +328,7 @@ internal class NativePlayerController(
     private var currentPlaybackStats: JsonObject? = null
     private var statsJob: Job? = null
     private var lastSentControlsStructureKey: NativeControlsStructureKey? = null
+    private var lastLoggedControlsSummary: String? = null
     private var lastEnhancementShadersKey: String? = null
     private var onAction: (PlayerControlsAction) -> Boolean = { false }
     private var onEvent: (String, Double) -> Boolean = { _, _ -> false }
@@ -817,11 +821,14 @@ internal class NativePlayerController(
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
-        log.d {
-            "updateControls handle=$current title=${stateWithEnhancements.title.take(40)} " +
-                "pos=${stateWithEnhancements.positionMs} duration=${stateWithEnhancements.durationMs} " +
-                "speed=${stateWithEnhancements.playbackSpeedLabel} audioLabel=${stateWithEnhancements.audioLabel} " +
-                "subsLabel=${stateWithEnhancements.subtitlesLabel} fullscreen=$isFullscreen"
+        // Position ticks every second; log only when something else in the summary changes.
+        val controlsLogSummary = "handle=$current title=${stateWithEnhancements.title.take(40)} " +
+            "duration=${stateWithEnhancements.durationMs} speed=${stateWithEnhancements.playbackSpeedLabel} " +
+            "audioLabel=${stateWithEnhancements.audioLabel} subsLabel=${stateWithEnhancements.subtitlesLabel} " +
+            "fullscreen=$isFullscreen"
+        if (controlsLogSummary != lastLoggedControlsSummary) {
+            lastLoggedControlsSummary = controlsLogSummary
+            log.d { "updateControls $controlsLogSummary pos=${stateWithEnhancements.positionMs}" }
         }
         val stateToSend = stateWithEnhancements.copy(
             closeModalsToken = stateWithEnhancements.closeModalsToken + remoteCloseCount,
@@ -1263,8 +1270,8 @@ internal class NativePlayerController(
             }
             "cursorActivity" -> host.noteCursorActivity()
             "scrubChange" -> {
+                // Fires for every drag step; scrubFinish/seekTo log where the scrub landed.
                 val handled = onScrubChange(value.toLong())
-                log.d { "scrubChange positionMs=${value.toLong()} handled=$handled handle=$handle" }
                 if (!handled) {
                     updateLocalProgress(value.toLong())
                 }
@@ -1286,6 +1293,12 @@ internal class NativePlayerController(
             }
             "frameStep", "frameBackStep" -> runShortcutCommand(if (type == "frameStep") "frame-step" else "frame-back-step")
             "screenshot" -> takeScreenshot()
+            "toggleDebugLog" -> {
+                val enabled = com.nuvio.app.core.diagnostics.DebugLogSettings.toggle()
+                showMpvNotice(handle) {
+                    getString(if (enabled) Res.string.debug_log_toast_on else Res.string.debug_log_toast_off)
+                }
+            }
             "playerUiScale" -> {
                 PlayerSettingsRepository.setPlayerUiScale(kotlin.math.round(value).toInt().coerceIn(50, 150))
             }
@@ -1653,6 +1666,7 @@ internal class NativePlayerController(
             val nextLevel = level.coerceDesktopPlayerVolumeLevel()
             rememberedVolumeLevel = nextLevel
             currentVolumeLevel = nextLevel
+            log.d { "setVolume level=$nextLevel handle=$current" }
             DesktopPlayerVolumeStorage.saveVolumeLevel(nextLevel)
             NativePlayerBridge.setVolume(current, nextLevel)
             controlsState = controlsState.copy(volumeLevel = nextLevel)
@@ -2673,6 +2687,9 @@ private fun String.toPlaybackLogKey(): String {
 
 private fun String.shouldLogNativeControlEvent(): Boolean {
     val normalized = lowercase()
+    if (com.nuvio.app.core.diagnostics.DebugLog.isEnabled) {
+        return listOf("temporary", "hover", "preview", "pointer", "mouse", "activity", "heartbeat", "keepchromevisible", "scrubchange").none(normalized::contains)
+    }
     return normalized.contains("audio") ||
         normalized.contains("subtitle") ||
         normalized.contains("speed") ||

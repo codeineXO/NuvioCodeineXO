@@ -366,7 +366,6 @@ object MetaDetailsRepository {
             TmdbSettingsRepository.ensureLoaded()
             log.d { "Fetching meta from: $url" }
             val payload = fetchAddonResponseText(url)
-            log.d { "Raw payload length=${payload.length}, first 500 chars: ${payload.take(500)}" }
             val result = withContext(Dispatchers.Default) {
                 MetaDetailsParser.parse(payload).copy(provenance = MetadataProvenance(
                     sourceName = manifest.name,

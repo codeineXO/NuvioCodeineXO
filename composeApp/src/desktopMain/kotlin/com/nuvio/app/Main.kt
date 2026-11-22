@@ -26,7 +26,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.deeplink.handleAppUrl
-import com.nuvio.app.core.diagnostics.SentryInitializer
+import com.nuvio.app.core.diagnostics.DesktopDebugLog
 import com.nuvio.app.core.instance.DesktopSingleInstanceController
 import com.nuvio.app.core.ui.DesktopAppShutdown
 import com.nuvio.app.core.ui.NuvioTheme
@@ -69,6 +69,8 @@ fun main(args: Array<String>) {
     if (!DesktopSingleInstanceController.startOrForward(args)) {
         return
     }
+    // First, so startup and crashes are captured when debug logging is on.
+    DesktopDebugLog.install()
 
     // On Linux, initialize GTK BEFORE AWT/Compose/Skia to prevent GdkDisplayManager
     // type registration conflict (Skiko partially loads GDK without full GTK init).
@@ -99,7 +101,7 @@ fun main(args: Array<String>) {
         storedKey = navigationFeelStore.getString("feel"),
         save = { navigationFeelStore.putString("feel", it) },
     )
-    SentryInitializer.start()
+    com.nuvio.app.features.player.desktop.NativePlayerLogSink.install()
     configureDesktopQuickJsLibrary()
     configureDesktopChrome()
     configureLinuxSwingGlobalsBeforeAwt()
@@ -259,6 +261,7 @@ fun main(args: Array<String>) {
                 val uninstallFullscreenShortcuts = installDesktopAppFullscreenShortcuts(window)
                 val uninstallGlobalBackNavigation = installDesktopGlobalBackNavigation(window)
                 val uninstallAppScaleShortcuts = installDesktopAppScaleShortcuts(window)
+                val uninstallDebugLogShortcut = com.nuvio.app.core.diagnostics.installDesktopDebugLogShortcut(window)
                 val untrackMaximizedBounds = window.trackMaximizedBoundsForCurrentScreen()
                 onDispose {
                     DesktopSingleInstanceController.detachWindow()
@@ -266,6 +269,7 @@ fun main(args: Array<String>) {
                     uninstallFullscreenShortcuts()
                     uninstallGlobalBackNavigation()
                     uninstallAppScaleShortcuts()
+                    uninstallDebugLogShortcut()
                     untrackMaximizedBounds()
                     unregisterFullscreenToggle()
                 }

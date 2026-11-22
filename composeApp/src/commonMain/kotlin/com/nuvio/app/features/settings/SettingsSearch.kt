@@ -510,14 +510,14 @@ internal fun settingsSearchEntries(
             category = advancedCategory,
         )
     }
-    if (SentrySettingsRepository.isSupported) {
+    if (com.nuvio.app.core.diagnostics.DebugLogSettings.isSupported) {
         addRow(
             page = SettingsPage.Advanced,
-            key = "sentry-crash-reports",
-            title = stringResource(Res.string.settings_advanced_sentry_reports),
-            description = stringResource(Res.string.settings_advanced_sentry_reports_subtitle),
+            key = "debug-logging",
+            title = stringResource(Res.string.debug_log_enabled),
+            description = stringResource(Res.string.debug_log_enabled_description, "Ctrl + Shift + L"),
             pageLabel = advancedPage,
-            section = stringResource(Res.string.settings_advanced_section_diagnostics),
+            section = stringResource(Res.string.debug_log_section),
             category = advancedCategory,
         )
     }

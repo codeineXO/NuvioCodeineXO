@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="debug_log_section">Debug logging</string>
+    <string name="debug_log_enabled">Debug logging</string>
+    <string name="debug_log_enabled_description">Record app, player (mpv), network and navigation activity to a log file for bug reports. Shortcut: %1$s</string>
+    <string name="debug_log_redact">Hide secrets in logs</string>
+    <string name="debug_log_redact_description">Mask tokens, API keys, passwords and debrid links. Turn off only when sharing logs privately.</string>
+    <string name="debug_log_open_folder">Open log folder</string>
+    <string name="debug_log_toast_on">Debug logging on</string>
+    <string name="debug_log_toast_off">Debug logging off</string>
+</resources>

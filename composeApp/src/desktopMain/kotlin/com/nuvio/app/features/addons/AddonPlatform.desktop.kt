@@ -48,6 +48,7 @@ private const val AddonHttpCacheBytes = 50L * 1024L * 1024L
 
 internal val desktopHttpClient = OkHttpClient.Builder()
     .dns(DesktopIPv4FirstDns())
+    .addInterceptor(com.nuvio.app.core.network.DebugLogHttpInterceptor)
     // Same as mobile: addon responses are reused from disk while the addon's Cache-Control allows.
     .cache(Cache(DesktopStorage.cacheDir.resolve("addon_http").toFile(), AddonHttpCacheBytes))
     .connectTimeout(60, TimeUnit.SECONDS)

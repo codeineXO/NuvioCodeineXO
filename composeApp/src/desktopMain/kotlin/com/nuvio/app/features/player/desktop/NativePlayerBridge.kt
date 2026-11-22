@@ -83,6 +83,9 @@ internal object NativePlayerBridge {
         eventSink: NativePlayerEventSink,
     ): Long
 
+    /** Windows only: keep mpv at "v" and forward every message to [sinkClass].onMpvLog. */
+    external fun setDebugLogging(enabled: Boolean, sinkClass: Class<*>)
+
     external fun validateWindowsMpvOptions(options: Array<String>): Array<String?>
     external fun usedDefaultWindowsMpvConfig(handle: Long): Boolean
     external fun windowsPlaybackStatsJson(handle: Long): String?

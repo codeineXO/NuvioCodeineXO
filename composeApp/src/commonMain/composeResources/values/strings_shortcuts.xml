@@ -74,4 +74,5 @@
     <string name="player_shortcut_grain_filter_toggle">Frosted matte filter on / off</string>
     <string name="player_shortcut_screenshot">Screenshot</string>
     <string name="player_shortcut_cheat_sheet">Show shortcuts in player</string>
+    <string name="player_shortcut_toggle_debug_log">Toggle debug logging</string>
 </resources>

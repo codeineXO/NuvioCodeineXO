@@ -89,6 +89,7 @@ enum class PlayerShortcutAction(
     EyeFilterToggle("eyeFilterToggle", PlayerShortcutGroup.View, listOf("Digit0", "Numpad0")),
     GrainFilterToggle("grainFilterToggle", PlayerShortcutGroup.View, listOf("Digit9", "Numpad9")),
     Screenshot("screenshot", PlayerShortcutGroup.View, listOf("Shift+KeyS")),
+    ToggleDebugLog("toggleDebugLog", PlayerShortcutGroup.View, listOf("Ctrl+Shift+KeyL")),
     CheatSheet("cheatSheet", PlayerShortcutGroup.View, listOf("F1")),
     ;
 

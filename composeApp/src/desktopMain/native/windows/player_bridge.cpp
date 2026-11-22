@@ -257,6 +257,16 @@ jstring newJavaStringUtf8(JNIEnv *env, const std::string &value) {
     return env->NewString(reinterpret_cast<const jchar *>(wide.data()), (jsize)wide.size());
 }
 
+// Debug logging (Settings > Debug logging): while on, mpv stays at "v" after startup and every
+// log message is forwarded to NativePlayerLogSink.onMpvLog(level, prefix, text).
+std::atomic<bool> gDebugLogEnabled{false};
+std::atomic<jclass> gDebugLogClass{nullptr};
+std::atomic<jmethodID> gDebugLogMethod{nullptr};
+
+const char *mpvLogLevel(const char *requested) {
+    return gDebugLogEnabled.load() ? "v" : requested;
+}
+
 std::vector<std::string> jstringArrayToVector(JNIEnv *env, jobjectArray values, bool preserveEmpty = false) {
     std::vector<std::string> result;
     if (!values) return result;
@@ -3308,7 +3318,19 @@ private:
         if (rtxFilterAttached) setRtxFilterLocked(true);
     }
 
+    // Debug-log forwarding attaches this thread to the JVM on first use and stays attached until
+    // the loop exits; attaching per message at mpv "v" level is far too costly.
+    struct LogThreadAttachment {
+        JavaVM *vm = nullptr;
+        JNIEnv *env = nullptr;
+        bool attached = false;
+        ~LogThreadAttachment() {
+            if (attached && vm) vm->DetachCurrentThread();
+        }
+    };
+
     void drainMpvEvents() {
+        LogThreadAttachment logAttachment;
         while (!stopping.load()) {
             mpv_handle *current = nullptr;
             {
@@ -3339,6 +3361,9 @@ private:
             }
             if (event->event_id == MPV_EVENT_LOG_MESSAGE && event->data) {
                 const auto &message = *static_cast<const mpv_event_log_message *>(event->data);
+                if (message.text && gDebugLogEnabled.load()) {
+                    forwardDebugLog(logAttachment, message.level ? message.level : "", message.prefix ? message.prefix : "", message.text);
+                }
                 // Startup raises the level to "v" for HLS detection; failure handling keeps
                 // seeing only fatal/error/warn (log_level <= 30), as before.
                 if (message.text && message.log_level <= 30) {
@@ -3418,7 +3443,7 @@ private:
 
     void setStartupLogLevel(const char *level) {
         std::lock_guard<std::mutex> lock(mpvMutex);
-        if (mpv) (void)mpvApi().requestLogMessages(mpv, level);
+        if (mpv) (void)mpvApi().requestLogMessages(mpv, mpvLogLevel(level));
     }
 
     void finishStartup() {
@@ -3426,7 +3451,37 @@ private:
         initialStartPending.store(false);
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
-        (void)mpvApi().requestLogMessages(mpv, "warn");
+        (void)mpvApi().requestLogMessages(mpv, mpvLogLevel("warn"));
+    }
+
+public:
+    // Called when debug logging is toggled mid-playback; startup keeps its own "v" level.
+    void applyDebugLogLevel() {
+        if (startupPhase.load()) return;
+        std::lock_guard<std::mutex> lock(mpvMutex);
+        if (mpv) (void)mpvApi().requestLogMessages(mpv, mpvLogLevel("warn"));
+    }
+
+private:
+
+    void forwardDebugLog(LogThreadAttachment &attachment, const char *level, const char *prefix, const char *text) {
+        jclass sinkClass = gDebugLogClass.load();
+        jmethodID sinkMethod = gDebugLogMethod.load();
+        if (!sinkClass || !sinkMethod) return;
+        if (!attachment.env) {
+            attachment.vm = javaVm;
+            attachment.env = jniEnvDidAttach(&attachment.attached);
+            if (!attachment.env) return;
+        }
+        JNIEnv *env = attachment.env;
+        jstring levelText = newJavaStringUtf8(env, level);
+        jstring prefixText = newJavaStringUtf8(env, prefix);
+        jstring messageText = newJavaStringUtf8(env, text);
+        env->CallStaticVoidMethod(sinkClass, sinkMethod, levelText, prefixText, messageText);
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (levelText) env->DeleteLocalRef(levelText);
+        if (prefixText) env->DeleteLocalRef(prefixText);
+        if (messageText) env->DeleteLocalRef(messageText);
     }
 
     void handleMpvLog(std::string_view prefix, std::string_view message) {
@@ -4146,6 +4201,28 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_createWindows(
     jstring audioLanguages, jobject sink
 ) {
     return createWindowsPlayer(env, host, source, audio, headers, play, position, controls, decoder, rtx, rtxHdr, options, !options, audioLanguages, sink);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_setDebugLogging(
+    JNIEnv *env, jobject, jboolean enabled, jclass sinkClass
+) {
+    if (enabled == JNI_TRUE && sinkClass && !gDebugLogClass.load()) {
+        jmethodID method = env->GetStaticMethodID(
+            sinkClass, "onMpvLog", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+        if (env->ExceptionCheck()) env->ExceptionClear();
+        if (method) {
+            gDebugLogMethod.store(method);
+            gDebugLogClass.store((jclass)env->NewGlobalRef(sinkClass));
+        }
+    }
+    gDebugLogEnabled.store(enabled == JNI_TRUE);
+    std::vector<std::shared_ptr<WindowsMpvWebPlayer>> players;
+    {
+        std::lock_guard<std::mutex> lock(playerHandlesMutex);
+        for (const auto &entry : playerHandles) players.push_back(entry.second);
+    }
+    for (const auto &player : players) player->applyDebugLogLevel();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

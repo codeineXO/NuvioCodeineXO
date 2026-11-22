@@ -5184,7 +5184,7 @@ const defaultShortcutBindings = {
   "KeyF": "fullscreen", "KeyY": "miniPlayer", "KeyP": "pictureInPicture", "KeyR": "resize",
   "KeyI": "streamStats", "Digit0": "eyeFilterToggle", "Numpad0": "eyeFilterToggle",
   "Digit9": "grainFilterToggle", "Numpad9": "grainFilterToggle",
-  "Shift+KeyS": "screenshot", "F1": "cheatSheet",
+  "Shift+KeyS": "screenshot", "F1": "cheatSheet", "Ctrl+Shift+KeyL": "toggleDebugLog",
 };
 let shortcutBindings = defaultShortcutBindings;
 let shortcutSteps = { seekShortMs: 3000, seekLongMs: 10000, seekFineMs: 1000, volumePercent: 5, subtitleDelayMs: 100 };
@@ -7816,7 +7816,7 @@ document.addEventListener("keyup", event => {
 const modalSafeShortcutActions = new Set([
   "speedPanel", "audioPanel", "subtitlesPanel", "qualityPanel", "episodesPanel", "sourcesPanel",
   "shadersPanel", "eyeFilterPanel", "chaptersPanel", "partyPanel", "streamStats", "resize",
-  "miniPlayer", "screenshot", "cheatSheet", "eyeFilterToggle", "grainFilterToggle",
+  "miniPlayer", "screenshot", "cheatSheet", "eyeFilterToggle", "grainFilterToggle", "toggleDebugLog",
 ]);
 
 const toggleModalShortcut = name => {
@@ -8064,6 +8064,9 @@ const runShortcutAction = (action, event) => {
     }
     case "screenshot":
       send("screenshot", 0);
+      return true;
+    case "toggleDebugLog":
+      send("toggleDebugLog", 0);
       return true;
     case "cheatSheet":
       clearSpaceHoldTimerAndStopSpeedBoost();

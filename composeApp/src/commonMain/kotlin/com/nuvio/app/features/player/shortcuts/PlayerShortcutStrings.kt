@@ -53,5 +53,6 @@ val PlayerShortcutAction.titleRes: StringResource
         PlayerShortcutAction.EyeFilterToggle -> Res.string.player_shortcut_eye_filter_toggle
         PlayerShortcutAction.GrainFilterToggle -> Res.string.player_shortcut_grain_filter_toggle
         PlayerShortcutAction.Screenshot -> Res.string.player_shortcut_screenshot
+        PlayerShortcutAction.ToggleDebugLog -> Res.string.player_shortcut_toggle_debug_log
         PlayerShortcutAction.CheatSheet -> Res.string.player_shortcut_cheat_sheet
     }
