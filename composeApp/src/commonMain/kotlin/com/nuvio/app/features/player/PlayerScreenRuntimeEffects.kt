@@ -260,6 +260,9 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             return@LaunchedEffect
         }
 
+        // Seekr rejects lookups without duration_ms (400); wait until playback reports it.
+        if (currentDurationMs <= 0L) return@LaunchedEffect
+
         val targetMeta = playerMeta ?: MetaDetailsRepository.peek(parentMetaType, parentMetaId)
         val resolvedImdbId = extractImdbId(parentMetaId)
             ?: extractImdbId(targetMeta?.imdbId)

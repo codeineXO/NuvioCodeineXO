@@ -37,11 +37,9 @@ internal object SeekrLookupClient {
         durationMs: Long,
         apiKey: String,
     ): SeekrTrackResult? = withContext(Dispatchers.Default) {
+        if (durationMs <= 0L) return@withContext null
         val trimmedKey = apiKey.trim()
-        val queryParams = mutableListOf<String>()
-        if (durationMs > 0L) {
-            queryParams += "duration_ms=$durationMs"
-        }
+        val queryParams = mutableListOf("duration_ms=$durationMs")
 
         when (content) {
             is SeekrContent.Movie -> {
