@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player.desktop
 
 import co.touchlab.kermit.Logger
+import java.io.InputStream
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -72,14 +73,19 @@ internal object DirectSourceRedirect {
         return target.toString()
     }
 
-    private fun probe(uri: URI, headerLines: List<String>, timeout: Duration): HttpResponse<Void> {
+    // Only the status and headers are needed. The body is opened as a stream and closed at once:
+    // a server that ignores Range answers 200 with the whole file, and a discarding handler would
+    // read all of it (the request timeout stops at the headers), delaying mpv's start until the
+    // full download finishes. Closing early drops the connection instead.
+    private fun probe(uri: URI, headerLines: List<String>, timeout: Duration): HttpResponse<InputStream> {
         val request = HttpRequest.newBuilder(uri)
             .timeout(timeout)
             .GET()
             .withSourceHeaders(headerLines)
             .header("Range", "bytes=0-0")
             .build()
-        return client.send(request, HttpResponse.BodyHandlers.discarding())
+        return client.send(request, HttpResponse.BodyHandlers.ofInputStream())
+            .also { response -> runCatching { response.body().close() } }
     }
 
     private fun fallback(sourceUrl: String, reason: String): String {
