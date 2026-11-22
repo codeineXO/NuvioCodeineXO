@@ -378,6 +378,22 @@ private val LanguageNameAliases = mapOf(
     "zulu" to "zu",
 )
 
+// Longest names first, so "brazilian portuguese" wins over "portuguese". Sorted once: the player looks labels up
+// for every subtitle on each recomposition.
+private val LanguageNameAliasesLongestFirst by lazy {
+    LanguageNameAliases.entries.sortedByDescending { it.key.length }
+}
+
+// Normalized code -> label of the first option with that code, matching a linear search over the options.
+private val AvailableLanguageLabelResByCode: Map<String, StringResource> by lazy {
+    buildMap {
+        AvailableLanguageOptions.forEach { option ->
+            val normalized = normalizeLanguageCode(option.code) ?: return@forEach
+            if (normalized !in this) put(normalized, option.labelRes)
+        }
+    }
+}
+
 fun normalizeLanguageCode(language: String?): String? {
     val raw = language
         ?.trim()
@@ -416,8 +432,7 @@ fun normalizeLanguageCode(language: String?): String? {
 
     LanguageCodeAliases[raw]?.let { return it.replace('_', '-').lowercase() }
     LanguageNameAliases[tokenized]?.let { return it }
-    LanguageNameAliases.entries
-        .sortedByDescending { it.key.length }
+    LanguageNameAliasesLongestFirst
         .firstOrNull { (name, _) ->
             tokenized == name ||
                 tokenized.startsWith("$name ") ||
@@ -450,9 +465,7 @@ fun languageMatchesPreference(trackLanguage: String?, targetLanguage: String): B
 
 internal fun languageLabelResForCode(code: String?): StringResource? {
     val normalized = normalizeLanguageCode(code) ?: return null
-    return AvailableLanguageOptions.firstOrNull {
-        normalizeLanguageCode(it.code) == normalized
-    }?.labelRes
+    return AvailableLanguageLabelResByCode[normalized]
 }
 
 @Composable
