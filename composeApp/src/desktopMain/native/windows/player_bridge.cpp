@@ -1565,16 +1565,12 @@ public:
         }
         positionMs = std::max(0LL, positionMs);
 
-        // doubleProperty acquires mpvMutex itself, so read the current position
-        // before taking the lock used to submit the seek command.
-        long long currentPosMs = (long long)std::llround(doubleProperty("time-pos", 0.0) * 1000.0);
         std::lock_guard<std::mutex> lock(mpvMutex);
         if (!mpv) return;
-        long long deltaMs = std::abs(positionMs - currentPosMs);
-        bool nearEnd = (durMs > 0 && positionMs >= durMs - 45000);
-        const char *mode = (deltaMs <= 30000 || nearEnd) ? "absolute+exact" : "absolute+keyframes";
+        // Absolute seeks come from discrete targets (seek bar release, skip intro, resume), so land
+        // on the requested frame; a keyframe seek snaps up to one GOP before it and desyncs seek previews.
         std::string seconds = std::to_string((double)positionMs / 1000.0);
-        const char *command[] = {"seek", seconds.c_str(), mode, nullptr};
+        const char *command[] = {"seek", seconds.c_str(), "absolute+exact", nullptr};
         mpvApi().command(mpv, command);
     }
 

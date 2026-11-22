@@ -2127,7 +2127,7 @@ internal class NativePlayerController(
             positionMs.coerceAtLeast(0L)
         }
         // Keep the requested destination independent of an earlier seek still in flight.
-        // The native bridge selects exact or keyframe seeking for this absolute target.
+        // The native bridge seeks exactly to this absolute target.
         nativeSeekTo(current, clampedPosition)
     }
 
