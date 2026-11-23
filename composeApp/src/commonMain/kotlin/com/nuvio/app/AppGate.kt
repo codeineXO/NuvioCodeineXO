@@ -55,6 +55,7 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.profiles.AvatarRepository
 import com.nuvio.app.features.profiles.NuvioProfile
+import com.nuvio.app.features.profiles.ProfileBackgroundBackdrop
 import com.nuvio.app.features.profiles.ProfileEditScreen
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.profiles.ProfileSelectionScreen
@@ -154,11 +155,15 @@ internal fun AppGate(
         AuthRepository.initialize()
     }
 
+    // Load cached profiles before the first frame so the launch screen shows the profile's background right away.
+    remember {
+        if (ownsAppRuntime) ProfileRepository.loadCachedProfiles()
+    }
+
     LaunchedEffect(Unit) {
         if (!ownsAppRuntime) return@LaunchedEffect
         NetworkStatusRepository.ensureStarted()
         MemberAccessRepository.ensureStarted()
-        ProfileRepository.loadCachedProfiles()
         AvatarRepository.fetchAvatars()
     }
 
@@ -497,14 +502,10 @@ internal fun AppGate(
         ) { currentGate ->
             when (currentGate) {
                 AppGateScreen.Loading.name -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        NuvioLoadingIndicator()
-                    }
+                    AppLaunchOverlay(
+                        profile = profileState.activeProfile ?: profileState.profiles.firstOrNull(),
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
                 AppGateScreen.Auth.name -> {
                     AuthScreen(
@@ -515,10 +516,10 @@ internal fun AppGate(
                     )
                 }
                 AppGateScreen.ProfileSelection.name -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background),
+                    // Same backdrop the picker overlay draws, so its fade-in doesn't flash the plain theme background.
+                    ProfileBackgroundBackdrop(
+                        profile = profileState.activeProfile ?: profileState.profiles.firstOrNull(),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
                 AppGateScreen.ProfileEdit.name -> {
