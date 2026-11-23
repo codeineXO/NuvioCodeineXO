@@ -44,6 +44,22 @@ class HomeHeroMetaRepositoryTest {
     }
 
     @Test
+    fun `full meta fills missing artwork without replacing catalog artwork`() {
+        val details = MetaDetails(
+            id = "tt1", type = "series", name = "Show",
+            background = "https://img/bg.jpg", logo = "https://img/logo.png", description = "Plot",
+        )
+        val filled = preview.copy(banner = null, logo = " ", description = null).withHeroMeta(HomeHeroMeta(details))
+        assertEquals("https://img/bg.jpg", filled.banner)
+        assertEquals("https://img/logo.png", filled.logo)
+        assertEquals("Plot", filled.description)
+
+        val kept = preview.copy(banner = "https://cat/bg.jpg", logo = "https://cat/logo.png").withHeroMeta(HomeHeroMeta(details))
+        assertEquals("https://cat/bg.jpg", kept.banner)
+        assertEquals("https://cat/logo.png", kept.logo)
+    }
+
+    @Test
     fun `catalog values stay when full meta has gaps`() {
         val merged = preview.withHeroMeta(
             HomeHeroMeta(

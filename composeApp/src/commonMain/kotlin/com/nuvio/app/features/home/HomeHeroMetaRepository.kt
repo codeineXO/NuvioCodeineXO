@@ -122,6 +122,10 @@ internal suspend fun fetchHomeHeroRatings(
 internal fun MetaPreview.withHeroMeta(meta: HomeHeroMeta): MetaPreview {
     val details = meta.details
     return copy(
+        // Catalog artwork wins; full meta only fills gaps so a visible slide never swaps images.
+        banner = banner?.takeIf { it.isNotBlank() } ?: details?.background?.takeIf { it.isNotBlank() },
+        logo = logo?.takeIf { it.isNotBlank() } ?: details?.logo?.takeIf { it.isNotBlank() },
+        description = description?.takeIf { it.isNotBlank() } ?: details?.description?.takeIf { it.isNotBlank() },
         releaseInfo = releaseInfo?.takeIf { it.isNotBlank() }
             ?: details?.releaseInfo?.takeIf { it.isNotBlank() },
         genres = details?.genres?.takeIf { it.isNotEmpty() } ?: genres,

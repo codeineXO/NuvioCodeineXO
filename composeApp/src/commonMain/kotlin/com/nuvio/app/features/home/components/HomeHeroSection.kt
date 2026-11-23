@@ -319,7 +319,9 @@ private fun HeroBackgroundLayers(
     )
 
     val backgroundMotionStrength = if (desktopFrame) layout.backgroundMotionStrength else 1f
-    layerPages.forEach { page ->
+    // The upcoming slide stays composed (invisible at a full page offset) so its artwork is decoded before auto-scroll.
+    val pages = (listOfNotNull(heroPreloadPage(pagerState, items.size)) + layerPages).distinct()
+    pages.forEach { page -> key(page) {
         val item = items[page % items.size]
         val imageUrl = item.banner ?: item.poster
         val backgroundModifier = if (desktopFrame) {
@@ -371,6 +373,24 @@ private fun HeroBackgroundLayers(
             },
             contentScale = ContentScale.Crop,
         )
+    } }
+}
+
+private fun heroPreloadPage(pagerState: PagerState, itemCount: Int): Int? =
+    (pagerState.currentPage + 1).takeIf { itemCount > 1 && it < pagerState.pageCount }
+
+/** Loads the upcoming slide's logo with the same layout as its content block, without drawing or input. */
+@Composable
+private fun HeroLogoPrefetch(
+    items: List<MetaPreview>,
+    pagerState: PagerState,
+    layerPages: List<Int>,
+    content: @Composable (logoUrl: String) -> Unit,
+) {
+    val page = heroPreloadPage(pagerState, items.size)?.takeIf { it !in layerPages } ?: return
+    val logoUrl = items[page % items.size].logo?.takeIf { it.isNotBlank() } ?: return
+    key(logoUrl) {
+        Box(Modifier.fillMaxWidth().graphicsLayer { alpha = 0f }) { content(logoUrl) }
     }
 }
 
@@ -391,6 +411,14 @@ private fun HeroContentLayers(
         includePagerNeighbors = includePagerNeighbors,
     )
 
+    HeroLogoPrefetch(items, pagerState, layerPages) { logoUrl ->
+        AsyncImage(
+            model = logoUrl,
+            contentDescription = null,
+            modifier = Modifier.fillMaxWidth(layout.logoWidthFraction).aspectRatio(2.6f),
+            contentScale = ContentScale.Fit,
+        )
+    }
     layerPages.forEach { page ->
         val item = items[page % items.size]
         key(item.stableKey()) {
@@ -464,6 +492,18 @@ private fun HeroDesktopContentLayers(
         includePagerNeighbors = includePagerNeighbors,
     )
 
+    HeroLogoPrefetch(items, pagerState, layerPages) { logoUrl ->
+        Box(Modifier.fillMaxWidth().height(desktopHeroLogoHeight(layout, compact = false))) {
+            AsyncImage(
+                model = logoUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight(),
+                alignment = Alignment.CenterStart,
+                contentScale = ContentScale.Fit,
+                clipToBounds = false,
+            )
+        }
+    }
     layerPages.forEach { page ->
         val item = items[page % items.size]
         Box(
