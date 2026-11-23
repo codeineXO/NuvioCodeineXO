@@ -99,6 +99,14 @@ typedef struct mpv_event_log_message {
     const char *text;
     int log_level;
 } mpv_event_log_message;
+
+// Leading fields of libmpv's mpv_event_end_file; only these are read.
+typedef struct mpv_event_end_file {
+    int reason;
+    int error;
+} mpv_event_end_file;
+
+constexpr int MPV_END_FILE_REASON_ERROR = 4;
 }
 
 namespace {
@@ -2303,6 +2311,11 @@ private:
     std::string lastLoadedUrl;                             // Guarded by mpvMutex.
     std::atomic_bool replacingSource = false;
     std::atomic_bool replacementStarting = false;
+    // mpv messages of the file now opening or playing and the libmpv error it ended with, read by
+    // the app to explain a failed load. Guarded by loadErrorMutex.
+    std::mutex loadErrorMutex;
+    std::vector<std::string> loadErrorLog;
+    std::string loadErrorFile;
     bool rtxRequested = false;
     bool rtxSuperResolutionRequested = false;
     bool rtxHdrRequested = false;
@@ -3350,6 +3363,9 @@ private:
 
             mpv_event *event = mpvApi().waitEvent(current, 0.5);
             if (!event) continue;
+            // Read before handleStartupEvent clears it: the end of a file being replaced is no failure.
+            const bool replacedFileEnded = event->event_id == MPV_EVENT_END_FILE && replacingSource.load();
+            if (event->event_id == MPV_EVENT_START_FILE) clearLoadError();
             updateSourceOpenStage(event->event_id);
             if (startupPhase.load()) handleStartupEvent(*event);
             if (event->event_id == MPV_EVENT_PLAYBACK_RESTART) {
@@ -3376,9 +3392,62 @@ private:
                 if (message.text && message.log_level <= 30) {
                     handleMpvLog(message.prefix ? message.prefix : "", message.text);
                 }
+                if (message.text && message.log_level <= 40) {
+                    recordLoadErrorLog(message.log_level, message.prefix ? message.prefix : "", message.text);
+                }
+            }
+            if (event->event_id == MPV_EVENT_END_FILE && event->data && !replacedFileEnded && !stopping.load()) {
+                const auto &end = *static_cast<const mpv_event_end_file *>(event->data);
+                if (end.reason == MPV_END_FILE_REASON_ERROR) {
+                    {
+                        std::lock_guard<std::mutex> lock(loadErrorMutex);
+                        loadErrorFile = mpvApi().errorText(end.error);
+                    }
+                    sendPlayerEvent("loadFailed", static_cast<double>(end.error));
+                }
             }
         }
     }
+
+    void clearLoadError() {
+        std::lock_guard<std::mutex> lock(loadErrorMutex);
+        loadErrorLog.clear();
+        loadErrorFile.clear();
+    }
+
+    // Keeps the latest error, warning and info messages; the app picks the ones that explain a
+    // failed load. Each entry is one "level<TAB>prefix<TAB>text" line.
+    void recordLoadErrorLog(int level, const char *prefix, const char *text) {
+        static constexpr size_t kMaxLines = 40;
+        static constexpr size_t kMaxText = 400;
+        std::string body(text);
+        while (!body.empty() && (body.back() == '\n' || body.back() == '\r' || body.back() == ' ')) body.pop_back();
+        if (body.empty()) return;
+        if (body.size() > kMaxText) body.resize(kMaxText);
+        std::string head(prefix);
+        for (auto *part : {&head, &body}) {
+            std::replace(part->begin(), part->end(), '\t', ' ');
+            std::replace(part->begin(), part->end(), '\n', ' ');
+            std::replace(part->begin(), part->end(), '\r', ' ');
+        }
+        std::lock_guard<std::mutex> lock(loadErrorMutex);
+        loadErrorLog.push_back(std::to_string(level) + "\t" + head + "\t" + body);
+        if (loadErrorLog.size() > kMaxLines) loadErrorLog.erase(loadErrorLog.begin());
+    }
+
+public:
+    // The libmpv error the last file ended with, then its recent messages, one per line.
+    std::string loadErrorDetails() {
+        std::lock_guard<std::mutex> lock(loadErrorMutex);
+        std::string out = loadErrorFile;
+        for (const auto &line : loadErrorLog) {
+            out.push_back('\n');
+            out += line;
+        }
+        return out;
+    }
+
+private:
 
     void updateSourceOpenStage(mpv_event_id eventId) {
         if (eventId != MPV_EVENT_START_FILE && eventId != MPV_EVENT_FILE_LOADED &&
@@ -4345,6 +4414,13 @@ Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_windowsPlaybackSta
         throwJavaError(env, error.what());
         return nullptr;
     }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_nuvio_app_features_player_desktop_NativePlayerBridge_windowsLoadErrorDetails(JNIEnv *env, jobject, jlong handle) {
+    const auto player = playerFromHandle(handle);
+    if (!player) return nullptr;
+    return newJavaStringUtf8(env, player->loadErrorDetails());
 }
 
 extern "C" JNIEXPORT void JNICALL

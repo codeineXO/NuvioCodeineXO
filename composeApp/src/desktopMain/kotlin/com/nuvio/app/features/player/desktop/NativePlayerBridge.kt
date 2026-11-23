@@ -89,6 +89,8 @@ internal object NativePlayerBridge {
     external fun validateWindowsMpvOptions(options: Array<String>): Array<String?>
     external fun usedDefaultWindowsMpvConfig(handle: Long): Boolean
     external fun windowsPlaybackStatsJson(handle: Long): String?
+    /** The libmpv error the last file ended with, then its recent "level\tprefix\ttext" messages. */
+    external fun windowsLoadErrorDetails(handle: Long): String?
     external fun setWindowsGlslShaders(handle: Long, shaders: Array<String>): Boolean
     external fun setWindowsAudioNightFilter(handle: Long, filter: String): Boolean
     /** Runs an mpv input command (e.g. `frame-step`) on the Windows player. */

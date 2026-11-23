@@ -1200,6 +1200,23 @@ internal class NativePlayerController(
         }
     }
 
+    /** mpv ended the file with an error: show why on the playback error screen, as the mobile app does. */
+    private fun reportLoadFailure() {
+        val targetHandle = handle
+        val source = pendingSource
+        if (targetHandle == 0L || source == null) return
+        playerScope.launch {
+            val details = runCatching { NativePlayerBridge.windowsLoadErrorDetails(targetHandle) }.getOrNull()
+            val message = mpvLoadErrorMessage(details) { name ->
+                runCatching { NativePlayerBridge.stringProperty(targetHandle, name) }.getOrNull()
+            }
+            log.w { "Playback failed handle=$targetHandle: ${message.replace('\n', ' ')}" }
+            SwingUtilities.invokeLater {
+                if (!releaseRequested && handle == targetHandle && pendingSource === source) source.onError(message)
+            }
+        }
+    }
+
     private fun runShortcutCommand(vararg args: String): Boolean {
         val current = handle
         if (current == 0L || DesktopHostOs.current != DesktopHostOs.WINDOWS) return false
@@ -1272,6 +1289,7 @@ internal class NativePlayerController(
             "audio_night_filter_error" -> {
                 showMpvNotice(handle) { getString(Res.string.settings_playback_mpv_night_filter_error) }
             }
+            "loadFailed" -> reportLoadFailure()
             "cursorActivity" -> host.noteCursorActivity()
             "scrubChange" -> {
                 // Fires for every drag step; scrubFinish/seekTo log where the scrub landed.
