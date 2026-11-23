@@ -1355,10 +1355,19 @@ compose.desktop {
             "--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.windows=ALL-UNNAMED",
             "--add-opens=java.desktop/sun.awt.X11=ALL-UNNAMED",
-            // Hand idle heap back to the OS instead of holding the peak reservation for the session.
-            "-XX:G1PeriodicGCInterval=30000",
+            // Without these the JVM sizes the heap from the machine's RAM (about
+            // 1 GB initial and a quarter of RAM as maximum) and G1 keeps hundreds
+            // of MB committed for a live set of roughly 100 MB. Native memory
+            // (mpv, SVP/VapourSynth) is outside this cap.
+            "-Xms128m",
+            "-Xmx2g",
             "-XX:MinHeapFreeRatio=10",
             "-XX:MaxHeapFreeRatio=30",
+            // Hand idle heap back to the OS instead of holding the peak reservation for the session.
+            "-XX:G1PeriodicGCInterval=30000",
+            // Skiko's FrameWatcher calls System.gc() every 30 s while frames are
+            // being rendered; as a full collection that is a 40-50 ms pause.
+            "-XX:+ExplicitGCInvokesConcurrent",
             "-XX:+UseStringDeduplication",
             // JDK 25 (JEP 519): 8-byte object headers instead of 12, shrinking every object on the heap.
             "-XX:+UseCompactObjectHeaders",
