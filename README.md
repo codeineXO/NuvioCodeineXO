@@ -52,7 +52,6 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
 * **Controller Navigation:** Use contoller for navigating posters, settings, pages etc.
-* **Customizable Keyboard Shortcuts:** You can customize what each key does, and set it up according to your preference.  
 * **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
 * **Updated Interface:** Three dedicated interface layouts for effortless navigation- Persistent Hero, Scroll Posters and Official.
 * **Poster Hover Previews:** Redesigned landscape hover preview with details and ratings.
@@ -78,43 +77,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 ---
 
 ## ⌨️ Keyboard Shortcuts
-
-| Shortcut | Action |
-| :--- | :--- |
-| `Space` / `K` | Play / Pause *(hold to boost speed)* |
-| `F` / `F11` | Toggle Fullscreen |
-| `←` / `→` | Seek backward / forward (3s) |
-| `J` / `L` | Seek backward / forward (10s) |
-| `Shift` + `←` / `→` or `J` / `L` | 1-second micro-seek |
-| `↑` / `↓` | Volume up / down |
-| `M` | Mute / Unmute audio |
-| `P` | Toggle Picture-in-Picture |
-| `B` | Quick cycle audio track |
-| `V` | Toggle subtitles on / off |
-| `G` / `H` | Adjust subtitle delay (-100ms / +100ms) |
-| `O` | Toggle subtitle text opacity (50% / full) |
-| `Shift` + `<` / `>` | Adjust playback speed (`/` to reset to 1x) |
-| `` ` `` | Open playback speed panel |
-| `N` | Play next episode |
-| `E` | Open episode selector drawer |
-| `Q` | Open stream sources drawer |
-| `A` / `S` | Open audio / subtitle selection panels |
-| `U` | Open enhancements panel |
-| `C` | Open chapters panel |
-| `W` | Open watch party panel |
-| `.` | Open the more playback controls menu |
-| `R` | Cycle aspect ratio |
-| `Y` | Switch to mini player / back to full player |
-| `Right-Click` on Audio / Subtitle button | Instantly cycle through audio or subtitle tracks without opening menus |
-| `I` | Show / Hide Playback Stats for Nerds |
-| `=` | Open eye filter panel |
-| `0` (Zero) | Toggle eye filter |
-| `9` | Toggle frosted matte filter |
-| `Enter` | Skip intro / recap when the skip prompt is shown |
-| `Esc` / `Backspace` | Close the open panel, or exit the player |
-| `Ctrl` + `+` / `=` | Increase UI scale by 10 percentage points |
-| `Ctrl` + `−` | Decrease UI scale by 10 percentage points |
-| `Ctrl` + `0` | Reset UI scale to 100% |
+* **Fully Customizable.**
 
 ---
 
