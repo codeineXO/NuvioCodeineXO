@@ -51,6 +51,7 @@ Here is the breakdown of features and improvements on **NuvioCodeineXO** that ar
 * **Keyboard Navigation:** Use keyboard arrow keys, enter, backspace and escape for navigating posters, settings, pages etc.
 * **Touchscreen Navigation:** Supports full touchscreen navigation with scrolling momentum.
 * **Controller Navigation:** Use contoller for navigating posters, settings, pages etc.
+* **Customizable Keyboard Shortcuts:** You can customize what each key does, and set it up according to your preference.  
 * **Posters and Cards Glow:** Ambient adaptive glow around the edges of posters, collections and episode cards. 
 * **Updated Interface:** Three dedicated interface layouts for effortless navigation- Persistent Hero, Scroll Posters and Official.
 * **Poster Hover Previews:** Redesigned landscape hover preview with details and ratings.
