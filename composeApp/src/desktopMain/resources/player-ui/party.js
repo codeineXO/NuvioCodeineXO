@@ -196,7 +196,6 @@ const renderPartyChrome = () => {
   partyButton.hidden = !party.available;
   partyButton.classList.toggle("party-active", Boolean(party.active));
   partyButton.setAttribute("aria-label", title);
-  partyButton.setAttribute("title", title);
 
   if (codeinePartyButton) {
     codeinePartyButton.hidden = !party.available;

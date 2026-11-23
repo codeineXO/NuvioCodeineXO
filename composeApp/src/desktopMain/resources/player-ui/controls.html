@@ -240,9 +240,9 @@
           <button class="header-button" id="submitIntroButton" data-command="submitIntro" aria-label="Submit intro"><svg><use href="#icon-flag"></use></svg></button>
           <button class="header-button" id="partyButton" type="button" aria-label="Watch party" hidden><svg><use href="#icon-party"></use></svg></button>
           <button class="header-button" id="videoSettingsButton" data-command="videoSettings" aria-label="Video settings"><svg><use href="#icon-build"></use></svg></button>
-          <button class="header-button" id="miniPlayerButton" data-command="minimize" aria-label="Mini player" title="Mini player"><svg><use href="#icon-miniplayer"></use></svg></button>
+          <button class="header-button" id="miniPlayerButton" data-command="minimize" aria-label="Mini player"><svg><use href="#icon-miniplayer"></use></svg></button>
           <button class="header-button pip-lock-button" id="pipLockButton" type="button" aria-pressed="false" aria-label="Lock player controls"><svg><use href="#icon-lock"></use></svg></button>
-          <button class="header-button" id="pipButton" data-command="pictureInPicture" aria-label="Picture in Picture" title="Picture in Picture"><svg><use href="#icon-pip"></use></svg></button>
+          <button class="header-button" id="pipButton" data-command="pictureInPicture" aria-label="Picture in Picture"><svg><use href="#icon-pip"></use></svg></button>
           <button class="header-button" id="fullscreenButton" data-command="toggleFullscreen" aria-label="Enter fullscreen"><svg><use id="fullscreenIcon" href="#icon-fullscreen"></use></svg></button>
           <button class="header-button" id="backButton" data-command="back" aria-label="Close player"><svg><use href="#icon-close"></use></svg></button>
         </nav>
@@ -498,17 +498,17 @@
             <button class="action optional" id="nextEpisodeButton" data-command="playNextEpisode" aria-label="Next episode" hidden>
               <svg><use href="#icon-skip-next"></use></svg><span id="nextEpisodeButtonLabel">Next episode</span>
             </button>
-            <button class="action" data-command="resize"><svg><use href="#icon-aspect"></use></svg><span id="resizeLabel">Fit</span></button>
-            <button class="action" data-command="speed"><svg><use href="#icon-speed"></use></svg><span id="speedLabel">1x</span></button>
-            <button class="action" data-command="subtitles"><svg><use href="#icon-subs"></use></svg><span id="subtitlesLabel">Subs</span></button>
-            <button class="action" data-command="audio"><svg><use href="#icon-audio"></use></svg><span id="audioLabel">Audio</span></button>
+            <button class="action" id="resizeButton" data-command="resize" data-tooltip="Aspect ratio"><svg><use href="#icon-aspect"></use></svg><span id="resizeLabel">Fit</span></button>
+            <button class="action" id="speedButton" data-command="speed" data-tooltip="Playback speed"><svg><use href="#icon-speed"></use></svg><span id="speedLabel">1x</span></button>
+            <button class="action" id="subtitlesButton" data-command="subtitles" data-tooltip="Subtitles"><svg><use href="#icon-subs"></use></svg><span id="subtitlesLabel">Subs</span></button>
+            <button class="action" id="audioButton" data-command="audio"><svg><use href="#icon-audio"></use></svg><span id="audioLabel">Audio</span></button>
             <button class="action optional" id="sourcesButton" data-command="sources"><svg><use href="#icon-source"></use></svg><span id="sourcesLabel">Sources</span></button>
             <button class="action optional" id="episodesButton" data-command="episodes"><svg><use href="#icon-episodes"></use></svg><span id="episodesLabel">Episodes</span></button>
             <button class="action optional" id="chaptersButton" data-command="chapters" hidden><svg><use href="#icon-chapters"></use></svg><span id="chaptersLabel">Chapters</span></button>
-            <button class="action optional" id="shadersButton" data-command="shaders" aria-label="Enhancements" title="Enhancements"><svg><use href="#icon-wand"></use></svg><span id="shadersLabel">Enhancements</span></button>
-            <button class="action optional" id="eyeFilterButton" data-command="eyeFilter" aria-label="Eye filter" title="Eye filter"><svg><use href="#icon-eye"></use></svg><span id="eyeFilterLabel">Eye Filter</span></button>
-            <button class="action optional" id="qualityButton" data-command="quality" aria-label="Quality" title="Quality" hidden><i class="quality-icon"><svg><use href="#icon-settings"></use></svg><sup class="quality-badge" hidden></sup></i><span id="qualityLabel">Quality</span></button>
-            <button class="action optional stats-toggle-btn" id="statsButton" type="button" aria-label="Playback statistics" title="Playback statistics" aria-pressed="false"><svg><use href="#icon-info-circle"></use></svg><span id="statsLabel">Stream info</span></button>
+            <button class="action optional" id="shadersButton" data-command="shaders" aria-label="Enhancements"><svg><use href="#icon-wand"></use></svg><span id="shadersLabel">Enhancements</span></button>
+            <button class="action optional" id="eyeFilterButton" data-command="eyeFilter" aria-label="Eye filter"><svg><use href="#icon-eye"></use></svg><span id="eyeFilterLabel">Eye Filter</span></button>
+            <button class="action optional" id="qualityButton" data-command="quality" aria-label="Quality" hidden><i class="quality-icon"><svg><use href="#icon-settings"></use></svg><sup class="quality-badge" hidden></sup></i><span id="qualityLabel">Quality</span></button>
+            <button class="action optional stats-toggle-btn" id="statsButton" type="button" aria-label="Playback statistics" aria-pressed="false"><svg><use href="#icon-info-circle"></use></svg><span id="statsLabel">Stream info</span></button>
           </div>
           <div class="playback-status">
             <div class="volume-control" id="volumeControl" aria-label="Volume">
@@ -517,7 +517,7 @@
               </button>
               <input id="volumeSlider" class="volume-slider" type="range" min="0" max="200" value="100" aria-label="Volume">
             </div>
-            <div class="time-label" id="timeLabel" aria-label="Toggle between total and remaining time" title="Toggle between total and remaining time">00:00 / 00:00</div>
+            <div class="time-label" id="timeLabel" data-tooltip="Toggle remaining time" aria-label="Toggle between total and remaining time">00:00 / 00:00</div>
           </div>
         </div>
 

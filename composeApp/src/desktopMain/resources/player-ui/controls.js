@@ -756,7 +756,6 @@ const syncPipLockLabels = () => {
   const lockLabel = isPipLocked ? pipUnlockLabel() : pipLockLabel();
   if (pipLockButton) {
     setAttr(pipLockButton, "aria-label", lockLabel);
-    setAttr(pipLockButton, "title", lockLabel);
   }
   if (pipLockBadge) {
     const unlockLabel = pipUnlockLabel();
@@ -912,11 +911,9 @@ const syncVolumeControl = () => {
     volumeSlider.value = String(percent);
     volumeSlider.setAttribute("aria-label", label);
     volumeSlider.setAttribute("aria-valuetext", percent > 100 ? `${percent}%, boosted` : `${percent}%`);
-    volumeSlider.setAttribute("title", label);
     volumeIcon.setAttribute("href", iconHref);
     if (volumeButton) {
       volumeButton.setAttribute("aria-label", btnLabel);
-      volumeButton.setAttribute("title", btnLabel);
     }
   }
 
@@ -1670,7 +1667,6 @@ const setActionButtonLabel = (command, label) => {
   const text = String(label || "").trim();
   if (!text) return;
   setAttr(button, "aria-label", text);
-  setAttr(button, "title", text);
 };
 
 const setImageVisualState = (element, stateName) => {
@@ -4940,6 +4936,8 @@ const renderChrome = () => {
   [title, codeineTitle].forEach(button => {
     if (!button) return;
     setAttr(button, "aria-disabled", String(parentalGuideUnavailable));
+    if (parentalGuideUnavailable) button.removeAttribute("data-tooltip");
+    else setAttr(button, "data-tooltip", "Show parental guide");
     button.inert = chromeHidden || showOpening || Boolean(state.isInPip) || (button === title ? isCodeineXo : !isCodeineXo);
   });
   setText(episode, state.episodeText);
@@ -4961,20 +4959,17 @@ const renderChrome = () => {
   if (pipButton) {
     const pipLabel = String(state.pipLabel || "").trim();
     setAttr(pipButton, "aria-label", pipLabel);
-    setAttr(pipButton, "title", pipLabel);
     pipButton.hidden = !pipLabel;
   }
   const miniLabel = String(state.minimizeLabel || "Mini player").trim();
   if (miniPlayerButton) {
     setAttr(miniPlayerButton, "aria-label", miniLabel);
-    setAttr(miniPlayerButton, "title", miniLabel);
   }
   const isEnhancementActive = Boolean(state.animeUpscalerEnabled || (state.svpActive && state.svpAvailable !== false));
   const enhancementsTitle = isEnhancementActive ? "Enhancements (Active)" : "Enhancements";
   const classicShadersButton = shadersButton || document.querySelector('.action[data-command="shaders"]');
   if (classicShadersButton) {
     classicShadersButton.classList.toggle("active", isEnhancementActive);
-    setAttr(classicShadersButton, "title", enhancementsTitle);
     setAttr(classicShadersButton, "aria-label", enhancementsTitle);
   }
   syncPipLockLabels();
@@ -5043,7 +5038,6 @@ const renderChrome = () => {
     nextEpisodeButton.hidden = !state.nextEpisodePlayable;
     const nextLabel = state.nextEpisodeHeaderLabel || "Next episode";
     setAttr(nextEpisodeButton, "aria-label", nextLabel);
-    setAttr(nextEpisodeButton, "title", nextLabel);
     if (nextEpisodeButtonLabel) setTextContent(nextEpisodeButtonLabel, nextLabel);
   }
 
@@ -5241,6 +5235,25 @@ const shortcutTooltipTargets = {
   codeineAudioButton: "audioPanel",
   codeineShadersButton: "shadersPanel",
   codeineFullscreenButton: "fullscreen",
+  // Official UI
+  toggle: "togglePlay",
+  nextEpisodeButton: "nextEpisode",
+  resizeButton: "resize",
+  speedButton: "speedPanel",
+  subtitlesButton: "subtitlesPanel",
+  audioButton: "audioPanel",
+  sourcesButton: "sourcesPanel",
+  episodesButton: "episodesPanel",
+  chaptersButton: "chaptersPanel",
+  shadersButton: "shadersPanel",
+  eyeFilterButton: "eyeFilterPanel",
+  qualityButton: "qualityPanel",
+  statsButton: "streamStats",
+  volumeButton: "mute",
+  partyButton: "partyPanel",
+  miniPlayerButton: "miniPlayer",
+  pipButton: "pictureInPicture",
+  fullscreenButton: "fullscreen",
 };
 const shortcutMenuTargets = {
   codeineSpeedButton: "speedPanel",
@@ -5399,7 +5412,7 @@ const setCheatSheetOpen = open => {
   if (!cheatSheetOverlay) {
     if (!open) return;
     cheatSheetOverlay = document.createElement("div");
-    cheatSheetOverlay.className = "shortcut-sheet-overlay";
+    cheatSheetOverlay.className = "shortcut-sheet-overlay cx-sheet";
     cheatSheetOverlay.hidden = true;
     cheatSheetOverlay.addEventListener("pointerdown", event => {
       event.stopPropagation();
@@ -5409,7 +5422,6 @@ const setCheatSheetOpen = open => {
     cheatSheetOverlay.addEventListener("dblclick", event => event.stopPropagation());
     document.body.appendChild(cheatSheetOverlay);
   }
-  cheatSheetOverlay.classList.toggle("cx-sheet", root.classList.contains("ui-codeinexo"));
   if (open) renderCheatSheet();
   cheatSheetOverlay.hidden = !open;
 };
@@ -6713,10 +6725,17 @@ function hideSeekrPreview() {
   }
 }
 
+const syncClockTooltip = () => {
+  if (!torrentStatsClock) return;
+  setAttr(torrentStatsClock, "data-tooltip", chromeAutoHidePinned ? "Allow controls to hide" : "Keep controls visible");
+};
+
 if (torrentStatsClock) {
+  syncClockTooltip();
   torrentStatsClock.addEventListener("click", event => {
     event.stopPropagation();
     chromeAutoHidePinned = !chromeAutoHidePinned;
+    syncClockTooltip();
     noteChromeActivity(true);
   });
 }
@@ -8497,7 +8516,9 @@ if (overlayDirtyBridge) {
 // CodeineXO tooltips: one shared bubble anchored above the seekbar, replacing native title boxes.
 const codeineTooltip = document.getElementById("codeineTooltip");
 const codeineTooltipTargetSelector =
-  ".codeine-action-row button[aria-label], .codeine-action-row button[data-tooltip], .codeine-seek-row .codeine-time-pill[data-tooltip]";
+  ".codeine-action-row button[aria-label], .codeine-action-row button[data-tooltip], .codeine-seek-row .codeine-time-pill[data-tooltip], " +
+  ".ui-official .header-actions button[aria-label], .ui-official .official-action-row button, .ui-official #timeLabel, " +
+  ".parental-guide-trigger[data-tooltip], #torrentStatsClock[data-tooltip]";
 let codeineTooltipTarget = null;
 let codeineTooltipShowTimer = 0;
 let codeineTooltipHideTimer = 0;
@@ -8506,7 +8527,6 @@ let codeineTooltipWarm = false;
 const codeineTooltipEligible = target => Boolean(
   target &&
   codeineTooltip &&
-  root.classList.contains("ui-codeinexo") &&
   !root.classList.contains("chrome-hidden") &&
   !root.classList.contains("pip-mode") &&
   !activeModal &&
@@ -8561,14 +8581,26 @@ const positionCodeineTooltip = target => {
   // Rects are in zoomed viewport pixels; convert back to the host's layout pixels.
   const ratio = host.offsetWidth > 0 ? hostRect.width / host.offsetWidth : 1;
   const targetRect = target.getBoundingClientRect();
-  const seekRect = seekRow.getBoundingClientRect();
+  // Official renders the seek row as display: contents (empty rect), so anchor on the scrub input there.
+  let seekRect = seekRow.getBoundingClientRect();
+  if (!seekRect.height) seekRect = (document.getElementById("seek") || seekRow).getBoundingClientRect();
   const width = codeineTooltip.offsetWidth;
   const edge = 4;
   const center = (targetRect.left + targetRect.width / 2 - hostRect.left) / ratio;
   const left = Math.max(edge, Math.min(host.offsetWidth - width - edge, center - width / 2));
-  const bottom = (seekRect.top - hostRect.top) / ratio - 10;
+  // Top-of-screen targets (header buttons, title, clock): hang below the target.
+  // Targets sitting above the seekbar (Official title): just above the target.
+  // Everything else (bottom controls): one line above the seekbar, in both UIs.
+  const below = targetRect.top + targetRect.height / 2 < window.innerHeight / 2;
+  let top;
+  // Clock: clear the network stats under it. CodeineXO title: clear the episode line and stream badges.
+  const belowAnchor = below ? (target.closest(".torrent-stats-overlay, .header-center") || target) : target;
+  if (below) top = (belowAnchor.getBoundingClientRect().bottom - hostRect.top) / ratio + 8;
+  else if (targetRect.bottom <= seekRect.top) top = (targetRect.top - hostRect.top) / ratio - 8;
+  else top = (seekRect.top - hostRect.top) / ratio - 10;
+  codeineTooltip.classList.toggle("is-below", below);
   codeineTooltip.style.left = `${left}px`;
-  codeineTooltip.style.top = `${bottom}px`;
+  codeineTooltip.style.top = `${top}px`;
 };
 
 const showCodeineTooltip = target => {

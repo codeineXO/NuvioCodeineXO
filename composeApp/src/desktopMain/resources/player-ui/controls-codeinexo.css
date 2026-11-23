@@ -1076,7 +1076,8 @@
 
 /* Drawer tokens: tune every CodeineXO drawer from here. */
 .player.ui-codeinexo,
-.shortcut-sheet-overlay.cx-sheet {
+.shortcut-sheet-overlay.cx-sheet,
+.playback-stats-overlay {
   --cx-panel-width: clamp(360px, 30vw, 440px);
   --cx-compact-width: clamp(300px, 24vw, 360px);
   --cx-panel-inset: 16px;
@@ -1823,12 +1824,12 @@
   filter: drop-shadow(0 0 6px var(--theme-accent, #e50914));
 }
 
-/* CodeineXO tooltips: single bubble anchored above the seekbar */
+/* Tooltip bubble shared by both player UIs (CodeineXO: above the seekbar; Official: beside the button) */
 .codeine-tooltip {
   display: none;
 }
 
-.player.ui-codeinexo .codeine-tooltip {
+.player .codeine-tooltip {
   position: absolute;
   top: 0;
   left: 0;
@@ -1851,27 +1852,36 @@
   transition: opacity 140ms ease, transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.player.ui-codeinexo .codeine-tooltip.is-visible {
+.player .codeine-tooltip.is-visible {
   opacity: 1;
   transform: translateY(-100%);
 }
 
-.player.ui-codeinexo .codeine-tooltip-text {
+/* Official top-right buttons: the bubble hangs below the button */
+.player .codeine-tooltip.is-below {
+  transform: translateY(-4px);
+}
+
+.player .codeine-tooltip.is-below.is-visible {
+  transform: translateY(0);
+}
+
+.player .codeine-tooltip-text {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.player.ui-codeinexo .codeine-tooltip-keys {
+.player .codeine-tooltip-keys {
   display: inline-flex;
   align-items: center;
   gap: 3px;
 }
 
-.player.ui-codeinexo .codeine-tooltip-keys[hidden] {
+.player .codeine-tooltip-keys[hidden] {
   display: none;
 }
 
-.player.ui-codeinexo .codeine-tooltip-key {
+.player .codeine-tooltip-key {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -1888,7 +1898,7 @@
   line-height: 1;
 }
 
-.player.ui-codeinexo.chrome-hidden .codeine-tooltip {
+.player.chrome-hidden .codeine-tooltip {
   opacity: 0;
   transition: none;
 }
@@ -1916,8 +1926,8 @@
   --progress: var(--progress-thumb, var(--progress-raw, 0%));
 }
 
-/* Playback stats: match the CodeineXO drawer panels */
-.player.ui-codeinexo .playback-stats-overlay {
+/* Playback stats: CodeineXO drawer styling, shared by both player UIs */
+.player .playback-stats-overlay {
   left: var(--cx-panel-inset);
   top: var(--cx-panel-inset);
   bottom: var(--cx-seekbar-clearance);
@@ -1929,14 +1939,25 @@
   border: 1px solid var(--cx-panel-border);
   border-radius: var(--cx-panel-radius);
   box-shadow: none;
+  overflow: hidden;
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-header-bar {
+/* Keep the scrollbar thumb clear of the rounded bottom corner */
+.player .playback-stats-overlay .stats-scroll-content::-webkit-scrollbar-track {
+  margin-bottom: var(--cx-panel-radius);
+}
+
+/* Official UI has a taller seekbar + action row; clear it instead of the CodeineXO bar */
+.player.ui-official .playback-stats-overlay {
+  bottom: var(--overlay-bottom);
+}
+
+.player .playback-stats-overlay .stats-header-bar {
   padding: var(--cx-panel-pad) var(--cx-panel-pad) var(--cx-section-gap);
   border-bottom: 0;
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-close-btn {
+.player .playback-stats-overlay .stats-close-btn {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -1944,19 +1965,19 @@
   color: rgba(255, 255, 255, .75);
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-close-btn:hover {
+.player .playback-stats-overlay .stats-close-btn:hover {
   background: var(--cx-chip-bg);
   color: #fff;
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-scroll-content {
+.player .playback-stats-overlay .stats-scroll-content {
   display: flex;
   flex-direction: column;
   gap: var(--cx-item-gap);
   padding: 0 var(--cx-panel-pad) var(--cx-panel-pad);
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-section {
+.player .playback-stats-overlay .stats-section {
   padding: 0 12px 8px;
   margin: 0;
   border: 0;
@@ -1964,19 +1985,19 @@
   background: var(--cx-card-bg);
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-section-header {
+.player .playback-stats-overlay .stats-section-header {
   padding: 10px 0 6px;
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-section.collapsed {
+.player .playback-stats-overlay .stats-section.collapsed {
   padding-bottom: 4px;
 }
 
-.player.ui-codeinexo .playback-stats-overlay .stats-section-header:hover {
+.player .playback-stats-overlay .stats-section-header:hover {
   color: #fff;
 }
 
-/* Shortcut sheet: lives on <body>, tagged .cx-sheet while the CodeineXO UI is active */
+/* Shortcut sheet: lives on <body>; always tagged .cx-sheet so both player UIs share the CodeineXO look */
 .shortcut-sheet-overlay.cx-sheet {
   background: transparent;
 }
