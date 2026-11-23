@@ -494,14 +494,46 @@
     .synopsis { -webkit-line-clamp: 1; }
     .hero, .stream-hero { max-height: 24dvh; }
   }
-  /* Landscape phones and tablets: artwork on the left, controls on the right. */
+  /* Landscape phones and tablets: a wider page. */
   @media (min-width: 640px) and (orientation: landscape), (min-width: 760px) {
     body { max-width: 1040px; }
-    #player { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 1fr); align-content: end; align-items: end; gap: 24px; }
-    #player[hidden] { display: none; }
-    .deck { position: sticky; top: 12px; }
-    #remote { flex-direction: row; gap: 48px; }
     .sheet { width: min(100vw, 640px); }
+  }
+  /* Landscape: the remote's note beside the D-pad. */
+  @media (min-width: 640px) and (orientation: landscape) {
+    #remote { flex-direction: row; gap: 48px; }
+  }
+  /* Landscape phones: too short for artwork and full-size controls, so the artwork goes and the buttons keep their size:
+     the seek bar over transport and volume on the left, the tools in one row on the right, and Back in the bottom-right
+     corner, clear of both. A very short screen scrolls rather than hiding controls under Back. The sleep timer stays
+     under More; turning the phone upright brings the artwork and episode info back. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    body:has(#player:not([hidden])) { height: auto; padding-bottom: calc(env(safe-area-inset-bottom) + 16px); }
+    body:has(#player:not([hidden])) .bottom-controls { justify-content: flex-end; }
+    #player { justify-content: flex-start; }
+    #player .media { display: none; }
+    #player .deck { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: 16px; }
+    #player .deck[hidden] { display: none; }
+    #player .controls { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "seek seek" "transport volume";
+      align-items: center; gap: 6px 16px; padding: 10px 14px; }
+    #player .seek { grid-area: seek; }
+    #player .transport { grid-area: transport; gap: 4px; }
+    #player .volume { grid-area: volume; grid-template-columns: 24px minmax(0, 1fr) 40px; column-gap: 8px; }
+  }
+  /* Tablets: more tiles per row, sources and episodes in two columns, a taller details card, a bigger D-pad,
+     and forms kept to a readable width. The player stays stacked, centred. */
+  @media (min-width: 760px) {
+    .grid-page .catalog-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+    .grid-page .catalog-grid.landscape { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .stream-list, .episodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+    .stream-list > :not(.stream-card), .episodes > :not(.episode) { grid-column: 1 / -1; }
+    .detail-hero { min-height: min(56dvh, 520px); }
+    .dpad { width: min(60dvh, 420px); }
+    .trackpad { height: min(64dvh, 560px); }
+    #search > .search-box, #recent-section, #shuffle { width: 100%; max-width: 680px; align-self: center; }
+  }
+  @media (min-width: 760px) and (min-height: 561px) {
+    #player { max-width: 640px; align-self: center; }
   }
   /* Landscape phones: very little height, so the artwork shrinks and the page header gets out of the way. */
   @media (orientation: landscape) and (max-height: 500px) {
