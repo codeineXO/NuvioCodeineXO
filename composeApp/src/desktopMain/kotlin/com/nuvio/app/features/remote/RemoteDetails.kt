@@ -10,13 +10,22 @@ import com.nuvio.app.features.home.components.heroInfo
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_IMDB
 import com.nuvio.app.features.player.MediaClassifier
 import com.nuvio.app.features.remote.RemoteAppBridge.Command
+import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamBadgeSettingsRepository
+import com.nuvio.app.features.streams.StreamFilterSettings
+import com.nuvio.app.features.streams.StreamFilterEngine
+import com.nuvio.app.features.streams.StreamFilterResult
+import com.nuvio.app.features.streams.StreamFilterSettingsRepository
+import com.nuvio.app.features.streams.RemoteStreamFilterMenu
+import com.nuvio.app.features.streams.StreamSortMode
+import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.streams.StreamsRepository
 import javax.swing.SwingUtilities
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -141,12 +150,62 @@ internal object RemoteDetails {
         }.toString()
     }.distinctUntilChanged()
 
+    /**
+     * Every addon's sources with the user's stream filter and sort applied, like the PC's list. The phone gets all
+     * addons even when the PC has one picked (e.g. the one a resumed title last played from) and starts on that one;
+     * as on the PC, a sort merges the addons into one list only while none is picked.
+     */
+    private fun displayed(state: StreamsUiState, filter: StreamFilterSettings): StreamFilterResult =
+        StreamFilterEngine.apply(state.groups, filter, mergeGroups = state.selectedFilter == null && filter.hasActiveSort)
+
+    private fun displayedGroups(state: StreamsUiState, filter: StreamFilterSettings): List<AddonStreamGroup> =
+        displayed(state, filter).groups
+
+    /** The Sort and Filter menus: labels, the current choices and each option with its count, as on the PC. */
+    private fun JsonObjectBuilder.filterMenu(menu: RemoteStreamFilterMenu, filter: StreamFilterSettings, hiddenCount: Int) =
+        putJsonObject("filters") {
+            putJsonObject("labels") { menu.labels.forEach { (key, label) -> put(key, label) } }
+            put("sort", filter.sort.name)
+            put("cachedFirst", filter.cachedFirst)
+            put("hasActiveSort", filter.hasActiveSort)
+            put("activeCount", filter.activeFilterCount)
+            put("query", filter.query)
+            put("include", filter.includeKeywords)
+            put("exclude", filter.excludeKeywords)
+            put("minSize", filter.minSizeGb)
+            put("maxSize", filter.maxSizeGb)
+            put("hiddenCount", hiddenCount)
+            putJsonArray("sorts") {
+                menu.sorts.forEach { (mode, label) -> addJsonObject { put("id", mode.name); put("label", label) } }
+            }
+            putJsonArray("sections") {
+                menu.sections.forEach { section ->
+                    addJsonObject {
+                        put("title", section.title)
+                        putJsonArray("items") {
+                            section.items.forEach { item ->
+                                addJsonObject {
+                                    put("key", item.key)
+                                    put("label", item.label)
+                                    put("selected", item.selected)
+                                    item.count?.let { put("count", it) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     /** `{"k":"streams",…}`: the sources for what is about to play, grouped by addon, like the PC's list. */
     val streamsMessages: Flow<String> = combine(
         StreamsRepository.uiState,
-        RemoteAppBridge.streams,
+        RemoteAppBridge.streams.combine(RemoteAppBridge.streamsAutoSelecting, ::Pair),
         StreamBadgeSettingsRepository.uiState,
-    ) { state, page, badges ->
+        StreamFilterSettingsRepository.settings,
+        RemoteAppBridge.streamFilterMenu,
+    ) { state, (page, autoSelecting), badges, filter, menu ->
+        val shown = displayed(state, filter)
         buildJsonObject {
             put("k", "streams")
             put("loading", state.isAnyLoading)
@@ -159,8 +218,11 @@ internal object RemoteDetails {
                 put("resumeMs", page.resumeMs)
                 put("fromStart", page.startFromBeginning)
             }
+            put("autoSelecting", autoSelecting)
+            put("selectedAddon", state.groups.firstOrNull { it.addonId == state.selectedFilter }?.addonName)
+            if (menu != null) filterMenu(menu, filter, shown.hiddenCount)
             putJsonArray("groups") {
-                state.groups.forEach { group ->
+                shown.groups.forEach { group ->
                     addJsonObject {
                         put("addon", group.addonName)
                         put("loading", group.isLoading)
@@ -216,10 +278,34 @@ internal object RemoteDetails {
                 ?.let { video -> details?.let { { it.playEpisode(video) } } }
             "stream" -> {
                 val group = json["group"]?.jsonPrimitive?.intOrNull ?: -1
-                StreamsRepository.uiState.value.groups.getOrNull(group)?.streams?.getOrNull(item)
+                displayedGroups(StreamsRepository.uiState.value, StreamFilterSettingsRepository.settings.value)
+                    .getOrNull(group)?.streams?.getOrNull(item)
                     ?.let { stream -> page?.let { { it.select(stream) } } }
             }
             "reloadStreams" -> page?.reload
+            "streamSort" -> json["value"]?.jsonPrimitive?.contentOrNull
+                ?.let { id -> StreamSortMode.entries.firstOrNull { it.name == id } }
+                ?.let { mode -> { StreamFilterSettingsRepository.update { it.copy(sort = mode) } } }
+            "streamCachedFirst" -> ({ StreamFilterSettingsRepository.update { it.copy(cachedFirst = !it.cachedFirst) } })
+            "streamFilter" -> json["key"]?.jsonPrimitive?.contentOrNull
+                ?.let { key -> RemoteAppBridge.streamFilterMenu.value?.sections?.flatMap { it.items }?.firstOrNull { it.key == key } }
+                ?.let { item -> { StreamFilterSettingsRepository.update(item.toggle) } }
+            // Like the PC's Reset: clears the filters, keeps the sort.
+            "streamFilterReset" -> ({
+                StreamFilterSettingsRepository.update { it.reset().copy(sort = it.sort, cachedFirst = it.cachedFirst) }
+            })
+            "streamFilterText" -> {
+                val text = json["value"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val gb = text.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 } ?: 0.0
+                when (json["field"]?.jsonPrimitive?.contentOrNull) {
+                    "query" -> ({ StreamFilterSettingsRepository.update { it.copy(query = text) } })
+                    "include" -> ({ StreamFilterSettingsRepository.update { it.copy(includeKeywords = text) } })
+                    "exclude" -> ({ StreamFilterSettingsRepository.update { it.copy(excludeKeywords = text) } })
+                    "minSize" -> ({ StreamFilterSettingsRepository.update { it.copy(minSizeGb = gb) } })
+                    "maxSize" -> ({ StreamFilterSettingsRepository.update { it.copy(maxSizeGb = gb) } })
+                    else -> null
+                }
+            }
             "fromStart" -> json["value"]?.jsonPrimitive?.booleanOrNull
                 ?.let { fromStart -> page?.let { { it.setStartFromBeginning(fromStart) } } }
             else -> null

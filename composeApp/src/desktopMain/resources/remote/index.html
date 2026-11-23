@@ -286,8 +286,16 @@
 
   /* Details and Sources */
   .stream-filter { display: flex; align-items: center; gap: 8px; }
+  .stream-filter[hidden] { display: none; }
   .stream-filter .chips { flex: 1; min-width: 0; margin-inline: 0; padding-inline: 0; }
   .stream-filter .btn { flex: none; }
+  :is(#stream-sort, #stream-filters) .sheet-body { display: flex; flex-direction: column; gap: 12px; }
+  .sf-sizes { display: flex; gap: 8px; }
+  .sf-sizes .search-box { flex: 1; min-width: 0; }
+  .sf-unit { flex: none; font-size: 13px; color: var(--ctp-subtext0); }
+  .sf-sections { display: flex; flex-direction: column; gap: 12px; }
+  #s-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  #s-empty p { margin: 0; }
   .grow { flex: 1; }
   .detail-hero, .stream-hero { position: relative; overflow: hidden; border-radius: var(--r-card); background: var(--ctp-surface0); }
   .detail-hero { display: flex; align-items: flex-end; min-height: min(calc((100vw - 32px) * 0.75), 46dvh, 336px); }
@@ -415,10 +423,13 @@
   #sleep .sheet-body { display: flex; flex-direction: column; gap: 16px; }
   #sleep .note { margin: 0; }
   .hero-info-toggle[aria-expanded="true"] { background: var(--glass-accent); }
-  .hero-info { position: absolute; inset: 0; z-index: 1; padding: 16px 56px 16px 16px; overflow-y: auto; justify-content: center;
+  .hero-info { position: absolute; inset: 0; z-index: 1; padding: 16px 56px 16px 16px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
     background: color-mix(in srgb, var(--ctp-crust) 84%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
     animation: hero-info-in 0.2s var(--ease); }
-  .hero-info .synopsis { display: block; -webkit-line-clamp: unset; color: var(--ctp-subtext1); }
+  .hero-info .synopsis { display: block; -webkit-line-clamp: unset; overflow: visible; color: var(--ctp-subtext1); }
+  /* A long synopsis scrolls: items keep their height, and the auto margins centre short text without cutting off the top of long text. */
+  .hero-info > * { flex-shrink: 0; }
+  .hero-info::before, .hero-info::after { content: ""; margin-block: auto; }
   @keyframes hero-info-in { from { opacity: 0; } }
 
   .controls { width: 100%; display: flex; flex-direction: column; gap: 16px; padding: 18px 18px 20px; border-radius: var(--r-card); }
@@ -449,6 +460,10 @@
   /* Nothing in it scrolls (the episode info is on the card), so nothing clips the card's shadow. */
   .media { min-height: 0; gap: 14px; }
   .deck { flex-shrink: 0; }
+  .player-error { display: flex; flex-direction: column; gap: 10px; }
+  .player-error[hidden], .deck[hidden] { display: none; }
+  .player-error p { margin: 0; overflow-wrap: anywhere; }
+  .player-error .btn { align-self: flex-start; }
   /* Both cards share their height at every screen size, so the card keeps its size between the two screens. */
   .hero, .stream-hero { max-height: 36dvh; }
 
@@ -712,11 +727,13 @@
       <button id="s-start-btn" aria-pressed="false">Start from beginning</button>
     </div>
   </div>
-  <!-- Reload and addon filters. -->
-  <div class="stream-filter">
+  <!-- Reload, Sort and Filter; the addon chips on their own row below. -->
+  <div class="stream-filter" id="s-filter">
     <button class="btn btn-sm btn-gray" id="s-reload">Reload</button>
-    <div class="chips" id="s-addons"></div>
+    <button class="btn btn-sm btn-gray" id="s-sort" hidden></button>
+    <button class="btn btn-sm btn-gray" id="s-filter-open" hidden></button>
   </div>
+  <div class="chips" id="s-addons"></div>
   <div id="s-list" class="stream-list"></div>
   <div class="card t-sub text-sub" id="s-empty" hidden></div>
 </main>
@@ -778,7 +795,14 @@
   </div>
   </section>
 
-  <section class="deck">
+  <!-- The PC's "Playback error" screen: what failed, and its Go back. -->
+  <section class="card player-error" id="player-error" hidden>
+    <b class="t-headline" id="pe-title"></b>
+    <p class="t-sub text-sub" id="pe-message"></p>
+    <button class="btn btn-filled" id="pe-back"></button>
+  </section>
+
+  <section class="deck" id="player-deck">
   <div class="controls">
     <div class="seek">
       <div class="seek-times"><span id="position">0:00</span><span id="duration">0:00</span></div>
@@ -844,6 +868,37 @@
     </div>
   </div>
   <div class="sheet-body" id="panel-body"></div>
+</dialog>
+
+
+<!-- The sources page's Sort and Filter menus, as on the PC: every change applies there too. -->
+<dialog class="sheet" id="stream-sort" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div>
+    <div class="bar"><h2 class="t-title2" id="ss-title">Sort</h2><button class="btn btn-sm btn-plain" data-dismiss>Done</button></div>
+  </div>
+  <div class="sheet-body" id="ss-body"></div>
+</dialog>
+<dialog class="sheet" id="stream-filters" autofocus tabindex="-1">
+  <div class="sheet-head"><div class="grip"></div>
+    <div class="bar">
+      <h2 class="t-title2" id="sf-title">Filter</h2>
+      <span><button class="btn btn-sm btn-gray" id="sf-reset">Reset</button></span>
+      <button class="btn btn-sm btn-plain" data-dismiss>Done</button>
+    </div>
+  </div>
+  <div class="sheet-body" id="sf-body">
+    <label class="search-box"><input id="sf-query" type="search" enterkeyhint="done" autocomplete="off"></label>
+    <div class="section-title" id="sf-include-label"></div>
+    <label class="search-box"><input id="sf-include" type="text" enterkeyhint="done" autocomplete="off"></label>
+    <div class="section-title" id="sf-exclude-label"></div>
+    <label class="search-box"><input id="sf-exclude" type="text" enterkeyhint="done" autocomplete="off"></label>
+    <div class="section-title" id="sf-size-label"></div>
+    <div class="sf-sizes">
+      <label class="search-box"><span class="sf-unit" id="sf-minSize-label"></span><input id="sf-minSize" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off"></label>
+      <label class="search-box"><span class="sf-unit" id="sf-maxSize-label"></span><input id="sf-maxSize" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off"></label>
+    </div>
+    <div class="sf-sections" id="sf-sections"></div>
+  </div>
 </dialog>
 
 <dialog class="sheet" id="card-menu" aria-labelledby="card-menu-title" tabindex="-1">
@@ -1035,6 +1090,15 @@
     $('player-episodes').hidden = !hasEpisodes;
     if (!msg.active) { closePlayerSheets(); return; }
     showMedia(msg);
+    // A failed source: the PC shows only its error and Go back, so the phone does too.
+    $('player-error').hidden = !msg.error;
+    $('player-deck').hidden = !!msg.error;
+    if (msg.error) {
+      $('pe-title').textContent = msg.error.title;
+      $('pe-message').textContent = msg.error.message;
+      $('pe-back').textContent = msg.error.actionLabel;
+      if (!previous.error) closePlayerSheets();
+    }
     $('play-icon').setAttribute('href', msg.playing ? '#icon-pause' : '#icon-play');
     if (!draggingVolume) setRange($('volume'), msg.volume);
     $('volume-label').textContent = Math.round(Number($('volume').value) * 100) + '%';
@@ -2015,37 +2079,59 @@
   let streams = { groups: [] };
   let streamsTitle = null;
   let addonFilter = null;
+  let pcAddon;
   function showStreams(msg) {
     streams = msg;
     if (msg.title && msg.title + msg.episode !== streamsTitle) {
       streamsTitle = msg.title + msg.episode;
       addonFilter = null;
+      pcAddon = undefined;
       $('s-bg').src = msg.background || '';
       titleArt($('s-title'), msg.logo, msg.title);
     }
+    // Start on the addon the PC picked (e.g. the one a resumed title last played from), and follow it when it changes.
+    if ((msg.selectedAddon ?? null) !== pcAddon) {
+      pcAddon = msg.selectedAddon ?? null;
+      addonFilter = pcAddon;
+    }
     $('s-episode').textContent = msg.episode || '';
     // Resume from the saved position, or start over, like the PC's banner.
-    $('s-resume').hidden = !msg.resumeMs;
+    $('s-resume').hidden = !msg.resumeMs || !!msg.autoSelecting;
     if (msg.resumeMs) {
       $('s-resume-label').textContent = `Resume from ${clock(msg.resumeMs)}`;
       $('s-resume-btn').setAttribute('aria-pressed', !msg.fromStart);
       $('s-start-btn').setAttribute('aria-pressed', !!msg.fromStart);
     }
+    renderStreamMenus();
     renderStreams();
   }
   $('s-resume-btn').addEventListener('click', () => send({ cmd: 'fromStart', value: false }));
   $('s-start-btn').addEventListener('click', () => send({ cmd: 'fromStart', value: true }));
   function renderStreams() {
     const scroll = $('streams').hidden ? null : scrollY;
+    // While auto-select picks a source the PC shows only its loading screen, so the phone does too.
+    $('s-filter').hidden = !!streams.autoSelecting;
+    $('s-addons').hidden = !!streams.autoSelecting;
+    if (streams.autoSelecting) {
+      setChildren($('s-list'), [loader('Picking a source…')]);
+      $('s-empty').hidden = true;
+      return;
+    }
     const groups = streams.groups.map((g, i) => ({ ...g, i })).filter((g) => g.streams.length || g.loading || g.error);
-    const chips = [{ addon: 'All', i: null }, ...groups].map((g) => {
-      const chip = el('button', 'chip', g.addon);
-      chip.setAttribute('aria-pressed', addonFilter === g.i);
-      chip.addEventListener('click', () => { addonFilter = g.i; renderStreams(); });
+    // Chips follow the addon by name: filtering or sorting can drop groups and shift their order. A list
+    // sorted across addons comes as one unnamed group, with no chips or header.
+    const named = groups.filter((g) => g.addon);
+    if (addonFilter !== null && !named.some((g) => g.addon === addonFilter)) addonFilter = null;
+    const chips = [{ addon: null }, ...named].map((g) => {
+      const chip = el('button', 'chip', g.addon ?? 'All');
+      chip.setAttribute('aria-pressed', addonFilter === g.addon);
+      chip.addEventListener('click', () => { addonFilter = g.addon; renderStreams(); });
       return chip;
     });
-    setChildren($('s-addons'), chips);
-    const shown = groups.filter((g) => addonFilter === null || g.i === addonFilter);
+    // A single list sorted across addons has nothing to pick between.
+    setChildren($('s-addons'), named.length ? chips : []);
+    $('s-addons').hidden = !named.length;
+    const shown = groups.filter((g) => addonFilter === null || g.addon === addonFilter);
     const nodes = [];
     shown.forEach((group) => {
       // An addon still searching shows a spinner by its name.
@@ -2057,7 +2143,7 @@
         else if (group.error) nodes.push(header, el('div', 'card t-sub text-sub', group.error));
         return;
       }
-      nodes.push(header);
+      if (group.addon) nodes.push(header);
       group.streams.forEach((stream, s) => {
         const card = el('button', 'stream-card');
         card.append(el('b', '', stream.name));
@@ -2083,9 +2169,99 @@
     if (!anyStreams && streams.loading) nodes.unshift(loader('Finding sources…'));
     setChildren($('s-list'), nodes);
     $('s-empty').hidden = anyStreams || streams.loading || shown.some((g) => g.error);
-    $('s-empty').textContent = 'No sources found.';
+    // Everything hidden by the filter: say so, with Reset, like the PC.
+    const hidden = streams.filters?.hiddenCount > 0 ? streams.filters : null;
+    if (hidden) {
+      const reset = el('button', 'btn btn-sm btn-gray', hidden.labels.reset);
+      reset.addEventListener('click', () => send({ cmd: 'streamFilterReset' }));
+      setChildren($('s-empty'), [el('b', '', hidden.labels.hiddenTitle), el('p', '', hidden.labels.hiddenMessage), reset]);
+    } else $('s-empty').textContent = 'No sources found.';
     if (scroll !== null) scrollTo({ top: scroll });
   }
+  // ─── Sort and Filter: the PC's menus, sent with the sources; each tap or typed value applies on the PC ───
+  function renderStreamMenus() {
+    const f = streams.filters;
+    $('s-sort').hidden = $('s-filter-open').hidden = !f;
+    if (!f) {
+      $('stream-sort').close();
+      $('stream-filters').close();
+      return;
+    }
+    const L = f.labels;
+    $('s-sort').textContent = f.sort === 'DEFAULT' ? L.sort : (f.sorts.find((s) => s.id === f.sort)?.label || L.sort);
+    $('s-sort').setAttribute('aria-pressed', f.hasActiveSort);
+    $('s-filter-open').textContent = f.activeCount > 0 ? L.filterCount : L.filter;
+    $('s-filter-open').setAttribute('aria-pressed', f.activeCount > 0);
+    if ($('stream-sort').open) renderSortSheet();
+    if ($('stream-filters').open) renderFilterSheet();
+  }
+  function renderSortSheet() {
+    const f = streams.filters;
+    $('ss-title').textContent = f.labels.sort;
+    const body = $('ss-body');
+    const scroll = body.scrollTop;
+    body.replaceChildren(
+      group(...f.sorts.map((s) => choice({ label: s.label, checked: f.sort === s.id,
+        onClick: () => send({ cmd: 'streamSort', value: s.id }) }))),
+      section(f.labels.general),
+      group(choice({ label: f.labels.cachedFirst, checked: f.cachedFirst, onClick: () => send({ cmd: 'streamCachedFirst' }) })),
+    );
+    body.scrollTop = scroll;
+  }
+  const filterFields = ['query', 'include', 'exclude', 'minSize', 'maxSize'];
+  function renderFilterSheet() {
+    const f = streams.filters;
+    const L = f.labels;
+    $('sf-title').textContent = L.filter;
+    $('sf-reset').textContent = L.reset;
+    $('sf-reset').disabled = f.activeCount === 0;
+    $('sf-query').placeholder = L.search;
+    $('sf-include-label').textContent = L.include;
+    $('sf-exclude-label').textContent = L.exclude;
+    $('sf-include').placeholder = $('sf-exclude').placeholder = L.keywordsHint;
+    $('sf-size-label').textContent = L.size;
+    $('sf-minSize-label').textContent = L.minSize;
+    $('sf-maxSize-label').textContent = L.maxSize;
+    $('sf-minSize').placeholder = '0';
+    $('sf-maxSize').placeholder = '∞';
+    // A field being typed in keeps what is typed; the others follow the PC.
+    filterFields.forEach((field) => {
+      const input = $(`sf-${field}`);
+      if (document.activeElement === input || filterTyping[field]) return;
+      const value = f[field];
+      input.value = typeof value === 'number' ? (value > 0 ? String(value) : '') : value;
+    });
+    const body = $('sf-body');
+    const scroll = body.scrollTop;
+    setChildren($('sf-sections'), f.sections.flatMap((s) => [
+      section(s.title),
+      group(...s.items.map((item) => choice({
+        label: item.label, checked: item.selected,
+        trailing: item.count === undefined ? null : el('span', 'value', String(item.count)),
+        onClick: () => send({ cmd: 'streamFilter', key: item.key }),
+      }))),
+    ]));
+    body.scrollTop = scroll;
+  }
+  const filterTyping = {};
+  filterFields.forEach((field) => {
+    const input = $(`sf-${field}`);
+    input.addEventListener('input', () => {
+      clearTimeout(filterTyping[field]);
+      filterTyping[field] = setTimeout(() => {
+        filterTyping[field] = null;
+        send({ cmd: 'streamFilterText', field, value: input.value });
+      }, 350);
+    });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  });
+  $('s-sort').addEventListener('click', () => { renderSortSheet(); $('ss-body').scrollTop = 0; present($('stream-sort')); });
+  $('s-filter-open').addEventListener('click', () => { renderFilterSheet(); $('sf-body').scrollTop = 0; present($('stream-filters')); });
+  $('sf-reset').addEventListener('click', () => {
+    filterFields.forEach((field) => { clearTimeout(filterTyping[field]); filterTyping[field] = null; $(`sf-${field}`).value = ''; });
+    send({ cmd: 'streamFilterReset' });
+  });
+  $('pe-back').addEventListener('click', () => player('back'));
   $('s-reload').addEventListener('click', () => send({ cmd: 'reloadStreams' }));
 
   // ─── Search: type here, the PC searches; results open the title there ───
@@ -2892,11 +3068,28 @@
       }))));
     },
 
+    // Like the PC's panel: the filter, its opacity and colour (Black, Deep Navy, B&W or any colour), and frosted matte.
     eyeFilter() {
       header('Eye Filter');
+      const color = String(state.eyeFilterColor || '#000000').toUpperCase();
+      const bw = color === 'BW' || color === '#BW';
+      const opacity = Math.round(Math.max(0.1, Math.min(0.8, Number(state.eyeFilterOpacity ?? 0.35))) * 100);
+      const setOpacity = (percent) => player('setEyeFilterOpacity', Math.max(10, Math.min(80, percent)) / 100);
+      const presets = [0x000000, 0x0F172A];
       add(group(
-        toggle('Eye filter', '', state.eyeFilter, (on) => player('setEyeFilterEnabled', on ? 1 : 0)),
-        toggle('Frosted matte filter', 'Film grain & frosted effect', state.frostedFilter, (on) => player('setGrainFilterEnabled', on ? 1 : 0))
+        toggle('Eye filter', 'Warm tint or screen dimmer to reduce eye strain', state.eyeFilter,
+          (on) => player('setEyeFilterEnabled', on ? 1 : 0)),
+      ));
+      add(group(
+        stepper('Opacity', `${opacity}%`, () => setOpacity(opacity - 5), () => setOpacity(opacity + 5)),
+        // With B&W on, no colour swatch is the chosen one.
+        swatches('Color', ['#FF000000', '#FF0F172A'], bw ? '#FF000001' : '#FF' + color.slice(1),
+          (index) => player('setEyeFilterColor', presets[index]), (rgb) => player('setEyeFilterColor', rgb)),
+        toggle('B&W', 'Black and white monochrome filter', bw, (on) => player('setEyeFilterBw', on ? 1 : 0)),
+      ));
+      add(group(
+        toggle('Frosted matte filter', 'Static frosted veil for hemophobia protection', state.frostedFilter,
+          (on) => player('setGrainFilterEnabled', on ? 1 : 0)),
       ));
     },
 

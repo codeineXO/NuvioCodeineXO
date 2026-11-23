@@ -305,6 +305,13 @@ fun StreamsScreen(
         )
     }
 
+    // The phone remote shows its own "Picking a source" state while the loading screen covers this page. Published
+    // before the early return below, which skips the rest of the remote publishing.
+    SideEffect { com.nuvio.app.features.remote.RemoteAppBridge.publishStreamsAutoSelecting(showLoadingScreen) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { com.nuvio.app.features.remote.RemoteAppBridge.publishStreamsAutoSelecting(false) }
+    }
+
     // Desktop keeps only the backdrop beneath so the loading screen fades in over it rather than cutting to it,
     // without the stream list flashing through while the cover waits for its artwork.
     if (showLoadingScreen) {
@@ -388,6 +395,13 @@ fun StreamsScreen(
     }
     androidx.compose.runtime.DisposableEffect(remoteStreamsKey) {
         onDispose { com.nuvio.app.features.remote.RemoteAppBridge.clearStreams(remoteStreamsKey) }
+    }
+    if (isDesktop) {
+        PublishRemoteStreamFilterMenu(
+            settings = streamFilterSettings,
+            streams = uiState.addonFilteredGroups.flatMap { it.streams },
+            hiddenCount = displayedUiState.hiddenByFilterCount,
+        )
     }
 
     BoxWithConstraints(

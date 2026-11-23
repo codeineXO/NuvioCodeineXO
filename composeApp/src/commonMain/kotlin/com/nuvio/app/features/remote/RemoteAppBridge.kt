@@ -89,6 +89,27 @@ object RemoteAppBridge {
         if (_streams.value?.key == key) _streams.value = null
     }
 
+    private val _streamsAutoSelecting = MutableStateFlow(false)
+
+    /**
+     * True while the PC covers the sources page with its loading screen as auto-select picks a source; the phone
+     * shows the same. Published apart from [streams]: the page skips its list (and that publish) while it is covered.
+     */
+    val streamsAutoSelecting: StateFlow<Boolean> = _streamsAutoSelecting.asStateFlow()
+
+    fun publishStreamsAutoSelecting(autoSelecting: Boolean) {
+        _streamsAutoSelecting.value = autoSelecting
+    }
+
+    private val _streamFilterMenu = MutableStateFlow<com.nuvio.app.features.streams.RemoteStreamFilterMenu?>(null)
+
+    /** The open sources page's Sort and Filter menus, for the phone's own sheets. */
+    internal val streamFilterMenu: StateFlow<com.nuvio.app.features.streams.RemoteStreamFilterMenu?> = _streamFilterMenu.asStateFlow()
+
+    internal fun publishStreamFilterMenu(menu: com.nuvio.app.features.streams.RemoteStreamFilterMenu?) {
+        _streamFilterMenu.value = menu
+    }
+
     private val _commands = MutableSharedFlow<Command>(extraBufferCapacity = 8)
     val commands: SharedFlow<Command> = _commands.asSharedFlow()
 

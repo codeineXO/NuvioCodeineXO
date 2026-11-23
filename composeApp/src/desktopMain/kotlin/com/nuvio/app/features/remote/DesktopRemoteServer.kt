@@ -270,7 +270,8 @@ internal object DesktopRemoteServer : RemoteServerPlatform {
             "libraryLayout", "librarySort", "libraryDownloads", "cloudLoad", "cloudPlay" -> RemoteLibrary.handle(cmd, json)
             "sleepSet", "sleepCancel" -> RemoteSleepTimer.handle(cmd, json)
             "fillerDetection", "hideFillers" -> RemoteDetails.handle(cmd, json)
-            "back", "play", "episode", "saved", "watched", "stream", "reloadStreams", "fromStart" -> RemoteDetails.handle(cmd, json)
+            "back", "play", "episode", "saved", "watched", "stream", "reloadStreams", "fromStart",
+            "streamSort", "streamCachedFirst", "streamFilter", "streamFilterReset", "streamFilterText" -> RemoteDetails.handle(cmd, json)
             "player" -> {
                 val type = json["type"]?.jsonPrimitive?.contentOrNull ?: return
                 val value = json["value"]?.jsonPrimitive?.doubleOrNull ?: return

@@ -631,3 +631,41 @@ private fun MenuAccentPill(text: String, onClick: () -> Unit, modifier: Modifier
         )
     }
 }
+
+/** The Sort and Filter menus as the phone remote shows them: the same labels, options and counts as here. */
+internal class RemoteStreamFilterMenu(
+    val labels: Map<String, String>,
+    val sorts: List<Pair<StreamSortMode, String>>,
+    val sections: List<StreamFilterSection>,
+)
+
+/** Keeps the phone remote's Sort and Filter sheets in step with this page's menus. */
+@Composable
+internal fun PublishRemoteStreamFilterMenu(settings: StreamFilterSettings, streams: List<StreamItem>, hiddenCount: Int) {
+    val options = remember(streams) { StreamFilterEngine.options(streams) }
+    val sections = streamFilterSections(settings, options)
+    val sorts = StreamSortMode.entries.map { it to stringResource(it.labelRes()) }
+    val labels = mapOf(
+        "sort" to stringResource(Res.string.stream_sort_button),
+        "filter" to stringResource(Res.string.stream_filter_button),
+        "filterCount" to stringResource(Res.string.stream_filter_button_count, settings.activeFilterCount),
+        "cachedFirst" to stringResource(Res.string.stream_sort_cached_first),
+        "general" to stringResource(Res.string.stream_filter_section_general),
+        "reset" to stringResource(Res.string.stream_filter_reset),
+        "search" to stringResource(Res.string.stream_filter_search_hint),
+        "include" to stringResource(Res.string.stream_filter_include_keywords),
+        "exclude" to stringResource(Res.string.stream_filter_exclude_keywords),
+        "keywordsHint" to stringResource(Res.string.stream_filter_keywords_hint),
+        "size" to stringResource(Res.string.stream_filter_section_size),
+        "minSize" to stringResource(Res.string.stream_filter_min_size_gb),
+        "maxSize" to stringResource(Res.string.stream_filter_max_size_gb),
+        "hiddenTitle" to stringResource(Res.string.stream_filter_hidden_title),
+        "hiddenMessage" to stringResource(Res.string.stream_filter_hidden_message, hiddenCount),
+    )
+    androidx.compose.runtime.SideEffect {
+        com.nuvio.app.features.remote.RemoteAppBridge.publishStreamFilterMenu(RemoteStreamFilterMenu(labels, sorts, sections))
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { com.nuvio.app.features.remote.RemoteAppBridge.publishStreamFilterMenu(null) }
+    }
+}

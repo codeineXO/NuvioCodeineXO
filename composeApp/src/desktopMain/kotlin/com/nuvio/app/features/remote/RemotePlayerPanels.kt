@@ -46,9 +46,19 @@ internal object RemotePlayerPanels {
         put("speed", state.playbackSpeedLabel)
         put("aspect", state.resizeModeLabel)
         put("eyeFilter", state.eyeFilterEnabled)
+        put("eyeFilterColor", state.eyeFilterColor)
+        put("eyeFilterOpacity", state.eyeFilterOpacity)
         put("frostedFilter", PlayerSettingsRepository.uiState.value.grainFilterEnabled)
         put("nextEpisodePlayable", state.nextEpisodePlayable)
         put("closeModalsToken", state.closeModalsToken)
+        // The PC's "Playback error" screen, when a source failed and no fallback is left.
+        if (state.playbackErrorMessage.isNotBlank()) {
+            putJsonObject("error") {
+                put("title", state.playbackErrorTitle)
+                put("message", state.playbackErrorMessage)
+                put("actionLabel", state.playbackErrorActionLabel)
+            }
+        }
         if (state.showP2pConsent) {
             putJsonObject("p2pConsent") {
                 put("title", state.p2pConsentTitle)

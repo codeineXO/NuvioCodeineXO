@@ -17,7 +17,7 @@ internal object RemotePlayerLink {
         "enableP2pForPlayerControls", "cancelP2pForPlayerControls",
         "subtitleSlot", "selectAudioTrack", "toggleAudioNightMode",
         "setAnimeUpscalerOption", "setAnimeUpscalerMode", "setSvpMode",
-        "setPlaybackSpeed", "setEyeFilterEnabled", "setGrainFilterEnabled", "selectChapter",
+        "setPlaybackSpeed", "setEyeFilterEnabled", "setEyeFilterOpacity", "setEyeFilterColor", "setEyeFilterBw", "setGrainFilterEnabled", "selectChapter",
         "subtitleCustomStyleToggle", "selectHlsQuality",
     )
 
