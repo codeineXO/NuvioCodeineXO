@@ -44,6 +44,7 @@
   left: 0;
   top: 0;
   bottom: 0;
+  border-radius: inherit;
 }
 
 .player.ui-codeinexo .chapter-segment-buffer {
