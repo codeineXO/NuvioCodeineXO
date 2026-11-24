@@ -2727,6 +2727,7 @@ const subtitleSelectionOptions = () => normalizeItems(state.subtitleOptionItems)
   sourceLabel: String(item.sourceLabel || ""),
   title: String(item.title || ""),
   metadata: String(item.metadata || ""),
+  formatBadge: String(item.formatBadge || ""),
   selected: Boolean(item.isSelected),
   autoSynced: Boolean(item.isAutoSynced),
   index: Number(item.index) || 0,
@@ -2807,6 +2808,12 @@ const appendSubtitleOptionRow = option => {
   source.className = "subtitle-source-chip";
   source.textContent = option.sourceLabel;
   sourceRow.appendChild(source);
+  if (option.formatBadge) {
+    const badge = document.createElement("span");
+    badge.className = "subtitle-source-chip subtitle-format-chip";
+    badge.textContent = option.formatBadge;
+    sourceRow.appendChild(badge);
+  }
   if (option.autoSynced) {
     const chip = document.createElement("span");
     chip.className = "autosynced-chip";

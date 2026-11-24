@@ -4024,7 +4024,14 @@ private:
                 ? trackId == primarySubtitleId
                 : flagProperty((prefix + "/selected").c_str(), false);
             bool forced = flagProperty((prefix + "/forced").c_str(), false);
-            std::string label = formatTrackTitle(type, logicalIndex, title, language, codec, decoderDescription, channels, (int)channelCount);
+            // Styled and bitmap subtitle formats get a badge in the app, so keep the codec out of the label.
+            const bool badgeCodec = type == "sub" && isBadgeSubtitleCodec(codec);
+            std::string label = formatTrackTitle(
+                type, logicalIndex, title, language,
+                badgeCodec ? std::string() : codec,
+                badgeCodec ? std::string() : decoderDescription,
+                channels, (int)channelCount
+            );
 
             if (!first) json << ",";
             first = false;
@@ -4033,6 +4040,7 @@ private:
                  << "\"id\":\"" << jsonEscape(std::to_string(trackId)) << "\","
                  << "\"label\":\"" << jsonEscape(label) << "\","
                  << "\"language\":\"" << jsonEscape(language) << "\","
+                 << "\"codec\":\"" << jsonEscape(codec) << "\","
                  << "\"selected\":" << (selected ? "true" : "false") << ","
                  << "\"forced\":" << (forced ? "true" : "false")
                  << "}";
@@ -4040,6 +4048,11 @@ private:
         }
         json << "]";
         return json.str();
+    }
+
+    static bool isBadgeSubtitleCodec(const std::string &codec) {
+        return codec == "ass" || codec == "ssa" || codec == "hdmv_pgs_subtitle" || codec == "pgssub" ||
+            codec == "dvd_subtitle" || codec == "dvdsub" || codec == "dvb_subtitle" || codec == "dvbsub";
     }
 
     std::string trackStringAtIndex(long long index, const std::string &field) {

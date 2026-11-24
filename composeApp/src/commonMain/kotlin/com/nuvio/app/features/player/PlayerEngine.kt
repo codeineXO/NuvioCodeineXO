@@ -555,6 +555,7 @@ data class PlayerControlSubtitleOptionItem(
     val sourceLabel: String = "",
     val title: String = "",
     val metadata: String = "",
+    val formatBadge: String = "",
     val isSelected: Boolean = false,
     val isAutoSynced: Boolean = false,
 )

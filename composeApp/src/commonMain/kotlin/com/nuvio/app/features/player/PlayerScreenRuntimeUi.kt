@@ -2416,6 +2416,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(secondary: B
                         option.track.index,
                     ),
                     metadata = forcedLabel.takeIf { option.track.isForced }.orEmpty(),
+                    formatBadge = option.track.formatBadge?.label.orEmpty(),
                     isSelected = option.id == selectedOptionId,
                 )
 
@@ -2441,6 +2442,7 @@ private fun PlayerScreenRuntime.buildPlayerControlSubtitleSelection(secondary: B
                         } else {
                             option.subtitle.label?.trim()?.takeIf { it.isNotBlank() && it != title }.orEmpty()
                         },
+                        formatBadge = option.subtitle.formatBadge?.label.orEmpty(),
                         isSelected = option.id == selectedOptionId,
                         isAutoSynced = option.id == selectedOptionId &&
                             option.subtitle.url == (if (secondary) secondarySubtitles.syncedUrl else autoSyncedUrl),

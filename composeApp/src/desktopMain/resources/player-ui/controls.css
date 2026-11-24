@@ -3662,6 +3662,19 @@ button:disabled {
   color: color-mix(in srgb, var(--theme-on-accent) 90%, transparent);
 }
 
+.subtitle-format-chip {
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, .32);
+  background: transparent;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.subtitle-option-row.selected .subtitle-format-chip {
+  border-color: color-mix(in srgb, var(--theme-on-accent) 55%, transparent);
+  background: transparent;
+}
+
 .subtitle-option-title {
   color: inherit;
   font-size: 16px;

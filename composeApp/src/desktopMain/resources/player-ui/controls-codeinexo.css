@@ -1561,6 +1561,20 @@
   color: #fff;
 }
 
+.player.ui-codeinexo #subtitleModal .subtitle-format-chip {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid rgba(255, 255, 255, .34);
+  background: transparent;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-format-chip {
+  border-color: rgba(255, 255, 255, .6);
+  background: transparent;
+}
+
 .player.ui-codeinexo #subtitleModal .subtitle-option-title {
   white-space: normal;
   overflow-wrap: anywhere;

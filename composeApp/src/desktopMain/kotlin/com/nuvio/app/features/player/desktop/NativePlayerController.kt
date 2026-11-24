@@ -55,6 +55,7 @@ import com.nuvio.app.features.streams.StreamSubtitle
 import com.nuvio.app.features.addons.encodeUnsafeHttpUrlCharacters
 import com.nuvio.app.features.player.SubtitleStyleState
 import com.nuvio.app.features.player.SubtitleTrack
+import com.nuvio.app.features.player.subtitleFormatBadgeForCodec
 import com.nuvio.app.features.player.inferForcedSubtitleTrack
 import com.nuvio.app.features.player.toStorageHexString
 import kotlinx.coroutines.CancellationException
@@ -2219,6 +2220,7 @@ internal class NativePlayerController(
                     language = track.language,
                     trackId = track.id,
                 ),
+                formatBadge = subtitleFormatBadgeForCodec(track.codec),
             )
         }
     }
@@ -2728,6 +2730,7 @@ private data class NativeMpvTrack(
     val id: String = "",
     val label: String = "",
     val language: String = "",
+    val codec: String = "",
     val selected: Boolean = false,
     val forced: Boolean = false,
 )
@@ -3706,6 +3709,8 @@ private fun StringBuilder.appendSubtitleOptionItemJson(item: PlayerControlSubtit
     appendJsonField("title", item.title)
     append(',')
     appendJsonField("metadata", item.metadata)
+    append(',')
+    appendJsonField("formatBadge", item.formatBadge)
     append(',')
     appendJsonField("isSelected", item.isSelected)
     append(',')
