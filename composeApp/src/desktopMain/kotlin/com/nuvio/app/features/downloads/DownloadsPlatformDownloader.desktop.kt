@@ -177,9 +177,8 @@ internal actual object DownloadsPlatformDownloader {
         )
         var downloadedBytes = startingBytes
         onProgress(downloadedBytes, totalBytes)
-
+        var lastProgressAtNanos = System.nanoTime()
         var lastReportedBytes = downloadedBytes
-        var lastProgressAtNs = System.nanoTime()
 
         response.body().use { input ->
             FileOutputStream(tempFile, appendToTemp).use { output ->
@@ -190,10 +189,11 @@ internal actual object DownloadsPlatformDownloader {
                     if (read <= 0) break
                     output.write(buffer, 0, read)
                     downloadedBytes += read.toLong()
-                    if (System.nanoTime() - lastProgressAtNs >= 250_000_000L) {
+                    val now = System.nanoTime()
+                    if (now - lastProgressAtNanos >= ProgressIntervalNanos) {
+                        lastProgressAtNanos = now
                         onProgress(downloadedBytes, totalBytes)
                         lastReportedBytes = downloadedBytes
-                        lastProgressAtNs = System.nanoTime()
                     }
                 }
                 output.flush()
@@ -293,6 +293,7 @@ private class DesktopDownloadsTaskHandle(
 }
 
 private const val MaxTransientRetries = 10
+private const val ProgressIntervalNanos = 1_000_000_000L
 private const val MaxRetryDelayMs = 30_000L
 
 /** 2s, 4s, 8s, 16s, then capped at 30s. */

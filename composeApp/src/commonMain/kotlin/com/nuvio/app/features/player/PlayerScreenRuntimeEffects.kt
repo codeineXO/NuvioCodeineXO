@@ -90,7 +90,7 @@ private data class PlayerSnapshotSignals(
  * treated as "not offline" so we never suppress work we are not sure about.
  */
 internal fun isNetworkOffline(): Boolean =
-    NetworkStatusRepository.uiState.value.isOfflineLike
+    NetworkStatusRepository.uiState.value.condition == NetworkCondition.NoInternet
 
 @Composable
 private fun rememberNetworkCondition(): NetworkCondition {
@@ -421,8 +421,9 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         subtitleAutoSyncState = SubtitleAutoSyncUiState()
     }
 
-    LaunchedEffect(playerController, activeSourceUrl, subtitleStyle, playerSettingsUiState.useLibass) {
-        playerController?.applySubtitleStyle(subtitleStyle, playerSettingsUiState.useLibass)
+    val activeStyle = activeSubtitleStyle
+    LaunchedEffect(playerController, activeSourceUrl, activeStyle, playerSettingsUiState.useLibass) {
+        playerController?.applySubtitleStyle(activeStyle, playerSettingsUiState.useLibass)
     }
 
     val subtitlePreferenceKey = listOf(

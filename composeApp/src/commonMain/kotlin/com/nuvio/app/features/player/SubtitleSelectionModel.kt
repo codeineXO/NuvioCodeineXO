@@ -34,6 +34,12 @@ internal sealed interface SubtitleSelectionOption {
 internal val AddonSubtitle.selectionKey: String
     get() = url.takeIf { it.isNotBlank() } ?: listOfNotNull(addonName, id).joinToString(":")
 
+internal val AddonSubtitle.formatBadge: SubtitleFormatBadge?
+    get() {
+        val path = url.substringBefore('#').substringBefore('?').trimEnd('/').lowercase()
+        return if (path.endsWith(".ass") || path.endsWith(".ssa")) SubtitleFormatBadge.ASS else null
+    }
+
 internal fun AddonSubtitle.matchesSelection(selectedId: String?): Boolean {
     if (selectedId.isNullOrBlank()) return false
     return url == selectedId || id == selectedId || selectionKey == selectedId
@@ -48,7 +54,7 @@ internal fun List<AddonSubtitle>.findSelectedAddon(selectedId: String?): AddonSu
 
 internal fun subtitleTracksStructureKey(tracks: List<SubtitleTrack>): String =
     tracks.joinToString("\u0001") { track ->
-        "${track.index}\u0000${track.id}\u0000${track.language}\u0000${track.label}\u0000${track.isForced}"
+        "${track.index}\u0000${track.id}\u0000${track.language}\u0000${track.label}\u0000${track.isForced}\u0000${track.formatBadge}"
     }
 
 internal fun addonSubtitlesStructureKey(subtitles: List<AddonSubtitle>): String =

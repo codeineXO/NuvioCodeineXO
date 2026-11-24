@@ -72,6 +72,7 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     private const val secondaryPreferredSubtitleLanguageKey = "secondary_preferred_subtitle_language"
     private const val subtitleTextColorKey = "subtitle_text_color"
     private const val subtitleAppearanceKey = "subtitle_appearance"
+    private const val assSubtitleStyleKey = "subtitle_ass_style"
     private const val subtitleBackgroundColorKey = "subtitle_background_color"
     private const val subtitleOutlineColorKey = "subtitle_outline_color"
     private const val subtitleOutlineEnabledKey = "subtitle_outline_enabled"
@@ -229,6 +230,8 @@ internal actual object PlayerSettingsStorage : PlaybackBufferPresetStorage {
     actual fun saveSubtitleTextColor(colorHex: String) = saveString(subtitleTextColorKey, colorHex)
     actual fun loadSubtitleAppearance(): String? = loadString(subtitleAppearanceKey)
     actual fun saveSubtitleAppearance(value: String) = saveString(subtitleAppearanceKey, value)
+    actual fun loadAssSubtitleStyle(): String? = loadString(assSubtitleStyleKey)
+    actual fun saveAssSubtitleStyle(value: String) = saveString(assSubtitleStyleKey, value)
     actual fun loadSubtitleBackgroundColor(): String? = loadString(subtitleBackgroundColorKey)
     actual fun saveSubtitleBackgroundColor(colorHex: String) = saveString(subtitleBackgroundColorKey, colorHex)
     actual fun loadSubtitleOutlineColor(): String? = loadString(subtitleOutlineColorKey)
