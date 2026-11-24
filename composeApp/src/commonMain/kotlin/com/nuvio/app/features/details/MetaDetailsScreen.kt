@@ -2272,7 +2272,8 @@ internal fun MetaDetailsScreen(
                         SeasonPosterPreviewOverlay(
                             controller = seasonPreviewController,
                             suppressed = !useEnhancedLayout || enhancedSecondPage || switchingPage ||
-                                isLeavingDetails || seasonPreviewScrolling || showLibraryListPicker || showShuffle || selectedTrailer != null,
+                                isLeavingDetails || showLibraryListPicker || showShuffle || selectedTrailer != null,
+                            pageScrolling = seasonPreviewScrolling,
                             modifier = Modifier.zIndex(4f),
                         )
                         NuvioDesktopVerticalScrollbar(

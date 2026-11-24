@@ -1318,15 +1318,20 @@ private fun SeasonTextChipScrollRow(
                         val onSecondaryClick = onLongPress?.let { handler -> { handler(season) } }
                         val chipInteractionSource = remember { MutableInteractionSource() }
                         val isChipHovered by chipInteractionSource.collectIsRemoteHoveredAsState()
+                        var isChipFocused by remember { mutableStateOf(false) }
+                        val keyboardNavigation = isRemoteKeyboardNavigationActive
                         val posterUrl = seasonPosterForSeason?.invoke(season)
+                        val previewController = LocalSeasonPosterPreview.current
 
+                        // Hover lives on the outer box: the inner chip's modifier chain changes on selection,
+                        // which would reset its hover node and flicker the preview.
                         Box(
                             modifier = Modifier.wrapContentSize().seasonPosterPreviewAnchor(
                                 posterUrl = posterUrl.takeIf { showHoverPosterPreview },
-                                hovered = isChipHovered,
+                                hovered = isChipHovered || (keyboardNavigation && isChipFocused),
                                 rowBounds = previewRowBounds,
                                 rowState = seasonListState,
-                            ),
+                            ).hoverable(chipInteractionSource),
                             contentAlignment = Alignment.Center,
                         ) {
                             Box(
@@ -1339,13 +1344,16 @@ private fun SeasonTextChipScrollRow(
                                     } else if (!isEnhanced) {
                                         Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius))
                                     } else Modifier)
-                                    .hoverable(chipInteractionSource)
                                     .then(rowNavigation.itemModifier(index))
                                     .remoteNavigationFocusDestination(navigationEntry.takeIf { isSelected })
                                     .remoteNavigationDown(onSeasonDown)
                                     .remoteNavigationUp(onSeasonUp)
+                                    .onFocusChanged { isChipFocused = it.hasFocus }
                                     .posterCardClickable(
-                                        onClick = { onSelect(season) },
+                                        onClick = {
+                                            if (season != currentSeason) previewController?.holdForSelection()
+                                            onSelect(season)
+                                        },
                                         onLongClick = onSecondaryClick,
                                         zoomCornerRadius = sizing.seasonChipRadius,
                                         hoverScaleEnabled = false,

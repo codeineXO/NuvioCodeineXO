@@ -14,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -29,12 +28,16 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.ActionMenuCoordinator
 import com.nuvio.app.core.ui.NuvioAsyncImage
-import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.excludeFromRemoteNavigation
-import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
+
+private val SeasonPreviewWidth = 130.dp
+private val SeasonPreviewHeight = 195.dp
 
 internal data class SeasonPreviewAnchor(
     val posterUrl: String,
@@ -59,6 +62,18 @@ internal class SeasonPosterPreviewController {
     fun unregister(token: Any) {
         anchors.remove(token)
         if (owner === token) owner = null
+    }
+
+    /** Selecting a season may scroll the row/page; keep the preview up through that repositioning. */
+    var selectionHold by mutableStateOf(0)
+        private set
+
+    fun holdForSelection() {
+        selectionHold++
+    }
+
+    internal fun releaseSelectionHold(generation: Int) {
+        if (selectionHold == generation) selectionHold = 0
     }
 }
 
@@ -127,6 +142,7 @@ internal fun SeasonPosterPreviewOverlay(
     controller: SeasonPosterPreviewController,
     suppressed: Boolean,
     modifier: Modifier = Modifier,
+    pageScrolling: Boolean = false,
     previewContent: @Composable (String) -> Unit = { SeasonPosterPreviewCard(it) },
 ) {
     var hostBounds by remember { mutableStateOf(Rect.Zero) }
@@ -135,9 +151,20 @@ internal fun SeasonPosterPreviewOverlay(
     val displayedOwner = owner ?: outgoingOwner
     val anchor = controller.anchors[displayedOwner]
     val rowStates = listOfNotNull(anchor?.rowState)
-    val scrolling = rememberSeasonPreviewScrollSuppressed(rowStates)
+    val rowScrolling = rememberSeasonPreviewScrollSuppressed(rowStates)
+    val anyScrolling = rowScrolling || pageScrolling
+    val currentScrolling by rememberUpdatedState(anyScrolling)
+    val selectionHold = controller.selectionHold
+    LaunchedEffect(selectionHold) {
+        if (selectionHold == 0) return@LaunchedEffect
+        // Give the selection-driven scroll time to start, then release once it settles.
+        delay(400)
+        withTimeoutOrNull(1500) { snapshotFlow { currentScrolling }.first { !it } }
+        controller.releaseSelectionHold(selectionHold)
+    }
+    val scrolling = anyScrolling && selectionHold == 0
     val density = LocalDensity.current
-    val previewSize = with(density) { IntSize(110.dp.roundToPx(), 165.dp.roundToPx()) }
+    val previewSize = with(density) { IntSize(SeasonPreviewWidth.roundToPx(), SeasonPreviewHeight.roundToPx()) }
     val position = anchor?.let {
         seasonPreviewPosition(it.bounds.translate(-hostBounds.topLeft), IntSize(hostBounds.width.roundToInt(), hostBounds.height.roundToInt()), previewSize)
     }
@@ -159,7 +186,7 @@ internal fun SeasonPosterPreviewOverlay(
     Box(modifier.fillMaxSize().onGloballyPositioned { hostBounds = it.boundsInRoot() }
         .excludeFromRemoteNavigation().clearAndSetSemantics { }) {
         if (!blocked && anchor != null && position != null) {
-            Box(Modifier.offset { position }.size(110.dp, 165.dp).graphicsLayer {
+            Box(Modifier.offset { position }.size(SeasonPreviewWidth, SeasonPreviewHeight).graphicsLayer {
                 alpha = opacity.value
                 scaleX = 0.94f + 0.06f * alpha
                 scaleY = scaleX
@@ -171,8 +198,7 @@ internal fun SeasonPosterPreviewOverlay(
 @Composable
 private fun SeasonPosterPreviewCard(posterUrl: String) {
     val shape = RoundedCornerShape(rememberPosterCardStyleUiState().cornerRadiusDp.dp)
-    Box(Modifier.fillMaxSize().shadow(8.dp, shape)
-        .nuvioCardDepth(shape = shape, surface = NuvioCardDepthSurface.Posters)
+    Box(Modifier.fillMaxSize()
         .clip(shape).background(MaterialTheme.colorScheme.surfaceVariant)
         .border(1.dp, Color.White.copy(alpha = 0.12f), shape)) {
         NuvioAsyncImage(
