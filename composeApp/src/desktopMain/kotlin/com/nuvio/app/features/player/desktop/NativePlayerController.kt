@@ -1436,7 +1436,6 @@ internal class NativePlayerController(
                 handle.takeIf { it != 0L }?.let { applyCoordinatedEnhancements(it) }
             }
             "setPlaybackStatsVisible" -> setPlaybackStatsActive(value > 0.5)
-            "togglePlaybackStats" -> setPlaybackStatsActive(!isPlaybackStatsActive)
             else -> {
                 val eventHandled = onEvent(type, value)
                 if (type.shouldLogNativeControlEvent()) {

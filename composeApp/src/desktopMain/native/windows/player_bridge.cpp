@@ -1245,6 +1245,7 @@ public:
         if (videoCodec.empty()) videoCodec = stringProperty("video-format");
         stringField("videoCodec", videoCodec);
         stringField("videoDecoder", stringProperty("hwdec-current"));
+        stringField("fileFormat", stringProperty("file-format"));
         const auto width = integer("video-params/w");
         const auto height = integer("video-params/h");
         stringField("videoResolution", width > 0 && height > 0 ? std::to_string(width) + "x" + std::to_string(height) : "");
@@ -1256,6 +1257,19 @@ public:
             color += value;
         }
         stringField("videoColor", color);
+        stringField("videoGamma", stringProperty("video-params/gamma"));
+        stringField("videoPrimaries", stringProperty("video-params/primaries"));
+        // The rectangle mpv actually draws the video into: the OSD area minus its letterbox margins.
+        const auto osdWidth = integer("osd-dimensions/w");
+        const auto osdHeight = integer("osd-dimensions/h");
+        const auto drawnWidth = osdWidth - integer("osd-dimensions/ml") - integer("osd-dimensions/mr");
+        const auto drawnHeight = osdHeight - integer("osd-dimensions/mt") - integer("osd-dimensions/mb");
+        stringField("outputResolution", drawnWidth > 0 && drawnHeight > 0 ? std::to_string(drawnWidth) + "x" + std::to_string(drawnHeight) : "");
+        stringField("audioOutputDriver", stringProperty("current-ao"));
+        stringField("audioOutputFormat", stringProperty("audio-out-params/format"));
+        stringField("audioOutputChannels", stringProperty("audio-out-params/channels"));
+        out << "\"dolbyVisionProfile\":" << integer("current-tracks/video/dolby-vision-profile")
+            << ",\"fileSizeBytes\":" << integer("file-size") << ',';
         auto audioCodec = stringProperty("audio-codec-name");
         if (audioCodec.empty()) audioCodec = stringProperty("audio-codec");
         if (audioCodec.empty()) audioCodec = stringProperty("audio-format");

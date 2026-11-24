@@ -329,6 +329,7 @@ const torrentStatsClock = document.getElementById("torrentStatsClock");
 const torrentStatsTimeRow = document.getElementById("torrentStatsTimeRow");
 const torrentStatsEnds = document.getElementById("torrentStatsEnds");
 
+const statVideoFormat = document.getElementById("statVideoFormat");
 const statVideoCodec = document.getElementById("statVideoCodec");
 const statVideoDecoder = document.getElementById("statVideoDecoder");
 const statVideoResolution = document.getElementById("statVideoResolution");
@@ -1286,6 +1287,64 @@ const renderPlaybackStatsMetadata = () => {
   }
 };
 
+// mpv reports demuxer names (e.g. "matroska,webm", "mov,mp4,m4a,3gp,3g2,mj2"); show the familiar label.
+const FILE_FORMAT_LABELS = [
+  [/^matroska/, "MKV"],
+  [/^webm/, "WebM"],
+  [/^mov,mp4/, "MP4"],
+  [/^(hls|applehttp)/, "HLS"],
+  [/^dash/, "DASH"],
+  [/^mpegts/, "MPEG-TS"],
+  [/^mpeg/, "MPEG-PS"],
+  [/^avi/, "AVI"],
+  [/^flv/, "FLV"],
+  [/^asf/, "WMV"],
+  [/^ogg/, "OGG"],
+];
+
+const formatFileFormat = (raw) => {
+  const value = (raw || "").trim().toLowerCase();
+  if (!value) return "-";
+  const match = FILE_FORMAT_LABELS.find(([pattern]) => pattern.test(value));
+  return match ? match[1] : value.split(",")[0].toUpperCase();
+};
+
+const formatHdr = (stats) => {
+  const dvProfile = Number(stats.dolbyVisionProfile) || 0;
+  const gamma = (stats.videoGamma || "").toLowerCase();
+  if (dvProfile > 0) return `Dolby Vision (profile ${dvProfile})`;
+  if (gamma === "pq") return "HDR10 (PQ)";
+  if (gamma === "hlg") return "HLG";
+  if (!gamma) return "-";
+  return (stats.videoPrimaries || "").toLowerCase() === "bt.2020" ? "SDR (BT.2020)" : "SDR";
+};
+
+const AO_LABELS = { wasapi: "WASAPI", openal: "OpenAL", sdl: "SDL", null: "None" };
+
+// mpv tags bitstream passthrough output as "spdif-<codec>" (e.g. spdif-eac3, spdif-truehd).
+const formatAudioOutput = (stats) => {
+  const driverRaw = stats.audioOutputDriver || "";
+  const driver = AO_LABELS[driverRaw] || driverRaw.toUpperCase();
+  const format = (stats.audioOutputFormat || "").toLowerCase();
+  if (!driver && !format) return "-";
+  let route = "";
+  if (format.startsWith("spdif-")) {
+    route = `passthrough (${format.slice("spdif-".length).toUpperCase()})`;
+  } else if (format) {
+    const channels = stats.audioOutputChannels ? ` ${stats.audioOutputChannels}` : "";
+    route = `decoded → PCM${channels}`;
+  }
+  return [driver, route].filter(Boolean).join(" · ");
+};
+
+const formatFileSize = (bytes) => {
+  const GB = 1024 ** 3;
+  const MB = 1024 ** 2;
+  if (bytes >= GB) return `${(bytes / GB).toFixed(2)} GB`;
+  if (bytes >= MB) return `${(bytes / MB).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+};
+
 const renderPlaybackStats = () => {
   if (!isPlaybackStatsVisible || !playbackStatsOverlay) return;
   const stats = state.playbackStats || {};
@@ -1293,9 +1352,15 @@ const renderPlaybackStats = () => {
   const svpAttached = mpv ? mpv.svp === "attached" : Boolean(state.svpActive);
 
   // Video
+  setText(statVideoFormat, formatFileFormat(stats.fileFormat));
   setText(statVideoCodec, stats.videoCodec ? stats.videoCodec.toUpperCase() : "-");
   setText(statVideoDecoder, stats.videoDecoder ? `${stats.videoDecoder} (Hardware)` : "Software / Auto");
   setText(statVideoResolution, stats.videoResolution || "-");
+  const fileSize = Number(stats.fileSizeBytes) || 0;
+  document.getElementById("statFileSizeRow").hidden = fileSize <= 0;
+  if (fileSize > 0) setText(document.getElementById("statFileSize"), formatFileSize(fileSize));
+  setText(document.getElementById("statOutputResolution"), stats.outputResolution || "-");
+  setText(document.getElementById("statVideoHdr"), formatHdr(stats));
 
   const statText = (id, value) => setText(document.getElementById(id), value);
   const frequency = (value, unit) => value > 0 ? `${Number(value).toFixed(2)} ${unit}` : "Unavailable";
@@ -1323,6 +1388,7 @@ const renderPlaybackStats = () => {
   setText(statAudioSampleRate, sampleRate > 0 ? `${sampleRate.toLocaleString()} Hz` : "-");
   const aBitrate = Number(stats.audioBitrateKbps) || 0;
   setText(statAudioBitrate, aBitrate > 0 ? `${aBitrate.toLocaleString()} kbps` : "-");
+  setText(document.getElementById("statAudioOutput"), formatAudioOutput(stats));
   const selectedAudio = (state.audioTracks || []).find(t => t.selected);
   setText(statAudioTrack, selectedAudio ? (selectedAudio.title || selectedAudio.language || selectedAudio.label || "Track") : "-");
 
@@ -8782,3 +8848,6 @@ render();
 syncSeekrPreviews();
 refreshShortcutBadges();
 send("controlsReady", 0);
+// A freshly loaded page (new source, or a WebView reload) starts with the stats panel closed;
+// tell the controller so it stops any stats polling left over from the previous page.
+send("setPlaybackStatsVisible", 0);
