@@ -7853,11 +7853,65 @@ root.addEventListener("dblclick", event => {
   togglePlayerFullscreen();
 });
 
+// Two-finger touchpad swipes arrive as a burst of small wheel events. Accumulate them into steps: horizontal swipes
+// fine seek, vertical swipes change volume. A gesture keeps its axis until it goes idle. Touchpad deltas follow the
+// scroll direction (fingers right gives negative deltaX), so they are inverted here: fingers right seeks forward and
+// fingers up raises volume. Mouse wheel notches (multiples of 120) keep the plain wheel behaviour.
+const swipeSeekStepPx = 60;
+const swipeVolumeStepPx = 90;
+const swipeIdleMs = 180;
+let swipeAxis = null;
+let swipeAccumPx = 0;
+let swipeActiveUntil = 0;
+
+const isMouseWheelNotch = (event, axis) => {
+  if (event.deltaMode !== 0) return true;
+  const legacy = axis === "x" ? event.wheelDeltaX : event.wheelDeltaY;
+  return typeof legacy === "number" && legacy !== 0 && legacy % 120 === 0;
+};
+
+// Over the seek bar both axes seek, as the mouse wheel does there.
+let swipeSeeks = false;
+
+const handleTouchpadSwipe = (event, overProgress) => {
+  const now = performance.now();
+  const absX = Math.abs(event.deltaX);
+  const absY = Math.abs(event.deltaY);
+  if (now >= swipeActiveUntil) {
+    const axis = absX > absY ? "x" : absY > 0 ? "y" : null;
+    if (!axis || isMouseWheelNotch(event, axis)) return false;
+    swipeAxis = axis;
+    swipeSeeks = axis === "x" || overProgress;
+    swipeAccumPx = 0;
+  }
+  swipeActiveUntil = now + swipeIdleMs;
+  event.preventDefault();
+  noteChromeActivity();
+  // Positive means forward / louder.
+  const deltaPx = swipeAxis === "x" ? -event.deltaX : event.deltaY;
+  if (deltaPx !== 0 && Math.sign(deltaPx) !== Math.sign(swipeAccumPx)) swipeAccumPx = 0;
+  swipeAccumPx += deltaPx;
+  const stepPx = swipeSeeks ? swipeSeekStepPx : swipeVolumeStepPx;
+  const steps = Math.min(3, Math.trunc(Math.abs(swipeAccumPx) / stepPx));
+  if (steps > 0) {
+    const up = swipeAccumPx > 0;
+    swipeAccumPx -= Math.sign(swipeAccumPx) * steps * stepPx;
+    if (swipeSeeks) {
+      fineSeek(up, steps * (Number(shortcutSteps.seekFineMs) || 1000));
+    } else {
+      sendKeyboardVolume(up ? 1 : -1);
+    }
+  }
+  return true;
+};
+
 root.addEventListener("wheel", event => {
   if (event.target.closest("#playbackStatsOverlay")) {
     return;
   }
   if (playbackErrorText() || activeModal) return;
+  if (!event.shiftKey && !isPipLocked &&
+    handleTouchpadSwipe(event, Boolean(event.target.closest("#seek, .time-row, .time-pill, .scrub")))) return;
   const isProgressTarget = Boolean(event.target.closest("#seek, .time-row, .time-pill, .scrub"));
   if (isProgressTarget || event.shiftKey) {
     event.preventDefault();
