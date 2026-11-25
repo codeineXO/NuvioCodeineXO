@@ -168,6 +168,8 @@ fun <T> NuvioShelfSection(
                 hoverViewport.width = it.size.width
             }
             .nuvioPosterRowEdgeFade(state, horizontalInset = horizontalOverflow)
+            // Plain wheel scrolls the page here; only Shift/tilt wheel scrolls the row.
+            .nuvioPosterRowMouseWheelScroll(state = state, scrollStepPx = scrollStepPx, horizontalOnly = true)
             .nuvioDesktopDragScroll(state)
     }
     val effectiveRowContentPadding = if (useGutterLayout) {
@@ -351,6 +353,7 @@ internal fun Modifier.nuvioPosterRowMouseWheelScroll(
     state: LazyListState,
     scrollStepPx: Float,
     enabled: Boolean = true,
+    horizontalOnly: Boolean = false,
 ): Modifier {
     if (!isDesktop || !enabled) return this
 
@@ -367,29 +370,48 @@ internal fun Modifier.nuvioPosterRowMouseWheelScroll(
         if (!active) return@composed this
         modifierLocalConsumer { route.parent = ModifierLocalSoftWheelRoute.current }
             .onPointerEvent(PointerEventType.Press) { wheel.cancel() }
-            .onPointerEvent(PointerEventType.Scroll) { event ->
-                val canScrollHorizontally = state.canScrollBackward || state.canScrollForward
-                if (!canScrollHorizontally) return@onPointerEvent
+            // Initial pass: consume before the LazyRow's built-in wheel handling sees
+            // Shift+wheel (horizontal) deltas, otherwise both scroll the row.
+            .pointerInput(wheel, route, horizontalEvents, scrollStepPx, horizontalOnly) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type != PointerEventType.Scroll) continue
+                        if (horizontalOnly) {
+                            val x = event.changes.sumOf { it.scrollDelta.x.toDouble() }
+                            val y = event.changes.sumOf { it.scrollDelta.y.toDouble() }
+                            if (x == 0.0 || abs(x) <= abs(y)) continue
+                        }
+                        val canScrollHorizontally = state.canScrollBackward || state.canScrollForward
+                        if (!canScrollHorizontally) continue
 
-                val visibleItems = state.layoutInfo.visibleItemsInfo
-                if (visibleItems.isEmpty()) return@onPointerEvent
+                        val visibleItems = state.layoutInfo.visibleItemsInfo
+                        if (visibleItems.isEmpty()) continue
 
-                val minX = visibleItems.minOf { it.offset }
-                val maxX = visibleItems.maxOf { it.offset + it.size }
-                val isOverContent = event.changes.any { change ->
-                    val x = change.position.x
-                    x in minX.toFloat()..maxX.toFloat()
-                }
-                if (!isOverContent) return@onPointerEvent
+                        val minX = visibleItems.minOf { it.offset }
+                        val maxX = visibleItems.maxOf { it.offset + it.size }
+                        val isOverContent = event.changes.any { change ->
+                            val x = change.position.x
+                            x in minX.toFloat()..maxX.toFloat()
+                        }
+                        if (!isOverContent) continue
 
-                val totalDelta = event.changes.fold(0f) { acc, change ->
-                    acc + change.scrollDelta.y + change.scrollDelta.x
-                }
-                if (totalDelta != 0f) {
-                    route.claim(event)
-                    horizontalEvents?.handled = true
-                    wheel.scrollBy(totalDelta * scrollStepPx)
-                    event.changes.forEach { it.consume() }
+                        val totalDelta = event.changes.fold(0f) { acc, change ->
+                            acc + change.scrollDelta.y + change.scrollDelta.x
+                        }
+                        if (totalDelta != 0f) {
+                            // Half a card per notch (never below the base step), so wide
+                            // episode cards move as briskly as posters.
+                            val layout = state.layoutInfo
+                            val stride = visibleItems.sumOf { it.size }.toFloat() / visibleItems.size +
+                                layout.mainAxisItemSpacing
+                            val stepPx = maxOf(scrollStepPx, stride * 0.5f)
+                            route.claim(event)
+                            horizontalEvents?.handled = true
+                            wheel.scrollBy(totalDelta * stepPx)
+                            event.changes.forEach { it.consume() }
+                        }
+                    }
                 }
             }
     }

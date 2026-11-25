@@ -53,6 +53,27 @@ internal class SoftWheelRoute {
     }
 }
 
+/** Vertical content wheels by scroll state, so scrollbars can drive the same glide instead of a competing one. */
+internal object SoftWheelRegistry {
+    /** [direction] is the sign the content applies to wheel deltas before [SoftWheelScroll.scrollBy]. */
+    class Entry(val wheel: SoftWheelScroll, val direction: Float)
+
+    private val wheels = mutableMapOf<ScrollableState, Entry>()
+
+    fun register(state: ScrollableState, wheel: SoftWheelScroll, reverseScrolling: Boolean) {
+        wheels[state] = Entry(wheel, if (reverseScrolling) -1f else 1f)
+    }
+
+    fun unregister(state: ScrollableState, wheel: SoftWheelScroll) {
+        if (wheels[state]?.wheel === wheel) wheels.remove(state)
+    }
+
+    fun get(state: ScrollableState): Entry? = wheels[state]
+}
+
+/** Content wheel step per notch; scrollbar wheel input uses the same value. */
+internal val SoftWheelStep = 80.dp
+
 /** Reserve native wheel input, then let descendant containers take ownership before scrolling. */
 internal fun Modifier.nuvioVerticalMouseWheelScroll(
     state: ScrollableState,
@@ -74,8 +95,11 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
             }
         }
         DisposableEffect(wheel, active) {
-            if (!active) wheel.cancel()
-            onDispose { wheel.cancel() }
+            if (!active) wheel.cancel() else SoftWheelRegistry.register(state, wheel, reverseScrolling)
+            onDispose {
+                SoftWheelRegistry.unregister(state, wheel)
+                wheel.cancel()
+            }
         }
         if (!active) return@composed this
         modifierLocalConsumer {
@@ -85,7 +109,7 @@ internal fun Modifier.nuvioVerticalMouseWheelScroll(
             .modifierLocalProvider(ModifierLocalSoftWheelRoute) { route }
             .nestedScroll(connection, dispatcher)
             .pointerInput(wheel, route, reverseScrolling) {
-                val stepPx = 80.dp.toPx()
+                val stepPx = SoftWheelStep.toPx()
                 val direction = if (reverseScrolling) -1f else 1f
                 awaitPointerEventScope {
                     while (true) {
@@ -142,21 +166,29 @@ internal fun Modifier.nuvioHorizontalMouseWheelScroll(
             .modifierLocalProvider(ModifierLocalSoftWheelRoute) { route }
             .nestedScroll(connection, dispatcher)
             .onPointerEvent(PointerEventType.Press) { wheel.cancel() }
-            .onPointerEvent(PointerEventType.Scroll) { event ->
-                val canScrollHorizontally = state.canScrollBackward || state.canScrollForward
-                if (!canScrollHorizontally) return@onPointerEvent
+            // Initial pass: consume before the container's built-in wheel handling sees
+            // Shift+wheel (horizontal) deltas, otherwise both scroll it.
+            .pointerInput(wheel, route, horizontalEvents, stepPx, layoutDirection, reverseScrolling) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type != PointerEventType.Scroll) continue
+                        val canScrollHorizontally = state.canScrollBackward || state.canScrollForward
+                        if (!canScrollHorizontally) continue
 
-                val totalDelta = event.changes.fold(0f) { acc, change ->
-                    acc + change.scrollDelta.y + change.scrollDelta.x
-                }
-                if (totalDelta != 0f) {
-                    val isRtl = layoutDirection == LayoutDirection.Rtl
-                    val direction = if (reverseScrolling xor isRtl) -1f else 1f
-                    val delta = totalDelta * stepPx * direction
-                    route.claim(event)
-                    horizontalEvents?.handled = true
-                    wheel.scrollBy(delta)
-                    event.changes.forEach { it.consume() }
+                        val totalDelta = event.changes.fold(0f) { acc, change ->
+                            acc + change.scrollDelta.y + change.scrollDelta.x
+                        }
+                        if (totalDelta != 0f) {
+                            val isRtl = layoutDirection == LayoutDirection.Rtl
+                            val direction = if (reverseScrolling xor isRtl) -1f else 1f
+                            val delta = totalDelta * stepPx * direction
+                            route.claim(event)
+                            horizontalEvents?.handled = true
+                            wheel.scrollBy(delta)
+                            event.changes.forEach { it.consume() }
+                        }
+                    }
                 }
             }
     }

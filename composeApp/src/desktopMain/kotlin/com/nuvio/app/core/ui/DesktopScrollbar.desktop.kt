@@ -12,7 +12,9 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.awtEventOrNull
 import androidx.compose.ui.graphics.Color
@@ -76,12 +78,17 @@ internal actual fun NuvioDesktopVerticalScrollbar(
     )
 }
 
+/** Wheel over the scrollbar drives the content's own glide, so both move at the same pace and never compete. */
 @Composable
 private fun Modifier.scrollbarMouseWheelScroll(state: ScrollableState): Modifier {
-    val density = LocalDensity.current
-    val fallbackStepPx = remember(density) { with(density) { 48.dp.toPx() } }
+    val scope = rememberCoroutineScope()
+    val fallbackWheel = remember(state, scope) { SoftWheelScroll(state, scope) }
+    DisposableEffect(fallbackWheel) {
+        onDispose { fallbackWheel.cancel() }
+    }
 
-    return this.pointerInput(state, fallbackStepPx) {
+    return this.pointerInput(state, fallbackWheel) {
+        val stepPx = SoftWheelStep.toPx()
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Main)
@@ -90,23 +97,18 @@ private fun Modifier.scrollbarMouseWheelScroll(state: ScrollableState): Modifier
                         if (!change.isConsumed) acc + change.scrollDelta.y else acc
                     }
                     if (totalDeltaY != 0f) {
+                        val entry = SoftWheelRegistry.get(state)
+                        val wheel = entry?.wheel ?: fallbackWheel
+                        val direction = entry?.direction ?: 1f
                         val awtEvent = event.awtEventOrNull as? MouseWheelEvent
-                        val scrollAmount = awtEvent?.scrollAmount?.coerceAtLeast(1) ?: 3
                         val isPageScroll = awtEvent?.scrollType == MouseWheelEvent.WHEEL_BLOCK_SCROLL
-
                         val containerHeight = size.height
-                        val scrollDeltaPx = if (isPageScroll && containerHeight > 0) {
+                        val distance = if (isPageScroll && containerHeight > 0) {
                             totalDeltaY * containerHeight * 0.9f
                         } else {
-                            val lineStepPx = if (containerHeight > 0) {
-                                (containerHeight / 20f).coerceIn(24f, 60f)
-                            } else {
-                                fallbackStepPx
-                            }
-                            totalDeltaY * lineStepPx * scrollAmount
+                            totalDeltaY * stepPx
                         }
-
-                        state.dispatchRawDelta(scrollDeltaPx)
+                        wheel.scrollBy(distance * direction)
                         event.changes.forEach { it.consume() }
                     }
                 }
