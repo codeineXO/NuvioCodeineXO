@@ -17,7 +17,8 @@ enum class NavigationFeel(val key: String) {
 
 internal data class NavigationMotionProfile(
     val responseRate: Double,
-    val arrowResponseRate: Double,
+    /** Duration of one shelf arrow-button page glide (ease-in-out). */
+    val arrowGlideSeconds: Float,
     val durationScale: Float,
     val scrollStiffness: Float,
     val dragMomentum: Boolean,
@@ -25,8 +26,8 @@ internal data class NavigationMotionProfile(
     fun duration(smoothMillis: Int): Int = (smoothMillis * durationScale).roundToInt().coerceAtLeast(1)
 }
 
-private val smoothMotion = NavigationMotionProfile(20.0, 16.0, 1f, 200f, true)
-private val snappyMotion = NavigationMotionProfile(48.0, 44.0, 0.4f, 1_200f, true)
+private val smoothMotion = NavigationMotionProfile(20.0, 0.6f, 1f, 200f, true)
+private val snappyMotion = NavigationMotionProfile(48.0, 0.36f, 0.4f, 1_200f, true)
 internal val NavigationFeel.motionProfile: NavigationMotionProfile
     get() = if (this == NavigationFeel.Smooth) smoothMotion else snappyMotion
 

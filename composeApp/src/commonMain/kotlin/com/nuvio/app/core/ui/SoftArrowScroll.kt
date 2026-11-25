@@ -91,12 +91,34 @@ internal fun nextArrowPageTarget(
     return arrowPageTarget(projected, bounds, totalItems, forward, spacing)
 }
 
-internal fun softArrowScrollStep(distance: Float, velocity: Float, seconds: Float): SoftScrollStep =
-    softScrollStep(distance, velocity, seconds, responseRate = NavigationMotionSettings.profile.arrowResponseRate)
+/**
+ * One fixed ease-in-out glide segment: starts with velocity [v0], travels [distance] and arrives
+ * at rest after [duration] seconds (minimum-jerk quintic, no overshoot or spring tail).
+ * Returns (travelled, velocity) at [t].
+ */
+internal fun arrowGlideAt(distance: Float, v0: Float, duration: Float, t: Float): Pair<Float, Float> {
+    val total = duration.toDouble()
+    val s = t.toDouble().coerceIn(0.0, total)
+    val d = distance.toDouble()
+    val v = v0.toDouble()
+    val t2 = total * total
+    val c3 = (20 * d - 12 * v * total) / (2 * t2 * total)
+    val c4 = (-30 * d + 16 * v * total) / (2 * t2 * t2)
+    val c5 = (12 * d - 6 * v * total) / (2 * t2 * t2 * total)
+    val position = v * s + c3 * s * s * s + c4 * s * s * s * s + c5 * s * s * s * s * s
+    val velocity = v + 3 * c3 * s * s + 4 * c4 * s * s * s + 5 * c5 * s * s * s * s
+    return position.toFloat() to velocity.toFloat()
+}
 
 /** Repeated clicks extend one active glide immediately, preserving its velocity. */
 internal class SoftArrowScroll(private val state: LazyListState, private val scope: CoroutineScope) {
-    private class Request(var forward: Boolean, var target: ArrowPageTarget, var velocity: Float = 0f)
+    private class Request(
+        var forward: Boolean,
+        var target: ArrowPageTarget,
+        var velocity: Float = 0f,
+        /** Set when the destination changes; the next frame starts a fresh segment. */
+        var restart: Boolean = true,
+    )
     private var request: Request? = null
     private var job: Job? = null
     private var startInset = 0f
@@ -133,7 +155,10 @@ internal class SoftArrowScroll(private val state: LazyListState, private val sco
             val layout = state.layoutInfo
             nextArrowPageTarget(
                 current.target, items(layout), bounds(layout), layout.totalItemsCount, forward, layout.mainAxisItemSpacing,
-            )?.let { current.target = it }
+            )?.let {
+                current.target = it
+                current.restart = true
+            }
             return
         }
         // Reversal starts at the visible page, discarding the old destination.
@@ -148,7 +173,9 @@ internal class SoftArrowScroll(private val state: LazyListState, private val sco
         if (current != null) {
             current.forward = forward
             current.target = destination
+            // Reversal starts a fresh eased glide; carrying the old heading would read as a bounce.
             current.velocity = 0f
+            current.restart = true
             return
         }
         val next = Request(forward, destination)
@@ -158,22 +185,53 @@ internal class SoftArrowScroll(private val state: LazyListState, private val sco
                 // Manual wheel/drag mutations interrupt this owner and discard its destination.
                 state.scroll(MutatePriority.Default) {
                     var previous: Long? = null
+                    var segmentDistance = 0f
+                    var segmentVelocity = 0f
+                    var duration = 0f
+                    var elapsed = 0f
+                    var lastProgress = 0f
+                    var frameSeconds = 1f / 60
                     while (true) {
                         val frame = withFrameNanos { it }
-                        val seconds = previous?.let { (frame - it) / 1_000_000_000f } ?: (1f / 60)
+                        val raw = previous?.let { (frame - it) / 1_000_000_000f } ?: frameSeconds
                         previous = frame
+                        // Desktop frame timestamps jitter around vsync; feeding raw deltas makes
+                        // per-frame steps uneven. Average them, but follow real stalls at once.
+                        frameSeconds = if (raw > frameSeconds * 1.8f) raw.coerceAtMost(0.1f)
+                            else frameSeconds + (raw.coerceAtLeast(0f) - frameSeconds) * 0.15f
+                        val seconds = frameSeconds
                         val layout = state.layoutInfo
                         val measured = items(layout)
                         if (measured.isEmpty() || next.target.index >= layout.totalItemsCount) break
                         val distance = arrowPageDistance(next.target, measured, bounds(layout), layout.mainAxisItemSpacing)
-                        if (abs(distance) <= 0.5f && abs(next.velocity) < 5f) {
+                        if (next.restart) {
+                            next.restart = false
+                            // Carry velocity only while still heading toward the new target.
+                            segmentVelocity = if (next.velocity * distance > 0f) next.velocity else 0f
+                            segmentDistance = distance
+                            duration = NavigationMotionSettings.profile.arrowGlideSeconds
+                            elapsed = 0f
+                            lastProgress = 0f
+                        }
+                        if (abs(distance) <= 0.5f) {
                             scrollBy(distance)
                             break
                         }
                         if (!canMove(distance > 0f)) break
-                        val step = softArrowScrollStep(distance, next.velocity, seconds)
-                        next.velocity = step.velocity
-                        val movement = step.delta.coerceIn(minOf(0f, distance), maxOf(0f, distance))
+                        elapsed += seconds
+                        if (elapsed >= duration) {
+                            scrollBy(distance)
+                            break
+                        }
+                        val (position, velocity) = arrowGlideAt(segmentDistance, segmentVelocity, duration, elapsed)
+                        val progress = if (abs(segmentDistance) > 0.5f) position / segmentDistance else 1f
+                        next.velocity = velocity
+                        // Move this frame's share of what is left. Late layout measurement that
+                        // changes the remaining distance is spread over the rest of the glide
+                        // instead of landing as a jump on a single frame.
+                        val share = if (lastProgress < 1f) ((progress - lastProgress) / (1f - lastProgress)).coerceIn(0f, 1f) else 1f
+                        lastProgress = progress
+                        val movement = distance * share
                         val consumed = scrollBy(movement)
                         if (abs(movement - consumed) > 0.5f) break
                     }
