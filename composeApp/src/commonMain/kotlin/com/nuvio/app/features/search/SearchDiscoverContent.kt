@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
+import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -171,8 +172,11 @@ private fun DiscoverFilterRow(
     onGenreSelected: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val filterScrollState = rememberScrollState()
     Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier = modifier
+            .nuvioDesktopDragScroll(filterScrollState)
+            .horizontalScroll(filterScrollState),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         NuvioDropdownChip(

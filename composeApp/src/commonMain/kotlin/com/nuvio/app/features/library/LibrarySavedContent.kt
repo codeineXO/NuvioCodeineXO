@@ -27,6 +27,7 @@ import com.nuvio.app.core.ui.NuvioDropdownOption
 import com.nuvio.app.core.ui.PosterGlowOutset
 import com.nuvio.app.core.ui.RemotePosterRow
 import com.nuvio.app.core.ui.RemoteNavigationControls
+import com.nuvio.app.core.ui.nuvioDesktopDragScroll
 import com.nuvio.app.core.ui.nuvioShelfHoverOverdraw
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.PosterGridRow
@@ -76,8 +77,11 @@ internal fun LibrarySavedControls(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         RemoteNavigationControls("library", row = 1) {
+            val filterRowScrollState = rememberScrollState()
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .nuvioDesktopDragScroll(filterRowScrollState)
+                    .horizontalScroll(filterRowScrollState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (layoutMode == LibraryLayoutMode.VERTICAL && sourceMode.isRemoteTrackingSource) {
@@ -293,9 +297,12 @@ private fun LibraryFilterRow(
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val viewportWidth = constraints.maxWidth
+        val filterScrollState = rememberScrollState()
         Layout(
             content = content,
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .nuvioDesktopDragScroll(filterScrollState)
+                .horizontalScroll(filterScrollState),
         ) { measurables, _ ->
             val count = measurables.size
             val spacing = 8.dp.roundToPx()

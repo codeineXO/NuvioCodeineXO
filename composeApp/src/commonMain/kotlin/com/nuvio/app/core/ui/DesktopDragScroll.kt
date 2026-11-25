@@ -14,16 +14,19 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
 import com.nuvio.app.isDesktop
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -79,7 +82,180 @@ internal suspend fun ScrollScope.flingWithNestedParents(
     }
 }
 
-/** Adds mouse-compatible dragging; native touch and child gestures keep first refusal. */
+private val DesktopDragScrollTouchSlop = 8.dp
+private val DesktopDragScrollMinFlingVelocity = 50.dp
+private val DesktopDragScrollMaxFlingVelocity = 8000.dp
+
+private const val DesktopDragStopThresholdMs = 40L
+private const val DesktopDragVelocityWindowMs = 100L
+private const val DesktopDragDirectionJitterPx = 4f
+private const val DesktopDragSampleCapacity = 32
+
+private class DesktopDragVelocityEstimator(
+    private val horizontal: Boolean,
+) {
+    private val velocityTracker = VelocityTracker()
+    private val sampleStartTimes = LongArray(DesktopDragSampleCapacity)
+    private val sampleEndTimes = LongArray(DesktopDragSampleCapacity)
+    private val sampleAxisDeltas = FloatArray(DesktopDragSampleCapacity)
+    private var sampleHead = 0
+    private var sampleCount = 0
+    private var lastEventTimeMs = 0L
+    private var cumulativeAxisPos = 0f
+    private var lastSignificantSign = 0f
+    private var pendingOppositeDelta = 0f
+
+    private fun toOffset(axisPos: Float): Offset =
+        if (horizontal) Offset(axisPos, 0f) else Offset(0f, axisPos)
+
+    private fun Velocity.toAxis(): Float = if (horizontal) x else y
+
+    private fun clearSamples() {
+        sampleHead = 0
+        sampleCount = 0
+    }
+
+    private fun pushSample(startTimeMs: Long, endTimeMs: Long, axisDelta: Float) {
+        if (sampleCount > 0) {
+            val lastIdx = (sampleHead + sampleCount - 1) % DesktopDragSampleCapacity
+            if (sampleEndTimes[lastIdx] == endTimeMs) {
+                sampleAxisDeltas[lastIdx] += axisDelta
+                return
+            }
+        }
+        if (endTimeMs <= startTimeMs) return
+        val insertIdx = if (sampleCount < DesktopDragSampleCapacity) {
+            (sampleHead + sampleCount).also { sampleCount++ } % DesktopDragSampleCapacity
+        } else {
+            sampleHead.also { sampleHead = (sampleHead + 1) % DesktopDragSampleCapacity }
+        }
+        sampleStartTimes[insertIdx] = startTimeMs
+        sampleEndTimes[insertIdx] = endTimeMs
+        sampleAxisDeltas[insertIdx] = axisDelta
+    }
+
+    fun start(timeMs: Long) {
+        velocityTracker.resetTracking()
+        clearSamples()
+        lastEventTimeMs = timeMs
+        cumulativeAxisPos = 0f
+        lastSignificantSign = 0f
+        pendingOppositeDelta = 0f
+        velocityTracker.addPosition(timeMs, Offset.Zero)
+    }
+
+    fun addDelta(timeMs: Long, axisDelta: Float) {
+        if (axisDelta == 0f) return
+        val dt = timeMs - lastEventTimeMs
+        if (dt < 0L) return
+        if (dt >= DesktopDragStopThresholdMs) {
+            start(timeMs)
+            lastSignificantSign = sign(axisDelta)
+            cumulativeAxisPos = axisDelta
+            velocityTracker.addPosition(timeMs, toOffset(cumulativeAxisPos))
+            return
+        }
+
+        val deltaSign = sign(axisDelta)
+        val acceptedDelta: Float
+        if (lastSignificantSign != 0f && deltaSign != lastSignificantSign) {
+            pendingOppositeDelta += axisDelta
+            if (abs(pendingOppositeDelta) < DesktopDragDirectionJitterPx) {
+                return
+            }
+            acceptedDelta = pendingOppositeDelta
+            pendingOppositeDelta = 0f
+            val prevTimeMs = lastEventTimeMs
+            velocityTracker.resetTracking()
+            clearSamples()
+            lastSignificantSign = sign(acceptedDelta)
+            velocityTracker.addPosition(prevTimeMs, Offset.Zero)
+            cumulativeAxisPos = acceptedDelta
+            velocityTracker.addPosition(timeMs, toOffset(cumulativeAxisPos))
+            pushSample(prevTimeMs, timeMs, acceptedDelta)
+            lastEventTimeMs = timeMs
+            return
+        } else {
+            pendingOppositeDelta = 0f
+            acceptedDelta = axisDelta
+            if (abs(acceptedDelta) >= DesktopDragDirectionJitterPx || lastSignificantSign == 0f) {
+                lastSignificantSign = deltaSign
+            }
+        }
+
+        val prevTimeMs = lastEventTimeMs
+        cumulativeAxisPos += acceptedDelta
+        velocityTracker.addPosition(timeMs, toOffset(cumulativeAxisPos))
+        pushSample(prevTimeMs, timeMs, acceptedDelta)
+        lastEventTimeMs = timeMs
+    }
+
+    fun calculateAxisVelocity(
+        releaseTimeMs: Long,
+        minVelocityPx: Float,
+        maxVelocityPx: Float,
+    ): Float {
+        if (releaseTimeMs - lastEventTimeMs >= DesktopDragStopThresholdMs) {
+            return 0f
+        }
+        val windowStartCutoffMs = releaseTimeMs - DesktopDragVelocityWindowMs
+        var totalDelta = 0f
+        var windowFirstStartMs = Long.MAX_VALUE
+        var windowLastEndMs = Long.MIN_VALUE
+        var consistentDirection = true
+        var expectedSign = 0f
+        var qualifyingSamples = 0
+        for (i in 0 until sampleCount) {
+            val idx = (sampleHead + i) % DesktopDragSampleCapacity
+            val endMs = sampleEndTimes[idx]
+            if (endMs < windowStartCutoffMs) continue
+            val delta = sampleAxisDeltas[idx]
+            if (delta == 0f) continue
+            val s = sign(delta)
+            if (expectedSign == 0f) {
+                expectedSign = s
+            } else if (s != expectedSign) {
+                consistentDirection = false
+            }
+            totalDelta += delta
+            if (sampleStartTimes[idx] < windowFirstStartMs) {
+                windowFirstStartMs = sampleStartTimes[idx]
+            }
+            if (endMs > windowLastEndMs) {
+                windowLastEndMs = endMs
+            }
+            qualifyingSamples++
+        }
+
+        val lsqVelocity = velocityTracker.calculateVelocity(
+            Velocity(maxVelocityPx, maxVelocityPx),
+        ).toAxis()
+
+        var rawVelocity = lsqVelocity
+        if (qualifyingSamples > 0 && windowLastEndMs > windowFirstStartMs) {
+            val windowAvgSpeed = (totalDelta * 1000f / (windowLastEndMs - windowFirstStartMs))
+                .coerceIn(-maxVelocityPx, maxVelocityPx)
+            if (
+                consistentDirection &&
+                windowAvgSpeed != 0f &&
+                (rawVelocity == 0f || sign(rawVelocity) != sign(windowAvgSpeed))
+            ) {
+                rawVelocity = windowAvgSpeed
+            }
+        }
+        return if (abs(rawVelocity) >= minVelocityPx) rawVelocity else 0f
+    }
+}
+
+private sealed interface DesktopDragScrollEvent {
+    data class Delta(val delta: Float) : DesktopDragScrollEvent
+    data class Stop(val velocity: Float) : DesktopDragScrollEvent
+}
+
+/**
+ * Adds mouse drag scrolling with mobile-parity physics: 8dp slop, jitter-filtered release
+ * velocity, catch-and-drag of a running fling, and nested-scroll hand-off to parents.
+ */
 internal fun Modifier.nuvioDesktopDragScroll(
     state: ScrollableState,
     orientation: Orientation,
@@ -95,6 +271,11 @@ internal fun Modifier.nuvioDesktopDragScroll(
         val fling = flingBehavior ?: rememberNuvioFlingBehavior()
         if (!active) return@composed this
         val direction = dragScrollDirection(orientation, reverseDirection, LocalLayoutDirection.current)
+        val horizontal = orientation == Orientation.Horizontal
+        val density = LocalDensity.current
+        val touchSlopFloorPx = with(density) { DesktopDragScrollTouchSlop.toPx() }
+        val minFlingVelocityFloorPx = with(density) { DesktopDragScrollMinFlingVelocity.toPx() }
+        val maxFlingVelocityCapPx = with(density) { DesktopDragScrollMaxFlingVelocity.toPx() }
         val dispatcher = remember { NestedScrollDispatcher() }
         val connection = remember { object : NestedScrollConnection {} }
         val motion = remember(state, orientation, reverseDirection, fling) { DesktopDragMotion() }
@@ -108,90 +289,153 @@ internal fun Modifier.nuvioDesktopDragScroll(
                     }
                 }
             }
-        }.pointerInput(state, orientation, direction, fling, momentumEnabled, settleWithoutMomentum) {
+        }.pointerInput(
+            state, orientation, direction, fling, momentumEnabled, settleWithoutMomentum,
+            touchSlopFloorPx, minFlingVelocityFloorPx, maxFlingVelocityCapPx,
+        ) {
             coroutineScope {
                 val scope = this
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
+
+                fun startDragSession(): Channel<DesktopDragScrollEvent> {
                     motion.job?.cancel()
-                    if (down.type != PointerType.Mouse) return@awaitEachGesture
-                    scope.launch(start = CoroutineStart.UNDISPATCHED) { state.stopScroll() }
-                    val tracker = VelocityTracker()
-                    tracker.addPointerInputChange(down)
-                    var total = Offset.Zero
-                    var deltas: Channel<Unit>? = null
-                    var pendingDelta = 0f
-                    var released = false
-                    var velocity = 0f
+                    val channel = Channel<DesktopDragScrollEvent>(Channel.UNLIMITED)
+                    motion.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                        var stop: DesktopDragScrollEvent.Stop? = null
+                        var releaseStarted = false
+                        try {
+                            state.scroll(MutatePriority.UserInput) {
+                                for (dragEvent in channel) {
+                                    when (dragEvent) {
+                                        is DesktopDragScrollEvent.Delta -> scrollWithNestedParents(
+                                            direction * dragEvent.delta, dispatcher, orientation, direction,
+                                        )
+                                        is DesktopDragScrollEvent.Stop -> {
+                                            stop = dragEvent
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                            val release = stop
+                            if (release != null) {
+                                state.scroll {
+                                    releaseStarted = true
+                                    flingWithNestedParents(
+                                        direction * release.velocity, dispatcher, orientation, direction, fling,
+                                        momentumEnabled && NavigationMotionSettings.profile.dragMomentum,
+                                        settleWithoutMomentum,
+                                    )
+                                }
+                            }
+                        } finally {
+                            channel.close()
+                            if (!releaseStarted) dispatcher.dispatchPostFling(Velocity.Zero, Velocity.Zero)
+                        }
+                    }
+                    return channel
+                }
+
+                awaitEachGesture {
+                    val initialDown = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (
+                        initialDown.isConsumed ||
+                        initialDown.type != PointerType.Mouse ||
+                        !currentEvent.buttons.isPrimaryPressed
+                    ) return@awaitEachGesture
+
+                    val slopPx = minOf(viewConfiguration.touchSlop, touchSlopFloorPx)
+                    val minFlingVelocityPx = maxOf(viewConfiguration.minimumFlingVelocity, minFlingVelocityFloorPx)
+                    val maxFlingVelocityPx = minOf(viewConfiguration.maximumFlingVelocity, maxFlingVelocityCapPx)
+                        .coerceAtLeast(1f)
+
+                    // Grabbing a moving list stops it and starts dragging at once, without a click.
+                    val caughtActiveScroll = motion.job?.isActive == true || state.isScrollInProgress
+                    val down: PointerInputChange
+                    var dragging = false
+                    var dragChannel: Channel<DesktopDragScrollEvent>? = null
+
+                    if (caughtActiveScroll) {
+                        motion.job?.cancel()
+                        motion.job = null
+                        scope.launch(start = CoroutineStart.UNDISPATCHED) { state.stopScroll(MutatePriority.UserInput) }
+                        initialDown.consume()
+                        down = initialDown
+                        dragging = true
+                        val mainDown = awaitPointerEvent(PointerEventPass.Main).changes
+                            .firstOrNull { it.id == initialDown.id }
+                        if (mainDown == null || !mainDown.pressed) return@awaitEachGesture
+                    } else {
+                        // Child clickables consume the Main-pass down to claim taps but leave moves
+                        // unconsumed, so a consumed down must not reject the drag.
+                        val mainDown = awaitPointerEvent(PointerEventPass.Main).changes
+                            .firstOrNull { it.id == initialDown.id } ?: return@awaitEachGesture
+                        if (!mainDown.pressed) return@awaitEachGesture
+                        down = mainDown
+                    }
+
+                    val estimator = DesktopDragVelocityEstimator(horizontal).apply { start(down.uptimeMillis) }
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    var stopDispatched = false
+
                     try {
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            // Match native touch tracking: preserve historical movement,
-                            // ignore stationary up samples, and reset after a release pause.
-                            tracker.addPointerInputChange(change)
-                            if (!change.pressed) {
-                                released = !change.isConsumed && event.changes.none { it.pressed }
-                                if (released && deltas != null) {
-                                    val lastDelta = change.position - change.previousPosition
-                                    pendingDelta += direction * if (orientation == Orientation.Vertical) lastDelta.y else lastDelta.x
-                                    deltas.trySend(Unit)
-                                }
-                                val measured = tracker.calculateVelocity()
-                                val maximum = viewConfiguration.maximumFlingVelocity
-                                velocity = (direction * if (orientation == Orientation.Vertical) measured.y else measured.x)
-                                    .coerceIn(-maximum, maximum)
-                                break
-                            }
                             // A native scrollable, slider, selection, or reorder handler owns this gesture.
-                            if (change.isConsumed || event.changes.count { it.pressed } != 1) break
-                            val delta = change.position - change.previousPosition
-                            total += delta
-                            val primary = if (orientation == Orientation.Vertical) total.y else total.x
-                            val cross = if (orientation == Orientation.Vertical) total.x else total.y
-                            var amount = direction * if (orientation == Orientation.Vertical) delta.y else delta.x
-                            if (deltas == null) {
-                                if (abs(cross) > viewConfiguration.touchSlop && abs(cross) > abs(primary)) break
-                                if (abs(primary) <= viewConfiguration.touchSlop || abs(primary) <= abs(cross)) continue
-                                amount = direction * (primary - sign(primary) * viewConfiguration.touchSlop)
-                                if ((amount > 0f && !state.canScrollForward) || (amount < 0f && !state.canScrollBackward)) break
-                                val channel = Channel<Unit>(Channel.CONFLATED)
-                                deltas = channel
-                                motion.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
-                                    var releaseStarted = false
-                                    try {
-                                        state.scroll(MutatePriority.UserInput) {
-                                            for (signal in channel) {
-                                                val value = pendingDelta
-                                                pendingDelta = 0f
-                                                // These signals describe movement already included in value.
-                                                while (channel.tryReceive().isSuccess) Unit
-                                                if (value != 0f) scrollWithNestedParents(value, dispatcher, orientation, direction)
-                                            }
-                                        }
-                                        if (released) {
-                                            state.scroll {
-                                                releaseStarted = true
-                                                flingWithNestedParents(
-                                                    velocity, dispatcher, orientation, direction, fling,
-                                                    momentumEnabled && NavigationMotionSettings.profile.dragMomentum,
-                                                    settleWithoutMomentum,
-                                                )
-                                            }
-                                        }
-                                    } finally {
-                                        if (!releaseStarted) dispatcher.dispatchPostFling(Velocity.Zero, Velocity.Zero)
+                            if (change.isConsumed) break
+                            val released = !change.pressed || !event.buttons.isPrimaryPressed
+                            if (released) {
+                                if (dragging) {
+                                    change.consume()
+                                    val axisVelocity = estimator.calculateAxisVelocity(
+                                        releaseTimeMs = change.uptimeMillis,
+                                        minVelocityPx = minFlingVelocityPx,
+                                        maxVelocityPx = maxFlingVelocityPx,
+                                    )
+                                    dragChannel?.let { channel ->
+                                        stopDispatched = true
+                                        channel.trySend(DesktopDragScrollEvent.Stop(axisVelocity))
                                     }
                                 }
+                                break
                             }
-                            if (motion.job?.isActive != true) break
-                            pendingDelta += amount
-                            deltas.trySend(Unit)
-                            change.consume()
+
+                            val delta = change.position - change.previousPosition
+                            val axisDelta = if (horizontal) delta.x else delta.y
+                            estimator.addDelta(change.uptimeMillis, axisDelta)
+                            if (!dragging) {
+                                totalDx += delta.x
+                                totalDy += delta.y
+                                val totalAlong = if (horizontal) totalDx else totalDy
+                                val alongAxis = abs(totalAlong)
+                                val acrossAxis = abs(if (horizontal) totalDy else totalDx)
+                                when {
+                                    horizontal && acrossAxis >= slopPx && acrossAxis > alongAxis -> break
+                                    alongAxis >= slopPx && alongAxis >= acrossAxis -> {
+                                        dragging = true
+                                        val postSlopDelta = totalAlong - sign(totalAlong) * slopPx
+                                        val channel = startDragSession()
+                                        dragChannel = channel
+                                        if (postSlopDelta != 0f) channel.trySend(DesktopDragScrollEvent.Delta(postSlopDelta))
+                                        change.consume()
+                                    }
+                                    else -> continue
+                                }
+                            } else {
+                                if (axisDelta != 0f) {
+                                    val channel = dragChannel ?: startDragSession().also { dragChannel = it }
+                                    channel.trySend(DesktopDragScrollEvent.Delta(axisDelta))
+                                }
+                                change.consume()
+                            }
                         }
                     } finally {
-                        deltas?.close()
-                        if (!released) motion.job?.cancel()
+                        val channel = dragChannel
+                        if (channel != null && !stopDispatched) {
+                            channel.trySend(DesktopDragScrollEvent.Stop(0f))
+                            channel.close()
+                        }
                     }
                 }
             }
