@@ -5,7 +5,7 @@ import coil3.ImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import com.nuvio.app.core.network.DesktopIPv4FirstDns
-import coil3.network.CacheStrategy
+import coil3.network.cachecontrol.CacheControlCacheStrategy
 import coil3.network.NetworkClient
 import coil3.network.NetworkFetcher
 import coil3.network.NetworkHeaders
@@ -174,11 +174,12 @@ internal actual fun ImageLoader.Builder.configurePlatformImageLoader(): ImageLoa
 
 internal actual fun ComponentRegistry.Builder.addPlatformDecoders() {
     add(DesktopArtworkInterceptor())
-    // Prefer HTTP/2 multiplexed OkHttp with direct disk-cache hits over HTTP/1.1 Ktor CIO on desktop.
+    // Prefer HTTP/2 multiplexed OkHttp over HTTP/1.1 Ktor CIO on desktop; honour server cache headers
+    // so artwork that changes behind a stable URL (rating posters, Plex/Silo) still refreshes.
     add(
         NetworkFetcher.Factory(
             networkClient = { DesktopOkHttpNetworkClient },
-            cacheStrategy = { CacheStrategy.DEFAULT },
+            cacheStrategy = { CacheControlCacheStrategy() },
         ),
     )
     add(SkiaGifDecoder.Factory())
