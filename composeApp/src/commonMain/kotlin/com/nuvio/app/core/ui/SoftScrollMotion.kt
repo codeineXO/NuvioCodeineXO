@@ -38,6 +38,61 @@ internal fun softScrollStep(distance: Float, velocity: Float, seconds: Float, re
     )
 }
 
+/**
+ * Frame delta in seconds. Desktop frame timestamps jitter around vsync; feeding raw deltas makes
+ * per-frame steps uneven, so they are averaged while real stalls are followed at once.
+ */
+internal class SmoothedFrameClock {
+    private var previous: Long? = null
+    private var frameSeconds = 1f / 60
+
+    fun tick(frameNanos: Long): Float {
+        val raw = previous?.let { (frameNanos - it) / 1_000_000_000f } ?: frameSeconds
+        previous = frameNanos
+        frameSeconds = if (raw > frameSeconds * 1.8f) raw.coerceAtMost(0.1f)
+            else frameSeconds + (raw.coerceAtLeast(0f) - frameSeconds) * 0.15f
+        return frameSeconds
+    }
+}
+
+/**
+ * Fixed ease-in-out glide toward a re-measured target. Each frame moves its share of what is
+ * left, so late layout measurement is spread over the rest of the glide instead of a jump.
+ */
+internal class EasedGlide {
+    /** Current speed in px/s; carried into the next segment while heading the same way. */
+    var velocity = 0f
+    private var segmentDistance = 0f
+    private var segmentVelocity = 0f
+    private var duration = 0f
+    private var elapsed = 0f
+    private var lastProgress = 0f
+    val finished get() = elapsed >= duration
+
+    fun restart(distance: Float, seconds: Float) {
+        segmentVelocity = if (velocity * distance > 0f) velocity else 0f
+        segmentDistance = distance
+        duration = seconds
+        elapsed = 0f
+        lastProgress = 0f
+    }
+
+    /** Movement for this frame, given the [distance] still left to the target. */
+    fun step(distance: Float, seconds: Float): Float {
+        elapsed += seconds
+        if (elapsed >= duration) {
+            velocity = 0f
+            return distance
+        }
+        val (position, speed) = arrowGlideAt(segmentDistance, segmentVelocity, duration, elapsed)
+        velocity = speed
+        val progress = if (abs(segmentDistance) > 0.5f) position / segmentDistance else 1f
+        val share = if (lastProgress < 1f) ((progress - lastProgress) / (1f - lastProgress)).coerceIn(0f, 1f) else 1f
+        lastProgress = progress
+        return distance * share
+    }
+}
+
 internal fun dragScrollDirection(orientation: Orientation, reverseScrolling: Boolean, layoutDirection: LayoutDirection): Float =
     if (reverseScrolling xor (orientation == Orientation.Horizontal && layoutDirection == LayoutDirection.Rtl)) 1f else -1f
 
@@ -68,7 +123,13 @@ internal class SoftWheelScroll(
     private val rowAnchors: (() -> List<Int>)? = null,
     private val canOverscroll: (Float) -> Boolean = { false },
 ) {
-    private class Target(var remaining: Float, var velocity: Float = 0f, var revealPreviousRow: Boolean = false)
+    private class Target(
+        var remaining: Float,
+        var velocity: Float = 0f,
+        var revealPreviousRow: Boolean = false,
+        /** Snap mode: the next frame starts a fresh eased segment toward [remaining]. */
+        var restart: Boolean = true,
+    )
     private var job: Job? = null
     private var target: Target? = null
 
@@ -86,16 +147,21 @@ internal class SoftWheelScroll(
         if (job?.isActive == true && current != null) {
             if (rowAnchors != null) {
                 if (current.remaining * delta < 0f) {
+                    // Reversal: a fresh eased glide to the nearest row the other way.
                     val rowOffset = verticalRowSnapOffset(rowAnchors(), delta)
                     current.remaining = rowOffset ?: delta
                     current.revealPreviousRow = rowOffset == null && delta < 0f
                     current.velocity = 0f
+                    current.restart = true
                 }
+                // Same-direction notches during a row glide are ignored on purpose: one glide
+                // lands on exactly one row, so a fast spin can never skip a row.
                 return
             }
             if (current.remaining * delta < 0f) {
+                // Brake rather than stop dead: a little carried speed reads as a soft turn.
                 current.remaining = delta
-                current.velocity = 0f
+                current.velocity *= 0.25f
             } else {
                 current.remaining += delta
             }
@@ -110,24 +176,46 @@ internal class SoftWheelScroll(
                 // retains the higher UserInput priority.
                 state.scroll(MutatePriority.Default) {
                     val direction = if (reverseScrolling) 1f else -1f
-                    var previous: Long? = null
+                    val clock = SmoothedFrameClock()
+                    val glide = EasedGlide()
                     while (true) {
-                        val frame = withFrameNanos { it }
-                        val seconds = previous?.let { (frame - it) / 1_000_000_000f } ?: (1f / 60)
-                        val step = navigationScrollStep(next.remaining, next.velocity, seconds)
-                        previous = frame
+                        val seconds = clock.tick(withFrameNanos { it })
                         if (next.revealPreviousRow) {
                             val offset = verticalRowSnapOffset(rowAnchors?.invoke().orEmpty(), -1f)
                             if (offset != null) {
                                 next.remaining = offset
                                 next.revealPreviousRow = false
-                                continue
+                                next.restart = true
                             }
+                        }
+                        if (rowAnchors != null && !next.revealPreviousRow) {
+                            // Rows that change height mid-glide move the landing edge with them.
+                            // Skipped while parent chrome (hero stretch) absorbs the motion,
+                            // since the rows themselves are not moving then.
+                            if (!canOverscroll(next.remaining)) rowAnchors().minByOrNull { abs(it - next.remaining) }
+                                ?.takeIf { abs(it - next.remaining) <= 48f && it * next.remaining > 0f }
+                                ?.let { next.remaining = it.toFloat() }
+                            if (abs(next.remaining) < 0.5f) {
+                                scrollWithNestedParents(next.remaining, nestedScrollDispatcher, direction = direction)
+                                break
+                            }
+                            if (next.restart) {
+                                next.restart = false
+                                glide.velocity = next.velocity
+                                glide.restart(next.remaining, NavigationMotionSettings.profile.snapGlideSeconds)
+                            }
+                            val movement = glide.step(next.remaining, seconds)
+                            next.velocity = glide.velocity
+                            val consumed = scrollWithNestedParents(movement, nestedScrollDispatcher, direction = direction)
+                            next.remaining -= consumed
+                            if (glide.finished || abs(movement - consumed) > 0.5f) break
+                            continue
                         }
                         if (abs(next.remaining) < 0.5f && abs(next.velocity) < 5f) {
                             scrollWithNestedParents(next.remaining, nestedScrollDispatcher, direction = direction)
                             break
                         }
+                        val step = navigationScrollStep(next.remaining, next.velocity, seconds)
                         next.velocity = step.velocity
                         val consumed = scrollWithNestedParents(step.delta, nestedScrollDispatcher, direction = direction)
                         next.remaining -= consumed

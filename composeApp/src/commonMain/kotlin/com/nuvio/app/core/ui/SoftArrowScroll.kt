@@ -184,56 +184,28 @@ internal class SoftArrowScroll(private val state: LazyListState, private val sco
             try {
                 // Manual wheel/drag mutations interrupt this owner and discard its destination.
                 state.scroll(MutatePriority.Default) {
-                    var previous: Long? = null
-                    var segmentDistance = 0f
-                    var segmentVelocity = 0f
-                    var duration = 0f
-                    var elapsed = 0f
-                    var lastProgress = 0f
-                    var frameSeconds = 1f / 60
+                    val clock = SmoothedFrameClock()
+                    val glide = EasedGlide()
                     while (true) {
-                        val frame = withFrameNanos { it }
-                        val raw = previous?.let { (frame - it) / 1_000_000_000f } ?: frameSeconds
-                        previous = frame
-                        // Desktop frame timestamps jitter around vsync; feeding raw deltas makes
-                        // per-frame steps uneven. Average them, but follow real stalls at once.
-                        frameSeconds = if (raw > frameSeconds * 1.8f) raw.coerceAtMost(0.1f)
-                            else frameSeconds + (raw.coerceAtLeast(0f) - frameSeconds) * 0.15f
-                        val seconds = frameSeconds
+                        val seconds = clock.tick(withFrameNanos { it })
                         val layout = state.layoutInfo
                         val measured = items(layout)
                         if (measured.isEmpty() || next.target.index >= layout.totalItemsCount) break
                         val distance = arrowPageDistance(next.target, measured, bounds(layout), layout.mainAxisItemSpacing)
                         if (next.restart) {
                             next.restart = false
-                            // Carry velocity only while still heading toward the new target.
-                            segmentVelocity = if (next.velocity * distance > 0f) next.velocity else 0f
-                            segmentDistance = distance
-                            duration = NavigationMotionSettings.profile.arrowGlideSeconds
-                            elapsed = 0f
-                            lastProgress = 0f
+                            glide.velocity = next.velocity
+                            glide.restart(distance, NavigationMotionSettings.profile.arrowGlideSeconds)
                         }
                         if (abs(distance) <= 0.5f) {
                             scrollBy(distance)
                             break
                         }
                         if (!canMove(distance > 0f)) break
-                        elapsed += seconds
-                        if (elapsed >= duration) {
-                            scrollBy(distance)
-                            break
-                        }
-                        val (position, velocity) = arrowGlideAt(segmentDistance, segmentVelocity, duration, elapsed)
-                        val progress = if (abs(segmentDistance) > 0.5f) position / segmentDistance else 1f
-                        next.velocity = velocity
-                        // Move this frame's share of what is left. Late layout measurement that
-                        // changes the remaining distance is spread over the rest of the glide
-                        // instead of landing as a jump on a single frame.
-                        val share = if (lastProgress < 1f) ((progress - lastProgress) / (1f - lastProgress)).coerceIn(0f, 1f) else 1f
-                        lastProgress = progress
-                        val movement = distance * share
+                        val movement = glide.step(distance, seconds)
+                        next.velocity = glide.velocity
                         val consumed = scrollBy(movement)
-                        if (abs(movement - consumed) > 0.5f) break
+                        if (glide.finished || abs(movement - consumed) > 0.5f) break
                     }
                 }
             } finally {
