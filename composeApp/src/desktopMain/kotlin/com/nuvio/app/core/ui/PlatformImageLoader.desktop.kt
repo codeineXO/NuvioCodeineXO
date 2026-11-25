@@ -5,6 +5,7 @@ import coil3.ImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import com.nuvio.app.core.network.DesktopIPv4FirstDns
+import com.nuvio.app.core.storage.DesktopStorage
 import coil3.network.cachecontrol.CacheControlCacheStrategy
 import coil3.network.NetworkClient
 import coil3.network.NetworkFetcher
@@ -33,9 +34,10 @@ import okio.BufferedSink
 import okio.BufferedSource
 import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toOkioPath
 
 private const val ImageMemoryCacheBytes = 256L * 1024 * 1024
-private const val ImageDiskCacheBytes = 512L * 1024 * 1024
+private const val ImageDiskCacheBytes = 256L * 1024 * 1024
 
 /** Bound combined still/animated decode work so image arrivals cannot occupy every CPU worker. */
 internal fun desktopArtworkDecodeParallelism(processors: Int): Int =
@@ -166,7 +168,9 @@ internal actual fun ImageLoader.Builder.configurePlatformImageLoader(): ImageLoa
             .build()
     }.diskCache {
         DiskCache.Builder()
-            .directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "coil3_desktop_image_cache")
+            // Own folder in the app cache dir: upstream Nuvio uses %TEMP%\coil3_desktop_image_cache,
+            // and two processes must not share one disk cache.
+            .directory(DesktopStorage.cacheDir.resolve("images").toOkioPath())
             .maxSizeBytes(ImageDiskCacheBytes)
             .build()
     }
