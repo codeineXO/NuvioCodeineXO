@@ -663,8 +663,11 @@ let pressedButton = null;
 let focusedActionCommand = "";
 let sourceFilterId = "";
 let sourceScrollToCurrentPending = false;
-let sourceVirtualKey = "";
+let sourceFilterScrollPending = false;
 let sourceVirtualItems = [];
+let sourceVirtualRowKeys = [];
+let sourceRenderedRows = new Map();
+const sourceRowHeights = new Map();
 let sourceVirtualHeights = [];
 let sourceVirtualOffsets = [];
 let sourceVirtualTotalHeight = 0;
@@ -673,6 +676,7 @@ let sourceVirtualRenderRaf = 0;
 let appliedRememberedVolume = false;
 let rememberedEpisodeSeason = null;
 let currentEpisodeStreamItems = [];
+let episodeStreamRows = new Map();
 let currentEpisodeItems = [];
 let selectedEpisodeSeason = null;
 let episodeStreamFilterId = "";
@@ -1961,7 +1965,10 @@ const openPlayerModal = modal => {
   if (activeModal === "subtitles" && modal !== "subtitles" && state.secondarySubtitleSupported) send("subtitleSlot", 0);
   if (activeModal === "party" && modal !== "party") onPartyModalClosed();
   if (modal === "party" && activeModal !== "party") onPartyModalOpened();
-  if (modal === "sources" && activeModal !== "sources") sourceScrollToCurrentPending = true;
+  if (modal === "sources" && activeModal !== "sources") {
+    sourceScrollToCurrentPending = true;
+    sourceFilterScrollPending = true;
+  }
   activeModal = modal;
   if (modal === "submitIntro") {
     const contentKey = state.submitIntroContentKey || "";
@@ -3515,42 +3522,63 @@ const enableHorizontalDragScroll = container => {
   );
 };
 
+// Patches a chip in place so its loading spinner keeps turning across state updates.
+const updateFilterChip = (chip, selected, onSelect, isLoading, hasError) => {
+  chip.className = `filter-chip${selected ? " selected" : ""}${hasError ? " has-error" : ""}`;
+  chip.nuvioOnSelect = onSelect;
+  const loading = chip.querySelector(".filter-chip-loading");
+  if (isLoading && !loading) {
+    const spinner = document.createElement("span");
+    spinner.className = "filter-chip-loading";
+    chip.insertBefore(spinner, chip.firstChild);
+  } else if (!isLoading && loading) {
+    loading.remove();
+  }
+};
+
 const appendFilterChip = (container, label, selected, onSelect, isLoading = false, hasError = false) => {
   const chip = document.createElement("button");
   chip.type = "button";
-  chip.className = `filter-chip${selected ? " selected" : ""}${hasError ? " has-error" : ""}`;
-  if (isLoading) {
-    const loading = document.createElement("span");
-    loading.className = "filter-chip-loading";
-    chip.appendChild(loading);
-  }
   const text = document.createElement("span");
   text.textContent = label;
   chip.appendChild(text);
+  updateFilterChip(chip, selected, onSelect, isLoading, hasError);
   chip.addEventListener("click", event => {
     event.stopPropagation();
-    if (!selected) {
+    if (!chip.classList.contains("selected")) {
       chip.scrollIntoView({ behavior: "smooth", container: "nearest", inline: "start" });
-      onSelect();
+      chip.nuvioOnSelect?.();
     }
   });
   container.appendChild(chip);
+  return chip;
 };
 
 const renderFilterRow = (container, filters, selectedId, onSelect) => {
   enableHorizontalDragScroll(container);
-  container.textContent = "";
   const list = normalizeItems(filters);
   container.hidden = list.length === 0;
-  list.forEach(filter => {
-    appendFilterChip(
-      container,
-      filter.label || state.allFilterLabel || "All",
-      String(filter.id ?? "") === String(selectedId ?? ""),
-      () => onSelect(String(filter.id ?? "")),
-      Boolean(filter.isLoading),
-      Boolean(filter.hasError),
-    );
+  const labels = list.map(filter => filter.label || state.allFilterLabel || "All");
+  const keys = list.map((filter, index) => `${filter.id ?? ""}\u0001${labels[index]}`);
+  const chips = Array.from(container.children);
+  const reusable = chips.length === list.length &&
+    chips.every((chip, index) => chip.dataset.filterKey === keys[index]);
+  if (!reusable) container.textContent = "";
+  list.forEach((filter, index) => {
+    const selected = String(filter.id ?? "") === String(selectedId ?? "");
+    const select = () => onSelect(String(filter.id ?? ""));
+    if (reusable) {
+      updateFilterChip(chips[index], selected, select, Boolean(filter.isLoading), Boolean(filter.hasError));
+    } else {
+      appendFilterChip(
+        container,
+        labels[index],
+        selected,
+        select,
+        Boolean(filter.isLoading),
+        Boolean(filter.hasError),
+      ).dataset.filterKey = keys[index];
+    }
   });
 };
 
@@ -3558,28 +3586,25 @@ const SourceRowEstimatedHeight = 116;
 const SourceRowGap = 8;
 const SourceRowOverscanPx = 720;
 
-const sourceKeyForItems = items => {
-  const first = items[0] || {};
-  const last = items[items.length - 1] || {};
-  return [
-    sourceFilterId || "",
-    items.length,
-    first.index == null ? "" : first.index,
-    first.label || "",
-    last.index == null ? "" : last.index,
-    last.label || "",
-  ].join("\u0001");
+// Sources arrive addon by addon. Rows and their measured heights are keyed by what they show,
+// not by position, so a row that only moves keeps its element and height instead of flashing.
+const sourceRowKeys = items => {
+  const playingLabel = state.playingLabel || "";
+  const seen = new Map();
+  return items.map(item => {
+    const { index, ...content } = item;
+    const contentKey = `${playingLabel}\u0001${JSON.stringify(content)}`;
+    const count = seen.get(contentKey) || 0;
+    seen.set(contentKey, count + 1);
+    return `${contentKey}\u0001${count}`;
+  });
 };
 
-const resetSourceVirtualState = (items, key) => {
-  sourceVirtualKey = key;
+const setSourceVirtualItems = items => {
+  if (sourceRowHeights.size > 4000) sourceRowHeights.clear();
   sourceVirtualItems = items;
-  sourceVirtualHeights = new Array(items.length).fill(SourceRowEstimatedHeight);
-  sourceVirtualOffsets = [];
-  sourceVirtualTotalHeight = 0;
-  sourceVirtualSpacer = null;
-  window.cancelAnimationFrame(sourceVirtualRenderRaf);
-  sourceVirtualRenderRaf = 0;
+  sourceVirtualRowKeys = sourceRowKeys(items);
+  sourceVirtualHeights = sourceVirtualRowKeys.map(key => sourceRowHeights.get(key) || SourceRowEstimatedHeight);
 };
 
 const rebuildSourceVirtualLayout = () => {
@@ -3740,28 +3765,43 @@ const renderSourceVirtualRows = () => {
   }
   end = Math.min(count, Math.max(end + 1, start + 1));
 
-  sourceVirtualSpacer.textContent = "";
+  const spacer = sourceVirtualSpacer;
   const fragment = document.createDocumentFragment();
   const rendered = [];
+  const nextRows = new Map();
   for (let index = start; index < end; index += 1) {
     const item = sourceVirtualItems[index];
-    const wrapper = document.createElement("div");
-    wrapper.className = "source-virtual-row";
+    const key = sourceVirtualRowKeys[index];
+    let wrapper = sourceRenderedRows.get(key);
+    if (wrapper && wrapper.parentNode === spacer) {
+      sourceRenderedRows.delete(key);
+    } else {
+      wrapper = document.createElement("div");
+      wrapper.className = "source-virtual-row";
+      const owner = wrapper;
+      wrapper.appendChild(buildSourceRow(item, () => {
+        send("selectSource", Number(owner.nuvioSourceItem?.index) || 0);
+        window.setTimeout(closePlayerModal, 120);
+      }));
+      fragment.appendChild(wrapper);
+    }
+    // The index can shift as results arrive, so a kept row reads its current item when clicked.
+    wrapper.nuvioSourceItem = item;
     wrapper.style.transform = `translateY(${sourceVirtualOffsets[index]}px)`;
-    const row = buildSourceRow(item, selected => {
-      send("selectSource", Number(selected.index) || 0);
-      window.setTimeout(closePlayerModal, 120);
-    });
-    wrapper.appendChild(row);
-    fragment.appendChild(wrapper);
-    rendered.push({ index, wrapper });
+    nextRows.set(key, wrapper);
+    rendered.push({ index, key, wrapper });
   }
-  sourceVirtualSpacer.appendChild(fragment);
+  sourceRenderedRows.forEach(wrapper => wrapper.remove());
+  sourceRenderedRows = nextRows;
+  spacer.appendChild(fragment);
 
   window.requestAnimationFrame(() => {
+    if (sourceVirtualSpacer !== spacer) return;
     let changed = false;
-    rendered.forEach(({ index, wrapper }) => {
+    rendered.forEach(({ index, key, wrapper }) => {
+      if (sourceVirtualRowKeys[index] !== key) return;
       const measured = Math.ceil(wrapper.getBoundingClientRect().height);
+      if (measured > 0) sourceRowHeights.set(key, measured);
       if (measured > 0 && Math.abs((sourceVirtualHeights[index] || SourceRowEstimatedHeight) - measured) > 1) {
         sourceVirtualHeights[index] = measured;
         changed = true;
@@ -3862,7 +3902,9 @@ const renderSourceModal = (modalOpened = false) => {
     renderSourceModal(true);
   });
 
-  if (!modalOpened || !sourceVirtualSpacer) {
+  // Only on open: doing it on every update snaps back a chip row the user scrolled.
+  if (sourceFilterScrollPending) {
+    sourceFilterScrollPending = false;
     window.requestAnimationFrame(() => {
       sourceFilterList.querySelector(".filter-chip.selected")
         ?.scrollIntoView({ behavior: "instant", container: "nearest", inline: "start" });
@@ -3870,17 +3912,19 @@ const renderSourceModal = (modalOpened = false) => {
   }
 
   const previousScrollTop = sourceList.scrollTop;
-  sourceList.textContent = "";
-  sourceList.classList.remove("virtualized");
   let items = normalizeItems(state.sourceItems);
   if (sourceFilterId) {
     items = items.filter(item => String(item.filterId || "") === sourceFilterId);
   }
+  window.cancelAnimationFrame(sourceVirtualRenderRaf);
+  sourceVirtualRenderRaf = 0;
   if (items.length === 0) {
+    sourceList.textContent = "";
+    sourceList.classList.remove("virtualized");
     sourceVirtualItems = [];
+    sourceVirtualRowKeys = [];
     sourceVirtualSpacer = null;
-    window.cancelAnimationFrame(sourceVirtualRenderRaf);
-    sourceVirtualRenderRaf = 0;
+    sourceRenderedRows = new Map();
     appendEmptyTrackState(
       sourceList,
       state.sourceIsLoading ? "Loading streams..." : (state.noStreamsLabel || "No streams found"),
@@ -3889,18 +3933,17 @@ const renderSourceModal = (modalOpened = false) => {
     lastRenderedModalSignature = getSourcesModalSignature();
     return;
   }
-  const nextKey = sourceKeyForItems(items);
-  if (nextKey !== sourceVirtualKey) {
-    resetSourceVirtualState(items, nextKey);
-  } else {
-    sourceVirtualItems = items;
+  setSourceVirtualItems(items);
+  if (!sourceVirtualSpacer || sourceVirtualSpacer.parentNode !== sourceList) {
+    sourceList.textContent = "";
+    sourceList.classList.add("virtualized");
+    sourceVirtualSpacer = document.createElement("div");
+    sourceVirtualSpacer.className = "source-virtual-spacer";
+    sourceList.appendChild(sourceVirtualSpacer);
+    sourceRenderedRows = new Map();
   }
-  sourceList.classList.add("virtualized");
-  sourceVirtualSpacer = document.createElement("div");
-  sourceVirtualSpacer.className = "source-virtual-spacer";
-  sourceList.appendChild(sourceVirtualSpacer);
   rebuildSourceVirtualLayout();
-  sourceList.scrollTop = previousScrollTop;
+  if (sourceList.scrollTop !== previousScrollTop) sourceList.scrollTop = previousScrollTop;
   renderSourceVirtualRows();
   if (sourceScrollToCurrentPending) {
     const spacer = sourceVirtualSpacer;
@@ -4131,6 +4174,8 @@ const renderEpisodeStreams = (modalOpened = false) => {
   }
   if (items.length === 0) {
     episodeStreamList.textContent = "";
+    episodeStreamRows = new Map();
+    currentEpisodeStreamItems = [];
     appendEmptyTrackState(
       episodeStreamList,
       state.episodeStreamsIsLoading ? "Loading streams..." : (state.noStreamsLabel || "No streams found"),
@@ -4138,15 +4183,34 @@ const renderEpisodeStreams = (modalOpened = false) => {
     return;
   }
   if (!compareArrays(currentEpisodeStreamItems, items)) {
-    episodeStreamList.textContent = "";
-    items.forEach(item => {
-      episodeStreamList.appendChild(buildSourceRow(item, selected => {
-        send("selectEpisodeStream", Number(selected.index) || 0);
-        window.setTimeout(closePlayerModal, 120);
-      }));
+    // Streams arrive addon by addon: keep the rows already shown and only build new ones,
+    // so their logos and badges do not reload and flash on every update.
+    const keys = sourceRowKeys(items);
+    const nextRows = new Map();
+    const rows = items.map((item, index) => {
+      let row = episodeStreamRows.get(keys[index]);
+      if (!row || row.parentNode !== episodeStreamList) {
+        row = buildSourceRow(item, () => {
+          send("selectEpisodeStream", Number(row.nuvioSourceItem?.index) || 0);
+          window.setTimeout(closePlayerModal, 120);
+        });
+      }
+      // The index can shift as results arrive, so a kept row reads its current item when clicked.
+      row.nuvioSourceItem = item;
+      nextRows.set(keys[index], row);
+      return row;
     });
+    const kept = new Set(rows);
+    Array.from(episodeStreamList.children).forEach(child => {
+      if (!kept.has(child)) child.remove();
+    });
+    rows.forEach((row, index) => {
+      const current = episodeStreamList.children[index];
+      if (current !== row) episodeStreamList.insertBefore(row, current || null);
+    });
+    episodeStreamRows = nextRows;
     currentEpisodeStreamItems = items;
-  };
+  }
 };
 
 const renderEpisodesModal = (modalOpened = false) => {
