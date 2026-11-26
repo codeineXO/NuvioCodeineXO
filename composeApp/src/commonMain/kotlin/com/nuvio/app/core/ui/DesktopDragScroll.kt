@@ -8,10 +8,16 @@ import androidx.compose.foundation.gestures.ScrollScope
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.stopScroll
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -34,10 +40,47 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sign
+import kotlin.time.TimeSource
 
 private class DesktopDragMotion {
     var job: Job? = null
+    var session: Any? = null
+    val carry = DesktopSubPixelCarry()
+}
+
+/**
+ * Lazy lists and scroll state lay content out on whole pixels. Below ~1 px per frame a fling
+ * would step 1, 0, 1, 0 px; instead only whole pixels are scrolled and the fraction still owed
+ * is drawn as a draw-time offset, so slow motion glides evenly.
+ */
+internal class DesktopSubPixelCarry {
+    var pending by mutableFloatStateOf(0f)
+}
+
+private fun ScrollScope.scrollWholePixels(
+    delta: Float,
+    carry: DesktopSubPixelCarry,
+    dispatcher: NestedScrollDispatcher,
+    orientation: Orientation,
+    direction: Float,
+    source: NestedScrollSource = NestedScrollSource.UserInput,
+): Float {
+    val total = carry.pending + delta
+    val whole = total.roundToInt().toFloat()
+    if (whole == 0f) {
+        carry.pending = total
+        return delta
+    }
+    val consumed = scrollWithNestedParents(whole, dispatcher, orientation, direction, source)
+    if (abs(consumed - whole) > 0.01f) {
+        // Hit an edge: nothing further is owed.
+        carry.pending = 0f
+        return consumed
+    }
+    carry.pending = total - whole
+    return delta
 }
 
 /** Finish a claimed drag even without momentum so parent stretch/chrome can settle. */
@@ -49,6 +92,8 @@ internal suspend fun ScrollScope.flingWithNestedParents(
     fling: FlingBehavior,
     momentumEnabled: Boolean,
     settleWithoutMomentum: Boolean = false,
+    carry: DesktopSubPixelCarry? = null,
+    lead: DesktopDragLead? = null,
 ) {
     fun vector(value: Float) = when {
         value == 0f -> Velocity.Zero
@@ -62,15 +107,21 @@ internal suspend fun ScrollScope.flingWithNestedParents(
     val available = initial - amount(preConsumed)
     var remaining = available
     var completed = false
+    val direct = this
+    val nested = object : ScrollScope {
+        override fun scrollBy(pixels: Float): Float = if (carry != null) {
+            direct.scrollWholePixels(pixels, carry, dispatcher, orientation, direction, NestedScrollSource.SideEffect)
+        } else {
+            direct.scrollWithNestedParents(pixels, dispatcher, orientation, direction, NestedScrollSource.SideEffect)
+        }
+    }
     try {
         if ((momentumEnabled && available != 0f) || settleWithoutMomentum) {
-            val direct = this
-            val nested = object : ScrollScope {
-                override fun scrollBy(pixels: Float): Float = direct.scrollWithNestedParents(
-                    pixels, dispatcher, orientation, direction, NestedScrollSource.SideEffect,
-                )
+            remaining = if (lead != null && fling is DesktopLeadFling) {
+                with(fling) { nested.performFling(available, lead) }
+            } else {
+                with(fling) { nested.performFling(available) }
             }
-            remaining = with(fling) { nested.performFling(available) }
         }
         completed = true
     } finally {
@@ -247,9 +298,136 @@ private class DesktopDragVelocityEstimator(
     }
 }
 
+private val DesktopDragClockOrigin = TimeSource.Monotonic.markNow()
+
+private fun desktopDragClockNanos(): Long = DesktopDragClockOrigin.elapsedNow().inWholeNanoseconds
+
+private const val DragResampleCapacity = 64
+private const val DragResamplePauseNanos = 40_000_000L
+private const val DragResampleMinLatencyNanos = 6_000_000L
+private const val DragResampleMaxLatencyNanos = 20_000_000L
+private const val DragResampleMarginNanos = 2_000_000L
+private const val DragReleaseVelocityWindowNanos = 24_000_000L
+
+/**
+ * Rebuilds pointer travel on the input clock and samples it once per frame, slightly in the
+ * past. Applying raw mouse deltas moved the list by however many events landed in each frame
+ * (2, 3, 2, 0...), which reads as judder; sampling a continuous path moves it evenly.
+ */
+private class DesktopDragResampler {
+    private val times = LongArray(DragResampleCapacity)
+    private val positions = FloatArray(DragResampleCapacity)
+    private var head = 0
+    private var count = 0
+    private var latest = 0f
+    private var applied = 0f
+    private var lastTime = 0L
+    private var sampledTime = Long.MIN_VALUE
+    /** Smallest delivery offset seen; maps event timestamps onto the frame clock. */
+    private var minOffset = Long.MAX_VALUE
+    private var intervalNanos = 8_000_000f
+    private var delayNanos = 0f
+
+    val settled: Boolean get() = applied == latest
+
+    /** Covers one input interval plus delivery delay, so the sampled point is already known. */
+    val latencyNanos: Long
+        get() = (intervalNanos + delayNanos).toLong()
+            .plus(DragResampleMarginNanos)
+            .coerceIn(DragResampleMinLatencyNanos, DragResampleMaxLatencyNanos)
+
+    private fun push(time: Long, position: Float) {
+        val index = if (count < DragResampleCapacity) {
+            (head + count).also { count++ } % DragResampleCapacity
+        } else {
+            head.also { head = (head + 1) % DragResampleCapacity }
+        }
+        times[index] = time
+        positions[index] = position
+    }
+
+    /** Pointer event time on the frame clock. */
+    fun clockTime(eventTimeMs: Long, receivedNanos: Long): Long {
+        val eventNanos = eventTimeMs * 1_000_000L
+        val offset = receivedNanos - eventNanos
+        if (offset < minOffset) minOffset = offset
+        // Event time is whole ms; use the precise arrival time when it falls inside that ms,
+        // and the event time when delivery was held back (events bunched behind a frame).
+        val base = eventNanos + minOffset
+        return receivedNanos.coerceIn(base, base + 1_000_000L)
+    }
+
+    fun add(delta: Float, eventTimeMs: Long, receivedNanos: Long) {
+        var time = clockTime(eventTimeMs, receivedNanos)
+        if (count == 0 || time - lastTime > DragResamplePauseNanos) {
+            // Start (or resume after a pause) from rest one interval before this event.
+            push(time - intervalNanos.toLong(), latest)
+        } else {
+            if (time < lastTime) time = lastTime
+            val gap = time - lastTime
+            if (gap > 0L) intervalNanos += (gap - intervalNanos) * 0.1f
+        }
+        delayNanos += ((receivedNanos - time).coerceAtLeast(0L) - delayNanos) * 0.1f
+        latest += delta
+        val lastIndex = (head + count - 1) % DragResampleCapacity
+        if (times[lastIndex] == time) positions[lastIndex] = latest else push(time, latest)
+        lastTime = time
+    }
+
+    private fun positionAt(time: Long): Float {
+        if (count == 0 || time >= lastTime) return latest
+        var i = count - 1
+        while (i > 0) {
+            val index = (head + i) % DragResampleCapacity
+            val previousIndex = (head + i - 1) % DragResampleCapacity
+            val t0 = times[previousIndex]
+            if (t0 <= time) {
+                val t1 = times[index]
+                val p0 = positions[previousIndex]
+                val p1 = positions[index]
+                if (t1 <= t0) return p1
+                return p0 + (p1 - p0) * ((time - t0).toFloat() / (t1 - t0))
+            }
+            i--
+        }
+        return positions[head]
+    }
+
+    /**
+     * Speed of the pointer path over the last [windowNanos] before [releaseTime], in px/s.
+     * This is the motion the user saw; a curve fitted over a whole accelerating flick
+     * overshoots it, which reads as a lurch when the fling takes over.
+     */
+    fun releaseVelocity(releaseTime: Long, windowNanos: Long): Float {
+        val end = maxOf(releaseTime, lastTime)
+        return (positionAt(end) - positionAt(end - windowNanos)) * 1_000_000_000f / windowNanos
+    }
+
+    /** Travel since the previous sample; sample times never move backwards. */
+    fun sampleTo(time: Long): Float {
+        val t = maxOf(time, sampledTime)
+        sampledTime = t
+        val target = positionAt(t)
+        val delta = target - applied
+        applied = target
+        return delta
+    }
+}
+
+/** Hand-off from a drag: the fling started [playedNanos] before the current frame [frameNanos]. */
+internal class DesktopDragLead(val playedNanos: Long, val frameNanos: Long)
+
+/**
+ * A fling that can take over inside the frame where the drag reached its release point, so
+ * that frame shows drag up to the release plus fling for the rest of the frame.
+ */
+internal interface DesktopLeadFling : FlingBehavior {
+    suspend fun ScrollScope.performFling(initialVelocity: Float, lead: DesktopDragLead): Float
+}
+
 private sealed interface DesktopDragScrollEvent {
-    data class Delta(val delta: Float) : DesktopDragScrollEvent
-    data class Stop(val velocity: Float) : DesktopDragScrollEvent
+    data class Delta(val delta: Float, val eventTimeMs: Long, val receivedNanos: Long) : DesktopDragScrollEvent
+    data class Stop(val velocity: Float, val eventTimeMs: Long = 0L, val receivedNanos: Long = 0L) : DesktopDragScrollEvent
 }
 
 /**
@@ -280,6 +458,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
         val connection = remember { object : NestedScrollConnection {} }
         val motion = remember(state, orientation, reverseDirection, fling) { DesktopDragMotion() }
         // Wheel input interrupts a drag fling without consuming the wheel event.
+        // Pointer input sits before the draw shift, so the sub-pixel offset never feeds back into deltas.
         nestedScroll(connection, dispatcher).pointerInput(motion) {
             awaitPointerEventScope {
                 while (true) {
@@ -299,20 +478,89 @@ internal fun Modifier.nuvioDesktopDragScroll(
                 fun startDragSession(): Channel<DesktopDragScrollEvent> {
                     motion.job?.cancel()
                     val channel = Channel<DesktopDragScrollEvent>(Channel.UNLIMITED)
+                    val session = Any()
+                    motion.session = session
                     motion.job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
                         var stop: DesktopDragScrollEvent.Stop? = null
+                        var lead: DesktopDragLead? = null
+                        var releaseVelocity = 0f
+                        val momentum = momentumEnabled && NavigationMotionSettings.profile.dragMomentum
                         var releaseStarted = false
                         try {
                             state.scroll(MutatePriority.UserInput) {
-                                for (dragEvent in channel) {
+                                val resampler = DesktopDragResampler()
+                                var timeline = SteadyFrameTimeline()
+                                fun absorb(dragEvent: DesktopDragScrollEvent?) {
                                     when (dragEvent) {
-                                        is DesktopDragScrollEvent.Delta -> scrollWithNestedParents(
-                                            direction * dragEvent.delta, dispatcher, orientation, direction,
+                                        is DesktopDragScrollEvent.Delta -> resampler.add(
+                                            dragEvent.delta, dragEvent.eventTimeMs, dragEvent.receivedNanos,
                                         )
-                                        is DesktopDragScrollEvent.Stop -> {
-                                            stop = dragEvent
+                                        is DesktopDragScrollEvent.Stop -> if (stop == null) stop = dragEvent
+                                        null -> if (stop == null) stop = DesktopDragScrollEvent.Stop(0f)
+                                    }
+                                }
+                                fun handsOff(): Boolean = stop.let { it != null && it.velocity != 0f && momentum }
+                                var releaseClock = Long.MIN_VALUE
+                                fun releaseClockTime(): Long {
+                                    if (releaseClock == Long.MIN_VALUE) {
+                                        val released = stop!!
+                                        releaseClock = if (released.receivedNanos != 0L) {
+                                            resampler.clockTime(released.eventTimeMs, released.receivedNanos)
+                                        } else {
+                                            desktopDragClockNanos()
+                                        }
+                                    }
+                                    return releaseClock
+                                }
+                                fun releaseSpeed(releaseTime: Long): Float {
+                                    val estimate = stop!!.velocity
+                                    val seen = resampler.releaseVelocity(releaseTime, DragReleaseVelocityWindowNanos)
+                                    // Keep the estimator's verdict on direction and stops; take the speed from
+                                    // what was on screen.
+                                    return if (seen * estimate > 0f) seen.coerceIn(-abs(estimate), abs(estimate)) else 0f
+                                }
+                                fun drain() {
+                                    while (true) {
+                                        val result = channel.tryReceive()
+                                        if (result.isSuccess) {
+                                            absorb(result.getOrThrow())
+                                        } else {
+                                            if (result.isClosed) absorb(null)
                                             break
                                         }
+                                    }
+                                }
+                                // At most one scroll (and so one lazy remeasure) per frame.
+                                while (true) {
+                                    if (stop == null && resampler.settled) {
+                                        // Pointer at rest: wait for input without requesting frames.
+                                        absorb(channel.receiveCatching().getOrNull())
+                                        timeline = SteadyFrameTimeline()
+                                    }
+                                    drain()
+                                    if (stop != null && !handsOff() && resampler.settled) break
+                                    val frameNanos = withFrameNanos { it }
+                                    drain()
+                                    val time = timeline.advance(desktopDragClockNanos())
+                                    val sampleTime = time - resampler.latencyNanos
+                                    val releaseTime = if (handsOff()) releaseClockTime() else Long.MAX_VALUE
+                                    if (sampleTime >= releaseTime) {
+                                        // Release lands inside this frame: show the drag up to the release
+                                        // point, then the fling plays the rest of this same frame.
+                                        val delta = resampler.sampleTo(Long.MAX_VALUE)
+                                        if (delta != 0f) {
+                                            scrollWholePixels(direction * delta, motion.carry, dispatcher, orientation, direction)
+                                        }
+                                        releaseVelocity = releaseSpeed(releaseTime)
+                                        lead = DesktopDragLead(
+                                            (sampleTime - releaseTime).coerceAtMost(DragResampleMaxLatencyNanos),
+                                            frameNanos,
+                                        )
+                                        break
+                                    }
+                                    val delta = resampler.sampleTo(sampleTime)
+                                    if (delta != 0f) {
+                                        scrollWholePixels(direction * delta, motion.carry, dispatcher, orientation, direction)
                                     }
                                 }
                             }
@@ -321,14 +569,19 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                 state.scroll {
                                     releaseStarted = true
                                     flingWithNestedParents(
-                                        direction * release.velocity, dispatcher, orientation, direction, fling,
-                                        momentumEnabled && NavigationMotionSettings.profile.dragMomentum,
+                                        direction * (if (lead != null) releaseVelocity else release.velocity),
+                                        dispatcher, orientation, direction, fling,
+                                        momentum,
                                         settleWithoutMomentum,
+                                        motion.carry,
+                                        lead,
                                     )
                                 }
                             }
                         } finally {
                             channel.close()
+                            // A newer session owns the carry once it has started.
+                            if (motion.session === session) motion.carry.pending = 0f
                             if (!releaseStarted) dispatcher.dispatchPostFling(Velocity.Zero, Velocity.Zero)
                         }
                     }
@@ -395,7 +648,9 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                     )
                                     dragChannel?.let { channel ->
                                         stopDispatched = true
-                                        channel.trySend(DesktopDragScrollEvent.Stop(axisVelocity))
+                                        channel.trySend(
+                                            DesktopDragScrollEvent.Stop(axisVelocity, change.uptimeMillis, desktopDragClockNanos()),
+                                        )
                                     }
                                 }
                                 break
@@ -417,7 +672,11 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                         val postSlopDelta = totalAlong - sign(totalAlong) * slopPx
                                         val channel = startDragSession()
                                         dragChannel = channel
-                                        if (postSlopDelta != 0f) channel.trySend(DesktopDragScrollEvent.Delta(postSlopDelta))
+                                        if (postSlopDelta != 0f) {
+                                            channel.trySend(
+                                                DesktopDragScrollEvent.Delta(postSlopDelta, change.uptimeMillis, desktopDragClockNanos()),
+                                            )
+                                        }
                                         change.consume()
                                     }
                                     else -> continue
@@ -425,7 +684,9 @@ internal fun Modifier.nuvioDesktopDragScroll(
                             } else {
                                 if (axisDelta != 0f) {
                                     val channel = dragChannel ?: startDragSession().also { dragChannel = it }
-                                    channel.trySend(DesktopDragScrollEvent.Delta(axisDelta))
+                                    channel.trySend(
+                                        DesktopDragScrollEvent.Delta(axisDelta, change.uptimeMillis, desktopDragClockNanos()),
+                                    )
                                 }
                                 change.consume()
                             }
@@ -437,6 +698,17 @@ internal fun Modifier.nuvioDesktopDragScroll(
                             channel.close()
                         }
                     }
+                }
+            }
+        }.drawWithContent {
+            // A draw-time shift, not a graphics layer: a layer here added a full extra
+            // composite per frame and doubled missed refreshes during flings.
+            val shift = motion.carry.pending * direction
+            if (shift == 0f) {
+                drawContent()
+            } else {
+                translate(left = if (horizontal) shift else 0f, top = if (horizontal) 0f else shift) {
+                    this@drawWithContent.drawContent()
                 }
             }
         }

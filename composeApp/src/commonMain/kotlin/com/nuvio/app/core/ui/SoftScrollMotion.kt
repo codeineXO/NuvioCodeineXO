@@ -44,16 +44,53 @@ internal fun softScrollStep(distance: Float, velocity: Float, seconds: Float, re
  */
 internal class SmoothedFrameClock {
     private var previous: Long? = null
-    private var frameSeconds = 1f / 60
+    // Start from the last measured period so a new motion's first frame matches the display.
+    private var frameSeconds = lastFrameSeconds
 
+    /** Smoothed seconds since the previous tick; the first tick returns one frame period. */
     fun tick(frameNanos: Long): Float {
         val raw = previous?.let { (frameNanos - it) / 1_000_000_000f } ?: frameSeconds
         previous = frameNanos
-        frameSeconds = if (raw > frameSeconds * 1.8f) raw.coerceAtMost(0.1f)
-            else frameSeconds + (raw.coerceAtLeast(0f) - frameSeconds) * 0.15f
+        // A stall is followed at once but kept out of the average, so later frames stay steady.
+        if (raw > frameSeconds * 1.8f) return raw.coerceAtMost(0.1f)
+        frameSeconds += (raw.coerceAtLeast(0f) - frameSeconds) * 0.15f
+        lastFrameSeconds = frameSeconds
         return frameSeconds
     }
+
+    val periodNanos: Long get() = (frameSeconds * 1_000_000_000f).toLong()
+
+    private companion object {
+        var lastFrameSeconds = 1f / 60
+    }
 }
+
+/**
+ * Frame times locked to the measured frame period. Desktop frame callbacks run a few ms early or
+ * late around vsync; motion sampled at these steadied times advances evenly on every frame.
+ */
+internal class SteadyFrameTimeline {
+    private val clock = SmoothedFrameClock()
+    private var time = 0L
+    private var primed = false
+
+    val periodNanos: Long get() = clock.periodNanos
+
+    fun advance(nowNanos: Long): Long {
+        val seconds = clock.tick(nowNanos)
+        if (!primed) {
+            primed = true
+            time = nowNanos
+            return time
+        }
+        val predicted = time + (seconds * 1_000_000_000f).toLong()
+        val error = nowNanos - predicted
+        time = if (abs(error) > SteadyFrameResyncNanos) nowNanos else predicted + error / 8
+        return time
+    }
+}
+
+private const val SteadyFrameResyncNanos = 20_000_000L
 
 /**
  * Fixed ease-in-out glide toward a re-measured target. Each frame moves its share of what is
