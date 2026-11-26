@@ -749,13 +749,13 @@ private fun DesktopHeroBackdrop(
     artwork: @Composable () -> Unit,
 ) {
     val opacity = NuvioTokens.Opacity
+    val background = MaterialTheme.colorScheme.background
     Box(
         modifier = Modifier
             .fillMaxSize()
             // Keep glass sampling inside the hero and include all backdrop scrims.
             .navigationGlassSource()
-            .clipToBounds()
-            .then(if (containerMode) Modifier else Modifier.heroBottomFeather(bottomFadeRatio = 0.42f)),
+            .clipToBounds(),
     ) {
         artwork()
 
@@ -799,11 +799,12 @@ private fun DesktopHeroBackdrop(
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.35f),
-                            Color.Black.copy(alpha = 0.75f),
-                        ),
+                        // Full-bleed heroes end in the opaque page background so nothing behind can seam.
+                        colors = if (containerMode) {
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f), Color.Black.copy(alpha = 0.75f))
+                        } else {
+                            listOf(background.copy(alpha = 0f), background)
+                        },
                     ),
                 ),
         )
@@ -1136,20 +1137,14 @@ private fun DesktopHeroContentBlock(
         )
 
         item.description?.takeIf { showDescription && it.isNotBlank() }?.let { description ->
-            Spacer(modifier = Modifier.height(when {
-                compact -> NuvioTokens.Space.s4
-                persistentDetailsClickModifier != null -> NuvioTokens.Space.s6
-                else -> NuvioTokens.Space.s16
-            }))
+            Spacer(modifier = Modifier.height(if (compact) NuvioTokens.Space.s4 else NuvioTokens.Space.s6))
             Text(
                 text = description,
-                modifier = if (persistentDetailsClickModifier != null) {
-                    Modifier.fillMaxWidth(0.65f).then(persistentDetailsClickModifier)
-                } else Modifier,
-                textAlign = if (persistentDetailsClickModifier != null) TextAlign.Justify else null,
-                style = (if (persistentDetailsClickModifier != null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(
-                    fontSize = if (persistentDetailsClickModifier != null) NuvioTokens.Type.bodyMd else NuvioTokens.Type.bodyLg,
-                    lineHeight = if (persistentDetailsClickModifier != null) NuvioTokens.LineHeight.bodyMd else NuvioTokens.LineHeight.bodyLg,
+                modifier = Modifier.fillMaxWidth(0.65f).then(persistentDetailsClickModifier ?: Modifier),
+                textAlign = TextAlign.Justify,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = NuvioTokens.Type.bodyMd,
+                    lineHeight = NuvioTokens.LineHeight.bodyMd,
                     letterSpacing = NuvioTokens.LetterSpacing.none,
                 ),
                 color = colorScheme.onSurface,

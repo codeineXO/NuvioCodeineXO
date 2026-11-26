@@ -133,9 +133,11 @@ private val auroraEffect by lazy {
             float3 inner = palette(t, inner0.rgb, inner1.rgb, inner2.rgb, inner3.rgb);
             float3 light = mix(outer, inner, 0.35 + 0.65 * band);
 
-            float heroMask = clamp(heroBottom / heroFade, 0.0, 1.0)
-                * (1.0 - smoothstep(heroBottom, heroBottom + heroFade, pixel.y));
-            float3 rgb = mix(background.rgb, light, opacity * (1.0 - 0.78 * heroMask));
+            // The hero ends in the opaque background, so the aurora must match it exactly at that edge.
+            float heroMask = heroBottom > 0.0
+                ? 1.0 - smoothstep(heroBottom, heroBottom + heroFade, pixel.y)
+                : 0.0;
+            float3 rgb = mix(background.rgb, light, opacity * (1.0 - heroMask));
 
             // Dither the final color by at most one 8-bit step. The pattern is fixed to the screen.
             float threshold = fract(52.9829189 * fract(dot(floor(pixel), float2(0.06711056, 0.00583715))));

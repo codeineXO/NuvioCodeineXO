@@ -63,7 +63,7 @@ fun HomeInteractiveGradientBackground(
     Box(modifier.fillMaxSize().navigationGlassSource()) {
         Spacer(
             Modifier.fillMaxSize().drawWithCache {
-                val heroFadePx = 96.dp.toPx()
+                val heroFadePx = 180.dp.toPx()
                 val fallback by lazy { createMeshAuroraRenderer(size, background, colors, intensity) }
                 onDrawBehind {
                     val heroBottom = (heroBottomPx?.invoke()?.toFloat() ?: 0f).coerceIn(0f, size.height)
@@ -172,10 +172,9 @@ private fun auraFalloff(distance: Float): Float = exp(-distance * distance)
 private fun DrawScope.drawHeroAuraScrim(background: Color, heroBottomPx: Float, fadePx: Float) {
     val heroBottom = heroBottomPx.coerceAtMost(size.height)
     val fadeEnd = heroBottom + fadePx
-    val opacity = 0.78f * (heroBottom / fadePx).coerceIn(0f, 1f)
     drawRect(
         brush = Brush.verticalGradient(
-            colors = listOf(background.copy(alpha = opacity), background.copy(alpha = 0f)),
+            colors = listOf(background, background.copy(alpha = 0f)),
             startY = heroBottom,
             endY = fadeEnd,
         ),
