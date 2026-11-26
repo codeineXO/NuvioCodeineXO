@@ -135,7 +135,7 @@ internal suspend fun ScrollScope.flingWithNestedParents(
 
 private val DesktopDragScrollTouchSlop = 8.dp
 private val DesktopDragScrollMinFlingVelocity = 50.dp
-private val DesktopDragScrollMaxFlingVelocity = 8000.dp
+private val DesktopDragScrollMaxFlingVelocity = 5000.dp
 
 private const val DesktopDragStopThresholdMs = 40L
 private const val DesktopDragVelocityWindowMs = 100L

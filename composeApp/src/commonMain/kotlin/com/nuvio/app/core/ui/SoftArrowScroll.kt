@@ -93,20 +93,22 @@ internal fun nextArrowPageTarget(
 
 /**
  * One fixed ease-in-out glide segment: starts with velocity [v0], travels [distance] and arrives
- * at rest after [duration] seconds (minimum-jerk quintic, no overshoot or spring tail).
- * Returns (travelled, velocity) at [t].
+ * at rest after [duration] seconds (quartic, no overshoot or spring tail).
+ * Unlike a minimum-jerk quintic it starts with acceleration, so a glide from rest moves visibly on
+ * its first frame instead of spending several frames below one pixel; the landing keeps zero
+ * velocity and acceleration. Returns (travelled, velocity) at [t].
  */
 internal fun arrowGlideAt(distance: Float, v0: Float, duration: Float, t: Float): Pair<Float, Float> {
     val total = duration.toDouble()
-    val s = t.toDouble().coerceIn(0.0, total)
+    val u = (t.toDouble() / total).coerceIn(0.0, 1.0)
     val d = distance.toDouble()
-    val v = v0.toDouble()
-    val t2 = total * total
-    val c3 = (20 * d - 12 * v * total) / (2 * t2 * total)
-    val c4 = (-30 * d + 16 * v * total) / (2 * t2 * t2)
-    val c5 = (12 * d - 6 * v * total) / (2 * t2 * t2 * total)
-    val position = v * s + c3 * s * s * s + c4 * s * s * s * s + c5 * s * s * s * s * s
-    val velocity = v + 3 * c3 * s * s + 4 * c4 * s * s * s + 5 * c5 * s * s * s * s
+    // Normalized coefficients of p(u) = vT·u + c2·u² + c3·u³ + c4·u⁴, with p(1) = d, p'(1) = p''(1) = 0.
+    val vt = v0.toDouble() * total
+    val c2 = 6 * d - 3 * vt
+    val c3 = 3 * vt - 8 * d
+    val c4 = 3 * d - vt
+    val position = u * (vt + u * (c2 + u * (c3 + u * c4)))
+    val velocity = (vt + u * (2 * c2 + u * (3 * c3 + u * 4 * c4))) / total
     return position.toFloat() to velocity.toFloat()
 }
 

@@ -139,7 +139,7 @@ fun <T> NuvioShelfSection(
         if (!active) state.stopScroll()
     }
     val density = LocalDensity.current
-    val scrollStepPx = remember(density) { with(density) { 80.dp.toPx() } }
+    val scrollStepPx = remember(density) { with(density) { 100.dp.toPx() } }
     val hoverViewport = remember { PosterRowHoverViewport() }
     val glowEnabled = isDesktop && rememberPosterCardStyleUiState().glowEnabled
     val glowOutset = if (glowEnabled) PosterGlowOutset else 0.dp

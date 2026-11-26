@@ -72,7 +72,7 @@ internal object SoftWheelRegistry {
 }
 
 /** Content wheel step per notch; scrollbar wheel input uses the same value. */
-internal val SoftWheelStep = 80.dp
+internal val SoftWheelStep = 100.dp
 
 /** Reserve native wheel input, then let descendant containers take ownership before scrolling. */
 internal fun Modifier.nuvioVerticalMouseWheelScroll(
