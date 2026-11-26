@@ -687,7 +687,7 @@ private fun RecommendedSetupStepContent(
                     FeatureHighlightRow(
                         icon = Icons.Rounded.Settings,
                         title = "Appearance",
-                        subtitle = if (isDesktop) "Aura, frosted glass, navigation, and poster layout" else "Aura, frosted glass, and poster layout",
+                        subtitle = if (isDesktop) "Backdrop, frosted glass, navigation, and poster layout" else "Backdrop, frosted glass, and poster layout",
                     )
                     FeatureHighlightRow(
                         icon = Icons.Rounded.ArrowForward,
@@ -1053,8 +1053,8 @@ private fun RecommendedPresetReviewDialog(
                             OnboardingSectionTitle("Appearance")
                             OnboardingSettingsGroup {
                                 SettingsSwitchRow(
-                                    title = "CodeineXO Aura",
-                                    description = "Dynamic chromatic aurora ambient lighting",
+                                    title = stringResource(Res.string.xo_aura_title),
+                                    description = stringResource(Res.string.xo_aura_description),
                                     checked = state.auraBackgroundEnabled,
                                     isTablet = false,
                                     onCheckedChange = { onStateChange(state.copy(auraBackgroundEnabled = it)) },

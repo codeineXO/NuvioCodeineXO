@@ -149,13 +149,13 @@ internal fun DetailsPageSection(isTablet: Boolean) {
 
     SettingsSection(title = stringResource(CodeineXOSection.DetailsPage.titleRes), isTablet = isTablet) {
         SettingsGroup(isTablet = isTablet) {
+            MetadataInfoSettings(isTablet = isTablet, checked = metaScreenSettings.showMetadataInfo)
+            SettingsGroupDivider(isTablet = isTablet)
             MetaEpisodeCardStyleSelector(
                 isTablet = isTablet,
                 selectedStyle = metaScreenSettings.episodeCardStyle,
                 onStyleSelected = MetaScreenSettingsRepository::setEpisodeCardStyle,
             )
-            SettingsGroupDivider(isTablet = isTablet)
-            MetadataInfoSettings(isTablet = isTablet, checked = metaScreenSettings.showMetadataInfo)
         }
     }
 }

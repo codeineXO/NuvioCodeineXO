@@ -1,7 +1,7 @@
 <resources>
-    <string name="aura_customize">Customize Aura</string>
-    <string name="aura_enable_hint">Enable Aura to customize</string>
-    <string name="aura_preview">Aura preview</string>
+    <string name="aura_customize">Customize Backdrop</string>
+    <string name="aura_enable_hint">Enable Aurora Backdrop to customize</string>
+    <string name="aura_preview">Backdrop preview</string>
     <string name="aura_palette">Palette</string>
     <string name="aura_original">Original</string>
     <string name="aura_arctic">Arctic</string>
@@ -16,7 +16,7 @@
     <string name="aura_subtle">Subtle</string>
     <string name="aura_balanced">Balanced</string>
     <string name="aura_vivid">Vivid</string>
-    <string name="aura_custom_title">Custom Aura colors</string>
-    <string name="aura_custom_subtitle">Choose three colors for your Aura. Select a color to edit it.</string>
-    <string name="aura_custom_save">Save Aura colors</string>
+    <string name="aura_custom_title">Custom backdrop colors</string>
+    <string name="aura_custom_subtitle">Choose three colors for your backdrop. Select a color to edit it.</string>
+    <string name="aura_custom_save">Save backdrop colors</string>
 </resources>

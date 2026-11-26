@@ -46,8 +46,8 @@ internal val CodeineXOSection.searchRows: List<CodeineXOSearchRow>
             row("xo-always-animate-collections", Res.string.settings_homescreen_always_animate_collections),
         )
         CodeineXOSection.DetailsPage -> listOf(
-            row("xo-episode-cards", Res.string.settings_meta_episode_cards, Res.string.settings_meta_episode_cards_description),
             row("xo-metadata-info", Res.string.settings_show_metadata_info, Res.string.settings_show_metadata_info_description),
+            row("xo-episode-cards", Res.string.settings_meta_episode_cards, Res.string.settings_meta_episode_cards_description),
         )
         CodeineXOSection.PlayerInterface -> listOf(
             row("xo-player-ui", Res.string.settings_playback_player_ui),

@@ -10,7 +10,7 @@
 
     <!-- Folders -->
     <string name="xo_folder_appearance">Appearance</string>
-    <string name="xo_folder_appearance_description">Scale, surface style, Aura, card glow and navigation</string>
+    <string name="xo_folder_appearance_description">Scale, surface style, backdrop, card glow and navigation</string>
     <string name="xo_folder_home_details">Home &amp; Details</string>
     <string name="xo_folder_home_details_description">Home layout, poster labels, episode cards and metadata</string>
     <string name="xo_folder_player">Player</string>
@@ -41,8 +41,8 @@
     <string name="xo_section_anime">ANIME</string>
 
     <!-- Rows -->
-    <string name="xo_aura_title">CodeineXO Aura</string>
-    <string name="xo_aura_description">Dynamic chromatic aurora ambient background</string>
+    <string name="xo_aura_title">Aurora Backdrop</string>
+    <string name="xo_aura_description">Gentle gradient light as app backdrop</string>
     <string name="xo_eye_filter_title">Enable Eye Filter</string>
     <string name="xo_eye_filter_description">Reduce eye strain with a night light or screen dimmer overlay</string>
     <string name="xo_eye_filter_color">Eye Filter Color</string>
