@@ -1114,12 +1114,15 @@ internal fun settingsSearchEntries(
     }
     CodeineXOFolder.entries.filter { it.isVisible }.forEach { folder ->
         val folderTitle = pageTitles.getValue(folder.page)
-        addPage(
-            page = folder.page,
+        // Folder names repeat stock page names (Appearance, Player, Subtitles), so label them with CodeineXO.
+        val folderLabel = "$codeineXOPage › $folderTitle"
+        add(
             key = "xo-folder-${folder.name}",
             title = folderTitle,
             description = stringResource(folder.descriptionRes),
+            page = folderLabel,
             category = advancedCategory,
+            target = SettingsSearchTarget.Page(folder.page),
         )
         folder.sections.filter { it.isVisible }.forEach { section ->
             val sectionTitle = stringResource(section.titleRes)
@@ -1129,7 +1132,7 @@ internal fun settingsSearchEntries(
                     key = xo.key,
                     title = stringResource(xo.titleRes),
                     description = xo.descriptionRes?.let { stringResource(it) }.orEmpty(),
-                    pageLabel = folderTitle,
+                    pageLabel = folderLabel,
                     section = sectionTitle,
                 )
             }
