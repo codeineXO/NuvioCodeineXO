@@ -84,13 +84,13 @@ internal fun LazyListScope.codeineXOSettingsContent(
     if (onOnboardingClick != null) {
         item {
             SettingsSection(
-                title = "QUICK SETUP",
+                title = stringResource(Res.string.xo_section_quick_setup),
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
                     SettingsNavigationRow(
-                        title = "Revisit CodeineXO Onboarding",
-                        description = "Re-run setup wizard or review and apply recommended presets",
+                        title = stringResource(Res.string.xo_onboarding_title),
+                        description = stringResource(Res.string.xo_onboarding_description),
                         icon = Icons.Rounded.AutoAwesome,
                         isTablet = isTablet,
                         onClick = onOnboardingClick,
@@ -106,23 +106,24 @@ internal fun LazyListScope.codeineXOSettingsContent(
     item {
         val tokens = MaterialTheme.nuvio
         val clipboardManager = LocalClipboardManager.current
+        val copiedMessage = stringResource(Res.string.xo_support_copied)
         SettingsGroup(isTablet = isTablet) {
             SettingsNavigationRow(
-                title = "DM me on Discord @ codeine_xo to report issues",
+                title = stringResource(Res.string.xo_support_discord_dm),
                 description = null,
                 icon = Icons.Rounded.Chat,
                 isTablet = isTablet,
                 trailingContent = {
                     Icon(
                         imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Copy Discord username",
+                        contentDescription = stringResource(Res.string.xo_support_copy_username),
                         tint = tokens.colors.textMuted,
                         modifier = Modifier.size(if (isTablet) 20.dp else 18.dp),
                     )
                 },
                 onClick = {
                     clipboardManager.setText(AnnotatedString("codeine_xo"))
-                    NuvioToastController.show("Copied @codeine_xo to clipboard")
+                    NuvioToastController.show(copiedMessage)
                 },
             )
         }
@@ -155,8 +156,8 @@ internal fun LazyListScope.codeineXOSettingsContent(
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = "CodeineXO Aura",
-                    description = "Dynamic chromatic aurora ambient background",
+                    title = stringResource(Res.string.xo_aura_title),
+                    description = stringResource(Res.string.xo_aura_description),
                     checked = auraBackgroundEnabled,
                     isTablet = isTablet,
                     onCheckedChange = ThemeSettingsRepository::setAuraBackgroundEnabled,
@@ -317,35 +318,35 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = "Enable Eye Filter",
-                    description = "Reduce eye strain with a night light or screen dimmer overlay",
+                    title = stringResource(Res.string.xo_eye_filter_title),
+                    description = stringResource(Res.string.xo_eye_filter_description),
                     checked = playerSettings.eyeFilterEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setEyeFilterEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = "Eye Filter Color",
+                    title = stringResource(Res.string.xo_eye_filter_color),
                     description = when (playerSettings.eyeFilterColor.uppercase()) {
-                        "#000000" -> "Black"
-                        "#0F172A", "#1C2833" -> "Deep Navy"
-                        "BW", "#BW" -> "Black & White"
-                        else -> "Custom (${playerSettings.eyeFilterColor})"
+                        "#000000" -> stringResource(Res.string.xo_eye_filter_color_black)
+                        "#0F172A", "#1C2833" -> stringResource(Res.string.xo_eye_filter_color_deep_navy)
+                        "BW", "#BW" -> stringResource(Res.string.xo_eye_filter_color_black_white)
+                        else -> stringResource(Res.string.xo_eye_filter_color_custom, playerSettings.eyeFilterColor)
                     },
                     isTablet = isTablet,
                     onClick = { showEyeFilterColorDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = "Eye Filter Opacity",
+                    title = stringResource(Res.string.xo_eye_filter_opacity),
                     description = "${(playerSettings.eyeFilterOpacity * 100).toInt()}%",
                     isTablet = isTablet,
                     onClick = { showEyeFilterOpacityDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = "Frosted Matte Filter (Hemophobia Protection)",
-                    description = "Static frosted veil with blood suppression for sensitive scenes without covering subtitles (Shortcut: 9)",
+                    title = stringResource(Res.string.xo_frosted_matte_title),
+                    description = stringResource(Res.string.xo_frosted_matte_description),
                     checked = playerSettings.grainFilterEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setGrainFilterEnabled,
@@ -371,12 +372,12 @@ internal fun LazyListScope.codeineXOSettingsContent(
 
         if (showEyeFilterColorDialog) {
             val colorOptions = listOf(
-                "#000000" to "Black",
-                "#0F172A" to "Deep Navy",
-                "BW" to "Black & White",
+                "#000000" to stringResource(Res.string.xo_eye_filter_color_black),
+                "#0F172A" to stringResource(Res.string.xo_eye_filter_color_deep_navy),
+                "BW" to stringResource(Res.string.xo_eye_filter_color_black_white),
             )
             IosEnumSelectionDialog(
-                title = "Eye Filter Color",
+                title = stringResource(Res.string.xo_eye_filter_color),
                 options = colorOptions.map { it.first },
                 selected = colorOptions.firstOrNull { it.first.equals(playerSettings.eyeFilterColor, ignoreCase = true) }?.first ?: "#000000",
                 label = { hex -> colorOptions.firstOrNull { it.first == hex }?.second ?: hex },
@@ -392,10 +393,13 @@ internal fun LazyListScope.codeineXOSettingsContent(
         if (showEyeFilterOpacityDialog) {
             val opacityOptions = listOf(0.10f, 0.20f, 0.30f, 0.35f, 0.40f, 0.50f, 0.60f, 0.70f, 0.80f)
             IosEnumSelectionDialog(
-                title = "Eye Filter Opacity",
+                title = stringResource(Res.string.xo_eye_filter_opacity),
                 options = opacityOptions,
                 selected = opacityOptions.minByOrNull { kotlin.math.abs(it - playerSettings.eyeFilterOpacity) } ?: 0.35f,
-                label = { opacity -> if (opacity == 0.35f) "35% (Default)" else "${(opacity * 100).toInt()}%" },
+                label = { opacity -> 
+                    val percent = "${(opacity * 100).toInt()}%"
+                    if (opacity == 0.35f) stringResource(Res.string.xo_eye_filter_opacity_default, percent) else percent
+                },
                 description = { "" },
                 onSelect = { opacity ->
                     PlayerSettingsRepository.setEyeFilterOpacity(opacity)
@@ -433,13 +437,13 @@ internal fun LazyListScope.codeineXOSettingsContent(
             var showSvpMotionOptionDialog by rememberSaveable { mutableStateOf(false) }
 
             SettingsSection(
-                title = "VIDEO ENHANCEMENTS",
+                title = stringResource(Res.string.xo_section_video_enhancements),
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
                     VideoEnhancementsHardwareNote()
                     SettingsNavigationRow(
-                        title = "Anime Upscaler",
+                        title = stringResource(Res.string.xo_anime_upscaler),
                         description = playerSettings.animeUpscalerOption.label,
                         isTablet = isTablet,
                         onClick = { showAnimeUpscalerOptionDialog = true },
@@ -447,7 +451,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     if (playerSettings.animeUpscalerOption != AnimeUpscalerOption.OFF) {
                         SettingsGroupDivider(isTablet = isTablet)
                         SettingsNavigationRow(
-                            title = "Upscaler Mode",
+                            title = stringResource(Res.string.xo_upscaler_mode),
                             description = playerSettings.animeUpscalerMode.label,
                             isTablet = isTablet,
                             onClick = { showAnimeUpscalerModeDialog = true },
@@ -455,7 +459,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                     }
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = "Motion Interpolation (SVP)",
+                        title = stringResource(Res.string.xo_motion_interpolation),
                         description = playerSettings.svpMotionOption.label,
                         isTablet = isTablet,
                         onClick = { showSvpMotionOptionDialog = true },
@@ -521,21 +525,21 @@ internal fun LazyListScope.codeineXOSettingsContent(
         }.collectAsStateWithLifecycle()
 
         SettingsSection(
-            title = "ANIME",
+            title = stringResource(Res.string.xo_section_anime),
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
-                    title = "Anime Filler Detection",
-                    description = "Identify and mark filler episodes across catalog and metadata addons",
+                    title = stringResource(Res.string.xo_anime_filler_detection_title),
+                    description = stringResource(Res.string.xo_anime_filler_detection_description),
                     checked = animeFillerEnabled,
                     isTablet = isTablet,
                     onCheckedChange = AnimeFillerSettingsRepository::setEnabled,
                 )
                 if (animeFillerEnabled) {
                     SettingsSwitchRow(
-                        title = "Hide Anime Filler Episodes",
-                        description = "Hide filler episodes from episode lists and skip them during playback (mixed episodes are kept)",
+                        title = stringResource(Res.string.xo_hide_anime_filler_title),
+                        description = stringResource(Res.string.xo_hide_anime_filler_description),
                         checked = animeHideFillers,
                         isTablet = isTablet,
                         onCheckedChange = AnimeFillerSettingsRepository::setHideFillers,
@@ -556,7 +560,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
             }.collectAsStateWithLifecycle()
 
             SettingsSection(
-                title = "AUDIO ENHANCEMENT",
+                title = stringResource(Res.string.xo_section_audio_enhancement),
                 isTablet = isTablet,
             ) {
                 SettingsGroup(isTablet = isTablet) {
@@ -595,14 +599,14 @@ internal fun LazyListScope.codeineXOSettingsContent(
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsNavigationRow(
-                    title = "Subtitle Font",
+                    title = stringResource(Res.string.xo_subtitle_font),
                     description = subtitleFontLabel(subtitleStyle.importedFontId ?: subtitleStyle.fontName),
                     isTablet = isTablet,
                     onClick = { showSubtitleFontDialog = true },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = "Outline Style",
+                    title = stringResource(Res.string.xo_outline_style),
                     description = subtitleStyle.outlineEffect.label,
                     isTablet = isTablet,
                     onClick = { showSubtitleOutlineEffectDialog = true },
@@ -610,7 +614,7 @@ internal fun LazyListScope.codeineXOSettingsContent(
                 if (isBackgroundBox || (subtitleStyle.outlineEnabled && subtitleStyle.outlineEffect.needsOutline)) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSliderRow(
-                        title = "Outline Thickness",
+                        title = stringResource(Res.string.xo_outline_thickness),
                         enabled = !isBackgroundBox,
                         value = SubtitleOutlineWidths.indexOf(subtitleStyle.outlineWidth).coerceAtLeast(0),
                         valueText = { "${SubtitleOutlineWidths[it].outlineWidthLabel()} px" },

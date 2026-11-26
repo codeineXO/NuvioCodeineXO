@@ -1,0 +1,69 @@
+<resources>
+    <!-- Hub -->
+    <string name="xo_section_quick_setup">QUICK SETUP</string>
+    <string name="xo_onboarding_title">Revisit CodeineXO Onboarding</string>
+    <string name="xo_onboarding_description">Re-run setup wizard or review and apply recommended presets</string>
+    <string name="xo_section_support">SUPPORT</string>
+    <string name="xo_support_discord_dm">DM me on Discord @ codeine_xo to report issues</string>
+    <string name="xo_support_copy_username">Copy Discord username</string>
+    <string name="xo_support_copied">Copied @codeine_xo to clipboard</string>
+
+    <!-- Folders -->
+    <string name="xo_folder_appearance">Appearance</string>
+    <string name="xo_folder_appearance_description">Scale, surface style, Aura, card glow and navigation</string>
+    <string name="xo_folder_home_details">Home &amp; Details</string>
+    <string name="xo_folder_home_details_description">Home layout, poster labels, episode cards and metadata</string>
+    <string name="xo_folder_player">Player</string>
+    <string name="xo_folder_player_description">Player interface, seek previews and eye filters</string>
+    <string name="xo_folder_video_audio">Video &amp; Audio</string>
+    <string name="xo_folder_video_audio_description">Buffer, HLS resolution, upscaling, SVP, mpv config and night mode</string>
+    <string name="xo_folder_anime">Anime</string>
+    <string name="xo_folder_anime_description">Filler episode detection and hiding</string>
+    <string name="xo_folder_streams_p2p">Streams &amp; P2P</string>
+    <string name="xo_folder_streams_p2p_description">Stream sorting, filters and torrent streaming</string>
+    <string name="xo_folder_subtitles">Subtitles</string>
+    <string name="xo_folder_subtitles_description">Font, colors and outline</string>
+    <string name="xo_folder_discord">Discord</string>
+    <string name="xo_folder_discord_description">Rich Presence</string>
+    <string name="xo_folder_system">System</string>
+    <string name="xo_folder_system_description">Download folder and debug logging</string>
+
+    <!-- Section titles -->
+    <string name="xo_section_appearance">APPEARANCE</string>
+    <string name="xo_section_navigation">NAVIGATION</string>
+    <string name="xo_section_home_posters">HOME &amp; POSTERS</string>
+    <string name="xo_section_details_page">DETAILS PAGE</string>
+    <string name="xo_section_player_interface">PLAYER INTERFACE</string>
+    <string name="xo_section_viewing_comfort">VIEWING COMFORT</string>
+    <string name="xo_section_playback_engine">PLAYBACK ENGINE</string>
+    <string name="xo_section_video_enhancements">VIDEO ENHANCEMENTS</string>
+    <string name="xo_section_audio_enhancement">AUDIO ENHANCEMENT</string>
+    <string name="xo_section_anime">ANIME</string>
+
+    <!-- Rows -->
+    <string name="xo_aura_title">CodeineXO Aura</string>
+    <string name="xo_aura_description">Dynamic chromatic aurora ambient background</string>
+    <string name="xo_eye_filter_title">Enable Eye Filter</string>
+    <string name="xo_eye_filter_description">Reduce eye strain with a night light or screen dimmer overlay</string>
+    <string name="xo_eye_filter_color">Eye Filter Color</string>
+    <string name="xo_eye_filter_color_black">Black</string>
+    <string name="xo_eye_filter_color_deep_navy">Deep Navy</string>
+    <string name="xo_eye_filter_color_black_white">Black &amp; White</string>
+    <string name="xo_eye_filter_color_custom">Custom (%1$s)</string>
+    <string name="xo_eye_filter_opacity">Eye Filter Opacity</string>
+    <string name="xo_eye_filter_opacity_default">%1$s (Default)</string>
+    <string name="xo_frosted_matte_title">Frosted Matte Filter (Hemophobia Protection)</string>
+    <string name="xo_frosted_matte_description">Static frosted veil with blood suppression for sensitive scenes without covering subtitles (Shortcut: 9)</string>
+    <string name="xo_anime_upscaler">Anime Upscaler</string>
+    <string name="xo_anime_upscaler_search">Anime4K upscaling</string>
+    <string name="xo_upscaler_mode">Upscaler Mode</string>
+    <string name="xo_motion_interpolation">Motion Interpolation (SVP)</string>
+    <string name="xo_motion_interpolation_search">Motion smoothing, frame interpolation</string>
+    <string name="xo_anime_filler_detection_title">Anime Filler Detection</string>
+    <string name="xo_anime_filler_detection_description">Identify and mark filler episodes across catalog and metadata addons</string>
+    <string name="xo_hide_anime_filler_title">Hide Anime Filler Episodes</string>
+    <string name="xo_hide_anime_filler_description">Hide filler episodes from episode lists and skip them during playback (mixed episodes are kept)</string>
+    <string name="xo_subtitle_font">Subtitle Font</string>
+    <string name="xo_outline_style">Outline Style</string>
+    <string name="xo_outline_thickness">Outline Thickness</string>
+</resources>

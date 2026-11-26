@@ -1120,12 +1120,12 @@ internal fun settingsSearchEntries(
     fun row(page: SettingsPage, key: String, title: String, section: String, description: String = "") =
         addRow(page = page, key = key, title = title, description = description, pageLabel = pageTitles.getValue(page), section = section)
 
-    val codeineXOSection = "CodeineXO"
-    row(SettingsPage.CodeineXO, "xo-onboarding", "Revisit CodeineXO Onboarding", "Quick setup", "Re-run setup wizard or review and apply recommended presets")
+    val codeineXOSection = stringResource(Res.string.compose_settings_page_codeine_xo)
+    row(SettingsPage.CodeineXO, "xo-onboarding", stringResource(Res.string.xo_onboarding_title), stringResource(Res.string.xo_section_quick_setup), stringResource(Res.string.xo_onboarding_description))
     listOf(
-        "xo-subtitle-font" to "Subtitle Font",
-        "xo-subtitle-outline-style" to "Outline Style",
-        "xo-subtitle-outline-thickness" to "Outline Thickness",
+        "xo-subtitle-font" to stringResource(Res.string.xo_subtitle_font),
+        "xo-subtitle-outline-style" to stringResource(Res.string.xo_outline_style),
+        "xo-subtitle-outline-thickness" to stringResource(Res.string.xo_outline_thickness),
         "xo-subtitle-text-color" to stringResource(Res.string.settings_playback_subtitle_text_color),
         "xo-subtitle-outline-color" to stringResource(Res.string.settings_playback_subtitle_outline_color),
     ).forEach { (key, title) -> row(SettingsPage.CodeineXO, key, title, playbackSubtitleRendering) }
@@ -1152,16 +1152,16 @@ internal fun settingsSearchEntries(
             Triple("xo-player-ui", stringResource(Res.string.settings_playback_player_ui), SettingsPage.PlaybackInterface),
             Triple("xo-show-clock", stringResource(Res.string.settings_playback_show_clock_in_player), SettingsPage.PlaybackInterface),
             Triple("xo-seekbar-while-seeking", stringResource(Res.string.settings_playback_show_seekbar_while_seeking), SettingsPage.PlaybackInterface),
-            Triple("xo-eye-filter", "Enable Eye Filter", SettingsPage.PlaybackInterface),
-            Triple("xo-eye-filter-color", "Eye Filter Color", SettingsPage.PlaybackInterface),
-            Triple("xo-eye-filter-opacity", "Eye Filter Opacity", SettingsPage.PlaybackInterface),
-            Triple("xo-frosted-matte", "Frosted Matte Filter (Hemophobia Protection)", SettingsPage.PlaybackInterface),
-            Triple("xo-anime-upscaler", "Anime Upscaler", SettingsPage.PlaybackVideo),
-            Triple("xo-upscaler-mode", "Upscaler Mode", SettingsPage.PlaybackVideo),
-            Triple("xo-motion-interpolation", "Motion Interpolation (SVP)", SettingsPage.PlaybackVideo),
+            Triple("xo-eye-filter", stringResource(Res.string.xo_eye_filter_title), SettingsPage.PlaybackInterface),
+            Triple("xo-eye-filter-color", stringResource(Res.string.xo_eye_filter_color), SettingsPage.PlaybackInterface),
+            Triple("xo-eye-filter-opacity", stringResource(Res.string.xo_eye_filter_opacity), SettingsPage.PlaybackInterface),
+            Triple("xo-frosted-matte", stringResource(Res.string.xo_frosted_matte_title), SettingsPage.PlaybackInterface),
+            Triple("xo-anime-upscaler", stringResource(Res.string.xo_anime_upscaler), SettingsPage.PlaybackVideo),
+            Triple("xo-upscaler-mode", stringResource(Res.string.xo_upscaler_mode), SettingsPage.PlaybackVideo),
+            Triple("xo-motion-interpolation", stringResource(Res.string.xo_motion_interpolation), SettingsPage.PlaybackVideo),
             Triple("xo-audio-night-mode", stringResource(Res.string.settings_playback_audio_night_mode), SettingsPage.PlaybackAudio),
-            Triple("xo-anime-filler-detection", "Anime Filler Detection", SettingsPage.PlaybackSkipSegments),
-            Triple("xo-hide-anime-filler", "Hide Anime Filler Episodes", SettingsPage.PlaybackSkipSegments),
+            Triple("xo-anime-filler-detection", stringResource(Res.string.xo_anime_filler_detection_title), SettingsPage.PlaybackSkipSegments),
+            Triple("xo-hide-anime-filler", stringResource(Res.string.xo_hide_anime_filler_title), SettingsPage.PlaybackSkipSegments),
         ).forEach { (key, title, page) -> row(page, key, title, codeineXOSection) }
         if (P2pSettingsRepository.isVisible) {
             listOf(
