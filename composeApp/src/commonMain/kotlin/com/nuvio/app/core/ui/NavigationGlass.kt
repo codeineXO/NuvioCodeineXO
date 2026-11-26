@@ -35,7 +35,9 @@ import dev.chrisbanes.haze.hazeSource
 internal val LocalFrostedGlassEnabled = staticCompositionLocalOf { true }
 internal val LocalSurfaceStyle = staticCompositionLocalOf { SurfaceStyle.Default }
 internal val DarkGlassSurfaceColor = Color.Black.copy(alpha = 0.80f)
-private val LocalDarkGlassSurfacePresent = staticCompositionLocalOf { false }
+/** Popups cannot blur what lies under them, so they need a near-opaque fill to stay legible. */
+internal val DarkGlassPopoverColor = Color.Black.copy(alpha = 0.94f)
+internal val LocalDarkGlassSurfacePresent = staticCompositionLocalOf { false }
 
 /** Design and performance tokens for frosted glass backdrop blur and reflections. */
 @OptIn(ExperimentalHazeApi::class)
@@ -130,6 +132,7 @@ internal fun Modifier.navigationGlass(
     stableBackdropFill: Boolean = false,
     blurRadius: Dp = if (panel) FrostedGlassTokens.PanelBlurRadius else FrostedGlassTokens.BlurRadius,
     forceRedraw: Boolean = false,
+    popover: Boolean = false,
 ): Modifier {
     val tokens = MaterialTheme.nuvio
     val effectBlurRadius = blurRadius
@@ -174,7 +177,7 @@ internal fun Modifier.navigationGlass(
             if (surfaceStyle == SurfaceStyle.DarkGlass) {
                 if (LocalDarkGlassSurfacePresent.current && !(panel && LocalSettingsSurfaceStyleEnabled.current)) {
                     Color.Transparent
-                } else DarkGlassSurfaceColor
+                } else if (popover) DarkGlassPopoverColor else DarkGlassSurfaceColor
             } else if (!frostedGlassEnabled) {
                 (if (panel) tokens.colors.surfacePopover else tokens.colors.surfaceCard).copy(alpha = 1f)
             } else if (backdropState == null) fallback else Color.Transparent,

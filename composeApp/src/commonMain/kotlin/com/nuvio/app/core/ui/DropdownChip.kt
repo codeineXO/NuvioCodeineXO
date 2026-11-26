@@ -36,6 +36,7 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -163,6 +164,10 @@ fun NuvioDropdownChip(
         if (isDesktop) {
             val scrollState = rememberScrollState()
             PlatformBackHandler(enabled = isSheetVisible, onBack = { setExpanded(false) })
+            // A popup floats above its host panel, so it paints its own dark fill instead of
+            // inheriting the host's "already on dark glass" transparency; items keep the host value.
+            val hostDarkGlassSurface = LocalDarkGlassSurfacePresent.current
+            CompositionLocalProvider(LocalDarkGlassSurfacePresent provides false) {
             DropdownMenu(
                 expanded = isSheetVisible,
                 onDismissRequest = { setExpanded(false) },
@@ -174,6 +179,7 @@ fun NuvioDropdownChip(
                             shape = tokens.shapes.compactCard,
                             panel = true,
                             backgroundOnly = true,
+                            popover = true,
                         ) else Modifier,
                     ),
                 containerColor = if (useGlass) Color.Transparent else tokens.colors.surfacePopover,
@@ -182,6 +188,7 @@ fun NuvioDropdownChip(
                 shadowElevation = if (useGlass) tokens.elevation.flat else tokens.elevation.overlay,
                 border = if (useGlass) BorderStroke(tokens.borders.thin, tokens.colors.borderDefault) else null,
             ) {
+                CompositionLocalProvider(LocalDarkGlassSurfacePresent provides hostDarkGlassSurface) {
                 AppOverlayInput {
                     LaunchedEffect(isSheetVisible) {
                         if (isSheetVisible) {
@@ -227,6 +234,8 @@ fun NuvioDropdownChip(
                         }
                     }
                 }
+                }
+            }
             }
         }
     }

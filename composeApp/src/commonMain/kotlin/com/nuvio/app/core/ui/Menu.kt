@@ -51,11 +51,14 @@ fun Menu(
     val scrollState = rememberScrollState()
     val shape = if (useGlass) tokens.shapes.compactCard else MenuShape
     PlatformBackHandler(enabled = expanded, onBack = onDismissRequest)
+    // A popup floats above its host panel, so it paints its own dark fill instead of
+    // inheriting the host's "already on dark glass" transparency.
+    CompositionLocalProvider(LocalDarkGlassSurfacePresent provides false) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = modifier.widthIn(min = MenuMinWidth)
-            .then(if (useGlass) Modifier.navigationGlass(shape = shape, panel = true, backgroundOnly = true) else Modifier)
+            .then(if (useGlass) Modifier.navigationGlass(shape = shape, panel = true, backgroundOnly = true, popover = true) else Modifier)
             .nuvioDesktopDragScroll(scrollState, Orientation.Vertical),
         scrollState = scrollState,
         offset = offset,
@@ -78,6 +81,7 @@ fun Menu(
             }
         },
     )
+    }
 }
 
 @Composable
