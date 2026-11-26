@@ -50,14 +50,14 @@ internal fun SettingsNavigationLayout(
                 SettingsCategory.entries.forEach { item ->
                     key(item) {
                         SettingsSidebarItem(stringResource(item.labelRes), item.icon,
-                            selected = item == category && page != SettingsPage.CodeineXO &&
+                            selected = item == category && page != SettingsPage.CodeineXO && page.parentPage != SettingsPage.CodeineXO &&
                                 page != SettingsPage.Shortcuts && page != SettingsPage.Remote,
                             onClick = { onCategorySelected(item) })
                     }
                 }
                 key(SettingsPage.CodeineXO) {
                     SettingsSidebarItem(stringResource(Res.string.compose_settings_page_codeine_xo), Icons.Rounded.AutoAwesome,
-                        selected = page == SettingsPage.CodeineXO, onClick = onCodeineClick)
+                        selected = page == SettingsPage.CodeineXO || page.parentPage == SettingsPage.CodeineXO, onClick = onCodeineClick)
                 }
                 key(SettingsPage.Shortcuts) {
                     SettingsSidebarItem(stringResource(SettingsPage.Shortcuts.titleRes), SettingsPage.Shortcuts.icon,

@@ -5,6 +5,9 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Animation
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Description
@@ -280,6 +283,51 @@ internal enum class SettingsPage(
         category = SettingsCategory.Services,
         parentPage = Root,
     ),
+    XoAppearance(
+        titleRes = Res.string.xo_folder_appearance,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoHomeDetails(
+        titleRes = Res.string.xo_folder_home_details,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoPlayer(
+        titleRes = Res.string.xo_folder_player,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoVideoAudio(
+        titleRes = Res.string.xo_folder_video_audio,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoAnime(
+        titleRes = Res.string.xo_folder_anime,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoStreamsP2p(
+        titleRes = Res.string.xo_folder_streams_p2p,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoSubtitles(
+        titleRes = Res.string.xo_folder_subtitles,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoDiscord(
+        titleRes = Res.string.xo_folder_discord,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
+    XoSystem(
+        titleRes = Res.string.xo_folder_system,
+        category = SettingsCategory.System,
+        parentPage = CodeineXO,
+    ),
 }
 
 internal val SettingsPage.opensInlineOnTablet: Boolean
@@ -335,4 +383,13 @@ internal val SettingsPage.icon: ImageVector
         SettingsPage.PlaybackVideo -> Icons.Default.VideoSettings
         SettingsPage.PlaybackBuffer -> Icons.Default.NetworkCheck
         SettingsPage.PlaybackP2p -> Icons.Default.Hub
+        SettingsPage.XoAppearance -> Icons.Default.Palette
+        SettingsPage.XoHomeDetails -> Icons.Default.Dashboard
+        SettingsPage.XoPlayer -> Icons.Default.SmartDisplay
+        SettingsPage.XoVideoAudio -> Icons.Default.VideoSettings
+        SettingsPage.XoAnime -> Icons.Default.Animation
+        SettingsPage.XoStreamsP2p -> Icons.Default.Hub
+        SettingsPage.XoSubtitles -> Icons.Default.Subtitles
+        SettingsPage.XoDiscord -> Icons.Default.Forum
+        SettingsPage.XoSystem -> Icons.Default.Tune
     }

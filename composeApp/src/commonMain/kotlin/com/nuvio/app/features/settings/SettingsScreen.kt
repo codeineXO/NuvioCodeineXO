@@ -129,6 +129,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
+import com.nuvio.app.features.settings.codeinexo.codeineXOFolderFor
+import com.nuvio.app.features.settings.codeinexo.isVisible
 import org.jetbrains.compose.resources.stringResource
 
 private val SettingsSearchRevealThreshold = 28.dp
@@ -147,7 +149,7 @@ private fun SettingsPage.isEnabledByPolicy(): Boolean =
         SettingsPage.PlaybackP2p -> P2pSettingsRepository.isVisible
         SettingsPage.PlaybackBuffer -> !isIos
         SettingsPage.Notifications -> AppFeaturePolicy.notificationsEnabled
-        else -> true
+        else -> codeineXOFolderFor(this)?.isVisible ?: true
     }
 
 private fun SettingsPage.showsHeaderBackButton(): Boolean =
@@ -761,6 +763,7 @@ private fun MobileSettingsScreen(
                         SettingsPage.CodeineXO -> codeineXOSettingsContent(
                             isTablet = false,
                             onOnboardingClick = onOnboardingClick,
+                            onFolderClick = onPageChange,
                         )
                         SettingsPage.Remote -> item { RemoteSettings(isTablet = false) }
                         else -> shortcutsSettingsContent(isTablet = false)
@@ -903,6 +906,15 @@ private fun MobileSettingsScreen(
                     isTablet = false,
                     settings = mdbListSettings,
                 )
+                SettingsPage.XoAppearance,
+                SettingsPage.XoHomeDetails,
+                SettingsPage.XoPlayer,
+                SettingsPage.XoVideoAudio,
+                SettingsPage.XoAnime,
+                SettingsPage.XoStreamsP2p,
+                SettingsPage.XoSubtitles,
+                SettingsPage.XoDiscord,
+                SettingsPage.XoSystem -> codeineXOFolderContent(page, isTablet = false)
                 SettingsPage.Debrid -> debridSettingsContent(
                     isTablet = false,
                     settings = debridSettings,
@@ -1198,6 +1210,7 @@ private fun TabletSettingsScreen(
                                         SettingsPage.CodeineXO -> codeineXOSettingsContent(
                                             isTablet = true,
                                             onOnboardingClick = onOnboardingClick,
+                                            onFolderClick = ::openInlinePage,
                                         )
                                         SettingsPage.Remote -> item { RemoteSettings(isTablet = true) }
                                         else -> shortcutsSettingsContent(isTablet = true)
@@ -1342,6 +1355,15 @@ private fun TabletSettingsScreen(
                                     isTablet = true,
                                     settings = mdbListSettings,
                                 )
+                                SettingsPage.XoAppearance,
+                                SettingsPage.XoHomeDetails,
+                                SettingsPage.XoPlayer,
+                                SettingsPage.XoVideoAudio,
+                                SettingsPage.XoAnime,
+                                SettingsPage.XoStreamsP2p,
+                                SettingsPage.XoSubtitles,
+                                SettingsPage.XoDiscord,
+                                SettingsPage.XoSystem -> codeineXOFolderContent(page, isTablet = true)
                                 SettingsPage.Debrid -> debridSettingsContent(
                                     isTablet = true,
                                     settings = debridSettings,

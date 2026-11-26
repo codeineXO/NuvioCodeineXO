@@ -15,19 +15,24 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.settings.codeinexo.CodeineXOFolder
 import com.nuvio.app.features.settings.codeinexo.CodeineXOSection
+import com.nuvio.app.features.settings.codeinexo.codeineXOFolderFor
 import com.nuvio.app.features.settings.codeinexo.codeineXOSectionItems
+import com.nuvio.app.features.settings.codeinexo.isVisible
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * CodeineXO settings.
  * With [section] set, adds only the CodeineXO sections that are also shown on that stock page.
+ * Without it, adds the hub: Quick Setup, one row per visible folder, then Support.
  */
 internal fun LazyListScope.codeineXOSettingsContent(
     section: SettingsPage? = null,
     isTablet: Boolean,
     onOnboardingClick: (() -> Unit)? = null,
+    onFolderClick: (SettingsPage) -> Unit = {},
 ) {
     if (section != null) {
         codeineXOSectionItems(CodeineXOSection.entries.filter { it.alsoShownOn == section }, isTablet)
@@ -36,8 +41,31 @@ internal fun LazyListScope.codeineXOSettingsContent(
     if (onOnboardingClick != null) {
         item { QuickSetupSection(isTablet, onOnboardingClick) }
     }
-    codeineXOSectionItems(CodeineXOSection.entries, isTablet)
+    item { FolderRows(isTablet, onFolderClick) }
     item { SupportSection(isTablet) }
+}
+
+/** Content of one CodeineXO folder page. */
+internal fun LazyListScope.codeineXOFolderContent(page: SettingsPage, isTablet: Boolean) {
+    val folder = codeineXOFolderFor(page) ?: return
+    codeineXOSectionItems(folder.sections, isTablet)
+}
+
+@Composable
+private fun FolderRows(isTablet: Boolean, onFolderClick: (SettingsPage) -> Unit) {
+    val folders = CodeineXOFolder.entries.filter { it.isVisible }
+    SettingsGroup(isTablet = isTablet) {
+        folders.forEachIndexed { index, folder ->
+            if (index > 0) SettingsGroupDivider(isTablet = isTablet)
+            SettingsNavigationRow(
+                title = stringResource(folder.page.titleRes),
+                description = stringResource(folder.descriptionRes),
+                icon = folder.page.icon,
+                isTablet = isTablet,
+                onClick = { onFolderClick(folder.page) },
+            )
+        }
+    }
 }
 
 @Composable
