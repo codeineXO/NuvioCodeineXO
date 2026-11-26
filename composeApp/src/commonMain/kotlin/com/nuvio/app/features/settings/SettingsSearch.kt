@@ -55,6 +55,10 @@ import com.nuvio.app.isIos
 import com.nuvio.app.isWindows
 import com.nuvio.app.supportsPosterNavigationMotion
 import nuvio.composeapp.generated.resources.*
+import com.nuvio.app.features.settings.codeinexo.CodeineXOFolder
+import com.nuvio.app.features.settings.codeinexo.codeineXOHubSearchRows
+import com.nuvio.app.features.settings.codeinexo.isVisible
+import com.nuvio.app.features.settings.codeinexo.searchRows
 import org.jetbrains.compose.resources.stringResource
 
 internal sealed class SettingsSearchTarget {
@@ -201,30 +205,6 @@ internal fun settingsSearchEntries(
         )
     }
 
-    if (isDesktop) {
-        addRow(
-            page = SettingsPage.Layout,
-            key = "navigation-feel",
-            title = stringResource(Res.string.settings_navigation_feel),
-            description = listOf(
-                stringResource(Res.string.settings_navigation_feel_description),
-                stringResource(Res.string.settings_navigation_feel_smooth),
-                stringResource(Res.string.settings_navigation_feel_snappy),
-            ).joinToString(" "),
-            pageLabel = layoutPage,
-            section = stringResource(Res.string.settings_appearance_section_display),
-        )
-    }
-    listOf(
-        Triple("xo-video-enhancements", "Anime4K, motion smoothing, SVP", SettingsPage.PlaybackVideo),
-        Triple("xo-audio-enhancement", "Audio Night Mode", SettingsPage.PlaybackAudio),
-        Triple("xo-buffer-preset", "Playback buffer preset", SettingsPage.PlaybackBuffer),
-        Triple("xo-interface", "Player UI, clock, seekbar, remaining time", SettingsPage.PlaybackInterface),
-        Triple("xo-filler", "Anime filler markers and skipping", SettingsPage.PlaybackSkipSegments),
-        Triple("xo-aura", "CodeineXO Aura, surface style, keyboard navigation", SettingsPage.Layout),
-    ).forEach { (key, title, destination) ->
-        addRow(page = destination, key = key, title = title, pageLabel = pageTitles.getValue(destination), section = "CodeineXO")
-    }
     if (switchProfileAvailable) {
         add(
             key = "switch-profile",
@@ -1120,61 +1100,43 @@ internal fun settingsSearchEntries(
     fun row(page: SettingsPage, key: String, title: String, section: String, description: String = "") =
         addRow(page = page, key = key, title = title, description = description, pageLabel = pageTitles.getValue(page), section = section)
 
-    val codeineXOSection = stringResource(Res.string.compose_settings_page_codeine_xo)
-    row(SettingsPage.CodeineXO, "xo-onboarding", stringResource(Res.string.xo_onboarding_title), stringResource(Res.string.xo_section_quick_setup), stringResource(Res.string.xo_onboarding_description))
-    listOf(
-        "xo-subtitle-font" to stringResource(Res.string.xo_subtitle_font),
-        "xo-subtitle-outline-style" to stringResource(Res.string.xo_outline_style),
-        "xo-subtitle-outline-thickness" to stringResource(Res.string.xo_outline_thickness),
-        "xo-subtitle-text-color" to stringResource(Res.string.settings_playback_subtitle_text_color),
-        "xo-subtitle-outline-color" to stringResource(Res.string.settings_playback_subtitle_outline_color),
-    ).forEach { (key, title) -> row(SettingsPage.CodeineXO, key, title, playbackSubtitleRendering) }
-
-    // Layout section of the CodeineXO page, also shown on the Layout page.
-    buildList {
-        add("xo-aura-customize" to stringResource(Res.string.aura_customize))
-        add("xo-surface-style" to stringResource(Res.string.settings_surface_style))
-        add("xo-app-interface" to stringResource(Res.string.settings_app_interface))
-        add("xo-always-animate-collections" to stringResource(Res.string.settings_homescreen_always_animate_collections))
-        add("xo-hide-year" to stringResource(Res.string.settings_poster_hide_year))
-        add("xo-metadata-info" to stringResource(Res.string.settings_show_metadata_info))
-        if (isDesktop) {
-            add("xo-app-scale" to stringResource(Res.string.settings_appearance_app_scale))
-            add("xo-player-ui-scale" to stringResource(Res.string.settings_playback_player_ui_scale))
-            add("xo-keyboard-navigation" to stringResource(Res.string.settings_keyboard_navigation))
-            add("xo-poster-gutter-size" to stringResource(Res.string.settings_poster_gutter_size))
-        }
-    }.forEach { (key, title) -> row(SettingsPage.Layout, key, title, codeineXOSection) }
-
-    // Playback sections of the CodeineXO page are injected into playback pages on desktop only.
-    if (isDesktop) {
-        listOf(
-            Triple("xo-player-ui", stringResource(Res.string.settings_playback_player_ui), SettingsPage.PlaybackInterface),
-            Triple("xo-show-clock", stringResource(Res.string.settings_playback_show_clock_in_player), SettingsPage.PlaybackInterface),
-            Triple("xo-seekbar-while-seeking", stringResource(Res.string.settings_playback_show_seekbar_while_seeking), SettingsPage.PlaybackInterface),
-            Triple("xo-eye-filter", stringResource(Res.string.xo_eye_filter_title), SettingsPage.PlaybackInterface),
-            Triple("xo-eye-filter-color", stringResource(Res.string.xo_eye_filter_color), SettingsPage.PlaybackInterface),
-            Triple("xo-eye-filter-opacity", stringResource(Res.string.xo_eye_filter_opacity), SettingsPage.PlaybackInterface),
-            Triple("xo-frosted-matte", stringResource(Res.string.xo_frosted_matte_title), SettingsPage.PlaybackInterface),
-            Triple("xo-anime-upscaler", stringResource(Res.string.xo_anime_upscaler), SettingsPage.PlaybackVideo),
-            Triple("xo-upscaler-mode", stringResource(Res.string.xo_upscaler_mode), SettingsPage.PlaybackVideo),
-            Triple("xo-motion-interpolation", stringResource(Res.string.xo_motion_interpolation), SettingsPage.PlaybackVideo),
-            Triple("xo-audio-night-mode", stringResource(Res.string.settings_playback_audio_night_mode), SettingsPage.PlaybackAudio),
-            Triple("xo-anime-filler-detection", stringResource(Res.string.xo_anime_filler_detection_title), SettingsPage.PlaybackSkipSegments),
-            Triple("xo-hide-anime-filler", stringResource(Res.string.xo_hide_anime_filler_title), SettingsPage.PlaybackSkipSegments),
-        ).forEach { (key, title, page) -> row(page, key, title, codeineXOSection) }
-        if (P2pSettingsRepository.isVisible) {
-            listOf(
-                "xo-p2p-show-stats" to stringResource(Res.string.settings_p2p_show_stats_title),
-                "xo-p2p" to stringResource(Res.string.settings_p2p_title),
-                "xo-p2p-hide-stats" to stringResource(Res.string.settings_p2p_hide_stats_title),
-                "xo-p2p-profile" to stringResource(Res.string.settings_p2p_profile_title),
-                "xo-p2p-cache-size" to stringResource(Res.string.settings_p2p_cache_size_title),
-                "xo-p2p-clear-cache" to stringResource(Res.string.settings_p2p_clear_cache_title),
-            ).forEach { (key, title) ->
-                row(if (key == "xo-p2p-show-stats") SettingsPage.PlaybackInterface else SettingsPage.PlaybackP2p, key, title, codeineXOSection)
+    // CodeineXO hub and folder pages. Rows come from the section list in codeinexo/CodeineXOSearch.kt.
+    val codeineXOPage = pageTitles.getValue(SettingsPage.CodeineXO)
+    codeineXOHubSearchRows.forEach { xo ->
+        addRow(
+            page = SettingsPage.CodeineXO,
+            key = xo.key,
+            title = stringResource(xo.titleRes),
+            description = xo.descriptionRes?.let { stringResource(it) }.orEmpty(),
+            pageLabel = codeineXOPage,
+            section = "",
+        )
+    }
+    CodeineXOFolder.entries.filter { it.isVisible }.forEach { folder ->
+        val folderTitle = pageTitles.getValue(folder.page)
+        addPage(
+            page = folder.page,
+            key = "xo-folder-${folder.name}",
+            title = folderTitle,
+            description = stringResource(folder.descriptionRes),
+            category = advancedCategory,
+        )
+        folder.sections.filter { it.isVisible }.forEach { section ->
+            val sectionTitle = stringResource(section.titleRes)
+            section.searchRows.filter { it.isVisible() }.forEach { xo ->
+                addRow(
+                    page = folder.page,
+                    key = xo.key,
+                    title = stringResource(xo.titleRes),
+                    description = xo.descriptionRes?.let { stringResource(it) }.orEmpty(),
+                    pageLabel = folderTitle,
+                    section = sectionTitle,
+                )
             }
         }
+    }
+
+    if (isDesktop) {
         val downloadsSection = stringResource(Res.string.compose_settings_root_downloads_title)
         row(SettingsPage.ContentDiscovery, "download-location", stringResource(Res.string.downloads_choose_directory), downloadsSection)
         row(SettingsPage.ContentDiscovery, "download-location-default", stringResource(Res.string.downloads_location_default), downloadsSection)
@@ -1198,7 +1160,7 @@ internal fun settingsSearchEntries(
         ).forEachIndexed { index, res -> row(SettingsPage.Shortcuts, "shortcut-step-$index", stringResource(res), stepsSection) }
     }
     if (isWindows) {
-        row(SettingsPage.PlaybackVideo, "hls-max-resolution", stringResource(Res.string.hls_max_resolution_title), codeineXOSection)
+        row(SettingsPage.PlaybackVideo, "hls-max-resolution", stringResource(Res.string.hls_max_resolution_title), "")
         val rtxSection = stringResource(Res.string.settings_playback_nvidia_rtx_video_section)
         row(SettingsPage.PlaybackVideo, "rtx-super-resolution", stringResource(Res.string.settings_playback_nvidia_rtx_super_resolution), rtxSection)
         row(SettingsPage.PlaybackVideo, "rtx-hdr", stringResource(Res.string.settings_playback_nvidia_rtx_hdr), rtxSection)
