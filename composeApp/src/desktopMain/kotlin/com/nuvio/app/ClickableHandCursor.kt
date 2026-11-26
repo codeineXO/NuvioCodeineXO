@@ -148,10 +148,22 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
         val position = Offset(pointInContent.x * scale, pointInContent.y * scale)
         // Later owners are layers drawn above earlier ones (popups, dialogs): the topmost one under the
         // pointer decides, so a dialog never lets clicks targets behind it show the hand.
-        val owner = window.semanticsOwners.lastOrNull { owner ->
-            owner.rootSemanticsNode.boundsInWindow.contains(position)
-        } ?: return false
-        val target = findClickable(owner.rootSemanticsNode, position) ?: return false
+        var root: SemanticsNode? = null
+        var rootWindowOrigin = Offset.Zero
+        for (owner in window.semanticsOwners.reversed()) {
+            val node = owner.rootSemanticsNode
+            val bounds = node.boundsInWindow
+            if (bounds.contains(position)) {
+                root = node
+                rootWindowOrigin = bounds.topLeft
+                break
+            }
+        }
+        if (root == null) return false
+        // boundsInWindow asks Swing for the window position (a native call) on every node; root
+        // coordinates stay inside Compose, so convert the pointer once and compare in those.
+        val positionInRoot = position - rootWindowOrigin + root.boundsInRoot.topLeft
+        val target = findClickable(root, positionInRoot) ?: return false
         val config = target.config
         return !config.contains(SemanticsProperties.Disabled) &&
             !config.contains(SemanticsProperties.EditableText) &&
@@ -170,12 +182,12 @@ private class HandCursorController(private val window: ComposeWindow) : AWTEvent
         return false
     }
 
-    /** The deepest clickable node under [position], preferring children drawn last (on top). */
+    /** The deepest clickable node under [position] (root coordinates), preferring children drawn last (on top). */
     private fun findClickable(node: SemanticsNode, position: Offset): SemanticsNode? {
         val children = node.children
         for (index in children.indices.reversed()) {
             val child = children[index]
-            if (child.boundsInWindow.contains(position)) {
+            if (child.boundsInRoot.contains(position)) {
                 findClickable(child, position)?.let { return it }
             }
         }

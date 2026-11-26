@@ -41,6 +41,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import com.nuvio.app.core.ui.PointerScrollActivity
+import com.nuvio.app.core.ui.PosterCardStyleUiState
+import com.nuvio.app.core.ui.remotePointerHover
+import com.nuvio.app.core.ui.settledPointerHover
+import com.nuvio.app.core.ui.trackPointerInside
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -126,23 +134,68 @@ internal fun HomePosterHoverPreview(
     }
 
     val posterCardStyle = rememberPosterCardStyleUiState()
-    val keyboardNavigation = isRemoteKeyboardNavigationActive
-    val remoteCursorHidden = LocalRemoteCursorHidden.current?.value == true
-    val trailerPlaybackEnabled = AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP &&
-        posterCardStyle.hoverPreviewTrailerEnabled
     if (!posterCardStyle.hoverPreviewEnabled) {
         content(modifier)
         return
     }
 
-    val actionMenuOpen = ActionMenuCoordinator.active != null
     val actionMenuSource = remember(item.type, item.id) { ActionMenuSource() }
+    val pointerInside = remember { mutableStateOf(false) }
+    val anchorFocused = remember(item.type, item.id) { mutableStateOf(false) }
+    // Cards sliding past stay on this cheap path; the preview machinery is composed once
+    // the pointer settles on the card or focus reaches it, and kept for this item after.
+    var engaged by remember(item.type, item.id) { mutableStateOf(false) }
+    val settledInside by remember(pointerInside) {
+        derivedStateOf { pointerInside.value && !PointerScrollActivity.moving }
+    }
+    val engagedNow = engaged || anchorFocused.value || settledInside
+    if (engagedNow && !engaged) SideEffect { engaged = true }
 
-    val anchorInteractionSource = remember { MutableInteractionSource() }
+    Box(modifier = modifier) {
+        CompositionLocalProvider(LocalActionMenuSource provides actionMenuSource) {
+            content(
+                Modifier
+                    .onFocusChanged { anchorFocused.value = it.hasFocus }
+                    .trackPointerInside(pointerInside)
+            )
+        }
+
+        if (engagedNow) {
+            HomePosterHoverPreviewEngine(
+                item = item,
+                isWatched = isWatched,
+                onClick = onClick,
+                onLongClick = onLongClick,
+                posterCardStyle = posterCardStyle,
+                actionMenuSource = actionMenuSource,
+                pointerInside = pointerInside,
+                anchorFocused = anchorFocused.value,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun HomePosterHoverPreviewEngine(
+    item: MetaPreview,
+    isWatched: Boolean,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
+    posterCardStyle: PosterCardStyleUiState,
+    actionMenuSource: ActionMenuSource,
+    pointerInside: State<Boolean>,
+    anchorFocused: Boolean,
+) {
+    val keyboardNavigation = isRemoteKeyboardNavigationActive
+    val remoteCursorHidden = LocalRemoteCursorHidden.current?.value == true
+    val trailerPlaybackEnabled = AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP &&
+        posterCardStyle.hoverPreviewTrailerEnabled
+    val actionMenuOpen = ActionMenuCoordinator.active != null
+
     val previewInteractionSource = remember { MutableInteractionSource() }
-    val anchorHovered by anchorInteractionSource.collectIsRemoteHoveredAsState()
-    val previewHovered by previewInteractionSource.collectIsRemoteHoveredAsState()
-    var anchorFocused by remember(item.type, item.id) { mutableStateOf(false) }
+    val anchorHovered by pointerInside.remotePointerHover().settledPointerHover()
+    val previewHovered by previewInteractionSource.collectIsRemoteHoveredAsState().settledPointerHover()
     var previewVisible by remember(item.type, item.id) { mutableStateOf(false) }
     var popupMounted by remember(item.type, item.id) { mutableStateOf(false) }
     var previewDismissedByScroll by remember(item.type, item.id) { mutableStateOf(false) }
@@ -154,7 +207,6 @@ internal fun HomePosterHoverPreview(
 
     DisposableEffect(item.type, item.id) {
         onDispose {
-            anchorFocused = false
             previewVisible = false
             popupMounted = false
             trailerResolutionPending = false
@@ -247,86 +299,75 @@ internal fun HomePosterHoverPreview(
         }
     }
 
-    Box(modifier = modifier) {
-        CompositionLocalProvider(LocalActionMenuSource provides actionMenuSource) {
-            content(
-                Modifier
-                    .onFocusChanged { anchorFocused = it.hasFocus }
-                    .hoverable(anchorInteractionSource, enabled = !keyboardNavigation)
-            )
-        }
-
-        if (popupMounted && !actionMenuOpen) {
-            val previewState = rememberHomePosterPreviewState(item)
-            val glowOutset = if (posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp
-            val windowSize = LocalWindowInfo.current.containerSize
-            val availableWidth = with(density) { windowSize.width.toDp() } - (NuvioTokens.Space.s16 + glowOutset) * 2
-            val availableHeight = with(density) { windowSize.height.toDp() } - (NuvioTokens.Space.s16 + glowOutset) * 2
-            Popup(
-                popupPositionProvider = positionProvider,
-                properties = PopupProperties(focusable = false),
-            ) {
-                // A popup owns its glow rather than writing into the shelf behind it.
-                CompositionLocalProvider(LocalPosterGlowLayer provides null) {
-                    AnimatedVisibility(
-                        visible = previewVisible,
-                        enter = fadeIn(
-                            animationSpec = tween(
-                                durationMillis = HoverPreviewEnterDurationMillis,
-                                easing = NuvioTokens.Motion.standard,
-                            ),
-                        ) + scaleIn(
-                            animationSpec = tween(
-                                durationMillis = HoverPreviewEnterDurationMillis,
-                                easing = NuvioTokens.Motion.emphasized,
-                            ),
-                            initialScale = 0.96f,
-                        ) + slideInVertically(
-                            animationSpec = tween(
-                                durationMillis = HoverPreviewEnterDurationMillis,
-                                easing = NuvioTokens.Motion.standard,
-                            ),
-                            initialOffsetY = { height -> height / 18 },
+    if (popupMounted && !actionMenuOpen) {
+        val previewState = rememberHomePosterPreviewState(item)
+        val glowOutset = if (posterCardStyle.glowEnabled) PosterGlowOutset else 0.dp
+        val windowSize = LocalWindowInfo.current.containerSize
+        val availableWidth = with(density) { windowSize.width.toDp() } - (NuvioTokens.Space.s16 + glowOutset) * 2
+        val availableHeight = with(density) { windowSize.height.toDp() } - (NuvioTokens.Space.s16 + glowOutset) * 2
+        Popup(
+            popupPositionProvider = positionProvider,
+            properties = PopupProperties(focusable = false),
+        ) {
+            // A popup owns its glow rather than writing into the shelf behind it.
+            CompositionLocalProvider(LocalPosterGlowLayer provides null) {
+                AnimatedVisibility(
+                    visible = previewVisible,
+                    enter = fadeIn(
+                        animationSpec = tween(
+                            durationMillis = HoverPreviewEnterDurationMillis,
+                            easing = NuvioTokens.Motion.standard,
                         ),
-                        exit = fadeOut(
-                            animationSpec = tween(HoverPreviewExitDurationMillis),
-                        ) + scaleOut(
-                            animationSpec = tween(HoverPreviewExitDurationMillis),
-                            targetScale = 0.97f,
-                        ) + slideOutVertically(
-                            animationSpec = tween(HoverPreviewExitDurationMillis),
-                            targetOffsetY = { height -> height / 32 },
+                    ) + scaleIn(
+                        animationSpec = tween(
+                            durationMillis = HoverPreviewEnterDurationMillis,
+                            easing = NuvioTokens.Motion.emphasized,
                         ),
-                    ) {
-                        HomePosterPreviewCard(
-                            actionMenuSource = actionMenuSource,
-                            item = previewState.item,
-                            ratingSources = previewState.ratingSources,
-                            previewWidth = minOf(HoverPreviewWidth, availableWidth.coerceAtLeast(1.dp)),
-                            previewMaxHeight = availableHeight.coerceAtLeast(1.dp),
-                            isWatched = isWatched,
-                            trailerEnabled = trailerPlaybackEnabled,
-                            trailerSoundEnabled = posterCardStyle.hoverPreviewTrailerSoundEnabled,
-                            trailerStartSeconds = posterCardStyle.hoverPreviewTrailerStartSeconds,
-                            trailerPlaybackSource = trailerPlaybackSource,
-                            modifier = Modifier
-                                .remoteNavigationPointerIcon()
-                                .padding(glowOutset)
-                                .hoverable(previewInteractionSource)
-                                .onPointerEvent(PointerEventType.Scroll) {
-                                    previewDismissedByScroll = true
-                                    previewVisible = false
-                                    popupMounted = false
-                                },
-                            onClick = onClick,
-                            onLongClick = onLongClick,
-                        )
-                    }
+                        initialScale = 0.96f,
+                    ) + slideInVertically(
+                        animationSpec = tween(
+                            durationMillis = HoverPreviewEnterDurationMillis,
+                            easing = NuvioTokens.Motion.standard,
+                        ),
+                        initialOffsetY = { height -> height / 18 },
+                    ),
+                    exit = fadeOut(
+                        animationSpec = tween(HoverPreviewExitDurationMillis),
+                    ) + scaleOut(
+                        animationSpec = tween(HoverPreviewExitDurationMillis),
+                        targetScale = 0.97f,
+                    ) + slideOutVertically(
+                        animationSpec = tween(HoverPreviewExitDurationMillis),
+                        targetOffsetY = { height -> height / 32 },
+                    ),
+                ) {
+                    HomePosterPreviewCard(
+                        actionMenuSource = actionMenuSource,
+                        item = previewState.item,
+                        ratingSources = previewState.ratingSources,
+                        previewWidth = minOf(HoverPreviewWidth, availableWidth.coerceAtLeast(1.dp)),
+                        previewMaxHeight = availableHeight.coerceAtLeast(1.dp),
+                        isWatched = isWatched,
+                        trailerEnabled = trailerPlaybackEnabled,
+                        trailerSoundEnabled = posterCardStyle.hoverPreviewTrailerSoundEnabled,
+                        trailerStartSeconds = posterCardStyle.hoverPreviewTrailerStartSeconds,
+                        trailerPlaybackSource = trailerPlaybackSource,
+                        modifier = Modifier
+                            .remoteNavigationPointerIcon()
+                            .padding(glowOutset)
+                            .hoverable(previewInteractionSource)
+                            .onPointerEvent(PointerEventType.Scroll) {
+                                previewDismissedByScroll = true
+                                previewVisible = false
+                                popupMounted = false
+                            },
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                    )
                 }
             }
         }
     }
-
 }
 
 @Composable

@@ -510,10 +510,16 @@ internal val isRemoteKeyboardNavigationActive: Boolean
 @Composable
 internal fun InteractionSource.collectIsRemoteHoveredAsState(): State<Boolean> {
     val hovered = collectIsHoveredAsState()
+    return hovered.remotePointerHover()
+}
+
+/** Raw pointer hover masked the same way as [collectIsRemoteHoveredAsState]. */
+@Composable
+internal fun State<Boolean>.remotePointerHover(): State<Boolean> {
     val session = LocalRemoteNavigation.current
     val remoteCursorHidden = LocalRemoteCursorHidden.current
-    return remember(hovered, session, remoteCursorHidden) {
-        derivedStateOf { hovered.value && session?.keyboard != true && remoteCursorHidden?.value != true }
+    return remember(this, session, remoteCursorHidden) {
+        derivedStateOf { value && session?.keyboard != true && remoteCursorHidden?.value != true }
     }
 }
 

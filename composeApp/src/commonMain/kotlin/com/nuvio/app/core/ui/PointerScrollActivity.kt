@@ -2,11 +2,20 @@ package com.nuvio.app.core.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.PointerInputModifierNode
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,3 +60,42 @@ internal object PointerScrollActivity {
 @Composable
 internal fun State<Boolean>.settledPointerHover(): State<Boolean> =
     remember(this) { derivedStateOf { value && !PointerScrollActivity.moving } }
+
+/**
+ * Writes whether the pointer is over this node into [inside]. Unlike hoverable plus
+ * collectIsHoveredAsState it launches no coroutine, so idle cards stay cheap, and a
+ * reader that starts observing later still sees a hover that began earlier.
+ */
+internal fun Modifier.trackPointerInside(inside: MutableState<Boolean>): Modifier =
+    this then PointerInsideElement(inside)
+
+private data class PointerInsideElement(val inside: MutableState<Boolean>) : ModifierNodeElement<PointerInsideNode>() {
+    override fun create() = PointerInsideNode(inside)
+    override fun update(node: PointerInsideNode) {
+        if (node.inside !== inside) {
+            node.inside.value = false
+            node.inside = inside
+        }
+    }
+    override fun InspectorInfo.inspectableProperties() {
+        name = "trackPointerInside"
+    }
+}
+
+private class PointerInsideNode(var inside: MutableState<Boolean>) : Modifier.Node(), PointerInputModifierNode {
+    override fun onPointerEvent(pointerEvent: PointerEvent, pass: PointerEventPass, bounds: IntSize) {
+        if (pass != PointerEventPass.Main) return
+        when (pointerEvent.type) {
+            PointerEventType.Enter -> inside.value = true
+            PointerEventType.Exit -> inside.value = false
+        }
+    }
+
+    override fun onCancelPointerInput() {
+        inside.value = false
+    }
+
+    override fun onDetach() {
+        inside.value = false
+    }
+}

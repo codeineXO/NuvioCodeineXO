@@ -119,8 +119,8 @@ internal fun Modifier.posterGlow(
         }
     }
 
-    val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsRemoteHoveredAsState().settledPointerHover()
+    val pointerInside = remember { mutableStateOf(false) }
+    val hovered by pointerInside.remotePointerHover().settledPointerHover()
     val active = forceActive || hovered || (state.focused && isRemoteKeyboardNavigationActive)
     var color by remember(artworkKey) { mutableStateOf(posterGlowColors[artworkKey]) }
     val dominant = key(artworkKey) {
@@ -175,7 +175,7 @@ internal fun Modifier.posterGlow(
         layer?.shadow = shadow
     }
     return this
-        .hoverable(interactions)
+        .trackPointerInside(pointerInside)
         .onFocusChanged { state.focused = it.hasFocus }
         .then(
             if (layer != null) Modifier.onGloballyPositioned { coordinates ->

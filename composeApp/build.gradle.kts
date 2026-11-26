@@ -1363,6 +1363,8 @@ compose.desktop {
             "-Xmx2g",
             "-XX:MinHeapFreeRatio=10",
             "-XX:MaxHeapFreeRatio=30",
+            // Metaspace settles near 115 MB; the 21 MB default triggered several GCs during startup.
+            "-XX:MetaspaceSize=128m",
             // Hand idle heap back to the OS instead of holding the peak reservation for the session.
             "-XX:G1PeriodicGCInterval=30000",
             // Skiko's FrameWatcher calls System.gc() every 30 s while frames are

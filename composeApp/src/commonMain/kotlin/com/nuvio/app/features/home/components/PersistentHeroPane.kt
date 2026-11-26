@@ -57,6 +57,7 @@ import com.nuvio.app.core.ui.PosterGlowOutset
 import com.nuvio.app.core.ui.aspectRatio
 import com.nuvio.app.core.ui.desktopCatalogShelfPosterBaseWidthDp
 import com.nuvio.app.core.ui.landscapePosterHeightForWidth
+import com.nuvio.app.core.ui.settledPointerHover
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.core.ui.fullscreenActionHorizontalInsetForWidth
@@ -507,7 +508,7 @@ internal fun persistentHeroTarget(item: MetaPreview): Modifier {
     val active = LocalScreenActive.current
     val keyboard = isRemoteKeyboardNavigationActive
     val source = remember { MutableInteractionSource() }
-    val hovered by source.collectIsRemoteHoveredAsState()
+    val hovered by source.collectIsRemoteHoveredAsState().settledPointerHover()
     val menuOpen = ActionMenuCoordinator.active != null
     val position = LocalPosterNavigationItem.current
     val selectCurrent by rememberUpdatedState {

@@ -288,8 +288,8 @@ internal fun PosterRowItem(
     val coordinates = remember { PosterRowHoverViewport() }
     val glowLayer = remember { PosterGlowLayer() }
     var origin by remember { mutableStateOf(Offset.Zero) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsRemoteHoveredAsState().settledPointerHover()
+    val pointerInside = remember { mutableStateOf(false) }
+    val hovered by pointerInside.remotePointerHover().settledPointerHover()
     val raised by remember(hovered, hover, glowLayer) {
         derivedStateOf { hovered || hover.scale() > 1f || glowLayer.shadow != null }
     }
@@ -297,7 +297,7 @@ internal fun PosterRowItem(
         Box(
             modifier
                 .zIndex(if (raised) 1f else 0f)
-                .hoverable(interactionSource)
+                .trackPointerInside(pointerInside)
                 .onGloballyPositioned {
                     origin = it.positionInRoot()
                     coordinates.left = origin.x
@@ -887,11 +887,11 @@ private fun NuvioPosterShape.cardWidth(basePosterWidthDp: Int): Dp =
 @Composable
 internal fun Modifier.desktopPosterHoverScale(
     enabled: Boolean = true,
-    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
 ): Modifier {
     if (!enabled || !isDesktop) return this
 
-    val hovered by interactionSource.collectIsRemoteHoveredAsState().settledPointerHover()
+    val pointerInside = remember { mutableStateOf(false) }
+    val hovered by pointerInside.remotePointerHover().settledPointerHover()
     val keyboardNavigation = isRemoteKeyboardNavigationActive
     var focused by remember { mutableStateOf(false) }
     // Keyboard focus mirrors the cursor raise; the focus contour uses the same gate.
@@ -928,7 +928,7 @@ internal fun Modifier.desktopPosterHoverScale(
                 Modifier
             },
         )
-        .hoverable(interactionSource)
+        .trackPointerInside(pointerInside)
 }
 
 @Composable
