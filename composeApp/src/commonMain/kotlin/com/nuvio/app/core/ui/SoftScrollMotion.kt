@@ -208,6 +208,7 @@ internal class SoftWheelScroll(
         val next = Target(rowOffset ?: delta, revealPreviousRow = rowAnchors != null && rowOffset == null && delta < 0f)
         target = next
         job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            PointerScrollActivity.begin()
             try {
                 // A new arrow/navigation action may interrupt the glide; direct dragging
                 // retains the higher UserInput priority.
@@ -260,6 +261,7 @@ internal class SoftWheelScroll(
                     }
                 }
             } finally {
+                PointerScrollActivity.end()
                 if (target === next) {
                     target = null
                     // Wheel bursts have no pointer-up event. Complete their lifecycle

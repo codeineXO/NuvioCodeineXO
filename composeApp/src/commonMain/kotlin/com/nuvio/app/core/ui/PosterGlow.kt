@@ -120,7 +120,7 @@ internal fun Modifier.posterGlow(
     }
 
     val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsRemoteHoveredAsState()
+    val hovered by interactions.collectIsRemoteHoveredAsState().settledPointerHover()
     val active = forceActive || hovered || (state.focused && isRemoteKeyboardNavigationActive)
     var color by remember(artworkKey) { mutableStateOf(posterGlowColors[artworkKey]) }
     val dominant = key(artworkKey) {

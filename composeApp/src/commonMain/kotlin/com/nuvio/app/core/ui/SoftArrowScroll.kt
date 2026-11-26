@@ -181,6 +181,7 @@ internal class SoftArrowScroll(private val state: LazyListState, private val sco
         val next = Request(forward, destination)
         request = next
         job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            PointerScrollActivity.begin()
             try {
                 // Manual wheel/drag mutations interrupt this owner and discard its destination.
                 state.scroll(MutatePriority.Default) {
@@ -209,6 +210,7 @@ internal class SoftArrowScroll(private val state: LazyListState, private val sco
                     }
                 }
             } finally {
+                PointerScrollActivity.end()
                 if (request === next) request = null
             }
         }

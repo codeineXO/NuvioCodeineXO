@@ -486,6 +486,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
                         var releaseVelocity = 0f
                         val momentum = momentumEnabled && NavigationMotionSettings.profile.dragMomentum
                         var releaseStarted = false
+                        PointerScrollActivity.begin()
                         try {
                             state.scroll(MutatePriority.UserInput) {
                                 val resampler = DesktopDragResampler()
@@ -579,6 +580,7 @@ internal fun Modifier.nuvioDesktopDragScroll(
                                 }
                             }
                         } finally {
+                            PointerScrollActivity.end()
                             channel.close()
                             // A newer session owns the carry once it has started.
                             if (motion.session === session) motion.carry.pending = 0f

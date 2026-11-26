@@ -289,7 +289,7 @@ internal fun PosterRowItem(
     val glowLayer = remember { PosterGlowLayer() }
     var origin by remember { mutableStateOf(Offset.Zero) }
     val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsRemoteHoveredAsState()
+    val hovered by interactionSource.collectIsRemoteHoveredAsState().settledPointerHover()
     val raised by remember(hovered, hover, glowLayer) {
         derivedStateOf { hovered || hover.scale() > 1f || glowLayer.shadow != null }
     }
@@ -891,7 +891,7 @@ internal fun Modifier.desktopPosterHoverScale(
 ): Modifier {
     if (!enabled || !isDesktop) return this
 
-    val hovered by interactionSource.collectIsRemoteHoveredAsState()
+    val hovered by interactionSource.collectIsRemoteHoveredAsState().settledPointerHover()
     val keyboardNavigation = isRemoteKeyboardNavigationActive
     var focused by remember { mutableStateOf(false) }
     // Keyboard focus mirrors the cursor raise; the focus contour uses the same gate.
