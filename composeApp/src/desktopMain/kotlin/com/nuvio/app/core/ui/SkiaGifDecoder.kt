@@ -119,13 +119,10 @@ class SkiaGifDecoder internal constructor(
                     codec.readPixels(fullBitmap, 0)
                     Image.makeFromBitmap(fullBitmap).use { image ->
                         Canvas(bitmap).use { canvas ->
-                            canvas.drawImageRect(
+                            canvas.drawArtworkRect(
                                 image,
                                 Rect.makeWH(w.toFloat(), h.toFloat()),
                                 Rect.makeWH(tw.toFloat(), th.toFloat()),
-                                DesktopArtworkSampling,
-                                null,
-                                true,
                             )
                         }
                     }

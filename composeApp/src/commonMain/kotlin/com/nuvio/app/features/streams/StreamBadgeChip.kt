@@ -181,6 +181,8 @@ internal fun StreamFileSizeBadge(stream: StreamItem) {
                 letterSpacing = StreamBadgeChipDefaults.fileSizeLetterSpacing,
             ),
             color = tokens.colors.textPrimary,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

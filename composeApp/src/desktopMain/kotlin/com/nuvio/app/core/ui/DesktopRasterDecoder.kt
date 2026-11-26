@@ -33,10 +33,9 @@ internal class DesktopRasterDecoder(private val source: ImageSource, private val
             try {
                 check(bitmap.allocPixels(ImageInfo.makeN32Premul(target.width, target.height)))
                 Canvas(bitmap).use { canvas ->
-                    canvas.drawImageRect(image,
+                    canvas.drawArtworkRect(image,
                         Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
-                        Rect.makeWH(target.width.toFloat(), target.height.toFloat()),
-                        DesktopArtworkSampling, null, true)
+                        Rect.makeWH(target.width.toFloat(), target.height.toFloat()))
                 }
                 coroutineContext.ensureActive()
                 bitmap.setImmutable()

@@ -130,7 +130,7 @@ private class AnimatedSkiaPainter(
                 image,
                 Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                 Rect.makeWH(drawSize.width.toFloat(), drawSize.height.toFloat()),
-                DesktopArtworkSampling,
+                artworkDrawSampling(image.width, image.height, drawSize.width.toFloat(), drawSize.height.toFloat()),
                 paint,
                 true,
             )

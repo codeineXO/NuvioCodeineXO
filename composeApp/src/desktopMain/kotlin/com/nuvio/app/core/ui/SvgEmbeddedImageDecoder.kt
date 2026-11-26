@@ -128,13 +128,10 @@ internal suspend fun renderSvgWithSizedImages(
                             val dw = embedded.width * sx
                             val dh = embedded.height * sy
                             val dst = fit(image.width.toFloat(), image.height.toFloat(), dx, dy, dw, dh, embedded.preserveAspectRatio)
-                            canvas.drawImageRect(
+                            canvas.drawArtworkRect(
                                 image,
                                 Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                                 dst,
-                                DesktopArtworkSampling,
-                                null,
-                                true,
                             )
                         }
                     }
