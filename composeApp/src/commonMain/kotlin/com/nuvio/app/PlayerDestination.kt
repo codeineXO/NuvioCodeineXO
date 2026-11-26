@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.LocalFrostedGlassEnabled
+import com.nuvio.app.core.ui.LocalMatchFrostedSecondaryContent
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.features.settings.SurfaceStyle
 import com.nuvio.app.features.settings.ThemeSettingsRepository
@@ -87,6 +88,7 @@ internal fun PlayerDestination(
     val playerFrostedEnabled by ThemeSettingsRepository.frostedGlassEnabled.collectAsStateWithLifecycle()
     CompositionLocalProvider(
         LocalFrostedGlassEnabled provides playerFrostedEnabled,
+        LocalMatchFrostedSecondaryContent provides false,
         LocalSurfaceStyle provides (if (playerFrostedEnabled) SurfaceStyle.FrostedGlass else SurfaceStyle.Flat),
     ) {
         PlayerScreen(

@@ -58,13 +58,18 @@ internal object FrostedGlassTokens {
     val ShadowSpotColor: Color = Color.Black.copy(alpha = 0.18f)
 }
 
-/** Brighter secondary foregrounds for frosted glass, preserving other surface styles. */
+/** False inside the player, which keeps its legacy foregrounds on non-frosted styles. */
+internal val LocalMatchFrostedSecondaryContent = staticCompositionLocalOf { true }
+
+/** Brighter secondary foregrounds: frosted glass everywhere, and Flat/Dark Glass outside the player. */
 @Composable
 internal fun frostedGlassSecondaryContentColor(
     fallback: Color,
     frostedColor: Color = FrostedGlassTokens.SecondaryContentColor,
 ): Color =
-    if (LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass) {
+    if ((LocalFrostedGlassEnabled.current && LocalSurfaceStyle.current == SurfaceStyle.FrostedGlass) ||
+        (LocalMatchFrostedSecondaryContent.current && LocalSurfaceStyle.current != SurfaceStyle.FrostedGlass)
+    ) {
         frostedColor
     } else fallback
 
