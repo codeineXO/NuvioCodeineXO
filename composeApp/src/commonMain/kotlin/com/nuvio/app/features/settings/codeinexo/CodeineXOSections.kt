@@ -34,7 +34,7 @@ internal enum class CodeineXOSection(
     PlayerInterface(Res.string.xo_section_player_interface, SettingsPage.PlaybackInterface),
     SeekPreviews(Res.string.settings_seek_preview_section, SettingsPage.PlaybackInterface),
     ViewingComfort(Res.string.xo_section_viewing_comfort, SettingsPage.PlaybackInterface),
-    PlaybackEngine(Res.string.xo_section_playback_engine, SettingsPage.PlaybackInterface),
+    PlaybackEngine(Res.string.xo_section_playback_engine, null),
     Video(Res.string.xo_section_video_enhancements, SettingsPage.PlaybackVideo),
     Audio(Res.string.xo_section_audio_enhancement, SettingsPage.PlaybackAudio),
     Anime(Res.string.xo_section_anime, SettingsPage.PlaybackSkipSegments),
