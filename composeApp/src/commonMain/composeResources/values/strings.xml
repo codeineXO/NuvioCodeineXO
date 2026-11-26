@@ -1887,6 +1887,8 @@
     <string name="streams_episode_fallback_title">Episode</string>
     <string name="streams_episode_title_with_name">S%1$d E%2$d - %3$s</string>
     <string name="streams_fetching">Fetching…</string>
+    <string name="streams_last_played">Last played</string>
+    <string name="streams_failed">Failed</string>
     <string name="streams_finding_source">Finding stream source</string>
     <string name="playback_show_loading_status">Show loading status</string>
     <string name="motion_smoothing_description">Smooth video playback up to 60 FPS.</string>

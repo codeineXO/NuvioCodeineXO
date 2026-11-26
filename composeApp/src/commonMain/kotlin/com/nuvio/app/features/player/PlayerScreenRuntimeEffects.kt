@@ -384,6 +384,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             if (!tryFallbackToNextSourceAfterError(message)) {
                 initialLoadCompleted = true
                 errorMessage = message
+                markActiveStreamFailed()
                 controlsVisible = !playerControlsLocked
             }
         }
@@ -400,6 +401,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             if (!tryFallbackToNextSourceAfterError(message)) {
                 initialLoadCompleted = true
                 errorMessage = message
+                markActiveStreamFailed()
                 controlsVisible = !playerControlsLocked
             }
         }

@@ -61,8 +61,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.nuvio.app.features.party.PartyRepository
 import com.nuvio.app.features.party.matches
 import com.nuvio.app.features.party.partyMediaKey
+import com.nuvio.app.features.streams.LocalLastPlayedStreamKey
 import com.nuvio.app.features.streams.LocalSharedStream
 import com.nuvio.app.features.streams.LocalStreamHighlight
+import com.nuvio.app.features.streams.StreamAttemptMark
+import com.nuvio.app.features.streams.StreamAttemptStore
+import com.nuvio.app.features.streams.StreamHighlight
 import com.nuvio.app.features.streams.StreamResumeState
 import com.nuvio.app.features.streams.forPlayback
 import com.nuvio.app.features.streams.SharedStream
@@ -178,6 +182,9 @@ internal fun StreamDestination(
     }
 
     val playerSettings by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
+
+    fun attemptContentKey(): String =
+        StreamAttemptStore.contentKey(effectiveVideoId, launch.seasonNumber, launch.episodeNumber)
 
     fun p2pSentinelUrl(infoHash: String, fileIdx: Int?): String =
         "torrent://$infoHash${fileIdx?.let { "?index=$it" }.orEmpty()}"
@@ -518,6 +525,7 @@ internal fun StreamDestination(
         val sourceUrl = stream.playableDirectUrl
         if (sourceUrl == null && stream.needsLocalDebridResolve && stream.p2pInfoHash != null) {
             autoPlayHandled = true
+            StreamAttemptStore.markPlayed(attemptContentKey(), selectedStream)
             requestOrOpenP2pStream(
                 stream = stream,
                 resolvedResumePositionMs = launch.resumePositionMs,
@@ -534,6 +542,7 @@ internal fun StreamDestination(
             return@LaunchedEffect
         }
         autoPlayHandled = true
+        StreamAttemptStore.markPlayed(attemptContentKey(), selectedStream)
         val serverResumeMs = serverResumePositionMs(stream)
         if (playerSettings.streamReuseLastLinkEnabled && stream.serverTarget == null) {
             val cacheKey = StreamLinkCacheRepository.contentKey(
@@ -656,9 +665,12 @@ internal fun StreamDestination(
         forceInternal: Boolean,
         saveForReuse: Boolean = true,
         startFromBeginning: Boolean = launch.startFromBeginning,
+        recordAttempt: Boolean = true,
     ) {
         val playbackResume = StreamResumeState(resolvedResumePositionMs, resolvedResumeProgressFraction)
             .forPlayback(startFromBeginning)
+        // Recorded as the card picked, before it is prepared or resolved into another link.
+        if (recordAttempt) StreamAttemptStore.markPlayed(attemptContentKey(), stream)
         if (stream.needsServerPreparation) {
             if (preparingServerStream) return
             streamRouteScope.launch {
@@ -667,6 +679,7 @@ internal fun StreamDestination(
                     .onFailure { if (it is CancellationException) throw it }
                     .getOrElse { error ->
                         preparingServerStream = false
+                        StreamAttemptStore.markPlayingFailed(attemptContentKey())
                         NuvioToastController.show(error.serverPlaybackMessage())
                         return@launch
                     }
@@ -679,6 +692,7 @@ internal fun StreamDestination(
                     forceExternal = false,
                     forceInternal = true,
                     startFromBeginning = startFromBeginning,
+                    recordAttempt = false,
                 )
             }
             return
@@ -701,8 +715,10 @@ internal fun StreamDestination(
                         forceExternal = forceExternal,
                         forceInternal = forceInternal,
                         startFromBeginning = startFromBeginning,
+                        recordAttempt = false,
                     )
                     else -> {
+                        StreamAttemptStore.markPlayingFailed(attemptContentKey())
                         resolved.toastMessage()?.let { NuvioToastController.show(it) }
                         if (resolved == DirectDebridPlayableResult.Stale) {
                             StreamsRepository.reload(
@@ -738,6 +754,7 @@ internal fun StreamDestination(
                 val resolved = YouTubeStreamResolver.Default.resolve(stream)
                 resolvingYouTubeStream = false
                 if (resolved == null) {
+                    StreamAttemptStore.markPlayingFailed(attemptContentKey())
                     NuvioToastController.show(getString(Res.string.youtube_resolution_failed))
                     return@launch
                 }
@@ -748,6 +765,7 @@ internal fun StreamDestination(
                     forceExternal = forceExternal,
                     forceInternal = forceInternal,
                     startFromBeginning = startFromBeginning,
+                    recordAttempt = false,
                     // The resolved URL expires after a few hours, so it isn't kept for reuse.
                     saveForReuse = false,
                 )
@@ -865,8 +883,25 @@ internal fun StreamDestination(
     )
     val partySource = party?.media?.takeIf { it.key == contentKey }?.source
     val partySourceLabel = stringResource(Res.string.party_source)
-    val streamHighlight: (StreamItem) -> String? = remember(partySource, partySourceLabel) {
-        { stream -> if (partySource?.matches(stream) == true) partySourceLabel else null }
+    val attemptsByContent by StreamAttemptStore.state.collectAsStateWithLifecycle()
+    val streamAttempts = attemptsByContent[attemptContentKey()]
+    val lastPlayedLabel = stringResource(Res.string.streams_last_played)
+    val failedLabel = stringResource(Res.string.streams_failed)
+    // The party source label wins when it marks the same card.
+    val streamHighlight: (StreamItem) -> StreamHighlight? = remember(
+        partySource, partySourceLabel, streamAttempts, lastPlayedLabel, failedLabel,
+    ) {
+        { stream ->
+            if (partySource?.matches(stream) == true) {
+                StreamHighlight(partySourceLabel)
+            } else {
+                when (streamAttempts?.markFor(stream)) {
+                    StreamAttemptMark.Failed -> StreamHighlight(failedLabel, isError = true)
+                    StreamAttemptMark.LastPlayed -> StreamHighlight(lastPlayedLabel)
+                    null -> null
+                }
+            }
+        }
     }
     val sharedLabel = stringResource(Res.string.party_shared_by, party?.member(party.hostMemberId)?.displayName.orEmpty())
     val isHost = party?.isHost == true
@@ -879,6 +914,7 @@ internal fun StreamDestination(
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalStreamHighlight provides streamHighlight,
+            LocalLastPlayedStreamKey provides streamAttempts?.lastPlayedKey,
             LocalSharedStream provides sharedStream,
         ) {
             StreamsScreen(

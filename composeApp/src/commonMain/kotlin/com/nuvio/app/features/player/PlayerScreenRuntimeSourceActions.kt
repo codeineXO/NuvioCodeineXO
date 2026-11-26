@@ -226,6 +226,8 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
         pendingP2pSwitch = PendingPlayerP2pSwitch(stream = stream, episode = null, isAutoPlay = false)
         return
     }
+    // Also reached straight from the P2P consent prompt, which skips switchToSource.
+    markStreamPlayed(stream)
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
     flushWatchProgress()
     stopActiveP2pStream()
@@ -307,16 +309,19 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
 internal fun PlayerScreenRuntime.switchToSource(
     stream: StreamItem,
     saveForReuse: Boolean = true,
+    recordAttempt: Boolean = true,
 ) {
-    if (prepareServerForPlayer(stream) { switchToSource(it) }) return
+    // Recorded as listed, before it is prepared or resolved into another link.
+    if (recordAttempt) markStreamPlayed(stream)
+    if (prepareServerForPlayer(stream) { switchToSource(it, recordAttempt = false) }) return
     // The resolved URL expires after a few hours, so it isn't kept for reuse.
-    if (resolveYouTubeForPlayer(stream) { switchToSource(it, saveForReuse = false) }) return
+    if (resolveYouTubeForPlayer(stream) { switchToSource(it, saveForReuse = false, recordAttempt = false) }) return
     if (
         resolveDebridForPlayer(
             stream = stream,
             season = activeSeasonNumber,
             episode = activeEpisodeNumber,
-            onResolved = { switchToSource(it) },
+            onResolved = { switchToSource(it, recordAttempt = false) },
             onStale = {
                 val vid = activeVideoId
                 if (vid != null) {

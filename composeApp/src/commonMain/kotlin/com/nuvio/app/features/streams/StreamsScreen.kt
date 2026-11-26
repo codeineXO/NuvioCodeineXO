@@ -124,6 +124,7 @@ import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.player.playerSourceIdentityKey
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.savedMetadataForContent
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
@@ -211,7 +212,8 @@ fun StreamsScreen(
     val noDirectStreamLinkText = stringResource(Res.string.streams_no_direct_link)
     var streamActionsTarget by remember(videoId) { mutableStateOf<StreamActionsTarget?>(null) }
     val downloadScope = rememberCoroutineScope()
-    var preferredFilterApplied by remember(videoId) { mutableStateOf(false) }
+    // Saved so coming back from the player keeps the filter picked here instead of applying it again.
+    var preferredFilterApplied by androidx.compose.runtime.saveable.rememberSaveable(videoId) { mutableStateOf(false) }
     val episodeProgress = watchProgressUiState.progressForVideo(
         videoId = videoId,
         parentMetaId = parentMetaId,
@@ -1097,6 +1099,37 @@ internal fun StreamList(
         }
     }
     SideEffect { resultsNavigation?.firstResult = firstResult?.first }
+
+    // Coming back from the player (or reopening this episode), jump to the stream played last.
+    // Counted like firstResult above; a card hidden by the current filter is not found, so the
+    // list stays where it is.
+    val lastPlayedKey = LocalLastPlayedStreamKey.current
+    val lastPlayedIndex = remember(streamSections, lastPlayedKey, sharedStream, showGroupHeaders) {
+        if (lastPlayedKey == null) return@remember null
+        var index = if (sharedStream != null) 1 else 0
+        var found: Int? = null
+        streamSections.forEach { section ->
+            if (found == null && (section.group.streams.isNotEmpty() || section.group.isLoading)) {
+                if (showGroupHeaders) index++
+                section.sources.forEach { source ->
+                    if (section.showSourceHeaders) index++
+                    source.streams.forEach { item ->
+                        if (found == null && item.stream.playerSourceIdentityKey() == lastPlayedKey) found = index
+                        index++
+                    }
+                }
+            }
+        }
+        found
+    }
+    var jumpedToLastPlayed by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(lastPlayedKey, lastPlayedIndex) {
+        val index = lastPlayedIndex ?: return@LaunchedEffect
+        if (jumpedToLastPlayed == lastPlayedKey) return@LaunchedEffect
+        jumpedToLastPlayed = lastPlayedKey
+        // Leaves one card above it in view, so it doesn't sit flush against the top edge.
+        listState.scrollToItem((index - 1).coerceAtLeast(0))
+    }
     val pendingFocus = resultsNavigation?.pending
     LaunchedEffect(uiState.selectedFilter, pendingFocus, firstResult) {
         if (resultsNavigation == null || pendingFocus == null || pendingFocus.filter != uiState.selectedFilter) {

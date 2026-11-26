@@ -1001,6 +1001,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                         scrubbingPositionMs = null
                         controlsVisible = !playerControlsLocked
                         removeFailedStreamFromCache()
+                        markActiveStreamFailed()
                     }
                 },
             )

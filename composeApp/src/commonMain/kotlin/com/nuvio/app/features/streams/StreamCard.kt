@@ -67,7 +67,13 @@ import com.nuvio.app.core.ui.SkeletonBlock
 import com.nuvio.app.features.debrid.DebridProviders
 import com.nuvio.app.isDesktop
 
-internal val LocalStreamHighlight = staticCompositionLocalOf<(StreamItem) -> String?> { { null } }
+/** A label marking one stream card; [isError] draws it in the error color instead of the accent. */
+internal data class StreamHighlight(val label: String, val isError: Boolean = false)
+
+internal val LocalStreamHighlight = staticCompositionLocalOf<(StreamItem) -> StreamHighlight?> { { null } }
+
+/** The identity key of the stream last played for the episode on screen, which the list scrolls to. */
+internal val LocalLastPlayedStreamKey = staticCompositionLocalOf<String?> { null }
 
 internal data class SharedStream(
     val label: String,
@@ -93,10 +99,9 @@ internal fun StreamCard(
     outlined: Boolean = false,
     desktopDragMomentumEnabled: Boolean = false,
 ) {
-    val highlightLabel = if (isCurrent) null else LocalStreamHighlight.current(stream)
-    val partyLabel = highlightLabel
-    val marked = isCurrent || highlightLabel != null
-    val markedLabel = if (isCurrent) currentLabel else highlightLabel
+    val highlight = if (isCurrent) null else LocalStreamHighlight.current(stream)
+    val highlightLabel = highlight?.label
+    val marked = isCurrent || highlight != null
     val cardShape = RoundedCornerShape(12.dp)
     val resultsGlass = LocalStreamResultsGlass.current
     val detailColor = frostedGlassSecondaryContentColor(if (resultsGlass) {
@@ -105,7 +110,7 @@ internal fun StreamCard(
         MaterialTheme.colorScheme.onSurfaceVariant
     })
     val interactionSource = remember { MutableInteractionSource() }
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val primaryColor = if (highlight?.isError == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     val surfaceStyle = LocalSurfaceStyle.current
     val cardElevation = if (surfaceStyle == SurfaceStyle.DarkGlass) 0.dp else 2.dp
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
@@ -209,11 +214,11 @@ internal fun StreamCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     CurrentStreamBadge(label = currentLabel)
                 }
-                if (partyLabel != null) {
+                if (highlightLabel != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = partyLabel,
-                        color = MaterialTheme.colorScheme.primary,
+                        text = highlightLabel,
+                        color = primaryColor,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,

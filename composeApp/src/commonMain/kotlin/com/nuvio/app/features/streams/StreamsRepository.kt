@@ -86,10 +86,12 @@ object StreamsRepository {
         )
         val requestKey = "$requestToken::pluginsGrouped=${pluginUiState.groupStreamsByRepository}"
         val currentState = _uiState.value
+        // A finished search for the same request is kept (coming back from the player shows the
+        // same list); a search cut short by opening a stream clears the key and starts again.
         if (
             !forceRefresh &&
             activeRequestKey == requestKey &&
-            activeJob?.isActive == true &&
+            currentState.requestToken == requestToken &&
             (currentState.groups.isNotEmpty() || currentState.emptyStateReason != null || currentState.isAnyLoading)
         ) {
             log.d { "Skipping stream reload for unchanged request type=$type id=$videoId" }
@@ -568,6 +570,8 @@ object StreamsRepository {
             if (!current.isAnyLoading && current.groups.none { it.isLoading }) {
                 current
             } else {
+                // Cut short, so the next load of this request searches again for the full list.
+                activeRequestKey = null
                 val updatedGroups = current.groups.map { group ->
                     if (group.isLoading) group.copy(isLoading = false) else group
                 }

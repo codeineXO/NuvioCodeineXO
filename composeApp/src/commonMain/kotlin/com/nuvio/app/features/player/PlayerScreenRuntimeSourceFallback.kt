@@ -8,6 +8,7 @@ import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.streams.StreamAutoPlayMode
+import com.nuvio.app.features.streams.StreamAttemptStore
 import com.nuvio.app.features.streams.StreamAutoPlaySelector
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.isDesktop
@@ -70,10 +71,24 @@ internal fun PlayerScreenRuntime.resetSourceFallback(
     sourceFallbackUrl = url
 }
 
+private fun PlayerScreenRuntime.attemptContentKey(): String? =
+    activeVideoId?.let { StreamAttemptStore.contentKey(it, activeSeasonNumber, activeEpisodeNumber) }
+
+/** Records [stream], as listed on the stream screen, as the one last played for this episode. */
+internal fun PlayerScreenRuntime.markStreamPlayed(stream: StreamItem) {
+    attemptContentKey()?.let { StreamAttemptStore.markPlayed(it, stream) }
+}
+
+/** Marks the stream playing for this episode as failed on the stream screen. */
+internal fun PlayerScreenRuntime.markActiveStreamFailed() {
+    attemptContentKey()?.let(StreamAttemptStore::markPlayingFailed)
+}
+
 /** Shows [message] as the playback error unless the next matching source is tried instead. */
 internal fun PlayerScreenRuntime.showErrorUnlessSourceFallback(message: String?) {
     if (tryFallbackToNextSourceAfterError(message)) return
     errorMessage = message
+    if (message != null) markActiveStreamFailed()
     controlsVisible = !playerControlsLocked
 }
 
@@ -100,6 +115,7 @@ internal fun PlayerScreenRuntime.tryFallbackToNextSourceAfterError(message: Stri
     val season = activeSeasonNumber
     val episode = activeEpisodeNumber
     errorMessage = null
+    markActiveStreamFailed()
 
     sourceFallbackJob = scope.launch {
         try {
@@ -142,6 +158,8 @@ internal fun PlayerScreenRuntime.tryFallbackToNextSourceAfterError(message: Stri
                     continue
                 }
                 log.i { "Source failed to start, falling back to ${playable.streamLabel} from ${playable.addonName}" }
+                // Recorded as listed, before resolving, so the stream screen marks the matching card.
+                markStreamPlayed(next)
                 playReplacementSource(playable, url, videoId)
                 return@launch
             }
