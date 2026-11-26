@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +47,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
+import com.nuvio.app.core.ui.NuvioTokens
+import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -149,7 +153,7 @@ internal fun TabletStreamsLayout(
         val aspectRatio = maxWidth.value / maxHeight.value
         val isWideLayout = aspectRatio >= 2f
         val baseArtworkWidth = (maxHeight.value * StandardDesktopViewportAspectRatio).dp.coerceAtMost(maxWidth)
-        val resultsWidth = (baseArtworkWidth * 0.6f).coerceAtMost(maxWidth)
+        val resultsWidth = (if (isWideLayout) baseArtworkWidth * 0.36f else maxWidth * 0.36f).coerceAtMost(maxWidth)
 
         DesktopStreamsBackdrop(
             backdrop = background ?: poster,
@@ -166,13 +170,15 @@ internal fun TabletStreamsLayout(
                 .align(Alignment.CenterStart)
                 .width(infoPanelAreaWidth)
                 .fillMaxHeight()
-                .padding(start = sidebarContentInset, end = 24.dp)
+                .padding(
+                    start = sidebarContentInset + desktopPageHorizontalPaddingForWidth(maxWidth.value),
+                    end = 32.dp,
+                )
                 .padding(vertical = 24.dp),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.CenterStart,
         ) {
             if (isEpisode && seasonNumber != null && episodeNumber != null) {
                 TabletEpisodeInfoPanel(
-                    modifier = Modifier.navigationGlass(shape = RoundedCornerShape(20.dp), panel = true, hazeState = hazeState),
                     description = description,
                     logo = logo,
                     seasonNumber = seasonNumber,
@@ -182,7 +188,6 @@ internal fun TabletStreamsLayout(
                 )
             } else {
                 TabletMovieInfoPanel(
-                    modifier = Modifier.navigationGlass(shape = RoundedCornerShape(20.dp), panel = true, hazeState = hazeState),
                     description = description,
                     title = title,
                     logo = logo,
@@ -193,7 +198,7 @@ internal fun TabletStreamsLayout(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .width(if (isWideLayout) resultsWidth else maxWidth * 0.6f)
+                .width(resultsWidth)
                 .fillMaxHeight()
                 .padding(
                     top = 36.dp,
@@ -525,6 +530,63 @@ private fun LegacyTabletStreamsLayout(
     }
 }
 
+// Placement mirrors the enhanced movie details hero: left-aligned, vertically centred, 560dp x 120dp logo.
+private val InfoHeroTextShadow = Shadow(color = Color.Black.copy(alpha = 0.78f), offset = Offset(0f, 2f), blurRadius = 8f)
+private val InfoSynopsisShadow = Shadow(color = Color.Black.copy(alpha = 0.50f), offset = Offset(0f, 1f), blurRadius = 3f)
+
+@Composable
+private fun InfoPanelColumn(
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier.widthIn(max = InfoPanelMaxWidth).fillMaxWidth()
+            .then(
+                if (isDesktop) Modifier
+                else Modifier.clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.68f)).padding(20.dp),
+            ),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        DarkGlassPanelContent { content() }
+    }
+}
+
+@Composable
+private fun InfoPanelLogo(
+    logoUrl: String,
+    contentDescription: String,
+    onError: () -> Unit,
+) {
+    AsyncImage(
+        model = logoUrl,
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .widthIn(max = 560.dp)
+            .height(120.dp),
+        alignment = Alignment.CenterStart,
+        contentScale = ContentScale.Fit,
+        onError = { onError() },
+    )
+}
+
+@Composable
+private fun InfoPanelTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.displayLarge.copy(
+            fontSize = NuvioTokens.Type.displayMd,
+            lineHeight = NuvioTokens.LineHeight.displayMd,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = NuvioTokens.LetterSpacing.none,
+            shadow = InfoHeroTextShadow,
+        ),
+        color = Color.White,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
 @Composable
 private fun TabletMovieInfoPanel(
     description: String? = null,
@@ -535,50 +597,22 @@ private fun TabletMovieInfoPanel(
     var logoLoadError by remember(logo) { mutableStateOf(false) }
     val logoUrl = logo?.takeIf { it.isNotBlank() }
 
-    Column(
-        modifier = modifier.fillMaxWidth(0.8f)
-            .then(if (isDesktop) Modifier else Modifier.clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.68f)))
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        DarkGlassPanelContent {
-            if (logoUrl != null && !logoLoadError) {
-                AsyncImage(
-                    model = logoUrl,
-                    contentDescription = title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentScale = ContentScale.Fit,
-                    onError = { logoLoadError = true },
-                )
-            } else if (title.isNotBlank()) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-0.5).sp,
-                    ),
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            } else {
-                Text(
-                    text = stringResource(Res.string.streams_no_metadata),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 16.sp,
-                        fontStyle = FontStyle.Italic,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            StreamSynopsis(description)
+    InfoPanelColumn(modifier) {
+        if (logoUrl != null && !logoLoadError) {
+            InfoPanelLogo(logoUrl, title) { logoLoadError = true }
+        } else if (title.isNotBlank()) {
+            InfoPanelTitle(title)
+        } else {
+            Text(
+                text = stringResource(Res.string.streams_no_metadata),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 16.sp,
+                    fontStyle = FontStyle.Italic,
+                ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        StreamSynopsis(description, heroStyle = true)
     }
 }
 
@@ -595,68 +629,60 @@ private fun TabletEpisodeInfoPanel(
     var logoLoadError by remember(logo) { mutableStateOf(false) }
     val logoUrl = logo?.takeIf { it.isNotBlank() }
 
-    Column(
-        modifier = modifier.fillMaxWidth(0.8f)
-            .then(if (isDesktop) Modifier else Modifier.clip(RoundedCornerShape(20.dp)).background(Color.Black.copy(alpha = 0.68f)))
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        DarkGlassPanelContent {
-            if (logoUrl != null && !logoLoadError) {
-                AsyncImage(
-                    model = logoUrl,
-                    contentDescription = showTitle,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentScale = ContentScale.Fit,
-                    onError = { logoLoadError = true },
-                )
-            } else {
-                Text(
-                    text = showTitle,
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = (-0.5).sp,
-                    ),
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = stringResource(
-                    Res.string.streams_episode_title_with_name,
-                    seasonNumber,
-                    episodeNumber,
-                    localizedEpisodeTitle(episodeTitle, episodeNumber)
-                        ?: episodeTitle?.takeIf { it.isNotBlank() }
-                        ?: stringResource(Res.string.streams_episode_fallback_title),
-                ),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 16.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = Color.White.copy(alpha = 0.95f),
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            StreamSynopsis(description)
+    InfoPanelColumn(modifier) {
+        if (logoUrl != null && !logoLoadError) {
+            InfoPanelLogo(logoUrl, showTitle) { logoLoadError = true }
+        } else {
+            InfoPanelTitle(showTitle)
         }
 
+        Spacer(modifier = Modifier.height(NuvioTokens.Space.s20))
+        Text(
+            text = stringResource(
+                Res.string.streams_episode_title_with_name,
+                seasonNumber,
+                episodeNumber,
+                localizedEpisodeTitle(episodeTitle, episodeNumber)
+                    ?: episodeTitle?.takeIf { it.isNotBlank() }
+                    ?: stringResource(Res.string.streams_episode_fallback_title),
+            ),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = NuvioTokens.Type.bodyLg,
+                lineHeight = NuvioTokens.LineHeight.bodyLg,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = NuvioTokens.LetterSpacing.none,
+                shadow = InfoHeroTextShadow,
+            ),
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        StreamSynopsis(description, heroStyle = true)
     }
 }
 
+/** Same column cap as the details hero, so the synopsis wraps at the same width. */
+private val InfoPanelMaxWidth = 760.dp
+
 @Composable
-internal fun StreamSynopsis(description: String?) {
+internal fun StreamSynopsis(description: String?, heroStyle: Boolean = false) {
     val synopsis = description?.trim()?.takeIf { it.isNotEmpty() } ?: return
+    if (heroStyle) {
+        Text(
+            text = synopsis,
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = NuvioTokens.Type.bodyMd,
+                lineHeight = NuvioTokens.LineHeight.bodyMd,
+                letterSpacing = NuvioTokens.LetterSpacing.none,
+                shadow = InfoSynopsisShadow,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = NuvioTokens.Space.s16),
+        )
+        return
+    }
     Text(
         text = synopsis,
         style = MaterialTheme.typography.bodyMedium,

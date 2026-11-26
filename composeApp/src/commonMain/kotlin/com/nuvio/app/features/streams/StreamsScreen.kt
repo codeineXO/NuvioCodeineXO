@@ -14,8 +14,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -764,7 +762,6 @@ internal fun resolveStreamResumeState(
     return StreamResumeState(positionMs = position, progressFraction = fraction)
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ResumeBanner(
     positionMs: Long?,
@@ -775,53 +772,89 @@ internal fun ResumeBanner(
 ) {
     val resumeText = when {
         progressFraction != null && progressFraction > 0f -> stringResource(
-            Res.string.streams_resume_from_percent,
+            Res.string.streams_resume_segment_percent,
             (progressFraction * 100f).roundToInt(),
         )
         positionMs != null && positionMs > 0L -> stringResource(
-            Res.string.streams_resume_from_time,
+            Res.string.streams_resume_segment_time,
             positionMs.toPlaybackClock(),
         )
         else -> null
     } ?: return
 
-    Box(
+    // One pill split in two: picking a side is mutually exclusive, so it reads as a single choice.
+    val outerShape = RoundedCornerShape(18.dp)
+    Row(
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
+            .height(36.dp)
+            .clip(outerShape)
             .then(
                 if (LocalStreamResultsGlass.current) {
-                    Modifier.streamResultsSurface().streamResultsBorder(RoundedCornerShape(18.dp))
+                    Modifier.streamResultsSurface().streamResultsBorder(outerShape)
                 } else {
                     Modifier.background(backdropControlColor(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)))
                 },
             )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(3.dp)
+            .remoteNavigationGroup(),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.remoteNavigationGroup(),
-        ) {
-            Text(
-                text = resumeText,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.align(Alignment.CenterVertically),
+        ResumeSegment(
+            label = resumeText,
+            isSelected = !startFromBeginning,
+            onClick = { onStartFromBeginningChange(false) },
+        )
+        ResumeSegment(
+            label = stringResource(Res.string.streams_restart),
+            isSelected = startFromBeginning,
+            onClick = { onStartFromBeginningChange(true) },
+        )
+    }
+}
+
+@Composable
+private fun ResumeSegment(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(15.dp)
+    val containerColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(durationMillis = 180),
+        label = "resume_segment_container",
+    )
+    val contentColor by androidx.compose.animation.animateColorAsState(
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        animationSpec = tween(durationMillis = 180),
+        label = "resume_segment_content",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .clip(shape)
+            .background(containerColor)
+            .navigationGlassFeedback(interactionSource, shape, showFocus = false)
+            .hoverable(interactionSource)
+            .remoteNavigationTarget(
+                shape = shape,
+                focusOutlineColor = if (isSelected) Color.White else null,
             )
-            StreamFilterChip(
-                isSelected = !startFromBeginning,
-                onClick = { onStartFromBeginningChange(false) },
-                label = stringResource(Res.string.action_resume),
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
-            StreamFilterChip(
-                isSelected = startFromBeginning,
-                onClick = { onStartFromBeginningChange(true) },
-                label = stringResource(Res.string.cw_action_start_from_beginning),
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
-        }
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontSize = 14.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                letterSpacing = 0.1.sp,
+            ),
+            color = contentColor,
+            maxLines = 1,
+        )
     }
 }
 

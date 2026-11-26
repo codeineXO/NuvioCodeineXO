@@ -19,6 +19,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,22 +93,36 @@ internal fun ProviderFilterRow(
     if (addonGroups.isEmpty() && onRefresh == null && !com.nuvio.app.isDesktop) return
 
     val scrollState = rememberScrollState()
+    val layoutDirection = LocalLayoutDirection.current
+    // Refresh stays pinned; only the provider chips scroll beside it.
     Row(
         modifier = modifier
             .remoteNavigationPageEntry()
             .fillMaxWidth()
-            .nuvioHorizontalMouseWheelScroll(scrollState)
-            .nuvioDesktopDragScroll(scrollState, momentumEnabled = desktopDragMomentumEnabled)
-            .horizontalScroll(scrollState)
-            .padding(contentPadding),
+            .padding(
+                start = contentPadding.calculateStartPadding(layoutDirection),
+                end = contentPadding.calculateEndPadding(layoutDirection),
+            ),
         horizontalArrangement = Arrangement.spacedBy(spacing),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onRefresh != null) {
             refreshChip(isRefreshing, onRefresh)
         }
-        filterChip(null, selectedFilter == null) { onFilterSelected(null) }
-        addonGroups.forEach { group ->
-            filterChip(group, selectedFilter == group.addonId) { onFilterSelected(group.addonId) }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .nuvioHorizontalMouseWheelScroll(scrollState)
+                .nuvioDesktopDragScroll(scrollState, momentumEnabled = desktopDragMomentumEnabled)
+                .horizontalScroll(scrollState)
+                // Vertical padding inside the scroll clip keeps focus rings visible.
+                .padding(top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding()),
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+        ) {
+            filterChip(null, selectedFilter == null) { onFilterSelected(null) }
+            addonGroups.forEach { group ->
+                filterChip(group, selectedFilter == group.addonId) { onFilterSelected(group.addonId) }
+            }
         }
     }
 }

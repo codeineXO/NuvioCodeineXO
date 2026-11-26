@@ -1914,6 +1914,9 @@
     <string name="streams_refresh">Refresh streams</string>
     <string name="streams_resume_from_percent">Resume from %1$d%</string>
     <string name="streams_resume_from_time">Resume from %1$s</string>
+    <string name="streams_resume_segment_percent">Resume %1$d%</string>
+    <string name="streams_resume_segment_time">Resume %1$s</string>
+    <string name="streams_restart">Restart</string>
     <string name="streams_size">SIZE %1$s</string>
     <string name="streams_torrent_not_supported">This stream type is not supported</string>
     <string name="debrid_missing_api_key">Connect an account in Settings.</string>
