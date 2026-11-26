@@ -1294,7 +1294,8 @@ button:disabled {
   display: grid;
   place-items: center;
   padding: 32px;
-  background: rgba(0, 0, 0, .9);
+  /* Opaque: with no video loaded, whatever the native surface holds would show through a translucent scrim. */
+  background: #000;
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease;
@@ -1303,6 +1304,39 @@ button:disabled {
 .playback-error.visible {
   opacity: 1;
   pointer-events: auto;
+}
+
+.playback-error-actions {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 16px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .playback-error-actions {
+    left: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .playback-error-actions {
+    left: 28px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .playback-error-actions {
+    left: 32px;
+  }
+}
+
+/* Keyboard lands here as soon as the error shows, so always draw the focus ring. */
+.playback-error button:focus {
+  outline: 2px solid var(--theme-focus);
+  outline-offset: 3px;
 }
 
 .playback-error-content {
@@ -5216,7 +5250,8 @@ svg {
 
 /* Desktop top-left edge button: the same size, frosted glass and slot as the app's back / power button
    (DesktopEdgeButton). Geometry comes from the host as --edge-button-* once it is known. */
-html.edge-button-geometry .opening-actions {
+html.edge-button-geometry .opening-actions,
+html.edge-button-geometry .playback-error-actions {
   top: calc(var(--edge-button-top) + env(safe-area-inset-top));
   left: calc(var(--edge-button-left) + env(safe-area-inset-left));
 }
@@ -5255,6 +5290,12 @@ html.edge-button-geometry .opening-button:hover {
 
 html.edge-button-geometry .opening-button svg {
   filter: none;
+}
+
+/* The error scrim is near-solid black, so there is nothing for the frosted glass to blur. */
+html.edge-button-geometry .playback-error .playback-error-back {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* The player's back button keeps its bare icon (no scrim), colour and soft shadow; the CodeineXO header

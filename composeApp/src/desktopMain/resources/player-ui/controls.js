@@ -13,6 +13,7 @@ const playbackErrorTitle = document.getElementById("playbackErrorTitle");
 const playbackErrorMessage = document.getElementById("playbackErrorMessage");
 const playbackErrorAction = document.getElementById("playbackErrorAction");
 const playbackErrorActionLabel = document.getElementById("playbackErrorActionLabel");
+const playbackErrorBackButton = document.getElementById("playbackErrorBackButton");
 const pauseMetadataOverlay = document.getElementById("pauseMetadataOverlay");
 const pauseClock = document.getElementById("pauseClock");
 const pauseWatchingLabel = document.getElementById("pauseWatchingLabel");
@@ -4756,6 +4757,7 @@ const renderPlaybackError = () => {
   const titleText = String(state.playbackErrorTitle || "Playback error").trim();
   const actionText = String(state.playbackErrorActionLabel || "Go back").trim();
 
+  const wasShowingError = playbackError.classList.contains("visible");
   root.classList.toggle("error-active", showError);
   playbackError.classList.toggle("visible", showError);
   playbackError.setAttribute("aria-hidden", showError ? "false" : "true");
@@ -4764,9 +4766,39 @@ const renderPlaybackError = () => {
   playbackErrorMessage.textContent = messageText;
   playbackErrorActionLabel.textContent = actionText || "Go back";
   playbackErrorAction.setAttribute("aria-label", actionText || "Go back");
+  setAttr(playbackErrorBackButton, "aria-label", state.backLabel || actionText || "Go back");
 
+  if (showError && !wasShowingError) {
+    playbackErrorAction.focus({ preventScroll: true });
+  } else if (!showError && wasShowingError && playbackError.contains(document.activeElement)) {
+    focusShortcutRoot();
+  }
   return showError;
 };
+
+// Keyboard focus lives only on the centred action; the top-left arrow is pointer-only.
+const handlePlaybackErrorKey = event => {
+  switch (event.key) {
+    case "ArrowLeft":
+    case "ArrowUp":
+    case "ArrowRight":
+    case "ArrowDown":
+    case "Tab":
+      event.preventDefault();
+      playbackErrorAction.focus({ preventScroll: true });
+      return;
+    case "Enter":
+    case " ":
+      event.preventDefault();
+      if (event.repeat) return;
+      playbackErrorAction.click();
+      return;
+    default:
+  }
+};
+
+// Clicking the arrow must not pull focus off the action.
+playbackErrorBackButton.addEventListener("mousedown", event => event.preventDefault());
 
 const resetSkipPromptAutoHide = () => {
   window.clearTimeout(skipPromptAutoHideTimer);
@@ -8383,7 +8415,10 @@ document.addEventListener("keydown", event => {
     }
     return;
   }
-  if (playbackErrorText()) return;
+  if (playbackErrorText()) {
+    handlePlaybackErrorKey(event);
+    return;
+  }
   const shortcutAction = shortcutActionForEvent(event);
   const isMacFullscreenShortcut = event.code === "KeyF" && event.metaKey && event.ctrlKey && !event.altKey;
   if (event.code === "F11" || isMacFullscreenShortcut || (shortcutAction === "fullscreen" && !isTextEntryTarget(event.target))) {

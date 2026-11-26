@@ -421,6 +421,11 @@
       </section>
 
       <section class="playback-error" id="playbackError" aria-label="Playback error" aria-hidden="true">
+        <nav class="playback-error-actions" aria-label="Player actions">
+          <button class="opening-button playback-error-back" id="playbackErrorBackButton" type="button" tabindex="-1" data-command="back" aria-label="Go back">
+            <svg><use href="#icon-arrow-back"></use></svg>
+          </button>
+        </nav>
         <div class="playback-error-content">
           <h1 class="playback-error-title" id="playbackErrorTitle">Playback error</h1>
           <p class="playback-error-message" id="playbackErrorMessage"></p>
