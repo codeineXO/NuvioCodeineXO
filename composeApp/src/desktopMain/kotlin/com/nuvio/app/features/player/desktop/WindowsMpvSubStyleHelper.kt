@@ -34,7 +34,10 @@ internal object WindowsMpvSubStyleHelper {
 
         return runCatching {
             val linker = Linker.nativeLinker()
+            // The bridge's own libmpv must come first: the helper calls into the bridge's mpv
+            // handle, so a different libmpv build (e.g. a stale cache copy) would corrupt it.
             val candidates = listOfNotNull(
+                NativePlayerBridge.loadedRuntimeDirectory?.resolve("libmpv-2.dll"),
                 File("composeApp/build/native/windows/libmpv-2.dll"),
                 File("build/native/windows/libmpv-2.dll"),
                 File("composeApp/build/native/windows-runtime/libmpv-2.dll"),

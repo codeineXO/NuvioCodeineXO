@@ -10,7 +10,9 @@ import java.util.jar.JarOutputStream
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 class DesktopCacheTest {
     @Test
@@ -47,6 +49,41 @@ class DesktopCacheTest {
         } finally {
             deleteRecursively(DesktopStorage.cacheDir.resolve(namespace))
             deleteRecursively(workDir)
+        }
+    }
+
+    @Test
+    fun pruning_removes_other_versions_and_keeps_current() {
+        val namespace = "test-${UUID.randomUUID()}"
+        try {
+            val old = DesktopCache.installVersionedFiles(namespace, mapOf("lib.bin" to byteArrayOf(1)))
+            val current = DesktopCache.installVersionedFiles(namespace, mapOf("lib.bin" to byteArrayOf(2)))
+            val unrelated = Files.createDirectories(DesktopStorage.cacheDir.resolve(namespace).resolve("keep-me"))
+
+            DesktopCache.pruneOtherVersions(current, lockProbe = "lib.bin")
+
+            assertFalse(Files.exists(old))
+            assertTrue(Files.exists(current.resolve("lib.bin")))
+            assertTrue(Files.exists(unrelated))
+        } finally {
+            deleteRecursively(DesktopStorage.cacheDir.resolve(namespace))
+        }
+    }
+
+    @Test
+    fun pruning_keeps_a_version_whose_probe_is_locked() {
+        if (!System.getProperty("os.name").lowercase().contains("windows")) return
+        val namespace = "test-${UUID.randomUUID()}"
+        try {
+            val locked = DesktopCache.installVersionedFiles(namespace, mapOf("lib.bin" to byteArrayOf(1)))
+            val current = DesktopCache.installVersionedFiles(namespace, mapOf("lib.bin" to byteArrayOf(2)))
+            // Windows refuses to delete a file opened without FILE_SHARE_DELETE, as with a loaded DLL.
+            java.io.RandomAccessFile(locked.resolve("lib.bin").toFile(), "r").use {
+                DesktopCache.pruneOtherVersions(current, lockProbe = "lib.bin")
+            }
+            assertTrue(Files.exists(locked.resolve("lib.bin")))
+        } finally {
+            deleteRecursively(DesktopStorage.cacheDir.resolve(namespace))
         }
     }
 

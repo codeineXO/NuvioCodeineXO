@@ -10,6 +10,11 @@ internal fun interface NativePlayerEventSink {
 }
 
 internal object NativePlayerBridge {
+    /** Directory the bridge library was loaded from; its libmpv is the one the bridge uses. */
+    @Volatile
+    var loadedRuntimeDirectory: File? = null
+        private set
+
     private val windowsNativeRuntimeDependencyNames = listOf(
         "vcruntime140.dll",
         "vcruntime140_1.dll",
@@ -257,12 +262,14 @@ internal object NativePlayerBridge {
         findPackagedApplicationLibrary(platformDir, libraryName)?.let { packagedLibrary ->
             loadNativeRuntimeDependencies(platform, packagedLibrary.parentFile)
             System.load(packagedLibrary.absolutePath)
+            loadedRuntimeDirectory = packagedLibrary.parentFile
             return
         }
         findLocalBuildLibrary(platformDir, libraryName)?.let { localLibrary ->
             copyLocalRuntimeResources(platformDir, localLibrary.parentFile)
             loadNativeRuntimeDependencies(platform, localLibrary.parentFile)
             System.load(localLibrary.absolutePath)
+            loadedRuntimeDirectory = localLibrary.parentFile
             return
         }
 
@@ -275,6 +282,9 @@ internal object NativePlayerBridge {
         val directory = DesktopCache.installVersionedResources("native-player-bridge/$platformDir", resources).toFile()
         loadNativeRuntimeDependencies(platform, directory)
         System.load(directory.resolve(libraryName).absolutePath)
+        loadedRuntimeDirectory = directory
+        // Each bridge or libmpv change unpacks a new ~115 MB folder; drop the ones no instance has loaded.
+        DesktopCache.pruneOtherVersionsInBackground(directory.toPath(), lockProbe = libraryName)
     }
 
     private fun findPackagedApplicationLibrary(platformDir: String, libraryName: String): File? {
@@ -392,7 +402,9 @@ internal object NativePlayerBridge {
                 "/composeResources/nuvio.composeapp.generated.resources/font/jetbrains_sans_bold.ttf",
             ),
         )
-        val root = DesktopCache.installVersionedFiles("player-ui", files).toFile()
+        val rootPath = DesktopCache.installVersionedFiles("player-ui", files)
+        DesktopCache.pruneOtherVersionsInBackground(rootPath)
+        val root = rootPath.toFile()
         return ControlsPageAssets(
             url = root.resolve("controls.html").toURI().toASCIIString(),
         )

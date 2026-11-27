@@ -6,8 +6,12 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
+import java.util.Comparator
+import kotlin.concurrent.thread
 
 internal object DesktopCache {
+    private val versionNamePattern = Regex("[0-9a-f]{24}")
+
     fun installVersionedFiles(namespace: String, files: Map<String, ByteArray>): Path {
         require(files.isNotEmpty())
         val directory = versionedDirectory(namespace, files)
@@ -36,6 +40,49 @@ internal object DesktopCache {
             }
         }
         return directory
+    }
+
+    /**
+     * Deletes every other version folder next to [current], which was returned by one of the
+     * install functions. When [lockProbe] is set, that file is deleted first and a folder whose
+     * probe can't be deleted is kept: on Windows a loaded DLL is locked, so the folder still
+     * belongs to a running instance.
+     */
+    fun pruneOtherVersions(current: Path, lockProbe: String? = null) {
+        val namespaceDir = current.parent ?: return
+        if (namespaceDir == DesktopStorage.cacheDir || !namespaceDir.startsWith(DesktopStorage.cacheDir)) return
+        val stale = runCatching {
+            Files.newDirectoryStream(namespaceDir).use { entries ->
+                entries.filter { entry ->
+                    entry != current &&
+                        Files.isDirectory(entry) &&
+                        versionNamePattern.matches(entry.fileName.toString())
+                }
+            }
+        }.getOrDefault(emptyList())
+        stale.forEach { directory ->
+            if (lockProbe != null && runCatching { Files.deleteIfExists(directory.resolve(lockProbe)) }.isFailure) {
+                return@forEach
+            }
+            deleteTree(directory)
+        }
+    }
+
+    /** Runs [pruneOtherVersions] on a background thread so startup doesn't wait on file deletion. */
+    fun pruneOtherVersionsInBackground(current: Path, lockProbe: String? = null) {
+        thread(isDaemon = true, name = "desktop-cache-prune") {
+            runCatching { pruneOtherVersions(current, lockProbe) }
+        }
+    }
+
+    private fun deleteTree(root: Path) {
+        runCatching {
+            Files.walk(root).use { paths ->
+                paths.sorted(Comparator.reverseOrder()).forEach { path ->
+                    runCatching { Files.deleteIfExists(path) }
+                }
+            }
+        }
     }
 
     private fun versionedDirectory(namespace: String, versionInputs: Map<String, ByteArray>): Path {
