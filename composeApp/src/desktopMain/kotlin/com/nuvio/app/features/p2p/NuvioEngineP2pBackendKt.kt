@@ -86,7 +86,8 @@ fun resolveMeasureExe(): File? {
         }
     }
 
-    val csc = File("C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe")
+    val windowsDir = System.getenv("SystemRoot")?.takeIf(String::isNotBlank) ?: "C:\\Windows"
+    val csc = File(windowsDir, "Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe")
     if (csc.isFile) {
         try {
             val tempDir = File(System.getProperty("java.io.tmpdir"), "nuvio-engine")

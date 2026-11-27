@@ -36,21 +36,22 @@ internal object WindowsMpvSubStyleHelper {
             val linker = Linker.nativeLinker()
             // The bridge's own libmpv must come first: the helper calls into the bridge's mpv
             // handle, so a different libmpv build (e.g. a stale cache copy) would corrupt it.
-            val candidates = listOfNotNull(
-                NativePlayerBridge.loadedRuntimeDirectory?.resolve("libmpv-2.dll"),
-                File("composeApp/build/native/windows/libmpv-2.dll"),
-                File("build/native/windows/libmpv-2.dll"),
-                File("composeApp/build/native/windows-runtime/libmpv-2.dll"),
-                File("build/native/windows-runtime/libmpv-2.dll"),
-                File("src/desktopMain/native/windows/runtime/libmpv-2.dll"),
-                File("composeApp/src/desktopMain/native/windows/runtime/libmpv-2.dll"),
-                runCatching {
-                    File(DesktopStorage.cacheDir.toString()).resolve("native-player-bridge/windows")
-                        .walkTopDown().firstOrNull { it.name.equals("libmpv-2.dll", ignoreCase = true) }
-                }.getOrNull(),
-                File("C:/msys64/ucrt64/bin/libmpv-2.dll"),
-                File("C:/Program Files (x86)/Nuvio/app/native/libmpv-2.dll"),
-            )
+            // Lazy, in order: the cache folder is only walked when no earlier candidate exists.
+            val candidates = sequenceOf(
+                { NativePlayerBridge.loadedRuntimeDirectory?.resolve("libmpv-2.dll") },
+                { File("composeApp/build/native/windows/libmpv-2.dll") },
+                { File("build/native/windows/libmpv-2.dll") },
+                { File("composeApp/build/native/windows-runtime/libmpv-2.dll") },
+                { File("build/native/windows-runtime/libmpv-2.dll") },
+                { File("src/desktopMain/native/windows/runtime/libmpv-2.dll") },
+                { File("composeApp/src/desktopMain/native/windows/runtime/libmpv-2.dll") },
+                {
+                    runCatching {
+                        File(DesktopStorage.cacheDir.toString()).resolve("native-player-bridge/windows")
+                            .walkTopDown().firstOrNull { it.name.equals("libmpv-2.dll", ignoreCase = true) }
+                    }.getOrNull()
+                },
+            ).mapNotNull { candidate -> candidate() }
             val dllFile = candidates.firstOrNull { it.exists() }
                 ?: System.getProperty("compose.application.resources.dir")
                     ?.takeIf(String::isNotBlank)

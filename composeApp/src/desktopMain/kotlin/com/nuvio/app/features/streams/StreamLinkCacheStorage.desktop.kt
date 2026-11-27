@@ -27,13 +27,16 @@ internal actual object StreamLinkCacheStorage {
         store.remove(ProfileScopedKey.of(hashedKey))
     }
 
-    /** Drops entries, for every profile, older than the longest reuse window the settings offer. */
+    /**
+     * Drops entries, for every profile, older than the longest reuse window the settings offer.
+     * Entries that don't decode are left to the repository, which removes them when read.
+     */
     internal fun purgeExpired(nowMs: Long) {
         val expired = store.keysWithPrefix("stream_link_").filter { key ->
             val cachedAtMs = store.getString(key)?.let { raw ->
                 runCatching { json.decodeFromString(CachedStreamLink.serializer(), raw).cachedAtMs }.getOrNull()
-            }
-            cachedAtMs == null || cachedAtMs <= 0L || nowMs - cachedAtMs > MaxReuseWindowMs
+            } ?: return@filter false
+            cachedAtMs > 0L && nowMs - cachedAtMs > MaxReuseWindowMs
         }
         if (expired.isNotEmpty()) store.removeAll(expired)
     }

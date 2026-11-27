@@ -1228,7 +1228,7 @@ internal class NativePlayerController(
 
     private fun takeScreenshot() {
         val current = handle
-        val directory = java.io.File(System.getProperty("user.home"), "Pictures/NuvioCodeineXO")
+        val directory = java.io.File(PicturesFolder.directory, "NuvioCodeineXO")
         val safeTitle = controlsState.title.replace(Regex("[\\\\/:*?\"<>|]"), "").trim().take(60).ifEmpty { "screenshot" }
         val stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
         val file = java.io.File(directory, "$safeTitle-$stamp.png")
