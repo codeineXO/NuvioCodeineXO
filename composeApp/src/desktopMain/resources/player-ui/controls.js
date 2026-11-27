@@ -5080,7 +5080,8 @@ const renderChrome = () => {
   root.classList.toggle("ui-official", !isCodeineXo);
   root.dataset.playerUi = isCodeineXo ? "codeinexo" : "official";
   root.classList.toggle("pip-mode", Boolean(state.isInPip));
-  if (!state.isInPip && isPipLocked) setPipLocked(false);
+  root.classList.toggle("mini-player", Boolean(state.isInPip && state.isMiniPlayer));
+  if ((!state.isInPip || state.isMiniPlayer) && isPipLocked) setPipLocked(false);
   if (state.isInPip && activeModal) closePlayerModal(false, false);
   const modalActive = hasOpenModal();
   root.classList.toggle("modal-active", modalActive);

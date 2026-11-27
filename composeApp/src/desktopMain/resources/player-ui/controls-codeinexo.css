@@ -989,6 +989,11 @@
 .player.ui-codeinexo.pip-mode #codeineDrawerButton {
   display: none !important;
 }
+.player.ui-codeinexo.pip-mode .header {
+  top: 8px;
+  left: 8px;
+  right: 8px;
+}
 .player.ui-codeinexo.pip-mode .codeine-menu-items {
   position: static;
   display: flex;

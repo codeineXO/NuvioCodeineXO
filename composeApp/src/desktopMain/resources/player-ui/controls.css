@@ -1094,7 +1094,10 @@ button:disabled {
 }
 
 .player.pip-mode .header {
-  padding: 10px;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 0;
 }
 
 .player.pip-mode .header-actions {
@@ -1132,6 +1135,16 @@ button:disabled {
 }
 
 .player.pip-mode .pip-lock-button {
+  display: grid !important;
+  place-items: center;
+}
+
+/* Docked mini player: a close button replaces the lock. */
+.player.pip-mode.mini-player .pip-lock-button {
+  display: none !important;
+}
+
+.player.pip-mode.mini-player .header-actions #backButton#backButton {
   display: grid !important;
   place-items: center;
 }
