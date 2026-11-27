@@ -206,6 +206,11 @@ internal object DesktopStorage {
             if (properties.remove(key) != null) schedulePersist()
         }
 
+        fun keysWithPrefix(prefix: String): List<String> = synchronized(lock) {
+            ensureLoaded()
+            properties.stringPropertyNames().filter { it.startsWith(prefix) }
+        }
+
         fun removeAll(keys: Iterable<String>) = synchronized(lock) {
             ensureLoaded()
             var changed = false

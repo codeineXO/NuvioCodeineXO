@@ -36,6 +36,7 @@ internal fun configureDesktopQuickJsLibrary() {
         namespace = "quickjs/$resourceFolder",
         files = mapOf(libraryName to bytes),
     )
+    DesktopCache.pruneOtherVersionsInBackground(directory, lockProbe = libraryName)
     System.setProperty(QuickJsLibraryPathProperty, directory.toAbsolutePath().toString())
     System.setProperty(QuickJsLibraryNameProperty, libraryName)
 }

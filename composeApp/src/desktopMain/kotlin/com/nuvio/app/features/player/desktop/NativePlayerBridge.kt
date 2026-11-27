@@ -2,6 +2,7 @@ package com.nuvio.app.features.player.desktop
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.storage.DesktopCache
+import com.nuvio.app.core.storage.DesktopStorage
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -32,6 +33,7 @@ internal object NativePlayerBridge {
 
     private val loadFailure: Throwable? = try {
         loadNativeLibrary()
+        trimPlayerCaches()
         if (DesktopHostOs.current == DesktopHostOs.WINDOWS) {
             com.nuvio.app.features.player.SvpRuntimeInstaller.prepareForBridge(::configureSvpRuntime)
         }
@@ -247,6 +249,23 @@ internal object NativePlayerBridge {
         }
     }
 
+    /**
+     * Downloaded subtitles and mpv's GPU shader cache (`gpu-shader-cache-dir`, set by the
+     * Windows bridge) are never evicted by anything else, so bound them once per app run.
+     */
+    private fun trimPlayerCaches() {
+        DesktopCache.trimDirectoryInBackground(
+            DesktopStorage.cacheDir.resolve("subtitles"),
+            maxAgeMs = SubtitleCacheMaxAgeMs,
+            maxBytes = SubtitleCacheMaxBytes,
+        )
+        DesktopCache.trimDirectoryInBackground(
+            DesktopStorage.cacheDir.resolve("mpv-shaders"),
+            maxAgeMs = ShaderCacheMaxAgeMs,
+            maxBytes = ShaderCacheMaxBytes,
+        )
+    }
+
     private fun loadNativeLibrary() {
         val platform = DesktopHostOs.current
         require(
@@ -448,6 +467,11 @@ internal object NativePlayerBridge {
         val url: String,
     )
 }
+
+private const val SubtitleCacheMaxAgeMs = 14L * 24 * 60 * 60 * 1000
+private const val SubtitleCacheMaxBytes = 100L * 1024 * 1024
+private const val ShaderCacheMaxAgeMs = 60L * 24 * 60 * 60 * 1000
+private const val ShaderCacheMaxBytes = 50L * 1024 * 1024
 
 internal fun preloadNativePlayerBridgeAsync() {
     if (DesktopHostOs.current == DesktopHostOs.MACOS ||

@@ -75,6 +75,40 @@ internal object DesktopCache {
         }
     }
 
+    /**
+     * Bounds a flat cache folder: deletes files last modified more than [maxAgeMs] ago, then the
+     * oldest remaining ones until the folder is at most [maxBytes]. Files that can't be deleted
+     * (still open) are skipped. Subfolders are left alone.
+     */
+    fun trimDirectory(directory: Path, maxAgeMs: Long, maxBytes: Long, nowMs: Long = System.currentTimeMillis()) {
+        if (!directory.normalize().startsWith(DesktopStorage.cacheDir) || directory.normalize() == DesktopStorage.cacheDir) return
+        val files = runCatching {
+            Files.newDirectoryStream(directory).use { entries ->
+                entries.filter { Files.isRegularFile(it) }.mapNotNull { file ->
+                    runCatching {
+                        CachedFile(file, Files.getLastModifiedTime(file).toMillis(), Files.size(file))
+                    }.getOrNull()
+                }
+            }
+        }.getOrDefault(emptyList()).sortedBy(CachedFile::modifiedMs)
+        var totalBytes = files.sumOf(CachedFile::bytes)
+        files.forEach { file ->
+            if (nowMs - file.modifiedMs <= maxAgeMs && totalBytes <= maxBytes) return@forEach
+            if (runCatching { Files.deleteIfExists(file.path) }.getOrDefault(false)) {
+                totalBytes -= file.bytes
+            }
+        }
+    }
+
+    /** Runs [trimDirectory] on a background thread. */
+    fun trimDirectoryInBackground(directory: Path, maxAgeMs: Long, maxBytes: Long) {
+        thread(isDaemon = true, name = "desktop-cache-trim") {
+            runCatching { trimDirectory(directory, maxAgeMs, maxBytes) }
+        }
+    }
+
+    private class CachedFile(val path: Path, val modifiedMs: Long, val bytes: Long)
+
     private fun deleteTree(root: Path) {
         runCatching {
             Files.walk(root).use { paths ->

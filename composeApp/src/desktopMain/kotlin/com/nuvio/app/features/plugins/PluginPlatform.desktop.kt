@@ -2,6 +2,7 @@ package com.nuvio.app.features.plugins
 
 import com.nuvio.app.core.storage.DesktopStorage
 import java.util.Locale
+import kotlinx.serialization.json.Json
 
 internal object PluginStorage {
     private const val pluginsStateKey = "plugins_state"
@@ -12,7 +13,22 @@ internal object PluginStorage {
 
     fun saveState(profileId: Int, payload: String) {
         store.putString("${pluginsStateKey}_$profileId", payload)
+        removeOrphanedScraperCode(profileId, payload)
     }
+
+    /**
+     * Scraper code is stored per scraper and never removed with its scraper or repository.
+     * The saved state is what the next launch restores, and the repository writes each
+     * scraper's code before saving state, so code for any scraper missing from it is dead.
+     */
+    private fun removeOrphanedScraperCode(profileId: Int, payload: String) {
+        val state = runCatching { stateJson.decodeFromString<StoredPluginsState>(payload) }.getOrNull() ?: return
+        val keep = state.scrapers.mapTo(HashSet()) { scraper -> scraperCodeKey(profileId, scraper.id) }
+        val orphaned = store.keysWithPrefix("scraper_code_${profileId}_").filterNot(keep::contains)
+        if (orphaned.isNotEmpty()) store.removeAll(orphaned)
+    }
+
+    private val stateJson = Json { ignoreUnknownKeys = true }
 
     fun hasScraperCode(profileId: Int, scraperId: String): Boolean =
         store.contains(scraperCodeKey(profileId, scraperId))

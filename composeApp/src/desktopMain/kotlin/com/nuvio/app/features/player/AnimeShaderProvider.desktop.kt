@@ -21,7 +21,9 @@ internal object AnimeShaderProvider {
             }
         }
         if (files.isNotEmpty()) {
-            DesktopCache.installVersionedFiles("anime-shaders", files).toFile()
+            DesktopCache.installVersionedFiles("anime-shaders", files)
+                .also { DesktopCache.pruneOtherVersionsInBackground(it) }
+                .toFile()
         } else {
             null
         }

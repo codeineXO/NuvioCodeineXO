@@ -87,6 +87,35 @@ class DesktopCacheTest {
         }
     }
 
+    @Test
+    fun trimming_drops_expired_then_oldest_files_over_the_size_cap() {
+        val directory = DesktopStorage.cacheDir.resolve("test-${UUID.randomUUID()}")
+        try {
+            Files.createDirectories(directory)
+            val now = 10_000_000L
+            fun file(name: String, ageMs: Long, size: Int): Path =
+                directory.resolve(name).also {
+                    Files.write(it, ByteArray(size))
+                    Files.setLastModifiedTime(it, java.nio.file.attribute.FileTime.fromMillis(now - ageMs))
+                }
+            val expired = file("expired.srt", ageMs = 5_000, size = 10)
+            val oldest = file("oldest.srt", ageMs = 900, size = 40)
+            val middle = file("middle.srt", ageMs = 500, size = 40)
+            val newest = file("newest.srt", ageMs = 100, size = 40)
+            val nested = Files.createDirectories(directory.resolve("nested"))
+
+            DesktopCache.trimDirectory(directory, maxAgeMs = 1_000, maxBytes = 80, nowMs = now)
+
+            assertFalse(Files.exists(expired))
+            assertFalse(Files.exists(oldest))
+            assertTrue(Files.exists(middle))
+            assertTrue(Files.exists(newest))
+            assertTrue(Files.exists(nested))
+        } finally {
+            deleteRecursively(directory)
+        }
+    }
+
     private fun jarResource(jar: Path, bytes: ByteArray): URL {
         JarOutputStream(Files.newOutputStream(jar)).use { output ->
             output.putNextEntry(JarEntry("native/lib.bin"))

@@ -27,7 +27,9 @@ internal object SvpScriptProvider {
             }
         }
         if (files.isNotEmpty()) {
-            DesktopCache.installVersionedFiles("vapoursynth-scripts", files).toFile()
+            DesktopCache.installVersionedFiles("vapoursynth-scripts", files)
+                .also { DesktopCache.pruneOtherVersionsInBackground(it) }
+                .toFile()
         } else {
             null
         }

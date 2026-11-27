@@ -2563,6 +2563,8 @@ internal class NativePlayerController(
         for (ext in extensions) {
             val file = subtitlesDir.resolve("$hash.$ext")
             if (Files.exists(file) && Files.isRegularFile(file) && Files.size(file) > 0L) {
+                // Keep reused subtitles fresh for the age-based cache trim in NativePlayerBridge.
+                runCatching { Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis())) }
                 return file.toAbsolutePath().toString()
             }
         }

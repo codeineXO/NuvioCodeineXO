@@ -17,7 +17,9 @@ internal object EyeFilterShaderProvider {
             }
         }
         if (files.isNotEmpty()) {
-            DesktopCache.installVersionedFiles("eye-filter-shaders", files).toFile()
+            DesktopCache.installVersionedFiles("eye-filter-shaders", files)
+                .also { DesktopCache.pruneOtherVersionsInBackground(it) }
+                .toFile()
         } else {
             null
         }

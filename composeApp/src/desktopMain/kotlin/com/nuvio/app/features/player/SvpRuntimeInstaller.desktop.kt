@@ -42,7 +42,9 @@ internal actual object SvpRuntimeInstaller {
                 ?: error("Bundled motion smoothing manifest is missing")
             val directory = BundledSvpRuntime(
                 DesktopStorage.cacheDir.resolve("svp-runtime/windows-x64"), manifest,
-            ) { name -> javaClass.getResourceAsStream(prefix + name) }.install()
+                resource = { name -> javaClass.getResourceAsStream(prefix + name) },
+                lockProbe = "VSScript.dll",
+            ).install()
             check(register(directory.toAbsolutePath().toString())) {
                 "Bundled VapourSynth could not load its VSScript API (4.0)"
             }

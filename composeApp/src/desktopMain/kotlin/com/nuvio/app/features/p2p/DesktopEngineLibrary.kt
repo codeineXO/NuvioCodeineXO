@@ -56,6 +56,7 @@ internal object DesktopEngineLibrary {
             .getResource("/native/$directory/$name")
             ?: return null
         return DesktopCache.installVersionedResources("nuvio-engine/$directory", mapOf(name to resource))
+            .also { DesktopCache.pruneOtherVersionsInBackground(it, lockProbe = name) }
             .resolve(name)
             .toFile()
     }

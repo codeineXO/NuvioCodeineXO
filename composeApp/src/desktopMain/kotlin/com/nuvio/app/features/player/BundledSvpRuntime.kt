@@ -12,21 +12,47 @@ internal class BundledSvpRuntime(
     private val cacheRoot: Path,
     manifest: String,
     private val resource: (String) -> InputStream?,
+    /** File loaded from the runtime folder; a version whose copy can't be deleted is in use. */
+    private val lockProbe: String? = null,
 ) {
     private val entries = parseManifest(manifest)
     private val version = sha256(manifest.byteInputStream()).take(24)
 
+    /**
+     * Installs or reuses this version, then removes other complete versions. A failed install
+     * throws before pruning, so the previous version survives; non-version folders are never touched.
+     */
     fun install(): Path = synchronized(installationLock) {
+        installVersion().also(::pruneOtherVersions)
+    }
+
+    private fun pruneOtherVersions(current: Path) {
+        val stale = Files.list(cacheRoot).use { paths ->
+            paths.filter { path ->
+                path != current &&
+                    Files.isDirectory(path, NOFOLLOW_LINKS) &&
+                    versionNamePattern.matches(path.fileName.toString())
+            }.toList()
+        }
+        stale.forEach { directory ->
+            if (lockProbe != null && runCatching { Files.deleteIfExists(directory.resolve(lockProbe)) }.isFailure) {
+                return@forEach
+            }
+            runCatching { removeTree(directory) }
+        }
+    }
+
+    private fun installVersion(): Path {
         Files.createDirectories(cacheRoot)
         Files.list(cacheRoot).use { paths ->
             paths.filter { it.fileName.toString().startsWith(".staging-") || it.fileName.toString().startsWith(".invalid-") }
                 .forEach(::removeTree)
         }
         val target = cacheRoot.resolve(version)
-        if (isValid(target)) return@synchronized target
+        if (isValid(target)) return target
         val staging = Files.createTempDirectory(cacheRoot, ".staging-")
         var displaced: Path? = null
-        try {
+        return try {
             entries.forEach { (name, expected) ->
                 val file = staging.resolve(name)
                 Files.createDirectories(file.parent)
@@ -73,6 +99,7 @@ internal class BundledSvpRuntime(
 
     companion object {
         private val installationLock = Any()
+        private val versionNamePattern = Regex("[0-9a-f]{24}")
         internal fun parseManifest(manifest: String): Map<String, String> {
             val entries = linkedMapOf<String, String>()
             manifest.lineSequence().map(String::trim).filter { it.isNotEmpty() && !it.startsWith("#") }.forEach { line ->
