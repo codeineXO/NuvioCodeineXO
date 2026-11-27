@@ -69,14 +69,16 @@ Name: "{autodesktop}\NuvioCodeineXO"; Filename: "{app}\NuvioCodeineXO.exe"; Task
 
 [Registry]
 
+; Protocol handler keys carry no uninsdeletekey: CaptureProtocolHandlers/RestoreProtocolHandlers
+; remove them only while they still open this install, so Stremio's or upstream Nuvio's survive.
 ; Deep link protocol handler: nuvio://
-Root: HKA; Subkey: "Software\Classes\nuvio"; ValueType: string; ValueData: "URL:Nuvio Protocol"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\nuvio"; ValueType: string; ValueData: "URL:Nuvio Protocol"
 Root: HKA; Subkey: "Software\Classes\nuvio"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\nuvio\DefaultIcon"; ValueType: string; ValueData: "{app}\NuvioCodeineXO.exe,0"
 Root: HKA; Subkey: "Software\Classes\nuvio\shell\open\command"; ValueType: string; ValueData: """{app}\NuvioCodeineXO.exe"" ""%1"""
 
 ; Deep link protocol handler: stremio://
-Root: HKA; Subkey: "Software\Classes\stremio"; ValueType: string; ValueData: "URL:Stremio Protocol"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\stremio"; ValueType: string; ValueData: "URL:Stremio Protocol"
 Root: HKA; Subkey: "Software\Classes\stremio"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\stremio\DefaultIcon"; ValueType: string; ValueData: "{app}\NuvioCodeineXO.exe,0"
 Root: HKA; Subkey: "Software\Classes\stremio\shell\open\command"; ValueType: string; ValueData: """{app}\NuvioCodeineXO.exe"" ""%1"""
@@ -98,6 +100,74 @@ var
   DeleteDataCheckbox: TNewCheckBox;
   UninstallBtn: TNewButton;
   ConfirmedUninstall: Boolean;
+  HandlerForeign: array[0..1] of Boolean;
+  HandlerHasProtocol: array[0..1] of Boolean;
+  HandlerName: array[0..1] of string;
+  HandlerIcon: array[0..1] of string;
+  HandlerCommand: array[0..1] of string;
+
+function HandlerKey(I: Integer): string;
+begin
+  if I = 0 then
+    Result := 'Software\Classes\nuvio'
+  else
+    Result := 'Software\Classes\stremio';
+end;
+
+function OpensThisApp(Command: string): Boolean;
+begin
+  Result := Pos(Lowercase(ExpandConstant('{app}\NuvioCodeineXO.exe')), Lowercase(Command)) > 0;
+end;
+
+// Before the uninstall log runs: remember any protocol handler that now opens another app.
+// Older installs logged these keys with uninsdeletekey, so the log may still delete them.
+procedure CaptureProtocolHandlers();
+var
+  I: Integer;
+begin
+  for I := 0 to 1 do
+  begin
+    HandlerCommand[I] := '';
+    RegQueryStringValue(HKA, HandlerKey(I) + '\shell\open\command', '', HandlerCommand[I]);
+    HandlerForeign[I] := (HandlerCommand[I] <> '') and not OpensThisApp(HandlerCommand[I]);
+    if HandlerForeign[I] then
+    begin
+      HandlerName[I] := '';
+      HandlerIcon[I] := '';
+      RegQueryStringValue(HKA, HandlerKey(I), '', HandlerName[I]);
+      HandlerHasProtocol[I] := RegValueExists(HKA, HandlerKey(I), 'URL Protocol');
+      RegQueryStringValue(HKA, HandlerKey(I) + '\DefaultIcon', '', HandlerIcon[I]);
+    end;
+  end;
+end;
+
+// After the uninstall log runs: put back another app's handler, or remove ours.
+procedure RestoreProtocolHandlers();
+var
+  I: Integer;
+  Command: string;
+begin
+  for I := 0 to 1 do
+  begin
+    if HandlerForeign[I] then
+    begin
+      if HandlerName[I] <> '' then
+        RegWriteStringValue(HKA, HandlerKey(I), '', HandlerName[I]);
+      if HandlerHasProtocol[I] then
+        RegWriteStringValue(HKA, HandlerKey(I), 'URL Protocol', '');
+      if HandlerIcon[I] <> '' then
+        RegWriteStringValue(HKA, HandlerKey(I) + '\DefaultIcon', '', HandlerIcon[I]);
+      RegWriteStringValue(HKA, HandlerKey(I) + '\shell\open\command', '', HandlerCommand[I]);
+    end
+    else if RegKeyExists(HKA, HandlerKey(I)) then
+    begin
+      Command := '';
+      RegQueryStringValue(HKA, HandlerKey(I) + '\shell\open\command', '', Command);
+      if (Command = '') or OpensThisApp(Command) then
+        RegDeleteKeyIncludingSubkeys(HKA, HandlerKey(I));
+    end;
+  end;
+end;
 
 function HasExistingAppPayload(): Boolean;
 begin
@@ -268,8 +338,13 @@ var
   AppDir: string;
   ResultCode: Integer;
 begin
+  if CurUninstallStep = usUninstall then
+    CaptureProtocolHandlers();
+
   if CurUninstallStep = usPostUninstall then
   begin
+    RestoreProtocolHandlers();
+
     if Assigned(DeleteDataCheckbox) and DeleteDataCheckbox.Checked then
     begin
       LocalAppDir := ExpandConstant('{localappdata}\NuvioCodeineXO');
