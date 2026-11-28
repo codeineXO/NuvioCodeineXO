@@ -1079,7 +1079,7 @@ private fun DesktopHeroContentBlock(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(desktopHeroLogoHeight(layout, compact)),
-                contentAlignment = Alignment.CenterStart,
+                contentAlignment = if (persistentDetailsClickModifier != null) Alignment.BottomStart else Alignment.CenterStart,
             ) {
                 if (persistentDetailsClickModifier != null) {
                     AnimatedContent(
@@ -1089,7 +1089,7 @@ private fun DesktopHeroContentBlock(
                         transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(160)) },
                         label = "Hero title logo",
                     ) { painter ->
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
                             if (painter == null) {
                                 DesktopHeroTitle(
                                     item.name, compact, maxLines = if (compact) 1 else 2,
@@ -1101,7 +1101,7 @@ private fun DesktopHeroContentBlock(
                                     contentDescription = item.name,
                                     modifier = Modifier.fillMaxWidth(desktopHeroLogoWidthFraction(layout)).fillMaxHeight()
                                         .then(persistentDetailsClickModifier),
-                                    alignment = Alignment.CenterStart,
+                                    alignment = Alignment.BottomStart,
                                     contentScale = ContentScale.Fit,
                                 )
                             }
