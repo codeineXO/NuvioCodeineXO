@@ -8,4 +8,5 @@
     <string name="debug_log_open_folder">Open log folder</string>
     <string name="debug_log_toast_on">Debug logging on</string>
     <string name="debug_log_toast_off">Debug logging off</string>
+    <string name="debug_log_indicator">Logging</string>
 </resources>

@@ -819,6 +819,7 @@ internal class NativePlayerController(
             edgeButtonGeometry = PlayerEdgeButtonGeometryStore.current,
             hlsQuality = hlsQuality,
             shortcutsJson = currentShortcutsJson(),
+            debugLogging = com.nuvio.app.core.diagnostics.DebugLog.isEnabled,
         )
         if (structureKey == lastSentControlsStructureKey) return
         lastSentControlsStructureKey = structureKey
@@ -840,7 +841,8 @@ internal class NativePlayerController(
         )
         val controlsJson = stateToSend.toControlsJson(isFullscreen, ::refreshControlsForImage, currentPlaybackStats)
             .dropLast(1) + ",\"remoteClick\":${JsonPrimitive(remoteClickTarget)},\"remoteClickToken\":$remoteClickCount" +
-            structureKey.hlsQuality.toJsonFields() + ",\"shortcuts\":" + structureKey.shortcutsJson + "}"
+            structureKey.hlsQuality.toJsonFields() + ",\"shortcuts\":" + structureKey.shortcutsJson +
+            ",\"debugLogging\":${structureKey.debugLogging}}"
         NativePlayerBridge.updateControls(current, controlsJson)
     }
 
@@ -1318,6 +1320,7 @@ internal class NativePlayerController(
             "screenshot" -> takeScreenshot()
             "toggleDebugLog" -> {
                 val enabled = com.nuvio.app.core.diagnostics.DebugLogSettings.toggle()
+                updateControls(controlsState)
                 showMpvNotice(handle) {
                     getString(if (enabled) Res.string.debug_log_toast_on else Res.string.debug_log_toast_off)
                 }
@@ -2850,6 +2853,7 @@ private data class NativeControlsStructureKey(
     val edgeButtonGeometry: PlayerEdgeButtonGeometry = PlayerEdgeButtonGeometry(),
     val hlsQuality: HlsQualityControls = HlsQualityControls(),
     val shortcutsJson: String = "{}",
+    val debugLogging: Boolean = false,
 )
 
 internal data class HlsQualityControls(

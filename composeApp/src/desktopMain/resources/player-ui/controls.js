@@ -7546,6 +7546,10 @@ window.playerControls = nextState => {
   if (typeof nextState.grainFilterEnabled === "boolean") {
     state.grainFilterEnabled = nextState.grainFilterEnabled;
   }
+  if (typeof nextState.debugLogging === "boolean") {
+    const pill = document.getElementById("debugLogPill");
+    if (pill) pill.hidden = !nextState.debugLogging;
+  }
   if (typeof nextState.edgeButtonSize === "number" && typeof nextState.edgeButtonIconSize === "number") {
     const previous = state.edgeButtonGeometry;
     const next = {

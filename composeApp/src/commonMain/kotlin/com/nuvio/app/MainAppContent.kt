@@ -2849,6 +2849,12 @@ internal fun MainAppContent(
                     .zIndex(30f),
             )
 
+            com.nuvio.app.core.diagnostics.DebugLogIndicator(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .zIndex(31f),
+            )
+
             }
         }
 }
