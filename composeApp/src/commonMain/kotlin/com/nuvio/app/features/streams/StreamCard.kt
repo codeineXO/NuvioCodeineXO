@@ -18,9 +18,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +38,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +55,10 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -65,6 +75,10 @@ import com.nuvio.app.core.ui.navigationGlassFeedback
 import com.nuvio.app.core.ui.SkeletonBlock
 import com.nuvio.app.features.debrid.DebridProviders
 import com.nuvio.app.isDesktop
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.streams_copy_link
+import nuvio.composeapp.generated.resources.streams_download_file
+import org.jetbrains.compose.resources.stringResource
 
 /** A label marking one stream card; [isError] draws it in the error color instead of the accent. */
 internal data class StreamHighlight(val label: String, val isError: Boolean = false)
@@ -97,6 +111,9 @@ internal fun StreamCard(
     currentLabel: String? = null,
     outlined: Boolean = false,
     desktopDragMomentumEnabled: Boolean = false,
+    /** Desktop corner shortcuts for the context menu's Copy link and Download; pointer-only, skipped by keyboard navigation. */
+    onCopyLink: (() -> Unit)? = null,
+    onDownload: (() -> Unit)? = null,
 ) {
     val highlight = if (isCurrent) null else LocalStreamHighlight.current(stream)
     val highlightLabel = highlight?.label
@@ -116,7 +133,8 @@ internal fun StreamCard(
     val streamSize = stream.resolvedVideoSize
     val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && streamSize != null && streamSize > 0L)
     var cardPositionInRoot by remember { mutableStateOf(Offset.Zero) }
-    Row(
+    val hasQuickActions = isDesktop && (onCopyLink != null || onDownload != null)
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 68.dp)
@@ -190,88 +208,105 @@ internal fun StreamCard(
                 } else {
                     null
                 },
-            )
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            ),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            if (hasBadges && badgePlacement == StreamBadgePlacement.TOP) {
-                StreamCardBadgeRow(
-                    badgeImages = badgeImages,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 68.dp)
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                if (hasBadges && badgePlacement == StreamBadgePlacement.TOP) {
+                    StreamCardBadgeRow(
+                        badgeImages = badgeImages,
+                        stream = stream,
+                        showFileSizeBadges = showFileSizeBadges,
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                StreamNameWithInstantService(
                     stream = stream,
-                    showFileSizeBadges = showFileSizeBadges,
-                )
-                Spacer(modifier = Modifier.height(6.dp))
+                    appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
+                ) {
+                    if (isCurrent && !currentLabel.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        CurrentStreamBadge(label = currentLabel)
+                    }
+                    if (highlightLabel != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = highlightLabel,
+                            color = primaryColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                val subtitle = stream.streamSubtitle
+                if (!subtitle.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                        ),
+                        color = detailColor,
+                    )
+                }
+
+                if (hasBadges && badgePlacement == StreamBadgePlacement.BOTTOM) {
+                    Spacer(modifier = Modifier.height(5.dp))
+                    StreamCardBadgeRow(
+                        badgeImages = badgeImages,
+                        stream = stream,
+                        showFileSizeBadges = showFileSizeBadges,
+                    )
+                }
             }
 
-            StreamNameWithInstantService(
-                stream = stream,
-                appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
-            ) {
-                if (isCurrent && !currentLabel.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CurrentStreamBadge(label = currentLabel)
-                }
-                if (highlightLabel != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
+            if (showAddonLogo) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (!stream.addonLogo.isNullOrBlank()) {
+                        AsyncImage(
+                            model = stream.addonLogo,
+                            contentDescription = stream.addonName,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp)),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = highlightLabel,
-                        color = primaryColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = stream.addonName,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = detailColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
-
-            val subtitle = stream.streamSubtitle
-            if (!subtitle.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                    ),
-                    color = detailColor,
-                )
-            }
-
-            if (hasBadges && badgePlacement == StreamBadgePlacement.BOTTOM) {
-                Spacer(modifier = Modifier.height(5.dp))
-                StreamCardBadgeRow(
-                    badgeImages = badgeImages,
-                    stream = stream,
-                    showFileSizeBadges = showFileSizeBadges,
-                )
+            if (hasQuickActions && !showAddonLogo) {
+                // Keeps the text clear of the corner shortcuts.
+                Spacer(modifier = Modifier.width(48.dp))
             }
         }
-
-        if (showAddonLogo) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (!stream.addonLogo.isNullOrBlank()) {
-                    AsyncImage(
-                        model = stream.addonLogo,
-                        contentDescription = stream.addonName,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(6.dp)),
-                        contentScale = ContentScale.Fit,
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stream.addonName,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = detailColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        if (hasQuickActions) {
+            StreamCardQuickActions(
+                onCopyLink = onCopyLink,
+                onDownload = onDownload,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 6.dp),
+            )
         }
     }
 }
@@ -415,4 +450,73 @@ private fun StreamItem.instantServiceLabel(): String? {
         .ifBlank { status.providerName.trim() }
         .ifBlank { DebridProviders.displayName(status.providerId) }
     return "- $providerLabel Instant"
+}
+
+/** Copy link / Download handlers for the desktop stream-card corner shortcuts; null where the screen offers none. */
+internal class StreamCardQuickActionHandlers(
+    val onCopyLink: (StreamItem) -> Unit,
+    val onDownload: ((StreamItem) -> Unit)?,
+)
+
+internal val LocalStreamCardQuickActions = staticCompositionLocalOf<StreamCardQuickActionHandlers?> { null }
+
+@Composable
+private fun StreamCardQuickActions(
+    onCopyLink: (() -> Unit)?,
+    onDownload: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.28f)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onCopyLink != null) {
+            StreamCardQuickActionButton(
+                icon = Icons.Rounded.ContentCopy,
+                contentDescription = stringResource(Res.string.streams_copy_link),
+                onClick = onCopyLink,
+            )
+        }
+        if (onDownload != null) {
+            StreamCardQuickActionButton(
+                icon = Icons.Rounded.Download,
+                contentDescription = stringResource(Res.string.streams_download_file),
+                onClick = onDownload,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StreamCardQuickActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(8.dp))
+            // Pointer-only: keyboard and remote navigation skip these.
+            .focusProperties { canFocus = false }
+            .hoverable(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                onClick = onClick,
+            )
+            .pointerHoverIcon(PointerIcon.Hand),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(16.dp),
+            tint = Color.White.copy(alpha = if (hovered) 1f else 0.78f),
+        )
+    }
 }

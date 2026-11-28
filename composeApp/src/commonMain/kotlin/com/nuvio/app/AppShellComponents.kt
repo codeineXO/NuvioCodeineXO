@@ -67,6 +67,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material.icons.rounded.Settings
 import com.nuvio.app.core.ui.requestAppExitConfirmation
@@ -148,7 +149,12 @@ import nuvio.composeapp.generated.resources.action_back
 import nuvio.composeapp.generated.resources.app_brand_name
 import nuvio.composeapp.generated.resources.compose_nav_close_app
 import nuvio.composeapp.generated.resources.compose_nav_home
+import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.downloads.DownloadsNavIcon
+import com.nuvio.app.features.downloads.DownloadItem
+import com.nuvio.app.features.downloads.DownloadsScreen
 import nuvio.composeapp.generated.resources.compose_nav_library
+import nuvio.composeapp.generated.resources.compose_settings_root_downloads_title
 import nuvio.composeapp.generated.resources.compose_nav_profile
 import nuvio.composeapp.generated.resources.compose_nav_search
 import nuvio.composeapp.generated.resources.compose_nav_settings
@@ -217,7 +223,11 @@ internal data class AppTabActions(
     val onLibrarySectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)? = null,
     val onCloudFilePlay: ((CloudLibraryItem, CloudLibraryFile) -> Unit)? = null,
     val onConnectCloudClick: (() -> Unit)? = null,
+    /** The phone remote's Downloads tap on the Library page. */
     val onDownloadsClick: () -> Unit = {},
+    val onOpenDownload: (DownloadItem) -> Unit = {},
+    val onOpenDownloadDetails: (DownloadItem) -> Unit = {},
+    val onNavigateToDownloadShow: ((showId: String, title: String) -> Unit)? = null,
     val onContinueWatchingClick: ((ContinueWatchingItem) -> Unit)? = null,
     val onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
     val onContinueWatchingRemove: ((ContinueWatchingItem) -> Unit)? = null,
@@ -344,6 +354,18 @@ internal fun AppTabHost(
                     onPreviewLongClick = actions.onPosterLongClick,
                     onDownloadsClick = actions.onDownloadsClick,
                     disintegrationRequest = state.libraryDisintegrationRequest,
+                )
+            }
+
+            AppScreenTab.Downloads -> {
+                DownloadsScreen(
+                    onBack = null,
+                    onOpenDownload = actions.onOpenDownload,
+                    onOpenDetails = actions.onOpenDownloadDetails,
+                    onNavigateToShow = actions.onNavigateToDownloadShow,
+                    asTab = true,
+                    topChromePadding = state.topChromePadding(tab),
+                    isActive = state.tabsRouteActiveState.value && !shuffleSelected && selectedTab == AppScreenTab.Downloads,
                 )
             }
 
@@ -1000,6 +1022,18 @@ internal fun DesktopHoverSidebar(
                             modifier = Modifier.size(DesktopSidebarIconSize),
                             tint = color,
                         )
+                    }
+                    if (AppFeaturePolicy.downloadsEnabled) {
+                        val downloadsSelected = !randomPickerSelected && selectedTab == AppScreenTab.Downloads
+                        DesktopSidebarItem(
+                            label = stringResource(Res.string.compose_settings_root_downloads_title),
+                            selected = downloadsSelected,
+                            expanded = sidebarExpanded,
+                            isEntryTarget = !canNavigateBack && downloadsSelected,
+                            onClick = { selectTab(AppScreenTab.Downloads) },
+                        ) { color ->
+                            DownloadsNavIcon(tint = color, modifier = Modifier.size(DesktopSidebarIconSize), selected = downloadsSelected)
+                        }
                     }
                     DesktopSidebarItem(
                         label = stringResource(Res.string.compose_settings_page_root),

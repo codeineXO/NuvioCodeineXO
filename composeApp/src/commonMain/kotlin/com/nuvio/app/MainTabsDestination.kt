@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.rounded.Download
 import nuvio.composeapp.generated.resources.picker_title
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
@@ -75,7 +76,10 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_nav_home
+import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.downloads.DownloadsNavIcon
 import nuvio.composeapp.generated.resources.compose_nav_library
+import nuvio.composeapp.generated.resources.compose_settings_root_downloads_title
 import nuvio.composeapp.generated.resources.compose_nav_profile
 import nuvio.composeapp.generated.resources.compose_nav_search
 import nuvio.composeapp.generated.resources.compose_nav_settings
@@ -129,7 +133,7 @@ internal fun MainTabsDestination(
             remember(useFloatingTopBar, useDesktopTopBar, statusBarPadding, screenWidth, homeAppInterface) {
                 { tab ->
                     if (useDesktopTopBar) {
-                        if (tab == AppScreenTab.Search || tab == AppScreenTab.Library ||
+                        if (tab == AppScreenTab.Search || tab == AppScreenTab.Library || tab == AppScreenTab.Downloads ||
                             (tab == AppScreenTab.Home && homeAppInterface != AppInterface.Official)
                         ) {
                             val navigationIconSize = when {
@@ -190,7 +194,9 @@ internal fun MainTabsDestination(
         }
         val navBarGlowEnabled by ThemeSettingsRepository.navBarGlowEnabled.collectAsStateWithLifecycle()
         var isTopProfileSwitcherOpen by remember { mutableStateOf(false) }
-        val floatingNavigationItems = listOf(
+        val downloadsTabEnabled = AppFeaturePolicy.downloadsEnabled
+        val downloadsTabLabel = stringResource(Res.string.compose_settings_root_downloads_title)
+        val floatingNavigationItems = listOfNotNull(
             FloatingNavigationItem(
                 selected = !randomPickerSelected && selectedTab == AppScreenTab.Home,
                 onClick = { onTabSelected(AppScreenTab.Home) },
@@ -215,6 +221,16 @@ internal fun MainTabsDestination(
                 drawable = Res.drawable.sidebar_library,
                 label = stringResource(Res.string.compose_nav_library),
             ),
+            if (downloadsTabEnabled) {
+                val downloadsSelected = !randomPickerSelected && selectedTab == AppScreenTab.Downloads
+                FloatingNavigationItem(
+                    selected = downloadsSelected,
+                    onClick = { onTabSelected(AppScreenTab.Downloads) },
+                    icon = Icons.Rounded.Download,
+                    label = downloadsTabLabel,
+                    iconContent = { modifier, tint -> DownloadsNavIcon(tint = tint, modifier = modifier, selected = downloadsSelected) },
+                )
+            } else null,
             FloatingNavigationItem(
                 selected = !randomPickerSelected && selectedTab == AppScreenTab.Settings,
                 onClick = { onTabSelected(AppScreenTab.Settings) },
@@ -397,7 +413,7 @@ internal fun MainTabsDestination(
 }
 
 internal fun usesSharedTabBackground(selectedTab: AppScreenTab, shuffleSelected: Boolean): Boolean =
-    shuffleSelected || selectedTab in setOf(AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Settings)
+    shuffleSelected || selectedTab in setOf(AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Downloads, AppScreenTab.Settings)
 
 /** The shared poster/settings background, drawn per pane; Home paints its own backdrop and gets none. */
 @Composable

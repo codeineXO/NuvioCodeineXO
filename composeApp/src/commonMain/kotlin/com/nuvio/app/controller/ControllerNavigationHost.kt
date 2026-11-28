@@ -100,7 +100,7 @@ fun ControllerNavigationHost(
                     backLabel = "Home",
                     rightStickLabel = "Scroll",
                 )
-                selectedTab == AppScreenTab.Library -> ControllerScreenContext(
+                selectedTab == AppScreenTab.Library || selectedTab == AppScreenTab.Downloads -> ControllerScreenContext(
                     screenType = ControllerScreenType.Library,
                     selectLabel = "Open",
                     backLabel = "Home",

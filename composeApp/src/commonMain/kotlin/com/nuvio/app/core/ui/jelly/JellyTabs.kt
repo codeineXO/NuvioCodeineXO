@@ -86,6 +86,7 @@ internal fun JellyTabRow(
             ) {
                 JellyTabContent(item.label, labelFraction, compactSize, horizontalLabels, iconSize, color, active) {
                     when {
+                        item.iconContent != null -> item.iconContent.invoke(iconModifier, iconTint)
                         item.icon != null -> Icon(item.icon, null, iconModifier, tint = iconTint)
                         item.drawable != null -> Icon(painterResource(item.drawable), null, iconModifier, tint = iconTint)
                     }

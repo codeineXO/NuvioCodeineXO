@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
@@ -16,6 +17,8 @@ internal class FloatingNavigationItem(
     val icon: ImageVector? = null,
     val drawable: DrawableResource? = null,
     val content: (@Composable (onClick: () -> Unit) -> Unit)? = null,
+    /** Custom icon drawn in place of [icon]/[drawable] with the bar's own modifier and tint. */
+    val iconContent: (@Composable (modifier: Modifier, tint: Color) -> Unit)? = null,
 )
 
 internal expect val floatingNavigationGlowSupported: Boolean

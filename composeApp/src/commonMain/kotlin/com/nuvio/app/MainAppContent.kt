@@ -526,7 +526,6 @@ internal fun MainAppContent(
     val metaScreenSettingsTitle = stringResource(Res.string.compose_settings_page_meta_screen)
     val continueWatchingSettingsTitle = stringResource(Res.string.compose_settings_page_continue_watching)
     val debridSettingsTitle = stringResource(Res.string.compose_settings_page_debrid)
-    val downloadsTitle = stringResource(Res.string.compose_settings_root_downloads_title)
     val addonsSettingsTitle = stringResource(Res.string.compose_settings_page_addons)
     val pluginsSettingsTitle = stringResource(Res.string.compose_settings_page_plugins)
     val accountSettingsTitle = stringResource(Res.string.compose_settings_page_account)
@@ -598,6 +597,7 @@ internal fun MainAppContent(
                 searchScrollToTopRequests.tryEmit(Unit)
             }
             AppScreenTab.Library -> libraryScrollToTopRequests.tryEmit(Unit)
+            AppScreenTab.Downloads -> Unit
             AppScreenTab.Settings -> Unit
         }
     }
@@ -858,10 +858,7 @@ internal fun MainAppContent(
                     DownloadsRepository.playableLocalFileUri(it) != null
                 }
                 if (hasPlayableDownload) {
-                    activateTab(AppScreenTab.Library)
-                    navController.navigate(DownloadsRoute(downloadsTitle)) {
-                        launchSingleTop = true
-                    }
+                    activateTab(AppScreenTab.Downloads)
                 }
             }
         }
@@ -1013,10 +1010,7 @@ internal fun MainAppContent(
 
                     AppDeepLink.Downloads -> {
                         if (AppFeaturePolicy.downloadsEnabled) {
-                            activateTab(AppScreenTab.Library)
-                            navController.navigate(DownloadsRoute(downloadsTitle)) {
-                                launchSingleTop = true
-                            }
+                            activateTab(AppScreenTab.Downloads)
                         }
                         AppDeepLinkRepository.markConsumed(deepLink)
                     }
@@ -1955,7 +1949,12 @@ internal fun MainAppContent(
                                         activateTab(AppScreenTab.Settings)
                                     }
                                 },
-                                onDownloadsClick = { navController.navigate(DownloadsRoute(downloadsTitle)) },
+                                onDownloadsClick = { activateTab(AppScreenTab.Downloads) },
+                                onOpenDownload = ::openDownloadedItem,
+                                onOpenDownloadDetails = navController::openDownloadDetails,
+                                onNavigateToDownloadShow = if (useNativeNavigation) {
+                                    { showId, title -> navController.navigate(DownloadShowRoute(showId, title)) }
+                                } else null,
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
                                 onContinueWatchingRemove = onContinueWatchingRemove,
@@ -2201,14 +2200,6 @@ internal fun MainAppContent(
                         onTestUpdateBanner = if (
                             AppFeaturePolicy.inAppUpdaterEnabled && AppUpdaterPlatform.isDebugBuild
                         ) appUpdaterController::showDebugTestUpdate else null,
-                    )
-                }
-                entry<DownloadsRoute> { route ->
-                    DownloadsDestination(
-                        route = route,
-                        navController = navController,
-                        useNativeNavigation = useNativeNavigation,
-                        onOpenDownload = ::openDownloadedItem,
                     )
                 }
                 entry<DownloadShowRoute> { route ->
@@ -2868,7 +2859,6 @@ private fun AppRoute?.drawsUnderVerticalBar(selectedTab: AppScreenTab): Boolean 
         is RandomPickerRoute,
         is FolderDetailRoute,
         is CollectionFoldersRoute,
-        is DownloadsRoute,
         is DownloadShowRoute,
         is CatalogRoute,
         is ContinueWatchingRoute,

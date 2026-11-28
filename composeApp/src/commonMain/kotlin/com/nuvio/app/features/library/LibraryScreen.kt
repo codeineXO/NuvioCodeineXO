@@ -506,9 +506,6 @@ fun LibraryScreen(
                                         }
                                     }
                                 }
-                                if (onDownloadsClick != null) {
-                                    LibraryDownloadsButton(onClick = onDownloadsClick)
-                                }
                             },
                         )
                         LibrarySourceSwitch(

@@ -17,6 +17,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -100,12 +101,18 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DownloadsScreen(
-    onBack: () -> Unit,
+    /** Null when hosted as a root tab: the header then has no back arrow at the root level. */
+    onBack: (() -> Unit)?,
     onOpenDownload: (DownloadItem) -> Unit,
     onOpenDetails: (DownloadItem) -> Unit,
     initialShowId: String? = null,
     onNavigateToShow: ((showId: String, title: String) -> Unit)? = null,
     onBackFromShow: (() -> Unit)? = null,
+    /** Hosted as a root tab: the tab pane draws the background and applies the sidebar inset. */
+    asTab: Boolean = false,
+    topChromePadding: Dp? = null,
+    /** False while hosted as a tab that is not selected, so it doesn't mark downloads seen or take Back. */
+    isActive: Boolean = true,
 ) {
     val uiState by remember {
         DownloadsRepository.ensureLoaded()
@@ -119,8 +126,8 @@ fun DownloadsScreen(
         WatchedRepository.ensureLoaded()
         WatchedRepository.uiState
     }.collectAsStateWithLifecycle()
-    LaunchedEffect(uiState.completedItems.size) {
-        DownloadsRepository.markCompletedSeen()
+    LaunchedEffect(uiState.completedItems.size, isActive) {
+        if (isActive) DownloadsRepository.markCompletedSeen()
     }
 
     var selectedShowId by rememberSaveable(initialShowId) { mutableStateOf(initialShowId) }
@@ -138,15 +145,17 @@ fun DownloadsScreen(
     }
     val onOpenActions: (DownloadItem) -> Unit = { actionsItemId = it.id }
 
-    PlatformBackHandler(enabled = selectedShowId != null && onBackFromShow == null) {
+    PlatformBackHandler(enabled = isActive && selectedShowId != null && onBackFromShow == null) {
         selectedShowId = null
     }
 
     val auraEnabled by ThemeSettingsRepository.auraBackgroundEnabled.collectAsStateWithLifecycle()
     val locationBusy by DownloadLocation.busy.collectAsStateWithLifecycle()
-    val sidebarInset = LocalDesktopSidebarContentInset.current
+    val sidebarInset = if (asTab) 0.dp else LocalDesktopSidebarContentInset.current
     Box(Modifier.fillMaxSize()) {
-        if (auraEnabled) {
+        if (asTab) {
+            // Shared tab pane background.
+        } else if (auraEnabled) {
             HomeInteractiveGradientBackground(Modifier.fillMaxSize())
         } else {
             Box(Modifier.fillMaxSize().navigationGlassSource(zIndex = -1f).background(MaterialTheme.nuvio.colors.background))
@@ -160,12 +169,11 @@ fun DownloadsScreen(
                         } else {
                             selectedShowTitle ?: stringResource(Res.string.downloads_show_downloads)
                         },
-                        onBack = {
-                            if (selectedShowId != null) {
-                                onBackFromShow?.invoke() ?: run { selectedShowId = null }
-                            } else {
-                                onBack()
-                            }
+                        topPadding = topChromePadding,
+                        onBack = if (selectedShowId != null) {
+                            { onBackFromShow?.invoke() ?: run { selectedShowId = null } }
+                        } else {
+                            onBack
                         },
                         showFullscreenAction = false,
                         backgroundColor = Color.Transparent,

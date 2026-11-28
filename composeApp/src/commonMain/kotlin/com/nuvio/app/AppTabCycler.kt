@@ -36,11 +36,12 @@ internal sealed interface SidebarCycleStop {
     }
 
     companion object {
-        val order: List<SidebarCycleStop> = listOf(
+        val order: List<SidebarCycleStop> = listOfNotNull(
             Tab(AppScreenTab.Home),
             Tab(AppScreenTab.Search),
             Shuffle,
             Tab(AppScreenTab.Library),
+            Tab(AppScreenTab.Downloads).takeIf { com.nuvio.app.core.build.AppFeaturePolicy.downloadsEnabled },
             Tab(AppScreenTab.Settings),
         )
     }

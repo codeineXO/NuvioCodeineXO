@@ -1,6 +1,4 @@
-package com.nuvio.app.features.library
-
-import com.nuvio.app.core.ui.remoteNavigationTarget
+package com.nuvio.app.features.downloads
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -10,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,38 +26,50 @@ import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.gradientMask
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.themePalette
-import com.nuvio.app.features.downloads.DownloadStatus
-import com.nuvio.app.features.downloads.DownloadsRepository
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_root_downloads_title
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * The Downloads tab icon: flows while something downloads, wears the accent while a finished
+ * download is unseen, and otherwise draws with the nav item's own [tint].
+ */
 @Composable
-internal fun LibraryDownloadsButton(onClick: () -> Unit) {
+internal fun DownloadsNavIcon(
+    tint: Color,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+) {
     val downloads by remember {
         DownloadsRepository.ensureLoaded()
         DownloadsRepository.uiState
     }.collectAsStateWithLifecycle()
     val hasUnseenCompleted by DownloadsRepository.hasUnseenCompleted.collectAsStateWithLifecycle()
 
-    IconButton(onClick = onClick, modifier = Modifier.remoteNavigationTarget(shape = androidx.compose.foundation.shape.CircleShape)) {
-        when {
-            downloads.items.any { it.status == DownloadStatus.Downloading } -> FlowingDownloadIcon()
-            hasUnseenCompleted -> DownloadIcon(
-                modifier = Modifier.gradientMask(MaterialTheme.themePalette.accentBrush()),
-                tint = Color.White,
-            )
-            else -> DownloadIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    when {
+        downloads.items.any { it.status == DownloadStatus.Downloading } -> FlowingDownloadIcon(modifier, selectedTint = tint.takeIf { selected })
+        hasUnseenCompleted && !selected -> DownloadIcon(
+            modifier = modifier.gradientMask(MaterialTheme.themePalette.accentBrush()),
+            tint = Color.White,
+        )
+        else -> DownloadIcon(tint = tint, modifier = modifier)
     }
 }
 
 @Composable
-private fun FlowingDownloadIcon() {
+/**
+ * [selectedTint] set: the item sits on an accent fill, so the flow pulses the tint's alpha instead of
+ * drawing accent on accent.
+ */
+private fun FlowingDownloadIcon(modifier: Modifier, selectedTint: Color? = null) {
     val palette = MaterialTheme.themePalette
     val dimAlpha = MaterialTheme.nuvio.opacity.overlayLight
-    val colors = palette.accentGradient.takeIf { it.size >= 2 }
-        ?: listOf(palette.secondary, palette.secondary.copy(alpha = dimAlpha))
+    val colors = if (selectedTint != null) {
+        listOf(selectedTint, selectedTint.copy(alpha = 0.3f))
+    } else {
+        palette.accentGradient.takeIf { it.size >= 2 }
+            ?: listOf(palette.secondary, palette.secondary.copy(alpha = dimAlpha))
+    }
     val phase by rememberInfiniteTransition(label = "downloadsFlow").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -68,7 +77,7 @@ private fun FlowingDownloadIcon() {
         label = "downloadsFlowPhase",
     )
     DownloadIcon(
-        modifier = Modifier
+        modifier = modifier
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .drawWithContent {
                 drawContent()
