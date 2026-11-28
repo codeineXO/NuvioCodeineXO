@@ -1426,6 +1426,7 @@ const renderPlaybackStats = () => {
   setText(statEnhancementAspect, state.resizeModeLabel || "Fit");
 
   document.getElementById("statsSectionMpv").hidden = !mpv;
+  syncPlaybackStatsTabs();
   if (mpv) {
     const configStatus = {
       off: "Custom config off",
@@ -7236,6 +7237,35 @@ if (playbackStatsOverlay) {
     event.stopPropagation();
   });
 }
+
+var activePlaybackStatsSection = activePlaybackStatsSection || "statsSectionVideo";
+function selectPlaybackStatsTab(sectionId) {
+  activePlaybackStatsSection = sectionId;
+  document.querySelectorAll("#playbackStatsTabs .stats-tab").forEach(tab => {
+    const active = tab.dataset.section === sectionId;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll("#playbackStatsContent .stats-section").forEach(section => {
+    section.classList.toggle("is-active", section.id === sectionId);
+  });
+  if (playbackStatsContent) playbackStatsContent.scrollTop = 0;
+}
+function syncPlaybackStatsTabs() {
+  let activeAvailable = false;
+  document.querySelectorAll("#playbackStatsTabs .stats-tab").forEach(tab => {
+    const section = document.getElementById(tab.dataset.section);
+    tab.hidden = !section || section.hidden;
+    if (!tab.hidden && tab.dataset.section === activePlaybackStatsSection) activeAvailable = true;
+  });
+  if (!activeAvailable) selectPlaybackStatsTab("statsSectionVideo");
+}
+document.querySelectorAll("#playbackStatsTabs .stats-tab").forEach(tab => {
+  tab.addEventListener("click", event => {
+    event.stopPropagation();
+    selectPlaybackStatsTab(tab.dataset.section);
+  });
+});
 
 document.querySelectorAll(".stats-section-header").forEach(header => {
   header.addEventListener("click", event => {

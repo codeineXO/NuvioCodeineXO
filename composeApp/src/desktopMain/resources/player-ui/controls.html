@@ -278,9 +278,19 @@
             <svg><use href="#icon-close"></use></svg>
           </button>
         </div>
+        <div class="stats-body">
+        <nav class="stats-tabs" id="playbackStatsTabs" role="tablist" aria-orientation="vertical" aria-label="Statistics sections">
+          <button class="stats-tab is-active" type="button" role="tab" data-section="statsSectionVideo" aria-selected="true">Video</button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionEnhancements" aria-selected="false">Enhance</button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionMpv" aria-selected="false" hidden>mpv</button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionBuffer" aria-selected="false">Network</button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionAudio" aria-selected="false">Audio</button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionSubtitles" aria-selected="false">Subtitles</button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionSource" aria-selected="false">Source</button>
+        </nav>
         <div class="stats-scroll-content" id="playbackStatsContent">
           <!-- Video Section -->
-          <div class="stats-section" id="statsSectionVideo">
+          <div class="stats-section is-active" id="statsSectionVideo">
             <button class="stats-section-header" type="button" aria-expanded="true">
               <span class="stats-section-title">Video</span>
               <svg class="stats-chevron"><use href="#icon-chevron-down"></use></svg>
@@ -413,6 +423,7 @@
               <div class="stats-row"><span class="stats-label">Time</span><span class="stats-value" id="statSourceTime">-</span></div>
             </div>
           </div>
+        </div>
         </div>
       </aside>
 

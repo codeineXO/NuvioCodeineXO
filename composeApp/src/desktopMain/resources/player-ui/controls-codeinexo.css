@@ -2017,6 +2017,115 @@
   color: #fff;
 }
 
+/* Compact layout: vertical side tabs, one section visible at a time */
+.player .playback-stats-overlay {
+  /* Start below the top clock + network stat overlay (~28px top + ~40px tall) */
+  --cx-stats-top: calc(84px + env(safe-area-inset-top));
+  top: var(--cx-stats-top);
+  width: clamp(400px, 30vw, 480px);
+  bottom: auto;
+  max-height: calc(100% - var(--cx-stats-top) - var(--cx-seekbar-clearance));
+}
+
+.player.ui-official .playback-stats-overlay {
+  bottom: auto;
+  max-height: calc(100% - var(--cx-stats-top) - var(--overlay-bottom));
+}
+
+.player .playback-stats-overlay .stats-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+  padding: 0 var(--cx-panel-pad) var(--cx-panel-pad);
+}
+
+.player .playback-stats-overlay .stats-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 92px;
+  overflow-y: auto;
+}
+
+.player .playback-stats-overlay .stats-tab {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, .6);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.player .playback-stats-overlay .stats-tab:hover {
+  background: var(--cx-chip-bg);
+  color: #fff;
+}
+
+.player .playback-stats-overlay .stats-tab.is-active {
+  background: var(--cx-chip-hover);
+  color: #fff;
+  box-shadow: inset 2px 0 0 var(--theme-accent, #e50914);
+}
+
+.player .playback-stats-overlay .stats-tab[hidden] {
+  display: none;
+}
+
+.player .playback-stats-overlay .stats-body .stats-scroll-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+}
+
+.player .playback-stats-overlay .stats-section:not(.is-active),
+.player .playback-stats-overlay .stats-section-header {
+  display: none;
+}
+
+.player .playback-stats-overlay .stats-section.is-active {
+  padding: 6px 12px;
+}
+
+.player .playback-stats-overlay .stats-section.collapsed .stats-section-body {
+  display: flex;
+}
+
+.player .playback-stats-overlay .stats-section-body {
+  gap: 0;
+  padding: 0;
+}
+
+.player .playback-stats-overlay .stats-row {
+  display: grid;
+  grid-template-columns: minmax(84px, 40%) 1fr;
+  align-items: baseline;
+  column-gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+}
+
+.player .playback-stats-overlay .stats-row:last-child {
+  border-bottom: 0;
+}
+
+.player .playback-stats-overlay .stats-row[hidden] {
+  display: none;
+}
+
+.player .playback-stats-overlay .stats-value {
+  font-size: 11.5px;
+}
+
 /* Shortcut sheet: lives on <body>; always tagged .cx-sheet so both player UIs share the CodeineXO look */
 .shortcut-sheet-overlay.cx-sheet {
   background: transparent;
