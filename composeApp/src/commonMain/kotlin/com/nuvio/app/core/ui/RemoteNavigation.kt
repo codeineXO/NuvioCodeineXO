@@ -885,6 +885,8 @@ internal fun Modifier.remoteNavigationTarget(
     verticalOnly: Boolean = false,
     focusOutlineWidth: Dp = 2.dp,
     typeToEdit: Boolean = false,
+    // Draws the ring this far outside the bounds so it reads on light fills; the caller must sit outside any clip.
+    focusOutlineOutset: Dp = 0.dp,
 ): Modifier = composed {
     val guardedModifier = if (textField) this.remoteTextInputGuard() else this
     val session = LocalRemoteNavigation.current ?: return@composed guardedModifier
@@ -1190,7 +1192,12 @@ internal fun Modifier.remoteNavigationTarget(
             // Clipped panels need the entire stroke inside their bounds; posters
             // retain a contour-centered stroke to cover the artwork edge.
             val strokeWidth = focusOutlineWidth.toPx()
-            val padding = if (insetFocusOutline) strokeWidth / 2 else 0f
+            val outset = focusOutlineOutset.toPx()
+            val padding = when {
+                outset > 0f -> -(outset + strokeWidth / 2)
+                insetFocusOutline -> strokeWidth / 2
+                else -> 0f
+            }
             val outlineSize = Size((size.width - padding * 2).coerceAtLeast(0f),
                 (size.height - padding * 2).coerceAtLeast(0f))
             val outline = shape.createOutline(outlineSize, layoutDirection, this)

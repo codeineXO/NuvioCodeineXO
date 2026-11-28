@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 internal data class EpisodeShuffleProfile(
-    val available: Boolean = false,
+    val available: Boolean = true,
     val shows: Map<String, EpisodeShuffleSettings> = emptyMap(),
 ) {
     fun settings(contentId: String, contentType: String): EpisodeShuffleSettings {

@@ -405,7 +405,6 @@ fun DesktopDetailHero(
                 playLabel = if (isPrimaryPlayEnabled) playButtonLabel else stringResource(Res.string.playback_unavailable),
                 playEnabled = isPrimaryPlayEnabled,
                 pinnedAction = shuffleAction?.takeIf { shuffleEnabled },
-                alwaysShowSecondaryActions = isEnhanced,
                 secondaryActions = buildList {
                     if (!shuffleEnabled) shuffleAction?.let(::add)
                     add(DetailSecondaryAction(

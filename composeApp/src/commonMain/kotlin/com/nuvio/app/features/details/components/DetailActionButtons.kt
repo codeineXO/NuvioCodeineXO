@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,7 +72,6 @@ import com.nuvio.app.core.ui.secondaryClick
 import com.nuvio.app.core.ui.navigationGlass
 import com.nuvio.app.core.ui.navigationGlassFeedback
 import com.nuvio.app.core.ui.nuvio
-import com.nuvio.app.core.ui.backdropControlColor
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.details_actions_menu_label
@@ -83,6 +83,10 @@ import nuvio.composeapp.generated.resources.playback_unavailable
 import nuvio.composeapp.generated.resources.random_episode_title
 import nuvio.composeapp.generated.resources.shuffle_stop
 import org.jetbrains.compose.resources.stringResource
+
+// Outer focus ring: white buttons hide an inset ring when the accent is light.
+private val FocusRingWidth = 3.dp
+private val FocusRingGap = 3.dp
 
 data class DetailSecondaryAction(
     val label: String,
@@ -100,7 +104,7 @@ fun DetailActionButtons(
     playEnabled: Boolean = true,
     pinnedAction: DetailSecondaryAction? = null,
     secondaryActions: List<DetailSecondaryAction> = emptyList(),
-    alwaysShowSecondaryActions: Boolean = false,
+    alwaysShowSecondaryActions: Boolean = true,
     actionsMenuLabel: String = stringResource(Res.string.details_actions_menu_label),
     isTablet: Boolean = false,
     onPlayClick: () -> Unit = {},
@@ -156,33 +160,33 @@ fun DetailActionButtons(
                 modifier = Modifier
                     .weight(1f)
                     .height(buttonHeight)
-                    .navigationGlass(shape = playShape, backgroundOnly = true),
+                    .focusRequester(playFocusRequester)
+                    .onGloballyPositioned { playBounds = it.boundsInRoot() }
+                    .remoteNavigationTarget(
+                        shape = playShape,
+                        initialFocus = true,
+                        onSelect = onPlayClick.takeIf { playEnabled },
+                        onContext = onPlayContext,
+                        focusOutlineWidth = FocusRingWidth,
+                        focusOutlineOutset = FocusRingGap,
+                    )
+                    .clip(playShape)
+                    .combinedClickable(
+                        enabled = playEnabled,
+                        onClick = {
+                            onPlayClick()
+                        },
+                        onLongClick = onPlayContext,
+                        role = Role.Button,
+                    )
+                    .secondaryClickAt(onPlayContext?.let { { local -> openPlayMenu(playBounds?.topLeft?.plus(local)) } }),
                 shape = playShape,
-                color = Color.Transparent,
-                contentColor = Color.White.copy(alpha = if (playEnabled) 1f else 0.38f),
+                color = Color.White.copy(alpha = if (playEnabled) 1f else 0.38f),
+                contentColor = Color.Black.copy(alpha = if (playEnabled) 1f else 0.6f),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(playFocusRequester)
-                        .onGloballyPositioned { playBounds = it.boundsInRoot() }
-                        .remoteNavigationTarget(
-                            shape = playShape,
-                            initialFocus = true,
-                            onSelect = onPlayClick.takeIf { playEnabled },
-                            onContext = onPlayContext,
-                            insetFocusOutline = true,
-                            focusOutlineWidth = 3.dp,
-                        )
-                        .combinedClickable(
-                            enabled = playEnabled,
-                            onClick = {
-                                onPlayClick()
-                            },
-                            onLongClick = onPlayContext,
-                            role = Role.Button,
-                        )
-                        .secondaryClickAt(onPlayContext?.let { { local -> openPlayMenu(playBounds?.topLeft?.plus(local)) } })
                         .height(buttonHeight),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
@@ -233,19 +237,12 @@ fun DetailActionButtons(
                             focusable = false,
                         ) {
                             Surface(
-                                modifier = Modifier.size(iconButtonSize)
-                                    .navigationGlass(shape = CircleShape, backgroundOnly = true),
-                                shape = CircleShape,
-                                color = Color.Transparent,
-                                contentColor = if (action.isActive) MaterialTheme.nuvio.colors.accent else MaterialTheme.nuvio.colors.textPrimary,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(iconButtonSize)
-                                        .navigationGlassFeedback(actionInteractionSource, CircleShape, selected = action.isActive)
-                                        .hoverable(actionInteractionSource)
-                                        .remoteNavigationTarget(
-                                            shape = CircleShape,
+                                modifier = Modifier
+                                    .size(iconButtonSize)
+                                    .remoteNavigationTarget(
+                                        shape = CircleShape,
+                                        focusOutlineWidth = FocusRingWidth,
+                                        focusOutlineOutset = FocusRingGap,
                                             onSelect = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 action.onClick()
@@ -256,7 +253,11 @@ fun DetailActionButtons(
                                                     longClick()
                                                 }
                                             },
-                                        ).combinedClickable(
+                                    )
+                                    .clip(CircleShape)
+                                    .navigationGlassFeedback(actionInteractionSource, CircleShape, selected = action.isActive)
+                                    .hoverable(actionInteractionSource)
+                                    .combinedClickable(
                                             interactionSource = actionInteractionSource,
                                             indication = androidx.compose.foundation.LocalIndication.current,
                                             onClick = {
@@ -271,7 +272,13 @@ fun DetailActionButtons(
                                             },
                                             role = Role.Button,
                                         )
-                                        .secondaryClick(action.onLongClick),
+                                    .secondaryClick(action.onLongClick),
+                                shape = CircleShape,
+                                color = Color.White,
+                                contentColor = if (action.isActive) MaterialTheme.nuvio.colors.accent else Color.Black,
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(iconButtonSize),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
@@ -331,11 +338,10 @@ fun DetailActionButtons(
                     }
 
                     Surface(
-                        modifier = Modifier.size(iconButtonSize)
-                            .navigationGlass(shape = CircleShape, backgroundOnly = true),
+                        modifier = Modifier.size(iconButtonSize),
                         shape = CircleShape,
-                        color = Color.Transparent,
-                        contentColor = MaterialTheme.nuvio.colors.textPrimary,
+                        color = Color.White,
+                        contentColor = Color.Black,
                     ) {
                         Box(
                             modifier = Modifier
@@ -443,39 +449,35 @@ internal fun DetailIconAction(
             alpha = progress
             scaleX = 0.86f + (0.14f * progress)
             scaleY = 0.86f + (0.14f * progress)
-        },
-        shape = CircleShape,
-        color = if (glassMenuItem) {
-            Color.Transparent
-        } else if (active) {
-            MaterialTheme.colorScheme.onBackground
-        } else {
-            backdropControlColor(MaterialTheme.colorScheme.surfaceVariant)
-        },
-        contentColor = if (glassMenuItem) {
-            if (active) MaterialTheme.nuvio.colors.accent else MaterialTheme.nuvio.colors.textPrimary
-        } else if (active) {
-            MaterialTheme.colorScheme.background
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-        tonalElevation = if (glassMenuItem) 0.dp else 6.dp,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(size)
+        }
+            .remoteNavigationTarget(
+                shape = CircleShape,
+                onSelect = onClick,
+                onContext = onLongClick,
+                focusOutlineWidth = FocusRingWidth,
+                focusOutlineOutset = FocusRingGap,
+            )
+            .clip(CircleShape)
                 .then(if (glassMenuItem) {
                     Modifier.navigationGlassFeedback(interactionSource, CircleShape, selected = active)
                         .hoverable(interactionSource)
                 } else Modifier)
-                .remoteNavigationTarget(shape = CircleShape, onSelect = onClick, onContext = onLongClick).combinedClickable(
+            .combinedClickable(
                     interactionSource = interactionSource,
                     indication = androidx.compose.foundation.LocalIndication.current,
                     onClick = onClick,
                     onLongClick = onLongClick,
                     role = Role.Button,
                 )
-                .secondaryClick(onLongClick),
+            .secondaryClick(onLongClick),
+        shape = CircleShape,
+        color = Color.White,
+        contentColor = if (active) MaterialTheme.nuvio.colors.accent else Color.Black,
+        tonalElevation = if (glassMenuItem) 0.dp else 6.dp,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
