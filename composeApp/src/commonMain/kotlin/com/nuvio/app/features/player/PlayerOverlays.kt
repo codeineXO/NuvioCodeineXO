@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.frostedGlassSecondaryContentColor
 
 import androidx.compose.foundation.background
@@ -168,7 +169,7 @@ internal fun PauseMetadataOverlay(
     modifier: Modifier = Modifier,
 ) {
     var logoLoadError by remember(logo) { mutableStateOf(false) }
-    val logoUrl = logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(logo?.takeIf { it.isNotBlank() })
 
     BoxWithConstraints(
         modifier = modifier

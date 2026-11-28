@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.LocalDesktopSidebarContentInset
 import com.nuvio.app.core.ui.desktopPageHorizontalPaddingForWidth
 
@@ -140,9 +141,10 @@ fun DetailFloatingHeader(
                         .padding(horizontal = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (!meta.logo.isNullOrBlank() && !logoLoadError) {
+                    val titleLogo = titleLogoOrNull(meta.logo)
+                    if (!titleLogo.isNullOrBlank() && !logoLoadError) {
                         AsyncImage(
-                            model = meta.logo,
+                            model = titleLogo,
                             contentDescription = stringResource(Res.string.detail_logo_content_description, meta.name),
                             modifier = Modifier
                                 .width(logoWidth)

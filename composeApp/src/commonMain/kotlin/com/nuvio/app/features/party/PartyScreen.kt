@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.nuvioVerticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -526,7 +527,7 @@ private fun MediaHeader(media: PartyMedia, centered: Boolean = false) {
 private fun MediaTitle(media: PartyMedia, centered: Boolean) {
     val tokens = MaterialTheme.nuvio
     var logoFailed by remember(media.logo) { mutableStateOf(false) }
-    val logo = media.logo?.takeIf { it.isNotBlank() && !logoFailed }
+    val logo = titleLogoOrNull(media.logo?.takeIf { it.isNotBlank() && !logoFailed })
     val textAlign = if (centered) TextAlign.Center else TextAlign.Start
     Column(
         horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,

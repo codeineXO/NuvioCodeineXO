@@ -21,6 +21,12 @@ internal const val MinHoverPreviewTrailerStartSeconds = 0
 internal const val MaxHoverPreviewTrailerStartSeconds = 5
 internal const val HoverPreviewTrailerStartStepSeconds = 1
 
+/** Whether titles show as their logo artwork or as plain text. */
+enum class TitleDisplayMode {
+    Logo,
+    Text,
+}
+
 /** How animated GIF / WebP posters and episode thumbnails play on desktop. */
 enum class AnimatedArtworkMode {
     Always,
@@ -50,6 +56,7 @@ private data class StoredPosterCardStylePreferences(
     val hoverPreviewTrailerStartSeconds: Int = DefaultHoverPreviewTrailerStartSeconds,
     val alwaysShowLandscapeClearlogo: Boolean = false,
     val animatedArtworkMode: String = AnimatedArtworkMode.Always.name,
+    val titleDisplayMode: String = TitleDisplayMode.Logo.name,
 )
 
 data class PosterCardStyleUiState(
@@ -67,6 +74,7 @@ data class PosterCardStyleUiState(
     val hoverPreviewTrailerStartSeconds: Int = DefaultHoverPreviewTrailerStartSeconds,
     val alwaysShowLandscapeClearlogo: Boolean = false,
     val animatedArtworkMode: AnimatedArtworkMode = AnimatedArtworkMode.Always,
+    val titleDisplayMode: TitleDisplayMode = TitleDisplayMode.Logo,
 )
 
 object PosterCardStyleRepository {
@@ -194,6 +202,13 @@ object PosterCardStyleRepository {
         persist()
     }
 
+    fun setTitleDisplayMode(mode: TitleDisplayMode) {
+        ensureLoaded()
+        if (_uiState.value.titleDisplayMode == mode) return
+        _uiState.value = _uiState.value.copy(titleDisplayMode = mode)
+        persist()
+    }
+
     fun resetToDefaults() {
         ensureLoaded()
         val defaults = PosterCardStyleUiState(
@@ -203,6 +218,7 @@ object PosterCardStyleRepository {
             hoverPreviewTrailerSoundEnabled = _uiState.value.hoverPreviewTrailerSoundEnabled,
             hoverPreviewTrailerStartSeconds = _uiState.value.hoverPreviewTrailerStartSeconds,
             animatedArtworkMode = _uiState.value.animatedArtworkMode,
+            titleDisplayMode = _uiState.value.titleDisplayMode,
         )
         if (_uiState.value == defaults) return
         _uiState.value = defaults
@@ -247,6 +263,9 @@ object PosterCardStyleRepository {
                 animatedArtworkMode = AnimatedArtworkMode.entries
                     .firstOrNull { it.name == stored.animatedArtworkMode }
                     ?: AnimatedArtworkMode.Always,
+                titleDisplayMode = TitleDisplayMode.entries
+                    .firstOrNull { it.name == stored.titleDisplayMode }
+                    ?: TitleDisplayMode.Logo,
             )
         } else {
             PosterCardStyleUiState()
@@ -271,6 +290,7 @@ object PosterCardStyleRepository {
                     hoverPreviewTrailerStartSeconds = _uiState.value.hoverPreviewTrailerStartSeconds,
                     alwaysShowLandscapeClearlogo = _uiState.value.alwaysShowLandscapeClearlogo,
                     animatedArtworkMode = _uiState.value.animatedArtworkMode.name,
+                    titleDisplayMode = _uiState.value.titleDisplayMode.name,
                 ),
             ),
         )

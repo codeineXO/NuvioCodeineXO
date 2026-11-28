@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.NuvioDropdownOption
 import com.nuvio.app.core.ui.PosterCardStyleRepository
+import com.nuvio.app.core.ui.TitleDisplayMode
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.home.AppInterface
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -69,6 +71,8 @@ internal fun AppearanceSection(isTablet: Boolean) {
             )
             SettingsGroupDivider(isTablet = isTablet)
             AuraCustomizationRow(isTablet = isTablet)
+            SettingsGroupDivider(isTablet = isTablet)
+            TitleDisplaySettingsRow(selected = posterCardStyle.titleDisplayMode, isTablet = isTablet)
             if (isDesktop) {
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
@@ -81,6 +85,30 @@ internal fun AppearanceSection(isTablet: Boolean) {
             }
         }
     }
+}
+
+@Composable
+private fun TitleDisplaySettingsRow(selected: TitleDisplayMode, isTablet: Boolean) {
+    val logoLabel = stringResource(Res.string.xo_title_display_logo)
+    val textLabel = stringResource(Res.string.xo_title_display_text)
+    val options = remember(logoLabel, textLabel) {
+        listOf(
+            NuvioDropdownOption(TitleDisplayMode.Logo.name, logoLabel),
+            NuvioDropdownOption(TitleDisplayMode.Text.name, textLabel),
+        )
+    }
+    SettingsDropdownRow(
+        title = stringResource(Res.string.xo_title_display_title),
+        description = stringResource(Res.string.xo_title_display_description),
+        selectedKey = selected.name,
+        selectedLabel = if (selected == TitleDisplayMode.Logo) logoLabel else textLabel,
+        options = options,
+        isTablet = isTablet,
+        onSelected = { option ->
+            TitleDisplayMode.entries.firstOrNull { it.name == option.key }
+                ?.let(PosterCardStyleRepository::setTitleDisplayMode)
+        },
+    )
 }
 
 @Composable

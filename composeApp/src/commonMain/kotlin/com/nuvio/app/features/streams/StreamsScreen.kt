@@ -1,5 +1,6 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.AppPopup
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -871,7 +872,7 @@ private fun MovieHeroBlock(
     modifier: Modifier = Modifier,
 ) {
     var logoLoadError by remember(logo) { mutableStateOf(false) }
-    val logoUrl = logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(logo?.takeIf { it.isNotBlank() })
 
     Box(
         modifier = modifier

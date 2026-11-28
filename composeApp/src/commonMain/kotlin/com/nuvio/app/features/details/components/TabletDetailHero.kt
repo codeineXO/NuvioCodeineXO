@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.navigationGlassSource
 
@@ -295,7 +296,7 @@ fun TabletDetailHero(
         label = "tablet_detail_hero_controls_alpha",
     )
     var logoLoadError by remember(meta.id, meta.logo) { mutableStateOf(false) }
-    val logoUrl = meta.logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(meta.logo?.takeIf { it.isNotBlank() })
 
     Box(
         modifier = Modifier

@@ -1,5 +1,6 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.LocalSurfaceStyle
 import com.nuvio.app.core.ui.DarkGlassSurfaceColor
 import com.nuvio.app.core.ui.DarkGlassPanelContent
@@ -595,7 +596,7 @@ private fun TabletMovieInfoPanel(
     modifier: Modifier = Modifier,
 ) {
     var logoLoadError by remember(logo) { mutableStateOf(false) }
-    val logoUrl = logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(logo?.takeIf { it.isNotBlank() })
 
     InfoPanelColumn(modifier) {
         if (logoUrl != null && !logoLoadError) {
@@ -627,7 +628,7 @@ private fun TabletEpisodeInfoPanel(
     modifier: Modifier = Modifier,
 ) {
     var logoLoadError by remember(logo) { mutableStateOf(false) }
-    val logoUrl = logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(logo?.takeIf { it.isNotBlank() })
 
     InfoPanelColumn(modifier) {
         if (logoUrl != null && !logoLoadError) {

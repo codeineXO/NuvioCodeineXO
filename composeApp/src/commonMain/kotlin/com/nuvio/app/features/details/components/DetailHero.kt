@@ -2,6 +2,7 @@ package com.nuvio.app.features.details.components
 
 import androidx.compose.foundation.Image
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.remoteNavigationTarget
 import com.nuvio.app.core.ui.navigationGlassSource
 
@@ -114,7 +115,8 @@ fun DetailHero(
         var logoLoadError by remember(meta.id, meta.logo) {
             mutableStateOf(false)
         }
-        val logoUrl = meta.logo?.takeIf { it.isNotBlank() }
+        val logoUrl = titleLogoOrNull(meta.logo?.takeIf { it.isNotBlank() })
+        val logoPlaceholder = titleLogoOrNull(logoPlaceholder)
 
         val heroBaseHeightPx = with(LocalDensity.current) { heroHeight.roundToPx() }
         LaunchedEffect(heroBaseHeightPx) { onHeightChanged(heroBaseHeightPx) }

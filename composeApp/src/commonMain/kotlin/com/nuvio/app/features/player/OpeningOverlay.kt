@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.Image
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.collectMappedAsState
 import com.nuvio.app.core.ui.LocalNuvioPlatformDensity
 import androidx.compose.ui.unit.TextUnit
@@ -127,7 +128,7 @@ private fun OpeningOverlayContent(
         label = "openingOverlayContentAlpha",
     )
     var logoLoadError by remember(logo) { mutableStateOf(false) }
-    val logoUrl = logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(logo?.takeIf { it.isNotBlank() })
 
     BoxWithConstraints(
         modifier = modifier

@@ -32,6 +32,7 @@ internal val CodeineXOSection.searchRows: List<CodeineXOSearchRow>
             row("xo-surface-style", Res.string.settings_surface_style),
             row("xo-aura", Res.string.xo_aura_title, Res.string.xo_aura_description),
             row("xo-aura-customize", Res.string.aura_customize),
+            row("xo-title-display", Res.string.xo_title_display_title, Res.string.xo_title_display_description),
             row("xo-poster-glow", Res.string.settings_poster_glow, Res.string.settings_poster_glow_description, desktopOnly),
         )
         CodeineXOSection.Navigation -> listOf(

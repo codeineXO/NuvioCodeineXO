@@ -1,4 +1,5 @@
 package com.nuvio.app.features.home.components
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.navigationMotionDuration
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -391,7 +392,7 @@ private fun HomePosterPreviewCard(
     val previewBackground = tokens.colors.background
     val clickInteractionSource = remember { MutableInteractionSource() }
     var logoLoadError by remember(item.type, item.id, item.logo) { mutableStateOf(false) }
-    val logoUrl = item.logo?.takeIf { it.isNotBlank() && !logoLoadError }
+    val logoUrl = titleLogoOrNull(item.logo?.takeIf { it.isNotBlank() && !logoLoadError })
     val artworkUrl = listOf(item.banner, item.landscapePoster, item.poster)
         .firstOrNull { !it.isNullOrBlank() }
     val glow = rememberArtworkGlowState(artworkUrl)

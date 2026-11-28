@@ -1,5 +1,6 @@
 package com.nuvio.app.features.details.components
 
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.remoteNavigationTarget
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -272,7 +273,8 @@ fun DesktopDetailHero(
         label = "desktop_detail_hero_controls_alpha",
     )
     var logoLoadError by remember(meta.id, meta.logo) { mutableStateOf(false) }
-    val logoUrl = meta.logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(meta.logo?.takeIf { it.isNotBlank() })
+    val logoPlaceholder = titleLogoOrNull(logoPlaceholder)
 
     BoxWithConstraints(
         modifier = modifier

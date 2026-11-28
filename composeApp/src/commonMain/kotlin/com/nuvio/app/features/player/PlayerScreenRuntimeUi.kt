@@ -27,6 +27,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.NuvioToastController
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -598,7 +599,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         providerName = activeProviderName,
         pauseOverlayEnabled = playerSettingsUiState.pauseOverlayEnabled,
         pauseOverlayWatchingLabel = stringResource(Res.string.compose_player_youre_watching),
-        pauseOverlayLogo = logo,
+        pauseOverlayLogo = titleLogoOrNull(logo),
         pauseOverlayEpisodeInfo = if (seasonNumber != null && episodeNumber != null) {
             stringResource(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
         } else {
@@ -817,7 +818,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         badges = playerBadges,
         showOpeningOverlay = openingOverlayWanted,
         openingArtwork = background ?: poster,
-        openingLogo = logo,
+        openingLogo = titleLogoOrNull(logo),
         openingTitle = title,
         openingMessage = if (playerSettingsUiState.showPlayerLoadingStatus) {
             initialLoadingMessage ?: playerLoadingStatusMessage(

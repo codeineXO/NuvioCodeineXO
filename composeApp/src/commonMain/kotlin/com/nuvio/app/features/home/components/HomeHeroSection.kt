@@ -1,4 +1,6 @@
 package com.nuvio.app.features.home.components
+import com.nuvio.app.core.ui.rememberTitleLogosEnabled
+import com.nuvio.app.core.ui.titleLogoOrNull
 import com.nuvio.app.core.ui.navigationMotionDuration
 
 import com.nuvio.app.core.ui.remoteNavigationTarget
@@ -388,6 +390,7 @@ private fun HeroLogoPrefetch(
     content: @Composable (logoUrl: String) -> Unit,
 ) {
     val page = heroPreloadPage(pagerState, items.size)?.takeIf { it !in layerPages } ?: return
+    if (!rememberTitleLogosEnabled()) return
     val logoUrl = items[page % items.size].logo?.takeIf { it.isNotBlank() } ?: return
     key(logoUrl) {
         Box(Modifier.fillMaxWidth().graphicsLayer { alpha = 0f }) { content(logoUrl) }
@@ -985,7 +988,7 @@ private fun HeroContentBlock(
     var logoLoadError by remember(item.type, item.id, item.logo) {
         mutableStateOf(false)
     }
-    val logoUrl = item.logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(item.logo?.takeIf { it.isNotBlank() })
 
     Column(
         modifier = Modifier
@@ -1053,10 +1056,11 @@ private fun DesktopHeroContentBlock(
     showDescription: Boolean = true,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val persistentLogo = titleLogoOrNull(persistentLogo)
     var logoLoadError by remember(item.type, item.id, item.logo) {
         mutableStateOf(false)
     }
-    val logoUrl = item.logo?.takeIf { it.isNotBlank() }
+    val logoUrl = titleLogoOrNull(item.logo?.takeIf { it.isNotBlank() })
 
     Column(
         modifier = Modifier

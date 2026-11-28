@@ -43,6 +43,10 @@
     <!-- Rows -->
     <string name="xo_aura_title">Aurora Backdrop</string>
     <string name="xo_aura_description">Gentle gradient light as app backdrop</string>
+    <string name="xo_title_display_title">Title Display</string>
+    <string name="xo_title_display_description">Show titles as their logo artwork or as plain text</string>
+    <string name="xo_title_display_logo">Logo</string>
+    <string name="xo_title_display_text">Text</string>
     <string name="xo_eye_filter_title">Enable Eye Filter</string>
     <string name="xo_eye_filter_description">Reduce eye strain with a night light or screen dimmer overlay</string>
     <string name="xo_eye_filter_color">Eye Filter Color</string>

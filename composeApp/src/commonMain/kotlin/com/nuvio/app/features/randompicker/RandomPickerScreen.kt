@@ -45,6 +45,7 @@ import coil3.compose.LocalPlatformContext
 import coil3.Extras
 import coil3.request.ImageRequest
 import kotlinx.coroutines.delay
+import com.nuvio.app.core.ui.rememberTitleLogosEnabled
 import com.nuvio.app.core.ui.*
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
@@ -570,7 +571,8 @@ private fun PickerHeroInfo(result: PickerResult) {
         MetaScreenSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     val externalRatings = meta.externalRatings.takeIf { ratingSettings.isActive }.orEmpty()
-    val logoModel = meta.logo?.takeIf { it.isNotBlank() }
+    val titleLogosEnabled = rememberTitleLogosEnabled()
+    val logoModel = meta.logo?.takeIf { titleLogosEnabled && it.isNotBlank() }
     var logoFailed by remember(logoModel) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when {
@@ -578,7 +580,7 @@ private fun PickerHeroInfo(result: PickerResult) {
                 logoModel, meta.name, Modifier.widthIn(max = 300.dp).fillMaxWidth().height(72.dp),
                 contentScale = ContentScale.Fit, alignment = Alignment.CenterStart, onFailed = { logoFailed = true },
             )
-            result.logoLookupPending -> Spacer(Modifier.height(72.dp))
+            titleLogosEnabled && result.logoLookupPending -> Spacer(Modifier.height(72.dp))
             else -> Text(meta.name, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
         }
         val kind = when {
