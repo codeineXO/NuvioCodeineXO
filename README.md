@@ -3,7 +3,7 @@
   <h1>NuvioCodeineXO Desktop</h1>
   
   <p>
-    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling with dual subtitles, mobile remote, keyboard navigation, watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback .
+    An enhanced edition of Nuvio Desktop with Anime4K shaders, 60 FPS smooth motion interpolation, anime filler markers, seek preview, deep subtitle styling with dual subtitles, mobile remote, keyboard navigation, in app stream filters, watch party feature, minimal player UI, better discord rpc, UI optimizations, better navigation layout, faster and smoother playback.
   </p>
 
   <a href="https://github.com/codeineXO/NuvioCodeineXO/releases/latest">
