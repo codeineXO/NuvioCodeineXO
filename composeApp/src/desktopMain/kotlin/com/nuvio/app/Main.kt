@@ -200,7 +200,6 @@ fun main(args: Array<String>) {
             }
 
             LaunchedEffect(window) {
-                window.isVisible = true
                 applyNativeDesktopWindowChrome(window)
                 installLinuxExtendedMouseButtons()
                 com.nuvio.app.controller.DesktopGamepadRemoteBridge.start()
