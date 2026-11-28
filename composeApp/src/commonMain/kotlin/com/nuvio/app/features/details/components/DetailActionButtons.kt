@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -255,7 +256,7 @@ fun DetailActionButtons(
                                             },
                                     )
                                     .clip(CircleShape)
-                                    .navigationGlassFeedback(actionInteractionSource, CircleShape, selected = action.isActive)
+                                    .navigationGlassFeedback(actionInteractionSource, CircleShape)
                                     .hoverable(actionInteractionSource)
                                     .combinedClickable(
                                             interactionSource = actionInteractionSource,
@@ -274,8 +275,8 @@ fun DetailActionButtons(
                                         )
                                     .secondaryClick(action.onLongClick),
                                 shape = CircleShape,
-                                color = Color.White,
-                                contentColor = if (action.isActive) MaterialTheme.nuvio.colors.accent else Color.Black,
+                                color = detailActionContainerColor(action.isActive),
+                                contentColor = detailActionContentColor(action.isActive),
                             ) {
                                 Box(
                                     modifier = Modifier.size(iconButtonSize),
@@ -459,7 +460,7 @@ internal fun DetailIconAction(
             )
             .clip(CircleShape)
                 .then(if (glassMenuItem) {
-                    Modifier.navigationGlassFeedback(interactionSource, CircleShape, selected = active)
+                    Modifier.navigationGlassFeedback(interactionSource, CircleShape)
                         .hoverable(interactionSource)
                 } else Modifier)
             .combinedClickable(
@@ -471,8 +472,8 @@ internal fun DetailIconAction(
                 )
             .secondaryClick(onLongClick),
         shape = CircleShape,
-        color = Color.White,
-        contentColor = if (active) MaterialTheme.nuvio.colors.accent else Color.Black,
+        color = detailActionContainerColor(active),
+        contentColor = detailActionContentColor(active),
         tonalElevation = if (glassMenuItem) 0.dp else 6.dp,
     ) {
         Box(
@@ -487,4 +488,15 @@ internal fun DetailIconAction(
             )
         }
     }
+}
+
+/** Active actions invert to an accent fill so the icon stays legible regardless of theme accent. */
+@Composable
+private fun detailActionContainerColor(active: Boolean): Color =
+    if (active) MaterialTheme.nuvio.colors.accent else Color.White
+
+@Composable
+private fun detailActionContentColor(active: Boolean): Color {
+    if (!active) return Color.Black
+    return if (MaterialTheme.nuvio.colors.accent.luminance() > 0.5f) Color.Black else Color.White
 }
