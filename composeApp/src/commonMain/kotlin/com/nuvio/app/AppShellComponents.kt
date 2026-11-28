@@ -34,11 +34,9 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -919,12 +917,8 @@ internal fun DesktopHoverSidebar(
 
                     AnimatedVisibility(
                         visible = canNavigateBack,
-                        enter = fadeIn(animationSpec = tween(160)) + expandVertically(
-                            animationSpec = tween(200, easing = FastOutSlowInEasing),
-                        ),
-                        exit = fadeOut(animationSpec = tween(120)) + shrinkVertically(
-                            animationSpec = tween(200, easing = FastOutSlowInEasing),
-                        ),
+                        enter = fadeIn(animationSpec = tween(160)),
+                        exit = fadeOut(animationSpec = tween(120)),
                     ) {
                         DesktopSidebarItem(
                             label = stringResource(Res.string.action_back),
