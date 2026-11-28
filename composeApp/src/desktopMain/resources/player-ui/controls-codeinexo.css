@@ -1562,8 +1562,8 @@
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-source-chip {
-  background: rgba(255, 255, 255, .22);
-  color: #fff;
+  background: color-mix(in srgb, var(--theme-on-accent, #fff) 18%, transparent);
+  color: var(--theme-on-accent, #fff);
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-format-chip {
@@ -1576,7 +1576,7 @@
 }
 
 .player.ui-codeinexo #subtitleModal .subtitle-option-row.selected .subtitle-format-chip {
-  border-color: rgba(255, 255, 255, .6);
+  border-color: color-mix(in srgb, var(--theme-on-accent, #fff) 60%, transparent);
   background: transparent;
 }
 
@@ -2043,27 +2043,31 @@
 .player .playback-stats-overlay .stats-tabs {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  flex: 0 0 92px;
+  gap: 4px;
+  flex: 0 0 36px;
   overflow-y: auto;
 }
 
 .player .playback-stats-overlay .stats-tab {
-  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: rgba(255, 255, 255, .6);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-align: left;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow-wrap: normal;
-  word-break: normal;
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
+}
+
+.player .playback-stats-overlay .stats-tab svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  pointer-events: none;
 }
 
 .player .playback-stats-overlay .stats-tab:hover {
@@ -2088,8 +2092,16 @@
 }
 
 .player .playback-stats-overlay .stats-section:not(.is-active),
-.player .playback-stats-overlay .stats-section-header {
+.player .playback-stats-overlay .stats-section-header .stats-chevron {
   display: none;
+}
+
+/* Section title acts as a static header for the active tab */
+.player .playback-stats-overlay .stats-section-header {
+  padding: 6px 0 8px;
+  cursor: default;
+  pointer-events: none;
+  color: #fff;
 }
 
 .player .playback-stats-overlay .stats-section.is-active {
@@ -2122,8 +2134,24 @@
   display: none;
 }
 
+.player .playback-stats-overlay .stats-title-text {
+  font-size: 15px;
+}
+
+.player .playback-stats-overlay .stats-section-title {
+  font-size: 12.5px;
+}
+
+.player .playback-stats-overlay .stats-label {
+  font-size: 12px;
+}
+
 .player .playback-stats-overlay .stats-value {
-  font-size: 11.5px;
+  font-size: 13px;
+}
+
+.player .playback-stats-overlay .stats-svp-badge {
+  font-size: 10px;
 }
 
 /* Shortcut sheet: lives on <body>; always tagged .cx-sheet so both player UIs share the CodeineXO look */

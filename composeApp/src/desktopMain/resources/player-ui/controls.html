@@ -169,6 +169,12 @@
     <symbol id="icon-chevron-down" viewBox="0 0 24 24">
       <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" fill="currentColor"/>
     </symbol>
+    <symbol id="icon-videocam" viewBox="0 0 24 24">
+      <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-network" viewBox="0 0 24 24">
+      <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z" fill="currentColor"/>
+    </symbol>
     <symbol id="icon-eye" viewBox="0 0 24 24">
       <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
     </symbol>
@@ -274,19 +280,19 @@
             <svg class="stats-header-icon"><use href="#icon-info-circle"></use></svg>
             <span class="stats-title-text">Playback Statistics</span>
           </div>
-          <button class="stats-close-btn" id="playbackStatsCloseBtn" type="button" aria-label="Close statistics" title="Close statistics">
+          <button class="stats-close-btn" id="playbackStatsCloseBtn" type="button" aria-label="Close statistics">
             <svg><use href="#icon-close"></use></svg>
           </button>
         </div>
         <div class="stats-body">
         <nav class="stats-tabs" id="playbackStatsTabs" role="tablist" aria-orientation="vertical" aria-label="Statistics sections">
-          <button class="stats-tab is-active" type="button" role="tab" data-section="statsSectionVideo" aria-selected="true">Video</button>
-          <button class="stats-tab" type="button" role="tab" data-section="statsSectionEnhancements" aria-selected="false">Enhance</button>
-          <button class="stats-tab" type="button" role="tab" data-section="statsSectionMpv" aria-selected="false" hidden>mpv</button>
-          <button class="stats-tab" type="button" role="tab" data-section="statsSectionBuffer" aria-selected="false">Network</button>
-          <button class="stats-tab" type="button" role="tab" data-section="statsSectionAudio" aria-selected="false">Audio</button>
-          <button class="stats-tab" type="button" role="tab" data-section="statsSectionSubtitles" aria-selected="false">Subtitles</button>
-          <button class="stats-tab" type="button" role="tab" data-section="statsSectionSource" aria-selected="false">Source</button>
+          <button class="stats-tab is-active" type="button" role="tab" data-section="statsSectionVideo" aria-selected="true" aria-label="Video"><svg aria-hidden="true"><use href="#icon-videocam"></use></svg></button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionEnhancements" aria-selected="false" aria-label="Enhancements"><svg aria-hidden="true"><use href="#icon-sparkles"></use></svg></button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionMpv" aria-selected="false" aria-label="mpv" hidden><svg aria-hidden="true"><use href="#icon-build"></use></svg></button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionBuffer" aria-selected="false" aria-label="Network"><svg aria-hidden="true"><use href="#icon-network"></use></svg></button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionAudio" aria-selected="false" aria-label="Audio"><svg aria-hidden="true"><use href="#icon-audio"></use></svg></button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionSubtitles" aria-selected="false" aria-label="Subtitles"><svg aria-hidden="true"><use href="#icon-subs"></use></svg></button>
+          <button class="stats-tab" type="button" role="tab" data-section="statsSectionSource" aria-selected="false" aria-label="Source"><svg aria-hidden="true"><use href="#icon-source"></use></svg></button>
         </nav>
         <div class="stats-scroll-content" id="playbackStatsContent">
           <!-- Video Section -->

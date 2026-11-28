@@ -3704,8 +3704,8 @@ button:disabled {
 }
 
 .subtitle-option-row.selected .subtitle-source-chip {
-  border: 1px solid rgba(255, 255, 255, .22);
-  background: rgba(255, 255, 255, .14);
+  border: 1px solid color-mix(in srgb, var(--theme-on-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--theme-on-accent) 14%, transparent);
   color: color-mix(in srgb, var(--theme-on-accent) 90%, transparent);
 }
 
